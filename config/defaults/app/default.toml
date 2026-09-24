@@ -1,0 +1,86 @@
+# Controls log recording and advanced runtime tuning. These values are not
+# the app's ordinary UI preferences. After changing this file,
+# use Advanced settings > Apply settings and restart.
+[logs]
+# Save this level and all more severe levels. From least to most severe:
+# Trace, Information, Warning, Error, Critical. For example, "Warning" keeps
+# warnings and errors but discards new Trace and Information messages. Messages
+# discarded here cannot be recovered by changing the Log screen filter later.
+record_minimum_level = "Information"
+# Maximum number of saved Log screen entries (10000-500000). Once full, the
+# oldest excess entries are deleted, including unread warnings and errors.
+# Increase this if you need a longer history; the log database will grow.
+max_entries = 100000
+
+
+[runtime]
+# Maximum seconds a locked diagnostic database can delay a progress refresh.
+# A later refresh retries automatically. Higher values can make progress feel frozen.
+telemetry_read_timeout_seconds = 1
+
+# Missing backup character summaries are filled in the background. This many
+# attempts are allowed per refresh (1-128), including unreadable files. Completed summaries
+# are stored and do not need to be extracted again on the next app launch.
+character_metadata_batch_size = 8
+# After a full pass, wait this many seconds (10-3600) before checking for missing summaries
+# again. This prevents a damaged or unavailable pack from being read continuously.
+character_metadata_retry_seconds = 60
+# Refresh save lists, countdown data and logs every this many milliseconds (100-5000). Lower is
+# more responsive but reads the databases more often.
+projection_interval_ms = 1000
+# Maximum pages of technical events read per refresh (1-128). Larger values catch up after heavy
+# activity faster, but each refresh does more work.
+telemetry_pages_per_refresh = 8
+# Warn after an active worker has sent no heartbeat for this many seconds (10-300). Increase for
+# slow disks; a larger value also delays real stuck-worker warnings.
+telemetry_stale_seconds = 10
+# Allow a newly started worker this long to create its log database (500-30000 ms). This avoids
+# reporting a normal startup delay as an error.
+telemetry_read_grace_ms = 2000
+# Keep a completed successful operation card visible this many seconds (1-60). This does not
+# change backup timing.
+success_card_seconds = 5
+# Keep an unsuccessful operation card visible this many seconds (1-120). Its diagnostic log
+# remains available after the card disappears.
+failure_card_seconds = 10
+# Memory budget for cached save pictures, in MiB (16-512). Older pictures are evicted and can be
+# read again; no save or backup is deleted.
+thumbnail_cache_mib = 64
+# Maximum size of one thumbnail read into memory, in MiB (1-64). Larger pictures are omitted
+# from the screen, not from backups. The cache budget also applies.
+thumbnail_maximum_mib = 16
+# Stop waiting for an explicitly requested save-list refresh after this many seconds (5-120).
+# The regular state checker will still retry later.
+state_refresh_timeout_seconds = 30
+# Maximum attempts to obtain a busy game-state reader during a refresh (1-100). The overall
+# refresh timeout still applies.
+state_refresh_attempts = 20
+# Wait this many milliseconds between busy state-reader attempts (50-2000). Larger values reduce
+# contention but may delay refresh.
+state_refresh_retry_ms = 250
+# Number of retries after a scheduler process exits unexpectedly (0-10). 0 disables automatic
+# restart; the app reports the stopped scheduler.
+scheduler_restart_attempts = 3
+# Delay before the first scheduler restart (100-10000 ms). Each following retry doubles this
+# delay. A longer delay reduces repeated launches after a fault.
+scheduler_restart_base_ms = 1000
+# After a child with a window accepts a close request, wait this long before terminating it
+# (100-10000 ms). Headless workers do not wait for a window-close message.
+shutdown_grace_ms = 2000
+# Maximum pictures read at once (1-16). Lower values reduce disk pressure;
+# higher values can fill the picture list faster but use more memory and I/O.
+thumbnail_read_concurrency = 4
+# Refresh active operation cards every this many milliseconds (100-5000).
+# The key keeps its original name, but applies to backup, restore, import,
+# export and deletion. Idle refresh uses projection_interval_ms above.
+# Higher values reduce work but make progress updates less frequent.
+export_progress_interval_ms = 350
+# Wait this long before showing a loading indicator for save details (10-2000
+# ms). This avoids a flash for very quick reads; it does not delay the read.
+detail_progress_delay_ms = 120
+# Wait this long after the last settings edit before applying it (100-2000 ms).
+# This combines quick successive edits, reducing repeated settings writes.
+settings_debounce_ms = 450
+# Wait this long after the last log-filter edit before querying (50-2000 ms).
+# Larger values reduce repeated database queries but delay displayed results.
+log_filter_debounce_ms = 180

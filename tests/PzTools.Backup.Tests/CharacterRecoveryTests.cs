@@ -1,0 +1,341 @@
+using System.Buffers.Binary;
+using System.Text;
+using Microsoft.Data.Sqlite;
+using PzTools.Zomboid.Recovery;
+
+namespace PzTools.Backup.Tests;
+
+public sealed class CharacterRecoveryTests
+{
+    [Fact]
+    public void ZombieInventory_MovesOpaqueRecordsAndRemapsClothingWithoutChangingTraits()
+    {
+        var (player, layout) = EmptyPlayer();
+        var zombie = Zombie("Test");
+        var result = ZombieInventoryRecovery.Recover(player, layout, "Test", ZombieFile(zombie), Registry);
+        Assert.Equal(3, result.Items); // card, shirt and bag; no wound overlay
+        Assert.Equal(ZombieFile(), result.Zombies);
+        Assert.True(result.Player.AsSpan().IndexOf(BagPayload) >= 0);
+        Assert.True(result.Player.AsSpan().IndexOf(Sample.Create().TraitsAndXp) >= 0);
+        Assert.Equal(result.Player, PlayerHealthEditor.Heal(result.Player, 249, out var after));
+        Assert.Equal(new byte[] { 1, 0, 5, (byte)'T', (byte)'o', (byte)'r', (byte)'s', (byte)'o', 0, 1 },
+            result.Player[after.WornStart..after.WornEnd]);
+        Assert.All(result.Player[after.Hands..(after.Hands + 8)], b => Assert.Equal(255, b));
+    }
+
+    [Fact]
+    public void ZombieInventory_RejectsAmbiguityWrongIdentityMovedZombieAndTruncation()
+    {
+        var (player, layout) = EmptyPlayer();
+        var zombie = Zombie("Test");
+        Assert.Throws<InvalidDataException>(() => ZombieInventoryRecovery.Recover(player, layout, "Test",
+            ZombieFile(zombie, zombie), Registry));
+        Assert.Throws<InvalidDataException>(() => ZombieInventoryRecovery.Recover(player, layout, "Test",
+            ZombieFile(Zombie("Other Test")), Registry));
+        var moved = zombie.ToArray(); BinaryPrimitives.WriteSingleBigEndian(moved.AsSpan(10), 1);
+        Assert.Throws<InvalidDataException>(() => ZombieInventoryRecovery.Recover(player, layout, "Test", ZombieFile(moved), Registry));
+        var bytes = ZombieFile(zombie);
+        for (var length = 0; length < bytes.Length; length++)
+            Assert.Throws<InvalidDataException>(() => ZombieInventoryRecovery.Recover(player, layout, "Test", bytes[..length], Registry));
+        var result = ZombieInventoryRecovery.Recover(player, layout, "Test", ZombieFile(Zombie("Someone"), zombie), Registry);
+        Assert.Equal(ZombieFile(Zombie("Someone")), result.Zombies);
+    }
+
+    [Fact]
+    public async Task RealZombieSample_WhenProvided_RecoversOnlyInIsolatedCopy()
+    {
+        var path = Environment.GetEnvironmentVariable("PZTOOLS_RECOVERY_ZOMBIE_SAMPLE");
+        if (string.IsNullOrWhiteSpace(path)) return;
+        using var workspace = new RecoveryWorkspace();
+        var names = new[] { "players.db", "reanimated.bin", "WorldDictionary.bin" };
+        var originals = names.ToDictionary(n => n, n => File.ReadAllBytes(Path.Combine(path, n)));
+        foreach (var n in names) File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(workspace.Database)!, n), originals[n]);
+        var result = await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
+        Assert.True(result.Resurrected);
+        Assert.Equal(7, result.RecoveredItems);
+        Assert.Equal(ZombieFile(), File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(workspace.Database)!, "reanimated.bin")));
+        var again = await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
+        Assert.False(again.Resurrected); Assert.Equal(0, again.RecoveredItems);
+        Assert.Equal(3, Directory.GetFiles(workspace.Root, "*", SearchOption.AllDirectories).Length);
+        Assert.Empty(Directory.GetDirectories(Path.Combine(workspace.Root, "Sandbox"), ".*"));
+        foreach (var n in names) Assert.Equal(originals[n], File.ReadAllBytes(Path.Combine(path, n)));
+    }
+
+    private static readonly IReadOnlyDictionary<int, string> Registry = new Dictionary<int, string>
+    { [1] = "Base.IDcard", [2] = "Base.Shirt", [3] = "Base.Wound_Neck_Bite_Female", [4] = "Base.Bag" };
+    private static readonly byte[] BagPayload = [0, 4, 255, 0, 0, 0, 44, 0, 99, 98, 97, 96, 95];
+
+    private static (byte[] Player, InventoryLayout Layout) EmptyPlayer()
+    {
+        var player = PlayerHealthEditor.Heal(Sample.Create().Bytes, 249, out var layout);
+        var w = new BigEndianWriter(); w.String("none"); w.Byte(0); w.Short(0); w.Zeros(5);
+        player = [.. player.AsSpan(0, layout.Start), .. w.ToArray(), .. player.AsSpan(layout.End)];
+        player = PlayerHealthEditor.Heal(player, 249, out layout);
+        return (player, layout);
+    }
+
+    private static byte[] Zombie(string name)
+    {
+        var w = new BigEndianWriter(); w.Byte(1); w.Byte(3); w.Zeros(24); w.Byte(0); w.Byte(0);
+        w.Byte(0); w.Zeros(3); w.Zeros(3); w.Byte(0); w.String(""); w.Byte(0);
+        w.String("inventoryfemale"); w.Byte(0); w.Short(4);
+        var card = new BigEndianWriter(); card.Short(1); card.Byte(255); card.Int(11); card.Byte(64);
+        card.Int(8); card.String("ID card: " + name);
+        foreach (var item in new[] { card.ToArray(), new byte[] { 0, 3, 255, 0, 0, 0, 33, 0 },
+            new byte[] { 0, 2, 255, 0, 0, 0, 22, 0 }, BagPayload })
+        { w.Int(1); w.Int(item.Length); w.Bytes(item); }
+        w.Zeros(5); w.Zeros(5 + 33); w.Int(0); w.Zeros(4); w.Int(0); w.Zeros(31);
+        w.Int(0); w.Int(0); w.Zeros(8); w.Int(0); w.Int(1); w.Zeros(8);
+        w.Byte(3); w.String("Wound"); w.Short(1); w.String("Wound"); w.Short(1);
+        w.String("Torso"); w.Short(2);
+        return w.ToArray();
+    }
+
+    private static byte[] ZombieFile(params byte[][] zombies)
+    {
+        var w = new BigEndianWriter(); w.Int(249); w.Int(zombies.Length);
+        foreach (var zombie in zombies) w.Bytes(zombie);
+        return w.ToArray();
+    }
+
+    [Fact]
+    public void Heal_PreservesTraitsProgressInventoryAndUnknownModData()
+    {
+        var sample = Sample.Create();
+        var original = sample.Bytes.ToArray();
+        var healed = PlayerHealthEditor.Heal(original, 249);
+        Assert.Equal(original, sample.Bytes);
+        Assert.True(healed.AsSpan(0, sample.Stats - 5).SequenceEqual(original.AsSpan(0, sample.Stats - 5)));
+        Assert.Equal(.43f, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(sample.Stats + 5 * 4)));
+        for (var i = 0; i < 24; i++)
+        {
+            if (i == 5) continue;
+            Assert.Equal(i switch { 3 or 10 or 15 => 1f, 18 => 37f, _ => 0f },
+                BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(sample.Stats + i * 4)));
+        }
+        // Locate the intact trait/XP record, exercise regularity and nutrition by exact bytes.
+        Assert.True(healed.AsSpan().IndexOf(sample.TraitsAndXp) >= 0);
+        Assert.True(healed.AsSpan().IndexOf(sample.Regularity) >= 0);
+        Assert.True(healed.AsSpan().IndexOf(sample.Nutrition) >= 0);
+        Assert.True(healed.AsSpan().IndexOf(Encoding.UTF8.GetBytes("pending-soreness")) < 0);
+        Assert.Equal(healed, PlayerHealthEditor.Heal(healed, 249));
+        var body = sample.Stats + 96;
+        for (var i = 0; i < 17; i++)
+        {
+            var part = healed.AsSpan(body + i * 93, 93).ToArray();
+            Assert.Equal(100, BinaryPrimitives.ReadSingleBigEndian(part.AsSpan(8)));
+            Assert.Equal(1, part[42]); Assert.Equal(1, part[48]); Assert.Equal(1, part[49]);
+            part.AsSpan(8, 4).Clear(); part[42] = part[48] = part[49] = 0;
+            Assert.All(part, value => Assert.Equal(0, value));
+        }
+        Assert.Equal(-1, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(body + 17 * 93 + 26)));
+        Assert.Equal(-1, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(body + 17 * 93 + 30)));
+        var thermal = body + 17 * 93 + 39;
+        Assert.Equal(37, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(thermal)));
+        Assert.Equal(1.5f, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(thermal + 8)));
+        for (var i = 0; i < 17; i++)
+        {
+            var node = thermal + 40 + i * 40;
+            Assert.Equal(i, BinaryPrimitives.ReadInt32BigEndian(healed.AsSpan(node)));
+            Assert.Equal(i == 6 ? 37 : 35, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(node + 4)));
+            Assert.Equal(12, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(node + 24))); // insulation preserved
+            Assert.Equal(0, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(node + 32))); // body wetness
+        }
+    }
+
+    [Fact]
+    public void UnsupportedMalformedAndTruncatedDataAreRejected()
+    {
+        var sample = Sample.Create().Bytes;
+        Assert.Throws<InvalidDataException>(() => PlayerHealthEditor.Heal(sample, 250));
+        for (var length = 0; length < sample.Length; length++)
+            Assert.Throws<InvalidDataException>(() => PlayerHealthEditor.Heal(sample[..length], 249));
+        Assert.Throws<InvalidDataException>(() => PlayerHealthEditor.Heal([.. sample, 0], 249));
+    }
+
+    [Fact]
+    public async Task Service_ResurrectsAtomicallyWithoutLeavingExtraCopies()
+    {
+        using var workspace = new RecoveryWorkspace();
+        var blob = Sample.Create().Bytes;
+        await workspace.CreateDatabase(blob);
+        var result = await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
+        Assert.True(result.Resurrected);
+        workspace.AssertNoExtraCopies();
+        await using var connection = new SqliteConnection($"Data Source={workspace.Database};Pooling=False");
+        await connection.OpenAsync();
+        var query = connection.CreateCommand();
+        query.CommandText = "SELECT isDead FROM localPlayers;";
+        Assert.Equal(0L, await query.ExecuteScalarAsync());
+        query.CommandText = "SELECT data FROM localPlayers;";
+        Assert.Equal(PlayerHealthEditor.Heal(blob, 249), (byte[])(await query.ExecuteScalarAsync())!);
+        Assert.Empty(Directory.GetDirectories(Path.GetDirectoryName(Path.GetDirectoryName(workspace.Database)!)!, ".*"));
+    }
+
+    [Theory]
+    [InlineData("playing")]
+    [InlineData("journal")]
+    [InlineData("unsupported")]
+    [InlineData("ambiguous")]
+    [InlineData("network-player")]
+    public async Task Service_FailureNeverChangesTheOriginal(string kind)
+    {
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes, kind == "unsupported" ? 250 : 249, kind == "ambiguous");
+        if (kind == "network-player")
+        {
+            await using var connection = new SqliteConnection($"Data Source={workspace.Database};Pooling=False");
+            await connection.OpenAsync();
+            var query = connection.CreateCommand();
+            query.CommandText = "CREATE TABLE networkPlayers(id INTEGER); INSERT INTO networkPlayers VALUES(1);";
+            await query.ExecuteNonQueryAsync();
+        }
+        var original = await File.ReadAllBytesAsync(workspace.Database);
+        if (kind == "journal") await File.WriteAllBytesAsync(workspace.Database + "-wal", [1]);
+        using (var handle = kind == "playing"
+            ? File.Open(workspace.Database, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite) : null)
+            await Assert.ThrowsAnyAsync<Exception>(() => new CharacterRecoveryService()
+                .RecoverAsync(workspace.Root, "Sandbox/Test"));
+        Assert.Equal(original, await File.ReadAllBytesAsync(workspace.Database));
+    }
+
+    [Fact]
+    public async Task PublishedWorker_WhenProvided_UsesTheProcessContract()
+    {
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR");
+        if (string.IsNullOrWhiteSpace(tools)) return;
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes);
+        var executable = Path.Combine(tools, "PzTools.Zomboid.Recovery.Cli.exe");
+        Assert.True(File.Exists(executable), executable);
+        var start = new System.Diagnostics.ProcessStartInfo(executable)
+        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var arg in new[] { "--saves-root", workspace.Root, "--save-id", "Sandbox/Test",
+            "--repository", Path.Combine(workspace.Root, "repository"),
+            "--run-index", "1", "--telemetry-identity", Path.Combine(workspace.Root, "telemetry") })
+            start.ArgumentList.Add(arg);
+        using var process = System.Diagnostics.Process.Start(start)!;
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+        var output = await outputTask;
+        Assert.True(process.ExitCode == 0, output + await errorTask);
+        Assert.Contains("character-recovery", output);
+        Assert.Single(Directory.GetFiles(workspace.Root, "players.db", SearchOption.AllDirectories));
+        Assert.DoesNotContain("BackupDirectory", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RealSaveSamples_WhenProvided_AreEditedOnlyInCopies()
+    {
+        var samples = Environment.GetEnvironmentVariable("PZTOOLS_RECOVERY_SAMPLES");
+        if (string.IsNullOrWhiteSpace(samples)) return;
+        foreach (var path in samples.Split(';'))
+        {
+            // Explicit read-only input. Test mutations are limited to the isolated temporary workspace.
+            await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = path, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ToString());
+            await connection.OpenAsync();
+            var query = connection.CreateCommand();
+            query.CommandText = "SELECT data,worldversion FROM localPlayers WHERE id=1;";
+            await using var reader = await query.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            var blob = (byte[])reader.GetValue(0);
+            var version = reader.GetInt64(1);
+            var healed = PlayerHealthEditor.Heal(blob, version);
+            Assert.Equal(healed, PlayerHealthEditor.Heal(healed, version));
+            using var workspace = new RecoveryWorkspace();
+            File.Copy(path, workspace.Database);
+            await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
+            workspace.AssertNoExtraCopies();
+        }
+    }
+
+    private sealed class RecoveryWorkspace : IDisposable
+    {
+        private readonly string directory = Path.Combine(Path.GetTempPath(), "pztools-recovery-test-" + Guid.NewGuid().ToString("N"));
+        public string Root => Path.Combine(directory, "Saves");
+        public string Database => Path.Combine(Root, "Sandbox", "Test", "players.db");
+        public void AssertNoExtraCopies() =>
+            Assert.Equal([Database], Directory.GetFiles(directory, "*", SearchOption.AllDirectories));
+        public RecoveryWorkspace() => Directory.CreateDirectory(Path.GetDirectoryName(Database)!);
+        public async Task CreateDatabase(byte[] blob, int version = 249, bool multiple = false)
+        {
+            await using var connection = new SqliteConnection($"Data Source={Database};Pooling=False");
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText = "CREATE TABLE localPlayers(id INTEGER PRIMARY KEY,name TEXT,worldversion INTEGER,data BLOB,isDead BOOLEAN); "
+                + "INSERT INTO localPlayers VALUES(1,'Test',$version,$data,1);";
+            command.Parameters.AddWithValue("$version", version); command.Parameters.AddWithValue("$data", blob);
+            await command.ExecuteNonQueryAsync();
+            if (multiple) { command.CommandText = "INSERT INTO localPlayers SELECT 2,name,worldversion,data,isDead FROM localPlayers;"; await command.ExecuteNonQueryAsync(); }
+        }
+        public void Dispose() => Directory.Delete(directory, true);
+    }
+
+    private sealed record Sample(byte[] Bytes, int Stats, byte[] TraitsAndXp, byte[] Regularity, byte[] Nutrition)
+    {
+        public static Sample Create()
+        {
+            var w = new BigEndianWriter();
+            w.Zeros(26); w.Byte(1); w.Int(1); // opaque Lua mod data
+            w.Byte(0); w.String("negative-mod-trait"); w.Byte(0); w.String("keep-me");
+            w.Byte(0); // no descriptor
+            w.Byte(0); w.Zeros(3); w.Zeros(3); w.Byte(0); w.String(""); w.Byte(0); // human visual
+            w.String("inventory"); w.Byte(0); w.Short(1); w.Int(1); w.Int(8); w.Double(123456.25); w.Zeros(5);
+            w.Byte(1); w.Float(8); var stats = w.Position;
+            for (var i = 0; i < 24; i++) w.Float(.43f);
+            for (var part = 0; part < 17; part++)
+            {
+                for (var i = 0; i < 8; i++) w.Byte(1);
+                w.Float(3); w.Float(20); w.Byte(1); w.Float(9);
+                for (var i = 0; i < 7; i++) w.Float(11);
+                w.Byte(1); w.Byte(1); w.Byte(1); w.Float(4); w.Byte(1); w.Byte(1); w.Float(9);
+                w.Byte(1); w.Float(3); w.Byte(1); w.Float(4); w.Byte(1); w.Float(10);
+                w.String("splint"); w.String("bandage"); for (var i = 0; i < 6; i++) w.Float(12);
+            }
+            w.Float(5); w.Byte(1); w.Float(6); w.Int(80); w.Byte(1);
+            for (var i = 0; i < 6; i++) w.Float(100);
+            w.Byte(1); for (var i = 0; i < 9; i++) w.Float(3);
+            w.Int(17); for (var i = 0; i < 17; i++) { w.Int(i); for (var n = 0; n < 9; n++) w.Float(12); }
+            var traitStart = w.Position;
+            w.Int(4); foreach (var trait in new[] { "Smoker", "Cowardly", "Underweight", "CustomNegative" }) w.String(trait);
+            w.Float(287.5f); w.Int(2); w.Int(3);
+            w.Int(1); w.String("Fitness"); w.Float(456.5f);
+            w.Int(1); w.String("Strength"); w.Int(7);
+            w.Int(1); w.String("Axe"); w.Float(1.25f); w.Byte(2); w.Byte(3);
+            var traitEnd = w.Position;
+            w.Zeros(8); w.Byte(1); for (var i = 0; i < 8; i++) w.Float(22);
+            w.Int(1); w.String("read-book"); w.Int(97); w.Float(11);
+            w.Int(1); w.String("learned-recipe"); w.Int(13); w.Float(100); w.Float(67); w.Float(89);
+            w.Zeros(14); w.Byte(1); w.Int(0); w.Int(0); w.Zeros(8); w.Int(2); w.Byte(5); w.Byte(9);
+            w.Double(77.125); w.Int(123); w.Byte(1); w.String("Torso"); w.Short(0); w.Short(0); w.Short(0); w.Int(1);
+            var nutrition = w.Position; foreach (var f in new[] { -1001f, 42f, 52f, 62f, 53.5f }) w.Float(f);
+            w.Byte(0); w.String("tag"); w.Zeros(12); w.String("display"); w.Zeros(4); w.Byte(0); w.Int(0);
+            w.Int(1); w.String("pending-soreness"); w.Float(42);
+            w.Int(1); w.String("pending-soreness"); w.Int(120);
+            var reg = w.Position; w.Int(1); w.String("preserved-regularity"); w.Float(63.25f); var regEnd = w.Position;
+            w.Int(1); w.String("pending-soreness");
+            w.Int(1); w.String("exercise-timestamp"); w.Zeros(8);
+            w.Short(1); w.Short(77); w.Short(1); w.String("media-line"); w.Byte(1); w.Int(1);
+            w.Int(2); w.Short('A'); w.Short('B'); w.Int(3); w.Double(51);
+            var bytes = w.ToArray();
+            return new(bytes, stats, bytes[traitStart..traitEnd], bytes[reg..regEnd], bytes[nutrition..(nutrition + 20)]);
+        }
+    }
+
+    private sealed class BigEndianWriter
+    {
+        private readonly MemoryStream stream = new();
+        public int Position => (int)stream.Position;
+        public void Byte(byte value) => stream.WriteByte(value);
+        public void Bytes(byte[] bytes) => stream.Write(bytes);
+        public void Zeros(int count) => stream.Write(new byte[count]);
+        public void Short(int value) { Span<byte> b = stackalloc byte[2]; BinaryPrimitives.WriteInt16BigEndian(b, (short)value); stream.Write(b); }
+        public void Int(int value) { Span<byte> b = stackalloc byte[4]; BinaryPrimitives.WriteInt32BigEndian(b, value); stream.Write(b); }
+        public void Float(float value) => Int(BitConverter.SingleToInt32Bits(value));
+        public void Double(double value) { Span<byte> b = stackalloc byte[8]; BinaryPrimitives.WriteDoubleBigEndian(b, value); stream.Write(b); }
+        public void String(string value) { var bytes = Encoding.UTF8.GetBytes(value); Short(bytes.Length); stream.Write(bytes); }
+        public byte[] ToArray() => stream.ToArray();
+    }
+}

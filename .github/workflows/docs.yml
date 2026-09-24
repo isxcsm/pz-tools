@@ -1,0 +1,17 @@
+name: Documentation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  readme-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check localized README coverage and links
+        shell: pwsh
+        run: ./scripts/test-readme-links.ps1

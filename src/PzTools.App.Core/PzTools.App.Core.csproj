@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PzTools.Backup.Storage\PzTools.Backup.Storage.csproj" />
+    <ProjectReference Include="..\PzTools.Backup.Engine\PzTools.Backup.Engine.csproj" />
+    <ProjectReference Include="..\PzTools.Process.Contracts\PzTools.Process.Contracts.csproj" />
+    <ProjectReference Include="..\PzTools.Process.Hosting\PzTools.Process.Hosting.csproj" />
+    <ProjectReference Include="..\PzTools.Projections\PzTools.Projections.csproj" />
+    <ProjectReference Include="..\PzTools.Scheduling\PzTools.Scheduling.csproj" />
+    <ProjectReference Include="..\PzTools.Zomboid.State\PzTools.Zomboid.State.csproj" />
+    <ProjectReference Include="..\PzTools.Zomboid.Backup\PzTools.Zomboid.Backup.csproj" />
+    <ProjectReference Include="..\PzTools.Zomboid.Archive\PzTools.Zomboid.Archive.csproj" />
+    <ProjectReference Include="..\PzTools.Control\PzTools.Control.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\config\defaults\**\default.toml"
+                      Link="EditableTemplates\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

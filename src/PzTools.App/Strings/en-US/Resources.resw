@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AppTitle" xml:space="preserve"><value>PZ Tools · Project Zomboid</value></data>
+  <data name="SavesNavigation.Content" xml:space="preserve"><value>Save manager</value></data>
+  <data name="Exporting.Text" xml:space="preserve"><value>Exporting</value></data>
+  <data name="BackingUp.Text" xml:space="preserve"><value>Backing up</value></data>
+  <data name="ImportArchive.Content" xml:space="preserve"><value>Import archive</value></data>
+  <data name="NoSaves.Text" xml:space="preserve"><value>No saves found</value></data>
+  <data name="LoadingSaves.Text" xml:space="preserve"><value>Loading saves…</value></data>
+  <data name="LoadingBackups.Text" xml:space="preserve"><value>Loading save details…</value></data>
+  <data name="SelectSave.Text" xml:space="preserve"><value>Select a save</value></data>
+  <data name="BackToList.Content" xml:space="preserve"><value>Back to list</value></data>
+  <data name="BackupRevisions.Text" xml:space="preserve"><value>Current save and backups</value></data>
+  <data name="CurrentSave" xml:space="preserve"><value>Current save</value></data>
+  <data name="CurrentSaveLocation" xml:space="preserve"><value>Save folder</value></data>
+  <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Copying current save</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>The current save cannot be exported while playing. Stop playing and try again.</value></data>
+  <data name="StopPlayingToRestore" xml:space="preserve"><value>Backups cannot be restored while playing. Stop playing and try again.</value></data>
+  <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>The save cannot be deleted while playing. Stop playing and try again.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>The character cannot be healed while playing. Stop playing and try again.</value></data>
+  <data name="NoBackups.Text" xml:space="preserve"><value>No backups yet</value></data>
+  <data name="ManualBackup.Content" xml:space="preserve"><value>Back up now</value></data>
+  <data name="Restore.Content" xml:space="preserve"><value>Restore</value></data>
+  <data name="ExportArchive.Content" xml:space="preserve"><value>Export archive</value></data>
+  <data name="SettingsTitle.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsSubtitle" xml:space="preserve"><value>Configure the app appearance and backup behavior.</value></data>
+  <data name="SettingsAutoSaveHint" xml:space="preserve"><value>Changes are saved automatically.</value></data>
+  <data name="SettingsSaving" xml:space="preserve"><value>Saving…</value></data>
+  <data name="SettingsSaved" xml:space="preserve"><value>Saved</value></data>
+  <data name="DisplaySettings.Header" xml:space="preserve"><value>Appearance</value></data>
+  <data name="DisplaySettings.Description" xml:space="preserve"><value>Choose the language, theme, and window closing behavior.</value></data>
+  <data name="LanguageSetting.Header" xml:space="preserve"><value>Language</value></data>
+  <data name="LanguageSetting.Description" xml:space="preserve"><value>Choose the app language. Missing translations use English.</value></data>
+  <data name="ThemeSetting.Header" xml:space="preserve"><value>Theme</value></data>
+  <data name="ThemeSetting.Description" xml:space="preserve"><value>Follow the system or choose a theme.</value></data>
+  <data name="SystemTraySetting.Header" xml:space="preserve"><value>System tray</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Keep the app running in the tray when you close its window.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>Restore window</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
+  <data name="ConfirmExitTitle" xml:space="preserve"><value>Exit PZ Tools?</value></data>
+  <data name="ConfirmExitBody" xml:space="preserve"><value>Automatic backups will stop, and any operation in progress may be interrupted.</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>Paths</value></data>
+  <data name="PathSettings.Description" xml:space="preserve"><value>Choose where save and backup files are stored.</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Save directory</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Backup directory</value></data>
+  <data name="Browse.Content" xml:space="preserve"><value>Browse</value></data>
+  <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Backup</value></data>
+  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Set to 0 minutes to disable automatic backup.</value></data>
+  <data name="IntervalSetting.Header" xml:space="preserve"><value>Backup interval</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 minutes</value></data>
+  <data name="RetentionSetting.Header" xml:space="preserve"><value>Automatic backup retention</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Keep the latest 1–100 automatic backups. This limit does not delete manual backups.</value></data>
+  <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Back up when the character dies</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verify backup copies</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Check copied files with a hash and retry if they change.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save file changed repeatedly while being copied. The next backup will try again.</value></data>
+  <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Next backup: waiting</value></data>
+  <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
+  <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
+  <data name="ThemeSystem.Content" xml:space="preserve"><value>System</value></data>
+  <data name="ThemeLight.Content" xml:space="preserve"><value>Light</value></data>
+  <data name="ThemeDark.Content" xml:space="preserve"><value>Dark</value></data>
+  <data name="HostNotReady" xml:space="preserve"><value>The app is not ready yet. Please try again shortly.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>The window has not been created yet.</value></data>
+  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Automatic backups could not be started.</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>Live save unavailable</value></data>
+  <data name="GameModeFormat" xml:space="preserve"><value>Game mode: {0}</value></data>
+  <data name="DetailGameModeLabel" xml:space="preserve"><value>Game mode</value></data>
+  <data name="VersionCharacterFormat" xml:space="preserve"><value>Character: {0}</value></data>
+  <data name="VersionSurvivalFormat" xml:space="preserve"><value>Survival time: {0}</value></data>
+  <data name="VersionSurvivalLabel" xml:space="preserve"><value>Survival time:</value></data>
+  <data name="SurvivalDaysHoursFormat" xml:space="preserve"><value>{0}d {1}h</value></data>
+  <data name="SurvivalHoursMinutesFormat" xml:space="preserve"><value>{0}h {1}m</value></data>
+  <data name="CharacterNameUnknown" xml:space="preserve"><value>Name unavailable</value></data>
+  <data name="SurvivalTimeUnknown" xml:space="preserve"><value>unavailable</value></data>
+  <data name="InspectingArchive" xml:space="preserve"><value>Checking archive details…</value></data>
+  <data name="CharacterAlive" xml:space="preserve"><value>Alive</value></data>
+  <data name="CharacterUnknown" xml:space="preserve"><value>Character status unavailable</value></data>
+  <data name="PlayStateUnknown" xml:space="preserve"><value>Play status unavailable</value></data>
+  <data name="DetailCombinedStatusFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="LastPlayedFormat" xml:space="preserve"><value>Last played: {0}</value></data>
+  <data name="LastPlayedUnknown" xml:space="preserve"><value>Last played: unknown</value></data>
+  <data name="BackupOnly" xml:space="preserve"><value>Available only in backups</value></data>
+  <data name="CurrentlyPlaying" xml:space="preserve"><value>Currently playing</value></data>
+  <data name="CharacterDead" xml:space="preserve"><value>Dead</value></data>
+  <data name="NotPlaying" xml:space="preserve"><value>Not playing</value></data>
+  <data name="Importing" xml:space="preserve"><value>Importing</value></data>
+  <data name="Restoring" xml:space="preserve"><value>Restoring</value></data>
+  <data name="ExportingDynamic" xml:space="preserve"><value>Exporting</value></data>
+  <data name="TelemetryProgressUnavailable" xml:space="preserve"><value>Progress information is unavailable.</value></data>
+  <data name="OperationProgressFormat" xml:space="preserve"><value>{0} · {3:N0}% · {1:N0}/{2:N0}</value></data>
+  <data name="OperationCopyProgressFormat" xml:space="preserve"><value>{0} · {3:N0}% · {1:N1}/{2:N1} MB</value></data>
+  <data name="BackupScanPhase" xml:space="preserve"><value>Checking save files</value></data>
+  <data name="BackupHashPhase" xml:space="preserve"><value>Checking file contents for changes</value></data>
+  <data name="LogPhase.hash" xml:space="preserve"><value>Compare file contents</value></data>
+  <data name="BackupCopyPhase" xml:space="preserve"><value>Copying save files</value></data>
+  <data name="BackupCopyRetryPhase" xml:space="preserve"><value>File changed · copying again</value></data>
+  <data name="BackupCapturePhase" xml:space="preserve"><value>Backing up save files</value></data>
+  <data name="ArchiveRestorePhase" xml:space="preserve"><value>Restoring to temporary folder</value></data>
+  <data name="ArchiveCompressPhase" xml:space="preserve"><value>Compressing</value></data>
+  <data name="ArchiveFinalizePhase" xml:space="preserve"><value>Finalizing</value></data>
+  <data name="Processing" xml:space="preserve"><value>Processing</value></data>
+  <data name="ProcessingNow" xml:space="preserve"><value>Processing</value></data>
+  <data name="AutomaticBackupOff" xml:space="preserve"><value>Automatic backup is off</value></data>
+  <data name="NextBackupWaitingDynamic" xml:space="preserve"><value>Next backup: waiting</value></data>
+  <data name="NextBackupFormat" xml:space="preserve"><value>Next backup: {0}&#xA;Time remaining: {1}</value></data>
+  <data name="ArchiveInspectionFormat" xml:space="preserve"><value>Game mode: {0}&#xA;Save name: {1}&#xA;Last played: {2}</value></data>
+  <data name="Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="ConfirmImportTitle" xml:space="preserve"><value>Import this save?</value></data>
+  <data name="Import" xml:space="preserve"><value>Import</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="ImportArchiveTitle" xml:space="preserve"><value>Import archive</value></data>
+  <data name="InvalidArchiveFormat" xml:space="preserve"><value>This backup archive cannot be imported. Check that the file is not damaged.</value></data>
+  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>This archive has an unusually high compression ratio and cannot be imported safely.</value></data>
+  <data name="ManualBackupTitle" xml:space="preserve"><value>Manual backup</value></data>
+  <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restore the selected backup?</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Replace the current files for ‘{0}’ with ‘{1}’. If replacement fails, the existing files will be restored automatically.</value></data>
+  <data name="RestoreAction" xml:space="preserve"><value>Restore</value></data>
+  <data name="RestoreTitle" xml:space="preserve"><value>Restore</value></data>
+  <data name="ArchiveFileType" xml:space="preserve"><value>PzTools save backup</value></data>
+  <data name="ExportArchiveTitle" xml:space="preserve"><value>Export archive</value></data>
+  <data name="OperationSucceeded" xml:space="preserve"><value>Completed.</value></data>
+  <data name="OperationNoChange" xml:space="preserve"><value>No files changed.</value></data>
+  <data name="OperationBusy" xml:space="preserve"><value>Skipped because another operation is running.</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>The operation failed.</value></data>
+  <data name="NoPlayHistory" xml:space="preserve"><value>No play history</value></data>
+  <data name="RevisionFormat" xml:space="preserve"><value>Backup {0:N0}</value></data>
+  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Next-backup information is unavailable.</value></data>
+  <data name="ProjectorStatusTitle" xml:space="preserve"><value>Some information could not be refreshed</value></data>
+  <data name="ProjectorStatusMessage" xml:space="preserve"><value>Information not updating: {0}</value></data>
+  <data name="ProjectorArea.State" xml:space="preserve"><value>Save status</value></data>
+  <data name="ProjectorArea.Backup" xml:space="preserve"><value>Backup list</value></data>
+  <data name="ProjectorArea.Schedule" xml:space="preserve"><value>Next backup</value></data>
+  <data name="ProjectorArea.Details" xml:space="preserve"><value>Save details</value></data>
+  <data name="ProjectorArea.Logs" xml:space="preserve"><value>Activity and logs</value></data>
+  <data name="ProjectorArea.Other" xml:space="preserve"><value>Screen information</value></data>
+  <data name="OperationCancelled" xml:space="preserve"><value>The operation was cancelled.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>The operation finished, but some cleanup is still required.</value></data>
+  <data name="LogsNavigation.Content" xml:space="preserve"><value>Logs</value></data>
+  <data name="LogSettings.Header" xml:space="preserve"><value>Logs</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>Minimum severity</value></data>
+  <data name="LogLevelSetting.Description" xml:space="preserve"><value>Show events at or above the selected level.</value></data>
+  <data name="LogLimitSetting.Header" xml:space="preserve"><value>Recent log count</value></data>
+  <data name="LogLimitSetting.Description" xml:space="preserve"><value>Number of recent events shown in the log view.</value></data>
+  <data name="LogLevel.Trace" xml:space="preserve"><value>Trace</value></data>
+  <data name="LogLevel.Information" xml:space="preserve"><value>Information</value></data>
+  <data name="LogLevel.Warning" xml:space="preserve"><value>Warning</value></data>
+  <data name="LogLevel.Error" xml:space="preserve"><value>Error</value></data>
+  <data name="LogLevel.Critical" xml:space="preserve"><value>Critical</value></data>
+  <data name="LogLevelAtOrAboveFormat" xml:space="preserve"><value>{0} or higher</value></data>
+  <data name="LogsTitle" xml:space="preserve"><value>Logs</value></data>
+  <data name="LogsSubtitle" xml:space="preserve"><value>Backup and game-status history.</value></data>
+  <data name="LogSeverityFilter" xml:space="preserve"><value>Severity</value></data>
+  <data name="LogComponentFilter" xml:space="preserve"><value>Activity</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>Run index</value></data>
+  <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>e.g. 42</value></data>
+  <data name="All" xml:space="preserve"><value>All</value></data>
+  <data name="NoLogs" xml:space="preserve"><value>There are no logs to display.</value></data>
+  <data name="AcknowledgeLog" xml:space="preserve"><value>Mark reviewed</value></data>
+  <data name="AcknowledgeAllLogs" xml:space="preserve"><value>Mark all reviewed</value></data>
+  <data name="AcknowledgeIssue" xml:space="preserve"><value>Mark this run reviewed</value></data>
+  <data name="AcknowledgeAlert" xml:space="preserve"><value>Mark this alert reviewed</value></data>
+  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>Mark all {0:N0} unreviewed items</value></data>
+  <data name="LogIndexFormat" xml:space="preserve"><value>Log number {0}</value></data>
+  <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Time ({0})</value></data>
+  <data name="LogLocalTimeZone" xml:space="preserve"><value>local</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Shown in the OS local time zone ({0}).</value></data>
+  <data name="LogListTitle" xml:space="preserve"><value>History · newest first</value></data>
+  <data name="LogNumberHeader" xml:space="preserve"><value>Number</value></data>
+  <data name="LogNumberHint" xml:space="preserve"><value>A stable number identifying this log.</value></data>
+  <data name="LogLevelHeader" xml:space="preserve"><value>Level</value></data>
+  <data name="LogMessageHeader" xml:space="preserve"><value>Event</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>Run</value></data>
+  <data name="LogGroupCountFormat" xml:space="preserve"><value>{0:N0} total</value></data>
+  <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{1:N0}–{2:N0} of {0:N0}</value></data>
+  <data name="LogPreviousPage" xml:space="preserve"><value>Previous</value></data>
+  <data name="LogNextPage" xml:space="preserve"><value>Next</value></data>
+  <data name="LogCurrentPageFormat" xml:space="preserve"><value>Current page {0:N0}</value></data>
+  <data name="LogJumpToPage" xml:space="preserve"><value>Jump to a page number</value></data>
+  <data name="LogJumpPageHeader" xml:space="preserve"><value>Page number</value></data>
+  <data name="LogJumpPagePlaceholder" xml:space="preserve"><value>1–{0:N0}</value></data>
+  <data name="LogJumpPageInvalid" xml:space="preserve"><value>Enter a page number from 1 to {0:N0}.</value></data>
+  <data name="LogJumpPageConfirm" xml:space="preserve"><value>Go</value></data>
+  <data name="LogGoToPageFormat" xml:space="preserve"><value>Go to page {0:N0}</value></data>
+  <data name="LogPageStatusFormat" xml:space="preserve"><value>Page {0:N0} of {1:N0}</value></data>
+  <data name="RelatedLogsTitle" xml:space="preserve"><value>Related records</value></data>
+  <data name="RelatedLogCountFormat" xml:space="preserve"><value>{0:N0} related records</value></data>
+  <data name="RelatedLogLineFormat" xml:space="preserve"><value>{0} · {1} · {2}</value></data>
+  <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>{0:N0} more</value></data>
+  <data name="TechnicalDetails" xml:space="preserve"><value>Technical details</value></data>
+  <data name="CopyLogDetails" xml:space="preserve"><value>Copy details</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Log details copied to the clipboard.</value></data>
+  <data name="Close" xml:space="preserve"><value>Close</value></data>
+  <data name="RawLogPayload" xml:space="preserve"><value>Raw record</value></data>
+  <data name="LoadingLogs" xml:space="preserve"><value>Loading logs…</value></data>
+  <data name="LogsUnavailable" xml:space="preserve"><value>Logs could not be loaded.</value></data>
+  <data name="SelectLog" xml:space="preserve"><value>Select a log to view its details.</value></data>
+  <data name="Time" xml:space="preserve"><value>Time</value></data>
+  <data name="LogEventCode" xml:space="preserve"><value>Event code</value></data>
+  <data name="LogSource" xml:space="preserve"><value>Record source</value></data>
+  <data name="LogEventId" xml:space="preserve"><value>Event ID</value></data>
+  <data name="LogInstanceId" xml:space="preserve"><value>Recording session ID</value></data>
+  <data name="LogPayload" xml:space="preserve"><value>Additional details</value></data>
+  <data name="NoPayload" xml:space="preserve"><value>No additional details.</value></data>
+  <data name="LogDiagnostics.Title" xml:space="preserve"><value>Failure details</value></data>
+  <data name="LogDiagnostics.Code" xml:space="preserve"><value>Error code</value></data>
+  <data name="LogDiagnostics.Outcome" xml:space="preserve"><value>Outcome</value></data>
+  <data name="LogDiagnostics.Operation" xml:space="preserve"><value>Operation</value></data>
+  <data name="LogOutcome.Failed" xml:space="preserve"><value>Failed</value></data>
+  <data name="LogOutcome.Degraded" xml:space="preserve"><value>Partially failed</value></data>
+  <data name="LogOutcome.Cancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="LogDiagnostics.Phase" xml:space="preserve"><value>Failed step</value></data>
+  <data name="LogDiagnostics.Path" xml:space="preserve"><value>File</value></data>
+  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>Files not cleaned up</value></data>
+  <data name="LogDiagnostics.FailedFiles" xml:space="preserve"><value>Affected files</value></data>
+  <data name="LogDiagnostics.Save" xml:space="preserve"><value>Save</value></data>
+  <data name="LogDiagnostics.Reason" xml:space="preserve"><value>Reason</value></data>
+  <data name="LogDiagnostics.FileChanged" xml:space="preserve"><value>The source file changed during copying.</value></data>
+  <data name="LogDiagnostics.FileAccessFailed" xml:space="preserve"><value>The file could not be accessed.</value></data>
+  <data name="LogDiagnostics.FileReplaced" xml:space="preserve"><value>The file was replaced or moved during copying.</value></data>
+  <data name="LogDiagnostics.UnstableFileHint" xml:space="preserve"><value>The file may have been changing or inaccessible. Try the backup again shortly.</value></data>
+  <data name="LogDiagnostics.LegacyMissingDetail" xml:space="preserve"><value>This older record does not contain the detailed failure reason.</value></data>
+  <data name="LogDiagnostics.Message" xml:space="preserve"><value>Error message</value></data>
+  <data name="LogDiagnostics.Exception" xml:space="preserve"><value>Error type</value></data>
+  <data name="LogDiagnostics.Inner" xml:space="preserve"><value>Underlying cause</value></data>
+  <data name="LogDiagnostics.Origin" xml:space="preserve"><value>Origin</value></data>
+  <data name="LogPhase.boundary" xml:space="preserve"><value>Prepare backup</value></data>
+  <data name="LogPhase.scan" xml:space="preserve"><value>Scan files</value></data>
+  <data name="LogPhase.planning" xml:space="preserve"><value>Check changes</value></data>
+  <data name="LogPhase.capture" xml:space="preserve"><value>Read file</value></data>
+  <data name="LogPhase.pack" xml:space="preserve"><value>Store backup data</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Commit backup</value></data>
+  <data name="LogPhase.restore" xml:space="preserve"><value>Restore backup</value></data>
+  <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} items</value></data>
+  <data name="LogEvent.RunStarted" xml:space="preserve"><value>{0} started.</value></data>
+  <data name="LogEvent.RunCommitted" xml:space="preserve"><value>{0} completed.</value></data>
+  <data name="LogEvent.RunNoChanges" xml:space="preserve"><value>{0} found no changes.</value></data>
+  <data name="LogEvent.RunFailed" xml:space="preserve"><value>{0} failed.</value></data>
+  <data name="LogEvent.RunCancelled" xml:space="preserve"><value>{0} was cancelled.</value></data>
+  <data name="LogEvent.RunBusy" xml:space="preserve"><value>{0} could not start because another operation was running.</value></data>
+  <data name="LogEvent.BackupCommittedFormat" xml:space="preserve"><value>Backup {0:N0} was saved.</value></data>
+  <data name="LogEvent.BackupChangesPlannedFormat" xml:space="preserve"><value>Found {0:N0} changed items to back up.</value></data>
+  <data name="LogEvent.BackupChangesPlanned" xml:space="preserve"><value>Found changed items to back up.</value></data>
+  <data name="LogEvent.CaptureCompleted" xml:space="preserve"><value>Finished reading files for backup.</value></data>
+  <data name="LogEvent.ScanCompleted" xml:space="preserve"><value>Finished scanning save files.</value></data>
+  <data name="LogEvent.TelemetryRecovered" xml:space="preserve"><value>Logs are available again.</value></data>
+  <data name="LogEvent.OrphanBackupsCleaned" xml:space="preserve"><value>Backups whose original saves are missing have been cleaned up.</value></data>
+  <data name="LogEvent.OrphanBackupsFailed" xml:space="preserve"><value>Could not clean up backups whose original saves are missing.</value></data>
+  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>Interrupted operations and temporary files have been cleaned up.</value></data>
+  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>Some interrupted operations could not be safely cleaned up. Their files have been preserved.</value></data>
+  <data name="LogEvent.TelemetryStale" xml:space="preserve"><value>Log updates are delayed.</value></data>
+  <data name="LogEvent.TelemetryUnreadable" xml:space="preserve"><value>Logs could not be read.</value></data>
+  <data name="LogEvent.TelemetryUnsupported" xml:space="preserve"><value>This log format cannot be read.</value></data>
+  <data name="LogEvent.TickCompleted" xml:space="preserve"><value>{0} finished.</value></data>
+  <data name="LogEvent.TickFailed" xml:space="preserve"><value>An error occurred during {0}.</value></data>
+  <data name="LogEvent.UnstableFile" xml:space="preserve"><value>A save file could not be read consistently.</value></data>
+  <data name="LogEvent.PartialFailure" xml:space="preserve"><value>Part of {0} could not be completed.</value></data>
+  <data name="LogEvent.StateRunCompleted" xml:space="preserve"><value>The game status check finished.</value></data>
+  <data name="LogEvent.CollectorCompleted" xml:space="preserve"><value>Game status was collected.</value></data>
+  <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>The backup schedule was checked.</value></data>
+  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Choose game saving, backup interval, history limit, and behavior after character death.</value></data>
+  <data name="LogSettings.Description" xml:space="preserve"><value>Choose the event level and number of entries shown in the log view.</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Minimum log level</value></data>
+  <data name="LogDisplayLimitLabel" xml:space="preserve"><value>Display limit</value></data>
+  <data name="AdvancedSettings.Header" xml:space="preserve"><value>Advanced</value></data>
+  <data name="AdvancedSettings.Description" xml:space="preserve"><value>Open advanced configuration files and apply changes.</value></data>
+  <data name="AdvancedFiles.Header" xml:space="preserve"><value>Configuration files</value></data>
+  <data name="AdvancedFiles.Description" xml:space="preserve"><value>Restart the app after editing a file. Restart is unavailable while an operation is running.</value></data>
+  <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>Open configuration files</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Open the folder containing component configuration TOML files. Regular app settings are stored elsewhere.</value></data>
+  <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Apply changes</value></data>
+  <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Validate edited files and restart the app. Restart is unavailable during an operation.</value></data>
+  <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Reset advanced configuration</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Archive the current configuration folder with filenames and extensions intact, then recreate defaults.</value></data>
+  <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Open folder</value></data>
+  <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Apply settings and restart</value></data>
+  <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Validate the edited advanced configuration files and restart the app? The app cannot restart while an operation is running.</value></data>
+  <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Restore default settings</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restore the TOML files in the advanced configuration folder to their defaults and restart the app? Existing files will be kept under config-backups in the app data folder. Regular settings chosen in the app will be preserved.</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>Minimum recorded level</value></data>
+  <data name="LogRecordLevel.Description" xml:space="preserve"><value>Applies to new logs. Existing history is kept.</value></data>
+  <data name="LogMaxEntries.Header" xml:space="preserve"><value>Maximum log entries</value></data>
+  <data name="LogMaxEntries.Description" xml:space="preserve"><value>Oldest entries are removed when the limit is exceeded. Default: 100,000.</value></data>
+  <data name="DeleteAction" xml:space="preserve"><value>Delete</value></data>
+  <data name="SaveAction" xml:space="preserve"><value>Save</value></data>
+  <data name="BackupNameFormat" xml:space="preserve"><value>Backup {0:N0}</value></data>
+  <data name="ManualBackupNameFormat" xml:space="preserve"><value>Manual backup {0:N0}</value></data>
+  <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>Automatic backup {0:N0}</value></data>
+  <data name="AutomaticSaveLabel" xml:space="preserve"><value>Automatic save</value></data>
+  <data name="BackupNamePlaceholder" xml:space="preserve"><value>Backup name</value></data>
+  <data name="RenameRevisionTitle" xml:space="preserve"><value>Edit backup name</value></data>
+  <data name="EditRevisionLabel" xml:space="preserve"><value>Rename {0}</value></data>
+  <data name="ClearRevisionNameLabel" xml:space="preserve"><value>Clear name</value></data>
+  <data name="RevisionRenamed" xml:space="preserve"><value>Backup name changed.</value></data>
+  <data name="DeleteSaveTitle" xml:space="preserve"><value>Delete save</value></data>
+  <data name="DeletingSave" xml:space="preserve"><value>Deleting save</value></data>
+  <data name="DeleteSaveValidatePhase" xml:space="preserve"><value>Checking save files…</value></data>
+  <data name="DeleteSaveDiscoverPhase" xml:space="preserve"><value>Finding files to delete…</value></data>
+  <data name="OperationDiscoveredFormat" xml:space="preserve"><value>{0} · {1:N0} found</value></data>
+  <data name="DeleteSaveFilesPhase" xml:space="preserve"><value>Deleting save files…</value></data>
+  <data name="DeleteSaveBackupsPhase" xml:space="preserve"><value>Removing associated backups…</value></data>
+  <data name="DeleteRevisionTitle" xml:space="preserve"><value>Delete backup</value></data>
+  <data name="DeleteAllBackupsButton" xml:space="preserve"><value>Delete all backups</value></data>
+  <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Delete all backups of ‘{0}’</value></data>
+  <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Delete all backups</value></data>
+  <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Delete all {1} backups of ‘{0}’?
+
+The current save files will remain. Deleted backups will disappear from the list immediately and can no longer be restored or exported. The space they used will be cleaned up later. This action cannot be undone.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>All backups of the selected save were deleted. The current save was kept.</value></data>
+  <data name="DeleteSaveLabel" xml:space="preserve"><value>Delete save {0}</value></data>
+  <data name="DeleteRevisionLabel" xml:space="preserve"><value>Delete {0}</value></data>
+  <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Delete the save ‘{0}’?
+
+Target: {1}
+The selected save folder and all its files will be permanently deleted, together with every backup of this save. The Recycle Bin and recovery folders are not used. This cannot be undone. Deleted backups cannot be restored or exported; the space they used will be cleaned up later.</value></data>
+  <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>Delete ‘{1}’ from ‘{0}’?
+
+The current save and other backups are kept. The deleted backup can no longer be restored or exported. The space it used will be cleaned up later.</value></data>
+  <data name="SaveDeletedPermanently" xml:space="preserve"><value>The save folder was permanently deleted, and all its backups were removed from the list.</value></data>
+  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>The save folder was deleted, but its backups could not be removed. Check the backup list.</value></data>
+  <data name="RevisionDeleted" xml:space="preserve"><value>The selected backup was deleted.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>The save state has changed. Stop playing and wait for the state to refresh before trying again.</value></data>
+  <data name="MutationRefreshFailed" xml:space="preserve"><value>The operation completed, but the list could not be refreshed right away. Do not repeat the operation. Check the list again shortly.</value></data>
+  <data name="LogComponent.Backup" xml:space="preserve"><value>Backup</value></data>
+  <data name="LogComponent.Restore" xml:space="preserve"><value>Restore</value></data>
+  <data name="LogComponent.Archive" xml:space="preserve"><value>Archive</value></data>
+  <data name="LogComponent.State" xml:space="preserve"><value>Game status check</value></data>
+  <data name="LogComponent.Schedule" xml:space="preserve"><value>Backup schedule</value></data>
+  <data name="LogComponent.Maintenance" xml:space="preserve"><value>Backup cleanup</value></data>
+  <data name="LogComponent.Other" xml:space="preserve"><value>Other activity</value></data>
+  <data name="LogActivity.Backup" xml:space="preserve"><value>Save backup</value></data>
+  <data name="LogActivity.Restore" xml:space="preserve"><value>Save restore</value></data>
+  <data name="LogActivity.ArchiveExport" xml:space="preserve"><value>Archive export</value></data>
+  <data name="LogActivity.ArchiveImport" xml:space="preserve"><value>Archive import</value></data>
+  <data name="LogActivity.ArchiveInspect" xml:space="preserve"><value>Archive inspection</value></data>
+  <data name="LogActivity.Archive" xml:space="preserve"><value>Archive operation</value></data>
+  <data name="LogActivity.StateCheck" xml:space="preserve"><value>Game status check</value></data>
+  <data name="LogActivity.BackupSchedule" xml:space="preserve"><value>Backup schedule check</value></data>
+  <data name="LogActivity.Maintenance" xml:space="preserve"><value>Backup cleanup</value></data>
+  <data name="LogActivity.Other" xml:space="preserve"><value>Other activity</value></data>
+  <data name="LogEvent.Other" xml:space="preserve"><value>Recorded activity for {0}.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>The file cannot be accessed. Check whether the game or another app is using it.</value></data>
+  <data name="OperationError.FileMissing" xml:space="preserve"><value>A required file or folder could not be found. Check the path.</value></data>
+  <data name="OperationError.Generic" xml:space="preserve"><value>The operation could not be completed. Check Logs for details.</value></data>
+  <data name="OperationCardSucceeded" xml:space="preserve"><value>Operation completed</value></data>
+  <data name="OperationCardNoChange" xml:space="preserve"><value>Completed · No changes</value></data>
+  <data name="OperationCardFailed" xml:space="preserve"><value>Operation failed</value></data>
+  <data name="OperationCardCancelled" xml:space="preserve"><value>Operation cancelled</value></data>
+  <data name="OperationCardBusy" xml:space="preserve"><value>Operation could not start</value></data>
+  <data name="OperationCardDegraded" xml:space="preserve"><value>Operation ended · Attention needed</value></data>
+  <data name="OperationCardWaiting" xml:space="preserve"><value>Operation waiting</value></data>
+  <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Recorded: {0}</value></data>
+  <data name="BackupGameSavePhase" xml:space="preserve"><value>Checking play state and saving if needed…</value></data>
+  <data name="LogPhase.source.prepare" xml:space="preserve"><value>Save game before backup</value></data>
+  <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Checking whether a game save is needed before backup.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>The pre-backup game save call returned.</value></data>
+  <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>Skipped the game save because the selected world is not being played.</value></data>
+  <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>Pre-backup game save check completed.</value></data>
+  <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Backup stopped because the game save could not be confirmed.</value></data>
+  <data name="GameSaveSetting.Header" xml:space="preserve"><value>Save game before backup</value></data>
+  <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>In-game save countdown</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Show a five-second overhead countdown and the game-save result. Turning this off removes the messages and the manual-backup countdown, but still saves the game. Automatic backups keep their scheduled time. Changes apply to the next backup.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Ask the game to save before manual and automatic backups. Turn off when using a separate save mod or if a game update causes compatibility issues. When off, only on-disk files are backed up; recent progress may be missing. Changes apply to the next backup.</value></data>
+  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Next backup: waiting to start</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Next backup: waiting for the current job</value></data>
+  <data name="HealCharacterAction" xml:space="preserve"><value>Heal character</value></data>
+  <data name="HealCharacterTitle" xml:space="preserve"><value>Heal / resurrect character</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Heal the current saved character, {0}?
+
+Restore health, food, water, rest, endurance and mental condition. Remove injuries, infections, poisoning, withdrawal and pending exercise soreness. Resurrect the character if dead.
+
+All traits (including negative traits), skills, XP, weight, nutrition and position remain unchanged. Traits or environmental conditions can cause symptoms to return. Mod-specific diseases are not edited.
+
+If the character's inventory is empty, recover belongings and clothing from a uniquely identified player zombie at the saved position and remove that zombie. Identification requires a matching ID card. Wound overlays are excluded; item condition and bag contents are preserved. Items are not automatically placed in the hands. Corpse inventories are not yet supported. A dead character with an empty inventory is not resurrected if belongings cannot be safely identified.
+
+Only the current single-player save is edited. Playing, unsupported or ambiguous saves are rejected.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Character recovery completed. Traits, skills and XP were preserved.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>The character's belongings could not be uniquely identified. Recovery requires a player zombie at the saved position with a matching ID card. Corpse inventories are not supported. Nothing was changed.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>A save-file update needs recovery. Do not load this save in the game. Restart PZ Tools so it can finish the update. If the save changed after the interruption, automatic recovery stops rather than overwriting it.</value></data>
+  <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Character recovery</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or another operation is using this save. Stop playing and try again. The original was not changed.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>The database has pending journal data. Exit the game normally and try again. The original was not changed.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Only single-player saves containing one local character are supported. No character was selected arbitrarily and the original was not changed.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>The character's save format could not be validated safely. Currently supported: Build 42, world version 249. The original was not changed.</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>Read failed; will retry</value></data>
+</root>

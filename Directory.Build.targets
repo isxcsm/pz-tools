@@ -1,0 +1,11 @@
+<Project>
+  <!-- The SDK flag excludes the entry project's PDB, but referenced project
+       symbols can still reach the publish list. Keep all symbols in bin/obj. -->
+  <Target Name="ExcludeDistributionSymbols" AfterTargets="ComputeFilesToPublish"
+          Condition="'$(CopyOutputSymbolsToPublishDirectory)' == 'false'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+</Project>

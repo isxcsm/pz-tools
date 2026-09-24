@@ -1,0 +1,31 @@
+# How often the app checks the running game's state, plus technical records
+# for those checks. This is separate from the automatic backup interval.
+[scheduler]
+# Time between game-state checks, in seconds (minimum 1). A shorter interval
+# reacts sooner but starts more helper processes and uses more CPU and disk.
+interval_seconds = 3
+
+# Check timers and game-exit notifications every this many milliseconds
+# (100-5000). Larger values can delay a state check that is already due.
+wake_interval_ms = 1000
+# Delay between the two independent checks used to confirm game startup or
+# exit (50-5000 ms). Both checks are still required; this cannot disable the
+# protection against one misleading observation.
+confirmation_delay_ms = 150
+# Check interrupted operations and backups whose original saves are missing
+# every this many seconds (10-86400). Runs even when automatic backup is off.
+# Larger values reduce disk work but leave interrupted work and orphan backups
+# around longer. Busy operations are skipped and retried on a later check.
+cleanup_interval_seconds = 60
+
+[telemetry]
+# Keep records of scheduled checks and failures. Turning this off makes a
+# missing game-state reaction harder to diagnose; checks continue to run.
+enabled = true
+# Keep records for this many checks. 0 means no run-count limit and may allow
+# the diagnostics database to grow indefinitely.
+retain_runs = 100
+# Approximate limit for these records, in MiB (1 MiB = 1,048,576 bytes).
+# Old records are removed when exceeded; the database file may remain larger.
+# This does not limit backup size. 0 means no size limit.
+max_database_mib = 64

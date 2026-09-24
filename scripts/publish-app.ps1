@@ -1,0 +1,29 @@
+﻿param(
+    [ValidateSet('Debug', 'Release')]
+    [string] $Configuration = 'Release',
+    [string] $Output = 'artifacts/app',
+    [string] $DotNetPath = 'C:\Program Files\dotnet\dotnet.exe',
+    [string] $JdkPath,
+    [string] $SaveBridgeOutput
+)
+
+$ErrorActionPreference = 'Stop'
+$repositoryRoot = Split-Path -Parent $PSScriptRoot
+$outputPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Output))
+if (-not (Test-Path -LiteralPath $DotNetPath -PathType Leaf)) {
+    $command = Get-Command dotnet -ErrorAction SilentlyContinue
+    if ($null -eq $command) { throw 'dotnet 실행 파일을 찾을 수 없습니다.' }
+    $DotNetPath = $command.Source
+}
+
+& (Join-Path $PSScriptRoot 'publish-tools.ps1') `
+    -Configuration $Configuration -Output $Output -DotNetPath $DotNetPath -JdkPath $JdkPath -SaveBridgeOutput $SaveBridgeOutput
+if ($LASTEXITCODE -ne 0) { throw 'worker 게시에 실패했습니다.' }
+
+& $DotNetPath publish `
+    (Join-Path $repositoryRoot 'src/PzTools.App/PzTools.App.csproj') `
+    -c $Configuration -p:Platform=x64 -r win-x64 --self-contained false --force `
+    -p:CopyOutputSymbolsToPublishDirectory=false -o $outputPath
+if ($LASTEXITCODE -ne 0) { throw 'WinUI 앱 게시에 실패했습니다.' }
+
+Write-Host "PzTools 앱 게시 완료: $outputPath"

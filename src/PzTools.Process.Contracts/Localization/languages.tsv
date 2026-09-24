@@ -1,0 +1,18 @@
+Korean	ko-KR	한국어	백업	수동 백업	자동 백업	저장까지 {0}초	저장 완료	저장 실패
+English	en-US	English	Backup	Manual backup	Automatic backup	Saving in {0}s	Save complete	Save failed
+ChineseSimplified	zh-CN	简体中文	备份	手动备份	自动备份	{0}秒后保存	保存完成	保存失败
+ChineseTraditional	zh-TW	繁體中文	備份	手動備份	自動備份	{0}秒後儲存	儲存完成	儲存失敗
+Japanese	ja-JP	日本語	バックアップ	手動バックアップ	自動バックアップ	保存まで{0}秒	保存完了	保存失敗
+Russian	ru-RU	Русский	Копия	Ручная копия	Автоматическая копия	Сохранение через {0} с	Сохранено	Ошибка сохранения
+PortugueseBrazil	pt-BR	Português (Brasil)	Backup	Backup manual	Backup automático	Salvando em {0}s	Jogo salvo	Falha ao salvar
+Spanish	es-ES	Español (España)	Copia de seguridad	Copia manual	Copia automática	Guardado en {0}s	Partida guardada	Error al guardar
+French	fr-FR	Français	Sauvegarde	Sauvegarde manuelle	Sauvegarde automatique	Enregistrement dans {0}s	Partie enregistrée	Échec de l’enregistrement
+German	de-DE	Deutsch	Sicherung	Manuelle Sicherung	Automatische Sicherung	Speichern in {0}s	Spiel gespeichert	Speichern fehlgeschlagen
+Polish	pl-PL	Polski	Kopia zapasowa	Ręczna kopia	Automatyczna kopia	Zapis za {0}s	Gra zapisana	Błąd zapisu
+Turkish	tr-TR	Türkçe	Yedek	Manuel yedek	Otomatik yedek	{0} sn sonra kaydedilecek	Oyun kaydedildi	Kayıt başarısız
+Ukrainian	uk-UA	Українська	Копія	Ручна копія	Автоматична копія	Збереження через {0} с	Гру збережено	Помилка збереження
+Italian	it-IT	Italiano	Backup	Backup manuale	Backup automatico	Salvataggio tra {0}s	Partita salvata	Salvataggio non riuscito
+Thai	th-TH	ไทย	ข้อมูลสำรอง	สำรองด้วยตนเอง	สำรองอัตโนมัติ	บันทึกในอีก {0} วินาที	บันทึกสำเร็จ	บันทึกไม่สำเร็จ
+Indonesian	id-ID	Bahasa Indonesia	Cadangan	Cadangan manual	Cadangan otomatis	Menyimpan dalam {0} dtk	Gim tersimpan	Gagal menyimpan
+Czech	cs-CZ	Čeština	Záloha	Ruční záloha	Automatická záloha	Uložení za {0} s	Hra uložena	Uložení selhalo
+SpanishLatinAmerica	es-MX	Español (Latinoamérica)	Copia de seguridad	Copia manual	Copia automática	Guardando en {0}s	Partida guardada	Error al guardar

@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>PzTools.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Navigation\pztools.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- No Main/Singleton services are used; framework components ship locally. -->
+    <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
+    <!-- SettingsControls also depends on the SDK metapackage. Exclude unused
+         component assets at the NuGet boundary, not by deleting DLLs after publish.
+         Keep the UI, Foundation, DWrite and interaction components unchanged. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="1.8.79" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="1.8.2197" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="1.8.251231004" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="1.8.260804001" ExcludeAssets="all" />
+    <PackageReference Include="System.Numerics.Tensors" Version="9.0.0" ExcludeAssets="all" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\Navigation\*.svg" CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\Navigation\pztools.ico" CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PzTools.App.Core\PzTools.App.Core.csproj" />
+    <ProjectReference Include="..\PzTools.Projections\PzTools.Projections.csproj" />
+    <ProjectReference Include="..\PzTools.Zomboid.Archive\PzTools.Zomboid.Archive.csproj" />
+  </ItemGroup>
+  <Target Name="CopyApplicationPriToPublishDirectory" AfterTargets="Publish">
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri"
+          DestinationFiles="$(PublishDir)$(AssemblyName).pri"
+          Condition="Exists('$(TargetDir)$(AssemblyName).pri')" />
+  </Target>
+</Project>
