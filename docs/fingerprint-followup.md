@@ -11,7 +11,7 @@ implemented an older design, not an additional product feature missing from dev.
   implemented by the merged format 2 code. Do not reapply the alternative helper
   namespace or duplicate product changes.
 - Schema-12 migration SQL, dual-length readers and their migration fixtures are
-  deliberately excluded. Format 2 / schema 2 has no legacy compatibility path.
+  deliberately excluded. Format 2 / schema 3 has no legacy compatibility path.
 - The old migration-specific Python check and Windows workflow changes are not
   applicable. The existing storage regression workflow now also selects the
   current-format fingerprint tests.
@@ -35,3 +35,6 @@ dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror --filter FullyQua
 
 The new class contains 22 cases. Exact execution results and the reviewed commit
 belong in the PR/CI evidence, not a pre-emptive assertion of test success here.
+
+Current path storage uses [normalized immutable path dictionaries](path-normalization.md).
+Earlier measurements and CI counts above describe their explicitly named commits.

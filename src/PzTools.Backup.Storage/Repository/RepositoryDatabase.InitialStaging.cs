@@ -164,14 +164,32 @@ public sealed partial class RepositoryDatabase
         command.Transaction = transaction;
         command.CommandText =
             """
+            INSERT INTO paths(path_key)
+            SELECT path_key FROM full_scan_entries WHERE 1
+            ON CONFLICT(path_key) DO NOTHING;
+
+            INSERT INTO path_spellings(path_id, spelling_id, display_path)
+            SELECT path.path_id,
+                   COALESCE((SELECT MAX(spelling_id) FROM path_spellings
+                             WHERE path_id=path.path_id), -1) + 1,
+                   scan.display_path
+            FROM full_scan_entries AS scan
+            JOIN paths AS path ON path.path_key=scan.path_key
+            WHERE NOT EXISTS (SELECT 1 FROM path_spellings AS spelling
+                              WHERE spelling.path_id=path.path_id
+                                AND spelling.display_path=scan.display_path);
+
             INSERT INTO entry_versions(
-                source_id, path_key, display_path, valid_from_revision,
+                source_id, path_id, spelling_id, valid_from_revision,
                 entry_kind, tombstone, byte_length, modified_utc, changed_utc,
                 attributes, file_id, parent_file_id, object_id)
-            SELECT $sourceId, path_key, display_path, $revision,
-                   entry_kind, 0, byte_length, modified_utc, changed_utc,
-                   attributes, file_id, parent_file_id, object_id
-            FROM full_scan_entries;
+            SELECT $sourceId, path.path_id, spelling.spelling_id, $revision,
+                   scan.entry_kind, 0, scan.byte_length, scan.modified_utc, scan.changed_utc,
+                   scan.attributes, scan.file_id, scan.parent_file_id, scan.object_id
+            FROM full_scan_entries AS scan
+            JOIN paths AS path ON path.path_key=scan.path_key
+            JOIN path_spellings AS spelling ON spelling.path_id=path.path_id
+                                          AND spelling.display_path=scan.display_path;
             """;
         command.Parameters.AddWithValue("$sourceId", sourceId);
         command.Parameters.AddWithValue("$revision", revision);

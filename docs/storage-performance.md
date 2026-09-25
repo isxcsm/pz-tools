@@ -1,6 +1,6 @@
 # Storage performance follow-up
 
-This follows compact format 2. The current repository is **format 2 / schema 2**.
+This follows compact format 2. The current repository is **format 2 / schema 3**.
 There is no migration or dual reader for schema 1 or format 1. Opening older data
 fails with `repository-reset-required` before configuration writes; it is never
 automatically deleted. Start with a new empty backup directory. The game's
@@ -106,3 +106,6 @@ Path-key/display-path normalization into a separate path dictionary is not part 
 this change. It needs a separate layout comparison and end-to-end validation of
 historical spelling, case-only renames, compaction and restore joins. The current
 path representation and case behavior remain unchanged.
+
+Current path storage uses [normalized immutable path dictionaries](path-normalization.md).
+Earlier measurements and CI counts above describe their explicitly named commits.

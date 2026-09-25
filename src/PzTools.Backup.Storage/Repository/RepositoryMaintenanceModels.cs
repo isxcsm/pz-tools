@@ -17,7 +17,8 @@ public sealed record GarbageCollectionResult(
     int DeletedObjects,
     int DeletedPacks,
     int DeletedOrphanFiles,
-    IReadOnlyList<string> FilesThatCouldNotBeDeleted);
+    IReadOnlyList<string> FilesThatCouldNotBeDeleted,
+    int DeletedPathRows = 0);
 
 public sealed record PackCompactionResult(
     int SourcePacks,

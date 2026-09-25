@@ -191,13 +191,14 @@ public sealed class RepositoryHousekeepingTests
     private static async Task SeedVersionsAsync(RepositoryDatabase repository)
     {
         await SeedHistoryAsync(repository, 4);
+        await ExecuteAsync(repository, "INSERT INTO paths VALUES(1, 'A'); INSERT INTO path_spellings VALUES(1,0,'a');");
         for (var revision = 1; revision <= 4; revision++)
             await ExecuteAsync(repository, $"""
                 INSERT INTO revisions(source_id,revision,run_index,created_utc,state,deleted_utc)
                     VALUES(1,{revision},{revision},'2000-01-01T00:00:00+00:00','{(revision == 1 ? "Active" : "Deleted")}','2000-01-01T00:00:00+00:00');
-                INSERT INTO entry_versions(source_id,path_key,display_path,valid_from_revision,valid_to_revision,
+                INSERT INTO entry_versions(source_id,path_id,spelling_id,valid_from_revision,valid_to_revision,
                     entry_kind,tombstone,byte_length,modified_utc,changed_utc,attributes)
-                    VALUES(1,'A','a',{revision},{(revision == 4 ? "NULL" : (revision + 1).ToString(System.Globalization.CultureInfo.InvariantCulture))},
+                    VALUES(1,1,0,{revision},{(revision == 4 ? "NULL" : (revision + 1).ToString(System.Globalization.CultureInfo.InvariantCulture))},
                         'Directory',{(revision == 4 ? 1 : 0)},0,630822816000000000,630822816000000000,16);
                 """);
         await ExecuteAsync(repository, "UPDATE source_state SET current_revision=4;");

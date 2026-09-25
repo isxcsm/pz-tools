@@ -1,6 +1,6 @@
 # Compact repository format 2 (pre-release breaking change)
 
-The current layout is **format 2 / schema 2**. See the [performance follow-up](storage-performance.md)
+The current layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
 for revision summary columns, deduplication before compression and current verification.
 There is deliberately no migration or dual-format reader for format 1 or schema 1.
 Old data is rejected with `repository-reset-required`, never automatically deleted.
@@ -78,3 +78,6 @@ full CI had crash reopen and shutdown sharing failures that are not dismissed or
 silenced by this optimization. Consult final-head CI before merging or publishing.
 The path dictionary remains a separate unimplemented candidate; historical spelling,
 case-only renames and compaction/restore joins require independent validation.
+
+Current path storage uses [normalized immutable path dictionaries](path-normalization.md).
+Earlier measurements and CI counts above describe their explicitly named commits.

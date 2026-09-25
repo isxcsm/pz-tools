@@ -111,7 +111,7 @@ public sealed partial class RepositoryDatabase
                    object.pack_offset,object.stored_length,object.original_length,
                    object.compression_algorithm
             FROM revisions AS revision
-            JOIN entry_versions AS entry
+            JOIN entry_catalog AS entry
               ON entry.source_id=revision.source_id
              AND entry.valid_from_revision<=revision.revision
              AND (entry.valid_to_revision IS NULL
@@ -119,7 +119,7 @@ public sealed partial class RepositoryDatabase
             JOIN stored_objects AS object ON object.object_id=entry.object_id
             JOIN packs AS pack ON pack.pack_id=object.pack_id
             WHERE revision.source_id=$sourceId AND revision.revision=$revision
-              AND revision.state='Active' AND entry.path_key=$pathKey
+              AND revision.state='Active' AND entry.path_id=(SELECT path_id FROM paths WHERE path_key=$pathKey)
               AND entry.entry_kind='File' AND entry.tombstone=0
               AND pack.status='Committed';
             """;
@@ -200,7 +200,7 @@ public sealed partial class RepositoryDatabase
         command.CommandText =
             """
             SELECT entry.display_path, entry.entry_kind, entry.file_id, entry.parent_file_id
-            FROM entry_versions AS entry
+            FROM entry_catalog AS entry
             JOIN requested_file_references AS requested
               ON requested.value = substr(entry.file_id, 9, 16)
             WHERE entry.source_id = $sourceId
@@ -243,7 +243,7 @@ public sealed partial class RepositoryDatabase
         return await ReadCurrentEntriesAsync(
             connection,
             sourceId,
-            "JOIN requested_paths AS requested ON requested.path_key = entry.path_key",
+            "JOIN paths AS requested_path ON requested_path.path_id = entry.path_id JOIN requested_paths AS requested ON requested.path_key = requested_path.path_key",
             cancellationToken);
     }
 
@@ -332,7 +332,7 @@ public sealed partial class RepositoryDatabase
                    object.stored_length, object.original_length,
                    object.checksum_algorithm, object.checksum,
                    object.compression_algorithm, object.flags
-            FROM entry_versions AS entry
+            FROM entry_catalog AS entry
             LEFT JOIN stored_objects AS object ON object.object_id = entry.object_id
             LEFT JOIN packs AS pack ON pack.pack_id = object.pack_id
             WHERE entry.source_id = $sourceId
@@ -492,7 +492,7 @@ public sealed partial class RepositoryDatabase
                    object.stored_length, object.original_length,
                    object.checksum_algorithm, object.checksum,
                    object.compression_algorithm, object.flags
-            FROM entry_versions AS entry
+            FROM entry_catalog AS entry
             {joinClause}
             LEFT JOIN stored_objects AS object ON object.object_id = entry.object_id
             LEFT JOIN packs AS pack ON pack.pack_id = object.pack_id

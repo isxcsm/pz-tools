@@ -173,7 +173,7 @@ public sealed class ContentFingerprintTests
         await using var connection = await repository.OpenConnectionAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT object.content_hash,object.checksum FROM entry_versions AS entry
+            SELECT object.content_hash,object.checksum FROM entry_catalog AS entry
             JOIN stored_objects AS object ON object.object_id=entry.object_id
             WHERE entry.source_id=$source AND entry.valid_from_revision<=$revision
               AND (entry.valid_to_revision IS NULL OR entry.valid_to_revision>$revision)

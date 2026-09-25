@@ -14,7 +14,7 @@ public sealed partial class RepositoryDatabase
                revision.logical_size,revision.file_count,revision.state,revision.display_name,
                CASE WHEN $metadataPathKey IS NULL THEN NULL ELSE (
                    SELECT entry.modified_utc FROM entry_versions AS entry
-                   WHERE entry.source_id=source.source_id AND entry.path_key=$metadataPathKey
+                   WHERE entry.source_id=source.source_id AND entry.path_id=(SELECT path_id FROM paths WHERE path_key=$metadataPathKey)
                      AND entry.valid_from_revision<=revision.revision
                      AND (entry.valid_to_revision IS NULL OR entry.valid_to_revision>revision.revision)
                      AND entry.entry_kind='File' AND entry.tombstone=0
@@ -100,17 +100,18 @@ public sealed partial class RepositoryDatabase
         // latest revision retained as an internal incremental baseline.
         var (bytes, files) = await ReadBaselineSummaryAsync(
             connection, transaction, request.SourceId, cancellationToken);
+        await using var paths = new RepositoryPathWriter(connection, transaction);
         await using var close = connection.CreateCommand();
         close.Transaction = transaction;
         close.CommandText =
             """
             UPDATE entry_versions SET valid_to_revision=$revision
-            WHERE source_id=$sourceId AND path_key=$pathKey AND valid_to_revision IS NULL
+            WHERE source_id=$sourceId AND path_id=$pathId AND valid_to_revision IS NULL
             RETURNING entry_kind,tombstone,byte_length;
             """;
         close.Parameters.AddWithValue("$sourceId", request.SourceId);
         close.Parameters.AddWithValue("$revision", revision);
-        close.Parameters.AddWithValue("$pathKey", "");
+        close.Parameters.AddWithValue("$pathId", "");
         close.Prepare();
 
         await using var insert = connection.CreateCommand();
@@ -118,14 +119,14 @@ public sealed partial class RepositoryDatabase
         insert.CommandText =
             """
             INSERT INTO entry_versions(
-                source_id,path_key,display_path,valid_from_revision,entry_kind,tombstone,
+                source_id,path_id,spelling_id,valid_from_revision,entry_kind,tombstone,
                 byte_length,modified_utc,changed_utc,attributes,file_id,parent_file_id,object_id)
-            VALUES($sourceId,$pathKey,$displayPath,$revision,$entryKind,$tombstone,
+            VALUES($sourceId,$pathId,$spellingId,$revision,$entryKind,$tombstone,
                 $byteLength,$modifiedUtc,$changedUtc,$attributes,$fileId,$parentFileId,$objectId);
             """;
         insert.Parameters.AddWithValue("$sourceId", request.SourceId);
         insert.Parameters.AddWithValue("$revision", revision);
-        foreach (var name in new[] { "$pathKey", "$displayPath", "$entryKind", "$tombstone", "$byteLength",
+        foreach (var name in new[] { "$pathId", "$spellingId", "$entryKind", "$tombstone", "$byteLength",
                      "$modifiedUtc", "$changedUtc", "$attributes", "$fileId", "$parentFileId", "$objectId" })
             insert.Parameters.AddWithValue(name, DBNull.Value);
         insert.Prepare();
@@ -134,8 +135,8 @@ public sealed partial class RepositoryDatabase
         {
             cancellationToken.ThrowIfCancellationRequested();
             var displayPath = BackupPath.NormalizeRelative(entry.RelativePath);
-            var pathKey = displayPath.ToUpperInvariant();
-            close.Parameters["$pathKey"].Value = pathKey;
+            var (pathId, spellingId) = await paths.InternAsync(displayPath, cancellationToken);
+            close.Parameters["$pathId"].Value = pathId;
             await using (var reader = await close.ExecuteReaderAsync(cancellationToken))
             {
                 while (await reader.ReadAsync(cancellationToken))
@@ -146,8 +147,8 @@ public sealed partial class RepositoryDatabase
                 }
             }
 
-            insert.Parameters["$pathKey"].Value = pathKey;
-            insert.Parameters["$displayPath"].Value = displayPath;
+            insert.Parameters["$pathId"].Value = pathId;
+            insert.Parameters["$spellingId"].Value = spellingId;
             insert.Parameters["$entryKind"].Value = entry.Kind.ToString();
             insert.Parameters["$tombstone"].Value = entry.Tombstone ? 1 : 0;
             insert.Parameters["$byteLength"].Value = entry.ByteLength;

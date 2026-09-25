@@ -46,6 +46,7 @@ def make_database(path: pathlib.Path, sql: str, count: int, compact: bool, dedup
         parent = (f'{1:016X}:{1:032X}').encode()
         if compact:
             parent = bytes.fromhex(parent.decode().replace(':', ''))
+        normalized = bool(db.execute("SELECT 1 FROM sqlite_master WHERE name='paths'").fetchone())
         objects, entries = [], []
         for n in range(1, count + 1):
             digest = hashlib.sha256(str(n).encode()).digest()
@@ -60,7 +61,10 @@ def make_database(path: pathlib.Path, sql: str, count: int, compact: bool, dedup
             identity = bytes.fromhex(identity.replace(':', '')) if compact else identity.encode()
             name = f'map/chunk_{n:05d}.bin'
             time = NOW_TICKS if compact else NOW_TEXT
-            entries.append((1, name.upper(), name, 1, None, 'File', 0, 128,
+            if normalized:
+                db.execute('INSERT INTO paths VALUES(?,?)', (n,name.upper()))
+                db.execute('INSERT INTO path_spellings VALUES(?,0,?)', (n,name))
+            entries.append((1, n if normalized else name.upper(), 0 if normalized else name, 1, None, 'File', 0, 128,
                             time, time, 32, identity, parent, object_id))
         db.executemany('INSERT INTO stored_objects VALUES(' + ','.join('?' * len(objects[0])) + ')', objects)
         db.executemany('INSERT INTO entry_versions VALUES(' + ','.join('?' * 14) + ')', entries)
