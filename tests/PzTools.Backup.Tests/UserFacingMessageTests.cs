@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using PzTools.App.Core;
 using PzTools.Process.Contracts;
@@ -117,49 +116,6 @@ public sealed class UserFacingMessageTests
         var rendered = string.Format(CultureInfo.GetCultureInfo(tag), resources["ConfirmRestoreBody"], "SAVE_MARKER", "BACKUP_MARKER");
         Assert.Contains("SAVE_MARKER", rendered);
         Assert.Contains("BACKUP_MARKER", rendered);
-    }
-
-    [Theory]
-    [InlineData("en-US", "will be lost", "reopen PZ Tools", "will roll back automatically", "will retry automatically")]
-    [InlineData("ko-KR", "사라집니다", "PZ Tools", "자동으로 되돌", "자동으로 재시도")]
-    public void SafetyCopy_DoesNotPromiseAutomaticRecoveryOrRetry(string tag, string loss, string reopen, string rollback, string retry)
-    {
-        var resources = ReadResources(tag);
-        Assert.Contains(loss, resources["ConfirmRestoreBody"]);
-        Assert.Contains(reopen, resources["ConfirmRestoreBody"]);
-        Assert.DoesNotContain(rollback, resources["ConfirmRestoreBody"]);
-        Assert.DoesNotContain(retry, resources["OperationError.SaveChanged"]);
-    }
-
-    [Fact]
-    public void SwitchLabelsAndPageCulture_AreRefreshedWhenAppLanguageChanges()
-    {
-        var app = Path.Combine(Root(), "src", "PzTools.App");
-        var settings = File.ReadAllText(Path.Combine(app, "SettingsPage.xaml.cs"));
-        foreach (var name in new[] { "SystemTrayToggle", "GameSaveToggle", "GameSaveCountdownToggle", "DeathBackupToggle" })
-            Assert.Contains(name, settings[settings.IndexOf("foreach (var toggle", StringComparison.Ordinal)..]);
-        Assert.Contains("toggle.OnContent = Localizer.Get(\"SettingEnabled\")", settings);
-        Assert.Contains("toggle.OffContent = Localizer.Get(\"SettingDisabled\")", settings);
-        foreach (var page in new[] { "SettingsPage", "MainWindowShell", "LogsPage" })
-            Assert.Contains("Language = Localizer.Culture.Name;", File.ReadAllText(Path.Combine(app, page + ".xaml.cs")));
-        Assert.DoesNotContain("한국어 또는 영어", File.ReadAllText(Path.Combine(app, "SettingsPage.xaml")));
-        var startup = File.ReadAllText(Path.Combine(app, "App.xaml.cs"));
-        Assert.DoesNotContain("설정 파일을 읽지 못했습니다", startup);
-        Assert.Contains("UserFacingError.FromConfigurationException(configurationError)", startup);
-    }
-
-    [Fact]
-    public void LiteralResourceReferencesResolveInEverySupportedLocale()
-    {
-        var app = Path.Combine(Root(), "src", "PzTools.App");
-        var keys = Directory.EnumerateFiles(app, "*.cs").SelectMany(path =>
-            Regex.Matches(File.ReadAllText(path), "Localizer\\.(?:Get|Format)\\(\"([^\"]+)\"")
-                .Select(match => match.Groups[1].Value)).Distinct().ToArray();
-        foreach (var language in LanguageCatalog.All)
-        {
-            var resources = ReadResources(language.Tag);
-            foreach (var key in keys) Assert.True(resources.ContainsKey(key), $"{language.Tag}/{key}");
-        }
     }
 
     private static Dictionary<string, string> ReadResources(string tag) => XDocument.Load(

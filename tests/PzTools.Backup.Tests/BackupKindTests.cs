@@ -12,9 +12,8 @@ namespace PzTools.Backup.Tests;
 
 public sealed class BackupKindTests
 {
-    [Theory]
-    [MemberData(nameof(LocalizationTests.Languages), MemberType = typeof(LocalizationTests))]
-    public async Task MixedHistory_RetainsAllManualSnapshotsThroughCompactionAndGc(SupportedLanguage language)
+    [Fact]
+    public async Task MixedHistory_RetainsAllManualSnapshotsThroughCompactionAndGc()
     {
         using var temp = new TempDirectory();
         var sourcePath = temp.GetPath("source");
@@ -41,6 +40,8 @@ public sealed class BackupKindTests
                 var workflow = await repository.ReserveWorkflowAsync(
                     automatic ? "backup-maintenance" : "manual-backup", sourceId,
                     automatic ? "backup-scheduler" : "backup-worker");
+                // Mix languages within one history instead of repeating all storage I/O per locale.
+                var language = LanguageCatalog.All[index % LanguageCatalog.All.Count].Id;
                 var execution = new BackupExecutionOptions(workflow.RunIndex, NameLanguage: language);
                 if (index == 0)
                     await new InitialBackupRunner(new StreamingFullScanner(metadata), new StableFileCapturer(metadata),
@@ -54,7 +55,7 @@ public sealed class BackupKindTests
             foreach (var revision in catalog.Revisions)
             {
                 Assert.Equal(kinds[revision.Revision - 1], revision.Kind);
-                var names = LanguageCatalog.Get(language);
+                var names = LanguageCatalog.All[(int)((revision.Revision - 1) % LanguageCatalog.All.Count)];
                 var prefix = revision.Kind == BackupKind.Automatic ? names.AutomaticBackupName : names.ManualBackupName;
                 Assert.Equal($"{prefix} {revision.Revision}", revision.DisplayName);
             }
