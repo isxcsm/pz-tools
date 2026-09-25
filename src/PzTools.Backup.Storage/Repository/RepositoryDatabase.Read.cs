@@ -91,7 +91,7 @@ public sealed partial class RepositoryDatabase
                     reader.GetInt64(6),
                     reader.GetInt64(7),
                     reader.GetString(8),
-                    reader.IsDBNull(10) ? null : DateTimeOffset.Parse(reader.GetString(10), CultureInfo.InvariantCulture),
+                    reader.IsDBNull(10) ? null : new DateTimeOffset(reader.GetInt64(10), TimeSpan.Zero),
                     reader.GetString(9),
                     reader.IsDBNull(11) ? null : reader.GetString(11),
                     reader.IsDBNull(12) ? null : reader.GetString(12),
@@ -161,9 +161,9 @@ public sealed partial class RepositoryDatabase
         {
             locator = new RevisionFileLocator(
                 sourceId, revision, reader.GetString(0),
-                Guid.Parse(reader.GetString(1)), Guid.Parse(reader.GetString(2)),
+                reader.GetGuid(1), reader.GetGuid(2),
                 reader.GetString(3), reader.GetInt64(4), reader.GetInt64(5),
-                reader.GetInt64(6), reader.GetString(7));
+                reader.GetInt64(6), StorageAlgorithmCodec.Compression(reader.GetInt32(7)));
         }
         transaction.Commit();
         return locator;
@@ -205,22 +205,36 @@ public sealed partial class RepositoryDatabase
         }
 
         await using var connection = await OpenConnectionAsync(cancellationToken);
-        await CreateValueTableAsync(
-            connection,
-            "requested_file_references",
-            "value",
-            fileReferences,
-            cancellationToken);
+        await using (var create = connection.CreateCommand())
+        {
+            create.CommandText = "CREATE TEMP TABLE requested_file_references(value BLOB PRIMARY KEY) WITHOUT ROWID;";
+            await create.ExecuteNonQueryAsync(cancellationToken);
+        }
+        using (var transaction = connection.BeginTransaction())
+        {
+            await using var insert = connection.CreateCommand();
+            insert.Transaction = transaction;
+            insert.CommandText = "INSERT OR IGNORE INTO requested_file_references(value) VALUES ($value);";
+            var value = insert.Parameters.Add("$value", SqliteType.Blob);
+            foreach (var reference in fileReferences)
+            {
+                var bytes = Convert.FromHexString(reference);
+                if (bytes.Length != 16) throw new ArgumentException("Expected a 128-bit file reference.", nameof(fileReferences));
+                value.Value = bytes;
+                await insert.ExecuteNonQueryAsync(cancellationToken);
+            }
+            transaction.Commit();
+        }
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
             SELECT entry.display_path, entry.entry_kind, entry.file_id, entry.parent_file_id
             FROM entry_versions AS entry
             JOIN requested_file_references AS requested
-              ON requested.value = lower(substr(CAST(entry.file_id AS TEXT), -32))
+              ON requested.value = substr(entry.file_id, 9, 16)
             WHERE entry.source_id = $sourceId
               AND entry.valid_to_revision IS NULL
-              AND entry.tombstone = 0;
+              AND entry.tombstone = 0 AND entry.file_id IS NOT NULL;
             """;
         command.Parameters.AddWithValue("$sourceId", sourceId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -305,7 +319,7 @@ public sealed partial class RepositoryDatabase
             JOIN packs AS pack ON pack.pack_id = object.pack_id
             WHERE pack.status = 'Committed'
               AND object.original_length = $length
-              AND object.checksum_algorithm = 'Sha256'
+              AND object.checksum_algorithm = 3
               AND object.checksum = $checksum;
             """;
         command.Parameters.AddWithValue("$length", originalLength);
@@ -315,15 +329,15 @@ public sealed partial class RepositoryDatabase
         while (await reader.ReadAsync(cancellationToken))
         {
             candidates.Add(new DeduplicationCandidate(
-                Guid.Parse(reader.GetString(0)),
-                Guid.Parse(reader.GetString(1)),
+                reader.GetGuid(0),
+                reader.GetGuid(1),
                 reader.GetString(2),
                 reader.GetInt64(3),
                 reader.GetInt64(4),
                 reader.GetInt64(5),
-                reader.GetString(6),
+                StorageAlgorithmCodec.Checksum(reader.GetInt32(6)),
                 (byte[])reader.GetValue(7),
-                reader.GetString(8),
+                StorageAlgorithmCodec.Compression(reader.GetInt32(8)),
                 reader.GetInt32(9)));
         }
 
@@ -366,20 +380,20 @@ public sealed partial class RepositoryDatabase
                 reader.GetString(0),
                 reader.GetString(1),
                 reader.GetInt64(2),
-                DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture),
-                DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture),
+                new DateTimeOffset(reader.GetInt64(3), TimeSpan.Zero),
+                new DateTimeOffset(reader.GetInt64(4), TimeSpan.Zero),
                 (FileAttributes)reader.GetInt64(5),
                 reader.IsDBNull(6) ? null : (byte[])reader.GetValue(6),
                 reader.IsDBNull(7) ? null : (byte[])reader.GetValue(7),
-                reader.IsDBNull(8) ? null : Guid.Parse(reader.GetString(8)),
-                reader.IsDBNull(9) ? null : Guid.Parse(reader.GetString(9)),
+                reader.IsDBNull(8) ? null : reader.GetGuid(8),
+                reader.IsDBNull(9) ? null : reader.GetGuid(9),
                 reader.IsDBNull(10) ? null : reader.GetString(10),
                 reader.IsDBNull(11) ? null : reader.GetInt64(11),
                 reader.IsDBNull(12) ? null : reader.GetInt64(12),
                 reader.IsDBNull(13) ? null : reader.GetInt64(13),
-                reader.IsDBNull(14) ? null : reader.GetString(14),
+                reader.IsDBNull(14) ? null : StorageAlgorithmCodec.Checksum(reader.GetInt32(14)),
                 reader.IsDBNull(15) ? null : (byte[])reader.GetValue(15),
-                reader.IsDBNull(16) ? null : reader.GetString(16),
+                reader.IsDBNull(16) ? null : StorageAlgorithmCodec.Compression(reader.GetInt32(16)),
                 reader.IsDBNull(17) ? null : reader.GetInt32(17)));
         }
 
@@ -402,7 +416,7 @@ public sealed partial class RepositoryDatabase
         while (await reader.ReadAsync(cancellationToken))
         {
             packs.Add(new RepositoryPack(
-                Guid.Parse(reader.GetString(0)),
+                reader.GetGuid(0),
                 reader.GetString(1),
                 reader.GetInt64(2),
                 reader.GetString(3),
@@ -432,7 +446,7 @@ public sealed partial class RepositoryDatabase
               AND revision.state = 'Active'
             ORDER BY revision.source_id, revision.revision;
             """;
-        command.Parameters.AddWithValue("$packId", packId.ToString("D"));
+        command.Parameters.AddWithValue("$packId", packId.ToByteArray());
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var revisions = new List<RevisionReference>();
         while (await reader.ReadAsync(cancellationToken))
@@ -532,19 +546,19 @@ public sealed partial class RepositoryDatabase
             reader.GetString(0),
             reader.GetString(1),
             reader.GetInt64(2),
-            DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture),
-            DateTimeOffset.Parse(reader.GetString(4), CultureInfo.InvariantCulture),
+            new DateTimeOffset(reader.GetInt64(3), TimeSpan.Zero),
+            new DateTimeOffset(reader.GetInt64(4), TimeSpan.Zero),
             (FileAttributes)reader.GetInt64(5),
             reader.IsDBNull(6) ? null : (byte[])reader.GetValue(6),
             reader.IsDBNull(7) ? null : (byte[])reader.GetValue(7),
-            reader.IsDBNull(8) ? null : Guid.Parse(reader.GetString(8)),
-            reader.IsDBNull(9) ? null : Guid.Parse(reader.GetString(9)),
+            reader.IsDBNull(8) ? null : reader.GetGuid(8),
+            reader.IsDBNull(9) ? null : reader.GetGuid(9),
             reader.IsDBNull(10) ? null : reader.GetString(10),
             reader.IsDBNull(11) ? null : reader.GetInt64(11),
             reader.IsDBNull(12) ? null : reader.GetInt64(12),
             reader.IsDBNull(13) ? null : reader.GetInt64(13),
-            reader.IsDBNull(14) ? null : reader.GetString(14),
+            reader.IsDBNull(14) ? null : StorageAlgorithmCodec.Checksum(reader.GetInt32(14)),
             reader.IsDBNull(15) ? null : (byte[])reader.GetValue(15),
-            reader.IsDBNull(16) ? null : reader.GetString(16),
+            reader.IsDBNull(16) ? null : StorageAlgorithmCodec.Compression(reader.GetInt32(16)),
             reader.IsDBNull(17) ? null : reader.GetInt32(17));
 }

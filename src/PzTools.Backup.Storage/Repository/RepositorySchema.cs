@@ -6,21 +6,21 @@ internal sealed record RepositoryMigration(int Version, string Name, string Sql)
 
 internal static class RepositorySchema
 {
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 1;
 
+    // Fresh format 2 repositories only. Format 1 has no upgrade path.
     public static IReadOnlyList<RepositoryMigration> Migrations { get; } =
     [
-        new RepositoryMigration(
-            1,
-            "initial repository schema",
+        new RepositoryMigration(1, "compact repository format 2",
             """
             CREATE TABLE repository_info (
                 singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton = 1),
-                repository_id TEXT NOT NULL,
+                repository_id BLOB NOT NULL CHECK (repository_id IS NULL OR length(repository_id)=16),
                 format_version INTEGER NOT NULL,
                 schema_version INTEGER NOT NULL,
                 next_run_index INTEGER NOT NULL CHECK (next_run_index >= 1),
-                created_utc TEXT NOT NULL
+                created_utc TEXT NOT NULL,
+                repository_change_revision INTEGER NOT NULL DEFAULT 0
             ) STRICT;
 
             CREATE TABLE sources (
@@ -60,11 +60,21 @@ internal static class RepositorySchema
                 revision INTEGER NOT NULL CHECK (revision >= 1),
                 run_index INTEGER NOT NULL UNIQUE REFERENCES runs(run_index),
                 created_utc TEXT NOT NULL,
+                state TEXT NOT NULL DEFAULT 'Active' CHECK (state IN ('Active', 'Deleted')),
+                deleted_utc TEXT NULL,
+                delete_reason TEXT NULL,
+                display_name TEXT NOT NULL DEFAULT '',
+                character_name TEXT NULL,
+                character_state TEXT NULL CHECK (character_state IN ('Unknown', 'Alive', 'Dead')),
+                backup_kind TEXT NOT NULL DEFAULT 'Unknown' CHECK (backup_kind IN ('Unknown', 'Manual', 'Automatic')),
+                hours_survived REAL NULL,
+                character_metadata_read INTEGER NOT NULL DEFAULT 0 CHECK (character_metadata_read IN (0, 1)),
+                character_metadata_error TEXT NULL,
                 PRIMARY KEY (source_id, revision)
             ) STRICT;
 
             CREATE TABLE packs (
-                pack_id TEXT NOT NULL PRIMARY KEY,
+                pack_id BLOB NOT NULL CHECK (pack_id IS NULL OR length(pack_id)=16) PRIMARY KEY,
                 relative_path TEXT NOT NULL UNIQUE,
                 format_version INTEGER NOT NULL,
                 byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
@@ -74,16 +84,17 @@ internal static class RepositorySchema
             ) STRICT;
 
             CREATE TABLE stored_objects (
-                object_id TEXT NOT NULL PRIMARY KEY,
-                pack_id TEXT NOT NULL REFERENCES packs(pack_id),
+                object_id BLOB NOT NULL CHECK (object_id IS NULL OR length(object_id)=16) PRIMARY KEY,
+                pack_id BLOB NOT NULL CHECK (pack_id IS NULL OR length(pack_id)=16) REFERENCES packs(pack_id),
                 pack_offset INTEGER NOT NULL CHECK (pack_offset >= 0),
                 stored_length INTEGER NOT NULL CHECK (stored_length >= 0),
                 original_length INTEGER NOT NULL CHECK (original_length >= 0),
-                checksum_algorithm TEXT NOT NULL,
+                checksum_algorithm INTEGER NOT NULL CHECK (checksum_algorithm IN (1,2,3)),
                 checksum BLOB NULL,
-                compression_algorithm TEXT NOT NULL,
-                flags INTEGER NOT NULL DEFAULT 0
-            ) STRICT;
+                compression_algorithm INTEGER NOT NULL CHECK (compression_algorithm IN (1,2)),
+                flags INTEGER NOT NULL DEFAULT 0,
+                content_hash BLOB NULL CHECK (content_hash IS NULL OR length(content_hash) = 16)
+            ) STRICT, WITHOUT ROWID;
 
             CREATE TABLE entry_versions (
                 source_id INTEGER NOT NULL,
@@ -94,12 +105,12 @@ internal static class RepositorySchema
                 entry_kind TEXT NOT NULL CHECK (entry_kind IN ('File', 'Directory')),
                 tombstone INTEGER NOT NULL CHECK (tombstone IN (0, 1)),
                 byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
-                modified_utc TEXT NOT NULL,
-                changed_utc TEXT NOT NULL,
+                modified_utc INTEGER NOT NULL,
+                changed_utc INTEGER NOT NULL,
                 attributes INTEGER NOT NULL,
-                file_id BLOB NULL,
-                parent_file_id BLOB NULL,
-                object_id TEXT NULL REFERENCES stored_objects(object_id),
+                file_id BLOB NULL CHECK (file_id IS NULL OR length(file_id)=24),
+                parent_file_id BLOB NULL CHECK (parent_file_id IS NULL OR length(parent_file_id)=24),
+                object_id BLOB NULL CHECK (object_id IS NULL OR length(object_id)=16) REFERENCES stored_objects(object_id),
                 PRIMARY KEY (source_id, path_key, valid_from_revision),
                 FOREIGN KEY (source_id, valid_from_revision)
                     REFERENCES revisions(source_id, revision),
@@ -110,49 +121,6 @@ internal static class RepositorySchema
                     OR tombstone = 1
                 )
             ) STRICT;
-
-            CREATE UNIQUE INDEX ix_entry_versions_current
-                ON entry_versions(source_id, path_key)
-                WHERE valid_to_revision IS NULL;
-
-            CREATE INDEX ix_entry_versions_object
-                ON entry_versions(object_id)
-                WHERE object_id IS NOT NULL;
-
-            CREATE INDEX ix_runs_source
-                ON runs(source_id, run_index);
-            """),
-        new RepositoryMigration(
-            2,
-            "current entry file-reference lookup indexes",
-            """
-            CREATE INDEX ix_entry_versions_current_file_reference
-                ON entry_versions(
-                    source_id,
-                    lower(substr(CAST(file_id AS TEXT), -32)))
-                WHERE valid_to_revision IS NULL AND tombstone = 0 AND file_id IS NOT NULL;
-
-            CREATE INDEX ix_entry_versions_current_parent_reference
-                ON entry_versions(
-                    source_id,
-                    lower(substr(CAST(parent_file_id AS TEXT), -32)))
-                WHERE valid_to_revision IS NULL AND tombstone = 0
-                  AND parent_file_id IS NOT NULL;
-
-            CREATE INDEX ix_entry_versions_current_missing_identity
-                ON entry_versions(source_id)
-                WHERE valid_to_revision IS NULL AND tombstone = 0
-                  AND (file_id IS NULL OR parent_file_id IS NULL);
-            """),
-        new RepositoryMigration(
-            3,
-            "workflow runs and revision lifecycle",
-            """
-            ALTER TABLE revisions
-                ADD COLUMN state TEXT NOT NULL DEFAULT 'Active'
-                    CHECK (state IN ('Active', 'Deleted'));
-            ALTER TABLE revisions ADD COLUMN deleted_utc TEXT NULL;
-            ALTER TABLE revisions ADD COLUMN delete_reason TEXT NULL;
 
             CREATE TABLE workflow_runs (
                 run_index INTEGER NOT NULL PRIMARY KEY,
@@ -168,7 +136,9 @@ internal static class RepositorySchema
                 ),
                 started_utc TEXT NOT NULL,
                 completed_utc TEXT NULL,
-                failure_code TEXT NULL
+                failure_code TEXT NULL,
+                owner_pid INTEGER NULL,
+                owner_start_ticks INTEGER NULL
             ) STRICT;
 
             CREATE TABLE workflow_stages (
@@ -183,102 +153,48 @@ internal static class RepositorySchema
                 started_utc TEXT NOT NULL,
                 completed_utc TEXT NULL,
                 failure_code TEXT NULL,
+                owner_pid INTEGER NULL,
+                owner_start_ticks INTEGER NULL,
                 PRIMARY KEY (run_index, producer)
             ) STRICT;
 
-            INSERT INTO workflow_runs(
-                run_index, pipeline, source_id, owner_component, status,
-                started_utc, completed_utc, failure_code)
-            SELECT run_index, 'backup', source_id, 'backup-worker', status,
-                   started_utc, completed_utc, failure_code
-            FROM runs;
+            CREATE UNIQUE INDEX ix_entry_versions_current
+                ON entry_versions(source_id, path_key)
+                WHERE valid_to_revision IS NULL;
 
-            INSERT INTO workflow_stages(
-                run_index, producer, status, started_utc, completed_utc, failure_code)
-            SELECT run_index, 'backup-worker', status, started_utc,
-                   completed_utc, failure_code
-            FROM runs;
+            CREATE INDEX ix_entry_versions_object
+                ON entry_versions(object_id)
+                WHERE object_id IS NOT NULL;
+
+            CREATE INDEX ix_runs_source
+                ON runs(source_id, run_index);
+
+            CREATE INDEX ix_entry_versions_current_file_reference
+                ON entry_versions(
+                    source_id,
+                    substr(file_id, 9, 16))
+                WHERE valid_to_revision IS NULL AND tombstone = 0 AND file_id IS NOT NULL;
+
+            CREATE INDEX ix_entry_versions_current_missing_identity
+                ON entry_versions(source_id)
+                WHERE valid_to_revision IS NULL AND tombstone = 0
+                  AND (file_id IS NULL OR parent_file_id IS NULL);
 
             CREATE INDEX ix_revisions_active
                 ON revisions(source_id, revision DESC)
                 WHERE state = 'Active';
+
             CREATE INDEX ix_workflow_runs_source
                 ON workflow_runs(source_id, run_index);
-            """),
-        new RepositoryMigration(
-            4,
-            "repository change revision",
-            """
-            ALTER TABLE repository_info
-                ADD COLUMN repository_change_revision INTEGER NOT NULL DEFAULT 0;
-            """),
-        new RepositoryMigration(
-            5,
-            "revision display names",
-            """
-            ALTER TABLE revisions ADD COLUMN display_name TEXT NOT NULL DEFAULT '';
-            """),
-        new RepositoryMigration(
-            6,
-            "per-revision character snapshots",
-            """
-            ALTER TABLE revisions ADD COLUMN character_name TEXT NULL;
-            ALTER TABLE revisions ADD COLUMN character_state TEXT NULL
-                CHECK (character_state IN ('Unknown', 'Alive', 'Dead'));
-            """),
-        new RepositoryMigration(
-            7,
-            "optional stored-content fingerprints for full scan comparison",
-            """
-            ALTER TABLE stored_objects ADD COLUMN content_hash_algorithm TEXT NULL
-                CHECK (content_hash_algorithm IS NULL OR content_hash_algorithm = 'Sha256');
-            ALTER TABLE stored_objects ADD COLUMN content_hash BLOB NULL
-                CHECK ((content_hash IS NULL AND content_hash_algorithm IS NULL)
-                    OR (content_hash IS NOT NULL AND length(content_hash) = 32
-                        AND content_hash_algorithm IS NOT NULL));
-            """),
-        new RepositoryMigration(
-            8,
-            "backup origin and automatic-only retention",
-            """
-            ALTER TABLE revisions ADD COLUMN backup_kind TEXT NOT NULL DEFAULT 'Unknown'
-                CHECK (backup_kind IN ('Unknown', 'Manual', 'Automatic'));
-
-            UPDATE revisions SET backup_kind = 'Automatic'
-            WHERE run_index IN (
-                SELECT run_index FROM workflow_runs
-                WHERE pipeline = 'backup-maintenance' AND owner_component = 'backup-scheduler');
-            UPDATE revisions SET backup_kind = 'Manual'
-            WHERE run_index IN (
-                SELECT run_index FROM workflow_runs WHERE pipeline = 'manual-backup');
 
             CREATE INDEX ix_revisions_automatic_active
                 ON revisions(source_id, revision DESC)
                 WHERE state = 'Active' AND backup_kind = 'Automatic';
-            UPDATE repository_info SET repository_change_revision = repository_change_revision + 1;
-            """),
-        new RepositoryMigration(
-            9,
-            "workflow process ownership for interruption recovery",
-            """
-            ALTER TABLE workflow_runs ADD COLUMN owner_pid INTEGER NULL;
-            ALTER TABLE workflow_runs ADD COLUMN owner_start_ticks INTEGER NULL;
-            ALTER TABLE workflow_stages ADD COLUMN owner_pid INTEGER NULL;
-            ALTER TABLE workflow_stages ADD COLUMN owner_start_ticks INTEGER NULL;
-            """),
-        new RepositoryMigration(
-            10,
-            "persistent revision character summaries",
-            """
-            ALTER TABLE revisions ADD COLUMN hours_survived REAL NULL;
-            ALTER TABLE revisions ADD COLUMN character_metadata_read INTEGER NOT NULL DEFAULT 0
-                CHECK (character_metadata_read IN (0, 1));
+
             CREATE INDEX ix_revisions_pending_character ON revisions(source_id, revision)
                 WHERE state = 'Active' AND character_metadata_read = 0;
-            """),
-        new RepositoryMigration(11, "character summary read diagnostics",
-            """
-            ALTER TABLE revisions ADD COLUMN character_metadata_error TEXT NULL;
+
+            CREATE INDEX ix_stored_objects_dedup ON stored_objects(original_length, checksum) WHERE checksum_algorithm=3;
             """),
     ];
 }

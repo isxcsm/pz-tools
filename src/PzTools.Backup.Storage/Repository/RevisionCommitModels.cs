@@ -20,7 +20,6 @@ public sealed record StoredObjectRegistration(
     byte[]? Checksum,
     string CompressionAlgorithm,
     int Flags = 0,
-    string? ContentHashAlgorithm = null,
     byte[]? ContentHash = null);
 
 public sealed record EntryVersionRegistration(

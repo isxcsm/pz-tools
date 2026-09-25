@@ -301,7 +301,6 @@ public sealed class IncrementalBackupRunner(
                         captured.Object.Checksum,
                         captured.Object.CompressionAlgorithm.ToString(),
                         captured.Object.Flags,
-                        captured.ContentHashAlgorithm,
                         captured.ContentHash));
                 }
 
@@ -540,12 +539,12 @@ public sealed class IncrementalBackupRunner(
         }
         var after = metadataReader.ReadHandle(stream.SafeFileHandle);
         var current = metadataReader.ReadPath(path);
-        return hash.AsSpan().SequenceEqual(previousHash)
+        return ContentFingerprint.MatchesSha256(previousHash, hash)
             && before == after && after == current
             && before.Length == entry.Length
             && before.ModifiedUtc == entry.ModifiedUtc
             && before.ChangedUtc == entry.ChangedUtc
-            && Encoding.UTF8.GetBytes(before.Identity).AsSpan().SequenceEqual(entry.FileId);
+            && FileIdentityCodec.Encode(before.Identity).AsSpan().SequenceEqual(entry.FileId);
     }
 
     private IBackupFailureInjector FailureInjector =>
@@ -569,7 +568,7 @@ public sealed class IncrementalBackupRunner(
         }
 
         var rootReference = FileReferenceCodec.Decode(
-            Encoding.UTF8.GetBytes(metadataReader.ReadPath(source.RootPath).Identity));
+            FileIdentityCodec.Encode(metadataReader.ReadPath(source.RootPath).Identity));
         var journalBatchSize = tuning.JournalBatchSize;
         var accumulator = planner.CreateAccumulator(rootReference);
         var hydratedReferences = new HashSet<UInt128>();
@@ -710,8 +709,8 @@ public sealed class IncrementalBackupRunner(
             metadata.ModifiedUtc,
             metadata.ChangedUtc,
             metadata.Attributes,
-            Encoding.UTF8.GetBytes(metadata.Identity),
-            Encoding.UTF8.GetBytes(parentMetadata.Identity));
+            FileIdentityCodec.Encode(metadata.Identity),
+            FileIdentityCodec.Encode(parentMetadata.Identity));
     }
 
     private static bool ConfirmMissingEntry(string sourceRoot, string relativePath)
@@ -889,7 +888,7 @@ public sealed class IncrementalBackupRunner(
                 captured.SourceMetadata.ModifiedUtc,
                 captured.SourceMetadata.ChangedUtc,
                 captured.SourceMetadata.Attributes,
-                Encoding.UTF8.GetBytes(captured.SourceMetadata.Identity),
+                FileIdentityCodec.Encode(captured.SourceMetadata.Identity),
                 parentFileId);
     }
 

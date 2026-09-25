@@ -5,7 +5,7 @@ namespace PzTools.Backup.Storage.Repository;
 
 public sealed partial class RepositoryDatabase
 {
-    public const int CurrentFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
     public const string DatabaseFileName = "repository.db";
 
     private readonly string connectionString;
@@ -39,6 +39,12 @@ public sealed partial class RepositoryDatabase
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryPath);
         var absolutePath = Path.GetFullPath(repositoryPath);
+        var existingDatabase = Path.Combine(absolutePath, DatabaseFileName);
+        if (File.Exists(existingDatabase) && new FileInfo(existingDatabase).Length > 0)
+        {
+            // Pre-release format break: reject old data, never migrate or reset it.
+            return await OpenExistingAsync(absolutePath, cancellationToken);
+        }
         Directory.CreateDirectory(absolutePath);
         Directory.CreateDirectory(Path.Combine(absolutePath, "packs"));
         Directory.CreateDirectory(Path.Combine(absolutePath, "staging"));
@@ -89,8 +95,9 @@ public sealed partial class RepositoryDatabase
         }.ToString();
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
-        await ConfigureConnectionAsync(connection, cancellationToken, enableWal: false);
+        // Validate before any PRAGMA that could write to an incompatible repository.
         var identity = await ReadExistingIdentityAsync(connection, cancellationToken);
+        await ConfigureConnectionAsync(connection, cancellationToken, enableWal: false);
         return new RepositoryDatabase(absolutePath, identity, SqliteOpenMode.ReadWrite);
     }
 
@@ -421,15 +428,7 @@ public sealed partial class RepositoryDatabase
             }
 
             if (identity.SchemaVersion != schemaVersion)
-            {
-                await using var update = connection.CreateCommand();
-                update.Transaction = transaction;
-                update.CommandText =
-                    "UPDATE repository_info SET schema_version = $version WHERE singleton = 1;";
-                update.Parameters.AddWithValue("$version", schemaVersion);
-                await update.ExecuteNonQueryAsync(cancellationToken);
-                identity = identity with { SchemaVersion = schemaVersion };
-            }
+                throw new InvalidDataException("repository-reset-required: unsupported repository schema.");
 
             transaction.Commit();
             return identity;
@@ -450,7 +449,7 @@ public sealed partial class RepositoryDatabase
                 next_run_index, created_utc)
             VALUES (1, $repositoryId, $formatVersion, $schemaVersion, 1, $createdUtc);
             """;
-        insert.Parameters.AddWithValue("$repositoryId", created.RepositoryId.ToString("D"));
+        insert.Parameters.AddWithValue("$repositoryId", created.RepositoryId.ToByteArray());
         insert.Parameters.AddWithValue("$formatVersion", created.FormatVersion);
         insert.Parameters.AddWithValue("$schemaVersion", created.SchemaVersion);
         insert.Parameters.AddWithValue("$createdUtc", created.CreatedUtc.ToString("O"));
@@ -462,7 +461,7 @@ public sealed partial class RepositoryDatabase
     private static RepositoryIdentity ReadIdentity(SqliteDataReader reader)
     {
         return new RepositoryIdentity(
-            Guid.Parse(reader.GetString(0)),
+            reader.GetGuid(0),
             reader.GetInt32(1),
             reader.GetInt32(2),
             DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture));
@@ -485,14 +484,16 @@ public sealed partial class RepositoryDatabase
             throw new InvalidDataException("Repository identity is missing.");
         }
 
-        var identity = ReadIdentity(reader);
-        if (identity.FormatVersion != CurrentFormatVersion
-            || identity.SchemaVersion != RepositorySchema.CurrentVersion)
-        {
+        var formatVersion = reader.GetInt32(1);
+        var schemaVersion = reader.GetInt32(2);
+        if (formatVersion != CurrentFormatVersion || schemaVersion != RepositorySchema.CurrentVersion)
             throw new InvalidDataException(
-                $"Unsupported repository format/schema {identity.FormatVersion}/{identity.SchemaVersion}.");
-        }
-
+                $"repository-reset-required: format/schema {formatVersion}/{schemaVersion} is incompatible with "
+                + $"{CurrentFormatVersion}/{RepositorySchema.CurrentVersion}. Use a new backup repository; no migration is provided.");
+        var identity = ReadIdentity(reader);
+        await reader.DisposeAsync();
+        if (await RepositoryMigrationRunner.GetVersionAsync(connection, cancellationToken) != RepositorySchema.CurrentVersion)
+            throw new InvalidDataException("repository-reset-required: inconsistent repository schema marker.");
         return identity;
     }
 

@@ -50,6 +50,7 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
         long count = 0;
         if (batchSize <= 0) throw new ArgumentOutOfRangeException(nameof(batchSize));
         SqliteTransaction? transaction = null;
+        await using var insert = CreateInsertCommand(connection);
         try
         {
             foreach (var item in EnumerateTree(sourceRoot, metadataReader))
@@ -64,7 +65,7 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
                 var relativePath = BackupPath.NormalizeRelative(
                     Path.GetRelativePath(sourceRoot, item.Path));
                 await InsertEntryAsync(
-                    connection,
+                    insert,
                     transaction,
                     relativePath,
                     (item.Metadata.Attributes & FileAttributes.Directory) != 0
@@ -106,7 +107,7 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
         var enumerators = new Stack<DirectoryFrame>();
         enumerators.Push(new DirectoryFrame(
             Directory.EnumerateFileSystemEntries(sourceRoot).GetEnumerator(),
-            Encoding.UTF8.GetBytes(rootMetadata.Identity)));
+            FileIdentityCodec.Encode(rootMetadata.Identity)));
         try
         {
             while (enumerators.Count > 0)
@@ -127,7 +128,7 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
                 {
                     enumerators.Push(new DirectoryFrame(
                         Directory.EnumerateFileSystemEntries(path).GetEnumerator(),
-                        Encoding.UTF8.GetBytes(metadata.Identity)));
+                        FileIdentityCodec.Encode(metadata.Identity)));
                 }
             }
         }
@@ -153,37 +154,28 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
                 display_path TEXT NOT NULL,
                 entry_kind TEXT NOT NULL,
                 byte_length INTEGER NOT NULL,
-                modified_utc TEXT NOT NULL,
-                changed_utc TEXT NOT NULL,
+                modified_utc INTEGER NOT NULL,
+                changed_utc INTEGER NOT NULL,
                 attributes INTEGER NOT NULL,
                 file_id BLOB NOT NULL,
                 parent_file_id BLOB NOT NULL,
-                object_id TEXT NULL,
-                pack_id TEXT NULL,
+                object_id BLOB NULL,
+                pack_id BLOB NULL,
                 record_offset INTEGER NULL,
                 stored_length INTEGER NULL,
-                checksum_algorithm TEXT NULL,
+                checksum_algorithm INTEGER NULL,
                 checksum BLOB NULL,
-                compression_algorithm TEXT NULL,
+                compression_algorithm INTEGER NULL,
                 object_flags INTEGER NULL,
-                content_hash_algorithm TEXT NULL,
                 content_hash BLOB NULL
             ) STRICT;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task InsertEntryAsync(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
-        string relativePath,
-        CatalogEntryKind kind,
-        FileCaptureMetadata metadata,
-        byte[] parentFileId,
-        CancellationToken cancellationToken)
+    private static SqliteCommand CreateInsertCommand(SqliteConnection connection)
     {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
+        var command = connection.CreateCommand();
         command.CommandText =
             """
             INSERT INTO full_scan_entries(
@@ -193,15 +185,35 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
                 $pathKey, $displayPath, $entryKind, $byteLength, $modifiedUtc,
                 $changedUtc, $attributes, $fileId, $parentFileId);
             """;
-        command.Parameters.AddWithValue("$pathKey", relativePath.ToUpperInvariant());
-        command.Parameters.AddWithValue("$displayPath", relativePath);
-        command.Parameters.AddWithValue("$entryKind", kind.ToString());
-        command.Parameters.AddWithValue("$byteLength", metadata.Length);
-        command.Parameters.AddWithValue("$modifiedUtc", metadata.ModifiedUtc.ToString("O"));
-        command.Parameters.AddWithValue("$changedUtc", metadata.ChangedUtc.ToString("O"));
-        command.Parameters.AddWithValue("$attributes", (long)metadata.Attributes);
-        command.Parameters.AddWithValue("$fileId", Encoding.UTF8.GetBytes(metadata.Identity));
-        command.Parameters.AddWithValue("$parentFileId", parentFileId);
+        foreach (var name in new[] { "$pathKey", "$displayPath", "$entryKind" })
+            command.Parameters.Add(name, SqliteType.Text);
+        foreach (var name in new[] { "$byteLength", "$modifiedUtc", "$changedUtc", "$attributes" })
+            command.Parameters.Add(name, SqliteType.Integer);
+        command.Parameters.Add("$fileId", SqliteType.Blob);
+        command.Parameters.Add("$parentFileId", SqliteType.Blob);
+        command.Prepare();
+        return command;
+    }
+
+    private static async Task InsertEntryAsync(
+        SqliteCommand command,
+        SqliteTransaction transaction,
+        string relativePath,
+        CatalogEntryKind kind,
+        FileCaptureMetadata metadata,
+        byte[] parentFileId,
+        CancellationToken cancellationToken)
+    {
+        command.Transaction = transaction;
+        command.Parameters["$pathKey"].Value = relativePath.ToUpperInvariant();
+        command.Parameters["$displayPath"].Value = relativePath;
+        command.Parameters["$entryKind"].Value = kind.ToString();
+        command.Parameters["$byteLength"].Value = metadata.Length;
+        command.Parameters["$modifiedUtc"].Value = metadata.ModifiedUtc.UtcTicks;
+        command.Parameters["$changedUtc"].Value = metadata.ChangedUtc.UtcTicks;
+        command.Parameters["$attributes"].Value = (long)metadata.Attributes;
+        command.Parameters["$fileId"].Value = FileIdentityCodec.Encode(metadata.Identity);
+        command.Parameters["$parentFileId"].Value = parentFileId;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -278,31 +290,28 @@ public sealed class FullScanSession : IAsyncDisposable
                 checksum = $checksum,
                 compression_algorithm = $compressionAlgorithm,
                 object_flags = $objectFlags,
-                content_hash_algorithm = $contentHashAlgorithm,
                 content_hash = $contentHash
             WHERE path_key = $pathKey AND entry_kind = 'File';
             """;
         command.Parameters.AddWithValue("$byteLength", metadata.Length);
-        command.Parameters.AddWithValue("$modifiedUtc", metadata.ModifiedUtc.ToString("O"));
-        command.Parameters.AddWithValue("$changedUtc", metadata.ChangedUtc.ToString("O"));
+        command.Parameters.AddWithValue("$modifiedUtc", metadata.ModifiedUtc.UtcTicks);
+        command.Parameters.AddWithValue("$changedUtc", metadata.ChangedUtc.UtcTicks);
         command.Parameters.AddWithValue("$attributes", (long)metadata.Attributes);
         command.Parameters.AddWithValue(
             "$fileId",
-            Encoding.UTF8.GetBytes(metadata.Identity));
-        command.Parameters.AddWithValue("$objectId", captured.Object.ObjectId.ToString("D"));
-        command.Parameters.AddWithValue("$packId", packId.ToString("D"));
+            FileIdentityCodec.Encode(metadata.Identity));
+        command.Parameters.AddWithValue("$objectId", captured.Object.ObjectId.ToByteArray());
+        command.Parameters.AddWithValue("$packId", packId.ToByteArray());
         command.Parameters.AddWithValue("$recordOffset", captured.Object.RecordOffset);
         command.Parameters.AddWithValue("$storedLength", captured.Object.StoredLength);
         command.Parameters.AddWithValue(
             "$checksumAlgorithm",
-            captured.Object.ChecksumAlgorithm.ToString());
+            (int)captured.Object.ChecksumAlgorithm);
         command.Parameters.AddWithValue("$checksum", captured.Object.Checksum);
         command.Parameters.AddWithValue(
             "$compressionAlgorithm",
-            captured.Object.CompressionAlgorithm.ToString());
+            (int)captured.Object.CompressionAlgorithm);
         command.Parameters.AddWithValue("$objectFlags", captured.Object.Flags);
-        command.Parameters.AddWithValue("$contentHashAlgorithm",
-            (object?)captured.ContentHashAlgorithm ?? DBNull.Value);
         command.Parameters.AddWithValue("$contentHash",
             (object?)captured.ContentHash ?? DBNull.Value);
         command.Parameters.AddWithValue("$pathKey", normalizedPath.ToUpperInvariant());
@@ -399,9 +408,9 @@ public sealed class FullScanSession : IAsyncDisposable
             SELECT scan.path_key, scan.display_path, scan.entry_kind, scan.byte_length,
                    scan.modified_utc, scan.changed_utc, scan.attributes,
                    scan.file_id, scan.parent_file_id,
-                   CASE WHEN object.content_hash_algorithm = 'Sha256' THEN object.content_hash
-                        WHEN object.checksum_algorithm = 'Sha256' AND length(object.checksum) = 32
-                            THEN object.checksum ELSE NULL END
+                   COALESCE(object.content_hash,
+                       CASE WHEN object.checksum_algorithm=3 AND length(object.checksum)=32
+                           THEN substr(object.checksum, 1, 16) END)
             FROM full_scan_entries AS scan
             JOIN entry_versions AS current ON current.source_id = $sourceId
                 AND current.path_key = scan.path_key AND current.valid_to_revision IS NULL
@@ -425,12 +434,8 @@ public sealed class FullScanSession : IAsyncDisposable
             reader.GetString(columnOffset + 1),
             Enum.Parse<CatalogEntryKind>(reader.GetString(columnOffset + 2)),
             reader.GetInt64(columnOffset + 3),
-            DateTimeOffset.Parse(
-                reader.GetString(columnOffset + 4),
-                CultureInfo.InvariantCulture),
-            DateTimeOffset.Parse(
-                reader.GetString(columnOffset + 5),
-                CultureInfo.InvariantCulture),
+            new DateTimeOffset(reader.GetInt64(columnOffset + 4), TimeSpan.Zero),
+            new DateTimeOffset(reader.GetInt64(columnOffset + 5), TimeSpan.Zero),
             (FileAttributes)reader.GetInt64(columnOffset + 6),
             (byte[])reader.GetValue(columnOffset + 7),
             (byte[])reader.GetValue(columnOffset + 8));

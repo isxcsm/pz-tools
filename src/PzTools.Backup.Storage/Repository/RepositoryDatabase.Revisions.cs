@@ -157,7 +157,7 @@ public sealed partial class RepositoryDatabase
                     $packId, $relativePath, $formatVersion, $byteLength, 'Committed',
                     $runIndex, $createdUtc);
                 """;
-            command.Parameters.AddWithValue("$packId", pack.PackId.ToString("D"));
+            command.Parameters.AddWithValue("$packId", pack.PackId.ToByteArray());
             command.Parameters.AddWithValue("$relativePath", pack.RelativePath);
             command.Parameters.AddWithValue("$formatVersion", pack.FormatVersion);
             command.Parameters.AddWithValue("$byteLength", pack.ByteLength);
@@ -182,29 +182,27 @@ public sealed partial class RepositoryDatabase
                 INSERT INTO stored_objects(
                     object_id, pack_id, pack_offset, stored_length, original_length,
                     checksum_algorithm, checksum, compression_algorithm, flags,
-                    content_hash_algorithm, content_hash)
+                    content_hash)
                 VALUES (
                     $objectId, $packId, $packOffset, $storedLength, $originalLength,
                     $checksumAlgorithm, $checksum, $compressionAlgorithm, $flags,
-                    $contentHashAlgorithm, $contentHash);
+                    $contentHash);
                 """;
-            command.Parameters.AddWithValue("$objectId", storedObject.ObjectId.ToString("D"));
-            command.Parameters.AddWithValue("$packId", storedObject.PackId.ToString("D"));
+            command.Parameters.AddWithValue("$objectId", storedObject.ObjectId.ToByteArray());
+            command.Parameters.AddWithValue("$packId", storedObject.PackId.ToByteArray());
             command.Parameters.AddWithValue("$packOffset", storedObject.PackOffset);
             command.Parameters.AddWithValue("$storedLength", storedObject.StoredLength);
             command.Parameters.AddWithValue("$originalLength", storedObject.OriginalLength);
             command.Parameters.AddWithValue(
                 "$checksumAlgorithm",
-                storedObject.ChecksumAlgorithm);
+                StorageAlgorithmCodec.Checksum(storedObject.ChecksumAlgorithm));
             command.Parameters.AddWithValue(
                 "$checksum",
                 (object?)storedObject.Checksum ?? DBNull.Value);
             command.Parameters.AddWithValue(
                 "$compressionAlgorithm",
-                storedObject.CompressionAlgorithm);
+                StorageAlgorithmCodec.Compression(storedObject.CompressionAlgorithm));
             command.Parameters.AddWithValue("$flags", storedObject.Flags);
-            command.Parameters.AddWithValue("$contentHashAlgorithm",
-                (object?)storedObject.ContentHashAlgorithm ?? DBNull.Value);
             command.Parameters.AddWithValue("$contentHash",
                 (object?)storedObject.ContentHash ?? DBNull.Value);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -260,8 +258,8 @@ public sealed partial class RepositoryDatabase
             insert.Parameters.AddWithValue("$entryKind", entry.Kind.ToString());
             insert.Parameters.AddWithValue("$tombstone", entry.Tombstone ? 1 : 0);
             insert.Parameters.AddWithValue("$byteLength", entry.ByteLength);
-            insert.Parameters.AddWithValue("$modifiedUtc", entry.ModifiedUtc.ToString("O"));
-            insert.Parameters.AddWithValue("$changedUtc", entry.ChangedUtc.ToString("O"));
+            insert.Parameters.AddWithValue("$modifiedUtc", entry.ModifiedUtc.UtcTicks);
+            insert.Parameters.AddWithValue("$changedUtc", entry.ChangedUtc.UtcTicks);
             insert.Parameters.AddWithValue("$attributes", (long)entry.Attributes);
             insert.Parameters.AddWithValue("$fileId", (object?)entry.FileId ?? DBNull.Value);
             insert.Parameters.AddWithValue(
@@ -269,7 +267,7 @@ public sealed partial class RepositoryDatabase
                 (object?)entry.ParentFileId ?? DBNull.Value);
             insert.Parameters.AddWithValue(
                 "$objectId",
-                entry.ObjectId is null ? DBNull.Value : entry.ObjectId.Value.ToString("D"));
+                entry.ObjectId is null ? DBNull.Value : entry.ObjectId.Value.ToByteArray());
             await insert.ExecuteNonQueryAsync(cancellationToken);
         }
     }

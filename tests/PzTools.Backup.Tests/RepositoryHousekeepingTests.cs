@@ -76,7 +76,7 @@ public sealed class RepositoryHousekeepingTests
             INSERT INTO revisions(source_id,revision,run_index,created_utc) VALUES(1,1,1,'2000-01-01T00:00:00+00:00');
             UPDATE source_state SET current_revision=1;
             INSERT INTO packs(pack_id,relative_path,format_version,byte_length,status,created_run_index,created_utc)
-                VALUES('00000000-0000-0000-0000-000000000002','packs/protected.pzpack',1,1,'Committed',2,'2000-01-01T00:00:00+00:00');
+                VALUES(X'00000000000000000000000000000002','packs/protected.pzpack',1,1,'Committed',2,'2000-01-01T00:00:00+00:00');
             UPDATE runs SET status='Running' WHERE run_index=3;
             UPDATE workflow_stages SET status='Running' WHERE run_index=4;
             UPDATE workflow_runs SET completed_utc=NULL WHERE run_index=5;
@@ -198,7 +198,7 @@ public sealed class RepositoryHousekeepingTests
                 INSERT INTO entry_versions(source_id,path_key,display_path,valid_from_revision,valid_to_revision,
                     entry_kind,tombstone,byte_length,modified_utc,changed_utc,attributes)
                     VALUES(1,'A','a',{revision},{(revision == 4 ? "NULL" : (revision + 1).ToString(System.Globalization.CultureInfo.InvariantCulture))},
-                        'Directory',{(revision == 4 ? 1 : 0)},0,'2000-01-01T00:00:00+00:00','2000-01-01T00:00:00+00:00',16);
+                        'Directory',{(revision == 4 ? 1 : 0)},0,630822816000000000,630822816000000000,16);
                 """);
         await ExecuteAsync(repository, "UPDATE source_state SET current_revision=4;");
     }

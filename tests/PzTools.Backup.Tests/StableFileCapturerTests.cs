@@ -28,8 +28,8 @@ public sealed class StableFileCapturerTests
             ChecksumAlgorithm.Sha256, CompressionAlgorithm.None);
         var expected = System.Security.Cryptography.SHA256.HashData(content);
         Assert.Equal(expected, result.Object.Checksum);
-        Assert.Equal(recordContentHash ? expected : null, result.ContentHash);
-        Assert.Equal(recordContentHash ? "Sha256" : null, result.ContentHashAlgorithm);
+        Assert.Equal(recordContentHash ? expected[..16] : null, result.ContentHash);
+        Assert.Equal(recordContentHash ? "Sha256Truncated128" : null, result.ContentHashAlgorithm);
         Assert.Equal(content, await ReadCapturedAsync(writer, result));
     }
 

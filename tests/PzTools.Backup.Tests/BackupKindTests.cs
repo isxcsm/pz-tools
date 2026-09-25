@@ -92,59 +92,6 @@ public sealed class BackupKindTests
             item => item.Revision == 4);
     }
 
-    [Fact]
-    public async Task SchemaUpgrade_UsesWorkflowEvidencePreservesNamesAndProtectsUnknownBackups()
-    {
-        using var temp = new TempDirectory();
-        var repositoryPath = temp.GetPath("repository");
-        Directory.CreateDirectory(repositoryPath);
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = Path.Combine(repositoryPath, RepositoryDatabase.DatabaseFileName), Pooling = false,
-        }.ToString();
-        await using (var connection = new SqliteConnection(connectionString))
-        {
-            await connection.OpenAsync();
-            await RepositoryMigrationRunner.ApplyAsync(connection, RepositorySchema.Migrations.Take(7).ToArray());
-            await using var command = connection.CreateCommand();
-            command.CommandText = """
-                INSERT INTO repository_info(singleton,repository_id,format_version,schema_version,next_run_index,created_utc)
-                VALUES(1,$id,1,7,5,$now);
-                INSERT INTO sources VALUES(1,'main',$root,$now);
-                INSERT INTO source_state(source_id,current_revision) VALUES(1,4);
-                INSERT INTO runs(run_index,source_id,status,started_utc) VALUES
-                    (1,1,'Succeeded',$now),(2,1,'Succeeded',$now),(3,1,'Succeeded',$now),(4,1,'Succeeded',$now);
-                INSERT INTO workflow_runs(run_index,pipeline,source_id,owner_component,status,started_utc) VALUES
-                    (1,'backup',1,'backup-worker','Succeeded',$now),
-                    (2,'manual-backup',1,'backup-worker','Succeeded',$now),
-                    (3,'backup-maintenance',1,'backup-scheduler','Succeeded',$now),
-                    (4,'backup-maintenance',1,'backup-scheduler','Succeeded',$now);
-                INSERT INTO revisions(source_id,revision,run_index,created_utc,display_name) VALUES
-                    (1,1,1,$now,'Legacy name'),(1,2,2,$now,'Custom manual name'),
-                    (1,3,3,$now,'백업 3'),(1,4,4,$now,'');
-                """;
-            command.Parameters.AddWithValue("$id", Guid.NewGuid().ToString("D"));
-            command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
-            command.Parameters.AddWithValue("$root", temp.GetPath("source"));
-            await command.ExecuteNonQueryAsync();
-        }
-        var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
-        Assert.Equal(RepositorySchema.CurrentVersion, repository.Identity.SchemaVersion);
-        var catalog = await repository.ReadCatalogIfChangedAsync(-1);
-        Assert.Equal(1, catalog.RepositoryChangeRevision);
-        Assert.Equal(new[] { BackupKind.Automatic, BackupKind.Automatic, BackupKind.Manual, BackupKind.Unknown },
-            Assert.Single(catalog.Sources).Revisions.Select(item => item.Kind));
-        await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
-        Assert.Equal(1, await repository.AssignMissingRevisionNamesAsync(lease, SupportedLanguage.English));
-        var retained = await repository.MarkRevisionsForRetentionAsync(lease, 1, keepLatest: 1);
-        Assert.Equal(1, retained.MarkedDeleted);
-        var remaining = Assert.Single((await repository.ReadCatalogIfChangedAsync(-1)).Sources).Revisions;
-        Assert.Equal(new[] { "Automatic backup 4", "Custom manual name", "Legacy name" }, remaining.Select(item => item.DisplayName));
-        var reopened = await RepositoryDatabase.OpenExistingAsync(repositoryPath);
-        Assert.Equal((await repository.ReadCatalogIfChangedAsync(-1)).RepositoryChangeRevision,
-            (await reopened.ReadCatalogIfChangedAsync(-1)).RepositoryChangeRevision);
-    }
-
     private sealed class Boundary : ICheckpointBoundaryProvider
     {
         public CheckpointBoundaryResult Capture(string sourcePath) =>
