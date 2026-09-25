@@ -44,6 +44,12 @@ public sealed partial class SettingsPage : UserControl
 
     internal void ApplyLocalizedText()
     {
+        Language = Localizer.Culture.Name;
+        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, DeathBackupToggle })
+        {
+            toggle.OnContent = Localizer.Get("SettingEnabled");
+            toggle.OffContent = Localizer.Get("SettingDisabled");
+        }
         SettingsTitleText.Text = Localizer.Get("SettingsTitle.Text");
         SettingsSubtitleText.Text = Localizer.Get("SettingsSubtitle");
         DisplaySection.Header = Localizer.Get("DisplaySettings.Header");
@@ -193,7 +199,7 @@ public sealed partial class SettingsPage : UserControl
                 {
                     completedApply = version;
                     App.ShowSidebarNotification(InfoBarSeverity.Error,
-                        Localizer.Get("SettingsTitle.Text"), UserFacingError.FromException(exception));
+                        Localizer.Get("SettingsTitle.Text"), UserFacingError.FromConfigurationException(exception));
                     break;
                 }
             }

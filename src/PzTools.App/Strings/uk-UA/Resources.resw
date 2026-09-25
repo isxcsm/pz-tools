@@ -38,14 +38,14 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Тема</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>Використовувати системну тему або вибрати іншу.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>Системний трей</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Після закриття вікна залишати застосунок працювати в треї.</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>Показати вікно</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>PZ Tools продовжує працювати після закриття вікна. Щоб вийти, виберіть вихід у меню значка PZ Tools біля годинника.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>Відкрити PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Вихід</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>Вийти з PZ Tools?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>Автоматичне копіювання зупиниться. Поточні операції можуть бути перервані.</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>Шляхи</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>Папки</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>Виберіть розташування збережень і резервних копій.</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Папка збережень</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Папка збережень гри</value></data>
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Папка резервних копій</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Огляд</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Резервне копіювання</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Кількість автоматичних копій</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Зберігати останні 1–100 автоматичних копій. Цей ліміт не видаляє ручні копії.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Створювати копію після смерті персонажа</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Перевіряти копії</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Перевіряти скопійовані файли за хешем і повторювати спробу в разі змін.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Файл збереження неодноразово змінювався під час копіювання. Спробу буде повторено під час наступного резервного копіювання.</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Перевіряти скопійовані файли</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Перевіряє, чи збігається вміст копій з оригіналами. Якщо файл зміниться під час копіювання, його буде скопійовано знову.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Під час резервного копіювання файли збереження постійно змінювалися. Дочекайтеся завершення збереження в грі та повторіть спробу.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Наступна копія: очікування</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>Світла</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Темна</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>Застосунок ще не готовий. Повторіть спробу трохи згодом.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>Вікно ще не створено.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools ще запускається. Повторіть спробу трохи пізніше.</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Не вдалося запустити автоматичне копіювання.</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>Поточне збереження недоступне</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>Поточне збереження гри не знайдено</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Режим гри: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>Режим гри</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Персонаж: {0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Архів має незвично високий ступінь стиснення. Безпечний імпорт неможливий.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ручна копія</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Відновити вибрану копію?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Замінити поточні файли «{0}» на «{1}». Якщо заміна не вдасться, попередні файли буде відновлено автоматично.</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Замінити поточні файли «{0}» резервною копією «{1}». Прогрес після створення цієї копії буде втрачено. Якщо відновлення перерветься, знову відкрийте PZ Tools, перш ніж завантажувати це збереження в грі.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Відновити</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>Відновити</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>Резервна копія PZ Tools</value></data>
@@ -139,7 +139,7 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>Операції та журнали</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>Інформація на екрані</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>Операцію скасовано.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>Операцію завершено, але частину очищення ще не виконано.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>Операцію завершено, але виникли проблеми. Перевірте журнал, перш ніж запускати її знову.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Журнал</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Журнал</value></data>
   <data name="LogLevelSetting.Header" xml:space="preserve"><value>Мінімальна важливість</value></data>
@@ -156,7 +156,7 @@
   <data name="LogsSubtitle" xml:space="preserve"><value>Історія резервних копій і стану гри.</value></data>
   <data name="LogSeverityFilter" xml:space="preserve"><value>Важливість</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>Тип операції</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>Номер виконання</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>Номер операції</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>Наприклад: 42</value></data>
   <data name="All" xml:space="preserve"><value>Усі</value></data>
   <data name="NoLogs" xml:space="preserve"><value>Немає записів для показу.</value></data>
@@ -175,7 +175,7 @@
   <data name="LogNumberHint" xml:space="preserve"><value>Постійний номер для ідентифікації цього запису.</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>Рівень</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>Подія</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>Виконання</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>Операція</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>Усього {0:N0}</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{1:N0}–{2:N0} з {0:N0}</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>Назад</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>Перевірка змін</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>Читання файлу</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>Запис даних копії</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>Фіксація копії</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Завершення запису резервної копії</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>Відновлення копії</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>Елементів: {0:N0}</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>Розпочато: {0}.</value></data>
@@ -272,11 +272,11 @@
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>Файли конфігурації</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>Після редагування файлу перезапустіть застосунок. Перезапуск недоступний під час операції.</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>Відкрити файли конфігурації</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Відкриває папку з TOML-файлами конфігурації компонентів. Звичайні налаштування застосунку зберігаються окремо.</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Відкриває папку з файлами розширених налаштувань. Звичайні налаштування програми можна змінити на цьому екрані.</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Застосувати зміни</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Перевіряє змінені файли й перезапускає застосунок. Перезапуск недоступний під час операції.</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Скинути розширену конфігурацію</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Архівує поточну папку конфігурації, зберігаючи назви та розширення файлів, а потім наново створює типові налаштування.</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Зберігає копію поточних файлів і відновлює типові розширені налаштування. Збереження гри та резервні копії не видаляються.</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Відкрити папку</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Застосувати налаштування й перезапустити</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Перевірити змінені файли розширеної конфігурації та перезапустити застосунок? Перезапуск неможливий під час операції.</value></data>
@@ -337,7 +337,7 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Очищення копій</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Інша операція</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Зареєстровано операцію: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Немає доступу до файлу. Перевірте, чи не використовує його гра або інший застосунок.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Немає дозволу на доступ до потрібного файлу чи папки. Перевірте права доступу та повторіть спробу.</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>Не знайдено потрібний файл або папку. Перевірте шлях.</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>Не вдалося завершити операцію. Докладніше див. у журналах.</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>Операцію завершено</value></data>
@@ -351,7 +351,7 @@
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Перевірка активної гри та збереження за потреби…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Зберігати гру перед копіюванням</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Перевіряється, чи потрібно зберегти гру перед копіюванням.</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Виклик збереження гри перед копіюванням повернув керування.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Етап збереження в грі завершено. Резервне копіювання продовжиться.</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>Збереження гри пропущено: вибраний світ не використовується для гри.</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>Перевірку збереження гри перед копіюванням завершено.</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Копіювання зупинено: збереження гри не вдалося підтвердити.</value></data>
@@ -369,8 +369,21 @@
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Потрібно відновити оновлення файлів збереження. Не завантажуйте це збереження в грі. Перезапустіть PZ Tools, щоб завершити оновлення. Якщо збереження змінилося після переривання, автоматичне відновлення зупиниться, не перезаписуючи його.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Відновлення персонажа</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Це збереження використовується грою або іншою операцією. Припиніть гру й повторіть спробу. Оригінал не змінено.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>У базі даних є необроблені дані журналу транзакцій. Вийдіть із гри звичайним способом і повторіть спробу. Оригінал не змінено.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>У цьому збереженні є незавершені зміни. Вийдіть із гри звичайним способом і повторіть спробу. Початкове збереження не змінено.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Підтримуються лише одиночні збереження з одним локальним персонажем. Персонажа не вибирали довільно, оригінал не змінено.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Не вдалося безпечно перевірити формат персонажа. Наразі підтримуються: Build 42, версія світу 249. Оригінал не змінено.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Помилка читання; буде повторна спроба</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>Гра або інша операція використовує потрібний файл. Дочекайтеся завершення збереження чи операції та повторіть спробу.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>Недостатньо вільного місця. Звільніть місце на цільовому диску та повторіть спробу.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Відсутні потрібні файли програми. Розпакуйте весь завантажений архів в одну папку або перевстановіть PZ Tools, а потім відкрийте програму знову.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Ця папка резервних копій використовує інший формат зберігання. Виберіть нову порожню папку в налаштуваннях. Збережіть стару папку, якщо її копії ще потрібні, і не видаляйте збереження гри.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Дочекайтеся завершення поточної операції, перш ніж змінювати папки або перезапускати PZ Tools.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>Не вдалося застосувати налаштування. Перевірте введені значення та файли, змінені в розширених налаштуваннях.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>Не вдалося перезапустити PZ Tools. Після завершення поточних операцій закрийте програму та відкрийте її знову.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Вибрані папки недоступні, тому відновлено попередні налаштування. Перевірте розташування папок і права доступу.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Не вдалося використати нові папки або відновити попередні налаштування. Перед продовженням перевірте розташування папок у налаштуваннях.</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Повторне використання однакових даних резервної копії</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>Повторне використання однакових даних резервної копії</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>Увімкнено</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>Вимкнено</value></data>
 </root>

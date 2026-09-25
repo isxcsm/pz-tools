@@ -38,15 +38,15 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>ธีม</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>ใช้ธีมตามระบบหรือเลือกเอง</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>ถาดระบบ</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>ให้แอปทำงานต่อในถาดระบบเมื่อปิดหน้าต่าง</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>แสดงหน้าต่าง</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>ให้ PZ Tools ทำงานต่อเมื่อปิดหน้าต่าง หากต้องการปิดแอปทั้งหมด ให้เลือกออกจากเมนูไอคอน PZ Tools ข้างนาฬิกา</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>เปิด PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>ออก</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>ออกจาก PZ Tools หรือไม่?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>การสำรองอัตโนมัติจะหยุด และงานที่กำลังทำอาจถูกขัดจังหวะ</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>เส้นทาง</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>โฟลเดอร์</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>เลือกที่เก็บไฟล์เซฟและข้อมูลสำรอง</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>โฟลเดอร์เซฟ</value></data>
-  <data name="BackupPathSetting.Header" xml:space="preserve"><value>โฟลเดอร์ข้อมูลสำรอง</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>โฟลเดอร์เซฟเกม</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>โฟลเดอร์สำรองข้อมูล</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>เรียกดู</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>การสำรองข้อมูล</value></data>
   <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>ตั้งเป็น 0 นาทีเพื่อปิดการสำรองอัตโนมัติ</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>จำนวนข้อมูลสำรองอัตโนมัติที่เก็บไว้</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุด 1–100 ชุด ขีดจำกัดนี้จะไม่ลบข้อมูลสำรองที่สร้างด้วยตนเอง</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครตาย</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>ตรวจสอบสำเนา</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>ตรวจสอบไฟล์ที่คัดลอกด้วยค่าแฮชและลองใหม่หากมีการเปลี่ยนแปลง</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>ไฟล์เซฟเปลี่ยนแปลงซ้ำระหว่างคัดลอก จะลองใหม่ในการสำรองครั้งถัดไป</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>ตรวจสอบไฟล์ที่คัดลอก</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>ตรวจสอบว่าไฟล์ที่คัดลอกมีเนื้อหาตรงกับต้นฉบับ หากต้นฉบับเปลี่ยนระหว่างคัดลอก ระบบจะคัดลอกใหม่</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>ไฟล์เซฟเปลี่ยนแปลงต่อเนื่องระหว่างสำรองข้อมูล รอให้เกมบันทึกเสร็จแล้วลองสำรองอีกครั้ง</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>สำรองครั้งถัดไป: รออยู่</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>สว่าง</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>มืด</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>แอปยังไม่พร้อม กรุณาลองอีกครั้งในอีกสักครู่</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>ยังไม่ได้สร้างหน้าต่าง</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools กำลังเริ่มทำงาน กรุณาลองอีกครั้งในสักครู่</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>เริ่มการสำรองอัตโนมัติไม่ได้</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>ไม่สามารถใช้เซฟปัจจุบันได้</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>ไม่พบเซฟปัจจุบัน</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>โหมดเกม: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>โหมดเกม</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>ตัวละคร: {0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>อัตราการบีบอัดของไฟล์นี้สูงผิดปกติ จึงไม่สามารถนำเข้าอย่างปลอดภัยได้</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>กู้คืนข้อมูลสำรองที่เลือกหรือไม่?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>แทนที่ไฟล์ปัจจุบันของ “{0}” ด้วย “{1}” หากแทนที่ไม่สำเร็จ จะกู้คืนไฟล์เดิมโดยอัตโนมัติ</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>แทนที่ไฟล์ปัจจุบันของ “{0}” ด้วยข้อมูลสำรอง “{1}” ความคืบหน้าหลังจากสำรองครั้งนั้นจะหายไป หากการกู้คืนถูกขัดจังหวะ ให้เปิด PZ Tools อีกครั้งก่อนโหลดเซฟนี้ในเกม</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>กู้คืน</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>กู้คืน</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>ข้อมูลสำรองเซฟ PZ Tools</value></data>
@@ -139,7 +139,7 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>การทำงานและบันทึกเหตุการณ์</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>ข้อมูลบนหน้าจอ</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>ยกเลิกการทำงานแล้ว</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>การทำงานสิ้นสุดแล้ว แต่ยังมีบางส่วนที่ต้องล้างข้อมูล</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>งานสิ้นสุดแล้ว แต่ยังมีปัญหาที่ต้องตรวจสอบ กรุณาดูบันทึกเหตุการณ์ก่อนเริ่มงานซ้ำ</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>บันทึกเหตุการณ์</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>บันทึกเหตุการณ์</value></data>
   <data name="LogLevelSetting.Header" xml:space="preserve"><value>ระดับความรุนแรงขั้นต่ำ</value></data>
@@ -156,7 +156,7 @@
   <data name="LogsSubtitle" xml:space="preserve"><value>ประวัติการสำรองและสถานะเกม</value></data>
   <data name="LogSeverityFilter" xml:space="preserve"><value>ความรุนแรง</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>ประเภทการทำงาน</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>หมายเลขการรัน</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>หมายเลขงาน</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>เช่น 42</value></data>
   <data name="All" xml:space="preserve"><value>ทั้งหมด</value></data>
   <data name="NoLogs" xml:space="preserve"><value>ไม่มีบันทึกให้แสดง</value></data>
@@ -175,7 +175,7 @@
   <data name="LogNumberHint" xml:space="preserve"><value>หมายเลขคงที่ที่ใช้ระบุบันทึกนี้</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>ระดับ</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>เหตุการณ์</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>การรัน</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>งาน</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>ทั้งหมด {0:N0} รายการ</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{1:N0}–{2:N0} จาก {0:N0} รายการ</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>ก่อนหน้า</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>ตรวจสอบการเปลี่ยนแปลง</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>อ่านไฟล์</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>จัดเก็บข้อมูลสำรอง</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>ยืนยันข้อมูลสำรอง</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>บันทึกข้อมูลสำรองให้เสร็จสิ้น</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>กู้คืนข้อมูลสำรอง</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} รายการ</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>เริ่มแล้ว: {0}</value></data>
@@ -272,11 +272,11 @@
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>ไฟล์การกำหนดค่า</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>เริ่มแอปใหม่หลังแก้ไขไฟล์ ไม่สามารถเริ่มใหม่ขณะมีการทำงานอยู่</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>เปิดไฟล์การกำหนดค่า</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>เปิดโฟลเดอร์ที่เก็บไฟล์ TOML สำหรับกำหนดค่าแต่ละส่วน การตั้งค่าทั่วไปของแอปเก็บอยู่ที่อื่น</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>เปิดโฟลเดอร์ที่เก็บไฟล์การตั้งค่าขั้นสูง ส่วนการตั้งค่าทั่วไปเปลี่ยนได้ในหน้านี้</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>ใช้การเปลี่ยนแปลง</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>ตรวจสอบไฟล์ที่แก้ไขแล้วเริ่มแอปใหม่ ไม่สามารถเริ่มใหม่ขณะมีการทำงานอยู่</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>รีเซ็ตการกำหนดค่าขั้นสูง</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>เก็บโฟลเดอร์การกำหนดค่าปัจจุบันไว้โดยคงชื่อและนามสกุลไฟล์ แล้วสร้างค่าเริ่มต้นขึ้นใหม่</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>เก็บสำเนาไฟล์ปัจจุบันไว้แล้วคืนค่าการตั้งค่าขั้นสูงเป็นค่าเริ่มต้น โดยไม่ลบเซฟเกมหรือข้อมูลสำรอง</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>เปิดโฟลเดอร์</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>ใช้การตั้งค่าและเริ่มใหม่</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>ตรวจสอบไฟล์การกำหนดค่าขั้นสูงที่แก้ไขแล้วเริ่มแอปใหม่หรือไม่? ไม่สามารถเริ่มใหม่ขณะมีการทำงานอยู่</value></data>
@@ -337,7 +337,7 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>การล้างข้อมูลสำรอง</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>การทำงานอื่น</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>บันทึกการทำงาน: {0}</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>เข้าถึงไฟล์ไม่ได้ โปรดตรวจสอบว่าเกมหรือแอปอื่นกำลังใช้ไฟล์นี้อยู่หรือไม่</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>คุณไม่มีสิทธิ์เข้าถึงไฟล์หรือโฟลเดอร์ที่จำเป็น กรุณาตรวจสอบสิทธิ์แล้วลองอีกครั้ง</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>ไม่พบไฟล์หรือโฟลเดอร์ที่จำเป็น โปรดตรวจสอบพาธ</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>ทำงานไม่สำเร็จ ดูรายละเอียดในบันทึกเหตุการณ์</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>การทำงานเสร็จแล้ว</value></data>
@@ -351,7 +351,7 @@
   <data name="BackupGameSavePhase" xml:space="preserve"><value>กำลังตรวจสอบว่ากำลังเล่นอยู่หรือไม่ และบันทึกเกมหากจำเป็น…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>กำลังตรวจสอบว่าต้องบันทึกเกมก่อนสำรองหรือไม่</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>การเรียกบันทึกเกมก่อนสำรองคืนการควบคุมแล้ว</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>ขั้นตอนบันทึกเกมเสร็จแล้ว ระบบจะสำรองข้อมูลต่อ</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>ข้ามการบันทึกเกมเนื่องจากไม่ได้เล่นในโลกที่เลือก</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>ตรวจสอบการบันทึกเกมก่อนสำรองเสร็จแล้ว</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>หยุดการสำรองเนื่องจากยืนยันการบันทึกเกมไม่ได้</value></data>
@@ -369,8 +369,21 @@
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>ต้องกู้คืนการอัปเดตไฟล์เซฟ อย่าโหลดเซฟนี้ในเกม โปรดเริ่ม PZ Tools ใหม่เพื่ออัปเดตให้เสร็จ หากเซฟเปลี่ยนไปหลังถูกขัดจังหวะ การกู้คืนอัตโนมัติจะหยุดแทนที่จะเขียนทับ</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>การฟื้นฟูตัวละคร</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรือการทำงานอื่นกำลังใช้เซฟนี้ โปรดหยุดเล่นแล้วลองใหม่ ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>ฐานข้อมูลมีข้อมูลบันทึกธุรกรรมที่ค้างอยู่ โปรดออกจากเกมตามปกติแล้วลองใหม่ ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>เซฟนี้มีการเปลี่ยนแปลงที่ยังไม่เสร็จสมบูรณ์ กรุณาออกจากเกมตามปกติแล้วลองอีกครั้ง เซฟต้นฉบับยังไม่ถูกแก้ไข</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>รองรับเฉพาะเซฟผู้เล่นคนเดียวที่มีตัวละครในเครื่องเพียงตัวเดียว ไม่มีการสุ่มเลือกตัวละคร และไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>ตรวจสอบรูปแบบเซฟของตัวละครอย่างปลอดภัยไม่ได้ ปัจจุบันรองรับ Build 42 เวอร์ชันโลก 249 ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านไม่สำเร็จ จะลองใหม่</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ที่จำเป็น รอให้การบันทึกหรืองานนั้นเสร็จแล้วลองอีกครั้ง</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>พื้นที่ว่างไม่เพียงพอ กรุณาเพิ่มพื้นที่ว่างในไดรฟ์ปลายทางแล้วลองอีกครั้ง</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>ไฟล์ที่จำเป็นของแอปขาดหายไป กรุณาแตกไฟล์ที่ดาวน์โหลดทั้งหมดไว้ในโฟลเดอร์เดียวกัน หรือติดตั้ง PZ Tools ใหม่แล้วเปิดอีกครั้ง</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>โฟลเดอร์สำรองนี้ใช้รูปแบบการจัดเก็บต่างจากแอปปัจจุบัน กรุณาเลือกโฟลเดอร์สำรองใหม่ที่ว่างในหน้าการตั้งค่า เก็บโฟลเดอร์เดิมไว้หากยังต้องใช้ข้อมูลสำรอง และอย่าลบเซฟเกม</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>รอให้งานปัจจุบันเสร็จก่อนเปลี่ยนโฟลเดอร์หรือเริ่ม PZ Tools ใหม่</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>ไม่สามารถใช้การตั้งค่าได้ กรุณาตรวจสอบค่าที่กรอกและไฟล์ที่แก้ไขในการตั้งค่าขั้นสูง</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>ไม่สามารถเริ่ม PZ Tools ใหม่ได้ เมื่องานที่กำลังทำอยู่เสร็จแล้ว ให้ปิดแอปและเปิดอีกครั้ง</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>ไม่สามารถใช้โฟลเดอร์ที่เลือกได้ จึงคืนค่าการตั้งค่าเดิมแล้ว กรุณาตรวจสอบตำแหน่งโฟลเดอร์และสิทธิ์การเข้าถึง</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>ไม่สามารถใช้โฟลเดอร์ใหม่หรือคืนค่าการตั้งค่าเดิมได้ กรุณาตรวจสอบตำแหน่งโฟลเดอร์ในการตั้งค่าก่อนดำเนินการต่อ</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>เปิด</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>ปิด</value></data>
 </root>

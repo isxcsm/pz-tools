@@ -134,6 +134,7 @@ public sealed partial class LogsPage : UserControl
 
     internal void ApplyLocalizedText()
     {
+        Language = Localizer.Culture.Name;
         TitleText.Text = Localizer.Get("LogsTitle");
         SubtitleText.Text = Localizer.Get("LogsSubtitle");
         LevelFilterLabel.Text = Localizer.Get("LogMinimumLevelLabel");
@@ -755,8 +756,15 @@ public sealed partial class LogsPage : UserControl
 
     private static string LocalizedPhase(string phase) => phase switch
     {
-        "boundary" or "scan" or "planning" or "capture" or "pack" or "commit"
-            or "restore" or "source.prepare" => Localizer.Get($"LogPhase.{phase}"),
+        "boundary" or "scan" or "hash" or "planning" or "capture" or "pack" or "commit"
+            or "restore" or "source.prepare" or "deduplication" => Localizer.Get($"LogPhase.{phase}"),
+        "copy" => Localizer.Get("BackupCopyPhase"),
+        "copy.retry" => Localizer.Get("BackupCopyRetryPhase"),
+        "archive.snapshot" => Localizer.Get("ArchiveSnapshotPhase"),
+        "archive.restore" => Localizer.Get("ArchiveRestorePhase"),
+        "archive.compress" => Localizer.Get("ArchiveCompressPhase"),
+        "archive.finalize" => Localizer.Get("ArchiveFinalizePhase"),
+        "import" => Localizer.Get("Importing"),
         _ => phase,
     };
 

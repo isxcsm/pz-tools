@@ -38,15 +38,15 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Tema</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>Usa el tema del sistema o elige uno.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>Bandeja del sistema</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Mantén la aplicación activa en la bandeja al cerrar su ventana.</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>Mostrar ventana</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Mantiene PZ Tools activo al cerrar la ventana. Para salir, elige Salir en el menú de su icono junto al reloj.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>Abrir PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Salir</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>¿Salir de PZ Tools?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>Se detendrán las copias automáticas y podrían interrumpirse las operaciones en curso.</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>Rutas</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>Carpetas</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>Elige dónde almacenar las partidas y las copias.</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Carpeta de partidas</value></data>
-  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Carpeta de copias</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Carpeta de partidas guardadas</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Carpeta de copias de seguridad</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Examinar</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Copia de seguridad</value></data>
   <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>0 minutos desactiva las copias automáticas.</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Cantidad de copias automáticas</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserva las últimas 1–100 copias automáticas. Este límite no elimina copias manuales.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crear copia cuando muera el personaje</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verificar copias</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Comprueba los archivos copiados mediante hash y reintenta si cambian.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>El archivo de la partida cambió repetidamente durante la copia. Se reintentará en la próxima copia.</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verificar los archivos copiados</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Comprueba que las copias coincidan con los archivos originales. Si un archivo cambia durante la copia, se vuelve a copiar.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Los archivos de la partida cambiaron repetidamente durante la copia de seguridad. Espera a que el juego termine de guardar y vuelve a intentarlo.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Próxima copia: en espera</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>Claro</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Oscuro</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>La aplicación aún no está lista. Inténtalo de nuevo en un momento.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>La ventana aún no se ha creado.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools todavía se está iniciando. Inténtalo de nuevo en unos instantes.</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>No se pudieron iniciar las copias automáticas.</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>Partida actual no disponible</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>No se encuentra la partida guardada actual</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Modo de juego: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>Modo de juego</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Personaje: {0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>La compresión de este archivo es inusualmente alta y no se puede importar con seguridad.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Copia manual</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>¿Restaurar la copia seleccionada?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Sustituir los archivos actuales de «{0}» por «{1}». Si falla la sustitución, los archivos anteriores se restaurarán automáticamente.</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Sustituir los archivos actuales de «{0}» por la copia «{1}». Se perderá el progreso posterior a esa copia. Si la restauración se interrumpe, vuelve a abrir PZ Tools antes de cargar esta partida en el juego.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Restaurar</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>Restaurar</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>Copia de partida de PZ Tools</value></data>
@@ -139,7 +139,7 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>Operaciones y registros</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>Información de la pantalla</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>La operación se ha cancelado.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>La operación ha finalizado, pero aún queda parte de la limpieza pendiente.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>La operación ha terminado con problemas. Revisa los registros antes de repetirla.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Registros</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Registros</value></data>
   <data name="LogLevelSetting.Header" xml:space="preserve"><value>Gravedad mínima</value></data>
@@ -156,7 +156,7 @@
   <data name="LogsSubtitle" xml:space="preserve"><value>Historial de copias de seguridad y del estado del juego.</value></data>
   <data name="LogSeverityFilter" xml:space="preserve"><value>Gravedad</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>Tipo de operación</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>Número de ejecución</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>Número de operación</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>Ej.: 42</value></data>
   <data name="All" xml:space="preserve"><value>Todos</value></data>
   <data name="NoLogs" xml:space="preserve"><value>No hay registros que mostrar.</value></data>
@@ -175,7 +175,7 @@
   <data name="LogNumberHint" xml:space="preserve"><value>Número fijo que identifica este registro.</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>Nivel</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>Evento</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>Ejecución</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>Operación</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>{0:N0} en total</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{1:N0}–{2:N0} de {0:N0}</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>Anterior</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>Comprobar cambios</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>Leer archivo</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>Almacenar datos de la copia</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>Confirmar la copia de seguridad</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Finalizar la copia de seguridad</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>Restaurar la copia de seguridad</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} elementos</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>Inicio: {0}.</value></data>
@@ -272,11 +272,11 @@
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>Archivos de configuración</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>Reinicia la aplicación después de editar un archivo. No se puede reiniciar mientras haya una operación en curso.</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>Abrir archivos de configuración</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Abre la carpeta con los archivos TOML de configuración de los componentes. Los ajustes habituales de la aplicación se almacenan en otra ubicación.</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Abre la carpeta de los archivos de ajustes avanzados. Los ajustes habituales se pueden cambiar en esta pantalla.</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Aplicar cambios</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Valida los archivos editados y reinicia la aplicación. No se puede reiniciar durante una operación.</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Restablecer la configuración avanzada</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Archiva la carpeta de configuración actual conservando los nombres y las extensiones de los archivos y después vuelve a crear la configuración predeterminada.</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Guarda una copia de los archivos actuales y restaura los ajustes avanzados predeterminados. No se borran las partidas ni sus copias de seguridad.</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Abrir carpeta</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Aplicar ajustes y reiniciar</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>¿Validar los archivos editados de configuración avanzada y reiniciar la aplicación? No se puede reiniciar durante una operación.</value></data>
@@ -337,7 +337,7 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Limpieza de copias</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Otra operación</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Operación registrada: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>No se puede acceder al archivo. Comprueba si el juego u otra aplicación lo está utilizando.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>No tienes permiso para acceder a un archivo o carpeta necesario. Comprueba los permisos y vuelve a intentarlo.</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>No se ha encontrado un archivo o una carpeta necesarios. Comprueba la ruta.</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>No se ha podido completar la operación. Consulta los registros para obtener más información.</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>Operación completada</value></data>
@@ -351,7 +351,7 @@
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Comprobando si se está jugando y guardando si es necesario…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Guardar el juego antes de la copia</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Comprobando si es necesario guardar el juego antes de la copia.</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>La llamada de guardado del juego previa a la copia ha retornado.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>El paso de guardado del juego ha terminado. Ahora continuará la copia de seguridad.</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>Se ha omitido el guardado porque no se está jugando en el mundo seleccionado.</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>Ha finalizado la comprobación del guardado previo a la copia.</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Se ha detenido la copia porque no se ha podido confirmar el guardado del juego.</value></data>
@@ -369,8 +369,21 @@
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Es necesario recuperar una actualización de los archivos de la partida. No cargues esta partida en el juego. Reinicia PZ Tools para finalizar la actualización. Si la partida cambió después de la interrupción, la recuperación automática se detendrá en lugar de sobrescribirla.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Recuperación del personaje</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>El juego u otra operación está utilizando esta partida. Deja de jugar e inténtalo de nuevo. No se ha modificado el original.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>La base de datos tiene datos de diario pendientes. Sal del juego normalmente e inténtalo de nuevo. No se ha modificado el original.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>Esta partida tiene cambios pendientes. Sal del juego de forma normal y vuelve a intentarlo. La partida original no se ha modificado.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Solo se admiten partidas de un jugador con un único personaje local. No se ha elegido ningún personaje arbitrariamente ni se ha modificado el original.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>No se ha podido validar de forma segura el formato del personaje. Actualmente se admite Build 42, versión del mundo 249. No se ha modificado el original.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Error de lectura; se reintentará</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>El juego u otra operación está usando un archivo necesario. Espera a que termine el guardado o esa operación y vuelve a intentarlo.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>No hay suficiente espacio libre. Libera espacio en la unidad de destino y vuelve a intentarlo.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Faltan archivos necesarios de la aplicación. Extrae todo el contenido descargado en una misma carpeta o reinstala PZ Tools y vuelve a abrirlo.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Esta carpeta de copias usa otro formato de almacenamiento. Elige una nueva carpeta vacía en Ajustes. Conserva la carpeta anterior si necesitas sus copias y no borres tus partidas guardadas.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Espera a que termine la operación actual antes de cambiar las carpetas o reiniciar PZ Tools.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>No se han podido aplicar los ajustes. Comprueba los valores introducidos y los archivos editados en los ajustes avanzados.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>No se ha podido reiniciar PZ Tools. Cuando terminen las operaciones en curso, cierra la aplicación y vuelve a abrirla.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>No se han podido usar las carpetas seleccionadas y se han restaurado los ajustes anteriores. Comprueba las ubicaciones y los permisos.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>No se han podido usar las nuevas carpetas ni restaurar los ajustes anteriores. Revisa las ubicaciones en Ajustes antes de continuar.</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Reutilizando datos idénticos ya respaldados</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>Reutilizando datos idénticos ya respaldados</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>Activado</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>Desactivado</value></data>
 </root>

@@ -6,6 +6,7 @@ namespace PzTools.Backup.Tests;
 public sealed class OperationProgressDisplayTests
 {
     [Theory]
+    [InlineData("deduplication")]
     [InlineData("archive.snapshot")]
     [InlineData("archive.compress")]
     [InlineData("archive.restore")]

@@ -124,6 +124,7 @@ public sealed partial class MainWindowShell : UserControl
 
     private void ApplyLocalizedText()
     {
+        Language = Localizer.Culture.Name;
         AppTitleText.Text = Localizer.Get("AppTitle");
         if (IsLoaded) App.MainWindow.Title = AppTitleText.Text;
         SavesItem.Content = Localizer.Get("SavesNavigation.Content");
@@ -836,12 +837,14 @@ public sealed partial class MainWindowShell : UserControl
         "delete.files" => Localizer.Get("DeleteSaveFilesPhase"),
         "delete.backups" => Localizer.Get("DeleteSaveBackupsPhase"),
         "source.prepare" => Localizer.Get("BackupGameSavePhase"),
+        "boundary" or "pack" or "commit" => Localizer.Get($"LogPhase.{phase}"),
         "planning" => Localizer.Get("LogPhase.planning"),
         "scan" => Localizer.Get("BackupScanPhase"),
         "hash" => Localizer.Get("BackupHashPhase"),
         "copy" => Localizer.Get("BackupCopyPhase"),
         "copy.retry" => Localizer.Get("BackupCopyRetryPhase"),
         "capture" => Localizer.Get("BackupCapturePhase"),
+        "deduplication" => Localizer.Get("BackupDeduplicationPhase"),
         "restore" => Localizer.Get("Restoring"),
         "archive.restore" => Localizer.Get("ArchiveRestorePhase"),
         "archive.snapshot" => Localizer.Get("ArchiveSnapshotPhase"),
@@ -1647,7 +1650,7 @@ public sealed partial class MainWindowShell : UserControl
         UpdateOperationActions();
         try
         {
-            var root = host.ActiveSavesRoot ?? throw new InvalidOperationException("Saves root unavailable.");
+            var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(root, save.SaveId, operationId: id));
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
                 await RefreshAfterMutationAsync(host, Localizer.Get("HealCharacterTitle"),
