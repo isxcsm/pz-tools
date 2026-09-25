@@ -1,5 +1,6 @@
 using PzTools.SaveBridge;
 using PzTools.Zomboid.State;
+using PzTools.Process.Contracts;
 
 namespace PzTools.Zomboid.Backup;
 
@@ -11,8 +12,10 @@ public sealed class BackupGameSave(Func<string, CancellationToken, Task<string>>
 {
     public BackupGameSave(string bridgeDirectory, int connectionTimeoutSeconds = 30, int completionTimeoutSeconds = 150,
         int queueTimeoutSeconds = 15, string? notificationLanguage = "en", DateTimeOffset? scheduledSaveUtc = null)
-        : this(new GameSaveClient(bridgeDirectory, connectionTimeoutSeconds, completionTimeoutSeconds,
-            queueTimeoutSeconds, notificationLanguage, scheduledSaveUtc).SaveRunningGameAsync) { }
+        : this(ConfiguredGameSaveProviders.Create(
+            new GameSaveClient(bridgeDirectory, connectionTimeoutSeconds, completionTimeoutSeconds,
+                queueTimeoutSeconds, notificationLanguage, scheduledSaveUtc).SaveRunningGameAsync,
+            PzToolsPathLayout.CreateDefault().DataRoot)) { }
 
     public async Task<GameSaveResult> PrepareAsync(string sourcePath, CancellationToken cancellationToken)
     {

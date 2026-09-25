@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <ProjectReference Include="..\PzTools.GameExtensions\PzTools.GameExtensions.csproj" />
     <ProjectReference Include="..\PzTools.SaveBridge\PzTools.SaveBridge.csproj" />
     <ProjectReference Include="..\PzTools.Backup.Storage\PzTools.Backup.Storage.csproj" />
     <ProjectReference Include="..\PzTools.Zomboid.State\PzTools.Zomboid.State.csproj" />
