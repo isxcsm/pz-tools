@@ -1,5 +1,7 @@
 # Normalized path identities (format 2 / schema 3)
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 Current schema is **4**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
 
 This is a pre-release breaking layout change. Schema 1/2 and format 1 repositories

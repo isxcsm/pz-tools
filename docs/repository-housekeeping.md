@@ -1,5 +1,7 @@
 # Repository housekeeping
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 Housekeeping was introduced at commit `6f2023c` without changing the storage layout.
 The subsequent pre-release [compact format 2](compact-repository-format.md) deliberately
 breaks format-1 compatibility. The policies below apply to new format-2 repositories;

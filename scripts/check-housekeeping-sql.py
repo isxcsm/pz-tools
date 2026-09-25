@@ -12,7 +12,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CODE = (ROOT / 'src/PzTools.Backup.Storage/Repository/RepositoryDatabase.Housekeeping.cs').read_text()
 SQL = [textwrap.dedent(s).strip() for s in re.findall(r'"""(.*?)"""', CODE, re.S)]
-DUE, DUE_SOURCES, PRUNE_ENTRIES, HISTORY_SELECT, PRUNE_RUNS, ACTIVE = SQL
+DUE, DUE_SOURCES, HISTORY_SELECT, PRUNE_RUNS, ACTIVE = SQL
+ENTRY_CODE = (ROOT / 'src/PzTools.Backup.Storage/Repository/RepositoryDatabase.EntryCollection.cs').read_text()
+ENTRY_WINDOW = textwrap.dedent(re.findall(r'"""(.*?)"""', ENTRY_CODE, re.S)[0]).strip()
 CUTOFF = '2026-01-01T00:00:00.0000000+00:00'
 OLD = '2000-01-01T00:00:00.0000000+00:00'
 NEW = '2099-01-01T00:00:00.0000000+00:00'
@@ -39,6 +41,16 @@ def execute_many(db, sql, params):
     for statement in sql.split(';'):
         if statement.strip():
             db.execute(statement, params)
+
+
+def prune_entries(db, source, limit, after=None):
+    sql = ENTRY_WINDOW.replace('/*cursor*/', 'WHERE entry.rowid>$after' if after is not None else '')
+    rows = db.execute(sql, {'sourceId':source, 'limit':limit, 'after':after}).fetchall()
+    removed = 0
+    for rowid, eligible in rows:
+        if eligible:
+            removed += db.execute('DELETE FROM entry_versions WHERE rowid=?', (rowid,)).rowcount
+    return (rows[-1][0] if len(rows)==limit else None), len(rows), removed
 
 
 def prune_history(db, keep=1, limit=1000):
@@ -103,9 +115,13 @@ class HousekeepingSqlTests(unittest.TestCase):
         self.seed_versions()
         self.seed_versions(source=2)
         before = [self.snapshot(1,1), self.snapshot(1,4), self.snapshot(2,2)]
-        self.assertEqual(1, self.db.execute(PRUNE_ENTRIES, {'sourceId':1,'limit':1}).rowcount)
-        self.assertEqual(1, self.db.execute(PRUNE_ENTRIES, {'sourceId':1,'limit':1}).rowcount)
-        self.assertEqual(0, self.db.execute(PRUNE_ENTRIES, {'sourceId':1,'limit':1}).rowcount)
+        after = None
+        removed = 0
+        for _ in range(10):
+            after, inspected, count = prune_entries(self.db, 1, 1, after)
+            self.assertLessEqual(inspected, 1)
+            removed += count
+        self.assertEqual(2, removed)
         self.assertEqual(before, [self.snapshot(1,1), self.snapshot(1,4), self.snapshot(2,2)])
 
     def test_all_retained_revision_combinations(self):
@@ -117,7 +133,7 @@ class HousekeepingSqlTests(unittest.TestCase):
             self.seed_versions(states)
             retained = [n for n in range(1,5) if states[n-1]=='Active' or n==4]
             before = [self.snapshot(1,n) for n in retained]
-            self.db.execute(PRUNE_ENTRIES, {'sourceId':1,'limit':1000})
+            prune_entries(self.db, 1, 1000)
             self.assertEqual(before, [self.snapshot(1,n) for n in retained])
             self.assertEqual([], self.db.execute('PRAGMA foreign_key_check').fetchall())
             self.db.close()
@@ -129,8 +145,13 @@ class HousekeepingSqlTests(unittest.TestCase):
         due = self.db.execute(DUE_SOURCES, {'batch':20, 'cutoff':CUTOFF, 'limit':1}).fetchall()
         self.assertEqual([(1,)], due)
         before = [self.snapshot(1,1), self.snapshot(1,4), self.snapshot(2,1), self.snapshot(2,4)]
-        self.assertEqual(3, self.db.execute(PRUNE_ENTRIES, {'sourceId':None,'limit':3}).rowcount)
-        self.assertEqual(1, self.db.execute(PRUNE_ENTRIES, {'sourceId':None,'limit':3}).rowcount)
+        after = None
+        removed = 0
+        for _ in range(4):
+            after, inspected, count = prune_entries(self.db, None, 3, after)
+            self.assertLessEqual(inspected, 3)
+            removed += count
+        self.assertEqual(4, removed)
         self.assertEqual(before, [self.snapshot(1,1), self.snapshot(1,4), self.snapshot(2,1), self.snapshot(2,4)])
 
     def test_history_keeps_references_running_recent_and_incomplete(self):

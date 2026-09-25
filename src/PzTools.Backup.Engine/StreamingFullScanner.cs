@@ -341,11 +341,7 @@ public sealed class FullScanSession : IAsyncDisposable
         }
     }
 
-    public async IAsyncEnumerable<FullScanChange> EnumerateChangesAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        await using var command = connection.CreateCommand();
-        command.CommandText =
+    internal const string ChangeEnumerationSql =
             """
             WITH current_entries AS (
                 SELECT path_key, display_path, entry_kind, byte_length, modified_utc,
@@ -359,8 +355,13 @@ public sealed class FullScanSession : IAsyncDisposable
                    scan.byte_length, scan.modified_utc, scan.changed_utc,
                    scan.attributes, scan.file_id, scan.parent_file_id
             FROM full_scan_entries AS scan
-            LEFT JOIN current_entries AS current ON current.path_key = scan.path_key
-            WHERE current.path_key IS NULL
+            WHERE NOT EXISTS (
+                SELECT 1 FROM paths AS lookup_path
+                JOIN entry_versions AS live INDEXED BY ix_entry_versions_current
+                  ON live.path_id=lookup_path.path_id
+                WHERE lookup_path.path_key=scan.path_key AND live.source_id=$sourceId
+                  AND live.valid_to_revision IS NULL AND live.tombstone=0
+            )
 
             UNION ALL
 
@@ -390,6 +391,13 @@ public sealed class FullScanSession : IAsyncDisposable
 
             ORDER BY 2;
             """;
+
+    public async IAsyncEnumerable<FullScanChange> EnumerateChangesAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            ChangeEnumerationSql;
         command.Parameters.AddWithValue("$sourceId", SourceId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))

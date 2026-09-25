@@ -1,5 +1,7 @@
 # 프로세스 구조
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 현재 헤드리스 구조는 두 개의 독립 파이프라인으로 나뉩니다.
 
 ```text
@@ -13,7 +15,7 @@ StateScheduler  → StateRunner → StateCollector.Once → StateReactor.Once
 ```
 
 BackupScheduler는 세이브별 job 목록을 갖지 않습니다. 하나의 `scheduler.db`에
-repository, 현재 동적 target, 주기, 자동 백업 활성 여부, 다음 due와 final/pending
+repository, 현재 동적 target, 주기, 자동 백업 활성 여부, 다음 due와 pending
 queue를 보관합니다. 한 tick의 백업 `run_index`는 BackupRunner에 전달합니다.
 Backup이 성공하거나 변경 없음으로 끝나면 MaintenanceRunner의 경량 레인 판정까지
 기다립니다. 무거운 레인은 각각 자식 프로세스를 시작하고 종료를 기다리지 않습니다.
@@ -22,7 +24,7 @@ mutex가 살아 있으면 해당 레인의 중복 실행만 건너뛰고 다른 
 백업이 도래하면 실행 중인 무거운 레인에 양보 신호를 보내며, 저장소
 잠금으로 백업 worker가 `Busy`를 반환해도 주기 due를 유지해 다음 tick에 다시
 시도합니다. 점검기의 시작·실행 실패는 완료된 백업 결과를 변경하지 않습니다.
-final/pending 실행 횟수는 Backup worker가 실제로 시작됐을 때만 감소합니다.
+pending 실행 횟수는 Backup worker가 실제로 시작됐을 때만 감소합니다.
 
 BackupRunner와 MaintenanceRunner는 정규화한 저장소 경로로 같은 저장소 접근
 named mutex를 계산합니다. MaintenanceRunner의 별도 dispatch mutex는 경량 판정
@@ -42,7 +44,7 @@ workflow를 `Busy`로 완료합니다. Scheduler가 번호를 전달했다면 �
 - `telemetry.db`: 기존 백업 엔진의 세부 원시 telemetry
 - `.pztools/[<database-name>/]<component>/telemetry.db`: 해당 producer만 쓰는 프로세스 경계 이벤트
 - `state.db`: pending 관측, 현재 게임 및 세이브 projection, 전이와 outbox
-- `scheduler.db`: 단일 동적 target, mode, cadence, final/pending queue와 idempotent command inbox
+- `scheduler.db`: 단일 동적 target, mode, cadence, pending queue와 idempotent command inbox
 
 번호 발급자는 mutex 획득 전에 `control.db`에서 번호를 확보합니다. 부모가 전달한
 번호가 있으면 자식은 다시 발급하지 않습니다. 발급 실패는 실행 실패이며 저장소나
@@ -91,9 +93,10 @@ StateScheduler의 기본 수집 간격은 3초입니다. Windows에서 Project Z
 한 번의 Active/Inactive 관측은 상태 전이를 만들지 않습니다. 같은 값이 두 번
 연속 관측돼야 확정하며 `Unknown`은 횟수를 늘리지 않습니다. 확정된
 `Inactive → Active`는 해당 세이브를 현재 target으로 만드는 `ActivateTarget`,
-`Active → Inactive`는 final backup을 예약하는 `FinalizeTarget` 명령을 outbox에
-남깁니다. 세이브가 사라지면 `ClearTarget`, 사망 백업 옵션이 켜진 상태에서 사망을
-확정하면 `RunOnceNow`를 남깁니다. 복수 세이브가 동시에 활성으로 확정되면
+`Active → Inactive`는 `ClearTarget`으로 대상과 예약을 해제합니다. 게임 종료로
+추가 자동 백업을 만들지 않습니다. 세이브가 사라져도 `ClearTarget`을 보냅니다.
+사망 백업은 옵션이 켜져 있고 플레이가 현재 활성으로 관측된 경우에만
+`RunOnceNow`를 남깁니다. 복수 세이브가 동시에 활성으로 확정되면
 `SuspendAmbiguous`로 자동 admission을 멈추고 단일 활성 세이브로 해소된 뒤에만
 재개합니다. outbox와 Scheduler inbox는 서로 다른 DB이므로 idempotency key를
 보존한 뒤 inbox commit이 성공한 메시지만 acknowledge합니다. `Alive ↔ Dead`는
@@ -101,8 +104,15 @@ StateScheduler의 기본 수집 간격은 3초입니다. Windows에서 Project Z
 
 `ActivateTarget`은 즉시 백업하지 않고 활성화 명령을 처리한 시각부터 설정된
 자동 백업 간격이 지난 시점에 첫 periodic backup을 예약합니다. 간격을 변경해도
-변경 시각부터 새 간격을 적용합니다. 게임 종료 시 final backup과 사망 시 백업은
-각각 별도의 즉시 실행 명령입니다.
+변경 시각부터 새 간격을 적용하되 정지·모호 상태를 활성으로 바꾸지 않습니다.
+설정 변경은 대기 중인 상태 명령을 먼저 반영합니다. 종료 시 final backup은 더 이상
+예약하지 않으며, 남아 있던 `FinalizeTarget` 명령과 Final 예약도 자동 실행하지 않습니다.
+스케줄러는 실행 직전에 예약 ID와 플레이 상태를 다시 확인하고, 자동 worker는
+게임 저장 준비/카운트다운 대기 전후에 게임 프로세스와 세이브 활성 상태를 확인합니다.
+종료되었거나 상태가 불확실하면 `Skipped`입니다. 이미 캡처가 시작된 백업을 게임 종료만으로
+중단하지는 않습니다. 수동 백업은 비실행 중에도 가능합니다.
+앱 카운트다운은 자동 사용 설정·활성 예약뿐 아니라 신선한 단일 플레이 상태가 있어야
+표시합니다. 상태 수집 간격과 활성 확정에 따른 지연은 남습니다.
 
 ## 원본 세이브가 없는 백업 정리
 

@@ -1,5 +1,9 @@
 # Storage hotpaths (format 2 / schema 4)
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
+> Historical schema-4 implementation. The current schema is 5; see [the follow-up](active-backup-followup.md).
+
 Based on dev `52e8822a3192acaf7cb95d68e6a0657ecab0bbc3`, including localization PR #5.
 This is a fresh pre-release schema: older schemas are rejected without modification,
 not migrated. Use a new empty backup repository and rebuild the app and workers

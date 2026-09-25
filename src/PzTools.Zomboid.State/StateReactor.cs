@@ -142,7 +142,7 @@ public sealed class StateReactor
                         var commandValue = confirmed switch
                         {
                             ActivityState.Active => "ActivateTarget",
-                            ActivityState.Inactive when previousConfirmed == ActivityState.Active => "FinalizeTarget",
+                            ActivityState.Inactive when previousConfirmed == ActivityState.Active => "ClearTarget",
                             _ => null,
                         };
                         if (commandValue is not null)
@@ -173,6 +173,9 @@ public sealed class StateReactor
                             cancellationToken);
                         transitionCount++;
                         if (options.BackupOnDeath
+                            && confirmed == ActivityState.Active
+                            && observation.Activity == ActivityState.Active
+                            && observation.ActivityLaneStatus == LaneStatus.Succeeded
                             && previousCharacter == CharacterState.Alive
                             && character == CharacterState.Dead)
                         {

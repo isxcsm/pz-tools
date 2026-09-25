@@ -5,13 +5,14 @@ namespace PzTools.Backup.Engine;
 
 public sealed record RepositoryHousekeepingResult(
     int CompactedRevisions, int RemovedEntryVersions, int RemovedObjects, CompletedHistoryCleanup History,
-    RepositoryVacuumResult Vacuum, IReadOnlyList<string> FilesThatCouldNotBeDeleted, int RemovedPathRows = 0, int InspectedPathRows = 0)
+    RepositoryVacuumResult Vacuum, IReadOnlyList<string> FilesThatCouldNotBeDeleted, int RemovedPathRows = 0, int InspectedPathRows = 0, int InspectedEntryVersions = 0)
 {
     public int AffectedItems => CompactedRevisions + RemovedEntryVersions + RemovedObjects + History.Runs + History.Workflows + History.Stages + RemovedPathRows;
     public string ToDetail() => JsonSerializer.Serialize(new
     {
         compactedRevisions = CompactedRevisions,
         removedEntryVersions = RemovedEntryVersions,
+        inspectedEntryVersions = InspectedEntryVersions,
         removedObjects = RemovedObjects,
         removedPathRows = RemovedPathRows,
         inspectedPathRows = InspectedPathRows,
@@ -49,8 +50,9 @@ public sealed class RepositoryHousekeepingService
                 compacted += result.CompactedRevisions;
             }
         }
-        var entries = await repository.PruneUnreachableEntryVersionsAsync(
+        var entrySweep = await repository.SweepUnreachableEntryVersionsAsync(
             lease, sourceId, policy.BatchSize, cancellationToken);
+        var entries = entrySweep.RemovedRows;
         var removedObjects = 0;
         IReadOnlyList<string> failed = [];
         if (entries > 0 || compacted > 0)
@@ -67,6 +69,6 @@ public sealed class RepositoryHousekeepingService
                 lease, DateTimeOffset.UtcNow.AddDays(-policy.HistoryRetentionDays),
                 policy.MinimumRetainedRuns, policy.BatchSize, cancellationToken);
         var vacuum = await repository.TryVacuumAsync(lease, maintenanceRunIndex, policy, cancellationToken);
-        return new RepositoryHousekeepingResult(compacted, entries, removedObjects, history, vacuum, failed, pathSweep.RemovedRows, pathSweep.InspectedRows);
+        return new RepositoryHousekeepingResult(compacted, entries, removedObjects, history, vacuum, failed, pathSweep.RemovedRows, pathSweep.InspectedRows, entrySweep.InspectedRows);
     }
 }

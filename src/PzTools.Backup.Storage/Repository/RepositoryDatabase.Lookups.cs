@@ -8,6 +8,16 @@ public sealed partial class RepositoryDatabase
     internal const string PathsRequestFirstFrom =
         "requested_paths AS requested CROSS JOIN paths AS requested_path ON requested_path.path_key=requested.path_key "
         + "CROSS JOIN current_entry_catalog AS entry ON entry.path_id=requested_path.path_id";
+    // '/' and '0' are adjacent ASCII code points under BINARY collation.
+    // UNION ALL preserves multiplicity for overlapping, distinct requested roots.
+    internal const string RootsRangeFrom =
+        "(SELECT path.path_id FROM requested_roots AS requested "
+        + "CROSS JOIN paths AS path ON path.path_key=requested.path_key "
+        + "UNION ALL SELECT path.path_id FROM requested_roots AS requested "
+        + "CROSS JOIN paths AS path ON path.path_key>=requested.path_key||'/' "
+        + "AND path.path_key<requested.path_key||'0') AS requested_ids "
+        + "CROSS JOIN current_entry_catalog AS entry ON entry.path_id=requested_ids.path_id";
+
     internal const string PathsScanFrom =
         "current_entry_catalog AS entry JOIN requested_paths AS requested ON requested.path_key=entry.path_key";
 

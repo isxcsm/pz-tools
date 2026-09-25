@@ -6,12 +6,12 @@ internal sealed record RepositoryMigration(int Version, string Name, string Sql)
 
 internal static class RepositorySchema
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
-    // Fresh format 2 / schema 4 repositories only. Older schemas have no upgrade path.
+    // Fresh format 2 / schema 5 repositories only. Older schemas have no upgrade path.
     public static IReadOnlyList<RepositoryMigration> Migrations { get; } =
     [
-        new RepositoryMigration(CurrentVersion, "indexed lookup and resumable bounded path collection",
+        new RepositoryMigration(CurrentVersion, "bounded version and path inspection",
             """
             CREATE TABLE repository_info (
                 singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton = 1),
@@ -164,6 +164,11 @@ internal static class RepositorySchema
 
             -- Resume inspection even when no rows can be deleted. Cursor progress
             -- and deletion commit together; the cursor is not a liveness oracle.
+            CREATE TABLE entry_gc_cursors (
+                scope_source_id INTEGER NOT NULL PRIMARY KEY CHECK (scope_source_id>=0),
+                after_rowid INTEGER NULL
+            ) STRICT;
+
             CREATE TABLE path_gc_cursor (
                 singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton=1),
                 spelling_path_id INTEGER NOT NULL,

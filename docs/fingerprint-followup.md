@@ -1,5 +1,9 @@
 # Fingerprint branch reconciliation
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
+> Historical branch-reconciliation record. The recorded schema and test counts apply to the named commits; see the current repository format before opening data.
+
 The original fingerprint-only follow-up `9894bddbab50d5be6d75f5f37482f85e5a10bd7d`
 starts from dev merge `6ab613238081946b9d9fccd67d01c0719b11340f`.
 The former `optimize/content-fingerprint128` head was

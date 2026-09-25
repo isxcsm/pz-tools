@@ -63,7 +63,7 @@ public sealed class SchedulerTests
     }
 
     [Fact]
-    public async Task AppSessionRestart_PreservesPendingFinalBackup()
+    public async Task AppSessionRestart_DoesNotRestoreAnExitBackup()
     {
         using var temp = new TempDirectory();
         var database = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
@@ -72,7 +72,9 @@ public sealed class SchedulerTests
         await database.EnqueueTargetCommandAsync(Command("final", BackupTargetCommandKind.FinalizeTarget, Target(temp, "A")));
         var admission = await database.PrepareBackupTickAsync(now);
         await database.RestartPeriodicScheduleAsync(now.AddHours(1));
-        Assert.Equal(admission, await database.PrepareBackupTickAsync(now.AddHours(1)));
+        Assert.Null(admission);
+        Assert.Null(await database.PrepareBackupTickAsync(now.AddHours(1)));
+        Assert.Equal(0, (await database.ReadBackupStateIfChangedAsync(-1)).PendingRuns);
     }
 
     [Fact]
@@ -207,31 +209,22 @@ public sealed class SchedulerTests
     }
 
     [Fact]
-    public async Task FinalAttempt_IsRetriedUntilWorkerActuallyStarts()
+    public async Task ExitCommand_IsAStop_NotARetryableFinalBackup()
     {
         using var temp = new TempDirectory();
         var database = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
         var now = DateTimeOffset.UtcNow;
         var target = Target(temp, "A");
-        await database.ConfigureBackupAsync(
-            temp.GetPath("repository"), true, TimeSpan.FromMinutes(5), now);
-        await database.EnqueueTargetCommandAsync(Command("final-a", BackupTargetCommandKind.FinalizeTarget, target));
-
-        var first = (await database.PrepareBackupTickAsync(now))!;
-        Assert.Equal(BackupAdmissionKind.Final, first.Kind);
-        await database.FinishBackupTickAsync(
-            first, false, null, ProcessOutcome.Busy, now);
-        var retry = (await database.PrepareBackupTickAsync(now))!;
-        Assert.Equal(first.Target, retry.Target);
-        Assert.NotEqual(first.AdmissionId, retry.AdmissionId);
-
-        await database.FinishBackupTickAsync(
-            retry, true, 7, ProcessOutcome.NoChange, now);
+        await database.ConfigureBackupAsync(temp.GetPath("repository"), true, TimeSpan.FromMinutes(5), now);
+        await database.EnqueueTargetCommandAsync(Command("active", BackupTargetCommandKind.ActivateTarget, target));
+        await database.PrepareBackupTickAsync(now);
+        await database.EnqueueTargetCommandAsync(Command("final", BackupTargetCommandKind.FinalizeTarget, target));
         Assert.Null(await database.PrepareBackupTickAsync(now));
+        Assert.Null(await database.PrepareBackupTickAsync(now.AddDays(1)));
         var state = await database.ReadBackupStateIfChangedAsync(-1);
-        Assert.Equal(SchedulerMode.Paused, state.Mode);
         Assert.Null(state.CurrentTarget);
-        Assert.Equal(7, state.LastRunIndex);
+        Assert.Equal(0, state.PendingRuns);
+        Assert.Equal(SchedulerMode.Paused, state.Mode);
     }
 
     [Fact]
@@ -249,10 +242,10 @@ public sealed class SchedulerTests
         await database.EnqueueTargetCommandAsync(Command("final-a", BackupTargetCommandKind.FinalizeTarget, firstTarget));
         await database.EnqueueTargetCommandAsync(Command("activate-b", BackupTargetCommandKind.ActivateTarget, secondTarget));
 
-        var final = (await database.PrepareBackupTickAsync(now))!;
-        Assert.Equal(BackupAdmissionKind.Final, final.Kind);
-        Assert.Equal(firstTarget, final.Target);
-        await database.FinishBackupTickAsync(final, true, 8, ProcessOutcome.Succeeded, now);
+        Assert.Null(await database.PrepareBackupTickAsync(now));
+        // A delayed stop for A must not clear a newly activated B.
+        await database.EnqueueTargetCommandAsync(Command("late-final-a", BackupTargetCommandKind.FinalizeTarget, firstTarget));
+        Assert.Null(await database.PrepareBackupTickAsync(now));
         var state = await database.ReadBackupStateIfChangedAsync(-1);
         Assert.Equal(secondTarget, state.CurrentTarget);
         Assert.Equal(SchedulerMode.Continuous, state.Mode);

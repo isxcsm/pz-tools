@@ -255,12 +255,12 @@ public sealed partial class RepositoryDatabase
             connection,
             "requested_roots",
             "path_key",
-            relativeRoots.Select(path => path.ToUpperInvariant()),
+            relativeRoots.Select(path => BackupPath.NormalizeRelative(path).ToUpperInvariant()),
             cancellationToken);
         return await ReadCurrentEntriesAsync(
             connection,
             sourceId,
-            "current_entry_catalog AS entry JOIN requested_roots AS requested ON entry.path_key = requested.path_key OR substr(entry.path_key, 1, length(requested.path_key) + 1) = requested.path_key || '/'",
+            RootsRangeFrom,
             cancellationToken);
     }
 

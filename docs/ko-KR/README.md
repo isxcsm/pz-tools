@@ -1,4 +1,4 @@
-<p align="center">
+<p>
   <strong>한국어</strong> ·
   <a href="../../README.md">English</a> ·
   <a href="../zh-CN/README.md">简体中文</a> ·
@@ -19,263 +19,96 @@
   <a href="../es-MX/README.md">Español (Latinoamérica)</a>
 </p>
 
-<p align="center">
-  <img src="../../src/PzTools.App/Assets/Navigation/pztools.svg" width="88" height="88" alt="PZ Tools" />
-</p>
+# PZ Tools
 
-<h1 align="center">PZ Tools</h1>
+PZ Tools는 Project Zomboid 세이브를 백업하고 복원하는 Windows 앱입니다. 지원하는 세이브 형식에서는 캐릭터 회복도 제공합니다. The Indie Stone의 공식 제품은 아닙니다.
 
-<p align="center">
-  <strong>살아남는 것은 플레이어의 몫. 돌아갈 시점을 남기는 것은 PZ Tools의 몫.</strong><br />
-  Project Zomboid를 위한 자동 백업 · 세이브 히스토리 · 캐릭터 회복
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Windows-x64-0078D4" alt="Windows x64" />
-  <img src="https://img.shields.io/badge/UI-WinUI%203-1465AD" alt="WinUI 3" />
-  <img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET 10" />
-  <img src="https://img.shields.io/badge/Languages-18-27B6B1" alt="18개 언어·로케일 지원" />
-</p>
-
-<p align="center">
-  <a href="#주요-기능">주요 기능</a> ·
-  <a href="#백업-엔진">백업 엔진</a> ·
-  <a href="#시작하기">시작하기</a> ·
-  <a href="#지원-범위와-주의사항">지원 범위</a> ·
-  <a href="#빌드와-개발">빌드와 개발</a>
-</p>
-
-PZ Tools는 플레이 중인 세이브를 감지하고, 정해진 간격으로 백업하며, 썸네일과 캐릭터 정보로 돌아갈 시점을 고를 수 있게 해주는 Windows 앱입니다.
-
-화면에서는 백업 하나를 선택하면 되지만, 그 뒤에서는 **게임 내 저장 요청, 파일 변경 추적, 증분 저장, 복사본 검증, 중단된 작업 복구**가 함께 동작합니다. 필요할 때는 월드를 되돌리지 않고 현재 캐릭터만 회복시킬 수도 있습니다.
-
+<a id="features"></a>
+<a id="주요-기능"></a>
 ## 주요 기능
 
-| 원하는 것 | PZ Tools가 하는 일 |
-| :--- | :--- |
-| 플레이에 집중하기 | 플레이 중인 세이브 감지, 주기적 자동 백업, 다음 백업 카운트다운 |
-| 중요한 순간 남기기 | 이름을 바꿀 수 있는 수동 백업, 자동 백업과 구분된 보관 정책 |
-| 방금 플레이한 내용까지 저장하기 | 활성 월드에서 백업 전 `save(true)` 요청, 게임 속 5초 전 알림 |
-| 돌아갈 시점 알아보기 | 썸네일, 캐릭터 이름, 생존 시간, 생존·사망 상태를 백업 목록에 표시 |
-| 캐릭터만 회복하기 | 오프라인 치료·부활, 조건을 충족하는 본인 좀비의 소지품 회수 |
-| 백업을 자주 남기기 | USN 변경 추적, 증분 저장, 압축, 선택적 콘텐츠 중복 제거 |
-| 세이브 옮기기 | ZIP 검사·가져오기·내보내기, 선택한 백업 시점 복원 |
-| 작업 상태 확인하기 | 진행률 카드, 실행별 로그, 오류·경고와 기술 정보 |
+수동·자동 백업, 이름을 지정할 수 있는 백업 목록, 썸네일과 캐릭터 정보, ZIP 가져오기·내보내기, 플레이 종료 후 캐릭터 치료·부활을 제공합니다. 화면, 새 백업의 기본 이름, 게임 저장 알림은 18개 언어를 지원합니다. 테마, 시스템 트레이, 작업 진행률과 로그 필터도 사용할 수 있습니다.
 
-### 자동으로 남기는 기록, 직접 지키는 체크포인트
+<a id="getting-started"></a>
+<a id="시작하기"></a>
+## 설치와 실행
 
-- **자동 백업** — 현재 플레이 중인 세이브를 대상으로 설정한 간격에 맞춰 실행합니다. 간격을 `0`으로 설정하면 자동 백업이 꺼집니다.
-- **수동 백업** — 원할 때 직접 시점을 남기고, 알아보기 쉬운 이름으로 바꿀 수 있습니다.
-- **구분되는 히스토리** — `수동 백업 N`과 `자동 백업 N`으로 생성하고 자동 백업은 별도로 표시합니다.
-- **분리된 보관 정책** — 보관 개수에 따른 오래된 백업 정리는 자동 백업에만 적용합니다. 수동 백업은 이 정리 대상에서 제외합니다.
-- **다음 실행 시각 표시** — 앱을 시작하면 설정된 간격부터 새로 카운트합니다. 지난 세션의 주기 예약이 밀렸다는 이유로 시작 직후 자동 백업하지 않습니다.
+**Windows x64**와 Windows x64용 **[.NET 10 런타임](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)**이 필요합니다. 현재 앱은 USN 파일 변경 추적을 위해 관리자 권한을 요청합니다. 게시된 배포본에는 WinUI 구성요소와 게임 연결용 소형 Java 런타임이 포함되며, 게임 JAR 파일은 포함되지 않습니다.
 
-> 수동 백업의 보호는 **자동 백업 보관 개수 제한**에 대한 것입니다. 세이브·백업의 명시적 삭제나 원본 세이브가 사라진 고아 백업 정리는 별도 정책입니다. 장기 보관할 시점은 ZIP으로 내보내 두십시오.
+실행용 패키지는 [Releases](https://github.com/isxcsm/pz-tools/releases)에서 확인하세요. 게시된 패키지가 없으면 아래 소스 빌드 절차를 이용하세요. GitHub의 **Source code ZIP은 실행용 패키지가 아닙니다**.
 
-### 디스크를 복사하기 전에, 게임에 저장을 요청합니다
+1. 패키지 **전체를** 한 폴더에 압축 해제하고 `PzTools.App.exe`를 실행하세요. EXE만 옮기거나 서로 다른 빌드의 파일을 섞지 마세요.
+2. 설정에서 세이브 폴더를 확인하고 별도의 백업 폴더를 지정하세요. 게임 세이브 폴더를 백업 위치로 사용하지 마세요.
+3. 세이브를 선택해 수동 백업을 만들고 앱에서 완료 여부를 확인하세요. 자동 백업 간격과 보관 개수도 설정하세요.
+4. 업데이트할 때는 PZ Tools를 종료하고 새 패키지 전체를 다른 폴더에 준비하세요. 세이브와 백업 데이터는 앱 파일과 따로 보관하세요.
 
-게임 메모리의 최신 진행 상황과 디스크에 기록된 세이브는 같지 않을 수 있습니다. PZ Tools는 선택한 월드가 플레이 중일 때, 게임 스레드에서 `GameWindow.save(true)`를 호출하고 응답을 받은 뒤 파일 수집을 시작합니다.
+설정과 제어 데이터는 `%LOCALAPPDATA%\PzTools`, 백업은 지정한 폴더에 저장됩니다. [배포 및 데이터 경로](../deployment-layout.md)에 상세 위치가 있습니다.
 
-- Workshop 모드 설치나 디버그 콘솔 조작 없이 연결합니다.
-- 게임을 먼저 실행하고 PZ Tools를 나중에 켜도 연결할 수 있습니다.
-- 게임 설치 파일이나 실행 옵션을 수정하지 않습니다. 연결에는 실행 중인 JVM에 로드하는 에이전트를 사용합니다.
-- 캐릭터 머리 위에 **저장까지 5 → 4 → 3 → 2 → 1초**, 게임 저장 호출이 끝나면 **저장 완료**를 표시합니다.
-- 자동 백업은 예정 시각에 앞서 연결을 준비합니다. 카운트가 `0`이 된 뒤 다시 5초를 기다리는 방식이 아닙니다.
-- **백업 전 게임 저장**과 **게임 내 카운트다운**은 설정에서 각각 끌 수 있습니다.
+<a id="backups-and-retention"></a>
+## 백업 보관과 삭제
 
-게임 저장 호출 실패나 응답 불명 상태를 성공으로 처리하지 않습니다. 게임이 메뉴에 있거나 선택한 세이브를 플레이 중이 아니면 게임 저장 요청 없이 디스크의 세이브를 백업합니다.
+초기 설정은 **5분 간격, 자동 백업 20개 보관**입니다. 간격 `0`은 자동 백업을 끕니다. 자동 백업은 플레이 중인 세이브를 대상으로 하며, 앱을 재시작하면 새 간격을 시작합니다. 기존 사용자 설정은 유지됩니다.
 
-게임 속 ‘저장 완료’는 게임 저장 호출의 반환을 뜻합니다. 이후 파일 수집·압축까지 끝난 **백업 완료**는 앱에서 따로 표시합니다. 연결 지연이나 게임 프레임 정지 상황의 정확한 초 단위 실행까지 보장하지는 않습니다.
+수동 백업은 이름을 바꿀 수 있고 자동 백업 보관 개수 제한에서는 제외됩니다. **영구 보관을 뜻하지는 않습니다.** 직접 삭제하거나 원본 세이브가 사라져 백업 정리가 실행되면 수동 백업도 삭제될 수 있습니다. 원본 세이브를 삭제하거나 옮기기 전에 중요한 백업을 ZIP으로 내보내 다른 드라이브에 보관하세요.
 
-자세한 연결 방식과 호환성은 [게임 저장 브리지 문서](../save-bridge.md)를 참고하십시오.
+백업만 삭제하면 현재 세이브는 유지되지만 삭제한 백업은 복원·내보내기할 수 없습니다. 앱에서 세이브를 삭제하면 해당 백업도 제거합니다. 저장 공간 정리는 나중에 실행될 수 있어 삭제 직후 파일 크기가 줄지 않을 수 있습니다. [설정](../configuration.md)과 [백업 정리 정책 — 영어](../repository-housekeeping.md)을 참고하세요.
 
-### 파일명 대신, 플레이 기록으로 고르는 복원 시점
+<a id="game-saving"></a>
+## 백업 전 게임 저장
 
-현재 세이브와 백업 히스토리를 나란히 확인할 수 있습니다. 썸네일, 캐릭터 이름, 생존 시간, 사망 표시와 기록 시각을 보고 원하는 백업을 선택하십시오.
+선택 기능인 게임 연결은 파일을 복사하기 전에 플레이 중인 게임에 저장을 요청합니다. JVM 에이전트를 사용해 게임 스레드에서 `GameWindow.save(true)`를 호출합니다. Workshop 모드나 게임 설치 파일 수정은 필요하지 않습니다. 확인된 **Build 42 / Java 25 싱글플레이** 구조를 대상으로 하는 실험적 기능이며 멀티플레이는 지원하지 않습니다.
 
-- 선택한 시점으로 세이브 복원
-- 현재 세이브 또는 백업 리비전의 ZIP 내보내기
-- ZIP 내부 검사 후 세이브 가져오기
-- 플레이 중 원본을 덮어쓰는 작업 등 충돌 위험이 있는 동작 제한
+게임 저장과 5초 카운트다운은 각각 켜고 끌 수 있습니다. **‘게임 저장 완료’는 ‘백업 완료’가 아닙니다.** 이후 파일 복사와 압축이 진행됩니다. 연결을 끄거나 플레이 중이 아닌 세이브를 백업하면 디스크에 기록된 내용만 포함됩니다. 저장 요청이 실패하거나 응답이 불확실하면 성공으로 표시하지 않습니다. [게임 저장 연동 — 영어](../save-bridge.md)에 동작과 제한을 정리했습니다.
 
-복원은 임시 영역에 데이터를 준비하고 작업 기록을 남기는 방식으로 진행합니다. 중간에 종료되면 다음 실행의 복구 처리에서 남은 작업을 확인합니다.
+<a id="restore-and-archives"></a>
+## 복원과 ZIP 가져오기·내보내기
 
-### 월드를 되돌리지 않고, 캐릭터를 회복합니다
+복원할 세이브의 플레이를 먼저 종료하세요. 백업을 선택하고 확인 창의 대상을 확인하세요. **복원하면 현재 파일을 교체하므로 그 백업 이후의 진행 내용은 사라집니다.** 복원이 중단됐다면 게임에서 세이브를 불러오기 전에 PZ Tools를 다시 실행해 상태를 확인하세요. 자동으로 이전 상태에 돌아갔다고 가정하지 마세요.
 
-**현재 세이브를 플레이하지 않을 때만** 확인 모달을 거쳐 실행합니다. 과거 백업 리비전을 편집하지 않습니다.
+현재 세이브나 백업을 ZIP으로 내보낼 수 있고, ZIP의 내용을 확인한 뒤 가져올 수 있습니다. 장기 보관용 ZIP은 앱의 백업 폴더 밖에 보관하세요. 같은 드라이브의 백업은 드라이브 고장에 대비하지 못합니다. [명령줄 사용법](../cli.md)에서 동일한 작업의 CLI 명령을 확인할 수 있습니다.
 
-| 회복하는 것 | 유지하는 것 |
-| :--- | :--- |
-| 체력·허기·갈증·피로·지구력과 정신 상태 | 긍정적·부정적 특성 |
-| 17개 신체 부위의 상처·골절·화상·출혈 | 경험치·기술·레시피 |
-| 박힌 유리·총알, 감염·질병·중독과 관련 타이머 | 외형·위치·생존 시간 |
-| 스트레스·통증·공황·니코틴 금단 등 일시적 상태 | 체중·영양·운동 기록과 기존 소지품 |
-| 사망 플래그와 회복 가능한 캐릭터 상태 | 알 수 없는 모드 데이터는 원형 보존 |
+<a id="character-recovery"></a>
+## 캐릭터 회복
 
-**부정적 특성은 치료 대상이 아닙니다.** 특성과 경험치 영역은 바이트 단위로 보존합니다. 회복은 영구 무적 기능이 아니므로 특성이나 주변 환경에 따라 증상이 다시 생길 수 있습니다.
+먼저 수동 백업이나 ZIP 내보내기를 하세요. **캐릭터 회복은 원본 파일의 추가 백업을 만들지 않습니다.** 플레이 중이 아닌 현재 세이브만 수정하며 과거 백업은 편집하지 않습니다. 지원 범위는 **Build 42.20.4, 월드 형식 249, 로컬 플레이어 1명(ID 1)**입니다.
 
-사망 후 인벤토리가 비어 있다면, 저장 위치와 신분증의 캐릭터 이름이 일치하는 **본인 좀비 기록**에서 소지품과 가방 내부 데이터를 회수하는 경로도 제공합니다. 일치 대상이 모호하거나 지원하지 않는 형식이면 추측해서 덮어쓰지 않습니다. 이동한 좀비, 신분증이 없는 대상, 맵 청크에 저장된 시체는 현재 회수 경로에서 지원하지 않습니다.
+치료·부활은 체력을 회복하고 지원하는 부상과 일시적 상태를 해제합니다. 긍정적·부정적 특성, 경험치, 기술, 레시피, 기존 소지품은 유지합니다. 영구 면역 기능이 아니며 모드 고유의 효과를 모두 제거하지는 않습니다.
 
-지원 형식과 아이템·장착 상태의 세부 제한은 [캐릭터 회복 문서](../character-recovery.md)에 정리되어 있습니다.
+사망한 캐릭터의 소지품이 비어 있다면 저장 위치와 신분증 이름이 유일하게 일치하는 본인 좀비 기록에서만 아이템을 회수합니다. 이동한 좀비, 신분증 없는 대상, 맵 청크의 시체는 지원하지 않습니다. 손에 드는 장비는 다시 지정해야 할 수 있습니다. [캐릭터 회복과 제한 — 영어](../character-recovery.md)를 참고하세요.
 
-### 일상적인 사용도 챙겼습니다
+<a id="backup-engine"></a>
+<a id="백업-엔진"></a>
+<a id="compatibility-and-limits"></a>
+<a id="지원-범위와-주의사항"></a>
+## 저장 방식과 호환성
 
-- **18개 언어·로케일** — 한국어, 영어, 중국어 간체·번체, 일본어, 러시아어, 브라질 포르투갈어, 스페인·라틴아메리카 스페인어, 프랑스어, 독일어, 폴란드어, 튀르키예어, 우크라이나어, 이탈리아어, 태국어, 인도네시아어, 체코어
-- 화면 문구·백업 기본 이름·게임 내 저장 알림을 선택한 언어로 표시 ([번역 범위와 검증](../localization.md))
-- 시스템·밝음·어두움 테마
-- 선택 가능한 시스템 트레이 동작과 앱 중복 실행 방지
-- 백업·복원·압축·삭제 작업의 진행률 카드
-- 수준·작업 종류·실행 번호로 찾는 로그와 복사 가능한 기술 정보
-- 일반 설정은 화면에서, 고급 동작은 구성요소별 TOML에서 조정
+매번 세이브 전체를 복제하지 않고 변경된 데이터를 저장합니다. 가능한 환경에서는 NTFS USN으로 변경을 추적하고, 사용할 수 없으면 전체 스캔과 내용 비교로 전환합니다. 복사본 검증과 Brotli 압축은 기본으로 켜져 있으며 중복 데이터 제거는 선택 사항입니다. 게임 저장 응답과 개별 파일 검증이 **모든 파일이 정확히 같은 순간의 상태라는 것까지 보장하지는 않습니다**.
 
-## 백업 엔진
+배포 전 개발 단계이므로 호환되지 않는 백업 저장소는 `repository-reset-required`로 거부합니다. 자동 변환하거나 삭제하지 않습니다. **새 빈 백업 폴더**를 선택하고 필요한 이전 백업은 기존 폴더째 보관하세요. **오류 해결을 위해 `Zomboid/Saves`나 `repository.db`만 따로 삭제하지 마세요.** 현재 형식·스키마는 [저장소 형식](../repository-format.md), 고급 옵션은 [실행 설정 — 영어](../runtime-configuration.md)에 있습니다.
 
-### 변경된 파일을 찾고, 검증된 내용만 저장합니다
+<a id="troubleshooting"></a>
+## 문제 해결과 문의
 
-| 계층 | 동작 |
-| :--- | :--- |
-| 변경 추적 | 사용 가능한 NTFS USN 저널에서 변경을 추적합니다. 내용 변경 기록이 있으면 크기·수정 시각이 같아도 다시 수집합니다. |
-| 폴백 | USN을 사용할 수 없거나 체크포인트가 유효하지 않으면 전수조사로 전환합니다. 기본적으로 SHA-256 내용 비교도 수행합니다. |
-| 주요 파일 | `players.db`, `vehicles.db`, `thumb.png`는 기본 강제 수집 목록으로 관리합니다. 일반 변경 감지 결과에만 의존하지 않습니다. |
-| 캡처 검증 | 원본과 임시 복사본의 해시를 비교하고, 일치하지 않으면 재시도합니다. 안정적으로 읽지 못하면 해당 백업을 실패 처리합니다. |
-| 저장 | 변경 데이터를 불변 팩에 기록하고 SQLite 메타데이터로 리비전을 구성합니다. 매번 전체 세이브 사본을 만드는 방식이 아닙니다. |
-| 공간 관리 | Brotli 압축, 선택적 콘텐츠 중복 제거, 오래된 자동 백업 정리, 미사용 객체 회수와 팩 재구성을 제공합니다. |
+앱이 시작되지 않으면 런타임 설치와 전체 패키지 구성을 확인하세요. 파일 사용 중 또는 계속 변경 중이라는 오류가 나면 게임 저장이 끝난 뒤 백업을 다시 시도하세요. 자동 백업이 실행되지 않으면 간격, 플레이 중인 세이브와 PZ Tools 실행 여부를 확인하세요. 트레이로 창을 닫는 것은 앱 종료가 아닙니다.
 
-콘텐츠 중복 제거는 선택 기능입니다. 해시 비교와 캡처 검증도 조정할 수 있지만, 검증을 끄면 변경 누락이나 불안정한 파일을 걸러내는 능력이 줄어듭니다.
+작업이 실패하거나 일부만 완료됐다면 반복 실행하기 전에 로그를 확인하세요. 복원이나 캐릭터 편집이 중단된 상태에서는 먼저 처리 상태를 확인해야 합니다. [이슈](https://github.com/isxcsm/pz-tools/issues)에 문의할 때 앱 버전·커밋, 게임 버전, 재현 순서와 관련 로그를 적어 주세요. 개인 경로와 민감한 정보는 지우고, 필요하지 않은 전체 세이브는 첨부하지 마세요.
 
-### 무거운 작업과 화면을 분리합니다
+<a id="building"></a>
+<a id="빌드와-개발"></a>
+## 소스 빌드
 
-파일 수집·압축·복원·정리는 별도 작업 프로세스가 수행하고, 앱은 상태와 진행률을 표시합니다. 진행 이벤트는 묶어서 기록하고 최신 상태 위주로 반영하여 파일마다 UI를 갱신하는 비용을 줄입니다.
-
-같은 저장소를 변경하는 작업은 직렬화합니다. 임시 파일과 게시 중인 데이터는 작업 기록을 통해 추적하고, 다음 시작과 유지보수 과정에서 중단된 작업을 복구·정리합니다. **강제 종료를 무시하는 대신, 어디까지 처리했는지를 남기는 구조**입니다.
-
-측정 조건·결과·재현 명령은 [성능 프로파일](../performance-profile.md)에 공개되어 있습니다. 초기 백업, 증분 백업, 복원, 메모리 사용량과 저장소 크기를 함께 측정합니다. 실제 성능은 파일 수·크기·압축 가능성·디스크에 따라 달라집니다.
-
-## 시작하기
-
-### 실행 환경
-
-- **Windows x64**, **.NET 10 런타임**
-- WinUI 구성요소와 게임 저장 브리지용 Java 실행환경은 게시된 배포본에 포함됩니다.
-- 게임 연동과 캐릭터 회복의 지원 범위는 [아래 호환성 표](#지원-범위와-주의사항)를 확인하십시오.
-
-소스에서 배포본을 만드는 방법은 [빌드와 개발](#빌드와-개발)에 있습니다.
-
-1. 배포 폴더의 `PzTools.App.exe`를 실행합니다.
-2. 설정에서 세이브 디렉터리와 백업 디렉터리를 확인합니다.
-3. 자동 백업 간격과 보관 개수를 정합니다. 게임 저장 연동과 알림도 여기서 선택합니다.
-4. 세이브를 선택해 수동 백업을 남기거나, 플레이 중 자동 백업을 사용합니다.
-5. 돌아가고 싶을 때는 해당 세이브의 플레이를 끝낸 뒤 백업을 선택해 복원합니다.
-
-처음 실행할 때의 기본값은 **백업 간격 5분 · 자동 백업 보관 20개**입니다. 기존에 저장한 사용자 설정은 유지합니다.
-
-설정과 제어 데이터는 `%LOCALAPPDATA%\PzTools`에, 백업 데이터는 지정한 백업 디렉터리에 저장합니다. 원본 세이브 안에 앱 관리용 DB를 추가하지 않습니다.
-
-## 지원 범위와 주의사항
-
-| 기능 | 현재 범위 |
-| :--- | :--- |
-| 앱·백업 엔진 | Windows x64. USN을 사용할 수 없는 환경에서는 전수조사로 폴백합니다. |
-| 백업 전 게임 저장 | 검사한 Java 25 / Build 42 메서드 구조를 대상으로 하는 실험적 어댑터입니다. 멀티플레이는 지원하지 않습니다. |
-| 캐릭터 회복 | Build **42.20.4**, 월드 형식 **249**, 로컬 플레이어 **1명(ID 1)**. 다른 형식·다중 플레이어·검증 불가 데이터는 거부합니다. |
-| 모드 호환성 | 저장 구조를 바꾸는 모드나 게임 업데이트의 호환성을 일괄 보장하지 않습니다. 모드 고유의 디버프를 모두 해석하거나 제거하지 않습니다. |
-
-> **알아두십시오.** `save(true)` 호출 반환과 개별 파일 검증은 월드 전체의 원자적 스냅샷을 보장하지 않습니다. 백업 수집 중에도 게임은 파일을 갱신할 수 있습니다. 또한 같은 디스크의 백업은 디스크 고장까지 대비하지 못합니다. 중요한 시점은 ZIP으로 내보내 별도 저장장치에도 보관하십시오.
-
-게임 업데이트나 별도 저장 모드 때문에 연동을 사용하지 않으려면 **백업 전 게임 저장**을 끌 수 있습니다. 이때는 디스크에 기록된 내용만 백업하므로 아직 메모리에만 있는 진행 상황은 포함되지 않을 수 있습니다.
-
-## 빌드와 개발
-
-<details>
-<summary><strong>소스 빌드 · 테스트 · 배포</strong></summary>
-
-.NET 10 SDK, Windows/WinUI 빌드 환경, Windows x64 Java 25 JDK와 Visual Studio x64 C++ 빌드 도구가 필요합니다. 브리지의 JDK 선택 규칙과 네이티브 빌드는 [저장 브리지 빌드 안내](../save-bridge.md#building-and-publishing)를 참고하십시오.
+Windows, `global.json`에 지정된 .NET SDK, PowerShell 7, Windows x64 Java 25 JDK, Visual Studio C++·WinUI 빌드 도구가 필요합니다. 저장소 루트에서 예시 JDK 경로를 실제 경로로 바꿔 실행하세요.
 
 ```powershell
-dotnet build PzTools.sln -p:JdkPath=C:\path\to\jdk-25
-dotnet test PzTools.sln -p:JdkPath=C:\path\to\jdk-25
-pwsh scripts/publish-tools.ps1 -JdkPath C:\path\to\jdk-25
-pwsh scripts/publish-app.ps1 -JdkPath C:\path\to\jdk-25 -Output artifacts/app-local
+$jdk = 'C:\path\to\jdk-25'
+dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath="$jdk"
+dotnet test tests/PzTools.Backup.Tests -c Release -p:JdkPath="$jdk"
+pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
-게시 스크립트는 **새 폴더 또는 빈 폴더**만 받습니다. 다시 게시할 때는 다른 `-Output` 경로를 지정하십시오. 기존 설치 폴더나 사용자 설정을 자동으로 삭제하지 않습니다.
+게시 스크립트는 **새 폴더 또는 빈 폴더**에 앱과 작업 프로그램을 함께 준비합니다. 다시 빌드할 때는 다른 출력 경로를 사용하세요. [개발·검증 안내 — 영어](../development.md)에 의존성, 배포본 검사, CLI 사용법과 별도 동의가 필요한 테스트를 정리했습니다.
 
-Visual Studio에서 F5/Ctrl+F5로 실행하면 작업용 프로그램도 프로젝트 종속성으로 빌드하여 앱 출력의 `workers` 폴더에 준비합니다. 예전 `artifacts/app` 배포본을 자동으로 재사용하지 않습니다. `PZTOOLS_TOOLS_DIR`는 개발용 명시적 경로 지정이므로 일반 빌드를 사용할 때는 해제하십시오.
+<a id="technical-documentation"></a>
+## 문서
 
-배포본 구성과 실제 작업 프로세스 검증:
-
-```powershell
-$env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/app-local).Path
-$env:PZTOOLS_TOOLS_DIR = $env:PZTOOLS_DISTRIBUTION_DIR
-dotnet test tests/PzTools.Backup.Tests -c Release
-```
-
-관리자 권한 USN, 실제 세이브와 게시 앱 수명까지 포함하는 별도 검증 스크립트도 있습니다. 실행 대상과 조건을 [검증 보고서](../verification-report.md)에서 먼저 확인하십시오.
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-a15.ps1
-```
-
-배포에는 필요한 WinUI 구성요소와 작은 Java Attach 런타임을 포함합니다. 사용하지 않는 Windows App SDK AI/ML·위젯·프레임워크 설치 패키지는 NuGet 자산 단계에서 제외합니다. 게임 JAR는 배포하지 않으며, PDB는 배포본에서 제외하고 빌드 출력에 유지합니다. 배포 후 SDK 파일을 임의 삭제하거나 UI 바인딩·직렬화 코드를 무리하게 trimming하지 않습니다.
-
-</details>
-
-<details>
-<summary><strong>CLI · 고급 설정</strong></summary>
-
-GUI 없이도 백업·복원·검증·유지보수와 ZIP 작업을 실행할 수 있습니다. 범용 백업 엔진은 게임에 종속되지 않습니다.
-
-```powershell
-dotnet run --project src/PzTools.Backup.Cli -- config validate --repository <path>
-dotnet run --project src/PzTools.Backup.Cli -- config show --repository <path>
-dotnet run --project src/PzTools.Backup.Cli -- backup --repository <path> --source-id <id>
-dotnet run --project src/PzTools.Backup.Cli -- verify --repository <path>
-dotnet run --project src/PzTools.Backup.Cli -- restore --repository <path> --source-id <id> --revision <n> --target <save-path>
-dotnet run --project src/PzTools.Backup.Cli -- maintenance prune --repository <path> --source-id <id> --keep <n>
-dotnet run --project src/PzTools.Backup.Cli -- maintenance gc --repository <path>
-dotnet run --project src/PzTools.Backup.Cli -- maintenance compact --repository <path> --max-pack-mib <n>
-```
-
-직접 CLI에서 게임 저장 연동까지 사용하려면 `backup`에 `--save-game`을 전달하십시오. 진단용 JSON 카탈로그 명령 `scan <source> <catalog.json>`, `diff <source> <catalog.json>`도 유지합니다.
-
-```powershell
-dotnet run --project src/PzTools.Zomboid.Archive.Cli -- inspect --archive <file.zip>
-dotnet run --project src/PzTools.Zomboid.Archive.Cli -- export --repository <path> --source-id <id> --revision <n> --output <file.zip>
-dotnet run --project src/PzTools.Zomboid.Archive.Cli -- import --archive <file.zip> --saves-root <saves-path>
-```
-
-주요 수집 기본값:
-
-```toml
-[capture]
-always_include = ["players.db", "vehicles.db", "thumb.png"]
-full_scan_hash_comparison = true
-
-[storage]
-checksum = "auto"
-compression = "auto"
-content_deduplication = false
-verify_staged_copies = true
-```
-
-`auto`는 현재 체크섬에 xxHash64, 압축에 Brotli를 사용합니다. 콘텐츠 중복 제거에는 SHA-256이 필요합니다. `always_include`는 CLI의 반복 가능한 `--always-include <상대경로>`로 재정의할 수 있습니다.
-
-`full_scan_hash_comparison = false`는 전수조사 시 내용 비교를 끄지만 `always_include`와 백업 무결성 검증을 끄지는 않습니다. 기존 비교 해시도 삭제하지 않습니다. 전체 설정과 우선순위는 [설정 문서](../configuration.md), 명령과 종료 코드는 [CLI 문서](../cli.md)를 참고하십시오.
-
-</details>
-
-## 설계 문서
-
-| 주제 | 문서 |
-| :--- | :--- |
-| 게임 연동 | [게임 저장 브리지](../save-bridge.md) · [오프라인 캐릭터 회복](../character-recovery.md) |
-| 백업 정확성 | [USN 변경 추적](../usn-journal.md) · [안정적 파일 캡처](../stable-capture.md) |
-| 저장 구조 | [저장소 형식](../repository-format.md) · [불변 팩 형식](../pack-format.md) |
-| 작업과 관측 | [프로세스 구조](../process-architecture.md) · [Telemetry](../telemetry.md) |
-| 설정과 배포 | [설정](../configuration.md) · [런타임 구성](../runtime-configuration.md) · [배포 경로](../deployment-layout.md) |
-| 검증 | [성능 프로파일](../performance-profile.md) · [검증 보고서](../verification-report.md) |
-| 개발 계획 | [구현 로드맵](../implementation-roadmap.md) · [UI/UX 계약](../ui-ux-contract.md) |
-
----
-
-PZ Tools는 Project Zomboid의 비공식 도구입니다. The Indie Stone의 공식 제품이 아닙니다.
+[문서 목차 — 영어·한국어](../README.md)에서 모든 참고 문서와 원문 언어를 확인할 수 있습니다. [다국어 처리 — 영어](../localization.md)는 번역 범위를 설명합니다. [검증 보고서](../verification-report.md)는 작성 시점의 결과이며 이후 모든 커밋이나 게임 버전의 통과를 보장하지 않습니다. [외부 구성요소 고지 — 영어](../../THIRD_PARTY_NOTICES.md)도 확인하세요.

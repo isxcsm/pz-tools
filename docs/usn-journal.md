@@ -1,5 +1,7 @@
 # Windows USN 저널
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 Windows 변경 추적 계층은 NTFS 볼륨에서 volume serial number, journal ID,
 읽을 수 있는 첫 USN, next USN, lowest valid USN을 조회합니다. 유효 체크포인트는
 `(volume serial, journal ID, next USN)` tuple이며 증분 읽기 전에 세 값을 모두

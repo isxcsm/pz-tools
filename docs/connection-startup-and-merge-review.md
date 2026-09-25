@@ -1,5 +1,9 @@
 # Connection startup and merge review
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
+> Historical review: versions, commit IDs and test counts below describe the named review, not the current release state.
+
 PR #2's legacy schema-12 fingerprint migration is superseded by PR #1's format 2 /
 schema 2 implementation. Do not reintroduce old-format readers or migrations. A new
 empty backup repository is required; the game save directory is never reset by

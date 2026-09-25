@@ -183,7 +183,7 @@ public sealed class AppHost : IAsyncDisposable
         var backupProjector = new BackupProjector(repository, Views);
         var characterMetadata = new PzTools.Zomboid.Backup.RevisionCharacterMetadataCollector(
             runtime.CharacterMetadataBatchSize, runtime.CharacterMetadataRetrySeconds);
-        var schedulerProjector = new SchedulerProjector(scheduler, Views, repository);
+        var schedulerProjector = new SchedulerProjector(scheduler, Views, repository, requireActiveState: true);
         var composer = new SaveDetailComposer(Views);
         RegisterTelemetrySources(settings, state, scheduler, repository);
         var projectionInterval = TimeSpan.FromMilliseconds(runtime.ProjectionIntervalMs);

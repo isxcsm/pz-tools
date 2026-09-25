@@ -155,6 +155,10 @@ public sealed class SchedulerDatabase
         {
             var current = await TryReadControlAsync(
                 connection, transaction, cancellationToken);
+            // Consume state transitions first: a pending stop must win over settings.
+            var applied = current is not null && await ApplyPendingCommandsAsync(
+                connection, transaction, current, now, cancellationToken);
+            if (applied) current = await TryReadControlAsync(connection, transaction, cancellationToken);
             var changed = current is null
                 || !StringComparer.OrdinalIgnoreCase.Equals(
                     current.RepositoryPath, repository)
@@ -187,11 +191,10 @@ public sealed class SchedulerDatabase
                     SET repository_path=$repository,
                         automatic_enabled=$enabled,
                         interval_minutes=$interval,
-                        mode=CASE
-                            WHEN $enabled=0 THEN 'Paused'
-                            WHEN current_save_id IS NOT NULL THEN 'Continuous'
-                            ELSE 'Paused'
-                        END,
+                        mode=CASE WHEN mode='Limited' THEN 'Paused' ELSE mode END,
+                        current_save_id=CASE WHEN mode='Limited' THEN NULL ELSE current_save_id END,
+                        current_source_key=CASE WHEN mode='Limited' THEN NULL ELSE current_source_key END,
+                        current_source_path=CASE WHEN mode='Limited' THEN NULL ELSE current_source_path END,
                         attempts_remaining=0,
                         generation=generation+1,
                         next_due_utc=CASE WHEN $enabled=1 THEN $due ELSE next_due_utc END
@@ -212,7 +215,7 @@ public sealed class SchedulerDatabase
                 }
             }
 
-            if (changed)
+            if (changed || applied)
                 await IncrementRevisionAsync(connection, transaction, cancellationToken);
             transaction.Commit();
         }
@@ -313,6 +316,13 @@ public sealed class SchedulerDatabase
                 return null;
             }
 
+            await using (var retireFinal = connection.CreateCommand())
+            {
+                retireFinal.Transaction = transaction;
+                retireFinal.CommandText = "DELETE FROM pending_backup_runs WHERE kind='Final';";
+                if (await retireFinal.ExecuteNonQueryAsync(cancellationToken) > 0)
+                    await IncrementRevisionAsync(connection, transaction, cancellationToken);
+            }
             var pending = await ReadFirstPendingAsync(
                 connection, transaction, cancellationToken);
             if (pending is not null)
@@ -595,26 +605,15 @@ public sealed class SchedulerDatabase
             {
                 case BackupTargetCommandKind.ActivateTarget:
                     target = command.Target;
-                    mode = control.AutomaticEnabled
-                        ? SchedulerMode.Continuous : SchedulerMode.Paused;
+                    // Activity and the user's enable switch are separate authorities.
+                    mode = SchedulerMode.Continuous;
                     attempts = 0;
                     nextDue = now.Add(control.Interval);
                     changed = true;
                     break;
 
+                // Retired exit commands are stops, never a one-off backup trigger.
                 case BackupTargetCommandKind.FinalizeTarget:
-                    if (control.AutomaticEnabled)
-                    {
-                        await InsertPendingAsync(
-                            connection, transaction, command,
-                            BackupAdmissionKind.Final, token);
-                        target = command.Target;
-                        mode = SchedulerMode.Limited;
-                        attempts = 1;
-                        changed = true;
-                    }
-                    break;
-
                 case BackupTargetCommandKind.ClearTarget:
                     if (target is not null && SameTarget(target, command.Target))
                     {

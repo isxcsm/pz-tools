@@ -298,10 +298,13 @@ public sealed class StatePipelineTests
         var path = Path.GetFullPath(temp.GetPath("save")).ToUpperInvariant();
         var reactor = new StateReactor();
         await database.WritePendingBatchAsync(Batch(
-            1, path, ActivityState.Inactive, character: CharacterState.Alive));
+            1, path, ActivityState.Active, character: CharacterState.Alive));
         await reactor.RunAsync(database, new StateReactorOptions(BackupOnDeath: true));
         await database.WritePendingBatchAsync(Batch(
-            2, path, ActivityState.Inactive, character: CharacterState.Dead));
+            2, path, ActivityState.Active, character: CharacterState.Alive));
+        await reactor.RunAsync(database, new StateReactorOptions(BackupOnDeath: true));
+        await database.WritePendingBatchAsync(Batch(
+            3, path, ActivityState.Active, character: CharacterState.Dead));
         await reactor.RunAsync(database, new StateReactorOptions(BackupOnDeath: true));
 
         Assert.Contains(

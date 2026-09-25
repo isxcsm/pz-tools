@@ -13,6 +13,35 @@ namespace PzTools.Backup.Tests;
 public sealed class ProcessPipelineIntegrationTests
 {
     [PublishedToolsOnlyFact]
+    public async Task AutomaticRunner_SkipsOfflineSave_EvenWhenGameSavingIsDisabled()
+    {
+        using var temp = new TempDirectory();
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "players.db"), "inactive fixture");
+        await File.WriteAllTextAsync(Path.Combine(source, "map.bin"), "must remain untouched");
+        var config = temp.GetPath("worker.toml");
+        await File.WriteAllTextAsync(config, "format_version = 1\n[telemetry]\nmode = 'off'\n");
+        var runnerConfig = temp.GetPath("runner.toml");
+        await File.WriteAllTextAsync(runnerConfig, "[telemetry]\nenabled = false\n");
+        var repositoryPath = temp.GetPath("repository");
+        var result = await RunProcessAsync(Path.Combine(tools, "PzTools.Backup.Runner.exe"),
+            ["--repository", repositoryPath, "--source-id", "test", "--source", $"test={source}",
+             "--worker-directory", tools, "--worker-config", config, "--config", runnerConfig,
+             "--control-db", temp.GetPath("control.db"), "--save-game", "--save-game-before-backup", "false",
+             "--require-active-game"]);
+        var envelope = ProcessResultJson.Deserialize<RunnerExecutionResult>(result.StandardOutput);
+        Assert.True(result.ExitCode == 0, result.StandardOutput + result.StandardError);
+        Assert.Equal(ProcessOutcome.Skipped, envelope.Outcome);
+        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath);
+        var snapshot = await repository.ReadCatalogIfChangedAsync(-1);
+        Assert.All(snapshot.Sources, item => Assert.Empty(item.Revisions));
+        Assert.Empty(await repository.ReadPacksAsync());
+        Assert.Equal("must remain untouched", await File.ReadAllTextAsync(Path.Combine(source, "map.bin")));
+    }
+
+    [PublishedToolsOnlyFact]
     public async Task BackupConfigurationFailure_PreservesRunIdentityAndOriginalMessage()
     {
         using var temp = new TempDirectory();

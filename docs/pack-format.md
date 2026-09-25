@@ -1,5 +1,7 @@
 # 팩 형식
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 팩 형식 버전 1은 불변 바이너리 컨테이너입니다. writer는 `staging/` 아래에 파일
 하나를 만들고 객체 레코드를 이어 쓰며, 체크섬이 있는 footer 인덱스를 기록한 뒤
 파일을 디스크에 flush합니다. 그다음 파일을 다시 열어 모든 payload를 검증하고
