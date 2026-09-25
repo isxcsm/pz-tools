@@ -437,7 +437,7 @@ public sealed class FullScanSession : IAsyncDisposable
             new DateTimeOffset(reader.GetInt64(columnOffset + 4), TimeSpan.Zero),
             new DateTimeOffset(reader.GetInt64(columnOffset + 5), TimeSpan.Zero),
             (FileAttributes)reader.GetInt64(columnOffset + 6),
-            (byte[])reader.GetValue(columnOffset + 7),
-            (byte[])reader.GetValue(columnOffset + 8));
+            reader.IsDBNull(columnOffset + 7) ? [] : (byte[])reader.GetValue(columnOffset + 7),
+            reader.IsDBNull(columnOffset + 8) ? [] : (byte[])reader.GetValue(columnOffset + 8));
     }
 }

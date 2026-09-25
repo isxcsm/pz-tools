@@ -860,8 +860,8 @@ public sealed class IncrementalBackupRunner(
                 ModifiedUtc,
                 ChangedUtc,
                 Attributes,
-                FileId,
-                ParentFileId,
+                Tombstone && FileId.Length == 0 ? null : FileId,
+                Tombstone && ParentFileId.Length == 0 ? null : ParentFileId,
                 ObjectId);
 
         public static PendingEntry TombstoneFrom(RevisionEntry entry) =>
