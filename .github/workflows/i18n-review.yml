@@ -4,17 +4,68 @@ on:
     branches: [i18n/user-friendly-messages]
 permissions:
   contents: read
+concurrency:
+  group: localization-transfer
+  cancel-in-progress: false
 jobs:
-  source:
-    runs-on: ubuntu-latest
+  verify:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          persist-credentials: false
-      - name: Archive reviewed source
-        run: git archive --format=zip HEAD -o source.zip
-      - uses: actions/upload-artifact@v4
+          ref: ${{ github.sha }}
+      - name: Apply exact reviewed localization files
+        run: |
+          git config core.autocrlf false
+          git reset --hard HEAD
+          python .i18n-transfer/apply.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git config user.name 'Localization review'
+          git config user.email 'isxcsm@users.noreply.github.com'
+          git commit -m 'i18n: clarify safety notices and localize user-facing failures in 18 languages'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item artifacts/localization -ItemType Directory -Force | Out-Null
+          git rev-parse HEAD > artifacts/localization/commit.txt
+      - uses: actions/setup-dotnet@v6
         with:
-          name: localization-source
-          path: source.zip
-          retention-days: 1
+          global-json-file: global.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+      - name: Check all locale resources
+        run: |
+          python scripts/check-localization.py | Tee-Object artifacts/localization/resources.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build Windows application and workers
+        run: dotnet build PzTools.sln -c Release -p:Platform=x64 -warnaserror
+      - name: Run localization and user-message regression tests
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release
+          --filter 'FullyQualifiedName~LocalizationTests|FullyQualifiedName~UserFacingMessageTests|FullyQualifiedName~SaveActionTooltipTests|FullyQualifiedName~OperationProgressDisplayTests'
+          --logger 'trx;LogFileName=localization.trx' --results-directory artifacts/localization
+      - name: Verify all game-save notices in the synthetic JVM
+        run: |
+          ./scripts/test-save-bridge.ps1 -JdkPath $env:JAVA_HOME | Tee-Object artifacts/localization/bridge.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Push verified product commit only to the localization branch
+        run: |
+          $remote = git ls-remote origin refs/heads/i18n/user-friendly-messages
+          if ($LASTEXITCODE -ne 0 -or $remote.Split()[0] -ne '${{ github.sha }}') { throw 'Branch moved during verification; refusing to overwrite changes.' }
+          git push origin HEAD:refs/heads/i18n/user-friendly-messages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localization-verification
+          path: artifacts/localization/*
+          if-no-files-found: warn
+          retention-days: 14
