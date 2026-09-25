@@ -44,14 +44,14 @@ public sealed record LogActivityContext(
 
         var kind = entry.Component switch
         {
-            "backup-worker" => LogActivityKind.Backup,
+            "backup-worker" or "backup-runner" => LogActivityKind.Backup,
             "restore-worker" => LogActivityKind.Restore,
             "character-recovery" => LogActivityKind.CharacterRecovery,
             "archive-worker" => ArchiveKind(operation, entry.SourceId),
             "state-runner" or "state-collector" or "state-reactor" or "state-scheduler" =>
                 LogActivityKind.StateCheck,
             "backup-scheduler" => LogActivityKind.BackupSchedule,
-            "maintenance-worker" => LogActivityKind.Maintenance,
+            "maintenance-worker" or "maintenance-runner" => LogActivityKind.Maintenance,
             var lane when lane.StartsWith("maintenance-lane-", StringComparison.Ordinal) =>
                 LogActivityKind.Maintenance,
             _ => LogActivityKind.Other,

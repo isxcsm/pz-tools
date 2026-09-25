@@ -338,6 +338,75 @@ public sealed class IncrementalBackupRunnerTests
         Assert.Equal(SHA256.HashData("unchanged"u8), await ReadCurrentHashAsync(setup));
     }
 
+    [Theory]
+    [InlineData(5, false)]
+    [InlineData(32, false)]
+    [InlineData(1117, false)]
+    [InlineData(2, false)]
+    [InlineData(3, false)]
+    [InlineData(5, true)]
+    [InlineData(2, true)]
+    public async Task Run_UnreadableEntryDoesNotPublishDeletionOrAdvanceCheckpoint(int errorCode, bool alwaysInclude)
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("source");
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "file.bin");
+        await File.WriteAllTextAsync(path, "original");
+        await using var setup = await CreateInitialAsync(temp, root);
+        var before = await setup.Repository.GetSourceStateAsync(setup.Source.SourceId);
+        var real = new WindowsFileMetadataReader();
+        var fault = new FailingPathMetadataReader(path, errorCode);
+        var records = alwaysInclude ? Array.Empty<UsnRecord>() : new[]
+        {
+            Record(Decode(real.ReadPath(path).Identity), Decode(real.ReadPath(root).Identity),
+                110, UsnReason.DataOverwrite, "file.bin"),
+        };
+        var runner = CreateIncrementalRunner(fault, new FakeJournal(new(1, 2, 0, 200, 0), records));
+
+        var error = await Xunit.Record.ExceptionAsync(() => runner.RunAsync(setup.Repository, setup.Telemetry,
+            setup.Lease, setup.Source, Storage, Telemetry, executionOptions: null,
+            alwaysIncludePaths: alwaysInclude ? ["file.bin"] : []));
+        Assert.NotNull(error);
+        Assert.True(error is IOException or System.ComponentModel.Win32Exception);
+        var after = await setup.Repository.GetSourceStateAsync(setup.Source.SourceId);
+        Assert.Equal(before.CurrentRevision, after.CurrentRevision);
+        Assert.Equal(before.Checkpoint, after.Checkpoint);
+        Assert.Equal(SHA256.HashData("original"u8), await ReadCurrentHashAsync(setup));
+    }
+
+    [Fact]
+    public async Task Run_DisconnectedSourceIsNotTreatedAsDeletedAlwaysIncludedFiles()
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("source");
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(Path.Combine(root, "file.bin"), "original");
+        await using var setup = await CreateInitialAsync(temp, root);
+        var before = await setup.Repository.GetSourceStateAsync(setup.Source.SourceId);
+        var journal = new FakeJournal(new(1, 2, 0, 200, 0), [],
+            () => Directory.Move(root, temp.GetPath("disconnected-source")));
+        var runner = CreateIncrementalRunner(new WindowsFileMetadataReader(), journal);
+
+        await Assert.ThrowsAnyAsync<IOException>(() => runner.RunAsync(setup.Repository, setup.Telemetry,
+            setup.Lease, setup.Source, Storage, Telemetry, executionOptions: null,
+            alwaysIncludePaths: ["file.bin"]));
+        var after = await setup.Repository.GetSourceStateAsync(setup.Source.SourceId);
+        Assert.Equal(before.CurrentRevision, after.CurrentRevision);
+        Assert.Equal(before.Checkpoint, after.Checkpoint);
+        Assert.Equal(SHA256.HashData("original"u8), await ReadCurrentHashAsync(setup));
+    }
+
+    private sealed class FailingPathMetadataReader(string failingPath, int errorCode) : IFileMetadataReader
+    {
+        private readonly WindowsFileMetadataReader inner = new();
+        public FileCaptureMetadata ReadPath(string path) =>
+            StringComparer.OrdinalIgnoreCase.Equals(path, failingPath)
+                ? throw new System.ComponentModel.Win32Exception(errorCode)
+                : inner.ReadPath(path);
+        public FileCaptureMetadata ReadHandle(SafeFileHandle handle) => inner.ReadHandle(handle);
+    }
+
     private sealed class FrozenTimesMetadataReader : IFileMetadataReader
     {
         private readonly WindowsFileMetadataReader inner = new();
@@ -429,7 +498,8 @@ public sealed class IncrementalBackupRunnerTests
 
     private sealed class FakeJournal(
         UsnJournalState state,
-        IReadOnlyList<UsnRecord> records) : IUsnJournalSource
+        IReadOnlyList<UsnRecord> records,
+        Action? onRead = null) : IUsnJournalSource
     {
         public UsnJournalState Query(string sourcePath) => state;
 
@@ -437,6 +507,10 @@ public sealed class IncrementalBackupRunnerTests
             string sourcePath,
             UsnCheckpoint checkpoint,
             long upperUsnExclusive,
-            CancellationToken cancellationToken = default) => records;
+            CancellationToken cancellationToken = default)
+        {
+            onRead?.Invoke();
+            return records;
+        }
     }
 }

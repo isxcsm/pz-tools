@@ -839,7 +839,7 @@ public sealed class LogEntryUiItem
         ? ActivityName : Localizer.Get($"LogComponent.{ComponentCategory(model.Component)}");
     public static string ComponentCategory(string component) => component switch
     {
-        "backup-worker" => "Backup",
+        "backup-worker" or "backup-runner" => "Backup",
         "restore-worker" => "Restore",
         var restore when restore.StartsWith("restore-", StringComparison.Ordinal) => "Restore",
         "archive-worker" => "Archive",
@@ -847,7 +847,7 @@ public sealed class LogEntryUiItem
         "state-runner" or "state-collector" or "state-reactor" or "state-scheduler" =>
             "State",
         "backup-scheduler" => "Schedule",
-        "maintenance-worker" => "Maintenance",
+        "maintenance-worker" or "maintenance-runner" => "Maintenance",
         var lane when lane.StartsWith("maintenance-lane-", StringComparison.Ordinal) => "Maintenance",
         _ => "Other",
     };

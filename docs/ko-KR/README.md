@@ -200,6 +200,8 @@ pwsh scripts/publish-app.ps1 -JdkPath C:\path\to\jdk-25 -Output artifacts/app-lo
 
 게시 스크립트는 **새 폴더 또는 빈 폴더**만 받습니다. 다시 게시할 때는 다른 `-Output` 경로를 지정하십시오. 기존 설치 폴더나 사용자 설정을 자동으로 삭제하지 않습니다.
 
+Visual Studio에서 F5/Ctrl+F5로 실행하면 작업용 프로그램도 프로젝트 종속성으로 빌드하여 앱 출력의 `workers` 폴더에 준비합니다. 예전 `artifacts/app` 배포본을 자동으로 재사용하지 않습니다. `PZTOOLS_TOOLS_DIR`는 개발용 명시적 경로 지정이므로 일반 빌드를 사용할 때는 해제하십시오.
+
 배포본 구성과 실제 작업 프로세스 검증:
 
 ```powershell

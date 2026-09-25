@@ -10,6 +10,11 @@ public static class AppWorkerDirectoryResolver
         "PzTools.Maintenance.Runner.exe",
         "PzTools.State.Runner.exe",
         "PzTools.Zomboid.Archive.Cli.exe",
+        "PzTools.Backup.Cli.exe",
+        "PzTools.Maintenance.Cli.exe",
+        "PzTools.State.Collector.Cli.exe",
+        "PzTools.State.Reactor.Cli.exe",
+        "PzTools.Zomboid.Recovery.Cli.exe",
     ];
 
     public static string Resolve(string startingDirectory, string? explicitDirectory = null)
@@ -19,15 +24,12 @@ public static class AppWorkerDirectoryResolver
         {
             var explicitPath = Path.GetFullPath(explicitDirectory);
             if (ContainsRequiredTools(explicitPath)) return explicitPath;
+            throw new DirectoryNotFoundException($"The configured worker directory is incomplete: {explicitPath}");
         }
+        var bundled = Path.Combine(start, "workers");
+        if (ContainsRequiredTools(bundled)) return bundled;
         if (ContainsRequiredTools(start)) return start;
-
-        for (var current = new DirectoryInfo(start); current is not null; current = current.Parent)
-        {
-            var published = Path.Combine(current.FullName, "artifacts", "app");
-            if (ContainsRequiredTools(published)) return published;
-        }
-        return start;
+        throw new DirectoryNotFoundException($"Application workers are missing. Rebuild or reinstall the complete application: {start}");
     }
 
     public static bool ContainsRequiredTools(string directory) =>

@@ -561,7 +561,7 @@ public sealed class AppCoreTests
     }
 
     [Fact]
-    public void WorkerDirectoryResolver_FindsPublishedToolsAboveDevelopmentOutput()
+    public void WorkerDirectoryResolver_DoesNotReuseUnrelatedPublication()
     {
         using var temp = new TempDirectory();
         var developmentOutput = temp.GetPath(
@@ -582,9 +582,25 @@ public sealed class AppCoreTests
             File.WriteAllText(Path.Combine(published, name), string.Empty);
         }
 
-        var resolved = AppWorkerDirectoryResolver.Resolve(developmentOutput);
+        Assert.Throws<DirectoryNotFoundException>(() => AppWorkerDirectoryResolver.Resolve(developmentOutput));
+        Assert.Throws<DirectoryNotFoundException>(() => AppWorkerDirectoryResolver.Resolve(developmentOutput, published));
+    }
 
-        Assert.Equal(Path.GetFullPath(published), resolved);
+    [Fact]
+    public void WorkerDirectoryResolver_UsesCompleteBuildBundleAndRejectsMissingWorker()
+    {
+        using var temp = new TempDirectory();
+        var workers = temp.GetPath("workers");
+        Directory.CreateDirectory(workers);
+        foreach (var name in new[] { "Backup.Scheduler", "State.Scheduler", "Backup.Runner",
+                     "Maintenance.Runner", "State.Runner", "Zomboid.Archive.Cli", "Backup.Cli",
+                     "Maintenance.Cli", "State.Collector.Cli", "State.Reactor.Cli", "Zomboid.Recovery.Cli" })
+            File.WriteAllText(Path.Combine(workers, $"PzTools.{name}.exe"), "");
+        Assert.Equal(workers, AppWorkerDirectoryResolver.Resolve(temp.Path));
+        Assert.Equal(workers, AppWorkerDirectoryResolver.Resolve(temp.Path, workers));
+        Assert.Equal(workers, AppWorkerDirectoryResolver.Resolve(workers));
+        File.Delete(Path.Combine(workers, "PzTools.Backup.Cli.exe"));
+        Assert.Throws<DirectoryNotFoundException>(() => AppWorkerDirectoryResolver.Resolve(temp.Path));
     }
 
     [Fact]
@@ -624,6 +640,22 @@ public sealed class AppCoreTests
 
         Assert.Equal(ProcessOutcome.Failed, result.Outcome);
         Assert.Equal("process-contract-mismatch", result.Error);
+    }
+
+    [Fact]
+    public async Task ManualBackup_LaunchFailureIsRecordedWithoutWorkerTelemetry()
+    {
+        using var temp = new TempDirectory();
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repository"));
+        var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
+        var coordinator = new OperationCoordinator(repository, temp.Path, BackupTelemetry(repository),
+            new NotStartedLauncher(), new RunIndexAllocator(temp.GetPath("control.db")),
+            temp.GetPath("operations"), diagnostics: inbox);
+        var result = await coordinator.BackupAsync("Sandbox/Save", temp.GetPath("source"));
+        Assert.Equal(ProcessOutcome.Failed, result.Outcome);
+        var log = Assert.Single((await inbox.ReadPageAsync(new(LogLevel.Warning, "Backup", "", 0))).Entries);
+        Assert.Equal(result.RunIndex, log.RunIndex);
+        Assert.Equal("launch-failed", LogDiagnostics.Parse(log.PayloadJson)?.FailureCode);
     }
 
     [Fact]
@@ -955,6 +987,8 @@ public sealed class AppCoreTests
         await using var host = new AppHost(paths, launcher);
         await host.StartAsync();
         Assert.Equal(2, launcher.Executables.Count);
+        foreach (var component in new[] { "backup-runner", "maintenance-runner" })
+            Assert.True(Assert.Single(host.TelemetrySources.Snapshot(), source => source.Component == component).LogsOnly);
         Assert.False(Directory.Exists(staging));
         Assert.True(File.Exists(damaged));
     }
@@ -1227,6 +1261,13 @@ public sealed class AppCoreTests
                 throw;
             }
         }
+    }
+
+    private sealed class NotStartedLauncher : IManagedProcessLauncher
+    {
+        public Task<ManagedProcessExit> RunAsync(string executable, IReadOnlyList<string> arguments,
+            Action<string>? standardOutput, Action<string>? standardError, CancellationToken cancellationToken)
+            => Task.FromResult(new ManagedProcessExit(false, null, "launch-failed"));
     }
 
     private sealed class FailingLauncher : IManagedProcessLauncher

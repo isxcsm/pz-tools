@@ -6,6 +6,27 @@ namespace PzTools.Backup.Tests;
 
 public sealed class LogAuditRegressionTests
 {
+    [Fact]
+    public async Task RunnerFailure_IsVisibleAsBackupErrorWithoutDuplicateProgressCard()
+    {
+        using var temp = new TempDirectory();
+        var store = await ProcessTelemetryStore.CreateForIdentityAsync(temp.Path, "backup-runner");
+        await store.RecordAsync("backup-runner", 42, "runner.completed",
+            """{"outcome":"Failed","failureCode":"invalid-arguments","failureMessage":"Invalid configuration"}""");
+        var catalog = new TelemetrySourceCatalog();
+        catalog.Register(new("backup-runner", "backup-runner", temp.Path, store.DatabasePath,
+            TelemetryDatabaseKind.Process, true, LogsOnly: true));
+        var views = new RevisionedViewStore();
+        var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
+        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        await projector.ProjectOnceAsync(DateTimeOffset.UtcNow);
+        var page = await inbox.ReadPageAsync(new(LogLevel.Warning, "Backup", "42", 0));
+        var failure = Assert.Single(page.Entries);
+        Assert.Equal(LogLevel.Error, failure.Level);
+        Assert.Equal("Invalid configuration", LogDiagnostics.Parse(failure.PayloadJson)?.Message);
+        Assert.Empty(views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]

@@ -522,8 +522,16 @@ public sealed class OperationCoordinator(
                 if (standardError.Length > 8192) standardError.Remove(0, standardError.Length - 8192);
             }, cancellationToken);
         if (!exit.Started)
+        {
+            if (diagnostics is not null)
+                await diagnostics.AppendAsync([new LogEntryView(
+                    Guid.NewGuid().ToString("N"), "app-dispatch", Guid.Empty, 0, DateTimeOffset.UtcNow,
+                    LogLevel.Error, expectedComponent, expectedRunIndex, "run.failed",
+                    JsonSerializer.Serialize(new { failureCode = exit.FailureCode ?? "launch-failed",
+                        phase = "process-launch", message = standardError.ToString(), path = executable }))]);
             return new ValidatedExecution(ProcessOutcome.Failed, exit.ExitCode,
                 exit.FailureCode ?? "launch-failed", standardError.ToString(), default);
+        }
         try
         {
             var envelope = ProcessResultValidator.Read<JsonElement>(standardOutput.ToString(),

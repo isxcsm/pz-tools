@@ -42,6 +42,7 @@
     <ProjectReference Include="..\PzTools.Projections\PzTools.Projections.csproj" />
     <ProjectReference Include="..\PzTools.Zomboid.Archive\PzTools.Zomboid.Archive.csproj" />
   </ItemGroup>
+  <Import Project="..\..\build\AppWorkers.targets" />
   <Target Name="CopyApplicationPriToPublishDirectory" AfterTargets="Publish">
     <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri"
           DestinationFiles="$(PublishDir)$(AssemblyName).pri"

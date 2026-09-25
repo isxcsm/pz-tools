@@ -50,6 +50,13 @@ staging을 완성한 뒤 기존 세이브를 rollback 이름으로 옮기고 원
 교체를 수행합니다. `players.db`를 배타적으로 열 수 없는 실행 중 세이브는 거부하며,
 중단 시 남은 복구 journal은 다음 앱 시작에서 정리 또는 rollback됩니다.
 
+새 복원 journal(v2)은 staging 디렉터리의 볼륨·파일 식별자를 기록합니다.
+대상 폴더와 원본 rollback이 함께 있으면, 대상이 실제로 이동된 staging인지
+확인한 경우에만 rollback을 제거합니다. 같은 이름의 다른 폴더, 확인 불가능한
+구형 journal(v1), 접근 오류 등은 충돌로 보고하고 원본·staging·journal을
+보존합니다. `installed` 단계 이름만으로 성공을 추측하지 않습니다. rollback을
+되돌리는 복구 자체가 중단된 경우도 원본 디렉터리 식별자로 재개합니다.
+
 개발 빌드는 `scripts/publish-tools.ps1`로 모든 실행 파일을 같은 디렉터리에
 게시합니다. Runner는 그 디렉터리의 고정된 worker 이름만 실행하며 임의 실행 파일
 이름을 받지 않습니다.

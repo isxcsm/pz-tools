@@ -1,0 +1,39 @@
+<Project>
+  <PropertyGroup>
+    <!-- VS cannot infer our worker payload copy from assembly references.
+         Always run incremental MSBuild so changed workers are staged on F5. -->
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+  </PropertyGroup>
+  <!-- Build dependencies, not assembly references. F5/Ctrl+F5 must use the
+       workers from this build, never an unrelated previous publication. -->
+  <ItemGroup>
+    <ProjectReference Include="..\PzTools.Backup.Cli\PzTools.Backup.Cli.csproj;
+                               ..\PzTools.Maintenance.Cli\PzTools.Maintenance.Cli.csproj;
+                               ..\PzTools.State.Collector.Cli\PzTools.State.Collector.Cli.csproj;
+                               ..\PzTools.State.Reactor.Cli\PzTools.State.Reactor.Cli.csproj;
+                               ..\PzTools.Backup.Runner\PzTools.Backup.Runner.csproj;
+                               ..\PzTools.Maintenance.Runner\PzTools.Maintenance.Runner.csproj;
+                               ..\PzTools.State.Runner\PzTools.State.Runner.csproj;
+                               ..\PzTools.Backup.Scheduler\PzTools.Backup.Scheduler.csproj;
+                               ..\PzTools.State.Scheduler\PzTools.State.Scheduler.csproj;
+                               ..\PzTools.Zomboid.Archive.Cli\PzTools.Zomboid.Archive.Cli.csproj;
+                               ..\PzTools.Zomboid.Recovery.Cli\PzTools.Zomboid.Recovery.Cli.csproj"
+                      ReferenceOutputAssembly="false" OutputItemType="_AppWorkerAssembly"
+                      Private="false" />
+  </ItemGroup>
+  <Target Name="StageApplicationWorkers" AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <_AppWorkerFile Include="%(_AppWorkerAssembly.RootDir)%(_AppWorkerAssembly.Directory)**\*"
+                      Exclude="%(_AppWorkerAssembly.RootDir)%(_AppWorkerAssembly.Directory)**\*.pdb" />
+      <_AppWorkerDefault Include="$(MSBuildThisFileDirectory)..\config\defaults\**\*" />
+    </ItemGroup>
+    <Error Condition="'@(_AppWorkerAssembly)' == ''" Text="Worker build outputs were not resolved." />
+    <Copy SourceFiles="@(_AppWorkerFile)"
+          DestinationFiles="@(_AppWorkerFile->'$(TargetDir)workers\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_AppWorkerDefault)"
+          DestinationFiles="@(_AppWorkerDefault->'$(TargetDir)workers\defaults\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

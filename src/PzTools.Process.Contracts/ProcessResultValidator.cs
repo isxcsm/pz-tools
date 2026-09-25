@@ -37,7 +37,8 @@ public static class ProcessResultValidator
                 || (envelope.Outcome == ProcessOutcome.Failed && exitCode == ProcessExitCodes.InvalidArguments)))
             throw new ProcessResultValidationException("process-contract-mismatch",
                 DiagnosticMessage($"Expected {expectedComponent}/{expectedRunIndex}; received "
-                    + $"{envelope.Component}/{envelope.RunIndex}, outcome={envelope.Outcome}, exit={exitCode}.", standardError));
+                    + $"{envelope.Component}/{envelope.RunIndex}, outcome={envelope.Outcome}, exit={exitCode}."
+                    + (envelope.Error is { } error ? $" Child error: {error.Code}: {error.Message}" : ""), standardError));
         return envelope;
     }
 

@@ -11,6 +11,17 @@ internal sealed record OnceBackupArguments(
     ConfigurationArguments Configuration,
     DateTimeOffset? ScheduledUtc = null)
 {
+    // Recover only an unambiguous caller identity for errors raised while
+    // parsing other options. Full argument validation still happens in Parse.
+    public static long? ReadFailureRunIndex(string[] arguments)
+    {
+        var indices = arguments.Select((value, index) => (value, index))
+            .Where(item => item.value == "--run-index").Select(item => item.index).ToArray();
+        return indices.Length == 1 && indices[0] + 1 < arguments.Length
+            && long.TryParse(arguments[indices[0] + 1], out var value) && value > 0
+                ? value : null;
+    }
+
     public static OnceBackupArguments Parse(string[] arguments)
     {
         string? sourceId = null;

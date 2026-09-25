@@ -677,15 +677,24 @@ public sealed class IncrementalBackupRunner(
     private PendingEntry? ReadCurrentEntry(string sourceRoot, string relativePath)
     {
         var absolutePath = ToAbsolutePath(sourceRoot, relativePath);
-        if (!File.Exists(absolutePath) && !Directory.Exists(absolutePath))
+        FileCaptureMetadata metadata;
+        try
         {
-            return null;
+            // Exists() suppresses access and I/O failures. Only a confirmed missing
+            // directory entry may become a tombstone (including always-include paths).
+            if ((File.GetAttributes(absolutePath) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException($"Cannot capture linked source entry '{relativePath}'.");
+            metadata = metadataReader.ReadPath(absolutePath);
         }
-
-        var metadata = metadataReader.ReadPath(absolutePath);
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException
+            || exception is Win32Exception { NativeErrorCode: 2 or 3 })
+        {
+            if (ConfirmMissingEntry(sourceRoot, relativePath)) return null;
+            throw new IOException($"Cannot determine source entry state for '{relativePath}'.", exception);
+        }
         if ((metadata.Attributes & FileAttributes.ReparsePoint) != 0)
         {
-            return null;
+            throw new IOException($"Cannot capture linked source entry '{relativePath}'.");
         }
 
         var parent = Path.GetDirectoryName(absolutePath)
@@ -705,13 +714,43 @@ public sealed class IncrementalBackupRunner(
             Encoding.UTF8.GetBytes(parentMetadata.Identity));
     }
 
-    private static IEnumerable<string> EnumerateExistingSubtree(
+    private static bool ConfirmMissingEntry(string sourceRoot, string relativePath)
+    {
+        // A missing drive/root or an inaccessible ancestor is not evidence of deletion.
+        var directory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceRoot));
+        for (var ancestor = new DirectoryInfo(directory); ancestor is not null; ancestor = ancestor.Parent)
+            if ((File.GetAttributes(ancestor.FullName) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException($"Cannot verify a missing entry beneath a linked source: '{sourceRoot}'.");
+
+        foreach (var part in BackupPath.NormalizeRelative(relativePath).Split('/'))
+        {
+            if (part.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                throw new InvalidDataException($"Invalid source entry '{relativePath}'.");
+            var child = Path.Combine(directory, part);
+            // Enumeration must finish successfully; errors propagate and abort the run.
+            // An exact-name query avoids rescanning a large parent for each deleted file.
+            var entries = Directory.GetFileSystemEntries(directory, part, new EnumerationOptions
+            {
+                IgnoreInaccessible = false,
+                AttributesToSkip = 0,
+                MatchType = System.IO.MatchType.Simple,
+                MatchCasing = MatchCasing.CaseInsensitive,
+            });
+            if (!entries.Contains(child, StringComparer.OrdinalIgnoreCase)) return true;
+            if ((File.GetAttributes(child) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException($"Cannot verify a missing entry beneath a link: '{child}'.");
+            directory = child;
+        }
+        return false;
+    }
+
+    private IEnumerable<string> EnumerateExistingSubtree(
         string sourceRoot,
         string relativeRoot)
     {
         var absolute = ToAbsolutePath(sourceRoot, relativeRoot);
-        if (!Directory.Exists(absolute)
-            || (File.GetAttributes(absolute) & FileAttributes.ReparsePoint) != 0)
+        var current = ReadCurrentEntry(sourceRoot, relativeRoot);
+        if (current is null || current.Kind != CatalogEntryKind.Directory)
         {
             yield break;
         }

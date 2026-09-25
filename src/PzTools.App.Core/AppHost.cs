@@ -449,6 +449,13 @@ public sealed class AppHost : IAsyncDisposable
                 TelemetryDatabaseKind.Process,
                 true));
         }
+        foreach (var component in new[] { "backup-runner", "maintenance-runner" })
+        {
+            TelemetrySources.Register(new TelemetrySourceRegistration(
+                component, component, settings.BackupRoot,
+                Path.Combine(ComponentRuntimePaths.GetComponentDirectory(settings.BackupRoot, component), "telemetry.db"),
+                TelemetryDatabaseKind.Process, true, LogsOnly: true));
+        }
     }
 
     private async Task RegisterHistoricalOperationTelemetrySourcesAsync(

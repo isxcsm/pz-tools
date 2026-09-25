@@ -75,7 +75,7 @@ public sealed record LogDiagnostics(
             return new LogDiagnostics(
                 code, exceptionType,
                 Get(root, "phase"), Get(root, "path"), Get(root, "reason"),
-                Get(root, "message"), Get(root, "innerExceptionType"),
+                Get(root, "message") ?? Get(root, "failureMessage"), Get(root, "innerExceptionType"),
                 Get(root, "innerMessage"), Get(root, "saveId"),
                 Get(root, "operation"), Get(root, "failureOrigin"), outcome,
                 Get(root, "failedFileCount"), GetFileNames(root));

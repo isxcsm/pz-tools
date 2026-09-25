@@ -148,11 +148,14 @@ internal static class BackupCli
         CancellationToken cancellationToken)
     {
         var started = DateTimeOffset.UtcNow;
-        var runIndex = 1L;
+        var runIndex = OnceBackupArguments.ReadFailureRunIndex(arguments) ?? 1L;
         RepositoryDatabase? ownedWorkflowRepository = null;
         try
         {
             var request = OnceBackupArguments.Parse(arguments);
+            // Configuration can fail before the engine creates its telemetry.
+            // Preserve the caller's identity in that failure response too.
+            runIndex = request.RunIndex ?? runIndex;
             var options = BackupConfiguration.Load(
                 request.Configuration.RepositoryPath,
                 request.Configuration.ConfigPath,

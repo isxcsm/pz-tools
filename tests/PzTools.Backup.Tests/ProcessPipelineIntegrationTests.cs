@@ -13,6 +13,38 @@ namespace PzTools.Backup.Tests;
 public sealed class ProcessPipelineIntegrationTests
 {
     [PublishedToolsOnlyFact]
+    public async Task BackupConfigurationFailure_PreservesRunIdentityAndOriginalMessage()
+    {
+        using var temp = new TempDirectory();
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
+        var config = temp.GetPath("invalid.toml");
+        await File.WriteAllTextAsync(config, "format_version = 999\n");
+        const long runIndex = 117328883861946368;
+        var result = await RunProcessAsync(Path.Combine(tools, "PzTools.Backup.Runner.exe"),
+            ["--repository", temp.GetPath("repository"), "--source-id", "fixture",
+             "--run-index", runIndex.ToString(), "--worker-directory", tools, "--worker-config", config]);
+        var envelope = ProcessResultValidator.Read<RunnerExecutionResult>(result.StandardOutput,
+            "backup-runner", runIndex, result.ExitCode, result.StandardError);
+        Assert.Equal(ProcessOutcome.Failed, envelope.Outcome);
+        Assert.Equal("invalid-arguments", envelope.Error?.Code);
+        Assert.Contains("format_version 999", envelope.Error?.Message);
+        Assert.False(File.Exists(temp.GetPath("repository/repository.db")));
+    }
+
+    [PublishedToolsOnlyFact]
+    public async Task BackupArgumentFailure_PreservesRunIdentity()
+    {
+        using var temp = new TempDirectory();
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
+        var result = await RunProcessAsync(Path.Combine(tools, "PzTools.Backup.Cli.exe"),
+            ["backup", "--repository", temp.GetPath("repository"), "--run-index", "42"]);
+        var envelope = ProcessResultValidator.Read<object>(result.StandardOutput,
+            "backup-worker", 42, result.ExitCode, result.StandardError);
+        Assert.Equal("invalid-arguments", envelope.Error?.Code);
+        Assert.Contains("--source-id", envelope.Error?.Message);
+    }
+
+    [PublishedToolsOnlyFact]
     public async Task ScheduledRunnerPreservesDueTimeEvenWithGameSavingDisabled()
     {
         using var temp = new TempDirectory();

@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Text.Json;
+using PzTools.Backup.ChangeTracking.Windows;
 using PzTools.Backup.Storage.Repository;
 
 namespace PzTools.Backup.Engine;
@@ -59,7 +61,7 @@ public sealed class SafeRevisionRestoreService
         var staging = Path.Combine(parent, $".{leaf}.pztools-staging-{token}");
         var rollback = Path.Combine(parent, $".{leaf}.pztools-rollback-{token}");
         var journalPath = JournalPath(target);
-        var journal = new RestoreJournal(1, target, staging, rollback, "restoring");
+        var journal = new RestoreJournal(2, target, staging, rollback, "restoring");
 
         try
         {
@@ -70,15 +72,15 @@ public sealed class SafeRevisionRestoreService
                     repository, sourceId, revision, staging, cancellationToken)
                 : await restorer.RestoreAsync(
                     repository, sourceId, revision, staging, observer, cancellationToken);
-            await WriteJournalAsync(journalPath, journal with { Phase = "prepared" }, cancellationToken);
+            journal = journal with { Phase = "prepared", StagingIdentity = ReadDirectoryIdentity(staging) };
+            await WriteJournalAsync(journalPath, journal, cancellationToken);
 
             if (Directory.Exists(target)) Directory.Move(target, rollback);
             await WriteJournalAsync(journalPath, journal with { Phase = "original-moved" }, cancellationToken);
             Directory.Move(staging, target);
             await WriteJournalAsync(journalPath, journal with { Phase = "installed" }, cancellationToken);
 
-            if (Directory.Exists(rollback)) DeleteOperationDirectory(rollback);
-            File.Delete(journalPath);
+            await RecoverAsync(target, CancellationToken.None);
             return new SafeRestoreResult(
                 restored.SourceId, restored.Revision, restored.Files, restored.Directories, target);
         }
@@ -108,16 +110,35 @@ public sealed class SafeRevisionRestoreService
         journal = ValidateJournal(path, target, journal);
         EnsureSaveIsInactive(target);
 
-        if (Directory.Exists(target))
+        var targetExists = DirectoryIsPresent(target);
+        var rollbackExists = DirectoryIsPresent(journal.RollbackPath);
+        var stagingExists = DirectoryIsPresent(journal.StagingPath);
+        if (targetExists && rollbackExists)
         {
-            if (Directory.Exists(journal.RollbackPath))
-                DeleteOperationDirectory(journal.RollbackPath);
+            // Phase may lag a completed rename. Prove directory identity instead of
+            // treating an unrelated, newly created target as a successful installation.
+            if (stagingExists || journal.StagingIdentity is null
+                || !StringComparer.Ordinal.Equals(ReadDirectoryIdentity(target), journal.StagingIdentity))
+                throw new IOException("restore-target-conflict: original rollback and staging were preserved");
+            EnsureSaveIsInactive(journal.RollbackPath);
+            DeleteOperationDirectory(journal.RollbackPath);
         }
-        else if (Directory.Exists(journal.RollbackPath))
+        else if (!targetExists && rollbackExists)
         {
+            // If recovery itself crashes after the rename, the next recovery can
+            // recognize the returned original without trusting a lagging phase.
+            journal = journal with { OriginalIdentity = ReadDirectoryIdentity(journal.RollbackPath) };
+            await WriteJournalAsync(path, journal, cancellationToken);
             Directory.Move(journal.RollbackPath, target);
         }
-        if (Directory.Exists(journal.StagingPath))
+        else if ((!targetExists && journal.Phase != "restoring")
+            || (stagingExists && journal.Phase is "original-moved" or "installed"
+                && (journal.OriginalIdentity is null
+                    || !StringComparer.Ordinal.Equals(ReadDirectoryIdentity(target), journal.OriginalIdentity))))
+        {
+            throw new IOException("restore-target-conflict: recovery inventory was preserved");
+        }
+        if (stagingExists)
             DeleteOperationDirectory(journal.StagingPath);
         File.Delete(path);
     }
@@ -151,6 +172,27 @@ public sealed class SafeRevisionRestoreService
     private static string JournalPath(string target) =>
         Path.Combine(Path.GetDirectoryName(target)!, $".{Path.GetFileName(target)}.pztools-restore.json");
 
+    private static bool DirectoryIsPresent(string path)
+    {
+        FileAttributes attributes;
+        try { attributes = File.GetAttributes(path); }
+        catch (FileNotFoundException) { return false; }
+        // DirectoryNotFound can also mean a disconnected/missing parent. Do not
+        // infer anything about recovery inventory in that case.
+        if ((attributes & FileAttributes.ReparsePoint) != 0
+            || (attributes & FileAttributes.Directory) == 0)
+            throw new IOException($"Invalid restore directory '{path}'.");
+        return true;
+    }
+
+    private static string ReadDirectoryIdentity(string path)
+    {
+        if (!DirectoryIsPresent(path)) throw new IOException($"Missing restore directory '{path}'.");
+        try { return new WindowsFileMetadataReader().ReadPath(path).Identity; }
+        catch (Win32Exception exception)
+        { throw new IOException($"Cannot identify restore directory '{path}'.", exception); }
+    }
+
     internal static void DeleteOperationDirectory(string path)
     {
         var pending = new Stack<string>();
@@ -171,8 +213,10 @@ public sealed class SafeRevisionRestoreService
         string target,
         RestoreJournal? journal)
     {
-        if (journal is null || journal.Version != 1
+        if (journal is null || journal.Version is not (1 or 2)
             || journal.Phase is not ("restoring" or "prepared" or "original-moved" or "installed")
+            || (journal.Version == 2 && journal.Phase != "restoring"
+                && string.IsNullOrWhiteSpace(journal.StagingIdentity))
             || !StringComparer.OrdinalIgnoreCase.Equals(
                 Path.GetFullPath(journal.TargetPath), target))
             throw new InvalidDataException($"Invalid restore journal '{journalPath}'.");
@@ -223,5 +267,7 @@ public sealed class SafeRevisionRestoreService
         string TargetPath,
         string StagingPath,
         string RollbackPath,
-        string Phase);
+        string Phase,
+        string? StagingIdentity = null,
+        string? OriginalIdentity = null);
 }

@@ -177,6 +177,8 @@ pwsh scripts/publish-app.ps1 -JdkPath C:\path\to\jdk-25 -Output artifacts/app-lo
 
 Publishing requires a **new or empty output folder**. Use a different `-Output` path for another publish; the script does not erase an existing installation or user settings.
 
+Visual Studio F5/Ctrl+F5 builds the workers as project dependencies and stages them in the app output's `workers` folder. It does not reuse an older `artifacts/app` publication. `PZTOOLS_TOOLS_DIR` is an explicit development override; unset it for the normal bundled build.
+
 <details>
 <summary>Distribution checks and advanced use</summary>
 

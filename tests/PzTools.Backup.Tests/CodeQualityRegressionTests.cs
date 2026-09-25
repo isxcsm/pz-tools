@@ -62,6 +62,18 @@ public sealed class CodeQualityRegressionTests
             ProcessResultValidator.Read<object>(json, "worker", 7, exit)).Code);
     }
 
+    [Fact]
+    public void ContractMismatchRetainsOriginalChildError()
+    {
+        var json = ProcessResultJson.Serialize(ProcessResultEnvelope<object>.Failure(
+            "backup-worker", 1, ProcessOutcome.Failed, DateTimeOffset.UtcNow,
+            "invalid-arguments", "Unsupported language"));
+        var error = Assert.Throws<ProcessResultValidationException>(() =>
+            ProcessResultValidator.Read<object>(json, "backup-worker", 42, 64));
+        Assert.Equal("process-contract-mismatch", error.Code);
+        Assert.Contains("invalid-arguments: Unsupported language", error.Message);
+    }
+
     [Theory]
     [InlineData("outcome")]
     [InlineData("startedUtc")]

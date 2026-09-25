@@ -1,0 +1,74 @@
+name: Windows verification
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-publish:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+      - name: Build Windows solution
+        run: dotnet build PzTools.sln -c Release -p:Platform=x64 -warnaserror
+      - name: Run tests without live-game or elevated-USN opt-ins
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release
+          --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
+      - name: Publish fresh application and worker distribution
+        run: ./scripts/publish-app.ps1 -Configuration Release -JdkPath $env:JAVA_HOME -Output artifacts/ci-app
+      - name: Verify published payload and synthetic worker workflows
+        run: |
+          $env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/ci-app).Path
+          $env:PZTOOLS_TOOLS_DIR = $env:PZTOOLS_DISTRIBUTION_DIR
+          dotnet test tests/PzTools.Backup.Tests -c Release --logger "trx;LogFileName=distribution.trx" --results-directory artifacts/test-results
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-results-${{ github.sha }}
+          path: artifacts/test-results/*.trx
+          if-no-files-found: warn
+          retention-days: 14
+
+  synthetic-jvm:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+      - name: Test bridge against isolated synthetic JVM only
+        shell: pwsh
+        run: ./scripts/test-save-bridge.ps1 -JdkPath $env:JAVA_HOME

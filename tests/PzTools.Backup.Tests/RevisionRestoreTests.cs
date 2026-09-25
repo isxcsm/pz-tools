@@ -180,6 +180,7 @@ public sealed class RevisionRestoreTests
     [InlineData("prepared", true, false, "old")]
     [InlineData("original-moved", false, true, "old")]
     [InlineData("installed", true, true, "new")]
+    [InlineData("original-moved", true, true, "new")]
     public async Task SafeRestore_RecoversEveryDirectorySwapBoundary(
         string phase,
         bool targetExists,
@@ -191,7 +192,7 @@ public sealed class RevisionRestoreTests
         var token = Guid.NewGuid().ToString("N");
         var staging = temp.GetPath($".Save.pztools-staging-{token}");
         var rollback = temp.GetPath($".Save.pztools-rollback-{token}");
-        if (targetExists)
+        if (targetExists && expected == "old")
         {
             Directory.CreateDirectory(target);
             await File.WriteAllTextAsync(
@@ -199,6 +200,8 @@ public sealed class RevisionRestoreTests
         }
         Directory.CreateDirectory(staging);
         await File.WriteAllTextAsync(Path.Combine(staging, "value.txt"), "new");
+        var stagingIdentity = new WindowsFileMetadataReader().ReadPath(staging).Identity;
+        if (targetExists && expected == "new") Directory.Move(staging, target);
         if (rollbackExists)
         {
             Directory.CreateDirectory(rollback);
@@ -207,11 +210,12 @@ public sealed class RevisionRestoreTests
         var journal = temp.GetPath(".Save.pztools-restore.json");
         await File.WriteAllTextAsync(journal, System.Text.Json.JsonSerializer.Serialize(new
         {
-            Version = 1,
+            Version = 2,
             TargetPath = target,
             StagingPath = staging,
             RollbackPath = rollback,
             Phase = phase,
+            StagingIdentity = stagingIdentity,
         }));
 
         await new SafeRevisionRestoreService().RecoverAsync(target);
@@ -219,6 +223,100 @@ public sealed class RevisionRestoreTests
         Assert.Equal(expected, await File.ReadAllTextAsync(Path.Combine(target, "value.txt")));
         Assert.False(Directory.Exists(staging));
         Assert.False(Directory.Exists(rollback));
+        Assert.False(File.Exists(journal));
+    }
+
+    [Theory]
+    [InlineData("prepared", 2, true)]
+    [InlineData("original-moved", 2, true)]
+    [InlineData("original-moved", 2, false)]
+    [InlineData("installed", 2, false)]
+    [InlineData("installed", 1, false)]
+    public async Task SafeRestore_PreservesOriginalWhenAnUnrelatedTargetAppears(
+        string phase, int version, bool stagingExists)
+    {
+        using var temp = new TempDirectory();
+        var target = temp.GetPath("Save");
+        var token = Guid.NewGuid().ToString("N");
+        var staging = temp.GetPath($".Save.pztools-staging-{token}");
+        var rollback = temp.GetPath($".Save.pztools-rollback-{token}");
+        Directory.CreateDirectory(rollback);
+        await File.WriteAllTextAsync(Path.Combine(rollback, "original.txt"), "irreplaceable-original");
+        Directory.CreateDirectory(staging);
+        await File.WriteAllTextAsync(Path.Combine(staging, "restored.txt"), "restored");
+        var identity = new WindowsFileMetadataReader().ReadPath(staging).Identity;
+        if (!stagingExists) Directory.Move(staging, temp.GetPath("moved-installed-save"));
+        Directory.CreateDirectory(target); // An external actor recreates the save path after the crash.
+        var journal = temp.GetPath(".Save.pztools-restore.json");
+        await File.WriteAllTextAsync(journal, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Version = version, TargetPath = target, StagingPath = staging,
+            RollbackPath = rollback, Phase = phase,
+            StagingIdentity = version == 2 ? identity : null,
+        }));
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var error = await Assert.ThrowsAsync<IOException>(
+                () => new SafeRevisionRestoreService().RecoverAsync(target));
+            Assert.Contains("restore-target-conflict", error.Message);
+            Assert.Equal("irreplaceable-original", await File.ReadAllTextAsync(Path.Combine(rollback, "original.txt")));
+            Assert.Equal(stagingExists, Directory.Exists(staging));
+            Assert.Empty(Directory.GetFileSystemEntries(target));
+            Assert.True(File.Exists(journal));
+        }
+    }
+
+    [Fact]
+    public async Task SafeRestore_MissingTargetAndRollbackPreservesTheOnlyStagedCopy()
+    {
+        using var temp = new TempDirectory();
+        var target = temp.GetPath("Save");
+        var token = Guid.NewGuid().ToString("N");
+        var staging = temp.GetPath($".Save.pztools-staging-{token}");
+        var rollback = temp.GetPath($".Save.pztools-rollback-{token}");
+        Directory.CreateDirectory(staging);
+        await File.WriteAllTextAsync(Path.Combine(staging, "data.txt"), "only-copy");
+        var journal = temp.GetPath(".Save.pztools-restore.json");
+        await File.WriteAllTextAsync(journal, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Version = 2, TargetPath = target, StagingPath = staging,
+            RollbackPath = rollback, Phase = "original-moved",
+            StagingIdentity = new WindowsFileMetadataReader().ReadPath(staging).Identity,
+        }));
+
+        await Assert.ThrowsAsync<IOException>(() => new SafeRevisionRestoreService().RecoverAsync(target));
+        Assert.Equal("only-copy", await File.ReadAllTextAsync(Path.Combine(staging, "data.txt")));
+        Assert.True(File.Exists(journal));
+    }
+
+    [Fact]
+    public async Task SafeRestore_ResumesRecoveryAfterOriginalWasMovedBack()
+    {
+        using var temp = new TempDirectory();
+        var target = temp.GetPath("Save");
+        var token = Guid.NewGuid().ToString("N");
+        var staging = temp.GetPath($".Save.pztools-staging-{token}");
+        var rollback = temp.GetPath($".Save.pztools-rollback-{token}");
+        Directory.CreateDirectory(staging);
+        Directory.CreateDirectory(rollback);
+        await File.WriteAllTextAsync(Path.Combine(rollback, "data.txt"), "original");
+        var reader = new WindowsFileMetadataReader();
+        var journal = temp.GetPath(".Save.pztools-restore.json");
+        await File.WriteAllTextAsync(journal, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Version = 2, TargetPath = target, StagingPath = staging,
+            RollbackPath = rollback, Phase = "original-moved",
+            StagingIdentity = reader.ReadPath(staging).Identity,
+            OriginalIdentity = reader.ReadPath(rollback).Identity,
+        }));
+        Directory.Move(rollback, target); // Crash after returning the original, before cleanup.
+
+        var service = new SafeRevisionRestoreService();
+        await service.RecoverAsync(target);
+        await service.RecoverAsync(target);
+        Assert.Equal("original", await File.ReadAllTextAsync(Path.Combine(target, "data.txt")));
+        Assert.False(Directory.Exists(staging));
         Assert.False(File.Exists(journal));
     }
 

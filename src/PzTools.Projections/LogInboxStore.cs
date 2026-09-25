@@ -28,12 +28,12 @@ public sealed class LogInboxStore
               AND logs.level >= $minimum
               AND ($run='' OR instr(CAST(logs.run_index AS TEXT),$run)>0)
               AND ($category='All' OR (CASE
-                    WHEN logs.component='backup-worker' THEN 'Backup'
+                    WHEN logs.component IN ('backup-worker','backup-runner') THEN 'Backup'
                     WHEN logs.component='restore-worker' OR logs.component LIKE 'restore-%' THEN 'Restore'
                     WHEN logs.component='archive-worker' OR logs.component LIKE 'archive-%' THEN 'Archive'
                     WHEN logs.component IN ('state-runner','state-collector','state-reactor','state-scheduler') THEN 'State'
                     WHEN logs.component='backup-scheduler' THEN 'Schedule'
-                    WHEN logs.component='maintenance-worker' OR logs.component LIKE 'maintenance-lane-%' THEN 'Maintenance'
+                    WHEN logs.component IN ('maintenance-worker','maintenance-runner') OR logs.component LIKE 'maintenance-lane-%' THEN 'Maintenance'
                     ELSE 'Other' END)=$category)
         )
         """;

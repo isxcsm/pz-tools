@@ -1,6 +1,48 @@
 # 구현 및 검증 보고서
 
-기준일은 2026-09-22입니다. 자동화 가능한 구현·검증과 관리자 권한 USN 실장
+## 2026-09-25 외부 리뷰 반영
+
+검토 기준은 `dev`의 `2d9108c`와 이번 작업 트리 변경입니다. 기본 브랜치는
+현재 `main`이며 개발 코드는 `dev`에서 관리합니다. 아래 결과는 로컬 Windows에서
+실행한 결과이고, GitHub hosted runner에서 실행한 결과로 표현하지 않습니다.
+
+| 리뷰 항목 | 판단과 처리 |
+| --- | --- |
+| 접근 실패를 삭제로 기록할 가능성 | 수용. USN 후보와 강제 수집 경로에서 오류를 숨기는 Exists 검사를 제거하고 실제 부재를 확인합니다. 판단 불가 시 리비전·체크포인트는 유지합니다. |
+| 예상치 못한 target이 생기면 rollback 삭제 | 수용. 복원 journal v2에 staging 디렉터리 식별자를 기록합니다. 충돌과 구형 journal의 불확실한 상태는 원본·작업 기록을 보존합니다. 복구 중 재종료도 원본 식별자로 재개합니다. |
+| 고아 백업 보존 정책 | 구현 오류가 아닌 정책 제안. 사용자 확인에 따라 기존 자동 정리를 유지합니다. 수동 백업도 예외가 아니므로 장기 보관은 ZIP 내보내기를 사용합니다. |
+| .NET/배포 검증 CI 부재 | 수용. `windows.yml`에 Windows Release 빌드, 테스트, 새 배포본 생성, 배포물·worker 검증, 별도 synthetic JVM job을 추가했습니다. |
+| UI 관리자 권한 요구 | 권한 분리 제안은 타당하나 별도 설계 작업입니다. 사용자 확인에 따라 현재 관리자 실행과 USN 동작을 유지합니다. |
+
+로컬 검증:
+
+- Release 솔루션 빌드: 경고 0, 오류 0.
+- 새 배포본 `artifacts/app-review-safety` 생성 성공. 기존 실행 폴더를 덮어쓰지 않았습니다.
+- 최종 Release 전체 테스트(새 배포본 연결): **676 통과, 0 실패, 22 건너뜀 / 698개**.
+- 별도 synthetic JVM 브리지 검증: **22 통과, 0 실패, 실제 게임 probe 1개 건너뜀**.
+  `scripts/test-save-bridge.ps1 -JdkPath <Java-25-JDK>`로 실행했습니다.
+- 테스트 증거: `artifacts/review-test-results/review-distribution.trx` (Git 제외).
+- README: 18개 언어, 로컬 링크·이미지 417개 검사 통과.
+
+최종 테스트 재현:
+
+```powershell
+dotnet build PzTools.sln -c Release -p:Platform=x64 -warnaserror
+pwsh scripts/publish-app.ps1 -Configuration Release -JdkPath C:\path\to\jdk-25 -Output artifacts/review-fresh
+$env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/review-fresh).Path
+$env:PZTOOLS_TOOLS_DIR = $env:PZTOOLS_DISTRIBUTION_DIR
+dotnet test tests/PzTools.Backup.Tests -c Release --logger "trx;LogFileName=review.trx" --results-directory artifacts/review-test-results
+```
+
+CI는 `global.json`의 SDK와 Java 25, Windows 2025 runner를 사용합니다.
+자동 실행에 실제 사용자 세이브, 실제 게임 PID, 관리자 USN opt-in을 제공하지
+않습니다. JVM 검증은 별도 job에서 가짜 게임 프로세스만 사용합니다. TRX 결과는
+커밋 SHA가 포함된 artifact 이름으로 업로드합니다. 일반 CI 통과만으로 실제 게임
+연동이나 관리자 USN 실장 검증까지 완료됐다고 보지 않습니다.
+
+## 2026-09-22 검증 기록
+
+이하 기준일은 2026-09-22입니다. 자동화 가능한 구현·검증과 관리자 권한 USN 실장
 테스트는 완료했으며, 네이티브 WinUI 육안 및 실제 플레이 흐름 확인만 남아 있습니다.
 
 ## 완료된 검증
