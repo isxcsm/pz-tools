@@ -51,7 +51,10 @@ public final class Inspector {
             var resident = Class.forName("pztools.bridge.AgentEntry");
             var field = resident.getDeclaredField("instrumentation");
             field.setAccessible(true);
-            observer = (Instrumentation)field.get(null);
+            // Attach can publish the bootstrap class before agentmain initializes it.
+            // Keep the premain observer until the resident instrumentation is available.
+            var candidate = (Instrumentation)field.get(null);
+            if (candidate != null) observer = candidate;
             calls.append(resident.getMethod("diagnostics").invoke(null)).append('\n');
         } catch (ClassNotFoundException ignored) { }
         observer.addTransformer(reader, true);

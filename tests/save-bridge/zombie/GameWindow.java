@@ -25,6 +25,13 @@ public final class GameWindow {
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "save-time.txt"), Long.toString(System.currentTimeMillis()));
     }
 
+    private static boolean consumeSignal(Path path) {
+        try { return Files.deleteIfExists(path); }
+        // The .NET writer may still hold a Windows sharing lock on a test signal.
+        // Retry next frame instead of terminating the synthetic game process.
+        catch (IOException transientSignalWrite) { return false; }
+    }
+
     public static void main(String[] args) throws Exception {
         ZomboidFileSystem.path = args[0];
         mode = args.length > 1 ? args[1] : "normal";
@@ -38,9 +45,9 @@ public final class GameWindow {
         System.out.println("READY");
         System.out.flush();
         while (true) {
-            if (Files.deleteIfExists(Path.of(args[0], "inspect-hook")))
+            if (consumeSignal(Path.of(args[0], "inspect-hook")))
                 bridgefixture.Inspector.inspect(Path.of(args[0], "hook-state.txt"));
-            if (Files.deleteIfExists(Path.of(args[0], "inspect-control"))) {
+            if (consumeSignal(Path.of(args[0], "inspect-control"))) {
                 String endpoint = System.getProperty("pztools.bridge.control.v1", "");
                 Path staged = Path.of(args[0], "control-state.tmp");
                 Files.writeString(staged, endpoint);
