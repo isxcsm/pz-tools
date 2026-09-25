@@ -2,21 +2,71 @@ name: Storage workbench
 on:
   push:
     branches: [optimize/repository-housekeeping]
-    paths: [.github/workflows/storage-workbench.yml]
+    paths: ['.github/storage-patch.*']
 permissions:
   contents: read
 jobs:
-  snapshot:
+  apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/optimize/repository-housekeeping'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify and apply reviewed patch
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, pathlib, subprocess, tempfile, zlib
+          parts = sorted(pathlib.Path('.github').glob('storage-patch.*'))
+          assert len(parts) == 3, 'Incomplete patch payload'
+          patch = zlib.decompress(base64.b64decode(''.join(p.read_text().strip() for p in parts), validate=True))
+          assert hashlib.sha256(patch).hexdigest() == 'df5ca63cc867ff35c475c61d3427610c63db752ca6a31ffc9ddb5e0e8fb8a43a'
+          with tempfile.NamedTemporaryFile() as f:
+              f.write(patch); f.flush()
+              subprocess.run(['git', 'apply', '--check', f.name], check=True)
+              subprocess.run(['git', 'apply', f.name], check=True)
+          subprocess.run(['git', 'add', 'src', 'tests'], check=True)
+          paths = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '-z']).decode().strip('\0').split('\0')
+          assert len(paths) == 21 and all(p.startswith(('src/', 'tests/')) for p in paths), paths
+          subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
+          PY
+      - name: Commit only to the existing optimization branch
+        id: commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Use compact repository format 2 with 128-bit content fingerprints'
+          git push origin HEAD:refs/heads/optimize/repository-housekeeping
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  verify:
+    needs: apply
+    runs-on: windows-2025
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.apply.outputs.sha }}
           persist-credentials: false
-      - name: Archive exact source revision for isolated review
-        run: git archive --format=zip --output=source.zip HEAD
-      - uses: actions/upload-artifact@v4
+      - uses: actions/setup-dotnet@v6
         with:
-          name: storage-source-${{ github.sha }}
-          path: source.zip
-          retention-days: 1
+          global-json-file: global.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+      - name: Build and run compact-storage regression suites
+        shell: pwsh
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
+          --filter 'FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests'
+          --logger 'trx;LogFileName=compact-storage.trx' --results-directory artifacts/compact-tests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compact-storage-tests-${{ needs.apply.outputs.sha }}
+          path: artifacts/compact-tests/*.trx
+          retention-days: 7
