@@ -284,12 +284,22 @@ public sealed class StateDatabase
         using var transaction = connection.BeginTransaction(deferred: true);
         await using var revisionCommand = connection.CreateCommand();
         revisionCommand.Transaction = transaction;
-        revisionCommand.CommandText = "SELECT state_revision FROM state_info WHERE singleton = 1;";
-        var revision = Convert.ToInt64(await revisionCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        // Opening an empty DB is not a completed save discovery. Read the reactor's
+        // committed initialization marker in the same snapshot as the list.
+        revisionCommand.CommandText = "SELECT state_revision,initialized FROM state_info WHERE singleton = 1;";
+        long revision;
+        bool initialized;
+        await using (var info = await revisionCommand.ExecuteReaderAsync(cancellationToken))
+        {
+            if (!await info.ReadAsync(cancellationToken))
+                throw new InvalidDataException("State initialization metadata is missing.");
+            revision = info.GetInt64(0);
+            initialized = info.GetBoolean(1);
+        }
         if (revision == lastSeenRevision)
         {
             transaction.Commit();
-            return new CurrentStateSnapshot(false, revision, GameState.Unknown, []);
+            return new CurrentStateSnapshot(false, revision, GameState.Unknown, [], initialized);
         }
 
         await using var gameCommand = connection.CreateCommand();
@@ -320,7 +330,7 @@ public sealed class StateDatabase
         }
 
         transaction.Commit();
-        return new CurrentStateSnapshot(true, revision, game, saves);
+        return new CurrentStateSnapshot(true, revision, game, saves, initialized);
     }
 
     internal Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken) =>

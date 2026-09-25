@@ -48,11 +48,18 @@ public sealed class StateProjector(
             mapped.Add(item with { Character = character });
         }
         characters.RetainOnly(mapped.Select(item => Path.Combine(item.SourcePath, "players.db")));
+        // A fresh state DB can publish an empty snapshot before the first collector
+        // batch is applied. Only an initialized, conclusive empty discovery is Empty.
+        // Empty + Unknown after initialization is an incomplete discovery, not absence.
+        var loadState = !snapshot.Initialized ? SaveListLoadState.Loading
+            : snapshot.Saves.Count == 0 && snapshot.Game == GameState.Unknown
+                ? SaveListLoadState.Unavailable : SaveListLoadState.Ready;
         var model = new SaveListView(
             snapshot.StateRevision,
             game,
             mapped.OrderByDescending(item => item.LastPlayedUtc)
-                .ThenBy(item => item.SaveId, StringComparer.OrdinalIgnoreCase).ToArray());
+                .ThenBy(item => item.SaveId, StringComparer.OrdinalIgnoreCase).ToArray(),
+            loadState);
         views.Publish(
             ViewKey.SaveList, model, snapshot.StateRevision,
             ViewComparers.Saves);

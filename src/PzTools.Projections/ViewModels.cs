@@ -19,10 +19,13 @@ public sealed record SaveListItemView(
     ViewFreshness Freshness,
     CharacterSnapshot? Character = null);
 
+public enum SaveListLoadState { Loading, Ready, Unavailable }
+
 public sealed record SaveListView(
     long StateRevision,
     GameState Game,
-    IReadOnlyList<SaveListItemView> Saves);
+    IReadOnlyList<SaveListItemView> Saves,
+    SaveListLoadState LoadState = SaveListLoadState.Ready);
 
 public sealed record BackupRevisionView(
     long Revision,

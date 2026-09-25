@@ -55,6 +55,8 @@ public sealed partial class MainWindowShell : UserControl
     private string? displayedDetailSaveId;
     private ScheduleStatusView? schedule;
     private ProjectorHealthView? projectorHealth;
+    private SaveListView? saveListSnapshot;
+    private bool hostStartFailed;
     private bool narrow;
     private bool archiveInteraction;
     private bool detailLoading;
@@ -141,6 +143,7 @@ public sealed partial class MainWindowShell : UserControl
         DeleteAllBackupsButton.Content = Localizer.Get("DeleteAllBackupsButton");
         NoSavesText.Text = Localizer.Get("NoSaves.Text");
         LoadingSavesText.Text = Localizer.Get("LoadingSaves.Text");
+        SavesUnavailableText.Text = Localizer.Get("ProjectorStatusTitle");
         LoadingBackupsText.Text = Localizer.Get("LoadingBackups.Text");
         SelectSaveText.Text = Localizer.Get("SelectSave.Text");
         NarrowBackButton.Content = Localizer.Get("BackToList.Content");
@@ -153,7 +156,8 @@ public sealed partial class MainWindowShell : UserControl
 
     public void ShowHostError(Exception exception)
     {
-        LoadingSaves.Visibility = Visibility.Collapsed;
+        hostStartFailed = true;
+        UpdateSaveListPlaceholder();
         LoadingBackups.Visibility = Visibility.Collapsed;
         LogsRoot.ShowLoadFailure();
         EndDetailLoading();
@@ -199,6 +203,7 @@ public sealed partial class MainWindowShell : UserControl
             };
         }
         ApplyNavigationSpacing();
+        UpdateSaveListPlaceholder();
         var host = App.Host;
         if (host is null) return;
         viewSubscription ??= host.Views.Subscribe((_, _) =>
@@ -216,6 +221,7 @@ public sealed partial class MainWindowShell : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        LoadingSavesProgress.IsActive = false;
         CancelRevisionThumbnails();
         countdownTimer.Stop();
         detailProgressDelayTimer.Stop();
@@ -307,8 +313,9 @@ public sealed partial class MainWindowShell : UserControl
             if (replaceThumbnail) item.Thumbnail = null;
         }
         IncrementalListReconciler.Reconcile(SaveItems, desired);
-        LoadingSaves.Visibility = Visibility.Collapsed;
-        EmptySaves.Visibility = SaveItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        saveListSnapshot = view;
+        hostStartFailed = false;
+        UpdateSaveListPlaceholder();
         if (SaveList.SelectedItem is not SaveListUiItem selected || !SaveItems.Contains(selected))
             SaveList.SelectedItem = SaveItems.FirstOrDefault(item =>
                 StringComparer.OrdinalIgnoreCase.Equals(item.SaveId, selectedSaveId))
@@ -329,6 +336,19 @@ public sealed partial class MainWindowShell : UserControl
         foreach (var (item, model, replaceThumbnail) in updates)
             if (replaceThumbnail && model.ThumbnailKey is not null)
                 _ = LoadLiveThumbnailForItemAsync(item, model);
+    }
+
+    private void UpdateSaveListPlaceholder()
+    {
+        var placeholder = SaveListPresentation.Resolve(saveListSnapshot,
+            hostStartFailed || projectorHealth?.IsFaulted("state") == true);
+        LoadingSaves.Visibility = placeholder == SaveListPlaceholder.Loading
+            ? Visibility.Visible : Visibility.Collapsed;
+        LoadingSavesProgress.IsActive = placeholder == SaveListPlaceholder.Loading && IsLoaded;
+        EmptySaves.Visibility = placeholder == SaveListPlaceholder.Empty
+            ? Visibility.Visible : Visibility.Collapsed;
+        UnavailableSaves.Visibility = placeholder == SaveListPlaceholder.Unavailable
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async Task LoadLiveThumbnailForItemAsync(SaveListUiItem item, SaveListItemView model)
@@ -956,6 +976,7 @@ public sealed partial class MainWindowShell : UserControl
 
     private void ApplyProjectorHealth()
     {
+        UpdateSaveListPlaceholder();
         if (projectorHealth?.IsFaulted("telemetry") == true)
             LogsRoot.ShowLoadFailure();
         var faults = projectorHealth?.Projectors

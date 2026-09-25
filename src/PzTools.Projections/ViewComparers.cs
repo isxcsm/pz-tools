@@ -4,8 +4,9 @@ namespace PzTools.Projections;
 public static class ViewComparers
 {
     public static IEqualityComparer<SaveListView> Saves { get; } = EqualityComparer<SaveListView>.Create(
-        (x, y) => ReferenceEquals(x, y) || x is not null && y is not null && x.StateRevision == y.StateRevision && x.Game == y.Game && SequenceEqual(x.Saves, y.Saves),
-        x => HashCode.Combine(x.StateRevision, x.Game, SequenceHash(x.Saves)));
+        (x, y) => ReferenceEquals(x, y) || x is not null && y is not null && x.StateRevision == y.StateRevision && x.Game == y.Game
+            && x.LoadState == y.LoadState && SequenceEqual(x.Saves, y.Saves),
+        x => HashCode.Combine(x.StateRevision, x.Game, x.LoadState, SequenceHash(x.Saves)));
     public static IEqualityComparer<BackupSourceView> Source { get; } = EqualityComparer<BackupSourceView>.Create(
         (x, y) => ReferenceEquals(x, y) || x is not null && y is not null && x.SourceId == y.SourceId && x.SaveId == y.SaveId && x.RootPath == y.RootPath
             && x.CurrentRevision == y.CurrentRevision && SequenceEqual(x.Revisions, y.Revisions),

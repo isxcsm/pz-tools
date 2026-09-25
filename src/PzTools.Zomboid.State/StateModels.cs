@@ -42,7 +42,8 @@ public sealed record CurrentStateSnapshot(
     bool Modified,
     long StateRevision,
     GameState Game,
-    IReadOnlyList<CurrentSaveState> Saves);
+    IReadOnlyList<CurrentSaveState> Saves,
+    bool Initialized = false);
 
 public sealed record ReactorResult(
     IReadOnlyList<string> AppliedBatchIds,

@@ -182,7 +182,8 @@
             </Canvas>
             <StackPanel x:Name="LoadingSaves" HorizontalAlignment="Center"
                         VerticalAlignment="Center" Spacing="12" IsHitTestVisible="False">
-              <ProgressRing Width="28" Height="28" IsActive="True" />
+              <ProgressRing x:Name="LoadingSavesProgress" Width="28" Height="28" IsActive="True"
+                            AutomationProperties.LabeledBy="{Binding ElementName=LoadingSavesText}" />
               <TextBlock x:Name="LoadingSavesText" Text="세이브를 불러오는 중입니다"
                          Style="{StaticResource SecondaryTextStyle}" />
             </StackPanel>
@@ -190,6 +191,13 @@
                         VerticalAlignment="Center" Spacing="8">
               <FontIcon Glyph="&#xE8B7;" FontSize="32" Opacity="0.5" />
               <TextBlock x:Name="NoSavesText" x:Uid="NoSaves" Text="세이브가 없습니다" Opacity="0.7" />
+            </StackPanel>
+            <StackPanel x:Name="UnavailableSaves" Visibility="Collapsed" HorizontalAlignment="Center"
+                        VerticalAlignment="Center" Spacing="8" Margin="24" IsHitTestVisible="False">
+              <FontIcon Glyph="&#xE7BA;" FontSize="28" Opacity="0.6" />
+              <TextBlock x:Name="SavesUnavailableText" Text="일부 정보를 갱신할 수 없습니다"
+                         Style="{StaticResource SecondaryTextStyle}" TextWrapping="Wrap"
+                         TextAlignment="Center" AutomationProperties.LiveSetting="Polite" />
             </StackPanel>
           </Grid>
         </Grid>
