@@ -143,44 +143,49 @@ Documentation workflows. PRs target dev/main; pushes to those branches do not re
 the same PR validation. Release tags `v*` run full validation. Direct branch pushes
 without a PR therefore require a manual run before release.
 
-- Documentation-only PRs run one Linux job with offline documentation, localization,
-  SQL and selector checks. The PowerShell documentation wrapper calls the same Python
-  checker and is not run a second time in CI.
-- Code PRs additionally use one Windows job: one Release solution build, then one
-  `dotnet test --no-build --no-restore`. Storage, localization, scheduler and one-shot
-  crash/recovery tests remain in this common suite, not separate duplicate jobs.
-- Bridge/backup-engine changes run the synthetic JVM tests in that same invocation.
-  Their fixture reuses the freshly built Release bridge; there is no second Debug
-  build, extra runtime generation or separate managed test build.
-- Packaging, worker entry-point, build and workflow changes also publish a fresh
-  distribution **before** that one test invocation. Other PRs defer publication.
-- In Actions, choose **CI / Run workflow / full=true** for distribution, JVM and
-  repeated crash stress regardless of changed paths. Release tags do the same.
-  The five-repetition stress suite is tagged `Category=Stress`; the ordinary crash
-  boundary tests still run on every code PR. Local unfiltered tests still run stress.
-- Benchmarks are preserved but run only with the separate `benchmarks=true` input.
-  With full=false, a benchmark-only manual run uses Linux only. Full history is
-  fetched only for that historical comparison. Success without a
-  requested benchmark is not a new performance measurement.
+Documentation-only PRs run one Linux job for documentation, localization and CI path
+selection. Code PRs add one Windows job: one Release build followed by one
+`dotnet test --no-build --no-restore`. Packaging, worker entry-point, build and workflow
+changes publish a fresh distribution before that test invocation. Bridge and backup-engine
+changes prepare the synthetic JVM fixture using the existing Release bridge and run
+those tests in the same invocation. There is no extra Debug build or repeated full suite.
+
+Use **CI / Run workflow / full=true** for publication and synthetic JVM validation
+regardless of changed paths. Release tags do the same. All ordinary crash-recovery
+boundaries are retained; the wrapper that repeated the identical tests five times is
+removed, not replaced with a retry. There is no assembly-wide SQLite diagnostic hook.
+Benchmarks run only with `benchmarks=true`; a benchmark-only manual run uses Linux.
+The historical SQL extraction scripts remain available for manual investigations but
+are not default CI gates duplicating the C# repository tests.
 
 Dependencies, not compiled outputs or user data, are cached. Superseded PR runs are
 cancelled. TRX artifacts are kept seven days for failures or publication runs; normal
-success counts remain in the job log. This avoids repeated downloads of successful
-result bundles. No live-game, real-save or elevated-USN opt-in is enabled by CI.
+success counts remain in the job log. No live-game, real-save or elevated-USN opt-in
+is enabled by CI. Missing external prerequisites are reported as skipped, never passed.
+Explicitly configured but broken fixtures still fail.
 
-The mixed-history storage test now restores one multilingual history rather than
-rebuilding identical storage scenarios eighteen times; all-language resource and
-settings tests remain. The 600-event projection test still checks all 600 events and
-the terminal result, but seeds its input with one SQL statement instead of 600 durable
-writer calls. Product flush/checksum/transaction behavior is not weakened.
+### Tests that belong in this suite
 
-Workflow check names change to `checks` and `windows`. Any required-check branch rule
-must be updated to these names before making them mandatory; repository protection is
-not changed automatically. A skipped Windows job on a docs-only PR is intentional.
-Workflow dispatch is available once the workflow is present on the default branch;
-before then, relevant packaging PRs already exercise fresh publication automatically.
+Assert observable outcomes: restored bytes, retained revisions, transactions and locks,
+configuration persistence, error classification and game-thread save(true) before capture.
+Do not freeze private method text, handler spelling, XAML parent types, Grid row numbers,
+translation prose, line-break counts or the current number of supported languages.
+Resource keys, formatting arguments, .NET formatting and configuration round trips remain
+covered. UI hover/layout behavior needs an actual UI check, not a source-substring proxy.
+Keep generous bounded waits to detect hangs; sub-two-second process speed is diagnostic,
+not a correctness assertion on a shared runner. Product deadlines remain unchanged.
 
-For routine changes, inspect one CI result and fetch detailed logs only on failure.
-Batch related file edits into one push. Do not create temporary CI workflows or a
-chain of fallback tools for ordinary Git operations such as deleting a merged branch;
-use a direct supported operation or report the unavailable operation promptly.
+The mixed-history storage test restores one multilingual history rather than repeating
+identical storage scenarios per language. The 600-event projection test prepares its
+input in one SQL statement while retaining page-boundary and terminal-state assertions.
+The old unpublished zombie sample with a hard-coded seven-item inventory was removed;
+synthetic inventory transfer and generic opt-in recovery-in-copies tests remain.
+
+Workflow check names are `checks` and `windows`. Required-check rules must match them;
+protection is not changed automatically. A skipped Windows job on a docs-only PR is
+intentional. Workflow dispatch requires the workflow on the default branch; until then,
+packaging PRs already exercise publication. No blanket claim of zero flaky tests is made.
+
+For routine changes, batch edits into one push and inspect one CI result. Fetch logs on
+failure. Do not build temporary workflows or a chain of fallback tools to delete branches;
+use a supported direct Git operation or report the unavailable operation promptly.

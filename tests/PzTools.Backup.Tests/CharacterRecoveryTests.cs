@@ -41,26 +41,6 @@ public sealed class CharacterRecoveryTests
         Assert.Equal(ZombieFile(Zombie("Someone")), result.Zombies);
     }
 
-    [Fact]
-    public async Task RealZombieSample_WhenProvided_RecoversOnlyInIsolatedCopy()
-    {
-        var path = Environment.GetEnvironmentVariable("PZTOOLS_RECOVERY_ZOMBIE_SAMPLE");
-        if (string.IsNullOrWhiteSpace(path)) return;
-        using var workspace = new RecoveryWorkspace();
-        var names = new[] { "players.db", "reanimated.bin", "WorldDictionary.bin" };
-        var originals = names.ToDictionary(n => n, n => File.ReadAllBytes(Path.Combine(path, n)));
-        foreach (var n in names) File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(workspace.Database)!, n), originals[n]);
-        var result = await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
-        Assert.True(result.Resurrected);
-        Assert.Equal(7, result.RecoveredItems);
-        Assert.Equal(ZombieFile(), File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(workspace.Database)!, "reanimated.bin")));
-        var again = await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
-        Assert.False(again.Resurrected); Assert.Equal(0, again.RecoveredItems);
-        Assert.Equal(3, Directory.GetFiles(workspace.Root, "*", SearchOption.AllDirectories).Length);
-        Assert.Empty(Directory.GetDirectories(Path.Combine(workspace.Root, "Sandbox"), ".*"));
-        foreach (var n in names) Assert.Equal(originals[n], File.ReadAllBytes(Path.Combine(path, n)));
-    }
-
     private static readonly IReadOnlyDictionary<int, string> Registry = new Dictionary<int, string>
     { [1] = "Base.IDcard", [2] = "Base.Shirt", [3] = "Base.Wound_Neck_Bite_Female", [4] = "Base.Bag" };
     private static readonly byte[] BagPayload = [0, 4, 255, 0, 0, 0, 44, 0, 99, 98, 97, 96, 95];
@@ -199,11 +179,10 @@ public sealed class CharacterRecoveryTests
         Assert.Equal(original, await File.ReadAllBytesAsync(workspace.Database));
     }
 
-    [Fact]
+    [RequiresEnvironmentFact("PZTOOLS_TOOLS_DIR")]
     public async Task PublishedWorker_WhenProvided_UsesTheProcessContract()
     {
-        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR");
-        if (string.IsNullOrWhiteSpace(tools)) return;
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
         using var workspace = new RecoveryWorkspace();
         await workspace.CreateDatabase(Sample.Create().Bytes);
         var executable = Path.Combine(tools, "PzTools.Zomboid.Recovery.Cli.exe");
@@ -225,11 +204,10 @@ public sealed class CharacterRecoveryTests
         Assert.DoesNotContain("BackupDirectory", output, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [RequiresEnvironmentFact("PZTOOLS_RECOVERY_SAMPLES")]
     public async Task RealSaveSamples_WhenProvided_AreEditedOnlyInCopies()
     {
-        var samples = Environment.GetEnvironmentVariable("PZTOOLS_RECOVERY_SAMPLES");
-        if (string.IsNullOrWhiteSpace(samples)) return;
+        var samples = Environment.GetEnvironmentVariable("PZTOOLS_RECOVERY_SAMPLES")!;
         foreach (var path in samples.Split(';'))
         {
             // Explicit read-only input. Test mutations are limited to the isolated temporary workspace.

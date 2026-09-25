@@ -29,7 +29,7 @@ def plan(paths, *, full=False, manual=False, benchmarks=False):
                          "scripts/test-save-bridge", "scripts/generate-bridge"))
         or path.endswith("GameSaveClientTests.cs") for path in paths)
     return dict(windows=full or (manual and not benchmarks) or any(not docs_only(path) for path in paths),
-                publish=publish, bridge=bridge, stress=full, benchmarks=benchmarks)
+                publish=publish, bridge=bridge, benchmarks=benchmarks)
 
 
 def main():

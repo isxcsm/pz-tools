@@ -17,7 +17,7 @@ class PlanTests(unittest.TestCase):
     def test_ui_runs_managed_tests_without_bridge_or_publish(self):
         result = plan(["src/PzTools.App/SettingsPage.xaml.cs"])
         self.assertTrue(result["windows"])
-        self.assertFalse(result["bridge"] or result["publish"] or result["stress"])
+        self.assertFalse(result["bridge"] or result["publish"])
 
     def test_engine_and_bridge_keep_jvm_tests(self):
         for path in ["src/PzTools.Backup.Engine/StableFileCapturer.cs",
@@ -41,7 +41,6 @@ class PlanTests(unittest.TestCase):
     def test_full_and_manual_modes(self):
         self.assertTrue(all(plan([], full=True, benchmarks=True).values()))
         self.assertTrue(plan([], manual=True)["windows"])
-        self.assertFalse(plan([], manual=True)["stress"])
         self.assertFalse(plan([], manual=True, benchmarks=True)["windows"])
 
 

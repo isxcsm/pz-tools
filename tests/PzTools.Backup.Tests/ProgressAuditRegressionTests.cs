@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Xml.Linq;
 using Microsoft.Data.Sqlite;
 using PzTools.Process.Telemetry;
 using PzTools.Projections;
@@ -12,35 +11,6 @@ namespace PzTools.Backup.Tests;
 
 public sealed class ProgressAuditRegressionTests
 {
-    [Fact]
-    public void TechnicalDetailsUsesContentExpanderNotSettingsCardItemStyling()
-    {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "PzTools.sln"))) root = root.Parent;
-        Assert.NotNull(root);
-        var xaml = XDocument.Load(Path.Combine(root.FullName, "src", "PzTools.App", "LogsPage.xaml"));
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-        var expander = Assert.Single(xaml.Descendants(), e => (string?)e.Attribute(x + "Name") == "TechnicalDetailsExpander");
-        Assert.Equal("{http://schemas.microsoft.com/winfx/2006/xaml/presentation}Expander", expander.Name.ToString());
-        Assert.Single(expander.Elements());
-    }
-
-    [Fact]
-    public void LogSummaryWrapsAcrossTheFullCardBelowHeaderActions()
-    {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "PzTools.sln"))) root = root.Parent;
-        Assert.NotNull(root);
-        var xaml = XDocument.Load(Path.Combine(root.FullName, "src", "PzTools.App", "LogsPage.xaml"));
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-        var summary = Assert.Single(xaml.Descendants(), e => (string?)e.Attribute(x + "Name") == "DetailSummaryTime");
-        Assert.Equal("Wrap", (string?)summary.Attribute("TextWrapping"));
-        Assert.Equal("1", (string?)summary.Attribute("Grid.Row"));
-        Assert.Equal("2", (string?)summary.Attribute("Grid.ColumnSpan"));
-        Assert.Equal("Grid", summary.Parent!.Name.LocalName);
-        Assert.Equal(2, summary.Parent.Elements().Single(e => e.Name.LocalName == "Grid.RowDefinitions").Elements().Count());
-    }
-
     [Fact]
     public async Task WriteRetriesReplaceSamplesButKeepPhaseAndTerminalBoundaries()
     {
@@ -73,22 +43,6 @@ public sealed class ProgressAuditRegressionTests
             events.Select(e => e.EventName));
         using var lastScan = JsonDocument.Parse(events[1].PayloadJson!);
         Assert.Equal(6, lastScan.RootElement.GetProperty("completedItems").GetInt64());
-    }
-
-    [Fact]
-    public void SidebarCardTextWrapsWithinThePane()
-    {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "PzTools.sln"))) root = root.Parent;
-        Assert.NotNull(root);
-        var xaml = XDocument.Load(Path.Combine(root.FullName, "src", "PzTools.App", "MainWindowShell.xaml"));
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-        foreach (var name in new[] { "ProjectorStatusTitle", "ProjectorStatusMessage", "BackupProgressTitle",
-                     "BackupProgressMessage", "ExportProgressTitle", "ExportProgressMessage" })
-        {
-            var text = Assert.Single(xaml.Descendants(), e => (string?)e.Attribute(x + "Name") == name);
-            Assert.Equal("Wrap", (string?)text.Attribute("TextWrapping"));
-        }
     }
 
     [Theory]

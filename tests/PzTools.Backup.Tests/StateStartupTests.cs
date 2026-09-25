@@ -28,13 +28,12 @@ public sealed class StateStartupTests
         finally { command.CommandText = "ROLLBACK;"; await command.ExecuteNonQueryAsync(); }
     }
 
-    [Theory]
+    [RequiresEnvironmentTheory("PZTOOLS_TOOLS_DIR")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task PublishedRunnerOnlyStartsRecoveryWhenPendingWorkExists(bool pending)
     {
-        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR");
-        if (string.IsNullOrWhiteSpace(tools)) return;
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
         using var temp = new TempDirectory();
         var db = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
         var saves = temp.GetPath("Saves"); Directory.CreateDirectory(saves);
@@ -119,13 +118,12 @@ public sealed class StateStartupTests
         Assert.Equal(ActivityState.Unknown, Assert.Single(Read(views).Saves).Activity);
     }
 
-    [Theory]
+    [RequiresEnvironmentTheory("PZTOOLS_TOOLS_DIR")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task PublishedSchedulerRevalidatesImmediatelyDespiteFutureDueTime(bool newGame)
     {
-        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR");
-        if (string.IsNullOrWhiteSpace(tools)) return;
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
         using var temp = new TempDirectory();
         var saves = temp.GetPath("Saves");
         var oldSave = Path.Combine(saves, "Sandbox", "old");

@@ -1,11 +1,9 @@
-using System.Xml.Linq;
 using Microsoft.Data.Sqlite;
 using PzTools.App.Core;
 using PzTools.Backup.Core.Configuration;
 using PzTools.Process.Contracts;
 using PzTools.Projections;
 using PzTools.Scheduling;
-using PzTools.Zomboid.State;
 
 namespace PzTools.Backup.Tests;
 
@@ -205,48 +203,10 @@ public sealed class AutomaticBackupToggleTests
         Assert.Equal(TimeSpan.FromMinutes(17), state.Interval);
     }
 
-    [Theory]
-    [MemberData(nameof(Languages))]
-    public void SettingsStringsAndControlsExposeIndependentLocalizedSwitch(SupportedLanguage language)
-    {
-        var root = FindRepository();
-        var tag = LanguageCatalog.Get(language).Tag;
-        var resource = XDocument.Load(Path.Combine(root, "src/PzTools.App/Strings", tag, "Resources.resw"));
-        var values = resource.Root!.Elements("data").ToDictionary(e => e.Attribute("name")!.Value, e => e.Element("value")!.Value);
-        Assert.DoesNotContain("AutomaticBackupSettings.Description", values.Keys);
-        foreach (var key in new[] { "AutomaticBackupSetting.Header", "AutomaticBackupSetting.Description", "IntervalSetting.Description", "DeathBackupSetting.Description" })
-            Assert.False(string.IsNullOrWhiteSpace(values[key]), $"{tag}: {key}");
-        Assert.Contains("1", values["IntervalSetting.Description"]);
-        Assert.Contains("60", values["IntervalSetting.Description"]);
-        Assert.NotEqual(values["SettingEnabled"], values["SettingDisabled"]);
-        var xaml = XDocument.Load(Path.Combine(root, "src/PzTools.App/SettingsPage.xaml"));
-        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-        var controls = xaml.Descendants().Where(e => e.Attribute(x + "Name") is not null)
-            .ToDictionary(e => e.Attribute(x + "Name")!.Value);
-        Assert.Equal("ToggleSwitch", controls["AutomaticBackupToggle"].Name.LocalName);
-        Assert.Equal("AutomaticBackupToggle_Toggled", controls["AutomaticBackupToggle"].Attribute("Toggled")!.Value);
-        foreach (var name in new[] { "IntervalSlider", "IntervalNumber" })
-        {
-            Assert.Equal("1", controls[name].Attribute("Minimum")!.Value);
-            Assert.Equal("60", controls[name].Attribute("Maximum")!.Value);
-        }
-        var code = File.ReadAllText(Path.Combine(root, "src/PzTools.App/SettingsPage.xaml.cs"));
-        Assert.Contains("AutomaticBackupToggle.IsOn = value.AutomaticBackupEnabled", code);
-        Assert.Contains("SetInputName(AutomaticBackupToggle, AutomaticBackupSettingCard.Header)", code);
-        Assert.DoesNotContain("BackupIntervalMinutes > 0", File.ReadAllText(Path.Combine(root, "src/PzTools.App.Core/AppSettings.cs")));
-    }
-
-    public static IEnumerable<object[]> Languages => LanguageCatalog.All.Select(l => new object[] { l.Id });
     private static AppSettings Settings(TempDirectory temp) => AppSettings.CreateDefault() with
     {
         SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups"),
         BackupIntervalMinutes = 17, BackupOnDeath = true,
     };
     private static BackupTarget Target(TempDirectory temp) => new("Sandbox/Save", "Sandbox/Save", temp.GetPath("saves/Save"));
-    private static string FindRepository()
-    {
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
-            if (File.Exists(Path.Combine(dir.FullName, "src/PzTools.App/PzTools.App.csproj"))) return dir.FullName;
-        throw new DirectoryNotFoundException("Cannot find app resources.");
-    }
 }

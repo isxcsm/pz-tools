@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       full:
-        description: 'Fresh distribution, synthetic JVM and repeated crash stress'
+        description: 'Fresh distribution and synthetic JVM regardless of changed paths'
         type: boolean
         default: false
       benchmarks:
@@ -37,7 +37,6 @@ jobs:
       windows: ${{ steps.plan.outputs.windows }}
       publish: ${{ steps.plan.outputs.publish }}
       bridge: ${{ steps.plan.outputs.bridge }}
-      stress: ${{ steps.plan.outputs.stress }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -55,8 +54,6 @@ jobs:
           python scripts/test-documentation-checker.py
           python scripts/check-documentation.py
           python scripts/check-localization.py
-          python scripts/check-path-normalization.py
-          python scripts/check-housekeeping-sql.py
       - name: Optional benchmarks
         if: steps.plan.outputs.benchmarks == 'true'
         run: |
@@ -118,14 +115,10 @@ jobs:
       - name: Run applicable tests once, without rebuilding
         env:
           RUN_BRIDGE: ${{ needs.checks.outputs.bridge }}
-          RUN_STRESS: ${{ needs.checks.outputs.stress }}
         run: |
           $arguments = @('test', 'tests/PzTools.Backup.Tests', '-c', 'Release', '--no-build', '--no-restore',
             '--logger', 'trx;LogFileName=tests.trx', '--results-directory', 'artifacts/test-results')
-          $filters = @()
-          if ($env:RUN_STRESS -ne 'true') { $filters += 'Category!=Stress' }
-          if ($env:RUN_BRIDGE -ne 'true') { $filters += 'FullyQualifiedName!~GameSaveClientTests' }
-          if ($filters.Count) { $arguments += @('--filter', ($filters -join '&')) }
+          if ($env:RUN_BRIDGE -ne 'true') { $arguments += @('--filter', 'FullyQualifiedName!~GameSaveClientTests') }
           dotnet @arguments
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Keep diagnostics for failures and distribution verification

@@ -48,7 +48,6 @@ def main() -> None:
             assert value.strip(), f'{tag}/{key}: empty value'
             assert not any(char in value for char in ('\ufffd', '⟪', '⟦')), f'{tag}/{key}: damaged text'
             assert sorted(TOKEN.findall(value)) == sorted(TOKEN.findall(baseline[key])), f'{tag}/{key}: format arguments differ'
-            assert value.count('\n') == baseline[key].count('\n'), f'{tag}/{key}: line-break structure differs'
             values_checked += 1
         assert localized['AutomaticSaveLabel'] == row[5], f'{tag}: automatic backup badge disagrees with catalog'
         assert localized['ManualBackupNameFormat'] == row[4] + ' {0:N0}'
