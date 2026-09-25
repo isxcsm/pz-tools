@@ -1,5 +1,7 @@
 # Pre-backup game save bridge
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 Manual and scheduled game backups request `GameWindow.save(true)` on the game
 thread before scanning or capturing files when the selected world is active.
 The debug save button has been removed.

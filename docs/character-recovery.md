@@ -1,5 +1,7 @@
 # Offline character recovery
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 The current-save row exposes a confirmation-gated heal/resurrect action. Revisions are never
 edited. The UI requires a fresh, inactive save; the worker additionally holds a non-sharing
 read/write handle on `players.db`. Opening that handle fails if the game is using the DB.

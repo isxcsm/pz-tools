@@ -1,5 +1,7 @@
 # 저장소 형식
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 현재 저장소 형식은 **2**, 스키마 버전은 **3**입니다. 배포 전 변경이므로
 형식 1 및 형식 2/스키마 1·2의 마이그레이션이나 호환 읽기를 제공하지 않습니다.
 기존 DB는 변경하지 않고 `repository-reset-required` 오류로 거부합니다.

@@ -1,5 +1,7 @@
 # PzTools UI/UX 및 뷰 계약
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 이 문서는 WinUI 3 화면과 projection 계층 사이의 초기 계약입니다. UI는 SQLite,
 telemetry event와 CLI JSON을 직접 해석하지 않고 `RevisionedViewStore`의 정규화된
 뷰만 사용합니다.

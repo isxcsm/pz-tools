@@ -1,5 +1,9 @@
 # Computer Use 입력 차단 진단 (2026-09-22)
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
+> 2026-09-22 특정 환경의 진단 기록입니다. 다른 환경이나 최신 빌드의 결과로 해석하지 마세요.
+
 ## 실측 결과
 
 `scripts/diagnose-computer-use.ps1`은 실행 중인 관련 프로세스의 토큰을 조회하며

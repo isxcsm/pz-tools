@@ -1,5 +1,7 @@
 # 설정
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 ## 앱 설정
 
 앱 화면의 설정은 `%LOCALAPPDATA%/PzTools/settings.toml`에 저장됩니다. 앱이

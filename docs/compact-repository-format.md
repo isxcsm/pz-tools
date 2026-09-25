@@ -1,5 +1,7 @@
 # Compact repository format 2 (pre-release breaking change)
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 The current layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
 for revision summaries and pre-compression deduplication, and [path normalization](path-normalization.md)
 for the current path dictionaries and verification. There is no migration or dual-format

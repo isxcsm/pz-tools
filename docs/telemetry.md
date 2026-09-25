@@ -1,5 +1,7 @@
 # Telemetry
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 생산 측에서는 `TelemetryEvent`, `TelemetryRunSession`, `telemetry.*`,
 `telemetry.db`처럼 telemetry 용어를 일관되게 사용합니다. metric은 소비자가
 원시 이벤트에서 파생하며 원시 이벤트 스키마에 다시 기록하지 않습니다.
