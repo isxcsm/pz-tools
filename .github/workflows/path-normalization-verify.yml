@@ -59,15 +59,22 @@ jobs:
           dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
           --filter 'FullyQualifiedName~NormalizedPathTests|FullyQualifiedName~ContentFingerprintTests|FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~StoragePerformanceTests|FullyQualifiedName~MissingIdentityDeletionTests'
           --logger 'trx;LogFileName=paths.trx' --results-directory artifacts/path-validation
-      - name: Commit validated implementation and remove one-shot transport
+      - name: Commit only validated product, tests and documentation
         shell: bash
         run: |
-          git rm .github/path-normalization.part1 .github/path-normalization.part2 .github/path-normalization.part3 .github/workflows/path-normalization-verify.yml .github/workflows/path-normalization-snapshot.yml
+          # Workflow writes/cleanup are performed separately through the authorized connector.
+          # GITHUB_TOKEN only publishes the validated product changes, without escalation.
+          git restore --staged --worktree .github/workflows/storage-performance.yml
+          python - <<'PY'
+          import subprocess
+          paths = subprocess.check_output(['git','diff','--cached','--name-only','-z']).decode().strip('\0').split('\0')
+          assert len(paths) == 25 and all(p.startswith(('src/','tests/','scripts/','docs/')) for p in paths), paths
+          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Normalize path IDs and preserve immutable historical spellings (schema 3)'
-          git push origin HEAD:refs/heads/optimize/content-fingerprint128
           git rev-parse HEAD > artifacts/path-validation/commit.txt
+          git push origin HEAD:refs/heads/optimize/content-fingerprint128
       - uses: actions/upload-artifact@v4
         if: always()
         with:
