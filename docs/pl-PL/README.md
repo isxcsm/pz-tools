@@ -45,7 +45,7 @@ Ustawienia i dane zarządzania znajdują się w `%LOCALAPPDATA%\PzTools`, a kopi
 <a id="backups-and-retention"></a>
 ## Przechowywanie i usuwanie
 
-Początkowe wartości to **5 minut** i **20 automatycznych kopii**. Interwał `0` wyłącza automatyczne kopie. Dotyczą one aktywnego zapisu; ponowne uruchomienie aplikacji rozpoczyna nowy interwał. Istniejące ustawienia pozostają zachowane.
+Początkowe wartości to **5 minut** i **20 automatycznych kopii**. Włączaj lub wyłączaj automatyczne kopie osobnym przełącznikiem. Odstęp od 1 do 60 minut jest zachowywany po wyłączeniu. Dotyczą one aktywnego zapisu; ponowne uruchomienie aplikacji rozpoczyna nowy interwał. Istniejące ustawienia pozostają zachowane.
 
 Ręczne kopie można przemianować i nie wliczają się one do limitu automatycznych kopii. **Nie są jednak przechowywane bezterminowo:** jawne usunięcie lub czyszczenie po zniknięciu oryginalnego zapisu może je usunąć. Przed usunięciem lub przeniesieniem oryginału wyeksportuj ważne kopie do ZIP na inny dysk.
 

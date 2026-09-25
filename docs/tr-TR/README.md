@@ -45,7 +45,7 @@ Ayarlar ve yönetim verileri `%LOCALAPPDATA%\PzTools` altında, yedekler seçti�
 <a id="backups-and-retention"></a>
 ## Saklama ve silme
 
-Başlangıç değerleri **5 dakika** ve **20 otomatik yedek**tir. Aralık `0` otomatik yedeklemeyi kapatır. Otomatik yedekler etkin kaydı izler; uygulamanın yeniden başlatılması yeni bir aralık başlatır. Mevcut ayarlar korunur.
+Başlangıç değerleri **5 dakika** ve **20 otomatik yedek**tir. Otomatik yedeklemeyi ayrı anahtarla açıp kapatın. 1–60 dakikalık aralık, yedekleme kapatıldığında korunur. Otomatik yedekler etkin kaydı izler; uygulamanın yeniden başlatılması yeni bir aralık başlatır. Mevcut ayarlar korunur.
 
 Elle alınan yedekler yeniden adlandırılabilir ve otomatik yedek sayısı sınırından etkilenmez. Ancak **süresiz saklanmazlar**: açık silme işlemleri veya asıl kayıt kaybolduktan sonraki temizlik bunları da kaldırabilir. Asıl kaydı silmeden ya da taşımadan önce önemli yedekleri ZIP olarak başka bir sürücüye aktarın.
 

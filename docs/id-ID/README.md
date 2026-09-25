@@ -45,7 +45,7 @@ Pengaturan dan data pengelolaan berada di `%LOCALAPPDATA%\PzTools`; cadangan ber
 <a id="backups-and-retention"></a>
 ## Penyimpanan dan penghapusan cadangan
 
-Nilai awalnya **5 menit** dan **20 cadangan otomatis**. Interval `0` mematikan cadangan otomatis. Cadangan mengikuti simpanan yang aktif; memulai ulang aplikasi memulai interval baru. Pengaturan yang sudah ada dipertahankan.
+Nilai awalnya **5 menit** dan **20 cadangan otomatis**. Gunakan sakelar pencadangan otomatis untuk mengaktifkan atau menonaktifkannya. Interval 1–60 menit tetap disimpan saat dinonaktifkan. Cadangan mengikuti simpanan yang aktif; memulai ulang aplikasi memulai interval baru. Pengaturan yang sudah ada dipertahankan.
 
 Cadangan manual dapat diganti namanya dan tidak dihitung dalam batas cadangan otomatis. **Namun, cadangan ini tidak disimpan selamanya:** penghapusan langsung atau pembersihan setelah simpanan asli hilang juga dapat menghapusnya. Sebelum menghapus atau memindahkan simpanan asli, ekspor cadangan penting sebagai ZIP ke drive lain.
 

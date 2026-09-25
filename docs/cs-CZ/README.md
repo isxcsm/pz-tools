@@ -45,7 +45,7 @@ Nastavení a řídicí data jsou v `%LOCALAPPDATA%\PzTools`, zálohy ve zvolené
 <a id="backups-and-retention"></a>
 ## Uchovávání a mazání
 
-Výchozí hodnoty jsou **5 minut** a **20 automatických záloh**. Interval `0` automatické zálohy vypne. Zálohují aktivní uloženou hru; restart aplikace zahájí nový interval. Existující nastavení zůstane zachováno.
+Výchozí hodnoty jsou **5 minut** a **20 automatických záloh**. Automatické zálohování zapínejte a vypínejte samostatným přepínačem. Interval 1–60 minut se při vypnutí zachová. Zálohují aktivní uloženou hru; restart aplikace zahájí nový interval. Existující nastavení zůstane zachováno.
 
 Ruční zálohy lze přejmenovat a nepočítají se do limitu automatických záloh. **Nejde však o trvalé uchování:** výslovné smazání nebo úklid po zmizení původní uložené hry může odstranit i je. Před smazáním či přesunutím originálu exportujte důležité zálohy do ZIP na jiný disk.
 

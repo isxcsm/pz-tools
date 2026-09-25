@@ -74,11 +74,13 @@ public sealed class LocalizationTests
         var settings = AppSettings.CreateDefault() with
         {
             Language = language, SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups"),
-            BackupIntervalMinutes = 0, RetainedRevisions = 37,
+            BackupIntervalMinutes = 17, AutomaticBackupEnabled = false, RetainedRevisions = 37,
         };
         await service.SaveAndApplyAsync(settings, scheduler);
         var loaded = new AppSettingsService(service.RuntimeRoot).Load();
         Assert.Equal(settings, loaded);
+        Assert.False(loaded.AutomaticBackupEnabled);
+        Assert.Equal(17, loaded.BackupIntervalMinutes);
         var tag = LanguageCatalog.Get(language).Tag;
         Assert.Contains($"language = \"{tag}\"", File.ReadAllText(service.SettingsPath));
         var views = new RevisionedViewStore();

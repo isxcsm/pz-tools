@@ -45,7 +45,7 @@ public sealed partial class SettingsPage : UserControl
     internal void ApplyLocalizedText()
     {
         Language = Localizer.Culture.Name;
-        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, DeathBackupToggle })
+        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, AutomaticBackupToggle, DeathBackupToggle })
         {
             toggle.OnContent = Localizer.Get("SettingEnabled");
             toggle.OffContent = Localizer.Get("SettingDisabled");
@@ -71,12 +71,15 @@ public sealed partial class SettingsPage : UserControl
         BackupBrowseButton.Content = Localizer.Get("Browse.Content");
         BackupSection.Header = Localizer.Get("AutomaticBackupSettings.Header");
         BackupSection.Description = Localizer.Get("AutomaticBackupSection.Description");
+        AutomaticBackupSettingCard.Header = Localizer.Get("AutomaticBackupSetting.Header");
+        AutomaticBackupSettingCard.Description = Localizer.Get("AutomaticBackupSetting.Description");
         IntervalSettingCard.Header = Localizer.Get("IntervalSetting.Header");
         IntervalSettingCard.Description =
-            Localizer.Get("AutomaticBackupSettings.Description");
+            Localizer.Get("IntervalSetting.Description");
         RetentionSettingCard.Header = Localizer.Get("RetentionSetting.Header");
         RetentionSettingCard.Description = Localizer.Get("RetentionSetting.Description");
         DeathBackupSettingCard.Header = Localizer.Get("DeathBackupSetting.Header");
+        DeathBackupSettingCard.Description = Localizer.Get("DeathBackupSetting.Description");
         GameSaveSettingCard.Header = Localizer.Get("GameSaveSetting.Header");
         GameSaveSettingCard.Description = Localizer.Get("GameSaveSetting.Description");
         GameSaveCountdownSettingCard.Header = Localizer.Get("GameSaveCountdownSetting.Header");
@@ -97,6 +100,7 @@ public sealed partial class SettingsPage : UserControl
         SetInputName(SystemTrayToggle, SystemTraySettingCard.Header);
         SetInputName(SavesPath, SavesPathSettingCard.Header);
         SetInputName(BackupPath, BackupPathSettingCard.Header);
+        SetInputName(AutomaticBackupToggle, AutomaticBackupSettingCard.Header);
         SetInputName(IntervalSlider, IntervalSettingCard.Header);
         SetInputName(IntervalNumber, IntervalSettingCard.Header);
         SetInputName(RetentionSlider, RetentionSettingCard.Header);
@@ -128,9 +132,11 @@ public sealed partial class SettingsPage : UserControl
             SystemTrayToggle.IsOn = value.UseSystemTray;
             SavesPath.Text = value.SavesRoot;
             BackupPath.Text = value.BackupRoot;
+            AutomaticBackupToggle.IsOn = value.AutomaticBackupEnabled;
             IntervalSlider.Value = IntervalNumber.Value = value.BackupIntervalMinutes;
             RetentionSlider.Value = RetentionNumber.Value = value.RetainedRevisions;
             DeathBackupToggle.IsOn = value.BackupOnDeath;
+            DeathBackupToggle.IsEnabled = value.AutomaticBackupEnabled;
             GameSaveToggle.IsOn = value.SaveGameBeforeBackup;
             GameSaveCountdownToggle.IsOn = value.GameSaveCountdown;
             GameSaveCountdownToggle.IsEnabled = value.SaveGameBeforeBackup;
@@ -231,20 +237,22 @@ public sealed partial class SettingsPage : UserControl
         Enum.Parse<LogLevel>(current.LogRecordMinimumLevel),
         current.LogMaxEntries,
         GameSaveToggle.IsOn,
-        GameSaveCountdownToggle.IsOn);
+        GameSaveCountdownToggle.IsOn,
+        AutomaticBackupToggle.IsOn);
     }
 
     private void IntervalSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {
         if (loading) return;
-        Synchronize(() => IntervalNumber.Value = Math.Round(e.NewValue));
+        Synchronize(() => IntervalNumber.Value = Math.Clamp(Math.Round(e.NewValue), 1, 60));
         ScheduleApply();
     }
 
     private void IntervalNumber_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (loading || double.IsNaN(args.NewValue)) return;
-        Synchronize(() => IntervalSlider.Value = Math.Round(args.NewValue));
+        var minutes = Math.Clamp(Math.Round(args.NewValue), 1, 60);
+        Synchronize(() => IntervalSlider.Value = IntervalNumber.Value = minutes);
         ScheduleApply();
     }
 
@@ -262,10 +270,23 @@ public sealed partial class SettingsPage : UserControl
         ScheduleApply();
     }
 
+    private async void AutomaticBackupToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (DeathBackupToggle is not null)
+            DeathBackupToggle.IsEnabled = AutomaticBackupToggle.IsOn;
+        if (loading || !IsLoaded) return;
+        // A pause switch must not be lost when navigating away before numeric debounce fires.
+        requestedApply++;
+        applyTimer.Stop();
+        await ApplyPendingSettingsAsync();
+    }
+
     private void SettingChanged(object sender, object e)
     {
         if (GameSaveCountdownToggle is not null)
             GameSaveCountdownToggle.IsEnabled = GameSaveToggle.IsOn;
+        if (AutomaticBackupToggle is not null && DeathBackupToggle is not null)
+            DeathBackupToggle.IsEnabled = AutomaticBackupToggle.IsOn;
         ScheduleApply();
     }
 

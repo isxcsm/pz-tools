@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Yedek klasörü</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Gözat</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Yedekleme</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Otomatik yedeklemeyi kapatmak için 0 dakika seçin.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Otomatik yedekleme</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Düzenli yedeklemeyi ve karakter ölünce yedeklemeyi açar veya kapatır. Kapatıldığında aralık korunur; manuel ve devam eden yedeklemeler etkilenmez.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Yedekleme aralığı</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 dakika</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 dakika. Kapatıldığında aralık korunur; açıldığında yeni bir aralık başlar.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Otomatik yedek sayısı</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Son 1–100 otomatik yedeği saklayın. Bu sınır manuel yedekleri silmez.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Karakter ölünce yedekle</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Yalnızca otomatik yedekleme açıkken çalışır. Otomatik yedekleme kapatıldığında bu tercih korunur.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopyalanan dosyaları denetle</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kopyalanan dosyaların özgün dosyalarla eşleştiğini denetler. Kopyalama sırasında değişen dosyalar yeniden kopyalanır.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Yedekleme sırasında kayıt dosyaları sürekli değişti. Oyunun kaydetmeyi bitirmesini bekleyip yeniden yedekleyin.</value></data>

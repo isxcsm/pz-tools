@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Sicherungsordner</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Durchsuchen</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Sicherung</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>0 Minuten deaktiviert automatische Sicherungen.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatische Sicherungen</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Schaltet regelmäßige Sicherungen und Sicherungen beim Tod ein oder aus. Beim Ausschalten bleibt das Intervall erhalten. Manuelle und bereits laufende Sicherungen sind nicht betroffen.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Sicherungsintervall</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 Minuten</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 Minuten. Das Intervall bleibt beim Ausschalten erhalten; beim Einschalten beginnt ein neues Intervall.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Anzahl automatischer Sicherungen</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Die letzten 1–100 automatischen Sicherungen behalten. Manuelle Sicherungen werden durch dieses Limit nicht gelöscht.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Nur bei eingeschalteten automatischen Sicherungen aktiv. Diese Einstellung bleibt beim Ausschalten erhalten.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopierte Dateien prüfen</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Prüft, ob die Kopien mit den Originaldateien übereinstimmen. Ändert sich eine Datei während des Kopierens, wird sie erneut kopiert.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Die Spielstanddateien haben sich während der Sicherung wiederholt geändert. Warte, bis das Spiel fertig gespeichert hat, und versuche es erneut.</value></data>

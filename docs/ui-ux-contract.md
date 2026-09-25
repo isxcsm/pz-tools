@@ -45,12 +45,15 @@ Navigation | Save list | Save detail
 | 일반 | 테마 | 시스템/밝음/어두움 선택 | 시스템 |
 | 경로 | 세이브 디렉터리 | 경로와 폴더 선택 | `%UserProfile%\Zomboid\Saves` |
 | 경로 | 백업 디렉터리 | 경로와 폴더 선택 | `%UserProfile%\Zomboid\Backups` |
-| 백업 | 자동 백업 간격 | 0~60 slider와 NumberBox | 5분 |
-| 백업 | 백업 개수 | 1~100 slider와 NumberBox | 100 |
+| 백업 | 자동 백업 | ToggleSwitch | 켜짐 |
+| 백업 | 자동 백업 간격 | 1~60 slider와 NumberBox | 5분 |
+| 백업 | 백업 개수 | 1~100 slider와 NumberBox | 20 |
 | 백업 | 사망 시 백업 | ToggleSwitch | 꺼짐 |
 
-간격 0은 periodic, final과 death-triggered run을 포함한 모든 자동 백업을 끕니다.
-수동 백업은 계속 사용할 수 있습니다. 경로 또는 숫자가 유효하지 않으면 카드 안에
+자동 백업 토글은 정기·사망 시 자동 실행을 함께 켜거나 끕니다. 꺼도 간격과 사망 시
+백업 선택은 유지합니다. 간격은 꺼진 상태에서도 편집할 수 있고, 다시 켜면 새 간격을
+시작합니다. 사망 시 백업 토글만 비활성화하여 종속 관계를 표시합니다. 수동 백업과
+이미 시작된 백업, 필수 save(true)는 이 토글을 바꿔도 영향을 받지 않습니다. 경로 또는 숫자가 유효하지 않으면 카드 안에
 오류를 표시하고 적용하지 않습니다. 관련 설정은 기본 펼침 상태의 `SettingsExpander`로
 묶고 각 항목은 `Items` 안의 `SettingsCard`로 표시합니다. 경로 입력은 최대 420 px, 슬라이더·숫자 입력은
 최대 340 px로 제한하며 작은 창에서는 카드의 기본 세로 배치와 함께 입력 폭도

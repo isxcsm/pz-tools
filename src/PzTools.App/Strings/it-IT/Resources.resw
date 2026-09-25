@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Cartella dei backup</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Sfoglia</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Backup</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Imposta 0 minuti per disattivare i backup automatici.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Backup automatici</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Attiva o disattiva i backup periodici e quelli alla morte del personaggio. La disattivazione conserva l’intervallo e non influisce sui backup manuali o già in corso.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Intervallo backup</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 minuti</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>Da 1 a 60 minuti. L’intervallo viene conservato quando disattivi i backup; alla riattivazione inizia un nuovo intervallo.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Numero di backup automatici</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserva gli ultimi 1–100 backup automatici. Questo limite non elimina i backup manuali.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crea un backup alla morte del personaggio</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Funziona solo con i backup automatici attivi. Questa preferenza viene conservata quando li disattivi.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verifica i file copiati</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Controlla che i file copiati corrispondano agli originali. Se un file cambia durante la copia, viene copiato di nuovo.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>I file del salvataggio continuavano a cambiare durante il backup. Attendi che il gioco finisca di salvare, poi riprova.</value></data>

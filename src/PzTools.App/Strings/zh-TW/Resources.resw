@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>備份資料夾</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>瀏覽</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>備份</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>設為 0 分鐘可關閉自動備份。</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>自動備份</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>開啟或關閉定時備份及角色死亡時備份。關閉後會保留間隔，不影響手動備份或正在進行的備份。</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>備份間隔</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 分鐘</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1～60分鐘。關閉後保留間隔，重新開啟後開始新的計時間隔。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動備份保留數量</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>保留最近 1–100 個自動備份。此數量限制不會刪除手動備份。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡時備份</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>僅在自動備份開啟時生效。關閉自動備份後仍會保留此設定。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>檢查複製的檔案</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>檢查複製後的檔案是否與原始檔案一致。如果複製期間原始檔案變更，則重新複製。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>備份期間存檔檔案持續變更。請等遊戲儲存完成後再重新備份。</value></data>

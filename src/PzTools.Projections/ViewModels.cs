@@ -85,7 +85,8 @@ public sealed record SettingsView(
     string LogRecordMinimumLevel = "Information",
     int LogMaxEntries = 100000,
     bool SaveGameBeforeBackup = true,
-    bool GameSaveCountdown = true);
+    bool GameSaveCountdown = true,
+    bool AutomaticBackupEnabled = true);
 
 public sealed record ProjectorHealthView(IReadOnlyList<ProjectorStatus> Projectors)
 {
