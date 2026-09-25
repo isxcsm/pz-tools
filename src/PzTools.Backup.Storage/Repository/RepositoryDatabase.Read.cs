@@ -20,7 +20,7 @@ public sealed partial class RepositoryDatabase
             throw new ArgumentOutOfRangeException(nameof(lastSeenRevision));
 
         await using var connection = await OpenConnectionAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
+        using var transaction = connection.BeginTransaction(deferred: true);
         await using var revisionCommand = connection.CreateCommand();
         revisionCommand.Transaction = transaction;
         revisionCommand.CommandText =
@@ -36,36 +36,7 @@ public sealed partial class RepositoryDatabase
 
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText =
-            """
-            SELECT source.source_id,source.source_key,source.root_path,
-                   state.current_revision,revision.revision,revision.created_utc,
-                   COALESCE(SUM(CASE
-                       WHEN entry.entry_kind='File' THEN entry.byte_length ELSE 0 END),0),
-                   COALESCE(SUM(CASE
-                       WHEN entry.entry_kind='File' THEN 1 ELSE 0 END),0),
-                   revision.state,revision.display_name,
-                   MAX(CASE WHEN entry.entry_kind='File' AND entry.path_key=$metadataPathKey
-                       THEN entry.modified_utc END),
-                   revision.character_name,revision.character_state,revision.backup_kind,
-                   revision.hours_survived,revision.character_metadata_read,revision.character_metadata_error
-            FROM sources AS source
-            JOIN source_state AS state ON state.source_id=source.source_id
-            LEFT JOIN revisions AS revision
-              ON revision.source_id=source.source_id AND revision.state='Active'
-            LEFT JOIN entry_versions AS entry
-              ON entry.source_id=revision.source_id
-             AND entry.valid_from_revision<=revision.revision
-             AND (entry.valid_to_revision IS NULL
-                  OR entry.valid_to_revision>revision.revision)
-             AND entry.tombstone=0
-            GROUP BY source.source_id,source.source_key,source.root_path,
-                     state.current_revision,revision.revision,revision.created_utc,
-                     revision.state,revision.display_name,
-                     revision.character_name,revision.character_state,revision.backup_kind,
-                     revision.hours_survived,revision.character_metadata_read,revision.character_metadata_error
-            ORDER BY source.source_key COLLATE NOCASE,revision.revision DESC;
-            """;
+        command.CommandText = CatalogSummarySql;
         command.Parameters.AddWithValue("$metadataPathKey", metadataFileRelativePath is null
             ? DBNull.Value
             : PzTools.Backup.Core.BackupPath.NormalizeRelative(metadataFileRelativePath).ToUpperInvariant());

@@ -49,7 +49,8 @@ public sealed partial class RepositoryDatabase
             DELETE FROM entry_versions WHERE source_id=$id;
             DELETE FROM revisions WHERE source_id=$id AND revision != (
                 SELECT current_revision FROM source_state WHERE source_id=$id);
-            UPDATE revisions SET state='Deleted',deleted_utc=$now,delete_reason='orphan-save'
+            UPDATE revisions SET state='Deleted',deleted_utc=$now,delete_reason='orphan-save',
+                logical_size=0,file_count=0
                 WHERE source_id=$id;
             UPDATE source_state SET volume_identity=NULL,journal_id=NULL,next_usn=NULL WHERE source_id=$id;
             """;

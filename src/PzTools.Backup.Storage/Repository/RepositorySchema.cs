@@ -6,12 +6,12 @@ internal sealed record RepositoryMigration(int Version, string Name, string Sql)
 
 internal static class RepositorySchema
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
-    // Fresh format 2 repositories only. Format 1 has no upgrade path.
+    // Fresh format 2 / schema 2 repositories only. Older schemas have no upgrade path.
     public static IReadOnlyList<RepositoryMigration> Migrations { get; } =
     [
-        new RepositoryMigration(1, "compact repository format 2",
+        new RepositoryMigration(CurrentVersion, "compact repository with revision summaries",
             """
             CREATE TABLE repository_info (
                 singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton = 1),
@@ -70,6 +70,8 @@ internal static class RepositorySchema
                 hours_survived REAL NULL,
                 character_metadata_read INTEGER NOT NULL DEFAULT 0 CHECK (character_metadata_read IN (0, 1)),
                 character_metadata_error TEXT NULL,
+                logical_size INTEGER NOT NULL DEFAULT 0 CHECK (logical_size >= 0),
+                file_count INTEGER NOT NULL DEFAULT 0 CHECK (file_count >= 0),
                 PRIMARY KEY (source_id, revision)
             ) STRICT;
 
@@ -219,7 +221,10 @@ internal static class RepositoryMigrationRunner
                 continue;
             }
 
-            if (migration.Version != currentVersion + 1)
+            // A single fresh baseline can start at the current schema version.
+            // Existing repositories are version-checked before this initializer is called.
+            var freshBaseline = currentVersion == 0 && migrations.Count == 1;
+            if (!freshBaseline && migration.Version != currentVersion + 1)
             {
                 throw new InvalidOperationException(
                     $"Migration {migration.Version} is not consecutive after {currentVersion}.");

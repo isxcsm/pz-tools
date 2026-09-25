@@ -82,6 +82,8 @@ public sealed partial class RepositoryDatabase
                 sourceId,
                 revision,
                 cancellationToken);
+            await InitializeRevisionSummaryAsync(
+                stagingConnection, transaction, sourceId, revision, cancellationToken);
             await UpdateSourceStateAsync(
                 stagingConnection,
                 transaction,
