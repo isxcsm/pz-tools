@@ -10,8 +10,11 @@ using PzTools.Process.Telemetry;
 internal static class OrphanBackupLane
 {
     public static async Task<(ProcessOutcome Outcome, MaintenanceLaneResult? Result, long RunIndex)> RunAsync(
-        string repositoryPath, string savesRoot, string? controlDatabasePath, string? configurationPath)
+        string repositoryPath, string savesRoot, string? controlDatabasePath, string? configurationPath,
+        MaintenanceOptions? options = null)
     {
+        options ??= new MaintenanceOptions();
+        options.Validate();
         const string lane = "OrphanBackups";
         const string owner = "maintenance-lane-OrphanBackups";
         var acquired = await NamedMutexRunner.TryRunAsync(
@@ -45,23 +48,36 @@ internal static class OrphanBackupLane
                                         saveId = item.SaveId,
                                         removedRevisions = item.Revisions,
                                     }), configurationPath));
-                            var status = result.FilesThatCouldNotBeDeleted.Count == 0
+                            var housekeeping = await new RepositoryHousekeepingService().RunAsync(
+                                repository, lease, null, run, options, token);
+                            var failedFiles = result.FilesThatCouldNotBeDeleted
+                                .Concat(housekeeping.FilesThatCouldNotBeDeleted).ToArray();
+                            var status = failedFiles.Length == 0
                                 ? WorkflowStatus.Succeeded : WorkflowStatus.Degraded;
                             await FinishAsync(status);
-                            if (result.FilesThatCouldNotBeDeleted.Count > 0)
+                            if (housekeeping.AffectedItems > 0 || housekeeping.Vacuum.Status == "compacted")
+                                await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
+                                    "maintenance.database.completed", JsonSerializer.Serialize(new
+                                    {
+                                        outcome = status.ToString(),
+                                        database = housekeeping.ToDetail(),
+                                        failureCode = failedFiles.Length == 0 ? null : "file-delete-failed",
+                                    }), configurationPath);
+                            if (failedFiles.Length > 0)
                                 await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
                                 "maintenance.orphanbackups.completed", JsonSerializer.Serialize(new
                                 {
                                     outcome = status.ToString(),
                                     removed = result.Removed,
                                     result.DeferredSources,
-                                    failureCode = result.FilesThatCouldNotBeDeleted.Count == 0 ? null : "file-delete-failed",
-                                    failedFileCount = result.FilesThatCouldNotBeDeleted.Count,
-                                    failedFiles = result.FilesThatCouldNotBeDeleted.Take(8).Select(Path.GetFileName).ToArray(),
+                                    failureCode = "file-delete-failed",
+                                    failedFileCount = failedFiles.Length,
+                                    failedFiles = failedFiles.Take(8).Select(Path.GetFileName).ToArray(),
                                 }), configurationPath);
                             return (status == WorkflowStatus.Succeeded ? ProcessOutcome.Succeeded : ProcessOutcome.Degraded,
                                 (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, status.ToString(),
-                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions)), run);
+                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions) + housekeeping.AffectedItems,
+                                    housekeeping.ToDetail()), run);
                         }
                         catch (Exception exception)
                         {

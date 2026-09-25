@@ -26,12 +26,34 @@ public sealed record BackupSchedulerOptions(int WakeIntervalMs, int PreparationL
 
 public sealed record MaintenanceWorkerOptions(int RetainLatestRevisions, int RevisionBatchSize, int WriterRetryDelayMs)
 {
+    public int RevisionCompactionMaxDelayMinutes { get; init; } = 60;
+    public int HistoryRetentionDays { get; init; } = 90;
+    public int HistoryMinimumRuns { get; init; } = 1000;
+    public int DatabaseCleanupBatchSize { get; init; } = 1000;
+    public bool VacuumEnabled { get; init; } = true;
+    public int VacuumMinimumFreeMib { get; init; } = 4;
+    public int VacuumMinimumFreePercent { get; init; } = 25;
+    public int VacuumMaximumDatabaseMib { get; init; } = 256;
+
     public static MaintenanceWorkerOptions Read(ComponentConfiguration config)
     {
-        config.ValidateSection("maintenance", "retain_latest_revisions", "revision_batch_size", "writer_retry_delay_ms");
+        config.ValidateSection("maintenance", "retain_latest_revisions", "revision_batch_size", "writer_retry_delay_ms",
+            "revision_compaction_max_delay_minutes", "history_retention_days", "history_minimum_runs",
+            "database_cleanup_batch_size", "vacuum_enabled", "vacuum_minimum_free_mib",
+            "vacuum_minimum_free_percent", "vacuum_maximum_database_mib");
         return new(config.GetInt32("maintenance", "retain_latest_revisions", 100, 1, int.MaxValue),
             config.GetInt32("maintenance", "revision_batch_size", 20, 1, 1000),
-            config.GetInt32("maintenance", "writer_retry_delay_ms", 200, 50, 5000));
+            config.GetInt32("maintenance", "writer_retry_delay_ms", 200, 50, 5000))
+        {
+            RevisionCompactionMaxDelayMinutes = config.GetInt32("maintenance", "revision_compaction_max_delay_minutes", 60, 0, 10080),
+            HistoryRetentionDays = config.GetInt32("maintenance", "history_retention_days", 90, 0, 3650),
+            HistoryMinimumRuns = config.GetInt32("maintenance", "history_minimum_runs", 1000, 1, int.MaxValue),
+            DatabaseCleanupBatchSize = config.GetInt32("maintenance", "database_cleanup_batch_size", 1000, 1, 10000),
+            VacuumEnabled = config.GetBoolean("maintenance", "vacuum_enabled", true),
+            VacuumMinimumFreeMib = config.GetInt32("maintenance", "vacuum_minimum_free_mib", 4, 1, int.MaxValue),
+            VacuumMinimumFreePercent = config.GetInt32("maintenance", "vacuum_minimum_free_percent", 25, 1, 100),
+            VacuumMaximumDatabaseMib = config.GetInt32("maintenance", "vacuum_maximum_database_mib", 256, 1, int.MaxValue),
+        };
     }
 }
 

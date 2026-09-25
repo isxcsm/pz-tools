@@ -15,10 +15,26 @@ try
     var configuration = ComponentConfiguration.Load(
         repository, "maintenance-worker", configurationPath,
         Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "settings.toml"));
+    var settings = MaintenanceWorkerOptions.Read(configuration);
+    var options = new MaintenanceOptions(
+        checked((int)(OptionalLong(values, "--retain-latest")
+            ?? settings.RetainLatestRevisions)),
+        checked((int)(OptionalLong(values, "--revision-batch")
+            ?? settings.RevisionBatchSize)),
+        settings.WriterRetryDelayMs)
+    {
+        RevisionCompactionMaxDelayMinutes = settings.RevisionCompactionMaxDelayMinutes,
+        Housekeeping = new RepositoryHousekeepingOptions(
+            settings.HistoryRetentionDays, settings.HistoryMinimumRuns,
+            settings.DatabaseCleanupBatchSize, settings.VacuumEnabled,
+            settings.VacuumMinimumFreeMib, settings.VacuumMinimumFreePercent,
+            settings.VacuumMaximumDatabaseMib),
+    };
+    options.Validate();
     if (values.GetValueOrDefault("--lane") == "OrphanBackups")
     {
         var orphanRun = await OrphanBackupLane.RunAsync(repository,
-            Required(values, "--saves-root"), values.GetValueOrDefault("--control-db"), configurationPath);
+            Required(values, "--saves-root"), values.GetValueOrDefault("--control-db"), configurationPath, options);
         Console.WriteLine(ProcessResultJson.Serialize(
             ProcessResultEnvelope<MaintenanceLaneResult>.Success(
                 "maintenance-lane-worker", Math.Max(1, orphanRun.RunIndex), orphanRun.Outcome,
@@ -29,14 +45,6 @@ try
     runIndex = OptionalLong(values, "--run-index") ?? 0;
     if (sourceId <= 0) throw new ArgumentOutOfRangeException("--source-id");
     if (runIndex < 0) throw new ArgumentOutOfRangeException("--run-index");
-    var settings = MaintenanceWorkerOptions.Read(configuration);
-    var options = new MaintenanceOptions(
-        checked((int)(OptionalLong(values, "--retain-latest")
-            ?? settings.RetainLatestRevisions)),
-        checked((int)(OptionalLong(values, "--revision-batch")
-            ?? settings.RevisionBatchSize)),
-        settings.WriterRetryDelayMs);
-    options.Validate();
     if (values.TryGetValue("--lane", out var lane) && lane is not null)
     {
         var laneRun = await MaintenanceLanePipeline.RunLaneAsync(

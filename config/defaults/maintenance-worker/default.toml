@@ -1,6 +1,6 @@
 # Technical records for backup cleanup. The app's retention setting limits only
-# automatic backups; manual backups stay until you explicitly delete them.
-# Older backups whose origin is unknown are also excluded from automatic cleanup.
+# automatic backups. Manual/unknown backups are excluded from automatic-count
+# trimming, but explicit deletion and the existing orphan-save policy still apply.
 # Set the automatic backup count in the app. Cleanup can remove data no retained
 # backup uses; it does not automatically repack data files.
 
@@ -18,10 +18,32 @@ max_database_mib = 64
 
 
 [maintenance]
-# Reclaim deleted revision history in batches of this many revisions (1-1000). Larger batches
-# reduce overhead but keep cleanup busy longer. This does NOT choose which backups are deleted;
-# automatic retention remains an app setting.
+# Reclaim at most this many deleted revisions per source per pass (1-1000).
+# A full batch starts immediately; smaller batches become eligible after the
+# delay below. This does NOT choose which backups are deleted.
 revision_batch_size = 20
+# Smaller pending batches are eligible after this many minutes (0-10080).
+# 0 makes any pending deletion eligible at the next available maintenance pass.
+# The periodic maintenance worker also services inactive saves; the app must run.
+revision_compaction_max_delay_minutes = 60
 # When another operation owns the repository writer, wait this many milliseconds before trying
 # again (50-5000). Smaller values react faster but create more contention.
 writer_retry_delay_ms = 200
+
+# Trim completed, unreferenced repository execution history older than this many
+# days (0-3650). 0 disables history trimming. Active/incomplete work is preserved.
+history_retention_days = 90
+# Also preserve the newest IDs of BOTH run histories, regardless of age.
+history_minimum_runs = 1000
+# Bound closed-version cleanup and each run-history batch (1-10000).
+database_cleanup_batch_size = 1000
+
+# Opportunistic SQLite VACUUM in the maintenance worker, not on each deletion.
+# Uses the existing database/WAL transaction mechanism, never a file replacement.
+vacuum_enabled = true
+# Both free-space thresholds must be met; 1 MiB = 1,048,576 bytes.
+vacuum_minimum_free_mib = 4
+vacuum_minimum_free_percent = 25
+# Larger databases retain reusable space instead of starting an automatic full
+# rebuild. Insufficient disk space, active work or lock contention defer VACUUM.
+vacuum_maximum_database_mib = 256

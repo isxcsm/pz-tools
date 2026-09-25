@@ -8,11 +8,18 @@ public sealed record MaintenanceOptions(
     int RevisionCompactionBatchSize = 20,
     int WriterRetryDelayMs = 200)
 {
+    public int RevisionCompactionMaxDelayMinutes { get; init; } = 60;
+    public RepositoryHousekeepingOptions Housekeeping { get; init; } = new();
+
     public void Validate()
     {
         if (RetainLatestRevisions <= 0) throw new ArgumentOutOfRangeException(nameof(RetainLatestRevisions));
         if (RevisionCompactionBatchSize <= 0) throw new ArgumentOutOfRangeException(nameof(RevisionCompactionBatchSize));
         if (WriterRetryDelayMs is < 50 or > 5000) throw new ArgumentOutOfRangeException(nameof(WriterRetryDelayMs));
+        if (RevisionCompactionMaxDelayMinutes is < 0 or > 10080)
+            throw new ArgumentOutOfRangeException(nameof(RevisionCompactionMaxDelayMinutes));
+        ArgumentNullException.ThrowIfNull(Housekeeping);
+        Housekeeping.Validate();
     }
 }
 
@@ -75,7 +82,9 @@ public sealed class MaintenanceService
 
             var pendingCompaction = await repository.CountCompactableDeletedRevisionsAsync(
                 sourceId, cancellationToken);
-            var shouldCompact = pendingCompaction >= options.RevisionCompactionBatchSize;
+            var shouldCompact = await repository.IsRevisionCompactionDueAsync(
+                sourceId, options.RevisionCompactionBatchSize,
+                TimeSpan.FromMinutes(options.RevisionCompactionMaxDelayMinutes), cancellationToken);
 
             timer.Restart();
             await NotifyAsync("RevisionCompaction", "started");
@@ -93,7 +102,7 @@ public sealed class MaintenanceService
             {
                 lanes.Add(new MaintenanceLaneResult(
                     "RevisionCompaction", "Skipped", timer.ElapsedMilliseconds, 0,
-                    $"pending={pendingCompaction};threshold={options.RevisionCompactionBatchSize}"));
+                    $"pending={pendingCompaction};threshold={options.RevisionCompactionBatchSize};max-delay-minutes={options.RevisionCompactionMaxDelayMinutes}"));
             }
             await NotifyAsync("RevisionCompaction", "completed", lanes[^1]);
 
@@ -120,12 +129,15 @@ public sealed class MaintenanceService
             await NotifyAsync("ArtifactCleanup", "started");
             var cleanup = await repository.CleanupArtifactsAsync(lease, cancellationToken);
             failedFiles.AddRange(cleanup.FilesThatCouldNotBeDeleted);
+            var housekeeping = await new RepositoryHousekeepingService().RunAsync(
+                repository, lease, sourceId, workflow.RunIndex, options, cancellationToken);
+            failedFiles.AddRange(housekeeping.FilesThatCouldNotBeDeleted);
             lanes.Add(new MaintenanceLaneResult(
                 "ArtifactCleanup",
                 failedFiles.Count == 0 ? "Succeeded" : "Degraded",
                 timer.ElapsedMilliseconds,
-                cleanup.DeletedTemporaryFiles,
-                failedFiles.Count == 0 ? null : $"failed={failedFiles.Count}"));
+                cleanup.DeletedTemporaryFiles + housekeeping.AffectedItems,
+                $"failed={failedFiles.Count};{housekeeping.ToDetail()}"));
             await NotifyAsync("ArtifactCleanup", "completed", lanes[^1]);
             var status = failedFiles.Count == 0
                 ? WorkflowStatus.Succeeded
