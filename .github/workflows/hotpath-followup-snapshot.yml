@@ -1,0 +1,26 @@
+name: Hotpath follow-up source snapshot
+on:
+  push:
+    branches: [optimize/storage-hotpaths]
+    paths: ['.github/workflows/hotpath-followup-snapshot.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export only repository objects for the two reviewed refs
+        run: |
+          git branch snapshot-head 909349a697c7ae7f198e9f1dff5011a2b27e509e
+          git branch snapshot-dev 2c1133d72eb6494be6d6c9f1bd30172183befe94
+          git bundle create review.bundle snapshot-head snapshot-dev
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hotpath-followup-source
+          path: review.bundle
+          retention-days: 1
