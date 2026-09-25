@@ -36,8 +36,8 @@ public sealed class MissingIdentityDeletionTests
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = missingParent
-                ? "UPDATE entry_versions SET parent_file_id=NULL WHERE path_key='GONE.BIN';"
-                : "UPDATE entry_versions SET file_id=NULL WHERE path_key='GONE.BIN';";
+                ? "UPDATE entry_versions SET parent_file_id=NULL WHERE path_id=(SELECT path_id FROM paths WHERE path_key='GONE.BIN');"
+                : "UPDATE entry_versions SET file_id=NULL WHERE path_id=(SELECT path_id FROM paths WHERE path_key='GONE.BIN');";
             Assert.Equal(1, await command.ExecuteNonQueryAsync());
         }
         File.Delete(gone);
@@ -52,7 +52,7 @@ public sealed class MissingIdentityDeletionTests
         await using (var connection = await repository.OpenConnectionAsync())
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = "SELECT file_id,parent_file_id,tombstone FROM entry_versions WHERE path_key='GONE.BIN' AND valid_to_revision IS NULL;";
+            command.CommandText = "SELECT file_id,parent_file_id,tombstone FROM entry_versions WHERE path_id=(SELECT path_id FROM paths WHERE path_key='GONE.BIN') AND valid_to_revision IS NULL;";
             await using var reader = await command.ExecuteReaderAsync();
             Assert.True(await reader.ReadAsync());
             Assert.True(reader.IsDBNull(missingParent ? 1 : 0));

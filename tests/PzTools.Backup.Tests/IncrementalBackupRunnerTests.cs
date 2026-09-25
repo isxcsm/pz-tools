@@ -287,7 +287,7 @@ public sealed class IncrementalBackupRunnerTests
         await using var connection = await setup.Repository.OpenConnectionAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT object.content_hash FROM entry_versions entry
+            SELECT object.content_hash FROM entry_catalog entry
             JOIN stored_objects object ON object.object_id = entry.object_id
             WHERE entry.valid_to_revision IS NULL AND entry.tombstone = 0
                 AND entry.display_path = 'file.bin'

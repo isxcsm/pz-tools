@@ -349,7 +349,7 @@ public sealed class FullScanSession : IAsyncDisposable
             WITH current_entries AS (
                 SELECT path_key, display_path, entry_kind, byte_length, modified_utc,
                        changed_utc, attributes, file_id, parent_file_id
-                FROM entry_versions
+                FROM entry_catalog
                 WHERE source_id = $sourceId
                   AND valid_to_revision IS NULL
                   AND tombstone = 0
@@ -412,8 +412,9 @@ public sealed class FullScanSession : IAsyncDisposable
                        CASE WHEN object.checksum_algorithm=3 AND length(object.checksum)=32
                            THEN substr(object.checksum, 1, 16) END)
             FROM full_scan_entries AS scan
+            JOIN paths AS path ON path.path_key = scan.path_key
             JOIN entry_versions AS current ON current.source_id = $sourceId
-                AND current.path_key = scan.path_key AND current.valid_to_revision IS NULL
+                AND current.path_id = path.path_id AND current.valid_to_revision IS NULL
                 AND current.tombstone = 0
             LEFT JOIN stored_objects AS object ON object.object_id = current.object_id
             WHERE scan.entry_kind = 'File'

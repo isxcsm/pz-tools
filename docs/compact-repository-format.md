@@ -1,11 +1,11 @@
 # Compact repository format 2 (pre-release breaking change)
 
-The current layout is **format 2 / schema 2**. See the [performance follow-up](storage-performance.md)
-for revision summary columns, deduplication before compression and current verification.
-There is deliberately no migration or dual-format reader for format 1 or schema 1.
-Old data is rejected with `repository-reset-required`, never automatically deleted.
-Use a new empty backup directory. Do not reset the game's `Zomboid/Saves` directory.
-Rebuild/publish the application and workers together.
+The current layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
+for revision summaries and pre-compression deduplication, and [path normalization](path-normalization.md)
+for the current path dictionaries and verification. There is no migration or dual-format
+reader for format 1 or schemas 1/2. Old data is rejected with `repository-reset-required`,
+never automatically deleted. Use a new empty backup directory. Do not reset the game's
+`Zomboid/Saves` directory. Rebuild/publish the application and workers together.
 
 ## Compact representations
 
@@ -42,6 +42,8 @@ than casting identities to text and lowercasing hex. The unused current-parent-r
 index is removed, not the parent identity column. Full-scan INSERT commands are prepared
 once per session and rebound across transaction batches. The performance follow-up also
 reuses object/pack/entry commit commands and adds atomic file-count/byte-count summaries.
+Schema 3 further replaces repeated version path strings with integer references into
+immutable canonical-key and exact-spelling dictionaries.
 
 ## Reproducible layout experiment (schema-1 baseline)
 
@@ -52,7 +54,8 @@ python scripts/measure-compact-repository.py --baseline-ref 6f2023c --entries 22
 The script uses temporary databases and production schema SQL, with identical synthetic
 22,000 objects and 22,000 versions, one pack and one revision. Both databases are
 VACUUMed. It checks foreign keys, integrity, representation constraints and query plan.
-It does not read user data or benchmark actual pack I/O.
+It does not read user data or benchmark actual pack I/O. Running it from schema 3
+uses the normalized layout; the historical results below belong to schema 1.
 
 Measured at the preceding schema-1 implementation, Python SQLite 3.46.1, 4096-byte pages:
 
@@ -76,5 +79,5 @@ exact commit and TRX evidence. Isolated housekeeping SQL checks pass 14/14.
 Selected suites are not the full application/published-distribution gate. Earlier
 full CI had crash reopen and shutdown sharing failures that are not dismissed or
 silenced by this optimization. Consult final-head CI before merging or publishing.
-The path dictionary remains a separate unimplemented candidate; historical spelling,
-case-only renames and compaction/restore joins require independent validation.
+The subsequently implemented path dictionary, its historical-spelling safeguards,
+layout tradeoffs and newer verification are described in [path normalization](path-normalization.md).

@@ -6,12 +6,12 @@ internal sealed record RepositoryMigration(int Version, string Name, string Sql)
 
 internal static class RepositorySchema
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
-    // Fresh format 2 / schema 2 repositories only. Older schemas have no upgrade path.
+    // Fresh format 2 / schema 3 repositories only. Older schemas have no upgrade path.
     public static IReadOnlyList<RepositoryMigration> Migrations { get; } =
     [
-        new RepositoryMigration(CurrentVersion, "compact repository with revision summaries",
+        new RepositoryMigration(CurrentVersion, "normalized paths with immutable historical spellings",
             """
             CREATE TABLE repository_info (
                 singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton = 1),
@@ -98,10 +98,36 @@ internal static class RepositorySchema
                 content_hash BLOB NULL CHECK (content_hash IS NULL OR length(content_hash) = 16)
             ) STRICT, WITHOUT ROWID;
 
+            -- Global dictionaries: identities use .NET invariant uppercase keys;
+            -- exact display spellings never change once referenced by a revision.
+            CREATE TABLE paths (
+                path_id INTEGER NOT NULL PRIMARY KEY,
+                path_key TEXT NOT NULL COLLATE BINARY UNIQUE CHECK (length(path_key) > 0)
+            ) STRICT;
+
+            CREATE TABLE path_spellings (
+                path_id INTEGER NOT NULL REFERENCES paths(path_id),
+                spelling_id INTEGER NOT NULL CHECK (spelling_id >= 0),
+                display_path TEXT NOT NULL COLLATE BINARY CHECK (length(display_path) > 0),
+                PRIMARY KEY (path_id, spelling_id)
+            ) STRICT, WITHOUT ROWID;
+
+            -- A path normally has one spelling. Enforce uniqueness within that
+            -- small indexed range without storing every display string twice.
+            CREATE TRIGGER path_spelling_unique BEFORE INSERT ON path_spellings
+            WHEN EXISTS (SELECT 1 FROM path_spellings
+                         WHERE path_id=NEW.path_id AND display_path=NEW.display_path)
+            BEGIN SELECT RAISE(ABORT, 'Duplicate path spelling.'); END;
+
+            CREATE TRIGGER paths_immutable BEFORE UPDATE ON paths
+            BEGIN SELECT RAISE(ABORT, 'Path identities are immutable.'); END;
+            CREATE TRIGGER path_spellings_immutable BEFORE UPDATE ON path_spellings
+            BEGIN SELECT RAISE(ABORT, 'Historical path spellings are immutable.'); END;
+
             CREATE TABLE entry_versions (
                 source_id INTEGER NOT NULL,
-                path_key TEXT NOT NULL,
-                display_path TEXT NOT NULL,
+                path_id INTEGER NOT NULL,
+                spelling_id INTEGER NOT NULL,
                 valid_from_revision INTEGER NOT NULL,
                 valid_to_revision INTEGER NULL,
                 entry_kind TEXT NOT NULL CHECK (entry_kind IN ('File', 'Directory')),
@@ -113,7 +139,8 @@ internal static class RepositorySchema
                 file_id BLOB NULL CHECK (file_id IS NULL OR length(file_id)=24),
                 parent_file_id BLOB NULL CHECK (parent_file_id IS NULL OR length(parent_file_id)=24),
                 object_id BLOB NULL CHECK (object_id IS NULL OR length(object_id)=16) REFERENCES stored_objects(object_id),
-                PRIMARY KEY (source_id, path_key, valid_from_revision),
+                PRIMARY KEY (source_id, path_id, valid_from_revision),
+                FOREIGN KEY (path_id, spelling_id) REFERENCES path_spellings(path_id, spelling_id),
                 FOREIGN KEY (source_id, valid_from_revision)
                     REFERENCES revisions(source_id, revision),
                 CHECK (valid_to_revision IS NULL OR valid_to_revision > valid_from_revision),
@@ -123,6 +150,17 @@ internal static class RepositorySchema
                     OR tombstone = 1
                 )
             ) STRICT;
+
+            -- Read projection of the current schema, not a legacy storage reader.
+            CREATE VIEW entry_catalog AS
+            SELECT entry.*, path.path_key, spelling.display_path
+            FROM entry_versions AS entry
+            JOIN paths AS path ON path.path_id=entry.path_id
+            JOIN path_spellings AS spelling
+              ON spelling.path_id=entry.path_id AND spelling.spelling_id=entry.spelling_id;
+
+            -- Supports FK checks and bounded collection without scanning all versions.
+            CREATE INDEX ix_entry_versions_spelling ON entry_versions(path_id, spelling_id);
 
             CREATE TABLE workflow_runs (
                 run_index INTEGER NOT NULL PRIMARY KEY,
@@ -161,7 +199,7 @@ internal static class RepositorySchema
             ) STRICT;
 
             CREATE UNIQUE INDEX ix_entry_versions_current
-                ON entry_versions(source_id, path_key)
+                ON entry_versions(source_id, path_id)
                 WHERE valid_to_revision IS NULL;
 
             CREATE INDEX ix_entry_versions_object

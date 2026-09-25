@@ -273,7 +273,7 @@ public sealed class StoragePerformanceTests
         while (await reader.ReadAsync()) plan.Add(reader.GetString(3));
         Assert.DoesNotContain(plan, line => line.Contains("SCAN entry", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(plan, line => line.Contains("SEARCH entry", StringComparison.OrdinalIgnoreCase)
-            && line.Contains("path_key=?", StringComparison.Ordinal));
+            && line.Contains("path_id=?", StringComparison.Ordinal));
     }
 
     [Theory]

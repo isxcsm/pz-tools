@@ -281,11 +281,11 @@ public sealed partial class RepositoryDatabase
                         WHERE source_id = $sourceId AND valid_from_revision = $revision;
 
                         INSERT INTO entry_versions(
-                            source_id, path_key, display_path, valid_from_revision,
+                            source_id, path_id, spelling_id, valid_from_revision,
                             valid_to_revision, entry_kind, tombstone, byte_length,
                             modified_utc, changed_utc, attributes, file_id,
                             parent_file_id, object_id)
-                        SELECT source_id, path_key, display_path, $nextRetained,
+                        SELECT source_id, path_id, spelling_id, $nextRetained,
                                valid_to_revision, entry_kind, tombstone, byte_length,
                                modified_utc, changed_utc, attributes, file_id,
                                parent_file_id, object_id
@@ -509,6 +509,7 @@ public sealed partial class RepositoryDatabase
         using var transaction = connection.BeginTransaction();
         List<string> deletedPackPaths;
         int deletedObjects;
+        int deletedPathRows;
         try
         {
             await using (var deleteObjects = connection.CreateCommand())
@@ -524,6 +525,9 @@ public sealed partial class RepositoryDatabase
                     """;
                 deletedObjects = await deleteObjects.ExecuteNonQueryAsync(cancellationToken);
             }
+
+            deletedPathRows = await PruneUnreferencedPathsCoreAsync(
+                connection, transaction, 1000, cancellationToken);
 
             deletedPackPaths = [];
             await using (var selectPacks = connection.CreateCommand())
@@ -598,7 +602,8 @@ public sealed partial class RepositoryDatabase
             deletedObjects,
             deletedPackPaths.Count,
             orphanCount,
-            failed);
+            failed,
+            deletedPathRows);
     }
 
     public Task<ArtifactCleanupResult> CleanupArtifactsAsync(

@@ -3,7 +3,7 @@
 
 Run from a checkout containing the baseline commit:
 python scripts/measure-catalog-performance.py --baseline-ref 2f3ce6f
-Both queries read the same fresh schema-2 database. Cached summaries are seeded
+Both queries read the same fresh schema-3 database (old aggregation uses the normalized read projection). Cached summaries are seeded
 independently, all returned rows must match, and both queries are warmed first.
 """
 from __future__ import annotations
@@ -40,6 +40,8 @@ def seed(db: sqlite3.Connection, files: int, revisions: int, changes: int) -> in
     pack = (1).to_bytes(16, 'little')
     object_id = (2).to_bytes(16, 'little')
     names = ['players.db'] + [f'map/chunk_{i:05d}.bin' for i in range(1, files)]
+    db.executemany('INSERT INTO paths(path_id,path_key) VALUES(?,?)', [(i+1,n.upper()) for i,n in enumerate(names)])
+    db.executemany('INSERT INTO path_spellings VALUES(?,0,?)', [(i+1,n) for i,n in enumerate(names)])
     sizes = [1024 + i % 8192 for i in range(files)]
     total = sum(sizes)
     rows = 0
@@ -61,9 +63,9 @@ def seed(db: sqlite3.Connection, files: int, revisions: int, changes: int) -> in
         for i in changed:
             if revision > 1:
                 db.execute('UPDATE entry_versions SET valid_to_revision=? '
-                           'WHERE source_id=1 AND path_key=? AND valid_to_revision IS NULL',
-                           (revision, names[i].upper()))
-            entries.append((1, names[i].upper(), names[i], revision, None, 'File', 0,
+                           'WHERE source_id=1 AND path_id=? AND valid_to_revision IS NULL',
+                           (revision, i+1))
+            entries.append((1, i+1, 0, revision, None, 'File', 0,
                             sizes[i], TICKS + revision, TICKS + revision, 32,
                             (i + 1).to_bytes(24, 'big'), bytes(24), object_id))
         db.executemany('INSERT INTO entry_versions VALUES(' + ','.join('?' * 14) + ')', entries)
@@ -101,6 +103,8 @@ def main() -> None:
     before = subprocess.check_output(['git', 'show', args.baseline_ref + ':' + REPOSITORY +
                                       'RepositoryDatabase.Read.cs'], cwd=ROOT, text=True)
     old_sql = next(sql for sql in raw_sql(before) if 'SUM(CASE' in sql and 'FROM sources AS source' in sql)
+    # Compare aggregation algorithms on one normalized DB, not old-format I/O.
+    old_sql = old_sql.replace('JOIN entry_versions AS entry', 'JOIN entry_catalog AS entry')
     new_sql = raw_sql((ROOT / (REPOSITORY + 'RepositoryDatabase.Summaries.cs')).read_text())[0]
     results = {'sqlite_version': sqlite3.sqlite_version, 'files': args.files,
                'revisions': args.revisions, 'changes_per_revision': args.changes,

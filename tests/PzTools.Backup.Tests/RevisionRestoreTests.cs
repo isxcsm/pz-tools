@@ -381,12 +381,15 @@ public sealed class RevisionRestoreTests
         {
             command.CommandText =
                 """
+                INSERT INTO paths(path_key) VALUES('PARENT/CHILD');
+                INSERT INTO path_spellings(path_id,spelling_id,display_path)
+                    SELECT path_id,0,'parent/child' FROM paths WHERE path_key='PARENT/CHILD';
                 INSERT INTO entry_versions(
-                    source_id, path_key, display_path, valid_from_revision,
+                    source_id, path_id, spelling_id, valid_from_revision,
                     entry_kind, tombstone, byte_length, modified_utc, changed_utc,
                     attributes, file_id, parent_file_id, object_id)
                 VALUES (
-                    $sourceId, 'PARENT/CHILD', 'parent/child', 1,
+                    $sourceId, (SELECT path_id FROM paths WHERE path_key='PARENT/CHILD'), 0, 1,
                     'Directory', 0, 0, $now, $now, $attributes, NULL, NULL, NULL);
                 """;
             command.Parameters.AddWithValue("$sourceId", context.Source.SourceId);
