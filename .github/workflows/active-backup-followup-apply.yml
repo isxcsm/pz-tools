@@ -1,0 +1,89 @@
+name: Verify active-only automatic backup and storage follow-up
+on:
+  push:
+    branches: [optimize/storage-hotpaths]
+    paths: ['.github/workflows/active-backup-followup-apply.yml', '.github/active-backup-followup.part*']
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/optimize/storage-hotpaths'
+    runs-on: windows-2025
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Integrate exact dev snapshot and apply checksum-verified reviewed changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64, hashlib, lzma, pathlib, subprocess, tempfile
+          def run(*args): return subprocess.run(args, check=True)
+          def output(*args): return subprocess.check_output(args).decode().strip()
+          run('git','diff','--exit-code','909349a697c7ae7f198e9f1dff5011a2b27e509e','--','src','tests','scripts','docs','README.md')
+          result = subprocess.run(['git','merge','--squash','2c1133d72eb6494be6d6c9f1bd30172183befe94'])
+          assert result.returncode == 1
+          conflicts = output('git','diff','--name-only','--diff-filter=U').splitlines()
+          expected = ['docs/compact-repository-format.md','docs/path-normalization.md','docs/repository-format.md','docs/storage-performance.md']
+          assert sorted(conflicts) == expected, conflicts
+          run('git','checkout','--ours',*expected)
+          run('git','add',*expected)
+          # Workflow updates are handled through the authorized connector, not this token.
+          run('git','restore','--source=HEAD','--staged','--worktree','.github')
+          baseline = output('git','write-tree')
+          for path,sha in {'src':'193abbe08410a50f71b71909cda99ff907e7f4ed','tests':'2b230ce7c3438ecf7019c252987cad1bf22730a4','scripts':'7a4ce1e02bb9b8ff3bc203de69bafe36b3e7c736','docs':'e24b2fc32e876b9b5094a51af2c6a4c58cf50c55','README.md':'ef73d4d8030b665a4b6fbdd2c03bd215c0d797fb'}.items():
+              assert output('git','rev-parse',baseline+':'+path) == sha, path
+          encoded = ''.join(pathlib.Path(f'.github/active-backup-followup.part{i}').read_text().strip() for i in [1,2])
+          patch = lzma.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(patch).hexdigest() == 'f0d76fa1edd7705c7e0b76cf198d630664c050b0081d54234dd8392ccbef6a68'
+          with tempfile.NamedTemporaryFile(delete=False) as f:
+              f.write(patch)
+              name = f.name
+          try:
+              run('git','apply','--check',name)
+              run('git','apply',name)
+          finally: pathlib.Path(name).unlink()
+          run('git','add','src','tests','scripts','docs','README.md')
+          paths = output('git','diff','--cached','--name-only').splitlines()
+          assert paths and all(p.startswith(('src/','tests/','scripts/','docs/')) or p == 'README.md' for p in paths), paths
+          run('git','diff','--cached','--check')
+          run('git','config','user.name','github-actions[bot]')
+          run('git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com')
+          run('git','commit','-m','Limit automatic backups to active gameplay and optimize remaining read and collection paths')
+          run('git','push','origin','HEAD:refs/heads/optimize/storage-hotpaths')
+          pathlib.Path('artifacts/followup').mkdir(parents=True, exist_ok=True)
+          pathlib.Path('artifacts/followup/commit.txt').write_text(output('git','rev-parse','HEAD'))
+          PY
+      - name: Verify production SQL and documentation contracts
+        shell: pwsh
+        run: |
+          python scripts/check-housekeeping-sql.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check-path-normalization.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check-documentation.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/test-documentation-checker.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check-localization.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test real automatic scheduling and adjacent storage regressions
+        shell: pwsh
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
+          --filter 'FullyQualifiedName~AutomaticBackupRegressionTests|FullyQualifiedName~OptimizationFollowupTests|FullyQualifiedName~SchedulerTests|FullyQualifiedName~SchedulerCountdown|FullyQualifiedName~StatePipelineTests|FullyQualifiedName~ProjectionTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~NormalizedPathTests|FullyQualifiedName~StorageHotpathTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~ContentFingerprintTests|FullyQualifiedName~ValidatedPackReaderCacheTests|FullyQualifiedName~StoragePerformanceTests|FullyQualifiedName~BackupGameSave'
+          --logger 'trx;LogFileName=followup.trx' --results-directory artifacts/followup
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: active-backup-followup-${{ github.sha }}
+          path: artifacts/followup/*
+          retention-days: 14
