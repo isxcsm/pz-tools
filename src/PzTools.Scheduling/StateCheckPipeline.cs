@@ -43,7 +43,9 @@ public sealed class StateCheckPipeline
                 await BestEffortProcessTelemetry.TryRecordAsync(database.DatabasePath, producer, runIndex,
                     producer == "state-collector" ? "collector.failed" : "reactor.failed",
                     FailureTelemetry.FromException("state-check-failed", exception, phase: "state-check", operation: "state-check"));
-                throw;
+                // A child-process failure was an outcome, not a fatal scheduler exception.
+                // Retain that isolation; durable pending batches are recovered on the next tick.
+                return new WorkerInvocation(true, ProcessOutcome.Failed, "state-check-failed");
             }
         }, cancellationToken);
         return result.Acquired ? result.Value! : new WorkerInvocation(false, ProcessOutcome.Busy, "state-collection-busy");
