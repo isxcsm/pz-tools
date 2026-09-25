@@ -1,0 +1,175 @@
+name: Review missing-identity boundary
+on:
+  push:
+    branches: [optimize/repository-housekeeping]
+    paths: ['.github/workflows/review-identity-boundary.yml']
+permissions:
+  contents: read
+jobs:
+  reproduce-and-fix:
+    if: github.ref == 'refs/heads/optimize/repository-housekeeping'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Add isolated regression fixture
+        run: |
+          @'
+          import pathlib
+          p = pathlib.Path('tests/PzTools.Backup.Tests/MissingIdentityDeletionTests.cs')
+          assert not p.exists()
+          p.write_text('''using PzTools.Backup.ChangeTracking.Windows;
+          using PzTools.Backup.Core.Configuration;
+          using PzTools.Backup.Engine;
+          using PzTools.Backup.Storage.Repository;
+          using PzTools.Backup.Storage.Telemetry;
+
+          namespace PzTools.Backup.Tests;
+
+          public sealed class MissingIdentityDeletionTests
+          {
+              [Theory]
+              [InlineData(false, false)]
+              [InlineData(false, true)]
+              [InlineData(true, false)]
+              [InlineData(true, true)]
+              public async Task FullScanDeletion_PreservesUnknownIdentityAsNull(
+                  bool missingParent, bool alwaysInclude)
+              {
+                  using var temp = new TempDirectory();
+                  var root = temp.GetPath("source");
+                  Directory.CreateDirectory(root);
+                  var gone = Path.Combine(root, "gone.bin");
+                  await File.WriteAllTextAsync(gone, "removed content");
+                  await File.WriteAllTextAsync(Path.Combine(root, "keep.bin"), "retained content");
+                  var repository = await RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repository"));
+                  var telemetry = await TelemetryStore.CreateOrOpenAsync(repository.RepositoryPath);
+                  var metadata = new WindowsFileMetadataReader();
+                  var storage = new StorageOptions(ChecksumAlgorithm.Sha256, CompressionAlgorithm.None, false);
+                  var telemetryOptions = new TelemetryOptions(TelemetryMode.Off, 8, 5, 10, 32);
+                  await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
+                  var source = await repository.AddOrGetSourceAsync(lease, "test", root);
+                  await new InitialBackupRunner(new StreamingFullScanner(metadata), new StableFileCapturer(metadata),
+                      new NoCheckpoint()).RunAsync(repository, telemetry, lease, source, storage, telemetryOptions);
+                  var before = await repository.GetSourceStateAsync(source.SourceId);
+                  await using (var connection = await repository.OpenConnectionAsync())
+                  await using (var command = connection.CreateCommand())
+                  {
+                      command.CommandText = missingParent
+                          ? "UPDATE entry_versions SET parent_file_id=NULL WHERE path_key='GONE.BIN';"
+                          : "UPDATE entry_versions SET file_id=NULL WHERE path_key='GONE.BIN';";
+                      Assert.Equal(1, await command.ExecuteNonQueryAsync());
+                  }
+                  File.Delete(gone);
+                  var runner = new IncrementalBackupRunner(new StreamingFullScanner(metadata),
+                      new StableFileCapturer(metadata), metadata, new NoJournal(), new UsnDeltaPlanner());
+                  var result = await runner.RunAsync(repository, telemetry, lease, source, storage, telemetryOptions,
+                      executionOptions: null, alwaysIncludePaths: alwaysInclude ? ["gone.bin"] : []);
+                  Assert.Equal(BackupScanMode.FullScan, result.ScanMode);
+                  Assert.Equal(2, result.Revision);
+                  Assert.Equal(before.Checkpoint, (await repository.GetSourceStateAsync(source.SourceId)).Checkpoint);
+                  Assert.Equal("keep.bin", Assert.Single(await repository.ReadRevisionEntriesAsync(source.SourceId, 2)).RelativePath);
+                  await using (var connection = await repository.OpenConnectionAsync())
+                  await using (var command = connection.CreateCommand())
+                  {
+                      command.CommandText = "SELECT file_id,parent_file_id,tombstone FROM entry_versions WHERE path_key='GONE.BIN' AND valid_to_revision IS NULL;";
+                      await using var reader = await command.ExecuteReaderAsync();
+                      Assert.True(await reader.ReadAsync());
+                      Assert.True(reader.IsDBNull(missingParent ? 1 : 0));
+                      Assert.Equal(24, ((byte[])reader.GetValue(missingParent ? 0 : 1)).Length);
+                      Assert.True(reader.GetBoolean(2));
+                  }
+                  var restored = temp.GetPath("restored");
+                  await new RevisionRestorer().RestoreAsync(repository, source.SourceId, 2, restored);
+                  Assert.Equal("retained content", await File.ReadAllTextAsync(Path.Combine(restored, "keep.bin")));
+                  Assert.False(File.Exists(Path.Combine(restored, "gone.bin")));
+                  await repository.MarkRevisionDeletedAsync(lease, source.SourceId, 1);
+                  Assert.Equal(1, (await repository.CompactDeletedRevisionsAsync(lease, source.SourceId)).CompactedRevisions);
+                  Assert.Equal(1, (await repository.CollectGarbageAsync(lease)).DeletedObjects);
+                  Assert.True((await new RepositoryVerifier().VerifyAsync(repository)).IsValid);
+              }
+
+              private sealed class NoCheckpoint : ICheckpointBoundaryProvider
+              {
+                  public CheckpointBoundaryResult Capture(string sourcePath) => new(null, "full scan fixture");
+              }
+
+              private sealed class NoJournal : IUsnJournalSource
+              {
+                  public UsnJournalState Query(string sourcePath) => throw new PlatformNotSupportedException("full scan fixture");
+                  public IEnumerable<UsnRecord> ReadRange(string sourcePath, UsnCheckpoint checkpoint,
+                      long upperUsnExclusive, CancellationToken cancellationToken = default) =>
+                      throw new InvalidOperationException("The unavailable journal must not be read.");
+              }
+          }
+          ''', encoding='utf-8', newline='\n')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Require the four expected pre-fix failures
+        run: |
+          dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror --filter FullyQualifiedName~MissingIdentityDeletionTests --logger 'trx;LogFileName=before.trx' --results-directory artifacts/identity-review
+          $testExit = $LASTEXITCODE
+          if ($testExit -eq 0) { throw 'The expected regression did not reproduce.' }
+          @'
+          import pathlib, xml.etree.ElementTree as E
+          ns = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
+          r = E.parse('artifacts/identity-review/before.trx').getroot()
+          c = r.find('.//t:Counters', ns).attrib
+          assert c['total'] == '4' and c['failed'] == '4', c
+          for t in r.findall('.//t:UnitTestResult', ns):
+              assert 'InvalidCastException' in ''.join(t.itertext()), ''.join(t.itertext())
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          exit 0
+      - name: Apply guarded boundary fixes
+        run: |
+          @'
+          import hashlib, pathlib
+          edits = [
+              ('src/PzTools.Backup.Engine/StreamingFullScanner.cs', '7f0d6bddeb86b6cb5c98f29ef41099953134dc59',
+               '(byte[])reader.GetValue(columnOffset + 7),\n            (byte[])reader.GetValue(columnOffset + 8));',
+               'reader.IsDBNull(columnOffset + 7) ? [] : (byte[])reader.GetValue(columnOffset + 7),\n            reader.IsDBNull(columnOffset + 8) ? [] : (byte[])reader.GetValue(columnOffset + 8));'),
+              ('src/PzTools.Backup.Engine/IncrementalBackupRunner.cs', 'c2ca4fc2ab4bc169620dcfcebc4796b310f62175',
+               '                FileId,\n                ParentFileId,\n                ObjectId);',
+               '                Tombstone && FileId.Length == 0 ? null : FileId,\n                Tombstone && ParentFileId.Length == 0 ? null : ParentFileId,\n                ObjectId);'),
+          ]
+          for path, expected, old, new in edits:
+              p = pathlib.Path(path)
+              raw = p.read_bytes().replace(b'\r\n', b'\n')
+              assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == expected, path
+              text = raw.decode('utf-8')
+              assert text.count(old) == 1, path
+              p.write_text(text.replace(old, new), encoding='utf-8', newline='\n')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify fixed deletion and adjacent storage paths
+        run: |
+          dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror --filter 'FullyQualifiedName~MissingIdentityDeletionTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~StoragePerformanceTests' --logger 'trx;LogFileName=after.trx' --results-directory artifacts/identity-review
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Commit only verified source changes and remove this one-shot workflow
+        run: |
+          git rm .github/workflows/review-identity-boundary.yml
+          git add src/PzTools.Backup.Engine/StreamingFullScanner.cs src/PzTools.Backup.Engine/IncrementalBackupRunner.cs tests/PzTools.Backup.Tests/MissingIdentityDeletionTests.cs
+          git diff --cached --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Preserve unknown file identities when committing confirmed deletions'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git push origin HEAD:refs/heads/optimize/repository-housekeeping
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git rev-parse HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: missing-identity-review-${{ github.sha }}
+          path: artifacts/identity-review/*.trx
+          retention-days: 7
