@@ -28,6 +28,8 @@ jobs:
           import base64, hashlib, lzma, pathlib, subprocess, tempfile
           def run(*args): return subprocess.run(args, check=True)
           def output(*args): return subprocess.check_output(args).decode().strip()
+          run('git','config','user.name','github-actions[bot]')
+          run('git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com')
           run('git','diff','--exit-code','909349a697c7ae7f198e9f1dff5011a2b27e509e','--','src','tests','scripts','docs','README.md')
           result = subprocess.run(['git','merge','--squash','2c1133d72eb6494be6d6c9f1bd30172183befe94'])
           assert result.returncode == 1
@@ -55,8 +57,6 @@ jobs:
           paths = output('git','diff','--cached','--name-only').splitlines()
           assert paths and all(p.startswith(('src/','tests/','scripts/','docs/')) or p == 'README.md' for p in paths), paths
           run('git','diff','--cached','--check')
-          run('git','config','user.name','github-actions[bot]')
-          run('git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com')
           run('git','commit','-m','Limit automatic backups to active gameplay and optimize remaining read and collection paths')
           run('git','push','origin','HEAD:refs/heads/optimize/storage-hotpaths')
           pathlib.Path('artifacts/followup').mkdir(parents=True, exist_ok=True)
