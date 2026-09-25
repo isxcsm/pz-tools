@@ -87,9 +87,12 @@ public sealed class StorageHotpathTests
         writer.DefaultTimeout = 1;
         var writes = 0;
         await using var scan = await new StreamingFullScanner(new WindowsFileMetadataReader(), 100).ScanAsync(
-            f.Repository, f.Source.SourceId, f.Source.RootPath, progress: async _ =>
+            f.Repository, f.Source.SourceId, f.Source.RootPath, progress: async scanned =>
             {
-                // The scanner's batch is still open when it reports progress.
+                // The initial zero notification happens before any TEMP transaction.
+                if (scanned == 0) return;
+                Assert.Equal(writes + 1, scanned);
+                // Positive progress is reported inside the still-open TEMP batch.
                 using var transaction = writer.BeginTransaction();
                 await using var update = writer.CreateCommand();
                 update.Transaction = transaction;
