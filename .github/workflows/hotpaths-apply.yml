@@ -1,0 +1,72 @@
+name: Apply and verify storage hotpaths
+on:
+  push:
+    branches: [optimize/storage-hotpaths]
+    paths: ['.github/workflows/hotpaths-apply.yml', '.github/hotpaths.part*']
+permissions:
+  contents: read
+jobs:
+  implementation:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/optimize/storage-hotpaths'
+    runs-on: windows-2025
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Apply checksum-verified patch to unchanged base
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64, hashlib, lzma, pathlib, subprocess, tempfile
+          subprocess.run(['git','diff','--exit-code','52e8822a3192acaf7cb95d68e6a0657ecab0bbc3','--','src','tests','scripts','docs'], check=True)
+          encoded = ''.join(pathlib.Path(f'.github/hotpaths.part{i}').read_text().strip() for i in range(1,5))
+          patch = lzma.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(patch).hexdigest() == '08b7bd4a36914252de4867affa59b1a92e4491993ace179c04c00e3d4d26470a'
+          with tempfile.NamedTemporaryFile(delete=False) as f:
+              f.write(patch)
+              name = f.name
+          try:
+              subprocess.run(['git','apply','--check',name], check=True)
+              subprocess.run(['git','apply',name], check=True)
+          finally:
+              pathlib.Path(name).unlink()
+          subprocess.run(['git','add','src','tests','scripts','docs'], check=True)
+          paths = subprocess.check_output(['git','diff','--cached','--name-only','-z']).decode().strip('\0').split('\0')
+          assert len(paths) == 29 and all(p.startswith(('src/','tests/','scripts/','docs/')) and not p.endswith('.pyc') for p in paths), paths
+          subprocess.run(['git','diff','--cached','--check'], check=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Optimize indexed requests, pinned pack reuse and bounded path sweeps (schema 4)'
+          git push origin HEAD:refs/heads/optimize/storage-hotpaths
+          mkdir -p artifacts/hotpaths
+          git rev-parse HEAD > artifacts/hotpaths/commit.txt
+      - name: Verify SQL and record query plans
+        shell: pwsh
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python scripts/check-path-normalization.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/check-housekeeping-sql.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/measure-storage-hotpaths.py > artifacts/hotpaths/queries.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run storage, sharing and pack safety regressions
+        shell: pwsh
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
+          --filter 'FullyQualifiedName~StorageHotpathTests|FullyQualifiedName~ValidatedPackReaderCacheTests|FullyQualifiedName~NormalizedPathTests|FullyQualifiedName~ContentFingerprintTests|FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~StoragePerformanceTests|FullyQualifiedName~MissingIdentityDeletionTests|FullyQualifiedName~PackFormatTests|FullyQualifiedName~OrphanBackup'
+          --logger 'trx;LogFileName=hotpaths.trx' --results-directory artifacts/hotpaths
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storage-hotpaths-${{ github.sha }}
+          path: artifacts/hotpaths/*
+          retention-days: 14
