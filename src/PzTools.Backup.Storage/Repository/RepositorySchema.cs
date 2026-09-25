@@ -6,7 +6,7 @@ internal sealed record RepositoryMigration(int Version, string Name, string Sql)
 
 internal static class RepositorySchema
 {
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 
     public static IReadOnlyList<RepositoryMigration> Migrations { get; } =
     [
@@ -280,6 +280,8 @@ internal static class RepositorySchema
             """
             ALTER TABLE revisions ADD COLUMN character_metadata_error TEXT NULL;
             """),
+        new RepositoryMigration(12, "128-bit SHA-256 change fingerprints",
+            ContentFingerprintMigration.Sql),
     ];
 }
 

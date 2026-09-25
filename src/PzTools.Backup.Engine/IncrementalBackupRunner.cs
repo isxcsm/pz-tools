@@ -540,7 +540,7 @@ public sealed class IncrementalBackupRunner(
         }
         var after = metadataReader.ReadHandle(stream.SafeFileHandle);
         var current = metadataReader.ReadPath(path);
-        return hash.AsSpan().SequenceEqual(previousHash)
+        return ContentFingerprint.MatchesSha256(hash, previousHash)
             && before == after && after == current
             && before.Length == entry.Length
             && before.ModifiedUtc == entry.ModifiedUtc

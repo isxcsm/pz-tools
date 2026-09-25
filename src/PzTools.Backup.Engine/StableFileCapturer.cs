@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using PzTools.Backup.Core;
 using PzTools.Backup.Core.Capture;
 using PzTools.Backup.Core.Configuration;
 using PzTools.Backup.Storage.Packs;
@@ -12,7 +13,8 @@ public sealed record StableFileCaptureResult(
     FileCaptureMetadata SourceMetadata,
     byte[]? ContentHash = null)
 {
-    public string? ContentHashAlgorithm => ContentHash is null ? null : "Sha256";
+    public string? ContentHashAlgorithm => ContentHash is null
+        ? null : ContentFingerprint.AlgorithmForLength(ContentHash.Length);
 }
 
 public sealed record FileCopyProgress(long CopiedBytes, long TotalBytes, int Attempt, string Phase = "copy");
@@ -228,7 +230,8 @@ public sealed class StableFileCapturer : IStableFileCapturer
 
             staging.Position = 0;
             return new StagedFileCapture(
-                staging, capturedMetadata, recordContentHash ? copyHash.Hash : null);
+                staging, capturedMetadata,
+                recordContentHash ? ContentFingerprint.FromSha256(copyHash.Hash) : null);
         }
         catch
         {

@@ -399,7 +399,10 @@ public sealed class FullScanSession : IAsyncDisposable
             SELECT scan.path_key, scan.display_path, scan.entry_kind, scan.byte_length,
                    scan.modified_utc, scan.changed_utc, scan.attributes,
                    scan.file_id, scan.parent_file_id,
-                   CASE WHEN object.content_hash_algorithm = 'Sha256' THEN object.content_hash
+                   CASE WHEN object.content_hash_algorithm = 'Sha256_128' AND length(object.content_hash) = 16
+                            THEN object.content_hash
+                        WHEN object.content_hash_algorithm = 'Sha256' AND length(object.content_hash) = 32
+                            THEN object.content_hash
                         WHEN object.checksum_algorithm = 'Sha256' AND length(object.checksum) = 32
                             THEN object.checksum ELSE NULL END
             FROM full_scan_entries AS scan
