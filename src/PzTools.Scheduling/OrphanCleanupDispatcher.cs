@@ -8,7 +8,7 @@ namespace PzTools.Scheduling;
 // Independent of automatic backups: a save may disappear when no backup target remains.
 public sealed class OrphanCleanupDispatcher(
     string repositoryPath, string savesRoot, string workerDirectory, string? controlDatabasePath = null,
-    int intervalSeconds = 60)
+    int intervalSeconds = 60, Func<bool>? shouldDefer = null)
 {
     private DateTimeOffset nextDue = DateTimeOffset.MinValue;
 
@@ -17,6 +17,8 @@ public sealed class OrphanCleanupDispatcher(
         if (now < nextDue) return;
         if (intervalSeconds is < 10 or > 86400) throw new ArgumentOutOfRangeException(nameof(intervalSeconds));
         nextDue = now.AddSeconds(intervalSeconds);
+        cancellationToken.ThrowIfCancellationRequested();
+        if ((shouldDefer ?? GameplayWorkGate.ShouldDeferMaintenance)()) return;
         try
         {
             if (await MaintenanceLaneSignal.IsRunningAsync(repositoryPath, "OrphanBackups", cancellationToken)) return;

@@ -2,7 +2,7 @@
 
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
 
-Current schema is **4**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
+Current schema is **5**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
 
 This is a pre-release breaking layout change. Schema 1/2 and format 1 repositories
 are rejected with `repository-reset-required`; there is no migration, dual reader,

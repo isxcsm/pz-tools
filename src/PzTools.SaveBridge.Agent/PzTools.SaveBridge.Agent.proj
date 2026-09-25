@@ -27,8 +27,13 @@
     <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(_BridgeLanguageGenerator)&quot; -Catalog &quot;@(LanguageCatalog)&quot; -OutputFile &quot;$(_BridgeLanguageSource)&quot;" />
     <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 --add-modules jdk.attach -d &quot;$(_BridgeClasses)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ') &quot;$(_BridgeLanguageSource)&quot;" />
     <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --file &quot;$(BridgeOutputPath)\pztools-save-bridge.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)&quot; pztools/bridge/runtime -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AttachMain.class" />
+    <!-- Package all stable bootstrap nested classes, but no attach/runtime classes. -->
+    <ItemGroup><_BootstrapClasses Include="$(_BridgeClasses)\pztools\bridge\AgentEntry*.class" /></ItemGroup>
+    <RemoveDir Directories="$(_BridgeClasses)\bootstrap" />
+    <MakeDir Directories="$(_BridgeClasses)\bootstrap\pztools\bridge" />
+    <Copy SourceFiles="@(_BootstrapClasses)" DestinationFolder="$(_BridgeClasses)\bootstrap\pztools\bridge" />
     <!-- Reproducible bytes let deployment leave the already loaded stable bootstrap alone. -->
-    <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-save-bootstrap.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AgentEntry.class -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AgentEntry$1.class" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-save-bootstrap.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)\bootstrap&quot; pztools/bridge" />
   </Target>
   <Target Name="BuildRuntime" DependsOnTargets="PrepareAgent"
           Inputs="$(BridgeJdkPath)\release;$(BridgeOutputPath)\runtime-inputs.txt;$(MSBuildProjectFullPath)"

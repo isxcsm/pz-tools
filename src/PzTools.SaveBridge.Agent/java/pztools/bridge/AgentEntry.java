@@ -1,33 +1,121 @@
 package pztools.bridge;
 
-import java.lang.instrument.Instrumentation;
+import java.io.*;
+import java.lang.classfile.*;
+import java.lang.constant.*;
+import java.lang.instrument.*;
+import java.lang.reflect.Method;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Base64;
-import java.util.HashMap;
+import java.nio.file.*;
+import java.security.*;
+import java.util.*;
+import java.util.concurrent.atomic.*;
 import java.util.zip.ZipInputStream;
 
-/** Stable dispatch only. Request implementations live in a disposable class loader. */
+/** One bootstrap and idle dispatch hook per JVM; no save is performed by the control thread. */
 public final class AgentEntry {
+    public static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
     private static Object owner;
     private static volatile Runnable callback;
+    private static Instrumentation instrumentation;
+    private static Class<?> window;
+    private static ClassFileTransformer hook;
+    private static final AtomicBoolean session = new AtomicBoolean();
+    private static Path payload;
+    private static byte[] payloadDigest;
+    private static Method payloadRun;
+    private static volatile long payloadLoads;
+    private static volatile long hookInstalls;
+    private static volatile long sessions;
 
-    public static void agentmain(String options, Instrumentation instrumentation) {
+    public static synchronized void agentmain(String options, Instrumentation value) throws Exception {
+        if (instrumentation != null) throw new IllegalStateException("Bootstrap already loaded; reuse its control endpoint");
         String[] parts = options.split(":", -1);
-        if (parts.length != 3) throw new IllegalArgumentException("Invalid bridge session");
-        Path payload = Path.of(new String(Base64.getDecoder().decode(parts[2]), StandardCharsets.UTF_8));
-        if (!payload.isAbsolute()) throw new IllegalArgumentException("Absolute payload path required");
-        Thread worker = new Thread(() -> {
-            try {
-                // URL/JarFile caches can retain an older central directory when an app
-                // replaces the payload at the same path. Read one fresh, closed snapshot.
+        if (parts.length != 2 || !parts[0].equals("BOOTSTRAP1"))
+            throw new IllegalArgumentException("Incompatible bootstrap; rebuild app/workers and restart the game");
+        Path candidate = Path.of(new String(Base64.getDecoder().decode(parts[1]), StandardCharsets.UTF_8));
+        if (!candidate.isAbsolute()) throw new IllegalArgumentException("Absolute payload path required");
+        payload = candidate.normalize();
+        var server = new ServerSocket();
+        server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 8);
+        byte[] key = new byte[32];
+        new SecureRandom().nextBytes(key);
+        String secret = HexFormat.of().formatHex(key);
+        instrumentation = value;
+        Thread control = new Thread(() -> controlLoop(server, secret), "PzTools-bridge-control");
+        control.setDaemon(true);
+        try {
+            control.start();
+            // Published only after the listener is bound. Never print this credential.
+            System.setProperty(CONTROL_PROPERTY, "1:" + ProcessHandle.current().pid() + ":"
+                + server.getLocalPort() + ":" + secret);
+        } catch (Throwable failure) {
+            server.close();
+            throw failure;
+        }
+    }
+
+    private static void controlLoop(ServerSocket server, String secret) {
+        while (!server.isClosed()) {
+            try (Socket socket = server.accept()) {
+                socket.setSoTimeout(2000);
+                var input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                var output = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+                String line = readLimited(input);
+                String[] parts = line == null ? new String[0] : line.split("\\t", -1);
+                if (parts.length != 4 || !MessageDigest.isEqual(secret.getBytes(StandardCharsets.US_ASCII),
+                        parts[0].getBytes(StandardCharsets.US_ASCII))) {
+                    output.println("REJECTED");
+                    continue;
+                }
+                int port = Integer.parseInt(parts[1]);
+                Path requestedPayload = Path.of(new String(Base64.getDecoder().decode(parts[3]), StandardCharsets.UTF_8));
+                if (port < 1 || port > 65535 || !parts[2].matches("[0-9a-f]{64}")
+                        || !requestedPayload.isAbsolute() || !payload.equals(requestedPayload.normalize())) {
+                    output.println("RESTART_REQUIRED");
+                    continue;
+                }
+                if (!session.compareAndSet(false, true)) { output.println("BUSY"); continue; }
+                try {
+                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2]), "PzTools-save-bridge");
+                    worker.setDaemon(true);
+                    worker.start();
+                    output.println("ACCEPTED");
+                } catch (Throwable failure) {
+                    session.set(false);
+                    throw failure;
+                }
+            } catch (Exception failure) {
+                // Invalid/abandoned control clients cannot enqueue a save. No retry of an accepted request.
+                if (server.isClosed()) return;
+            }
+        }
+    }
+
+    private static void runSession(String options) {
+        try {
+            // Read a closed snapshot, never JarFile/URL caches. One current payload loader is retained.
+            // A changed payload replaces it only between sessions; old request state cannot overlap.
+            byte[] archive;
+            try (var stream = Files.newInputStream(payload)) {
+                archive = stream.readNBytes(16 * 1024 * 1024 + 1);
+            }
+            if (archive.length > 16 * 1024 * 1024) throw new IOException("Oversized bridge payload");
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(archive);
+            if (payloadRun == null || !MessageDigest.isEqual(digest, payloadDigest)) {
                 var classes = new HashMap<String, byte[]>();
-                try (var zip = new ZipInputStream(Files.newInputStream(payload))) {
+                int total = 0;
+                try (var zip = new ZipInputStream(new ByteArrayInputStream(archive))) {
                     for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
                         String name = entry.getName();
-                        if (name.startsWith("pztools/bridge/runtime/") && name.endsWith(".class"))
-                            classes.put(name.substring(0, name.length() - 6).replace('/', '.'), zip.readAllBytes());
+                        if (name.startsWith("pztools/bridge/runtime/") && name.endsWith(".class")) {
+                            byte[] bytes = zip.readNBytes(2 * 1024 * 1024 + 1);
+                            total = Math.addExact(total, bytes.length);
+                            if (bytes.length > 2 * 1024 * 1024 || total > 16 * 1024 * 1024)
+                                throw new IOException("Oversized runtime classes");
+                            classes.put(name.substring(0, name.length() - 6).replace('/', '.'), bytes);
+                        }
                     }
                 }
                 var loader = new ClassLoader(AgentEntry.class.getClassLoader()) {
@@ -45,15 +133,76 @@ public final class AgentEntry {
                         }
                     }
                 };
-                loader.loadClass("pztools.bridge.runtime.SaveBridge")
-                    .getMethod("run", String.class, Instrumentation.class)
-                    .invoke(null, parts[0] + ":" + parts[1], instrumentation);
-            } catch (Throwable exception) {
-                System.err.println("[PzTools bridge session] " + exception);
+                Method next = loader.loadClass("pztools.bridge.runtime.SaveBridge")
+                    .getMethod("run", String.class, Instrumentation.class);
+                payloadRun = next;
+                payloadDigest = digest;
+                payloadLoads++;
             }
-        }, "PzTools-save-bridge");
-        worker.setDaemon(true);
-        worker.start();
+            sessions++;
+            payloadRun.invoke(null, options, instrumentation);
+        } catch (Throwable failure) {
+            System.err.println("[PzTools bridge session] " + failure);
+        } finally { session.set(false); }
+    }
+
+    /** Installs only the stable dispatch call, never a callback owned by a payload loader. */
+    public static synchronized Class<?> ensureGameHook() throws Exception {
+        if (hook != null) return window;
+        if (Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
+            throw new IllegalStateException("This bridge requires Java 25 with retransformation");
+        for (Class<?> type : instrumentation.getAllLoadedClasses()) {
+            if (type.getName().equals("zombie.GameWindow")) {
+                if (window != null && window != type) throw new IllegalStateException("Multiple GameWindow classes");
+                window = type;
+            }
+        }
+        if (window == null) throw new IllegalStateException("GameWindow has not loaded yet");
+        if (Class.forName(AgentEntry.class.getName(), false, window.getClassLoader()) != AgentEntry.class)
+            throw new IllegalStateException("Game cannot access the bootstrap");
+        Method logic = window.getDeclaredMethod("logic");
+        Method save = window.getMethod("save", boolean.class);
+        window.getField("gameThread");
+        if (!java.lang.reflect.Modifier.isStatic(logic.getModifiers()) || logic.getReturnType() != void.class
+                || !java.lang.reflect.Modifier.isStatic(save.getModifiers()) || save.getReturnType() != void.class)
+            throw new IllegalStateException("Unsupported game method signatures");
+        var transformed = new AtomicBoolean();
+        var failure = new AtomicReference<Throwable>();
+        ClassFileTransformer candidate = new ClassFileTransformer() {
+            @Override public byte[] transform(ClassLoader loader, String name, Class<?> type,
+                    ProtectionDomain domain, byte[] bytes) {
+                if (type != window) return null;
+                try {
+                    byte[] result = transformWindow(bytes, loader);
+                    transformed.set(true);
+                    return result;
+                } catch (Throwable exception) { failure.set(exception); return null; }
+            }
+        };
+        instrumentation.addTransformer(candidate, true);
+        try {
+            instrumentation.retransformClasses(window);
+            if (!transformed.get()) throw new IllegalStateException("Could not install game hook", failure.get());
+            hook = candidate;
+            hookInstalls++;
+            return window;
+        } finally { if (hook == null) instrumentation.removeTransformer(candidate); }
+    }
+
+    private static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
+        var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)));
+        var model = cf.parse(bytes);
+        if (model.methods().stream().filter(m -> m.methodName().equalsString("logic")
+                && m.methodType().equalsString("()V")).count() != 1)
+            throw new IllegalArgumentException("Expected exactly one GameWindow.logic()V");
+        return cf.transformClass(model, ClassTransform.transformingMethodBodies(
+            m -> m.methodName().equalsString("logic") && m.methodType().equalsString("()V"),
+            CodeTransform.ofStateful(() -> new CodeTransform() {
+                @Override public void atStart(CodeBuilder builder) {
+                    builder.invokestatic(ClassDesc.of("pztools.bridge.AgentEntry"), "poll", MethodTypeDesc.of(ConstantDescs.CD_void));
+                }
+                @Override public void accept(CodeBuilder builder, CodeElement element) { builder.with(element); }
+            })));
     }
 
     public static synchronized boolean acquire(Object candidate, Runnable poll) {
@@ -62,15 +211,27 @@ public final class AgentEntry {
         callback = poll;
         return true;
     }
-
     public static synchronized void release(Object candidate) {
         if (owner != candidate) return;
         callback = null;
         owner = null;
     }
-
     public static void poll() {
         Runnable current = callback;
         if (current != null) current.run();
+    }
+    // Test/diagnostic counters: never include credentials or payload paths.
+    public static synchronized String diagnostics() {
+        return "hookInstalls=" + hookInstalls + ";payloadLoads=" + payloadLoads + ";sessions=" + sessions
+            + ";callbackActive=" + (callback != null);
+    }
+    private static String readLimited(Reader input) throws IOException {
+        var line = new StringBuilder();
+        for (int value; (value = input.read()) != -1;) {
+            if (value == '\n') return line.toString();
+            if (value != '\r') line.append((char)value);
+            if (line.length() > 32768) throw new IOException("Oversized control request");
+        }
+        return null;
     }
 }

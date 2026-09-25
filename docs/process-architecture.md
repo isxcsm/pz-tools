@@ -10,8 +10,9 @@ BackupScheduler → BackupRunner → Backup.Once
                                       ├─ RevisionReclamation 자식 작업
                                       └─ ArtifactCleanup 자식 작업
 
-StateScheduler  → StateRunner → StateCollector.Once → StateReactor.Once
-                               → Scheduler outbox relay
+StateScheduler  → StateCheckPipeline (같은 프로세스의 Collector → Reactor)
+                → Scheduler outbox relay
+StateRunner     → StateCollector.Once → StateReactor.Once (수동/직접 실행 경로)
 ```
 
 BackupScheduler는 세이브별 job 목록을 갖지 않습니다. 하나의 `scheduler.db`에
@@ -88,7 +89,9 @@ Activity lane이 실패하거나 `Unknown`을 반환한 세이브는 stale로 �
 StateScheduler의 기본 수집 간격은 3초입니다. Windows에서 Project Zomboid
 프로세스의 종료 이벤트를 관찰하면 주기 도래를 기다리지 않고 상태 수집을 두 번
 실행해 비활성 상태를 확정합니다. 종료 훅을 놓치거나 프로세스를 식별할 수 없는
-경우에도 3초 주기 확인이 계속 동작합니다.
+경우에도 3초 주기 확인이 계속 동작합니다. 주기 경로는 같은 스케줄러 프로세스에서
+Collector/Reactor를 실행하며, 기존 StateCollection mutex와 pending batch/outbox 복구를
+유지합니다. 수동 즉시 갱신 및 직접 Runner 호출은 기존 별도 프로세스 경로입니다.
 
 한 번의 Active/Inactive 관측은 상태 전이를 만들지 않습니다. 같은 값이 두 번
 연속 관측돼야 확정하며 `Unknown`은 횟수를 늘리지 않습니다. 확정된
@@ -118,7 +121,10 @@ StateScheduler의 기본 수집 간격은 3초입니다. Windows에서 Project Z
 
 앱이 시작하는 StateScheduler는 `--repository`와 `--saves-root`를 받아,
 자동 백업 사용 여부와 관계없이 1분마다 Maintenance worker의 `OrphanBackups`
-레인을 별도 프로세스로 호출합니다. 상태 수집은 이 정리 작업의 완료를 기다리지 않습니다.
+레인을 별도 프로세스로 호출합니다. 다만 게임 프로세스가 실행 중이거나 판정이 불확실하면
+무거운 레인·고아 정리는 보류합니다. 메뉴 상태도 보류하며 다음 게임 종료 후 점검에서
+재개합니다. 이미 시작한 레인은 게임 시작을 감지하면 기존 취소 경계에서 양보합니다.
+상태 수집은 이 정리 작업의 완료를 기다리지 않습니다.
 중복 실행 방지, RepositoryAccess 잠금, writer lease, 백업 우선 양보를 적용합니다.
 
 저장소 source key와 현재 설정의 `Saves/<mode>/<save>` 경로가 정확히 일치하고,

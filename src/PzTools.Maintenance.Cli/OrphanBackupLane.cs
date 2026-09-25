@@ -17,9 +17,13 @@ internal static class OrphanBackupLane
         options.Validate();
         const string lane = "OrphanBackups";
         const string owner = "maintenance-lane-OrphanBackups";
+        if (GameplayWorkGate.ShouldDeferMaintenance())
+            return (ProcessOutcome.Skipped, new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0);
         var acquired = await NamedMutexRunner.TryRunAsync(
             MaintenanceLaneSignal.MutexName(repositoryPath, lane), async _ =>
             {
+                if (GameplayWorkGate.ShouldDeferMaintenance())
+                    return (ProcessOutcome.Skipped, (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0L);
                 using var cancellation = new CancellationTokenSource();
                 using var watch = MaintenanceLaneSignal.WatchForYield(repositoryPath, lane, cancellation);
                 var access = await OperationMutexSet.TryRunAsync(
@@ -33,6 +37,8 @@ internal static class OrphanBackupLane
                         var timer = Stopwatch.StartNew();
                         try
                         {
+                            using var gameplayWatch = GameplayWorkGate.WatchForGameplay(cancellation);
+                            token.ThrowIfCancellationRequested();
                             var recovery = await new InterruptedOperationRecoveryService().RunUnderRepositoryLockAsync(
                                 repository, savesRoot, token, collectGarbage: false);
                             if (recovery.Busy) throw new RepositoryBusyException(repositoryPath);

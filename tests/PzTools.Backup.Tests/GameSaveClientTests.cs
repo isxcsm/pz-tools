@@ -25,7 +25,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
             var latest = File.ReadAllLines(temp.GetPath("notices.txt")).Last().Split('\t');
             Assert.Equal(language.SaveCompleted, latest[1]);
         }
-        await AssertDetachedAsync(temp);
+        await AssertIdleAsync(temp);
     }
 
     [BridgeFact]
@@ -45,7 +45,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         Assert.InRange(long.Parse(notices[0][0]) - due.ToUnixTimeMilliseconds(), -5000, -4000);
         Assert.InRange(long.Parse(await File.ReadAllTextAsync(temp.GetPath("save-time.txt")))
             - due.ToUnixTimeMilliseconds(), 0, 1500);
-        await AssertDetachedAsync(temp);
+        await AssertIdleAsync(temp);
     }
 
     [BridgeFact]
@@ -87,7 +87,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         try
         {
             await client.RequestAsync(game.Pid, temp.Path, true);
-            await AssertDetachedAsync(temp);
+            await AssertIdleAsync(temp);
             var payload = Path.Combine(bridge, "pztools-save-bridge.jar");
             var replacement = payload + ".new";
             using (var archive = System.IO.Compression.ZipFile.OpenRead(payload))
@@ -111,7 +111,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
             File.Move(replacement, payload, overwrite: true);
             await client.RequestAsync(game.Pid, temp.Path, true);
             Assert.Contains("Game save finished", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
-            await AssertDetachedAsync(temp);
+            await AssertIdleAsync(temp);
         }
         catch (Exception exception)
         {
@@ -121,11 +121,14 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         }
     }
 
-    private static async Task AssertDetachedAsync(TempDirectory temp)
+    private static async Task AssertIdleAsync(TempDirectory temp)
     {
         var calls = await ReadHookAsync(temp);
         Assert.Contains("bridgefixture/Inspector.marker", calls);
-        Assert.DoesNotContain("pztools/bridge/", calls);
+        Assert.Equal(1, calls.Split('\n').Count(line => line == "pztools/bridge/AgentEntry.poll"));
+        Assert.DoesNotContain("pztools/bridge/SaveBridge.poll", calls);
+        Assert.Contains("hookInstalls=1", calls);
+        Assert.Contains("callbackActive=false", calls);
         Assert.DoesNotContain("bridge-session-active", calls);
     }
 
@@ -215,7 +218,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
             temp.GetPath("repository"), [new BackupSourceOptions("world", sourcePath)],
             new StorageOptions(ChecksumAlgorithm.Sha256, CompressionAlgorithm.None, false),
             new TelemetryOptions(TelemetryMode.Off, 16, 10, 10, 32))
-        { AlwaysIncludePaths = ["calls.txt"] };
+        { AlwaysIncludePaths = ["calls.txt", "memory-only-state.txt"] };
         var service = new OneShotBackupService(new UsnJournalReader(), async (path, token) =>
         {
             var result = await preparation.PrepareAsync(path, token);
@@ -231,7 +234,57 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
             var lines = await File.ReadAllLinesAsync(Path.Combine(restored, "calls.txt"));
             Assert.Equal(revision, lines.Length);
             Assert.All(lines, line => Assert.Contains("Synthetic-game-thread", line));
+            // This state exists only in synthetic game memory until save(true) flushes it.
+            Assert.Equal(revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                await File.ReadAllTextAsync(Path.Combine(restored, "memory-only-state.txt")));
         }
+    }
+
+    [BridgeFact]
+    public async Task Bridge_ResidentEndpointRejectsUnauthenticatedRequests_WithoutSaving()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        await Client().RequestAsync(game.Pid, temp.Path, false);
+        await File.WriteAllTextAsync(temp.GetPath("inspect-control"), "test-only");
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (!File.Exists(temp.GetPath("control-state.txt"))) await Task.Delay(20, deadline.Token);
+        var fields = (await File.ReadAllTextAsync(temp.GetPath("control-state.txt"))).Split(':');
+        Assert.Equal("1", fields[0]);
+        using (var socket = new System.Net.Sockets.TcpClient())
+        {
+            await socket.ConnectAsync(System.Net.IPAddress.Loopback, int.Parse(fields[2]), deadline.Token);
+            using var writer = new StreamWriter(socket.GetStream(), new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
+            using var reader = new StreamReader(socket.GetStream(), leaveOpen: true);
+            await writer.WriteLineAsync("invalid\t1\t" + new string('0', 64) + "\t" + Encode(temp.Path));
+            Assert.Equal("REJECTED", await reader.ReadLineAsync(deadline.Token));
+        }
+        Assert.False(File.Exists(temp.GetPath("calls.txt")));
+        await Client().RequestAsync(game.Pid, temp.Path, true);
+        Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));
+        await AssertIdleAsync(temp);
+    }
+
+    [BridgeFact]
+    public async Task Bridge_RepeatedSessionsReuseBootstrapPayloadAndHook_AndSaveEveryTime()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = Client();
+        for (var index = 0; index < 50; index++)
+        {
+            await client.RequestAsync(game.Pid, temp.Path, true);
+        }
+        Assert.Equal(50, File.ReadAllLines(temp.GetPath("calls.txt")).Length);
+        Assert.Equal("50", await File.ReadAllTextAsync(temp.GetPath("memory-only-state.txt")));
+        var snapshot = await ReadHookAsync(temp);
+        Assert.Contains("hookInstalls=1;payloadLoads=1;sessions=50;callbackActive=false", snapshot);
+        await AssertIdleAsync(temp);
+        // Inspection itself retransforms the class through another agent. Our next request
+        // must still work without reinstalling or inserting a second poll callback.
+        await client.RequestAsync(game.Pid, temp.Path, true);
+        Assert.Equal(51, File.ReadAllLines(temp.GetPath("calls.txt")).Length);
+        await AssertIdleAsync(temp);
     }
 
     [BridgeFact]
@@ -305,7 +358,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
         Assert.DoesNotContain("Game save complete", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
         Assert.Contains("Probe only", await client.RequestAsync(game.Pid, temp.Path, false));
-        await AssertDetachedAsync(temp);
+        await AssertIdleAsync(temp);
     }
 
     [BridgeFact]

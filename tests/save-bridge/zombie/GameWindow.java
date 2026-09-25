@@ -9,6 +9,7 @@ public final class GameWindow {
     public static States states = new States();
     public static String mode;
     public static long ticks;
+    private static int memoryOnlyState;
     public static final class States { public Object current = new zombie.gameStates.IngameState(); }
 
     private static void logic() { ticks++; }
@@ -16,6 +17,8 @@ public final class GameWindow {
     public static void save(boolean flag) throws IOException {
         if (Thread.currentThread() != gameThread || !flag) throw new IOException("Wrong save invocation");
         if (mode.equals("throw")) throw new IOException("Synthetic save failure");
+        Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "memory-only-state.txt"),
+            Integer.toString(++memoryOnlyState));
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "calls.txt"),
             Thread.currentThread().getName() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "save-ticks.txt"), Long.toString(ticks));
@@ -37,6 +40,12 @@ public final class GameWindow {
         while (true) {
             if (Files.deleteIfExists(Path.of(args[0], "inspect-hook")))
                 bridgefixture.Inspector.inspect(Path.of(args[0], "hook-state.txt"));
+            if (Files.deleteIfExists(Path.of(args[0], "inspect-control"))) {
+                String endpoint = System.getProperty("pztools.bridge.control.v1", "");
+                Path staged = Path.of(args[0], "control-state.tmp");
+                Files.writeString(staged, endpoint);
+                Files.move(staged, Path.of(args[0], "control-state.txt"), StandardCopyOption.REPLACE_EXISTING);
+            }
             if (Files.exists(Path.of(args[0], "leave-world"))) states.current = new Object();
             if (!mode.equals("stalled") || Files.exists(Path.of(args[0], "resume"))) logic();
             Thread.sleep(20);

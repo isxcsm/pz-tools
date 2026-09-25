@@ -7,7 +7,7 @@ import java.lang.instrument.*;
 import java.nio.file.*;
 import java.security.ProtectionDomain;
 
-/** Test-only instrumentation: also checks that removing our hook preserves other agents. */
+/** Test-only instrumentation: checks one stable idle hook and preservation of other agents. */
 public final class Inspector {
     private static Instrumentation instrumentation;
     public static void marker() { }
@@ -46,9 +46,17 @@ public final class Inspector {
                 return null;
             }
         };
-        instrumentation.addTransformer(reader, true);
-        try { instrumentation.retransformClasses(Class.forName("zombie.GameWindow")); }
-        finally { instrumentation.removeTransformer(reader); }
+        Instrumentation observer = instrumentation;
+        try {
+            var resident = Class.forName("pztools.bridge.AgentEntry");
+            var field = resident.getDeclaredField("instrumentation");
+            field.setAccessible(true);
+            observer = (Instrumentation)field.get(null);
+            calls.append(resident.getMethod("diagnostics").invoke(null)).append('\n');
+        } catch (ClassNotFoundException ignored) { }
+        observer.addTransformer(reader, true);
+        try { observer.retransformClasses(Class.forName("zombie.GameWindow")); }
+        finally { observer.removeTransformer(reader); }
         // Each Java agent has its own transformer chain. Our premain observer sees
         // legacy hooks, but runs before the newly attached agent's chain. Read the
         // bootstrap ownership separately when checking an active/new session.

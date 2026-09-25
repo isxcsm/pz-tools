@@ -12,8 +12,7 @@ public sealed class StateProjector(
     private long cursor = -1;
     private bool awaitingFreshObservation = observedAfterUtc.HasValue;
     private CurrentStateSnapshot? latestSnapshot;
-    private readonly Dictionary<string, (string? Version, CharacterSnapshot Snapshot)> characters =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly CharacterProjectionCache characters = new(new CharacterNameReader().ReadSnapshotAsync);
 
     public async Task ProjectOnceAsync(CancellationToken cancellationToken = default)
     {
@@ -42,21 +41,13 @@ public sealed class StateProjector(
         foreach (var state in saves)
         {
             var item = Map(state);
-            if (!characters.TryGetValue(item.SaveId, out var cached) || cached.Version != item.ThumbnailKey)
-            {
-                var character = await new CharacterNameReader().ReadSnapshotAsync(
-                    Path.Combine(item.SourcePath, "players.db"), cancellationToken);
-                if (character.ReadSucceeded)
-                    characters[item.SaveId] = (item.ThumbnailKey, character);
-                // Keep the last good display during a transient lock, but do not cache
-                // the failed version: the next background tick must retry it.
-                cached = (item.ThumbnailKey, character.ReadSucceeded ? character : cached.Snapshot ?? character);
-            }
-            mapped.Add(item with { Character = cached.Snapshot });
+            var path = Path.Combine(item.SourcePath, "players.db");
+            // A changed thumbnail does not invalidate player parsing. Include WAL changes.
+            var version = FileVersion(path) + ":wal:" + FileVersion(path + "-wal");
+            var character = await characters.ReadAsync(path, version, cancellationToken);
+            mapped.Add(item with { Character = character });
         }
-        var activeIds = mapped.Select(item => item.SaveId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var removed in characters.Keys.Where(key => !activeIds.Contains(key)).ToArray())
-            characters.Remove(removed);
+        characters.RetainOnly(mapped.Select(item => Path.Combine(item.SourcePath, "players.db")));
         var model = new SaveListView(
             snapshot.StateRevision,
             game,

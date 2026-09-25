@@ -2,7 +2,7 @@
 # for those checks. This is separate from the automatic backup interval.
 [scheduler]
 # Time between game-state checks, in seconds (minimum 1). A shorter interval
-# reacts sooner but starts more helper processes and uses more CPU and disk.
+# reacts sooner but performs more state/database work in the scheduler process.
 interval_seconds = 3
 
 # Check timers and game-exit notifications every this many milliseconds
@@ -14,6 +14,7 @@ wake_interval_ms = 1000
 confirmation_delay_ms = 150
 # Check interrupted operations and backups whose original saves are missing
 # every this many seconds (10-86400). Runs even when automatic backup is off.
+# Heavy cleanup is deferred while a game process may be alive (including menus).
 # Larger values reduce disk work but leave interrupted work and orphan backups
 # around longer. Busy operations are skipped and retried on a later check.
 cleanup_interval_seconds = 60
