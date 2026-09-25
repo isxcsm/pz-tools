@@ -1,0 +1,21 @@
+name: Path normalization snapshot
+on:
+  push:
+    branches: [optimize/content-fingerprint128]
+    paths: ['.github/workflows/path-normalization-snapshot.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: git archive --format=zip --output=source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: path-normalization-source-${{ github.sha }}
+          path: source.zip
+          retention-days: 1
