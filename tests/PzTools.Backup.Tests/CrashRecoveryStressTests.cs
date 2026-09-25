@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PzTools.Backup.Tests;
 
@@ -18,11 +19,18 @@ internal static class NativeSqliteDiagnostics
             new SQLitePCL.strdelegate_log((state, code, message) =>
             {
                 if ((code & 255) != 10) return;
-                messages.Enqueue($"{code}: {message}");
+                var osError = OperatingSystem.IsWindows() ? GetLastError() : 0;
+                messages.Enqueue($"{code}: win32={osError}; {message}");
                 while (messages.Count > 32) messages.TryDequeue(out _);
+                if (OperatingSystem.IsWindows()) SetLastError(osError);
             }), null);
     }
 #pragma warning restore CA2255
+
+    [DllImport("kernel32.dll", ExactSpelling = true)]
+    private static extern uint GetLastError();
+    [DllImport("kernel32.dll", ExactSpelling = true)]
+    private static extern void SetLastError(uint error);
 
     internal static string Snapshot() => $"logger={registrationResult}; " + string.Join("\n", messages);
 }
