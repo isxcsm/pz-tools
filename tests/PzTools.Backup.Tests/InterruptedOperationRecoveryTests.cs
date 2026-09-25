@@ -194,8 +194,7 @@ public sealed class InterruptedOperationRecoveryTests
         await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
         var result = await repository.RecoverInterruptedWorkflowsAsync(lease);
         Assert.Equal(recovered ? 1 : 0, result.Recovered);
-        Assert.Equal(WorkflowStatus.Running == (recovered ? WorkflowStatus.Abandoned : WorkflowStatus.Running)
-            ? WorkflowStatus.Running : WorkflowStatus.Abandoned,
+        Assert.Equal(recovered ? WorkflowStatus.Abandoned : WorkflowStatus.Running,
             (await repository.ReadWorkflowAsync(workflow.RunIndex)).Status);
     }
 
