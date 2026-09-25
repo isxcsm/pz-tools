@@ -183,15 +183,15 @@ public sealed class SchedulerTests
         Assert.Null(await database.PrepareBackupTickAsync(now));
         var state = await database.ReadBackupStateIfChangedAsync(-1);
         Assert.Equal(target, state.CurrentTarget);
-// Activity and the automation switch are separate: re-enabling should not
-// need a new game transition, but disabled automation must never run or count down.
-Assert.Equal(SchedulerMode.Continuous, state.Mode);
-Assert.False(state.AutomaticEnabled);
-Assert.Null(await database.PrepareBackupTickAsync(now.AddHours(1)));
-var views = new PzTools.Projections.RevisionedViewStore();
-await new PzTools.Projections.SchedulerProjector(database, views).ProjectOnceAsync();
-Assert.Null(views.ReadIfChanged<PzTools.Projections.ScheduleStatusView>(
-    PzTools.Projections.ViewKey.ScheduleStatus, 0).Snapshot!.NextDueUtc);
+        // Activity and the automation switch are separate: re-enabling should not
+        // need a new game transition, but disabled automation must never run or count down.
+        Assert.Equal(SchedulerMode.Continuous, state.Mode);
+        Assert.False(state.AutomaticEnabled);
+        Assert.Null(await database.PrepareBackupTickAsync(now.AddHours(1)));
+        var views = new PzTools.Projections.RevisionedViewStore();
+        await new PzTools.Projections.SchedulerProjector(database, views).ProjectOnceAsync();
+        Assert.Null(views.ReadIfChanged<PzTools.Projections.ScheduleStatusView>(
+            PzTools.Projections.ViewKey.ScheduleStatus, 0).Snapshot!.NextDueUtc);
     }
 
     [Fact]
