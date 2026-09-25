@@ -65,5 +65,40 @@ integration tests. Targeted test success alone is not release evidence. Exact
 commit IDs, TRX counts and workflow results are recorded in the PR review. Tests
 using real game samples, a live game or elevated USN remain explicit opt-ins.
 
+## Final review follow-up (2026-09-25)
+
+At head `693b60d`, the normal suite passed 722 cases, but the published distribution
+suite passed 735 and failed one: the scheduled-runner fixture attempted to load
+an uninitialized user's global backup-worker configuration. Commit `58c8126`
+creates an explicit temporary worker configuration with phase telemetry and a
+runner configuration, just as the adjacent unscheduled fixture does. The test
+still requires successful completion no earlier than the scheduled time and now
+also restores the produced backup and verifies its exact contents. The product's
+missing-configuration error is not suppressed, and the test is not skipped.
+
+The review also found a supported NULL-identity boundary: entry_versions permits
+an unknown file or parent identity, and full-scan fallback can encounter such an
+entry after the file is deleted. StreamingFullScanner cast DBNull directly to
+byte[], while the pending tombstone's empty sentinel was incompatible with the
+new 24-byte identity constraint. The scanner now carries the internal empty
+sentinel through planning, and only a tombstone converts that sentinel back to
+SQL NULL at registration. Live-entry identity constraints remain unchanged.
+This is not legacy-format compatibility or a schema migration.
+
+Windows workflow `36132614219` first reproduced four InvalidCastException failures
+with unchanged product code (file/parent identity crossed with ordinary/always-
+include deletion). After the guarded two-file fix, all 55 selected storage cases
+passed, including the four new cases. The regression verifies the NULL and the
+other identity's 24 bytes, retained-file restore, deleted-file absence, revision
+compaction, object GC and repository integrity. Artifacts include both before.trx
+and after.trx. Product fix: `d2a1fbca0ec84c8df01df37757f37ce8b3fe2de3`.
+The one-shot reproduction workflow removed itself before this final validation.
+
+Only PR #1 is the merge candidate; PR #2 remains closed as superseded. The exact
+final head must pass the ordinary Windows suite and the freshly published payload
+suite, as well as the separate storage, crash and JVM checks. Final counts and
+merge SHA belong in the PR review rather than a claim based on targeted results.
+No real user repository, save folder or local installation was accessed.
+
 References: SQLite result-code and configuration/error-log documentation;
 Microsoft SetEndOfFile and UnmapViewOfFile documentation.
