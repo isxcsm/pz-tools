@@ -1,0 +1,59 @@
+name: Update disabled scheduling contract assertion
+on:
+  push:
+    branches: [optimize/storage-hotpaths]
+    paths: ['.github/workflows/disabled-scheduler-contract-fix.yml']
+permissions:
+  contents: read
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Preserve inactivity safety assertions and independent enable state
+        run: |
+          python - <<'PY'
+          import pathlib, subprocess
+          def run(*args): subprocess.run(args, check=True)
+          path = 'tests/PzTools.Backup.Tests/SchedulerTests.cs'
+          run('git','diff','--exit-code','132e6fc5c1f649a43c13ab7c4608a429f6663c96','--',path)
+          p=pathlib.Path(path)
+          old='''        Assert.Equal(target, state.CurrentTarget);
+                  Assert.Equal(SchedulerMode.Paused, state.Mode);
+              }
+
+              [Fact]
+              public async Task ChangingIntervalWhilePlaying'''
+          # The indentation below belongs to the actual C# source, not YAML.
+          old = old.replace('\n        ', '\n')
+          old = '        Assert.Equal(target, state.CurrentTarget);\n        Assert.Equal(SchedulerMode.Paused, state.Mode);\n    }\n\n    [Fact]\n    public async Task ChangingIntervalWhilePlaying'
+          new = '''        Assert.Equal(target, state.CurrentTarget);
+                  // Activity and the automation switch are separate: re-enabling should not
+                  // need a new game transition, but disabled automation must never run or count down.
+                  Assert.Equal(SchedulerMode.Continuous, state.Mode);
+                  Assert.False(state.AutomaticEnabled);
+                  Assert.Null(await database.PrepareBackupTickAsync(now.AddHours(1)));
+                  var views = new PzTools.Projections.RevisionedViewStore();
+                  await new PzTools.Projections.SchedulerProjector(database, views).ProjectOnceAsync();
+                  Assert.Null(views.ReadIfChanged<PzTools.Projections.ScheduleStatusView>(
+                      PzTools.Projections.ViewKey.ScheduleStatus, 0).Snapshot!.NextDueUtc);
+              }
+
+              [Fact]
+              public async Task ChangingIntervalWhilePlaying'''
+          new = new.replace('\n        ', '\n')
+          text=p.read_text(encoding='utf-8')
+          assert text.count(old)==1
+          p.write_text(text.replace(old,new),encoding='utf-8')
+          run('git','diff','--check')
+          run('git','add',path)
+          run('git','config','user.name','github-actions[bot]')
+          run('git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com')
+          run('git','commit','-m','Test disabled automation without conflating it with inactive gameplay')
+          run('git','push','origin','HEAD:refs/heads/optimize/storage-hotpaths')
+          PY
