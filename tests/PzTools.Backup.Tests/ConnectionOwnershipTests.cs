@@ -30,7 +30,6 @@ public sealed class ConnectionOwnershipTests
             () => OpenConfiguredAsync(owner, connection, cancellation.Token));
         Assert.True(opened);
         Assert.Equal(ConnectionState.Closed, connection.State);
-        // Check before the test's own disposal. A finalizer must not be needed to unlock it.
         using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
         GC.KeepAlive(connection);
     }
@@ -39,7 +38,7 @@ public sealed class ConnectionOwnershipTests
     [InlineData(typeof(SchedulerDatabase))]
     [InlineData(typeof(StateDatabase))]
     [InlineData(typeof(ProcessTelemetryStore))]
-    public async Task ConfigurationFailure_ReleasesConnectionWithoutChangingDatabase(Type owner)
+    public async Task ExceptionAfterNativeOpen_ReleasesConnectionWithoutChangingDatabase(Type owner)
     {
         using var temp = new TempDirectory();
         var path = temp.GetPath("failure.db");
@@ -47,18 +46,24 @@ public sealed class ConnectionOwnershipTests
         {
             await seed.OpenAsync();
             await using var command = seed.CreateCommand();
-            command.CommandText = "PRAGMA journal_mode=DELETE; CREATE TABLE durable(value INTEGER); INSERT INTO durable VALUES(42);";
+            command.CommandText = "CREATE TABLE durable(value INTEGER); INSERT INTO durable VALUES(42);";
             await command.ExecuteNonQueryAsync();
         }
-        // Native open succeeds, but switching this read-only database to WAL fails.
-        // Do not inject a raw BEGIN: the provider is not required to track that transaction.
-        await using var connection = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
+        await using var connection = new SqliteConnection($"Data Source={path};Pooling=False");
+        var expected = new InvalidOperationException("injected failure after acquiring the native handle");
         var opened = false;
-        connection.StateChange += (_, change) => opened |= change.CurrentState == ConnectionState.Open;
-        var error = await Assert.ThrowsAsync<SqliteException>(
+        connection.StateChange += (_, change) =>
+        {
+            if (change.CurrentState != ConnectionState.Open) return;
+            opened = true;
+            // Deterministic fault at the ownership boundary. Some SQLite versions
+            // silently retain journal mode instead of failing a read-only PRAGMA.
+            throw expected;
+        };
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
             () => OpenConfiguredAsync(owner, connection, default));
+        Assert.Same(expected, error);
         Assert.True(opened);
-        Assert.Equal(8, error.SqliteErrorCode);
         Assert.Equal(ConnectionState.Closed, connection.State);
         using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
         await using var check = new SqliteConnection($"Data Source={path};Pooling=False");
@@ -88,7 +93,6 @@ public sealed class ConnectionOwnershipTests
     private static Task<SqliteConnection> OpenConfiguredAsync(
         Type owner, SqliteConnection connection, CancellationToken token)
     {
-        // Exercise the exact ownership boundary without a public test-only API.
         var method = owner.GetMethod("OpenConfiguredAsync", BindingFlags.NonPublic | BindingFlags.Static)
             ?? throw new InvalidOperationException($"Missing connection setup boundary for {owner.Name}.");
         return (Task<SqliteConnection>)method.Invoke(null, [connection, token])!;

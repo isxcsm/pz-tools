@@ -1,0 +1,32 @@
+name: Crash recovery validation
+on:
+  pull_request:
+    branches: [dev, main]
+permissions:
+  contents: read
+concurrency:
+  group: crash-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  crash-boundaries:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Verify native handle ownership and repeated process termination
+        shell: pwsh
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
+          --filter 'FullyQualifiedName~ConnectionOwnershipTests|FullyQualifiedName~CrashRecoveryStressTests|FullyQualifiedName~InterruptedOperationRecoveryTests'
+          --logger 'trx;LogFileName=crash-recovery.trx' --results-directory artifacts/crash-validation
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crash-validation-${{ github.sha }}
+          path: artifacts/crash-validation/*.trx
+          retention-days: 7
