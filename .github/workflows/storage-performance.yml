@@ -20,8 +20,10 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - name: Check housekeeping SQL and record catalog query evidence
+      - name: Check SQL, layout and lookup evidence
         shell: pwsh
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
         run: |
           python scripts/check-path-normalization.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -32,15 +34,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/measure-catalog-performance.py --baseline-ref 2f3ce6f > artifacts/storage-tests/catalog-query.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Run storage, capture, deduplication and catalog regressions
+          python scripts/measure-storage-hotpaths.py > artifacts/storage-tests/hotpath-queries.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run storage, sharing, deduplication and catalog regressions
         shell: pwsh
         run: >-
           dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
-          --filter 'FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~StoragePerformanceTests|FullyQualifiedName~MissingIdentityDeletionTests|FullyQualifiedName~ContentFingerprintTests|FullyQualifiedName~NormalizedPathTests'
+          --filter 'FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~StoragePerformanceTests|FullyQualifiedName~MissingIdentityDeletionTests|FullyQualifiedName~ContentFingerprintTests|FullyQualifiedName~NormalizedPathTests|FullyQualifiedName~StorageHotpathTests|FullyQualifiedName~ValidatedPackReaderCacheTests|FullyQualifiedName~PackFormatTests|FullyQualifiedName~OrphanBackup'
           --logger 'trx;LogFileName=storage-performance.trx' --results-directory artifacts/storage-tests
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: storage-tests-${{ github.sha }}
           path: artifacts/storage-tests/*
-          retention-days: 7
+          retention-days: 14
