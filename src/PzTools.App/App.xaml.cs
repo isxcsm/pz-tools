@@ -70,9 +70,8 @@ public partial class App : Application
         window.Activate();
         if (configurationError is not null)
             ShowSidebarNotification(InfoBarSeverity.Error,
-                "설정 파일을 읽지 못했습니다",
-                "고급 설정에서 파일을 수정하거나 '기본 설정으로 복원'을 사용해 주세요. "
-                + UserFacingError.FromConfigurationException(configurationError));
+                Localizer.Get("SettingsTitle.Text"),
+                UserFacingError.FromConfigurationException(configurationError));
         ConfigureTray(settings.UseSystemTray);
         _ = StartHostAsync();
     }

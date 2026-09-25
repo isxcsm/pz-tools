@@ -143,6 +143,9 @@ public sealed class UserFacingMessageTests
         foreach (var page in new[] { "SettingsPage", "MainWindowShell", "LogsPage" })
             Assert.Contains("Language = Localizer.Culture.Name;", File.ReadAllText(Path.Combine(app, page + ".xaml.cs")));
         Assert.DoesNotContain("한국어 또는 영어", File.ReadAllText(Path.Combine(app, "SettingsPage.xaml")));
+        var startup = File.ReadAllText(Path.Combine(app, "App.xaml.cs"));
+        Assert.DoesNotContain("설정 파일을 읽지 못했습니다", startup);
+        Assert.Contains("UserFacingError.FromConfigurationException(configurationError)", startup);
     }
 
     [Fact]

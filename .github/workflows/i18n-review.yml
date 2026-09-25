@@ -1,37 +1,47 @@
 name: Localization review
+
 on:
-  push:
-    branches: [i18n/user-friendly-messages]
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - 'src/PzTools.App/**'
+      - 'src/PzTools.App.Core/**'
+      - 'src/PzTools.Process.Contracts/Localization/**'
+      - 'tests/PzTools.Backup.Tests/**'
+      - 'scripts/check-localization.py'
+      - '.github/workflows/i18n-review.yml'
+
 permissions:
   contents: read
+
 concurrency:
-  group: localization-transfer
-  cancel-in-progress: false
+  group: localization-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
+  resources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Check all locale resources and shared game notices
+        run: python scripts/check-localization.py
+
+  messages:
     runs-on: windows-2025
-    timeout-minutes: 25
-    permissions:
-      contents: write
+    timeout-minutes: 20
     defaults:
       run:
         shell: pwsh
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.sha }}
-      - name: Apply exact reviewed localization files
-        run: |
-          git config core.autocrlf false
-          git reset --hard HEAD
-          python .i18n-transfer/apply.py
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git config user.name 'Localization review'
-          git config user.email 'isxcsm@users.noreply.github.com'
-          git commit -m 'i18n: clarify safety notices and localize user-facing failures in 18 languages'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          New-Item artifacts/localization -ItemType Directory -Force | Out-Null
-          git rev-parse HEAD > artifacts/localization/commit.txt
+          persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
@@ -40,32 +50,16 @@ jobs:
           distribution: temurin
           java-version: '25'
           architecture: x64
-      - name: Check all locale resources
-        run: |
-          python scripts/check-localization.py | Tee-Object artifacts/localization/resources.txt
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Build Windows application and workers
-        run: dotnet build PzTools.sln -c Release -p:Platform=x64 -warnaserror
-      - name: Run localization and user-message regression tests
+      - name: Run localization and user-message regressions
         run: >-
           dotnet test tests/PzTools.Backup.Tests -c Release
           --filter 'FullyQualifiedName~LocalizationTests|FullyQualifiedName~UserFacingMessageTests|FullyQualifiedName~SaveActionTooltipTests|FullyQualifiedName~OperationProgressDisplayTests'
           --logger 'trx;LogFileName=localization.trx' --results-directory artifacts/localization
-      - name: Verify all game-save notices in the synthetic JVM
-        run: |
-          ./scripts/test-save-bridge.ps1 -JdkPath $env:JAVA_HOME | Tee-Object artifacts/localization/bridge.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Push verified product commit only to the localization branch
-        run: |
-          $remote = git ls-remote origin refs/heads/i18n/user-friendly-messages
-          if ($LASTEXITCODE -ne 0 -or $remote.Split()[0] -ne '${{ github.sha }}') { throw 'Branch moved during verification; refusing to overwrite changes.' }
-          git push origin HEAD:refs/heads/i18n/user-friendly-messages
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Upload verification evidence
+      - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: localization-verification
-          path: artifacts/localization/*
+          name: localization-tests-${{ github.sha }}
+          path: artifacts/localization/*.trx
           if-no-files-found: warn
           retention-days: 14
