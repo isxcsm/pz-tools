@@ -1,0 +1,22 @@
+name: Documentation review snapshot
+on:
+  push:
+    branches: [docs/plain-language-guides]
+    paths: [.github/workflows/docs-review-snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 52e8822a3192acaf7cb95d68e6a0657ecab0bbc3
+          persist-credentials: false
+      - run: git archive --format=zip --output=source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: documentation-review-source
+          path: source.zip
+          retention-days: 1
