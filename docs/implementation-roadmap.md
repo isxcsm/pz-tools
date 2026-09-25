@@ -89,8 +89,8 @@ Windows 서비스, 트레이 상주, 앱 종료 후 자동 백업과 로그인 �
   내부 source 메타데이터를 생성하거나 재사용합니다.
 - source 경로와 ID는 Scheduler가 CLI 인자로 전달하며 부모 TOML을 자식에게
   전달하지 않습니다.
-- 자동 백업 활성 여부는 target과 mode에서 분리된 권위 설정입니다. 간격 0에서는
-  State 명령이 target을 갱신할 수 있지만 periodic, final과 death run을 admission하지
+- 자동 백업 활성 여부는 target과 mode에서 분리된 권위 설정입니다. 토글이 꺼져 있으면
+  State 명령이 target을 갱신할 수 있지만 periodic과 death run을 admission하지
   않습니다.
 - 백업이 `Succeeded` 또는 `NoChange`일 때만 같은 실행 흐름에서 Maintenance를
   호출합니다.
@@ -166,10 +166,10 @@ Windows 서비스, 트레이 상주, 앱 종료 후 자동 백업과 로그인 �
 - 기본 백업 저장소 경로는 같은 기준으로 `Zomboid\Backups`를 구성합니다.
 - 기본 백업 경로 하나를 여러 세이브 source가 함께 사용하는 단일 repository root로
   취급합니다. 세이브마다 별도 repository 디렉터리를 만들지 않습니다.
-- 자동 백업 간격은 0~60분 정수이며 기본값은 5분입니다. 0은 자동 백업
-  비활성화입니다.
-- 간격 0은 periodic, final과 death-triggered backup을 포함한 모든 자동 실행보다
-  우선합니다. 수동 백업은 계속 사용할 수 있습니다.
+- 자동 백업은 별도 토글이며 기본값은 켜짐입니다. 간격은 1~60분 정수이며 기본값은
+  5분입니다. 꺼도 간격과 사망 시 백업 설정을 보존합니다.
+- 토글 꺼짐은 periodic과 death-triggered backup을 포함한 모든 자동 실행보다
+  우선합니다. 수동 백업과 이미 시작된 백업은 계속 사용할 수 있습니다.
 - 활성 리비전 보존 개수는 1~100이며 기본값은 100입니다.
 - 사망 시 즉시 백업은 토글이며 기본값은 비활성화입니다.
 - 사망 백업이 활성화되면 확정된 `Alive → Dead` transition에 대해 동일 대상의 다음
@@ -250,7 +250,7 @@ projector마다 별도 `.csproj`를 만들지 않습니다. 하나의 projection
 
 ```text
 SettingsView
-  language, theme, saves_root, backup_root, interval_minutes,
+  language, theme, saves_root, backup_root, automatic_enabled, interval_minutes,
   retained_revisions, backup_on_death
 
 SaveListView
@@ -497,7 +497,7 @@ thumbnail byte 배열 전체를 일반 view snapshot에 넣지 않습니다. `th
   pane footer로 구성합니다.
 - 한국어·영어 `.resw` resource와 런타임 언어 전환을 구현합니다.
 - 시스템·밝음·어두움 테마를 root element에 적용하고 재시작 후 유지합니다.
-- 경로 picker, interval 0~60, retention 1~100과 사망 백업 toggle을 구현합니다.
+- 경로 picker, automatic enabled toggle, interval 1~60, retention 1~100과 사망 백업 toggle을 구현합니다.
 - slider에는 현재 값 표시와 키보드로 정확히 입력할 수 있는 control을 함께 둡니다.
 - 설정 오류, 접근 권한과 존재하지 않는 경로를 화면에 명확히 표시합니다.
 - 키보드 탐색, focus, screen reader label과 색 대비를 점검합니다.

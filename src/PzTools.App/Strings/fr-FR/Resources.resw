@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Dossier des sauvegardes</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Parcourir</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Sauvegarde</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>0 minute désactive les sauvegardes automatiques.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Sauvegardes automatiques</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Active ou désactive les sauvegardes périodiques et celles déclenchées par la mort. La désactivation conserve l’intervalle et n’affecte ni les sauvegardes manuelles ni celles déjà en cours.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Intervalle de sauvegarde</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 minutes</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1 à 60 minutes. L’intervalle est conservé à la désactivation ; un nouvel intervalle commence à la réactivation.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Nombre de sauvegardes automatiques</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserver les 1 à 100 dernières sauvegardes automatiques. Cette limite ne supprime pas les sauvegardes manuelles.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Sauvegarder à la mort du personnage</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Fonctionne uniquement si les sauvegardes automatiques sont activées. Ce choix est conservé lorsqu’elles sont désactivées.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Vérifier les fichiers copiés</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Vérifie que les fichiers copiés correspondent aux originaux. Si un fichier change pendant la copie, il est copié à nouveau.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Les fichiers de la partie ont changé plusieurs fois pendant la sauvegarde. Attendez la fin de l’enregistrement dans le jeu, puis réessayez.</value></data>

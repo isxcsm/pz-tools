@@ -87,6 +87,9 @@ internal static class MaintenanceLanePipeline
         string lane, MaintenanceOptions options,
         string? controlDatabasePath, string? configurationPath)
     {
+        if (GameplayWorkGate.ShouldDeferMaintenance())
+            return new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay");
+
         if (await MaintenanceLaneSignal.IsRunningAsync(repositoryPath, lane))
             return new MaintenanceLaneResult(lane, "Busy", 0, 0, "lane-already-running");
 
@@ -139,9 +142,13 @@ internal static class MaintenanceLanePipeline
         if (!MaintenanceLaneSignal.HeavyLanes.Contains(lane, StringComparer.Ordinal))
             throw new ArgumentException($"Unknown maintenance lane '{lane}'.", nameof(lane));
 
+        if (GameplayWorkGate.ShouldDeferMaintenance())
+            return (ProcessOutcome.Skipped, new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0);
         var acquired = await NamedMutexRunner.TryRunAsync(
             MaintenanceLaneSignal.MutexName(repositoryPath, lane), async _ =>
             {
+                if (GameplayWorkGate.ShouldDeferMaintenance())
+                    return (ProcessOutcome.Skipped, new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0L);
                 using var cancellation = new CancellationTokenSource();
                 using var yieldWatch = MaintenanceLaneSignal.WatchForYield(
                     repositoryPath, lane, cancellation);
@@ -156,6 +163,7 @@ internal static class MaintenanceLanePipeline
                 await repository.AttachWorkflowStageAsync(runIndex, owner, token);
                 try
                 {
+                    using var gameplayWatch = GameplayWorkGate.WatchForGameplay(cancellation);
                     RepositoryWriterLease lease;
                     while (true)
                     {

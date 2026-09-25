@@ -30,12 +30,12 @@ try
         options.GetValueOrDefault("--interval-seconds")
         ?? settings.IntervalSeconds.ToString(
             System.Globalization.CultureInfo.InvariantCulture)));
-    var adapter = new RunnerProcessAdapter(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory);
+    var stateChecks = new StateCheckPipeline();
     var allocator = new RunIndexAllocator(options.GetValueOrDefault("--control-db"));
     var scheduler = new StateScheduler(
         schedulerDb, interval,
         token => allocator.AllocateAsync(cancellationToken: token),
-        (run, token) => adapter.RunStateAsync(stateDb.DatabasePath, savesRoot, run, token),
+        (run, token) => stateChecks.RunAsync(stateDb, savesRoot, run, token),
         configurationPath);
     var relay = new StateOutboxRelay();
     var orphanCleanup = options.GetValueOrDefault("--repository") is { } repositoryPath

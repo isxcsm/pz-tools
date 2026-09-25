@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>백업 폴더</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>찾아보기</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>백업</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>0분으로 설정하면 자동 백업을 끕니다.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>자동 백업</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>정기 백업과 사망 시 백업을 켜거나 끕니다. 꺼도 간격은 유지되며 수동 백업과 이미 시작된 백업에는 영향을 주지 않습니다.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>백업 간격</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0~60분</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1~60분. 꺼도 간격은 유지되며, 다시 켜면 새 간격으로 시작합니다.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>자동 백업 보관 개수</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>최근 자동 백업 1~100개를 보관합니다. 이 개수 제한으로 수동 백업을 삭제하지 않습니다.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>캐릭터 사망 시 백업</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>자동 백업이 켜져 있을 때만 작동합니다. 자동 백업을 꺼도 이 설정은 유지됩니다.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>복사한 파일 확인</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>복사본의 내용이 원본과 같은지 확인합니다. 복사 중 원본이 바뀌면 다시 복사합니다.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>백업 중 세이브 파일이 계속 변경되었습니다. 게임 저장이 끝난 뒤 다시 백업해 주세요.</value></data>

@@ -45,7 +45,7 @@ Configurações e dados de controle ficam em `%LOCALAPPDATA%\PzTools`; os backup
 <a id="backups-and-retention"></a>
 ## Retenção e exclusão
 
-Os valores iniciais são **5 minutos** e **20 backups automáticos**. Intervalo `0` desativa backups automáticos. Eles acompanham o save em uso; reiniciar o aplicativo inicia um novo intervalo. Configurações existentes são mantidas.
+Os valores iniciais são **5 minutos** e **20 backups automáticos**. Use o botão de backups automáticos para ativá-los ou desativá-los. O intervalo de 1 a 60 minutos é preservado ao desativar. Eles acompanham o save em uso; reiniciar o aplicativo inicia um novo intervalo. Configurações existentes são mantidas.
 
 Backups manuais podem ser renomeados e ficam fora do limite de backups automáticos. **Isso não significa retenção permanente:** exclusão explícita ou limpeza após o desaparecimento do save original também pode removê-los. Antes de excluir ou mover o original, exporte backups importantes para ZIP em outra unidade.
 

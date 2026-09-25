@@ -45,7 +45,7 @@ Les paramètres et données de gestion sont dans `%LOCALAPPDATA%\PzTools`, les c
 <a id="backups-and-retention"></a>
 ## Conservation et suppression
 
-Les valeurs initiales sont **5 minutes** et **20 copies automatiques**. L'intervalle `0` désactive les copies automatiques. Elles concernent la partie active ; le redémarrage de l'application commence un nouvel intervalle. Les paramètres existants sont conservés.
+Les valeurs initiales sont **5 minutes** et **20 copies automatiques**. Activez ou désactivez les sauvegardes automatiques avec leur interrupteur. L’intervalle de 1 à 60 minutes est conservé à la désactivation. Elles concernent la partie active ; le redémarrage de l'application commence un nouvel intervalle. Les paramètres existants sont conservés.
 
 Les copies manuelles sont renommables et exclues de la limite des copies automatiques. **Elles ne sont pas conservées indéfiniment :** une suppression explicite ou le nettoyage après disparition de la partie d'origine peut aussi les supprimer. Avant de déplacer ou supprimer cette partie, exportez les copies importantes en ZIP sur un autre lecteur.
 

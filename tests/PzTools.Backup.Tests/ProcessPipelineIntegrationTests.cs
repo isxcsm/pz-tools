@@ -13,6 +13,27 @@ namespace PzTools.Backup.Tests;
 public sealed class ProcessPipelineIntegrationTests
 {
     [PublishedToolsOnlyFact]
+    public async Task PublishedStateScheduler_ChecksWithoutCollectorOrReactorProcesses()
+    {
+        using var temp = new TempDirectory();
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
+        var saves = temp.GetPath("saves");
+        Directory.CreateDirectory(saves);
+        var statePath = temp.GetPath("state.db");
+        var config = temp.GetPath("state-scheduler.toml");
+        await File.WriteAllTextAsync(config, "[telemetry]\nenabled=false\n");
+        var child = await new ChildProcessHost().RunAsync(Path.Combine(tools, "PzTools.State.Scheduler.exe"),
+            ["--scheduler-db", temp.GetPath("scheduler.db"), "--state-db", statePath,
+                "--saves-root", saves, "--control-db", temp.GetPath("control.db"),
+                "--worker-directory", temp.GetPath("deliberately-absent-workers"), "--config", config, "--once"]);
+        Assert.True(child.Started);
+        Assert.True(child.ExitCode == 0, child.StandardError + child.StandardOutput);
+        var snapshot = await (await StateDatabase.CreateOrOpenAsync(statePath)).ReadCurrentStateIfChangedAsync(-1);
+        Assert.True(snapshot.Modified);
+        Assert.Empty(snapshot.Saves);
+    }
+
+    [PublishedToolsOnlyFact]
     public async Task AutomaticRunner_SkipsOfflineSave_EvenWhenGameSavingIsDisabled()
     {
         using var temp = new TempDirectory();

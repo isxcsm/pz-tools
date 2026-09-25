@@ -45,7 +45,7 @@ Impostazioni e dati di gestione si trovano in `%LOCALAPPDATA%\PzTools`; i backup
 <a id="backups-and-retention"></a>
 ## Conservazione ed eliminazione
 
-I valori iniziali sono **5 minuti** e **20 backup automatici**. L'intervallo `0` disattiva i backup automatici. Questi seguono il salvataggio attivo; riavviare l'app avvia un nuovo intervallo. Le impostazioni esistenti vengono mantenute.
+I valori iniziali sono **5 minuti** e **20 backup automatici**. Usa l’interruttore dei backup automatici per attivarli o disattivarli. L’intervallo da 1 a 60 minuti viene conservato quando li disattivi. Questi seguono il salvataggio attivo; riavviare l'app avvia un nuovo intervallo. Le impostazioni esistenti vengono mantenute.
 
 I backup manuali si possono rinominare e sono esclusi dal limite dei backup automatici. **Non sono però conservati per sempre:** l'eliminazione esplicita o la pulizia dopo la scomparsa del salvataggio originale può rimuoverli. Prima di eliminare o spostare l'originale, esporta i backup importanti in ZIP su un'altra unità.
 

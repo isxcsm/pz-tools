@@ -50,11 +50,11 @@ A disconnected client cancels a queued/counting-down request, not a save already
 in progress. The read-only probe never displays messages or waits for countdown.
 
 Notification API failures do not abort a valid save: the response reports
-`notice-unavailable`. Each request loads the current implementation in a disposable
-class loader; app updates/restarts do not require a game restart to replace save
-or notification code. Previously resident bridge hooks are retired before the
-new request is installed. An in-progress old request is rejected as busy rather
-than forcibly interrupted.
+`notice-unavailable`. One current payload class loader is reused while the payload's
+SHA-256 stays unchanged. A changed payload at the same path replaces that loader
+between requests. Bootstrap updates or a changed installation path require a game
+restart. Previously resident legacy hooks are retired before the first request;
+an in-progress old request is rejected as busy rather than forcibly interrupted.
 The app and scheduler pass `--save-game` through the backup runner to the worker;
 the generic CLI and backup engine remain usable for non-game directories without
 attaching to a game. Direct CLI game backups should also pass `--save-game`.
@@ -93,27 +93,28 @@ command was sent.
 
 ## Design and limits
 
-- A bundled Java Attach helper loads a small stable bootstrap into the game JVM;
-  that bootstrap loads the current implementation JAR for each request.
+- A bundled Java Attach helper discovers a JVM-scoped bootstrap through an authenticated
+  loopback endpoint. It loads the bootstrap only when absent, not once per save.
+  A per-user OS file lock serializes bootstrap initialization across worker processes.
   The game installation and its launch options are not modified.
 - A tiny Windows JVMTI bootstrap first loads the running JVM's own `jli.dll`.
   The native game launcher does not preload it, so directly loading the Java
   instrumentation agent otherwise fails with a missing dependency. This uses
   the regular Attach API, not remote-thread injection or changes to DLL search
   paths. No DLL from our bundled runtime is loaded into the game.
-- The agent adds a callback at the start of `zombie.GameWindow.logic()V` using
-  the Java class-file API. The request owns its transformer and removes it, then
-  retransforms the method to remove our callback before reporting completion.
-  Other agents' transformations are preserved. Disconnect/app exit cancels a
-  queued/countdown request and removes the hook; an already running save finishes
-  before removal. There is no idle game-loop callback after a completed request.
-  JVM-loaded bootstrap classes/native libraries can remain inert until game exit;
-  this is not a promise of immediate class unloading. Legacy transformer objects
-  whose old implementation lost their removal handle are disabled via public
-  retransformation, so they cannot reinsert the old callback.
-- Each request opens a temporary loopback callback connection authenticated by
-  a random 256-bit token and expected game PID. There is no persistent listening
-  port in the game and no arbitrary Lua/code evaluation command.
+- The agent installs one minimal callback at `zombie.GameWindow.logic()V` using the
+  Java class-file API. The bootstrap owns one transformer for the JVM lifetime;
+  request completion releases only its owner/callback/pending state. There is no
+  install/uninstall retransformation for each save. An idle frame reads a volatile
+  callback and returns immediately. Other agents' transformations are preserved.
+  A disconnect cancels queued/countdown work, but cannot release ownership during
+  `save(true)`. The game call must return before the next request can run.
+- One daemon control listener remains bound to IPv4 loopback. Its random 256-bit
+  credential is discoverable only through the target's Attach system properties.
+  It accepts a bounded session handoff, not arbitrary Lua or Java code. The payload
+  path is pinned at bootstrap initialization. Each request retains the separate
+  temporary callback authenticated by PID and a fresh random 256-bit token. An
+  ambiguous endpoint/dispatch failure never triggers another load or save retry.
 - `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` are the commands.
   They are handled on `GameWindow.gameThread`; PROBE validates the world but never
   invokes save. Protocol 3 introduced `SAVE_COUNTDOWN`. Protocol 4 adds a fixed
@@ -158,8 +159,9 @@ assemblies. The backup worker's build invokes them automatically. The C# client
 and backup policy are normal, separate C# projects.
 
 Runtime process boundaries are unchanged: the backup worker uses the client,
-a short-lived Java process attaches the agent, and the save itself executes on
-the game thread. There is no additional CLI wrapper or background service.
+a short-lived Java helper discovers the bootstrap, and the save itself executes on
+the game thread. The bootstrap retains an idle dispatch hook and control listener.
+See [gameplay load work](gameplay-background-load.md) for measured scope and remaining costs.
 
 ## Building and publishing
 

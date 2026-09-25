@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Папка резервних копій</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Огляд</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Резервне копіювання</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>0 хвилин вимикає автоматичне копіювання.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Автоматичні копії</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Вмикає або вимикає періодичні копії та копії після смерті персонажа. Після вимкнення інтервал зберігається. Ручні та вже розпочаті копії не зачіпаються.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Інтервал копіювання</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 хвилин</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>Від 1 до 60 хвилин. Інтервал зберігається після вимкнення; після ввімкнення починається новий інтервал.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Кількість автоматичних копій</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Зберігати останні 1–100 автоматичних копій. Цей ліміт не видаляє ручні копії.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Створювати копію після смерті персонажа</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Працює лише з увімкненими автоматичними копіями. Це налаштування зберігається після їх вимкнення.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Перевіряти скопійовані файли</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Перевіряє, чи збігається вміст копій з оригіналами. Якщо файл зміниться під час копіювання, його буде скопійовано знову.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Під час резервного копіювання файли збереження постійно змінювалися. Дочекайтеся завершення збереження в грі та повторіть спробу.</value></data>

@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Složka záloh</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Procházet</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Zálohování</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Hodnota 0 minut vypne automatické zálohování.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatické zálohování</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Zapíná nebo vypíná pravidelné zálohy a zálohy při smrti postavy. Vypnutí zachová interval a neovlivní ruční ani již probíhající zálohy.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Interval zálohování</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 minut</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 minut. Interval se při vypnutí zachová; po zapnutí začne nový interval.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Počet automatických záloh</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Ponechat posledních 1–100 automatických záloh. Tento limit nemaže ruční zálohy.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Zálohovat při smrti postavy</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Funguje pouze při zapnutém automatickém zálohování. Tato volba zůstane po jeho vypnutí zachována.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kontrolovat zkopírované soubory</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kontroluje, zda zkopírované soubory odpovídají originálům. Pokud se soubor během kopírování změní, zkopíruje se znovu.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Soubory uložené hry se během zálohování opakovaně měnily. Počkejte, až hra dokončí ukládání, a zkuste zálohu znovu.</value></data>

@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Backup folder</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Browse</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Backup</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Set to 0 minutes to disable automatic backup.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatic backups</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Turn scheduled and death-triggered backups on or off. Turning this off keeps the interval and does not affect manual backups or backups already in progress.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Backup interval</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 minutes</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 minutes. The interval is kept while off; turning automatic backups on starts a new interval.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Automatic backup retention</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Keep the latest 1–100 automatic backups. This limit does not delete manual backups.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Back up when the character dies</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Only runs when automatic backups are on. This preference is kept while automatic backups are off.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Check copied files</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Check that copied files match the originals. If a file changes during copying, copy it again.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save kept changing during backup. Wait for the game to finish saving, then try the backup again.</value></data>

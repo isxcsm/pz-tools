@@ -23,7 +23,7 @@ public final class SaveBridge {
     private static Method save;
     private static Field gameThread;
     private static ClassLoader gameLoader;
-    private static ClassFileTransformer hook;
+    private static boolean legacyRetired;
     private static final Object owner = new Object();
     private static boolean acquired;
 
@@ -70,8 +70,11 @@ public final class SaveBridge {
                 if (!AgentEntry.acquire(owner, SaveBridge::poll))
                     throw new BridgeFailure("busy", "Another bridge session is still active");
                 acquired = true;
-                if (!LegacyBridgeRetirement.retire(instrumentation))
-                    throw new BridgeFailure("busy", "An older bridge request is still running");
+                if (!legacyRetired) {
+                    if (!LegacyBridgeRetirement.retire(instrumentation))
+                        throw new BridgeFailure("busy", "An older bridge request is still running");
+                    legacyRetired = true;
+                }
                 install(instrumentation);
                 request = new Request(!command[0].equals("PROBE"), expected, queueSeconds,
                     notice || timed && !command[4].equals("off") ? command[4] : null, scheduledMillis);
@@ -103,20 +106,11 @@ public final class SaveBridge {
 
     private static synchronized void cleanup(Instrumentation instrumentation) throws Exception {
         if (!acquired) return;
-        try {
-            if (hook != null) {
-                instrumentation.removeTransformer(hook);
-                hook = null;
-            }
-            if (installed) {
-                instrumentation.retransformClasses(window);
-                installed = false;
-            }
-        } finally {
-            pending.set(null);
-            AgentEntry.release(owner);
-            acquired = false;
-        }
+        // The game-thread monitor is held through save(true). A disconnected client
+        // cannot release ownership while that call is still running.
+        pending.set(null);
+        AgentEntry.release(owner);
+        acquired = false;
     }
 
     private static String awaitResult(Request request, Reader input, Socket socket, int seconds) throws Exception {
@@ -155,13 +149,7 @@ public final class SaveBridge {
         if (installed) return;
         if (Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
             throw new BridgeFailure("unsupported-runtime", "This save bridge requires Java 25 and class retransformation");
-        for (Class<?> type : instrumentation.getAllLoadedClasses()) {
-            if (type.getName().equals("zombie.GameWindow")) {
-                if (window != null && window != type) throw new BridgeFailure("ambiguous-game", "Multiple GameWindow classes");
-                window = type;
-            }
-        }
-        if (window == null) throw new BridgeFailure("game-not-ready", "GameWindow has not loaded yet");
+        window = AgentEntry.ensureGameHook();
         gameLoader = window.getClassLoader();
         if (Class.forName(AgentEntry.class.getName(), false, gameLoader) != AgentEntry.class)
             throw new BridgeFailure("unsupported-loader", "Game cannot access the bridge class");
@@ -171,48 +159,7 @@ public final class SaveBridge {
         if (!Modifier.isStatic(logic.getModifiers()) || logic.getReturnType() != void.class
                 || !Modifier.isStatic(save.getModifiers()) || save.getReturnType() != void.class)
             throw new BridgeFailure("unsupported-game", "Game method signatures have changed");
-        AtomicBoolean transformed = new AtomicBoolean();
-        AtomicReference<Throwable> transformError = new AtomicReference<>();
-        ClassFileTransformer transformer = new ClassFileTransformer() {
-            @Override public byte[] transform(ClassLoader loader, String name, Class<?> redefined,
-                    ProtectionDomain domain, byte[] bytes) {
-                if (redefined != window) return null;
-                try {
-                    byte[] changed = transformGameWindow(bytes, loader);
-                    transformed.set(true);
-                    return changed;
-                } catch (Throwable exception) {
-                    transformError.set(exception);
-                    return null;
-                }
-            }
-        };
-        instrumentation.addTransformer(transformer, true);
-        try {
-            instrumentation.retransformClasses(window);
-            if (!transformed.get()) throw new BridgeFailure("hook-failed", "Could not install game-thread hook: " + transformError.get());
-            hook = transformer;
-            installed = true;
-        } finally {
-            if (!installed) instrumentation.removeTransformer(transformer);
-        }
-    }
-
-    static byte[] transformGameWindow(byte[] bytes, ClassLoader loader) {
-        var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)));
-        var model = cf.parse(bytes);
-        long targets = model.methods().stream().filter(m -> m.methodName().equalsString("logic")
-            && m.methodType().equalsString("()V")).count();
-        if (targets != 1) throw new IllegalArgumentException("Expected exactly one GameWindow.logic()V");
-        return cf.transformClass(model, ClassTransform.transformingMethodBodies(
-            m -> m.methodName().equalsString("logic") && m.methodType().equalsString("()V"),
-            CodeTransform.ofStateful(() -> new CodeTransform() {
-                @Override public void atStart(CodeBuilder builder) {
-                    builder.invokestatic(ClassDesc.of("pztools.bridge.AgentEntry"), "poll",
-                        MethodTypeDesc.of(ConstantDescs.CD_void));
-                }
-                @Override public void accept(CodeBuilder builder, CodeElement element) { builder.with(element); }
-            })));
+        installed = true;
     }
 
     /** Called at a game-loop boundary, including paused frames; never does network I/O. */

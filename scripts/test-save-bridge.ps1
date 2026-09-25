@@ -23,6 +23,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Bridge inspector packaging failed' }
 $env:PZTOOLS_SAVE_BRIDGE_DIR = $bridgeRoot
 $env:PZTOOLS_BRIDGE_TEST_JAVA = Join-Path $JdkPath 'bin/java.exe'
 $env:PZTOOLS_BRIDGE_TEST_CLASSES = $fixtureOutput
-dotnet test (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj') `
-    --filter 'FullyQualifiedName~GameSaveClientTests' --verbosity minimal
+ dotnet test (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj') `
+    --filter 'FullyQualifiedName~GameSaveClientTests' --verbosity minimal `
+    --logger 'trx;LogFileName=save-bridge.trx' --results-directory (Join-Path $fixtureOutput 'results')
 if ($LASTEXITCODE -ne 0) { throw 'Save bridge tests failed' }

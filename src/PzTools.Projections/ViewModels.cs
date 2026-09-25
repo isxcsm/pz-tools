@@ -19,10 +19,13 @@ public sealed record SaveListItemView(
     ViewFreshness Freshness,
     CharacterSnapshot? Character = null);
 
+public enum SaveListLoadState { Loading, Ready, Unavailable }
+
 public sealed record SaveListView(
     long StateRevision,
     GameState Game,
-    IReadOnlyList<SaveListItemView> Saves);
+    IReadOnlyList<SaveListItemView> Saves,
+    SaveListLoadState LoadState = SaveListLoadState.Ready);
 
 public sealed record BackupRevisionView(
     long Revision,
@@ -82,7 +85,8 @@ public sealed record SettingsView(
     string LogRecordMinimumLevel = "Information",
     int LogMaxEntries = 100000,
     bool SaveGameBeforeBackup = true,
-    bool GameSaveCountdown = true);
+    bool GameSaveCountdown = true,
+    bool AutomaticBackupEnabled = true);
 
 public sealed record ProjectorHealthView(IReadOnlyList<ProjectorStatus> Projectors)
 {

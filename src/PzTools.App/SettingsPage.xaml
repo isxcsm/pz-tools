@@ -105,17 +105,21 @@
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="GameSaveCountdownToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
+          <toolkit:SettingsCard x:Name="AutomaticBackupSettingCard" Header="자동 백업">
+            <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
+            <ToggleSwitch x:Name="AutomaticBackupToggle" Toggled="AutomaticBackupToggle_Toggled" />
+          </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="IntervalSettingCard"
-                                Header="백업 간격" Description="0분은 자동 백업을 끕니다.">
+                                Header="백업 간격" Description="1~60분. 자동 백업을 꺼도 간격은 유지됩니다.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="IntervalEditor" Width="340" ColumnSpacing="16">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="120" />
               </Grid.ColumnDefinitions>
-              <Slider x:Name="IntervalSlider" Minimum="0" Maximum="60"
+              <Slider x:Name="IntervalSlider" Minimum="1" Maximum="60"
                       StepFrequency="1" ValueChanged="IntervalSlider_ValueChanged" />
-              <NumberBox x:Name="IntervalNumber" Grid.Column="1" Minimum="0" Maximum="60"
+              <NumberBox x:Name="IntervalNumber" Grid.Column="1" Minimum="1" Maximum="60"
                          SpinButtonPlacementMode="Inline" ValueChanged="IntervalNumber_ValueChanged" />
             </Grid>
           </toolkit:SettingsCard>

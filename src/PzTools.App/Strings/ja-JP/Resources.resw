@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>バックアップフォルダー</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>参照</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>バックアップ</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>0分に設定すると自動バックアップを無効にします。</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>自動バックアップ</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>定期バックアップと死亡時のバックアップをオン・オフにします。オフにしても間隔は保持され、手動バックアップや進行中のバックアップには影響しません。</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>バックアップ間隔</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0～60分</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1～60分。オフにしても間隔は保持され、再びオンにすると新しい間隔で開始します。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動バックアップの保持数</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>最新の自動バックアップを1～100件保持します。この制限で手動バックアップは削除されません。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>キャラクター死亡時にバックアップ</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>自動バックアップがオンのときのみ動作します。オフにしてもこの設定は保持されます。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>コピーしたファイルを確認</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>コピーの内容が元のファイルと一致するか確認します。コピー中に元のファイルが変わった場合は、コピーし直します。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>バックアップ中にセーブファイルが繰り返し変更されました。ゲームの保存が終わってから、もう一度バックアップしてください。</value></data>

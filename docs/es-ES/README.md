@@ -45,7 +45,7 @@ Los ajustes y datos de gestión están en `%LOCALAPPDATA%\PzTools`; las copias, 
 <a id="backups-and-retention"></a>
 ## Conservación y eliminación
 
-Los valores iniciales son **5 minutos** y **20 copias automáticas**. El intervalo `0` desactiva las copias automáticas. Se realizan sobre la partida activa; reiniciar la aplicación comienza un intervalo nuevo. Los ajustes existentes se conservan.
+Los valores iniciales son **5 minutos** y **20 copias automáticas**. Usa el interruptor de copias automáticas para activarlas o desactivarlas. El intervalo de 1 a 60 minutos se conserva al desactivarlas. Se realizan sobre la partida activa; reiniciar la aplicación comienza un intervalo nuevo. Los ajustes existentes se conservan.
 
 Las copias manuales se pueden renombrar y quedan fuera del límite de copias automáticas. **No se conservan indefinidamente:** una eliminación explícita o la limpieza tras desaparecer la partida original también puede borrarlas. Antes de eliminar o mover la partida original, exporta las copias importantes a ZIP en otra unidad.
 

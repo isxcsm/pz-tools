@@ -45,7 +45,7 @@ Einstellungen und Verwaltungsdaten liegen unter `%LOCALAPPDATA%\PzTools`, Sicher
 <a id="backups-and-retention"></a>
 ## Aufbewahrung und Löschen
 
-Die Anfangswerte sind **5 Minuten** und **20 automatische Sicherungen**. Intervall `0` schaltet automatische Sicherungen aus. Sie folgen dem aktiven Spielstand; ein App-Neustart beginnt ein neues Intervall. Vorhandene Einstellungen bleiben erhalten.
+Die Anfangswerte sind **5 Minuten** und **20 automatische Sicherungen**. Automatische Sicherungen lassen sich separat ein- und ausschalten. Das Intervall von 1–60 Minuten bleibt beim Ausschalten erhalten. Sie folgen dem aktiven Spielstand; ein App-Neustart beginnt ein neues Intervall. Vorhandene Einstellungen bleiben erhalten.
 
 Manuelle Sicherungen lassen sich umbenennen und zählen nicht zum automatischen Aufbewahrungslimit. **Sie werden aber nicht dauerhaft geschützt:** ausdrückliches Löschen oder die Bereinigung nach dem Verschwinden des ursprünglichen Spielstands kann auch sie entfernen. Exportiere wichtige Sicherungen vor dem Löschen oder Verschieben des Originals als ZIP auf ein anderes Laufwerk.
 

@@ -2,7 +2,7 @@
 
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
 
-Current schema is **4**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
+Current schema is **5**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
 
 The earlier path-normalized layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
 for revision summaries and pre-compression deduplication, and [path normalization](path-normalization.md)

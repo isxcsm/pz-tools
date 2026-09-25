@@ -72,3 +72,11 @@ jobs:
       - name: Test bridge against isolated synthetic JVM only
         shell: pwsh
         run: ./scripts/test-save-bridge.ps1 -JdkPath $env:JAVA_HOME
+      - name: Upload synthetic JVM test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-jvm-tests-${{ github.sha }}
+          path: artifacts/save-bridge-tests/results/*.trx
+          if-no-files-found: warn
+          retention-days: 14

@@ -49,12 +49,14 @@
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Folder cadangan</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Telusuri</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Pencadangan</value></data>
-  <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Atur ke 0 menit untuk mematikan pencadangan otomatis.</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Pencadangan otomatis</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Aktifkan atau nonaktifkan pencadangan berkala dan saat karakter mati. Menonaktifkannya tetap menyimpan interval dan tidak memengaruhi pencadangan manual atau yang sedang berlangsung.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Interval pencadangan</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>0–60 menit</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 menit. Interval tetap disimpan saat dinonaktifkan; mengaktifkannya memulai interval baru.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Jumlah cadangan otomatis</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Simpan 1–100 cadangan otomatis terbaru. Batas ini tidak menghapus cadangan manual.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Cadangkan saat karakter mati</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Hanya berjalan saat pencadangan otomatis aktif. Pilihan ini tetap disimpan saat pencadangan otomatis dinonaktifkan.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Periksa berkas yang disalin</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Memeriksa apakah berkas salinan sama dengan aslinya. Berkas yang berubah saat disalin akan disalin ulang.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Berkas simpanan terus berubah selama pencadangan. Tunggu hingga gim selesai menyimpan, lalu coba cadangkan lagi.</value></data>

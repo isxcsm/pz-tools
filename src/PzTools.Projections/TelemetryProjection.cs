@@ -979,7 +979,7 @@ public sealed class TelemetryProjectionHost(
             if (schema != 2) throw new UnsupportedTelemetrySchemaException($"backup:{schema}");
             return await ReadEventsAsync(
                 connection, instance, cursor,
-                "SELECT COALESCE(MIN(event_id),0),COALESCE(MAX(event_id),0) FROM telemetry_events;",
+                "SELECT COALESCE((SELECT MIN(event_id) FROM telemetry_events),0),COALESCE((SELECT MAX(event_id) FROM telemetry_events),0);",
                 "SELECT event_id,run_index,name,timestamp_utc,elapsed_ticks,payload_json "
                 + "FROM telemetry_events WHERE event_id>$after ORDER BY event_id LIMIT $limit;",
                 maximumEvents, token);
@@ -995,7 +995,7 @@ public sealed class TelemetryProjectionHost(
             if (schema != 3) throw new UnsupportedTelemetrySchemaException($"process:{schema}");
             return await ReadEventsAsync(
                 connection, instance, cursor,
-                "SELECT COALESCE(MIN(event_id),0),COALESCE(MAX(event_id),0) FROM telemetry_events;",
+                "SELECT COALESCE((SELECT MIN(event_id) FROM telemetry_events),0),COALESCE((SELECT MAX(event_id) FROM telemetry_events),0);",
                 "SELECT event_id,run_index,event_name,occurred_utc,elapsed_ticks,payload_json "
                 + "FROM telemetry_events WHERE event_id>$after ORDER BY event_id LIMIT $limit;",
                 maximumEvents, token);

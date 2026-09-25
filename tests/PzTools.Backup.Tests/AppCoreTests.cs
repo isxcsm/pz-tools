@@ -32,7 +32,7 @@ public sealed class AppCoreTests
     }
 
     [Theory]
-    [InlineData(0, 100)]
+    [InlineData(1, 100)]
     [InlineData(17, 23)]
     public void BackupDefaults_PreserveExplicitUserSettings(int interval, int retained)
     {
@@ -237,7 +237,8 @@ public sealed class AppCoreTests
             Theme = AppTheme.Dark,
             SavesRoot = temp.GetPath("saves"),
             BackupRoot = temp.GetPath("backups"),
-            BackupIntervalMinutes = 0,
+            BackupIntervalMinutes = 17,
+            AutomaticBackupEnabled = false,
             RetainedRevisions = 42,
             BackupOnDeath = true,
             LogMinimumLevel = LogLevel.Warning,
@@ -453,8 +454,9 @@ public sealed class AppCoreTests
         };
         await service.SaveAndApplyAsync(initial, scheduler);
         busy = true;
-        await service.SaveAndApplyAsync(initial with { BackupIntervalMinutes = 0 }, scheduler);
-        Assert.Equal(0, service.Load().BackupIntervalMinutes);
+        await service.SaveAndApplyAsync(initial with { AutomaticBackupEnabled = false }, scheduler);
+        Assert.Equal(initial.BackupIntervalMinutes, service.Load().BackupIntervalMinutes);
+        Assert.False(service.Load().AutomaticBackupEnabled);
         var disabled = await scheduler.ReadBackupStateIfChangedAsync(-1);
         Assert.False(disabled!.AutomaticEnabled);
         Assert.Equal(SchedulerMode.Paused, disabled.Mode);
@@ -463,10 +465,11 @@ public sealed class AppCoreTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(15)]
-    public async Task Settings_CanChangeIntervalTogetherWithOtherPreferencesDuringBackup(int minutes)
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(15, true)]
+    [InlineData(15, false)]
+    public async Task Settings_CanChangeIntervalTogetherWithOtherPreferencesDuringBackup(int minutes, bool automaticEnabled)
     {
         using var temp = new TempDirectory();
         var busy = false;
@@ -480,16 +483,16 @@ public sealed class AppCoreTests
         busy = true;
         var changed = initial with
         {
-            BackupIntervalMinutes = minutes, Theme = AppTheme.Dark,
+            BackupIntervalMinutes = minutes, AutomaticBackupEnabled = automaticEnabled, Theme = AppTheme.Dark,
             GameSaveCountdown = false, RetainedRevisions = 10, BackupOnDeath = true,
         };
         var before = DateTimeOffset.UtcNow;
         await service.SaveAndApplyAsync(changed, scheduler);
         Assert.Equal(changed, service.Load());
         var state = await scheduler.ReadBackupStateIfChangedAsync(-1);
-        Assert.Equal(minutes > 0, state.AutomaticEnabled);
-        Assert.Equal(TimeSpan.FromMinutes(Math.Max(1, minutes)), state.Interval);
-        if (minutes > 0) Assert.True(state.NextDueUtc >= before.AddMinutes(minutes));
+        Assert.Equal(automaticEnabled, state.AutomaticEnabled);
+        Assert.Equal(TimeSpan.FromMinutes(minutes), state.Interval);
+        if (automaticEnabled) Assert.True(state.NextDueUtc >= before.AddMinutes(minutes));
         foreach (var unsafeChange in new[]
         {
             changed with { SavesRoot = temp.GetPath("other-saves") },

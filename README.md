@@ -45,7 +45,7 @@ Settings and control data are under `%LOCALAPPDATA%\PzTools`; backups are in you
 <a id="backups-and-retention"></a>
 ## Backups and deletion
 
-New settings use **5-minute intervals** and retain **20 automatic backups**. Interval `0` disables automatic backups. Automatic backups follow the active save; restarting the app starts a new interval. Existing settings are kept.
+New settings use **5-minute intervals** and retain **20 automatic backups**. Use the automatic backups switch to turn them on or off. Set the interval to 1–60 minutes; turning them off keeps the interval. Automatic backups follow the active save; restarting the app starts a new interval. Existing settings are kept.
 
 Manual backups can be renamed and are excluded from the automatic-backup count limit. **This is not permanent retention:** explicit deletion, or cleanup after the original save disappears, can also remove manual backups. Export important backups to ZIP on a different drive before deleting or moving the original save.
 

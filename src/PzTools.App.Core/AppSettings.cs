@@ -25,7 +25,8 @@ public sealed record AppSettings(
     LogLevel LogRecordMinimumLevel = LogLevel.Information,
     int LogMaxEntries = 100000,
     bool SaveGameBeforeBackup = true,
-    bool GameSaveCountdown = true)
+    bool GameSaveCountdown = true,
+    bool AutomaticBackupEnabled = true)
 {
     public static AppSettings CreateDefault()
     {
@@ -45,7 +46,7 @@ public sealed record AppSettings(
     public AppSettings Validate()
     {
         _ = LanguageCatalog.Get(Language);
-        if (BackupIntervalMinutes is < 0 or > 60)
+        if (BackupIntervalMinutes is < 1 or > 60)
             throw new ArgumentOutOfRangeException(nameof(BackupIntervalMinutes));
         if (RetainedRevisions is < 1 or > 100)
             throw new ArgumentOutOfRangeException(nameof(RetainedRevisions));
@@ -88,7 +89,8 @@ public sealed class SettingsProjector(RevisionedViewStore views)
                 value.LogRecordMinimumLevel.ToString(),
                 value.LogMaxEntries,
                 value.SaveGameBeforeBackup,
-                value.GameSaveCountdown),
+                value.GameSaveCountdown,
+                value.AutomaticBackupEnabled),
             comparer: EqualityComparer<SettingsView>.Default);
     }
 }
@@ -207,12 +209,13 @@ public sealed class AppSettingsService
             ? TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(backupConfigPath))
                 ?? throw new InvalidDataException("백업 설정 파일이 비어 있습니다.")
             : model;
+        var (automaticEnabled, intervalMinutes) = ReadBackupSchedule(model, defaults);
         var loaded = new AppSettings(
             LanguageCatalog.Parse(GetString(model, "ui", "language", LanguageCatalog.Get(defaults.Language).Tag)),
             ParseEnum(GetString(model, "ui", "theme", "System"), defaults.Theme),
             GetString(model, "paths", "saves_root", defaults.SavesRoot),
             configuredBackupRoot,
-            checked((int)GetInt64(model, "backup", "interval_minutes", defaults.BackupIntervalMinutes)),
+            intervalMinutes,
             checked((int)GetInt64(model, "backup", "retained_revisions", defaults.RetainedRevisions)),
             GetBoolean(model, "backup", "backup_on_death", false),
             ParseEnum(GetString(model, "logs", "minimum_level", defaults.LogMinimumLevel.ToString()),
@@ -227,7 +230,8 @@ public sealed class AppSettingsService
             GetBoolean(model, "backup", "save_game_before_backup",
                 GetBoolean(backupConfig, "capture", "save_game_before_backup", true)),
             GetBoolean(model, "backup", "game_save_countdown",
-                GetBoolean(backupConfig, "capture", "game_save_countdown", true)));
+                GetBoolean(backupConfig, "capture", "game_save_countdown", true)),
+            automaticEnabled);
         // 기존 설정의 추적 표시값은 새 기록 하한보다 낮을 수 있습니다.
         return (loaded with { LogMinimumLevel =
             (LogLevel)Math.Max((int)loaded.LogMinimumLevel, (int)loaded.LogRecordMinimumLevel) }).Validate();
@@ -294,8 +298,8 @@ public sealed class AppSettingsService
             // and no fallible write follows it.
             await scheduler.ConfigureBackupAsync(
                 effectiveBackupRoot,
-                settings.BackupIntervalMinutes > 0,
-                TimeSpan.FromMinutes(Math.Max(1, settings.BackupIntervalMinutes)),
+                settings.AutomaticBackupEnabled,
+                TimeSpan.FromMinutes(settings.BackupIntervalMinutes),
                 DateTimeOffset.UtcNow,
                 cancellationToken);
             appliedBackupRoot ??= settings.BackupRoot;
@@ -327,6 +331,7 @@ public sealed class AppSettingsService
         + $"saves_root = {Quote(value.SavesRoot)}{Environment.NewLine}"
         + $"backup_root = {Quote(value.BackupRoot)}{Environment.NewLine}{Environment.NewLine}"
         + $"[backup]{Environment.NewLine}"
+        + $"automatic_enabled = {value.AutomaticBackupEnabled.ToString().ToLowerInvariant()}{Environment.NewLine}"
         + $"interval_minutes = {value.BackupIntervalMinutes}{Environment.NewLine}"
         + $"retained_revisions = {value.RetainedRevisions}{Environment.NewLine}"
         + $"backup_on_death = {value.BackupOnDeath.ToString().ToLowerInvariant()}{Environment.NewLine}"
@@ -411,6 +416,31 @@ public sealed class AppSettingsService
         if (logs.Keys.Any(key => key is not ("record_minimum_level" or "max_entries")))
             throw new InvalidDataException(
                 "[logs]에 알 수 없는 항목이 있습니다. record_minimum_level과 max_entries만 사용할 수 있습니다.");
+    }
+
+    private static (bool Enabled, int Minutes) ReadBackupSchedule(TomlTable root, AppSettings defaults)
+    {
+        var backup = Section(root, "backup");
+        var minutes = defaults.BackupIntervalMinutes;
+        if (backup.TryGetValue("interval_minutes", out var interval))
+        {
+            if (interval is not long number || number is < 0 or > 60)
+                throw new InvalidDataException("backup.interval_minutes must be an integer from 1 to 60.");
+            minutes = (int)number;
+        }
+        if (!backup.TryGetValue("automatic_enabled", out var enabled))
+        {
+            // A prior interval of zero was an explicit opt-out. Never silently enable it.
+            // There is no remembered positive value in that file; use the default cadence.
+            // Loading does not rewrite the file. The next save persists the separate fields.
+            return minutes == 0 ? (false, defaults.BackupIntervalMinutes)
+                : (defaults.AutomaticBackupEnabled, minutes);
+        }
+        if (enabled is not bool flag)
+            throw new InvalidDataException("backup.automatic_enabled must be a boolean.");
+        if (minutes < 1)
+            throw new InvalidDataException("backup.interval_minutes must be an integer from 1 to 60.");
+        return (flag, minutes);
     }
 
     private static TomlTable Section(TomlTable root, string name) =>
