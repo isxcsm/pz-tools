@@ -11,6 +11,25 @@ namespace PzTools.Backup.Tests;
 public sealed class CorpseResurrectionTests
 {
     [Fact]
+    public void EmptyHandSentinel_IsNotTreatedAsAnItemId()
+    {
+        var id = Guid.NewGuid();
+        var player = Stamp(EmptyPlayer().Player, id, -1, -1);
+        player = PlayerHealthEditor.Heal(player, 249, out var layout);
+        var zombie = Zombie("Test", false);
+        var item = zombie.AsSpan().IndexOf(BagPayload);
+        Assert.True(item >= 0);
+        BinaryPrimitives.WriteInt32BigEndian(zombie.AsSpan(item + 3), -1);
+        zombie = Stamp(zombie, id, -1, -1);
+        var restored = ZombieInventoryRecovery.Recover(player, layout, "Test Person", ZombieFile(zombie), Registry).Player;
+        PlayerHealthEditor.Heal(restored, 249, out var after);
+        Assert.Equal(-1, BinaryPrimitives.ReadInt32BigEndian(restored.AsSpan(after.Hands)));
+        Assert.Equal(-1, BinaryPrimitives.ReadInt32BigEndian(restored.AsSpan(after.Hands + 4)));
+        Assert.Equal(-1, BinaryPrimitives.ReadInt16BigEndian(restored.AsSpan(after.WornEnd)));
+        Assert.Equal(-1, BinaryPrimitives.ReadInt16BigEndian(restored.AsSpan(after.WornEnd + 2)));
+        Assert.Contains(FindGroups(restored), group => group.Ids.Contains(-1));
+    }
+    [Fact]
     public void ReanimatedInventory_DoesNotNeedOrInspectAnIdentityCard()
     {
         var (player,layout)=EmptyPlayer();

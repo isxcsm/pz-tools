@@ -165,8 +165,8 @@ internal static class RemainsFormat
         // Prefer stable saved item IDs, never guess a weapon from item type or ordinal.
         // Legacy deaths without these IDs keep hands empty; attachment bytes remain intact.
         var ids = groups.SelectMany(g => g.Ids).ToArray(); var identity = CharacterIdentity.Player(player);
-        var primary = identity.Metadata.Primary is { } p ? Array.IndexOf(ids, p) : -1;
-        var secondary = identity.Metadata.Secondary is { } q ? Array.IndexOf(ids, q) : -1;
+        var primary = identity.Metadata.Primary is { } p && p != -1 ? Array.IndexOf(ids, p) : -1;
+        var secondary = identity.Metadata.Secondary is { } q && q != -1 ? Array.IndexOf(ids, q) : -1;
         Short(worn, primary); Short(worn, secondary);
         var result = Replace(player, layout.WornStart, layout.WornEnd + 4, worn.ToArray());
         BinaryPrimitives.WriteInt32BigEndian(result.AsSpan(layout.Hands), primary);
