@@ -23,16 +23,20 @@ jobs:
       - name: Check housekeeping SQL and record catalog query evidence
         shell: pwsh
         run: |
+          python scripts/check-path-normalization.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/check-housekeeping-sql.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item artifacts/storage-tests -ItemType Directory -Force | Out-Null
+          python scripts/measure-path-normalization.py > artifacts/storage-tests/path-layout.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/measure-catalog-performance.py --baseline-ref 2f3ce6f > artifacts/storage-tests/catalog-query.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run storage, capture, deduplication and catalog regressions
         shell: pwsh
         run: >-
           dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
-          --filter 'FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~StoragePerformanceTests|FullyQualifiedName~MissingIdentityDeletionTests|FullyQualifiedName~ContentFingerprintTests'
+          --filter 'FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~StoragePerformanceTests|FullyQualifiedName~MissingIdentityDeletionTests|FullyQualifiedName~ContentFingerprintTests|FullyQualifiedName~NormalizedPathTests'
           --logger 'trx;LogFileName=storage-performance.trx' --results-directory artifacts/storage-tests
       - uses: actions/upload-artifact@v4
         if: always()

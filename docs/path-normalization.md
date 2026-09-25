@@ -53,7 +53,8 @@ when no new backups or deletions occur. No vacuum runs per path insertion/deleti
 SQLite 3.46.1, 4,096-byte pages, 3,000 synthetic files, every file gets a version in
 every revision, and 10% change their spelling on alternating revisions. Both layouts
 use production schema SQL and are VACUUMed. Selected historical snapshots are compared
-field-for-field, and both foreign keys and integrity are checked.
+field-for-field, and both foreign keys and integrity are checked. Windows Python
+SQLite 3.49.1 independently produced the same database byte sizes.
 
 | Revisions | Entry versions | Schema 2 bytes | Schema 3 bytes | Reduction |
 | ---: | ---: | ---: | ---: | ---: |
@@ -74,9 +75,27 @@ physical layout. The compact-format size script also seeds normalized path dicti
 ## Verification scope
 
 Local isolated production SQL checks: 10 path-normalization cases and 14 housekeeping
-cases passed. The path suite checks interning, spelling preservation, transaction
-rollback, initial set-based staging, FK/immutability constraints, bounded collection
-and lookup plans. Windows `NormalizedPathTests` adds real capture/case rename/move,
-per-revision restore, cross-source sharing, hidden baselines, compaction/GC, rollback,
-Unicode keys, literal prefix handling and old-schema rejection. Windows results are
-recorded in the PR after execution; local SQL checks are not whole-product validation.
+cases passed. Both suites also passed on Windows. The path suite checks interning,
+spelling preservation, transaction rollback, initial set-based staging, FK/immutability
+constraints, bounded collection and lookup plans.
+
+Product commit `926d63671330e50ff7ea79d3a6624b3f5664a6d5` was built and verified on
+Windows with **181/181 storage regression cases passed, zero failures or skips**.
+This includes all **14 NormalizedPathTests** and the preceding **22 fingerprint cases**.
+Evidence: Actions run `36140435756`, job `108088649515`, artifact `10865934595`.
+The artifact contains the TRX, layout/query JSON and exact committed source ID.
+The reviewed patch SHA-256 is
+`e88b5bc1db0b7fa24a6ac34bafa38496825dd199f576f6ff1d54eae716cb9450`.
+
+Coverage includes real capture/case rename/move and per-revision byte/spelling restore,
+cross-source sharing, hidden baselines, compaction/GC, rollback, Unicode keys, literal
+prefix handling and old-schema rejection. The same 181 cases passed in the preceding
+validation run; its publication step failed on a workflow-write permission restriction,
+not a test failure. Product publishing and connector-authorized CI updates were then
+separated without changing product code or weakening tests.
+
+Temporary transport workflows and payloads are removed from the final branch tree.
+The regular PR workflow includes the new SQL checks, layout experiment and path suite.
+Selected storage results are not whole-product validation: check the new PR's full
+Windows build, lifecycle, JVM and published-distribution jobs before merging. No live
+game, user saves or user repository was accessed or reset by this work.

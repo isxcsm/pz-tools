@@ -1,16 +1,18 @@
 # Storage performance follow-up
 
 This follows compact format 2. The current repository is **format 2 / schema 3**.
-There is no migration or dual reader for schema 1 or format 1. Opening older data
+There is no migration or dual reader for schemas 1/2 or format 1. Opening older data
 fails with `repository-reset-required` before configuration writes; it is never
 automatically deleted. Start with a new empty backup directory. The game's
 `Zomboid/Saves` directory is not a reset target. Publish matching app and workers.
+The measurements and verification history below describe the named schema-2 commits;
+[path normalization](path-normalization.md) documents the subsequent schema-3 change.
 
 ## Implemented changes
 
 ### Deduplicate before compression
 
-The private staged copy now retains its full SHA-256 digest. Deduplication requests
+The private staged copy retains its full SHA-256 digest. Deduplication requests
 that digest even when copy-verification and optional change-fingerprint recording
 are disabled. Search the current pack and committed repository by full digest and
 length, then compare actual bytes. Only a new object is compressed and written.
@@ -61,9 +63,10 @@ queries from production source and executes them on the SAME isolated fresh-sche
 SQLite database: 10,000 files, 100 revisions, 100 changed files per later revision,
 19,900 total entry versions. Summary values are independently seeded. Both queries
 are warmed before three measured repetitions, and all 100 result rows must match.
-No user database, game, pack compression or UI is measured.
+No user database, game, pack compression or UI is measured. On schema 3, the old
+aggregation is adapted through the normalized catalog view on the same new DB.
 
-Local Python SQLite 3.46.1 medians in milliseconds:
+Schema-2 local Python SQLite 3.46.1 medians in milliseconds:
 
 | Catalog query | Previous aggregation | Cached totals |
 | --- | ---: | ---: |
@@ -83,7 +86,7 @@ Product commit `a4e2b04451dd6c1153539eee6b1c3a28da47c6e6` passed **141/141** Win
 storage regression cases with **zero failures or skips**. New `StoragePerformanceTests`
 contribute 18 cases. Evidence: Actions run `36119666063`, verify job `108021962587`,
 TRX artifact `storage-performance-tests-a4e2b04451dd6c1153539eee6b1c3a28da47c6e6`.
-The temporary exact-patch transfer workflow is removed after application.
+The temporary exact-patch transfer workflow was removed after application.
 
 Coverage includes local/committed reuse without a capture phase, disabled optional
 hash flags, a forged digest candidate with different actual bytes, cancelled reuse,
@@ -96,16 +99,17 @@ The existing isolated production housekeeping SQL checks also pass **14/14**.
 These targeted results are not the full application lifecycle/published-payload gate.
 Before this follow-up, full CI at `2f3ce6f` recorded **678 passed, 3 failed, 36 skipped**
 (run `36090166800`). Failures were two killed-process database reopen I/O errors and
-one shutdown test's scheduler.db sharing violation. Their causes are not established
-by the performance work and are not suppressed. Check the final head's full Windows
-CI independently before merging or publishing. Actual user saves were not accessed.
+one shutdown test's scheduler.db sharing violation. Their causes were not established
+by the performance work and were not suppressed. Later fixes and full-suite evidence
+are recorded in the [merge review](connection-startup-and-merge-review.md) and PR #1.
+Check the final head's full Windows CI independently before merging or publishing.
+Actual user saves were not accessed.
 
-## Remaining candidate
+## Subsequent path normalization
 
-Path-key/display-path normalization into a separate path dictionary is not part of
-this change. It needs a separate layout comparison and end-to-end validation of
-historical spelling, case-only renames, compaction and restore joins. The current
-path representation and case behavior remain unchanged.
-
-Current path storage uses [normalized immutable path dictionaries](path-normalization.md).
-Earlier measurements and CI counts above describe their explicitly named commits.
+Schema 3 implements the previously deferred path dictionary. Canonical keys and
+immutable historical spellings are stored separately, and file versions reference
+their IDs. Historical spelling, case-only renames, compaction, restore, cross-source
+sharing and dictionary collection have separate tests and layout measurements.
+See [path normalization](path-normalization.md) for its scope, cost tradeoffs and
+current verification rather than treating the older measurements above as schema-3 results.
