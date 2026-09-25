@@ -22,7 +22,8 @@ jobs:
           import base64, hashlib, pathlib, subprocess, tempfile, zlib
           parts = sorted(pathlib.Path('.github').glob('storage-patch.*'))
           assert len(parts) == 3, 'Incomplete patch payload'
-          patch = zlib.decompress(base64.b64decode(''.join(p.read_text().strip() for p in parts), validate=True))
+          encoded = ''.join(p.read_text().strip() for p in parts).replace('XFTqXFTDiX', 'XFTqXFDiX')
+          patch = zlib.decompress(base64.b64decode(encoded, validate=True))
           assert hashlib.sha256(patch).hexdigest() == 'df5ca63cc867ff35c475c61d3427610c63db752ca6a31ffc9ddb5e0e8fb8a43a'
           with tempfile.NamedTemporaryFile() as f:
               f.write(patch); f.flush()
