@@ -1,5 +1,7 @@
 # Normalized path identities (format 2 / schema 3)
 
+Current schema is **4**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
+
 This is a pre-release breaking layout change. Schema 1/2 and format 1 repositories
 are rejected with `repository-reset-required`; there is no migration, dual reader,
 or automatic reset. Start with a new empty backup directory and matching app/workers.

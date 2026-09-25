@@ -102,7 +102,7 @@ public sealed partial class RepositoryDatabase
         if (revision <= 0) throw new ArgumentOutOfRangeException(nameof(revision));
         var normalized = PzTools.Backup.Core.BackupPath.NormalizeRelative(relativePath);
         await using var connection = await OpenConnectionAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
+        using var transaction = connection.BeginTransaction(deferred: true);
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText =
@@ -181,7 +181,7 @@ public sealed partial class RepositoryDatabase
             create.CommandText = "CREATE TEMP TABLE requested_file_references(value BLOB PRIMARY KEY) WITHOUT ROWID;";
             await create.ExecuteNonQueryAsync(cancellationToken);
         }
-        using (var transaction = connection.BeginTransaction())
+        using (var transaction = connection.BeginTransaction(deferred: true))
         {
             await using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
@@ -197,16 +197,8 @@ public sealed partial class RepositoryDatabase
             transaction.Commit();
         }
         await using var command = connection.CreateCommand();
-        command.CommandText =
-            """
-            SELECT entry.display_path, entry.entry_kind, entry.file_id, entry.parent_file_id
-            FROM entry_catalog AS entry
-            JOIN requested_file_references AS requested
-              ON requested.value = substr(entry.file_id, 9, 16)
-            WHERE entry.source_id = $sourceId
-              AND entry.valid_to_revision IS NULL
-              AND entry.tombstone = 0 AND entry.file_id IS NOT NULL;
-            """;
+        command.CommandText = fileReferences.Count <= RequestDrivenLookupThreshold
+            ? TrackedPathsRequestFirstSql : TrackedPathsScanSql;
         command.Parameters.AddWithValue("$sourceId", sourceId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var entries = new List<CurrentTrackedPath>();
@@ -243,7 +235,7 @@ public sealed partial class RepositoryDatabase
         return await ReadCurrentEntriesAsync(
             connection,
             sourceId,
-            "JOIN paths AS requested_path ON requested_path.path_id = entry.path_id JOIN requested_paths AS requested ON requested.path_key = requested_path.path_key",
+            relativePaths.Count <= RequestDrivenLookupThreshold ? PathsRequestFirstFrom : PathsScanFrom,
             cancellationToken);
     }
 
@@ -268,7 +260,7 @@ public sealed partial class RepositoryDatabase
         return await ReadCurrentEntriesAsync(
             connection,
             sourceId,
-            "JOIN requested_roots AS requested ON entry.path_key = requested.path_key OR substr(entry.path_key, 1, length(requested.path_key) + 1) = requested.path_key || '/'",
+            "current_entry_catalog AS entry JOIN requested_roots AS requested ON entry.path_key = requested.path_key OR substr(entry.path_key, 1, length(requested.path_key) + 1) = requested.path_key || '/'",
             cancellationToken);
     }
 
@@ -462,7 +454,7 @@ public sealed partial class RepositoryDatabase
             await create.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        using var transaction = connection.BeginTransaction();
+        using var transaction = connection.BeginTransaction(deferred: true);
         await using var insert = connection.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = $"INSERT OR IGNORE INTO {tableName}({columnName}) VALUES ($value);";
@@ -479,28 +471,11 @@ public sealed partial class RepositoryDatabase
     private static async Task<IReadOnlyList<RevisionEntry>> ReadCurrentEntriesAsync(
         SqliteConnection connection,
         long sourceId,
-        string joinClause,
+        string fromClause,
         CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
-        command.CommandText =
-            $"""
-            SELECT entry.display_path, entry.entry_kind, entry.byte_length,
-                   entry.modified_utc, entry.changed_utc, entry.attributes,
-                   entry.file_id, entry.parent_file_id, entry.object_id,
-                   object.pack_id, pack.relative_path, object.pack_offset,
-                   object.stored_length, object.original_length,
-                   object.checksum_algorithm, object.checksum,
-                   object.compression_algorithm, object.flags
-            FROM entry_catalog AS entry
-            {joinClause}
-            LEFT JOIN stored_objects AS object ON object.object_id = entry.object_id
-            LEFT JOIN packs AS pack ON pack.pack_id = object.pack_id
-            WHERE entry.source_id = $sourceId
-              AND entry.valid_to_revision IS NULL
-              AND entry.tombstone = 0
-            ORDER BY entry.path_key;
-            """;
+        command.CommandText = CurrentEntriesLookupSql(fromClause);
         command.Parameters.AddWithValue("$sourceId", sourceId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var entries = new List<RevisionEntry>();
@@ -511,6 +486,24 @@ public sealed partial class RepositoryDatabase
 
         return entries;
     }
+
+    internal static string CurrentEntriesLookupSql(string fromClause) =>
+        $"""
+            SELECT entry.display_path, entry.entry_kind, entry.byte_length,
+                   entry.modified_utc, entry.changed_utc, entry.attributes,
+                   entry.file_id, entry.parent_file_id, entry.object_id,
+                   object.pack_id, pack.relative_path, object.pack_offset,
+                   object.stored_length, object.original_length,
+                   object.checksum_algorithm, object.checksum,
+                   object.compression_algorithm, object.flags
+            FROM {fromClause}
+            LEFT JOIN stored_objects AS object ON object.object_id = entry.object_id
+            LEFT JOIN packs AS pack ON pack.pack_id = object.pack_id
+            WHERE entry.source_id = $sourceId
+              AND entry.valid_to_revision IS NULL
+              AND entry.tombstone = 0
+            ORDER BY entry.path_key;
+            """;
 
     private static RevisionEntry ReadRevisionEntry(SqliteDataReader reader) =>
         new(

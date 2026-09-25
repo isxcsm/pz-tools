@@ -1,6 +1,8 @@
 # Compact repository format 2 (pre-release breaking change)
 
-The current layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
+Current schema is **4**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
+
+The earlier path-normalized layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
 for revision summaries and pre-compression deduplication, and [path normalization](path-normalization.md)
 for the current path dictionaries and verification. There is no migration or dual-format
 reader for format 1 or schemas 1/2. Old data is rejected with `repository-reset-required`,

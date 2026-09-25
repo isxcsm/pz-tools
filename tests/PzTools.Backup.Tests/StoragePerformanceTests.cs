@@ -27,7 +27,7 @@ public sealed class StoragePerformanceTests
         var content = new byte[384 * 1024 + 19];
         new Random(410).NextBytes(content);
         await File.WriteAllBytesAsync(source, content);
-        var capture = new DeduplicatingFileCapturer(new StableFileCapturer(new WindowsFileMetadataReader(),
+        await using var capture = new DeduplicatingFileCapturer(new StableFileCapturer(new WindowsFileMetadataReader(),
             verifyStagedCopies: verify, recordContentHash: fingerprint));
         await using var writer = await PackWriter.CreateAsync(repository.RepositoryPath, 1);
         var first = await capture.CaptureAsync(repository, source, writer, ChecksumAlgorithm.Sha256, compression, true);
@@ -70,7 +70,7 @@ public sealed class StoragePerformanceTests
                 .RunAsync(repository, TelemetryStore.CreateDisabled(repository.RepositoryPath), lease, source,
                     new(ChecksumAlgorithm.Sha256, CompressionAlgorithm.Brotli, false), new(TelemetryMode.Off, 8, 5, 10, 32));
         }
-        var capture = new DeduplicatingFileCapturer(stable);
+        await using var capture = new DeduplicatingFileCapturer(stable);
         await using (var writer = await PackWriter.CreateAsync(repository.RepositoryPath, 2))
         {
             var reused = await capture.CaptureAsync(repository, path, writer, ChecksumAlgorithm.Sha256,
@@ -110,7 +110,7 @@ public sealed class StoragePerformanceTests
         var repository = await RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repository"));
         var path = temp.GetPath("value");
         await File.WriteAllTextAsync(path, "same");
-        var capture = new DeduplicatingFileCapturer(new StableFileCapturer(new WindowsFileMetadataReader()));
+        await using var capture = new DeduplicatingFileCapturer(new StableFileCapturer(new WindowsFileMetadataReader()));
         await using var writer = await PackWriter.CreateAsync(repository.RepositoryPath, 1);
         await capture.CaptureAsync(repository, path, writer, ChecksumAlgorithm.Sha256, CompressionAlgorithm.Brotli, true);
         using var cancellation = new CancellationTokenSource();

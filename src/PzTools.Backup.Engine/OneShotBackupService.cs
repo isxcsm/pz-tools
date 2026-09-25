@@ -91,7 +91,7 @@ public sealed class OneShotBackupService(IUsnJournalSource journal, BackupSource
         var stableCapturer = new StableFileCapturer(metadata, options.Storage.VerifyStagedCopies,
             maxAttempts: tuning.CaptureAttempts,
             recordContentHash: options.FullScanHashComparison, tuning: tuning);
-        var deduplicatingCapturer = new DeduplicatingFileCapturer(stableCapturer);
+        await using var deduplicatingCapturer = new DeduplicatingFileCapturer(stableCapturer);
 
         OneShotBackupResult result;
         if (state.CurrentRevision == 0)

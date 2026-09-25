@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1] / 'src/PzTools.Backup.Storage/Reposit
 def sqls(name):
     return re.findall(r'"""\s*\n(.*?)\n\s*"""', (ROOT/name).read_text(), re.S)
 SCHEMA = sqls('RepositorySchema.cs')[0]
-INTERN_PATH, INTERN_SPELLING, GC_SPELLING, GC_PATH = sqls('RepositoryDatabase.Paths.cs')
+INTERN_PATH, INTERN_SPELLING = sqls('RepositoryDatabase.Paths.cs')
+SPELL_WINDOW, PATH_WINDOW, GC_SPELLING, GC_PATH = sqls('RepositoryDatabase.PathCollection.cs')
 INITIAL = sqls('RepositoryDatabase.InitialStaging.cs')[-1]
 CATALOG = sqls('RepositoryDatabase.Summaries.cs')[0]
 
@@ -28,8 +29,29 @@ def intern(db, display):
     return path, spelling
 
 def gc(db, maximum):
-    removed = db.execute(GC_SPELLING, {'limit': maximum}).rowcount
-    return removed + db.execute(GC_PATH, {'limit': maximum-removed}).rowcount
+    sp, si, p, first = db.execute('SELECT spelling_path_id,spelling_id,empty_path_id,spellings_first FROM path_gc_cursor').fetchone()
+    if maximum > 1: first = True
+    inspected = removed = 0
+    for phase in range(2):
+        limit = (maximum+1)//2 if phase == 0 else maximum-inspected
+        if limit == 0: continue
+        if (phase == 0) == bool(first):
+            rows = db.execute(SPELL_WINDOW, {'afterPath':sp,'afterSpelling':si,'limit':limit}).fetchall()
+            for path, spelling, unreferenced in rows:
+                sp,si = path,spelling
+                if unreferenced: removed += db.execute(GC_SPELLING, {'pathId':path,'spellingId':spelling}).rowcount
+            if len(rows)<limit: sp,si = -(1<<63),-1
+        else:
+            sql=PATH_WINDOW.replace('/*cursor*/','' if p is None else 'WHERE path.path_id>$afterPath')
+            rows = db.execute(sql, {'afterPath':p,'limit':limit}).fetchall()
+            for path, empty in rows:
+                p=path
+                if empty: removed += db.execute(GC_PATH, {'pathId':path}).rowcount
+            if len(rows)<limit: p=None
+        inspected += len(rows)
+    assert 0 <= removed <= inspected <= maximum
+    db.execute('UPDATE path_gc_cursor SET spelling_path_id=?,spelling_id=?,empty_path_id=?,spellings_first=?', (sp,si,p,not first))
+    return removed
 
 class PathNormalizationSqlTests(unittest.TestCase):
     def setUp(self):
@@ -79,7 +101,7 @@ class PathNormalizationSqlTests(unittest.TestCase):
         self.entry(intern(self.db,'Keep'))
         for n in range(7): intern(self.db,f'unused-{n}')
         removed=0
-        for _ in range(10):
+        for _ in range(40):
             count=gc(self.db,3); self.assertLessEqual(count,3);removed+=count
         self.assertEqual(14,removed)
         self.assertEqual([('Keep',)],self.db.execute('SELECT display_path FROM entry_catalog').fetchall())
@@ -100,7 +122,7 @@ class PathNormalizationSqlTests(unittest.TestCase):
         self.assertTrue(any('SEARCH entry' in r and 'path_id=?' in r for r in plan),plan)
         self.assertFalse(any('SCAN entry' in r for r in plan),plan)
     def test_gc_lookup_uses_composite_reference_index(self):
-        plan=[r[3] for r in self.db.execute('EXPLAIN QUERY PLAN '+GC_SPELLING,{'limit':1000})]
+        plan=[r[3] for r in self.db.execute('EXPLAIN QUERY PLAN '+SPELL_WINDOW,{'limit':1000,'afterPath':0,'afterSpelling':0})]
         self.assertTrue(any('ix_entry_versions_spelling' in r for r in plan),plan)
 
 if __name__=='__main__':

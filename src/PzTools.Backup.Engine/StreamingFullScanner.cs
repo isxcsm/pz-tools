@@ -61,7 +61,8 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
                     continue;
                 }
 
-                transaction ??= connection.BeginTransaction();
+                // This batch writes TEMP staging only; do not reserve the main DB writer.
+                transaction ??= connection.BeginTransaction(deferred: true);
                 var relativePath = BackupPath.NormalizeRelative(
                     Path.GetRelativePath(sourceRoot, item.Path));
                 await InsertEntryAsync(
@@ -349,7 +350,7 @@ public sealed class FullScanSession : IAsyncDisposable
             WITH current_entries AS (
                 SELECT path_key, display_path, entry_kind, byte_length, modified_utc,
                        changed_utc, attributes, file_id, parent_file_id
-                FROM entry_catalog
+                FROM current_entry_catalog
                 WHERE source_id = $sourceId
                   AND valid_to_revision IS NULL
                   AND tombstone = 0

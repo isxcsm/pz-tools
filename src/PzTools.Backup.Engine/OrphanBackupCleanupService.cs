@@ -13,7 +13,8 @@ public sealed class OrphanBackupCleanupService
     public async Task<OrphanBackupCleanupResult> RunAsync(
         RepositoryDatabase repository, RepositoryWriterLease lease, string savesRoot,
         CancellationToken cancellationToken = default,
-        Func<ReclaimedSaveBackups, Task>? onReclaimed = null)
+        Func<ReclaimedSaveBackups, Task>? onReclaimed = null,
+        bool collectPaths = true)
     {
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(savesRoot));
         var removed = new List<ReclaimedSaveBackups>();
@@ -33,7 +34,7 @@ public sealed class OrphanBackupCleanupService
             }
         }
         // Also retry physical deletion after interruption or a previous sharing violation.
-        var garbage = await repository.CollectGarbageAsync(lease, cancellationToken);
+        var garbage = await repository.CollectGarbageAsync(lease, cancellationToken, collectPaths);
         return new OrphanBackupCleanupResult(removed, deferred, garbage.FilesThatCouldNotBeDeleted);
     }
 
