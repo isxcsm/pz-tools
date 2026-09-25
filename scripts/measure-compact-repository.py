@@ -8,6 +8,7 @@ This measures metadata space, not backups, compression speed or game performance
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import pathlib
@@ -32,7 +33,7 @@ def schema_sql(source: str) -> str:
 
 
 def make_database(path: pathlib.Path, sql: str, count: int, compact: bool, dedup: bool) -> dict:
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db:
         db.execute('PRAGMA page_size=4096')
         db.execute('PRAGMA foreign_keys=ON')
         db.executescript(sql)
