@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using PzTools.Backup.Core.Capture;
 using PzTools.Backup.Core.Configuration;
 using PzTools.Backup.Storage.Packs;
@@ -25,83 +26,75 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
         CancellationToken cancellationToken = default,
         Func<FileCopyProgress, ValueTask>? progress = null)
     {
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(writer);
+        if (contentDeduplication && checksum != ChecksumAlgorithm.Sha256)
+            throw new InvalidOperationException("Content deduplication requires SHA-256.");
+        if (checksum is not (ChecksumAlgorithm.None or ChecksumAlgorithm.XxHash64 or ChecksumAlgorithm.Sha256)
+            || compression is not (CompressionAlgorithm.None or CompressionAlgorithm.Brotli))
+            throw new ArgumentException("Resolve storage algorithms before capturing files.");
+
         if (activePackId != writer.PackId)
         {
             runCandidates.Clear();
             activePackId = writer.PackId;
         }
 
-        await using var staged = await capturer.StageAsync(path, writer, cancellationToken, progress);
-        var captured = await staged.CaptureAsync(writer, checksum, compression, cancellationToken, progress);
-        if (!contentDeduplication)
+        await using var staged = await capturer.StageAsync(path, writer, cancellationToken, progress,
+            requireFullHash: contentDeduplication);
+        try
         {
+            if (!contentDeduplication)
+                return new StoredFileCapture(await staged.CaptureAsync(
+                    writer, checksum, compression, cancellationToken, progress), writer.PackId, Reused: false);
+
+            // Hash while staging, search before compression, and still compare every byte.
+            // A short change fingerprint is NEVER a deduplication key.
+            var digest = staged.FullSha256;
+            var key = ContentKey.Create(staged.Content.Length, digest.Span);
+            if (runCandidates.TryGetValue(key, out var localCandidates))
+            {
+                foreach (var candidate in localCandidates)
+                {
+                    if (await ContentEqualsAsync(staged.Content, writer, candidate, cancellationToken))
+                        return await ReuseAsync(candidate, writer.PackId);
+                }
+            }
+
+            var candidates = await repository.FindDeduplicationCandidatesAsync(
+                staged.Content.Length, digest.ToArray(), cancellationToken);
+            foreach (var candidate in candidates)
+            {
+                if (!await ContentEqualsAsync(repository.RepositoryPath, staged.Content, candidate, cancellationToken))
+                    continue;
+                var descriptor = new PackObjectDescriptor(
+                    candidate.ObjectId, candidate.PackOffset, PayloadOffset: 0,
+                    candidate.OriginalLength, candidate.StoredLength,
+                    Enum.Parse<ChecksumAlgorithm>(candidate.ChecksumAlgorithm), candidate.Checksum,
+                    Enum.Parse<CompressionAlgorithm>(candidate.CompressionAlgorithm), candidate.Flags);
+                return await ReuseAsync(descriptor, candidate.PackId);
+            }
+
+            var captured = await staged.CaptureAsync(writer, checksum, compression, cancellationToken, progress);
+            (localCandidates ??= []).Add(captured.Object);
+            runCandidates[key] = localCandidates;
             return new StoredFileCapture(captured, writer.PackId, Reused: false);
         }
-
-        if (captured.Object.ChecksumAlgorithm != ChecksumAlgorithm.Sha256)
+        catch
         {
-            throw new InvalidOperationException("Content deduplication requires SHA-256.");
+            // Even direct callers must not seal a run after a failed/cancelled comparison.
+            writer.Invalidate("deduplication capture failed");
+            throw;
         }
 
-        var key = new ContentKey(
-            captured.Object.OriginalLength,
-            Convert.ToHexString(captured.Object.Checksum));
-        if (runCandidates.TryGetValue(key, out var localCandidates))
+        async Task<StoredFileCapture> ReuseAsync(PackObjectDescriptor descriptor, Guid packId)
         {
-            foreach (var candidate in localCandidates)
-            {
-                if (!await ContentEqualsAsync(
-                        staged.Content,
-                        writer,
-                        candidate,
-                        cancellationToken))
-                {
-                    continue;
-                }
-
-                writer.DiscardLastObject(captured.Object);
-                return new StoredFileCapture(
-                    captured with { Object = candidate },
-                    writer.PackId,
-                    Reused: true);
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (progress is not null)
+                await progress(new FileCopyProgress(staged.Content.Length, staged.Content.Length, 1, "deduplication"));
+            cancellationToken.ThrowIfCancellationRequested();
+            return new StoredFileCapture(staged.Reuse(descriptor), packId, Reused: true);
         }
-
-        var candidates = await repository.FindDeduplicationCandidatesAsync(
-            captured.Object.OriginalLength,
-            captured.Object.Checksum,
-            cancellationToken);
-        foreach (var candidate in candidates)
-        {
-            if (!await ContentEqualsAsync(
-                repository.RepositoryPath,
-                staged.Content,
-                candidate,
-                cancellationToken))
-            {
-                continue;
-            }
-
-            writer.DiscardLastObject(captured.Object);
-            var reusedDescriptor = new PackObjectDescriptor(
-                candidate.ObjectId,
-                candidate.PackOffset,
-                PayloadOffset: 0,
-                candidate.OriginalLength,
-                candidate.StoredLength,
-                Enum.Parse<ChecksumAlgorithm>(candidate.ChecksumAlgorithm),
-                candidate.Checksum,
-                Enum.Parse<CompressionAlgorithm>(candidate.CompressionAlgorithm),
-                candidate.Flags);
-            return new StoredFileCapture(
-                captured with { Object = reusedDescriptor },
-                candidate.PackId,
-                Reused: true);
-        }
-
-        (localCandidates ??= []).Add(captured.Object);
-        runCandidates[key] = localCandidates;
-        return new StoredFileCapture(captured, writer.PackId, Reused: false);
     }
 
     private async Task<bool> ContentEqualsAsync(
@@ -111,12 +104,12 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
         CancellationToken cancellationToken)
     {
         stagedContent.Position = 0;
-        await using var comparer = new ComparingWriteStream(stagedContent);
+        await using var comparer = new ContentComparisonStream(stagedContent);
         try
         {
             await writer.CopyObjectToAsync(candidate, comparer, cancellationToken);
         }
-        catch (ContentMismatchException)
+        catch (ContentComparisonStream.ContentMismatchException)
         {
             return false;
         }
@@ -141,7 +134,7 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
             packPath,
             candidate.PackId,
             cancellationToken);
-        await using var comparer = new ComparingWriteStream(stagedContent);
+        await using var comparer = new ContentComparisonStream(stagedContent);
         try
         {
             await reader.CopyObjectAtAsync(
@@ -150,7 +143,7 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
                 comparer,
                 cancellationToken);
         }
-        catch (ContentMismatchException)
+        catch (ContentComparisonStream.ContentMismatchException)
         {
             return false;
         }
@@ -177,57 +170,17 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
         return path;
     }
 
-    private sealed class ComparingWriteStream(Stream source) : Stream
+    // Avoid a 64-character hex string allocation for each captured file.
+    private readonly record struct ContentKey(long Length, ulong A, ulong B, ulong C, ulong D)
     {
-        public override bool CanRead => false;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotSupportedException();
-        public override long Position
+        public static ContentKey Create(long length, ReadOnlySpan<byte> digest)
         {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
+            if (digest.Length != 32) throw new InvalidDataException("A full SHA-256 digest is required for deduplication.");
+            return new(length,
+                BinaryPrimitives.ReadUInt64BigEndian(digest),
+                BinaryPrimitives.ReadUInt64BigEndian(digest[8..]),
+                BinaryPrimitives.ReadUInt64BigEndian(digest[16..]),
+                BinaryPrimitives.ReadUInt64BigEndian(digest[24..]));
         }
-
-        public async Task<bool> IsSourceExhaustedAsync(CancellationToken cancellationToken)
-        {
-            var buffer = new byte[1];
-            return await source.ReadAsync(buffer, cancellationToken) == 0;
-        }
-
-        public override async ValueTask WriteAsync(
-            ReadOnlyMemory<byte> buffer,
-            CancellationToken cancellationToken = default)
-        {
-            var actual = new byte[buffer.Length];
-            await source.ReadExactlyAsync(actual, cancellationToken);
-            if (!buffer.Span.SequenceEqual(actual))
-            {
-                throw new ContentMismatchException();
-            }
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            var actual = new byte[count];
-            source.ReadExactly(actual);
-            if (!buffer.AsSpan(offset, count).SequenceEqual(actual))
-            {
-                throw new ContentMismatchException();
-            }
-        }
-
-        public override void Flush()
-        {
-        }
-
-        public override Task FlushAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
     }
-
-    private sealed class ContentMismatchException : Exception;
-
-    private readonly record struct ContentKey(long Length, string Sha256);
 }

@@ -12,17 +12,24 @@ public sealed record StableFileCaptureResult(
     FileCaptureMetadata SourceMetadata,
     byte[]? ContentHash = null)
 {
-    public string? ContentHashAlgorithm => ContentHash is null ? null : "Sha256";
+    public string? ContentHashAlgorithm => ContentHash is null ? null : ContentFingerprint.AlgorithmName;
 }
 
 public sealed record FileCopyProgress(long CopiedBytes, long TotalBytes, int Attempt, string Phase = "copy");
 
 public sealed class StagedFileCapture(
-    FileStream content, FileCaptureMetadata sourceMetadata, byte[]? contentHash = null)
+    FileStream content, FileCaptureMetadata sourceMetadata, byte[]? contentHash = null,
+    byte[]? fullSha256 = null)
     : IAsyncDisposable
 {
     public FileStream Content { get; } = content;
     public FileCaptureMetadata SourceMetadata { get; } = sourceMetadata;
+
+    // This digest describes the private staged copy, never a later live source read.
+    internal ReadOnlyMemory<byte> FullSha256 { get; } = fullSha256 ?? [];
+
+    internal StableFileCaptureResult Reuse(PackObjectDescriptor storedObject) =>
+        new(storedObject, SourceMetadata, contentHash);
 
     public async Task<StableFileCaptureResult> CaptureAsync(
         PackWriter packWriter,
@@ -100,7 +107,8 @@ public sealed class StableFileCapturer : IStableFileCapturer
         string path,
         PackWriter packWriter,
         CancellationToken cancellationToken = default,
-        Func<FileCopyProgress, ValueTask>? progress = null)
+        Func<FileCopyProgress, ValueTask>? progress = null,
+        bool requireFullHash = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(packWriter);
@@ -110,7 +118,7 @@ public sealed class StableFileCapturer : IStableFileCapturer
             try
             {
                 return await StageOnceAsync(
-                    absolutePath, packWriter, attempt, progress, cancellationToken);
+                    absolutePath, packWriter, attempt, progress, cancellationToken, requireFullHash);
             }
             catch (OperationCanceledException)
             {
@@ -152,7 +160,8 @@ public sealed class StableFileCapturer : IStableFileCapturer
         PackWriter packWriter,
         int attempt,
         Func<FileCopyProgress, ValueTask>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool requireFullHash)
     {
         var beforePath = metadataReader.ReadPath(path);
         await using var source = new FileStream(
@@ -187,7 +196,7 @@ public sealed class StableFileCapturer : IStableFileCapturer
         try
         {
             var copyHash = await CopyAsync(source, staging, beforeHandle.Length,
-                attempt, progress, cancellationToken);
+                attempt, progress, cancellationToken, requireFullHash);
             var afterHandle = metadataReader.ReadHandle(source.SafeFileHandle);
             var afterPath = metadataReader.ReadPath(path);
             if (!StringComparer.Ordinal.Equals(afterHandle.Identity, afterPath.Identity)
@@ -228,7 +237,9 @@ public sealed class StableFileCapturer : IStableFileCapturer
 
             staging.Position = 0;
             return new StagedFileCapture(
-                staging, capturedMetadata, recordContentHash ? copyHash.Hash : null);
+                staging, capturedMetadata,
+                recordContentHash ? ContentFingerprint.FromSha256(copyHash.Hash) : null,
+                copyHash.Hash.Length == 32 ? copyHash.Hash : null);
         }
         catch
         {
@@ -243,9 +254,10 @@ public sealed class StableFileCapturer : IStableFileCapturer
         long expectedLength,
         int attempt,
         Func<FileCopyProgress, ValueTask>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool requireFullHash)
     {
-        using var hasher = verifyStagedCopies || recordContentHash
+        using var hasher = verifyStagedCopies || recordContentHash || requireFullHash
             ? IncrementalHash.CreateHash(HashAlgorithmName.SHA256) : null;
         var buffer = ArrayPool<byte>.Shared.Rent(tuning.CopyBufferKib * 1024);
         var clock = Stopwatch.StartNew();

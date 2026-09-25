@@ -328,13 +328,23 @@ public sealed class ProjectionRuntimeTests
         host.AddLoop("faulted", _ => throw new InvalidOperationException("fixture"),
             TimeSpan.FromMilliseconds(10));
         host.Start();
-        await Task.Delay(80);
+        // Observe completed work, not an assumed number of ticks in 80 ms.
+        // The timeout bounds a real failure; it is not a performance threshold.
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (Volatile.Read(ref healthyRuns) <= 1
+            || !host.Statuses.Any(item => item.Name == "healthy" && item.Health == ProjectorHealth.Healthy)
+            || !host.Statuses.Any(item => item.Name == "faulted" && item.Health == ProjectorHealth.Faulted))
+            await Task.Delay(10, deadline.Token);
 
-        Assert.True(healthyRuns > 1);
+        Assert.True(Volatile.Read(ref healthyRuns) > 1);
         Assert.Contains(host.Statuses, item =>
             item.Name == "healthy" && item.Health == ProjectorHealth.Healthy);
         Assert.Contains(host.Statuses, item =>
             item.Name == "faulted" && item.Health == ProjectorHealth.Faulted);
+        host.RequestStop();
+        while (host.Statuses.Any(item => item.Health != ProjectorHealth.Stopped))
+            await Task.Delay(10, deadline.Token);
+        Assert.All(host.Statuses, item => Assert.Equal(ProjectorHealth.Stopped, item.Health));
     }
 
     [Fact]

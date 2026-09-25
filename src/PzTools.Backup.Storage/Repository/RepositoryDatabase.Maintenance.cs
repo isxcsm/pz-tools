@@ -344,7 +344,7 @@ public sealed partial class RepositoryDatabase
         {
             var name = $"$pack{index++}";
             parameterNames.Add(name);
-            command.Parameters.AddWithValue(name, packId.ToString("D"));
+            command.Parameters.AddWithValue(name, packId.ToByteArray());
         }
 
         command.CommandText =
@@ -363,15 +363,15 @@ public sealed partial class RepositoryDatabase
         while (await reader.ReadAsync(cancellationToken))
         {
             objects.Add(new CompactionObject(
-                Guid.Parse(reader.GetString(0)),
-                Guid.Parse(reader.GetString(1)),
+                reader.GetGuid(0),
+                reader.GetGuid(1),
                 reader.GetString(2),
                 reader.GetInt64(3),
                 reader.GetInt64(4),
                 reader.GetInt64(5),
-                reader.GetString(6),
+                StorageAlgorithmCodec.Checksum(reader.GetInt32(6)),
                 (byte[])reader.GetValue(7),
-                reader.GetString(8),
+                StorageAlgorithmCodec.Compression(reader.GetInt32(8)),
                 reader.GetInt32(9)));
         }
 
@@ -406,7 +406,7 @@ public sealed partial class RepositoryDatabase
                         $packId, $relativePath, $formatVersion, $byteLength, 'Committed',
                         $runIndex, $createdUtc);
                     """;
-                insert.Parameters.AddWithValue("$packId", newPack.PackId.ToString("D"));
+                insert.Parameters.AddWithValue("$packId", newPack.PackId.ToByteArray());
                 insert.Parameters.AddWithValue("$relativePath", newPack.RelativePath);
                 insert.Parameters.AddWithValue("$formatVersion", newPack.FormatVersion);
                 insert.Parameters.AddWithValue("$byteLength", newPack.ByteLength);
@@ -428,15 +428,15 @@ public sealed partial class RepositoryDatabase
                         compression_algorithm = $compressionAlgorithm, flags = $flags
                     WHERE object_id = $objectId;
                     """;
-                update.Parameters.AddWithValue("$packId", relocated.PackId.ToString("D"));
+                update.Parameters.AddWithValue("$packId", relocated.PackId.ToByteArray());
                 update.Parameters.AddWithValue("$packOffset", relocated.PackOffset);
                 update.Parameters.AddWithValue("$storedLength", relocated.StoredLength);
                 update.Parameters.AddWithValue("$originalLength", relocated.OriginalLength);
-                update.Parameters.AddWithValue("$checksumAlgorithm", relocated.ChecksumAlgorithm);
+                update.Parameters.AddWithValue("$checksumAlgorithm", StorageAlgorithmCodec.Checksum(relocated.ChecksumAlgorithm));
                 update.Parameters.AddWithValue("$checksum", (object?)relocated.Checksum ?? DBNull.Value);
-                update.Parameters.AddWithValue("$compressionAlgorithm", relocated.CompressionAlgorithm);
+                update.Parameters.AddWithValue("$compressionAlgorithm", StorageAlgorithmCodec.Compression(relocated.CompressionAlgorithm));
                 update.Parameters.AddWithValue("$flags", relocated.Flags);
-                update.Parameters.AddWithValue("$objectId", relocated.ObjectId.ToString("D"));
+                update.Parameters.AddWithValue("$objectId", relocated.ObjectId.ToByteArray());
                 if (await update.ExecuteNonQueryAsync(cancellationToken) != 1)
                 {
                     throw new InvalidOperationException(
@@ -457,7 +457,7 @@ public sealed partial class RepositoryDatabase
                           WHERE stored_objects.pack_id = packs.pack_id
                       );
                     """;
-                mark.Parameters.AddWithValue("$packId", packId.ToString("D"));
+                mark.Parameters.AddWithValue("$packId", packId.ToByteArray());
                 if (await mark.ExecuteNonQueryAsync(cancellationToken) != 1)
                 {
                     throw new InvalidOperationException(

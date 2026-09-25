@@ -82,6 +82,8 @@ public sealed partial class RepositoryDatabase
                 sourceId,
                 revision,
                 cancellationToken);
+            await InitializeRevisionSummaryAsync(
+                stagingConnection, transaction, sourceId, revision, cancellationToken);
             await UpdateSourceStateAsync(
                 stagingConnection,
                 transaction,
@@ -141,10 +143,10 @@ public sealed partial class RepositoryDatabase
             INSERT OR IGNORE INTO stored_objects(
                 object_id, pack_id, pack_offset, stored_length, original_length,
                 checksum_algorithm, checksum, compression_algorithm, flags,
-                content_hash_algorithm, content_hash)
+                content_hash)
             SELECT object_id, pack_id, record_offset, stored_length, byte_length,
                    checksum_algorithm, checksum, compression_algorithm, object_flags,
-                   content_hash_algorithm, content_hash
+                   content_hash
             FROM full_scan_entries
             WHERE entry_kind = 'File';
             """;

@@ -52,22 +52,34 @@ public sealed class ProcessPipelineIntegrationTests
         var source = temp.GetPath("source");
         Directory.CreateDirectory(source);
         await File.WriteAllTextAsync(Path.Combine(source, "map.bin"), "scheduled disk capture");
+        // This process test must work without a previously initialized user profile.
+        var config = temp.GetPath("worker.toml");
+        await File.WriteAllTextAsync(config, "format_version = 1\n[telemetry]\nmode = 'phase'\n");
+        var runnerConfig = temp.GetPath("runner.toml");
+        await File.WriteAllTextAsync(runnerConfig, "[telemetry]\nenabled = false\n");
         var repositoryPath = temp.GetPath("repository");
         var due = DateTimeOffset.UtcNow.AddSeconds(5);
         var result = await RunProcessAsync(Path.Combine(tools, "PzTools.Backup.Runner.exe"),
         [
             "--repository", repositoryPath, "--source-id", "test", "--source", $"test={source}",
-            "--worker-directory", tools, "--control-db", temp.GetPath("control.db"),
+            "--worker-directory", tools, "--worker-config", config, "--config", runnerConfig,
+            "--control-db", temp.GetPath("control.db"),
             "--save-game", "--save-game-before-backup", "false",
             "--scheduled-utc", due.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
         ]);
         Assert.True(result.ExitCode == 0, result.StandardOutput + result.StandardError);
         var envelope = ProcessResultJson.Deserialize<RunnerExecutionResult>(result.StandardOutput);
+        Assert.Equal(ProcessOutcome.Succeeded, envelope.Outcome);
         var telemetry = await PzTools.Backup.Storage.Telemetry.TelemetryStore.CreateOrOpenAsync(repositoryPath);
         var events = await telemetry.ReadEventsAsync(envelope.RunIndex);
         var prepared = Assert.Single(events, item => item.Name == "source.prepare.completed");
         Assert.True(prepared.TimestampUtc >= due);
         Assert.Contains(events, item => item.Name == "run.committed");
+        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath);
+        var storedSource = await repository.GetSourceAsync("test");
+        var restored = temp.GetPath("restored");
+        await new PzTools.Backup.Engine.RevisionRestorer().RestoreAsync(repository, storedSource.SourceId, 1, restored);
+        Assert.Equal("scheduled disk capture", await File.ReadAllTextAsync(Path.Combine(restored, "map.bin")));
     }
 
     [PublishedToolsOnlyFact]

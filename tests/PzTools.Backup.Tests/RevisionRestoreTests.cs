@@ -390,7 +390,7 @@ public sealed class RevisionRestoreTests
                     'Directory', 0, 0, $now, $now, $attributes, NULL, NULL, NULL);
                 """;
             command.Parameters.AddWithValue("$sourceId", context.Source.SourceId);
-            command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+            command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.UtcTicks);
             command.Parameters.AddWithValue("$attributes", (long)FileAttributes.Directory);
             await command.ExecuteNonQueryAsync();
         }

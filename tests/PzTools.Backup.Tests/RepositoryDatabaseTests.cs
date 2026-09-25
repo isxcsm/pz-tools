@@ -9,66 +9,6 @@ namespace PzTools.Backup.Tests;
 public sealed class RepositoryDatabaseTests
 {
     [Fact]
-    public async Task ExistingRepository_UpgradesNamesWithoutLosingRevisions()
-    {
-        using var temp = new TempDirectory();
-        var repositoryPath = temp.GetPath("repository");
-        var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
-        await using (var lease = RepositoryWriterLease.Acquire(repositoryPath))
-        {
-            var source = await repository.AddOrGetSourceAsync(
-                lease, "Sandbox/OldSave", temp.GetPath("source"));
-            var run = await repository.StartRunAsync(lease, source.SourceId);
-            await repository.CommitRevisionAsync(lease, new RevisionCommitRequest(
-                run.RunIndex, source.SourceId, null, [], [], []));
-        }
-        await using (var connection = new SqliteConnection(
-                         new SqliteConnectionStringBuilder
-                         {
-                             DataSource = repository.DatabasePath,
-                             Pooling = false,
-                         }.ToString()))
-        {
-            await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                "DROP INDEX ix_revisions_pending_character; "
-                + "ALTER TABLE revisions DROP COLUMN hours_survived; "
-                + "ALTER TABLE revisions DROP COLUMN character_metadata_read; "
-                + "ALTER TABLE revisions DROP COLUMN character_metadata_error; "
-                + "DELETE FROM schema_migrations WHERE version IN (10,11); "
-                + "ALTER TABLE revisions DROP COLUMN character_name; "
-                + "ALTER TABLE revisions DROP COLUMN character_state; "
-                + "ALTER TABLE revisions DROP COLUMN display_name; "
-                + "ALTER TABLE stored_objects DROP COLUMN content_hash; "
-                + "ALTER TABLE stored_objects DROP COLUMN content_hash_algorithm; "
-                + "DROP INDEX ix_revisions_automatic_active; "
-                + "ALTER TABLE revisions DROP COLUMN backup_kind; "
-                + "ALTER TABLE workflow_runs DROP COLUMN owner_pid; "
-                + "ALTER TABLE workflow_runs DROP COLUMN owner_start_ticks; "
-                + "ALTER TABLE workflow_stages DROP COLUMN owner_pid; "
-                + "ALTER TABLE workflow_stages DROP COLUMN owner_start_ticks; "
-                + "DELETE FROM schema_migrations WHERE version=9; "
-                + "DELETE FROM schema_migrations WHERE version=8; "
-                + "DELETE FROM schema_migrations WHERE version=7; "
-                + "DELETE FROM schema_migrations WHERE version=6; "
-                + "DELETE FROM schema_migrations WHERE version=5; "
-                + "UPDATE repository_info SET schema_version=4;";
-            await command.ExecuteNonQueryAsync();
-        }
-
-        repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
-        await using (var lease = RepositoryWriterLease.Acquire(repositoryPath))
-            Assert.Equal(1, await repository.AssignMissingRevisionNamesAsync(
-                lease, SupportedLanguage.English));
-        var revision = Assert.Single(Assert.Single(
-            (await repository.ReadCatalogIfChangedAsync(-1)).Sources).Revisions);
-        Assert.Equal(1, revision.Revision);
-        Assert.Equal("Backup 1", revision.DisplayName);
-        Assert.Equal(BackupKind.Unknown, revision.Kind);
-    }
-
-    [Fact]
     public async Task RevisionNames_AreStoredEditableAndPersistAcrossReopen()
     {
         using var temp = new TempDirectory();
@@ -406,53 +346,6 @@ public sealed class RepositoryDatabaseTests
         await using var command = connection.CreateCommand();
         command.CommandText = "INSERT INTO durable(value) VALUES (42); SELECT value FROM durable;";
         Assert.Equal(42L, await command.ExecuteScalarAsync());
-    }
-
-    [Fact]
-    public async Task CreateOrOpen_MigratesVersionOneRepositoryAndCreatesLookupIndexes()
-    {
-        using var temp = new TempDirectory();
-        var repositoryPath = temp.GetPath("repository");
-        Directory.CreateDirectory(repositoryPath);
-        var databasePath = Path.Combine(repositoryPath, RepositoryDatabase.DatabaseFileName);
-        var connectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = databasePath,
-            Pooling = false,
-        }.ToString();
-        await using (var connection = new SqliteConnection(connectionString))
-        {
-            await connection.OpenAsync();
-            await RepositoryMigrationRunner.ApplyAsync(connection, RepositorySchema.Migrations.Take(1).ToArray());
-            await using var insert = connection.CreateCommand();
-            insert.CommandText =
-                """
-                INSERT INTO repository_info(
-                    singleton, repository_id, format_version, schema_version,
-                    next_run_index, created_utc)
-                VALUES (1, $repositoryId, 1, 1, 1, $createdUtc);
-                """;
-            insert.Parameters.AddWithValue("$repositoryId", Guid.NewGuid().ToString("D"));
-            insert.Parameters.AddWithValue("$createdUtc", DateTimeOffset.UtcNow.ToString("O"));
-            await insert.ExecuteNonQueryAsync();
-        }
-
-        var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
-
-        Assert.Equal(RepositorySchema.CurrentVersion, repository.Identity.SchemaVersion);
-        await using var migrated = await repository.OpenConnectionAsync();
-        await using var indexes = migrated.CreateCommand();
-        indexes.CommandText =
-            """
-            SELECT COUNT(*)
-            FROM sqlite_master
-            WHERE type = 'index'
-              AND name IN (
-                  'ix_entry_versions_current_file_reference',
-                  'ix_entry_versions_current_parent_reference',
-                  'ix_entry_versions_current_missing_identity');
-            """;
-        Assert.Equal(3L, await indexes.ExecuteScalarAsync());
     }
 
     [Fact]

@@ -15,6 +15,7 @@ internal static class MaintenanceLanePipeline
         string repositoryPath, long sourceId, long runIndex, MaintenanceOptions options,
         string? controlDatabasePath, string? configurationPath)
     {
+        options.Validate();
         var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath);
         var workflow = await repository.ReadWorkflowAsync(runIndex);
         if (workflow.SourceId != sourceId || workflow.Status != WorkflowStatus.Running)
@@ -41,7 +42,8 @@ internal static class MaintenanceLanePipeline
             }
 
             var pending = await repository.CountCompactableDeletedRevisionsAsync(sourceId);
-            if (pending >= options.RevisionCompactionBatchSize)
+            if (await repository.IsRevisionCompactionDueAsync(sourceId, options.RevisionCompactionBatchSize,
+                    TimeSpan.FromMinutes(options.RevisionCompactionMaxDelayMinutes)))
             {
                 lanes.Add(await DispatchLaneAsync(
                     repositoryPath, sourceId, runIndex, "RevisionReclamation", options,
@@ -51,7 +53,7 @@ internal static class MaintenanceLanePipeline
             {
                 lanes.Add(new MaintenanceLaneResult(
                     "RevisionReclamation", "Skipped", 0, 0,
-                    $"pending={pending};threshold={options.RevisionCompactionBatchSize}"));
+                    $"pending={pending};threshold={options.RevisionCompactionBatchSize};max-delay-minutes={options.RevisionCompactionMaxDelayMinutes}"));
             }
 
             lanes.Add(await DispatchLaneAsync(
@@ -133,6 +135,7 @@ internal static class MaintenanceLanePipeline
         string repositoryPath, long sourceId, string lane, MaintenanceOptions options,
         string? controlDatabasePath, string? configurationPath)
     {
+        options.Validate();
         if (!MaintenanceLaneSignal.HeavyLanes.Contains(lane, StringComparer.Ordinal))
             throw new ArgumentException($"Unknown maintenance lane '{lane}'.", nameof(lane));
 
@@ -166,10 +169,12 @@ internal static class MaintenanceLanePipeline
                         var timer = Stopwatch.StartNew();
                         var failed = new List<string>();
                         var count = 0;
+                        RepositoryHousekeepingResult? housekeeping = null;
                         if (lane == "RevisionReclamation")
                         {
-                            if (await repository.CountCompactableDeletedRevisionsAsync(sourceId, token)
-                                >= options.RevisionCompactionBatchSize)
+                            if (await repository.IsRevisionCompactionDueAsync(sourceId,
+                                    options.RevisionCompactionBatchSize,
+                                    TimeSpan.FromMinutes(options.RevisionCompactionMaxDelayMinutes), token))
                             {
                                 var compacted = await repository.CompactDeletedRevisionsAsync(
                                     lease, sourceId, options.RevisionCompactionBatchSize, token);
@@ -188,6 +193,10 @@ internal static class MaintenanceLanePipeline
                             var cleanup = await repository.CleanupArtifactsAsync(lease, token);
                             count = cleanup.DeletedTemporaryFiles;
                             failed.AddRange(cleanup.FilesThatCouldNotBeDeleted);
+                            housekeeping = await new RepositoryHousekeepingService().RunAsync(
+                                repository, lease, sourceId, runIndex, options, token);
+                            count += housekeeping.AffectedItems;
+                            failed.AddRange(housekeeping.FilesThatCouldNotBeDeleted);
                         }
 
                         var outcome = failed.Count == 0
@@ -200,7 +209,9 @@ internal static class MaintenanceLanePipeline
                             runIndex, owner, status, cancellationToken: CancellationToken.None);
                         var laneResult = new MaintenanceLaneResult(
                             lane, status.ToString(), timer.ElapsedMilliseconds, count,
-                            failed.Count == 0 ? null : $"failed-files={failed.Count}");
+                            housekeeping is null
+                                ? (failed.Count == 0 ? null : $"failed-files={failed.Count}")
+                                : $"failed-files={failed.Count};{housekeeping.ToDetail()}");
                         await BestEffortProcessTelemetry.TryRecordAsync(
                             repositoryPath, owner, runIndex, $"maintenance.{lane.ToLowerInvariant()}.completed",
                             System.Text.Json.JsonSerializer.Serialize(new
@@ -209,6 +220,7 @@ internal static class MaintenanceLanePipeline
                                 lane,
                                 laneResult.ElapsedMilliseconds,
                                 laneResult.AffectedItems,
+                                database = housekeeping?.ToDetail(),
                                 failureCode = failed.Count == 0 ? null : "file-delete-failed",
                                 failedFileCount = failed.Count,
                                 failedFiles = failed.Take(8).Select(Path.GetFileName).ToArray(),

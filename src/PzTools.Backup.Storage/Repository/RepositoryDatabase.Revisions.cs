@@ -144,25 +144,29 @@ public sealed partial class RepositoryDatabase
         DateTimeOffset createdUtc,
         CancellationToken cancellationToken)
     {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            INSERT INTO packs(
+                pack_id, relative_path, format_version, byte_length, status,
+                created_run_index, created_utc)
+            VALUES (
+                $packId, $relativePath, $formatVersion, $byteLength, 'Committed',
+                $runIndex, $createdUtc);
+            """;
+        foreach (var name in new[] { "$packId", "$relativePath", "$formatVersion", "$byteLength", "$runIndex", "$createdUtc" })
+            command.Parameters.AddWithValue(name, DBNull.Value);
+        command.Prepare();
         foreach (var pack in request.Packs)
         {
-            await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText =
-                """
-                INSERT INTO packs(
-                    pack_id, relative_path, format_version, byte_length, status,
-                    created_run_index, created_utc)
-                VALUES (
-                    $packId, $relativePath, $formatVersion, $byteLength, 'Committed',
-                    $runIndex, $createdUtc);
-                """;
-            command.Parameters.AddWithValue("$packId", pack.PackId.ToString("D"));
-            command.Parameters.AddWithValue("$relativePath", pack.RelativePath);
-            command.Parameters.AddWithValue("$formatVersion", pack.FormatVersion);
-            command.Parameters.AddWithValue("$byteLength", pack.ByteLength);
-            command.Parameters.AddWithValue("$runIndex", request.RunIndex);
-            command.Parameters.AddWithValue("$createdUtc", createdUtc.ToString("O"));
+            cancellationToken.ThrowIfCancellationRequested();
+            command.Parameters["$packId"].Value = pack.PackId.ToByteArray();
+            command.Parameters["$relativePath"].Value = pack.RelativePath;
+            command.Parameters["$formatVersion"].Value = pack.FormatVersion;
+            command.Parameters["$byteLength"].Value = pack.ByteLength;
+            command.Parameters["$runIndex"].Value = request.RunIndex;
+            command.Parameters["$createdUtc"].Value = createdUtc.ToString("O");
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
     }
@@ -173,104 +177,36 @@ public sealed partial class RepositoryDatabase
         RevisionCommitRequest request,
         CancellationToken cancellationToken)
     {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            INSERT INTO stored_objects(
+                object_id, pack_id, pack_offset, stored_length, original_length,
+                checksum_algorithm, checksum, compression_algorithm, flags,
+                content_hash)
+            VALUES (
+                $objectId, $packId, $packOffset, $storedLength, $originalLength,
+                $checksumAlgorithm, $checksum, $compressionAlgorithm, $flags,
+                $contentHash);
+            """;
+        foreach (var name in new[] { "$objectId", "$packId", "$packOffset", "$storedLength", "$originalLength", "$checksumAlgorithm", "$checksum", "$compressionAlgorithm", "$flags", "$contentHash" })
+            command.Parameters.AddWithValue(name, DBNull.Value);
+        command.Prepare();
         foreach (var storedObject in request.Objects)
         {
-            await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText =
-                """
-                INSERT INTO stored_objects(
-                    object_id, pack_id, pack_offset, stored_length, original_length,
-                    checksum_algorithm, checksum, compression_algorithm, flags,
-                    content_hash_algorithm, content_hash)
-                VALUES (
-                    $objectId, $packId, $packOffset, $storedLength, $originalLength,
-                    $checksumAlgorithm, $checksum, $compressionAlgorithm, $flags,
-                    $contentHashAlgorithm, $contentHash);
-                """;
-            command.Parameters.AddWithValue("$objectId", storedObject.ObjectId.ToString("D"));
-            command.Parameters.AddWithValue("$packId", storedObject.PackId.ToString("D"));
-            command.Parameters.AddWithValue("$packOffset", storedObject.PackOffset);
-            command.Parameters.AddWithValue("$storedLength", storedObject.StoredLength);
-            command.Parameters.AddWithValue("$originalLength", storedObject.OriginalLength);
-            command.Parameters.AddWithValue(
-                "$checksumAlgorithm",
-                storedObject.ChecksumAlgorithm);
-            command.Parameters.AddWithValue(
-                "$checksum",
-                (object?)storedObject.Checksum ?? DBNull.Value);
-            command.Parameters.AddWithValue(
-                "$compressionAlgorithm",
-                storedObject.CompressionAlgorithm);
-            command.Parameters.AddWithValue("$flags", storedObject.Flags);
-            command.Parameters.AddWithValue("$contentHashAlgorithm",
-                (object?)storedObject.ContentHashAlgorithm ?? DBNull.Value);
-            command.Parameters.AddWithValue("$contentHash",
-                (object?)storedObject.ContentHash ?? DBNull.Value);
+            cancellationToken.ThrowIfCancellationRequested();
+            command.Parameters["$objectId"].Value = storedObject.ObjectId.ToByteArray();
+            command.Parameters["$packId"].Value = storedObject.PackId.ToByteArray();
+            command.Parameters["$packOffset"].Value = storedObject.PackOffset;
+            command.Parameters["$storedLength"].Value = storedObject.StoredLength;
+            command.Parameters["$originalLength"].Value = storedObject.OriginalLength;
+            command.Parameters["$checksumAlgorithm"].Value = StorageAlgorithmCodec.Checksum(storedObject.ChecksumAlgorithm);
+            command.Parameters["$checksum"].Value = (object?)storedObject.Checksum ?? DBNull.Value;
+            command.Parameters["$compressionAlgorithm"].Value = StorageAlgorithmCodec.Compression(storedObject.CompressionAlgorithm);
+            command.Parameters["$flags"].Value = storedObject.Flags;
+            command.Parameters["$contentHash"].Value = (object?)storedObject.ContentHash ?? DBNull.Value;
             await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-    }
-
-    private static async Task ApplyEntriesAsync(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
-        RevisionCommitRequest request,
-        long revision,
-        CancellationToken cancellationToken)
-    {
-        foreach (var entry in request.Entries)
-        {
-            var displayPath = BackupPath.NormalizeRelative(entry.RelativePath);
-            var pathKey = displayPath.ToUpperInvariant();
-
-            await using (var close = connection.CreateCommand())
-            {
-                close.Transaction = transaction;
-                close.CommandText =
-                    """
-                    UPDATE entry_versions
-                    SET valid_to_revision = $revision
-                    WHERE source_id = $sourceId
-                      AND path_key = $pathKey
-                      AND valid_to_revision IS NULL;
-                    """;
-                close.Parameters.AddWithValue("$revision", revision);
-                close.Parameters.AddWithValue("$sourceId", request.SourceId);
-                close.Parameters.AddWithValue("$pathKey", pathKey);
-                await close.ExecuteNonQueryAsync(cancellationToken);
-            }
-
-            await using var insert = connection.CreateCommand();
-            insert.Transaction = transaction;
-            insert.CommandText =
-                """
-                INSERT INTO entry_versions(
-                    source_id, path_key, display_path, valid_from_revision,
-                    entry_kind, tombstone, byte_length, modified_utc, changed_utc,
-                    attributes, file_id, parent_file_id, object_id)
-                VALUES (
-                    $sourceId, $pathKey, $displayPath, $revision,
-                    $entryKind, $tombstone, $byteLength, $modifiedUtc, $changedUtc,
-                    $attributes, $fileId, $parentFileId, $objectId);
-                """;
-            insert.Parameters.AddWithValue("$sourceId", request.SourceId);
-            insert.Parameters.AddWithValue("$pathKey", pathKey);
-            insert.Parameters.AddWithValue("$displayPath", displayPath);
-            insert.Parameters.AddWithValue("$revision", revision);
-            insert.Parameters.AddWithValue("$entryKind", entry.Kind.ToString());
-            insert.Parameters.AddWithValue("$tombstone", entry.Tombstone ? 1 : 0);
-            insert.Parameters.AddWithValue("$byteLength", entry.ByteLength);
-            insert.Parameters.AddWithValue("$modifiedUtc", entry.ModifiedUtc.ToString("O"));
-            insert.Parameters.AddWithValue("$changedUtc", entry.ChangedUtc.ToString("O"));
-            insert.Parameters.AddWithValue("$attributes", (long)entry.Attributes);
-            insert.Parameters.AddWithValue("$fileId", (object?)entry.FileId ?? DBNull.Value);
-            insert.Parameters.AddWithValue(
-                "$parentFileId",
-                (object?)entry.ParentFileId ?? DBNull.Value);
-            insert.Parameters.AddWithValue(
-                "$objectId",
-                entry.ObjectId is null ? DBNull.Value : entry.ObjectId.Value.ToString("D"));
-            await insert.ExecuteNonQueryAsync(cancellationToken);
         }
     }
 

@@ -54,10 +54,27 @@ public sealed class ApplicationInstanceLeaseTests
             if (kill) first.Kill(entireProcessTree: true);
             else await first.StandardInput.WriteLineAsync("exit");
             await first.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
-            using var reopened = ApplicationInstanceLease.TryAcquire(temp.Path);
+            // Process exit and observable named-marker release are separate
+            // conditions. Keep the real duplicate rejection check above and
+            // require reacquisition within a bounded deadline, without GC.
+            using var reopened = await WaitForReleasedMarkerAsync(temp.Path);
             Assert.NotNull(reopened);
+            using var duplicateAfterRestart = ApplicationInstanceLease.TryAcquire(temp.Path);
+            Assert.Null(duplicateAfterRestart);
         }
         finally { await StopFixtureAsync(first); }
+    }
+
+    private static async Task<ApplicationInstanceLease> WaitForReleasedMarkerAsync(string root)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (true)
+        {
+            deadline.Token.ThrowIfCancellationRequested();
+            var lease = ApplicationInstanceLease.TryAcquire(root);
+            if (lease is not null) return lease;
+            await Task.Delay(10, deadline.Token);
+        }
     }
 
     private static System.Diagnostics.Process StartFixture(string root)
