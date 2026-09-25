@@ -18,6 +18,8 @@ public sealed class GameplayProcessIntegrationTests
         // A renamed Windows command interpreter simulates process presence only, never a game install.
         var executable = temp.GetPath("ProjectZomboid64.exe");
         File.Copy(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"), executable);
+        // The private fixture must not inherit a system binary's read-only attributes.
+        File.SetAttributes(executable, FileAttributes.Normal);
         var start = new ProcessStartInfo(executable)
         {
             UseShellExecute = false, CreateNoWindow = true,
@@ -45,8 +47,43 @@ public sealed class GameplayProcessIntegrationTests
         }
         finally
         {
-            if (!game.HasExited) game.Kill();
-            await game.WaitForExitAsync();
+            try
+            {
+                if (!game.HasExited)
+                {
+                    // EOF releases set /p without forcibly terminating a mapped image.
+                    game.StandardInput.Close();
+                    try { await game.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+                    catch (TimeoutException)
+                    {
+                        if (!game.HasExited) game.Kill();
+                    }
+                }
+                await game.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            finally { game.Dispose(); }
+            await DeleteFixtureExecutableAsync(executable);
+        }
+    }
+
+    private static async Task DeleteFixtureExecutableAsync(string path)
+    {
+        // Only this test-owned executable gets a bounded retry after confirmed exit
+        // and handle disposal. Never ignore cleanup failure or retry product work.
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                File.Delete(path);
+                Assert.False(File.Exists(path));
+                return;
+            }
+            catch (Exception exception) when (attempt < 49
+                && (exception is IOException or UnauthorizedAccessException)
+                && ((exception.HResult & 0xFFFF) is 5 or 32 or 33))
+            {
+                await Task.Delay(100);
+            }
         }
     }
 
