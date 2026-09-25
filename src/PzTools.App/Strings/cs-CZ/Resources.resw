@@ -365,9 +365,17 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: čeká na aktuální úlohu</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Vyléčit postavu</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Vyléčit / oživit postavu</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Vyléčit postavu {0} v aktuální uložené hře?&#xA;&#xA;Obnovit zdraví, sytost, hydrataci, odpočinek, výdrž a duševní stav. Odstranit zranění, infekce, otravu, abstinenční příznaky a dosud neprojevenou bolest svalů po cvičení. Pokud postava zemřela, oživit ji.&#xA;&#xA;Všechny vlastnosti včetně negativních, dovednosti, zkušenosti, hmotnost, výživa a poloha zůstávají beze změny. Vlastnosti nebo prostředí mohou příznaky znovu vyvolat. Nemoci přidané mody se nemění.&#xA;&#xA;Je-li inventář prázdný, věci a oblečení se získají ze zombie této postavy jednoznačně určené na uložené pozici a tato zombie se odstraní. Je nutný odpovídající průkaz totožnosti. Vizuální překryvy zranění se vynechají; stav předmětů a obsah tašek se zachovají. Předměty se automaticky nevybaví do rukou. Získávání věcí z mrtvol zatím není podporováno. Pokud nelze bezpečně určit, komu věci patří, mrtvá postava s prázdným inventářem nebude oživena.&#xA;&#xA;Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě používané ve hře, nepodporované formáty a nejednoznačná data jsou odmítnuty.</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Vyléčit postavu {0} v aktuální uložené hře?
+
+Obnovit zdraví, sytost, hydrataci, odpočinek, výdrž a duševní stav. Odstranit zranění, infekce, otravu, abstinenční příznaky a dosud neprojevenou bolest svalů po cvičení. Pokud postava zemřela, oživit ji.
+
+Všechny vlastnosti včetně negativních, dovednosti, zkušenosti, hmotnost, výživa a poloha zůstávají beze změny. Vlastnosti nebo prostředí mohou příznaky znovu vyvolat. Nemoci přidané mody se nemění.
+
+Pokud smrt vyprázdnila inventář, získá předměty ze zombie nebo mrtvoly postavy a tento zdroj odstraní. Průkaz totožnosti není nutný. Stav předmětů, obsah tašek a údaje o oblečení a připevnění zůstanou zachovány. Uložená ID obnoví předměty v rukou, jsou-li dostupná; jinak je nutné je znovu vybavit. Ztracené předměty nevytváří. Při nejisté totožnosti se nic nezmění.
+
+Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě používané ve hře, nepodporované formáty a nejednoznačná data jsou odmítnuty.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Obnova postavy dokončena. Vlastnosti, dovednosti a zkušenosti byly zachovány.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Věci postavy se nepodařilo jednoznačně určit. Obnova vyžaduje hráčovu zombie na uložené pozici s odpovídajícím průkazem totožnosti. Inventáře mrtvol nejsou podporovány. Nic nebylo změněno.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Zombie nebo mrtvolu postavy se nepodařilo jednoznačně určit. Průkaz totožnosti není nutný, ale při více kandidátech nebo nedostatku údajů ve starém uložení se nehádá. Nic nebylo změněno.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Aktualizaci souborů uložené hry je nutné obnovit. Tuto uloženou hru nenačítejte ve hře. Restartujte PZ Tools, aby se aktualizace dokončila. Pokud se uložená hra po přerušení změnila, automatická obnova se zastaví, místo aby ji přepsala.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Obnova postavy</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Tuto uloženou hru používá hra nebo jiná operace. Přestaňte hrát a zkuste to znovu. Originál nebyl změněn.</value></data>

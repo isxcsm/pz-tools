@@ -365,9 +365,17 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Sonraki yedek: geçerli işi bekliyor</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Karakteri iyileştir</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Karakteri iyileştir / dirilt</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Mevcut kayıttaki {0} karakteri iyileştirilsin mi?&#xA;&#xA;Sağlık, tokluk, su, dinlenme, dayanıklılık ve zihinsel durum yenilenir. Yaralar, enfeksiyonlar, zehirlenme, yoksunluk belirtileri ve henüz başlamamış egzersiz ağrıları giderilir. Karakter ölmüşse diriltilir.&#xA;&#xA;Olumsuz olanlar dahil tüm özellikler, beceriler, deneyim, ağırlık, beslenme ve konum korunur. Özellikler veya çevre belirtilerin yeniden oluşmasına yol açabilir. Modlara özgü hastalıklar değiştirilmez.&#xA;&#xA;Envanter boşsa, kayıtlı konumda kimliği kesin olarak belirlenen bu karakterin zombisinden eşyalar ve giysiler alınır; ardından o zombi kaldırılır. Eşleşen bir kimlik kartı gereklidir. Yara görünümü öğeleri hariç tutulur; eşyaların durumu ve çanta içeriği korunur. Eşyalar ellere otomatik olarak kuşanılmaz. Cesetlerden eşya kurtarma henüz desteklenmez. Eşyaların kime ait olduğu güvenle belirlenemezse envanteri boş olan ölü karakter diriltilmez.&#xA;&#xA;Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtlar, desteklenmeyen biçimler ve belirsiz veriler reddedilir.</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Mevcut kayıttaki {0} karakteri iyileştirilsin mi?
+
+Sağlık, tokluk, su, dinlenme, dayanıklılık ve zihinsel durum yenilenir. Yaralar, enfeksiyonlar, zehirlenme, yoksunluk belirtileri ve henüz başlamamış egzersiz ağrıları giderilir. Karakter ölmüşse diriltilir.
+
+Olumsuz olanlar dahil tüm özellikler, beceriler, deneyim, ağırlık, beslenme ve konum korunur. Özellikler veya çevre belirtilerin yeniden oluşmasına yol açabilir. Modlara özgü hastalıklar değiştirilmez.
+
+Ölüm envanteri boşalttıysa eşyalar karakterin zombisinden veya cesedinden alınır ve bu kaynak kaldırılır. Kimlik kartı gerekmez. Eşya durumu, çanta içeriği, giyim ve takılı eşya verileri korunur. Kayıtlı eşya kimlikleri varsa ellerdeki ekipman geri yüklenir; yoksa yeniden kuşanmanız gerekir. Kayıp eşyalar üretilmez. Kimlik belirsizse değişiklik yapılmaz.
+
+Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtlar, desteklenmeyen biçimler ve belirsiz veriler reddedilir.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Karakter kurtarma tamamlandı. Özellikler, beceriler ve deneyim korundu.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Karakterin eşyaları kesin olarak belirlenemedi. Kurtarma için kayıtlı konumda, eşleşen kimlik kartına sahip bir oyuncu zombisi gerekir. Ceset envanterleri desteklenmez. Hiçbir değişiklik yapılmadı.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Karakterin zombisi veya cesedi kesin olarak belirlenemedi. Kimlik kartı gerekmez; ancak birden fazla aday veya eski kayıtta yetersiz kimlik verisi varsa tahmin yürütülmez. Hiçbir şey değiştirilmedi.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Bir oyun kayıt dosyası güncellemesinin kurtarılması gerekiyor. Bu kaydı oyunda yüklemeyin. Güncellemeyi tamamlamak için PZ Tools’u yeniden başlatın. Kayıt kesintiden sonra değiştiyse otomatik kurtarma üzerine yazmak yerine durur.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Karakter kurtarma</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Bu kaydı oyun veya başka bir işlem kullanıyor. Oynamayı bırakıp yeniden deneyin. Asıl dosya değiştirilmedi.</value></data>

@@ -41,11 +41,11 @@ public sealed class CharacterRecoveryTests
         Assert.Equal(ZombieFile(Zombie("Someone")), result.Zombies);
     }
 
-    private static readonly IReadOnlyDictionary<int, string> Registry = new Dictionary<int, string>
+    internal static readonly IReadOnlyDictionary<int, string> Registry = new Dictionary<int, string>
     { [1] = "Base.IDcard", [2] = "Base.Shirt", [3] = "Base.Wound_Neck_Bite_Female", [4] = "Base.Bag" };
-    private static readonly byte[] BagPayload = [0, 4, 255, 0, 0, 0, 44, 0, 99, 98, 97, 96, 95];
+    internal static readonly byte[] BagPayload = [0, 4, 255, 0, 0, 0, 44, 0, 99, 98, 97, 96, 95];
 
-    private static (byte[] Player, InventoryLayout Layout) EmptyPlayer()
+    internal static (byte[] Player, InventoryLayout Layout) EmptyPlayer()
     {
         var player = PlayerHealthEditor.Heal(Sample.Create().Bytes, 249, out var layout);
         var w = new BigEndianWriter(); w.String("none"); w.Byte(0); w.Short(0); w.Zeros(5);
@@ -54,24 +54,35 @@ public sealed class CharacterRecoveryTests
         return (player, layout);
     }
 
-    private static byte[] Zombie(string name)
+    internal static byte[] Zombie(string name, bool includeCard = true)
     {
-        var w = new BigEndianWriter(); w.Byte(1); w.Byte(3); w.Zeros(24); w.Byte(0); w.Byte(0);
-        w.Byte(0); w.Zeros(3); w.Zeros(3); w.Byte(0); w.String(""); w.Byte(0);
-        w.String("inventoryfemale"); w.Byte(0); w.Short(4);
+        var w = new BigEndianWriter(); w.Byte(1); w.Byte(3); w.Zeros(24); w.Byte(0); w.Byte(1);
+        Descriptor(w, "None", "None"); Visual(w, name);
+        w.String("inventoryfemale"); w.Byte(0); w.Short(includeCard ? 4 : 3);
         var card = new BigEndianWriter(); card.Short(1); card.Byte(255); card.Int(11); card.Byte(64);
         card.Int(8); card.String("ID card: " + name);
         foreach (var item in new[] { card.ToArray(), new byte[] { 0, 3, 255, 0, 0, 0, 33, 0 },
-            new byte[] { 0, 2, 255, 0, 0, 0, 22, 0 }, BagPayload })
+            new byte[] { 0, 2, 255, 0, 0, 0, 22, 0 }, BagPayload }.Skip(includeCard ? 0 : 1))
         { w.Int(1); w.Int(item.Length); w.Bytes(item); }
         w.Zeros(5); w.Zeros(5 + 33); w.Int(0); w.Zeros(4); w.Int(0); w.Zeros(31);
         w.Int(0); w.Int(0); w.Zeros(8); w.Int(0); w.Int(1); w.Zeros(8);
-        w.Byte(3); w.String("Wound"); w.Short(1); w.String("Wound"); w.Short(1);
-        w.String("Torso"); w.Short(2);
+        w.Byte(3); w.String("Wound"); w.Short(includeCard ? 1 : 0); w.String("Wound"); w.Short(includeCard ? 1 : 0);
+        w.String("Torso"); w.Short(includeCard ? 2 : 1);
         return w.ToArray();
     }
 
-    private static byte[] ZombieFile(params byte[][] zombies)
+    internal static void Descriptor(BigEndianWriter w, string first, string last)
+    {
+        w.Int(0); w.String(first); w.String(last); w.String("Kate"); w.Int(1);
+        w.String("base:unemployed"); w.Int(0); w.Int(0); w.String("VoiceFemale"); w.Zeros(8);
+    }
+    internal static void Visual(BigEndianWriter w, string variant)
+    {
+        w.Byte(44); w.Byte(variant == "Test" ? (byte)70 : (byte)90); w.Byte(40); w.Byte(20);
+        w.Byte(255); w.Byte(200); w.Byte(100); w.Byte(0); w.Byte(2); w.Byte(255);
+        w.String("Short"); w.Zeros(4); w.String(""); w.Byte(4); w.Byte(70); w.Byte(40); w.Byte(20);
+    }
+    internal static byte[] ZombieFile(params byte[][] zombies)
     {
         var w = new BigEndianWriter(); w.Int(249); w.Int(zombies.Length);
         foreach (var zombie in zombies) w.Bytes(zombie);
@@ -251,15 +262,15 @@ public sealed class CharacterRecoveryTests
         public void Dispose() => Directory.Delete(directory, true);
     }
 
-    private sealed record Sample(byte[] Bytes, int Stats, byte[] TraitsAndXp, byte[] Regularity, byte[] Nutrition)
+    internal sealed record Sample(byte[] Bytes, int Stats, byte[] TraitsAndXp, byte[] Regularity, byte[] Nutrition)
     {
         public static Sample Create()
         {
             var w = new BigEndianWriter();
             w.Zeros(26); w.Byte(1); w.Int(1); // opaque Lua mod data
             w.Byte(0); w.String("negative-mod-trait"); w.Byte(0); w.String("keep-me");
-            w.Byte(0); // no descriptor
-            w.Byte(0); w.Zeros(3); w.Zeros(3); w.Byte(0); w.String(""); w.Byte(0); // human visual
+            w.Byte(1); Descriptor(w, "Test", "Person");
+            Visual(w, "Test");
             w.String("inventory"); w.Byte(0); w.Short(1); w.Int(1); w.Int(8); w.Double(123456.25); w.Zeros(5);
             w.Byte(1); w.Float(8); var stats = w.Position;
             for (var i = 0; i < 24; i++) w.Float(.43f);
@@ -302,7 +313,7 @@ public sealed class CharacterRecoveryTests
         }
     }
 
-    private sealed class BigEndianWriter
+    internal sealed class BigEndianWriter
     {
         private readonly MemoryStream stream = new();
         public int Position => (int)stream.Position;

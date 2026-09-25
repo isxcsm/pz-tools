@@ -72,7 +72,7 @@ Créez d'abord une copie manuelle ou un ZIP : **la récupération ne crée pas d
 
 Les soins ou la résurrection restaurent la santé et effacent les blessures et états temporaires pris en charge. Les traits positifs et négatifs, l'expérience, les compétences, les recettes et l'inventaire existant sont conservés. Ce n'est pas une immunité permanente et tous les effets propres aux mods ne sont pas supprimés.
 
-Si l'inventaire du personnage mort est vide, les objets ne peuvent venir que d'un enregistrement unique de son zombie, correspondant à la position enregistrée et au nom sur la pièce d'identité. Les zombies déplacés, les cibles sans pièce d'identité et les cadavres dans les blocs de carte ne sont pas pris en charge. Il peut être nécessaire de rééquiper les mains. Voir [la récupération et ses limites (anglais)](../character-recovery.md).
+Si la mort a vidé l’inventaire, récupère les objets sur le zombie ou le cadavre du personnage et supprime cette source. Aucune carte d’identité n’est nécessaire. L’état des objets, le contenu des sacs et les données de tenue et d’attache sont conservés. Les identifiants enregistrés rétablissent les objets en main si disponibles ; sinon, rééquipez-les. Aucun objet disparu n’est créé. Une identité incertaine interrompt l’opération sans modification. [la récupération et ses limites (anglais)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

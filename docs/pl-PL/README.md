@@ -72,7 +72,7 @@ Najpierw utwórz ręczną kopię lub ZIP: **odzyskiwanie postaci nie tworzy doda
 
 Leczenie lub wskrzeszenie przywraca zdrowie i usuwa obsługiwane obrażenia oraz stany tymczasowe. Zachowuje pozytywne i negatywne cechy, doświadczenie, umiejętności, przepisy i istniejący ekwipunek. Nie zapewnia stałej odporności i nie usuwa wszystkich efektów modów.
 
-Jeśli ekwipunek zmarłej postaci jest pusty, przedmioty można odzyskać tylko z jednego pasującego zapisu jej zombie, na podstawie zapisanej pozycji i nazwiska na dowodzie tożsamości. Przemieszczone zombie, cele bez dowodu i zwłoki w blokach mapy nie są obsługiwane. Przedmioty trzymane w dłoniach mogą wymagać ponownego wyposażenia. Zobacz [odzyskiwanie i ograniczenia (angielski)](../character-recovery.md).
+Jeśli śmierć opróżniła ekwipunek, odzyskuje przedmioty z zombie lub zwłok postaci i usuwa to źródło. Dowód tożsamości nie jest wymagany. Zachowuje stan przedmiotów, zawartość toreb oraz dane ubrania i mocowania. Zapisane identyfikatory przywracają przedmioty w dłoniach, jeśli są dostępne; w przeciwnym razie trzeba je ponownie wyposażyć. Nie tworzy utraconych przedmiotów. Niepewna tożsamość zatrzymuje operację bez zmian. [odzyskiwanie i ograniczenia (angielski)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>
