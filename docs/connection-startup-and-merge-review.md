@@ -51,6 +51,15 @@ WAL-index fixture. CrashRecoveryStressTests use a fresh repository for every
 iteration at all six process-termination boundaries. They fail on the first
 failure; they are not test retries until green.
 
+Two lifecycle tests now synchronize on observable completion rather than a fixed
+scheduling assumption. The projection test requires multiple healthy iterations,
+a reported fault in the independent loop, and both loops reaching Stopped after
+RequestStop. The instance test requires a second process to be rejected while the
+owner lives, bounded reacquisition after the owner exits, and duplicate rejection
+again after reacquisition. Both use a ten-second failure deadline; neither forces
+GC, skips checks, or repeats a failed test case. Application mutex semantics are
+unchanged.
+
 The full Windows workflow still includes shutdown, recovery and published-worker
 integration tests. Targeted test success alone is not release evidence. Exact
 commit IDs, TRX counts and workflow results are recorded in the PR review. Tests
