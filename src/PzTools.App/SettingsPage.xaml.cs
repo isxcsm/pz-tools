@@ -58,9 +58,12 @@ public sealed partial class SettingsPage : UserControl
         LanguageSettingCard.Description = Localizer.Get("LanguageSetting.Description");
         ThemeSettingCard.Header = Localizer.Get("ThemeSetting.Header");
         ThemeSettingCard.Description = Localizer.Get("ThemeSetting.Description");
-        ThemeSystemItem.Content = Localizer.Get("ThemeSystem.Content");
-        ThemeLightItem.Content = Localizer.Get("ThemeLight.Content");
-        ThemeDarkItem.Content = Localizer.Get("ThemeDark.Content");
+        Synchronize(() => ComboBoxLocalization.UpdateLabels(ThemeCombo, () =>
+        {
+            ThemeSystemItem.Content = Localizer.Get("ThemeSystem.Content");
+            ThemeLightItem.Content = Localizer.Get("ThemeLight.Content");
+            ThemeDarkItem.Content = Localizer.Get("ThemeDark.Content");
+        }));
         SystemTraySettingCard.Header = Localizer.Get("SystemTraySetting.Header");
         SystemTraySettingCard.Description = Localizer.Get("SystemTraySetting.Description");
         PathSection.Header = Localizer.Get("PathSettings.Header");
@@ -373,9 +376,10 @@ public sealed partial class SettingsPage : UserControl
 
     private void Synchronize(Action update)
     {
+        var wasLoading = loading;
         loading = true;
         try { update(); }
-        finally { loading = false; }
+        finally { loading = wasLoading; }
     }
 
     private static void SelectTag(ComboBox combo, string tag) => combo.SelectedItem =

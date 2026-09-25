@@ -153,16 +153,25 @@ public sealed partial class LogsPage : UserControl
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(RunIndexFilter,
             RunIndexFilterLabel.Text);
         RunIndexFilter.PlaceholderText = Localizer.Get("LogRunIndexPlaceholder");
-        LevelTraceItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Trace"));
-        LevelInformationItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Information"));
-        LevelWarningItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Warning"));
-        LevelErrorItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Error"));
-        LevelCriticalItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Critical"));
+        var wasUpdatingFilters = updatingFilters;
+        updatingFilters = true;
+        try
+        {
+            ComboBoxLocalization.UpdateLabels(LevelFilter, () =>
+            {
+                LevelTraceItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
+                    Localizer.Get("LogLevel.Trace"));
+                LevelInformationItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
+                    Localizer.Get("LogLevel.Information"));
+                LevelWarningItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
+                    Localizer.Get("LogLevel.Warning"));
+                LevelErrorItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
+                    Localizer.Get("LogLevel.Error"));
+                LevelCriticalItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
+                    Localizer.Get("LogLevel.Critical"));
+            });
+        }
+        finally { updatingFilters = wasUpdatingFilters; }
         LoadingLogsText.Text = Localizer.Get("LoadingLogs");
         EmptyLogsText.Text = Localizer.Get(loadFailed ? "LogsUnavailable" : "NoLogs");
         AcknowledgeAllButton.Content = Localizer.Format("AcknowledgeAllLogsFormat", unreadIssues);
