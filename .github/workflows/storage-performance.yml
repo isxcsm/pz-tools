@@ -1,8 +1,5 @@
 name: Storage performance regression
 on:
-  push:
-    branches: [optimize/repository-housekeeping]
-    paths: ['src/**', 'tests/**', 'scripts/**', '.github/workflows/storage-performance.yml']
   pull_request:
     branches: [dev, main]
     paths: ['src/**', 'tests/**', 'scripts/**', '.github/workflows/storage-performance.yml']
@@ -12,19 +9,6 @@ concurrency:
   group: storage-performance-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  source-evidence:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - run: git archive --format=zip --output=source.zip HEAD
-      - uses: actions/upload-artifact@v4
-        with:
-          name: storage-source-${{ github.sha }}
-          path: source.zip
-          retention-days: 1
   storage-tests:
     runs-on: windows-2025
     timeout-minutes: 25
@@ -32,9 +16,18 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+      - name: Check housekeeping SQL and record catalog query evidence
+        shell: pwsh
+        run: |
+          python scripts/check-housekeeping-sql.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item artifacts/storage-tests -ItemType Directory -Force | Out-Null
+          python scripts/measure-catalog-performance.py --baseline-ref 2f3ce6f > artifacts/storage-tests/catalog-query.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run storage, capture, deduplication and catalog regressions
         shell: pwsh
         run: >-
@@ -45,5 +38,5 @@ jobs:
         if: always()
         with:
           name: storage-tests-${{ github.sha }}
-          path: artifacts/storage-tests/*.trx
+          path: artifacts/storage-tests/*
           retention-days: 7
