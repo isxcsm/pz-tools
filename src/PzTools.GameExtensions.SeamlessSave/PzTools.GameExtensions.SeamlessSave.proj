@@ -1,0 +1,21 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\build\SaveBridge.props" />
+  <PropertyGroup>
+    <ExtensionOutput>$(BridgeOutputPath)\extensions</ExtensionOutput>
+    <Classes>$(MSBuildProjectDirectory)\obj\$(Configuration)\classes</Classes>
+    <RuntimeJar>$(ExtensionOutput)\pztools-extension-runtime.jar</RuntimeJar>
+  </PropertyGroup>
+  <ItemGroup><JavaSource Include="$(MSBuildProjectDirectory)\java\**\*.java" /></ItemGroup>
+  <Target Name="Runtime">
+    <MSBuild Projects="..\PzTools.GameExtensions.Java\PzTools.GameExtensions.Java.proj" Targets="Build"
+             Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
+  </Target>
+  <Target Name="Build" DependsOnTargets="Runtime;ValidateBridgeToolchain"
+          Inputs="@(JavaSource);$(RuntimeJar);$(MSBuildProjectFullPath);$(BridgeJdkPath)\release"
+          Outputs="$(ExtensionOutput)\pztools-seamless-save.jar">
+    <RemoveDir Directories="$(Classes)" />
+    <MakeDir Directories="$(Classes);$(ExtensionOutput)" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 -cp &quot;$(RuntimeJar)&quot; -d &quot;$(Classes)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ')" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --file &quot;$(ExtensionOutput)\pztools-seamless-save.jar&quot; -C &quot;$(Classes)&quot; pztools" />
+  </Target>
+</Project>
