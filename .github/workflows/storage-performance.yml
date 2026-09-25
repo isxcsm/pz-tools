@@ -1,0 +1,49 @@
+name: Storage performance regression
+on:
+  push:
+    branches: [optimize/repository-housekeeping]
+    paths: ['src/**', 'tests/**', 'scripts/**', '.github/workflows/storage-performance.yml']
+  pull_request:
+    branches: [dev, main]
+    paths: ['src/**', 'tests/**', 'scripts/**', '.github/workflows/storage-performance.yml']
+permissions:
+  contents: read
+concurrency:
+  group: storage-performance-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: git archive --format=zip --output=source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: storage-source-${{ github.sha }}
+          path: source.zip
+          retention-days: 1
+  storage-tests:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Run storage, capture, deduplication and catalog regressions
+        shell: pwsh
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
+          --filter 'FullyQualifiedName~CompactRepositoryFormatTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~InitialBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~RepositoryMaintenanceTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~ContentDeduplicationTests|FullyQualifiedName~RevisionRestoreTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~StreamingFullScannerTests|FullyQualifiedName~StoragePerformanceTests'
+          --logger 'trx;LogFileName=storage-performance.trx' --results-directory artifacts/storage-tests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storage-tests-${{ github.sha }}
+          path: artifacts/storage-tests/*.trx
+          retention-days: 7
