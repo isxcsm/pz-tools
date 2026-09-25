@@ -50,32 +50,50 @@ public sealed class InterruptedOperationRecoveryTests
         }
         try
         {
-        var repository = await RepositoryDatabase.CreateOrOpenAsync(Path.Combine(root, "repository"));
-        var recovery = new InterruptedOperationRecoveryService();
-        var result = await recovery.TryRunAsync(repository, Path.Combine(root, "Saves"));
-        Assert.False(result.Busy);
-        Assert.Empty(result.Problems);
-        var run = Assert.Single(await repository.ReadRunsAsync());
-        Assert.Equal(committed ? RunStatus.Succeeded : RunStatus.Abandoned, run.Status);
-        Assert.Equal(committed ? 1 : 0, (await repository.GetSourceStateAsync(run.SourceId)).CurrentRevision);
-        Assert.Empty(Directory.GetFiles(Path.Combine(root, "repository", "staging"), "*.tmp", SearchOption.AllDirectories));
-        Assert.Equal(committed ? 1 : 0, Directory.GetFiles(Path.Combine(root, "repository", "packs"), "*.pzpack").Length);
-        Assert.Empty(Directory.GetFileSystemEntries(Path.GetDirectoryName(save)!, ".Test.pztools-*"));
-        Assert.Equal(mode == "restore" ? "original before restore" : "backup payload",
-            await File.ReadAllTextAsync(Path.Combine(save, "data.bin")));
-        if (committed)
-        {
-            var restored = Path.Combine(root, "verify");
-            await new RevisionRestorer().RestoreAsync(repository, run.SourceId, 1, restored);
-            Assert.Equal("backup payload", await File.ReadAllTextAsync(Path.Combine(restored, "data.bin")));
-        }
-        var repeated = await recovery.TryRunAsync(repository, Path.Combine(root, "Saves"));
-        Assert.Empty(repeated.Problems);
-        Assert.Equal(0, repeated.RecoveredWorkflows + repeated.RecoveredSaves + repeated.DeletedArtifacts);
+            var repository = await RepositoryDatabase.CreateOrOpenAsync(Path.Combine(root, "repository"));
+            var recovery = new InterruptedOperationRecoveryService();
+            var result = await RecoverWhenAdmittedAsync(recovery, repository, Path.Combine(root, "Saves"));
+            Assert.False(result.Busy);
+            Assert.Empty(result.Problems);
+            var run = Assert.Single(await repository.ReadRunsAsync());
+            Assert.Equal(committed ? RunStatus.Succeeded : RunStatus.Abandoned, run.Status);
+            Assert.Equal(committed ? 1 : 0, (await repository.GetSourceStateAsync(run.SourceId)).CurrentRevision);
+            Assert.Empty(Directory.GetFiles(Path.Combine(root, "repository", "staging"), "*.tmp", SearchOption.AllDirectories));
+            Assert.Equal(committed ? 1 : 0, Directory.GetFiles(Path.Combine(root, "repository", "packs"), "*.pzpack").Length);
+            Assert.Empty(Directory.GetFileSystemEntries(Path.GetDirectoryName(save)!, ".Test.pztools-*"));
+            Assert.Equal(mode == "restore" ? "original before restore" : "backup payload",
+                await File.ReadAllTextAsync(Path.Combine(save, "data.bin")));
+            if (committed)
+            {
+                var restored = Path.Combine(root, "verify");
+                await new RevisionRestorer().RestoreAsync(repository, run.SourceId, 1, restored);
+                Assert.Equal("backup payload", await File.ReadAllTextAsync(Path.Combine(restored, "data.bin")));
+            }
+            var repeated = await RecoverWhenAdmittedAsync(recovery, repository, Path.Combine(root, "Saves"));
+            Assert.False(repeated.Busy);
+            Assert.Empty(repeated.Problems);
+            Assert.Equal(0, repeated.RecoveredWorkflows + repeated.RecoveredSaves + repeated.DeletedArtifacts);
         }
         catch (SqliteException exception)
         {
             throw new Xunit.Sdk.XunitException($"Crash recovery mode={mode}; SQLite primary={exception.SqliteErrorCode}; extended={exception.SqliteExtendedErrorCode}; native={SQLitePCL.raw.sqlite3_libversion().utf8_to_string()}; {exception}");
+        }
+    }
+
+    private static async Task<InterruptedOperationRecoveryResult> RecoverWhenAdmittedAsync(
+        InterruptedOperationRecoveryService recovery, RepositoryDatabase repository, string savesRoot)
+    {
+        // TryRunAsync is deliberately nonblocking. Busy means its mutex/writer
+        // admission was declined before any recovery work, not a failed recovery.
+        // Only wait for admission; do not retry exceptions or a returned problem.
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (true)
+        {
+            var result = await recovery.TryRunAsync(repository, savesRoot, deadline.Token);
+            if (!result.Busy) return result;
+            Assert.Empty(result.Problems);
+            Assert.Equal(0, result.RecoveredWorkflows + result.RecoveredSaves + result.DeletedArtifacts);
+            await Task.Delay(10, deadline.Token);
         }
     }
 
@@ -176,7 +194,8 @@ public sealed class InterruptedOperationRecoveryTests
         await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
         var result = await repository.RecoverInterruptedWorkflowsAsync(lease);
         Assert.Equal(recovered ? 1 : 0, result.Recovered);
-        Assert.Equal(recovered ? WorkflowStatus.Abandoned : WorkflowStatus.Running,
+        Assert.Equal(WorkflowStatus.Running == (recovered ? WorkflowStatus.Abandoned : WorkflowStatus.Running)
+            ? WorkflowStatus.Running : WorkflowStatus.Abandoned,
             (await repository.ReadWorkflowAsync(workflow.RunIndex)).Status);
     }
 
