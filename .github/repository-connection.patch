@@ -1,0 +1,58 @@
+--- a/src/PzTools.Backup.Storage/Repository/RepositoryDatabase.cs
++++ b/src/PzTools.Backup.Storage/Repository/RepositoryDatabase.cs
+@@ -93,12 +93,17 @@
+             Cache = SqliteCacheMode.Shared,
+             Pooling = false,
+         }.ToString();
+-        await using var connection = new SqliteConnection(connectionString);
+-        await connection.OpenAsync(cancellationToken);
+-        // Validate before any PRAGMA that could write to an incompatible repository.
+-        var identity = await ReadExistingIdentityAsync(connection, cancellationToken);
+-        await ConfigureConnectionAsync(connection, cancellationToken, enableWal: false);
+-        return new RepositoryDatabase(absolutePath, identity, SqliteOpenMode.ReadWrite);
++        var initialized = await RepositoryConnectionInitialization.OpenAsync(
++            () => new SqliteConnection(connectionString),
++            async (connection, token) =>
++            {
++                // Validate before any PRAGMA that could write to an incompatible repository.
++                var identity = await ReadExistingIdentityAsync(connection, token);
++                await ConfigureConnectionAsync(connection, token, enableWal: false);
++                return identity;
++            }, cancellationToken);
++        await using var connection = initialized.Connection;
++        return new RepositoryDatabase(absolutePath, initialized.Value, SqliteOpenMode.ReadWrite);
+     }
+ 
+     public async Task<RepositorySource> AddOrGetSourceAsync(
+@@ -388,18 +393,19 @@
+     public async Task<SqliteConnection> OpenConnectionAsync(
+         CancellationToken cancellationToken = default)
+     {
+-        var connection = new SqliteConnection(connectionString);
+-        try
+-        {
+-            await connection.OpenAsync(cancellationToken);
+-            await ConfigureConnectionAsync(connection, cancellationToken, enableWal: false);
+-            return connection;
+-        }
+-        catch
+-        {
+-            await connection.DisposeAsync();
+-            throw;
+-        }
++        var initialized = await RepositoryConnectionInitialization.OpenAsync(
++            () => new SqliteConnection(connectionString),
++            async (connection, token) =>
++            {
++                await ConfigureConnectionAsync(connection, token, enableWal: false);
++                // Force WAL shared-memory initialization before handing this connection
++                // to application code. Never replay a caller's transaction or writes.
++                await using var probe = connection.CreateCommand();
++                probe.CommandText = "PRAGMA schema_version;";
++                await probe.ExecuteScalarAsync(token);
++                return true;
++            }, cancellationToken);
++        return initialized.Connection;
+     }
+ 
+     private static async Task<RepositoryIdentity> ReadOrCreateIdentityAsync(
