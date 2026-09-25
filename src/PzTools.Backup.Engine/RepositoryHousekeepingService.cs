@@ -5,15 +5,17 @@ namespace PzTools.Backup.Engine;
 
 public sealed record RepositoryHousekeepingResult(
     int CompactedRevisions, int RemovedEntryVersions, int RemovedObjects, CompletedHistoryCleanup History,
-    RepositoryVacuumResult Vacuum, IReadOnlyList<string> FilesThatCouldNotBeDeleted, int RemovedPathRows = 0)
+    RepositoryVacuumResult Vacuum, IReadOnlyList<string> FilesThatCouldNotBeDeleted, int RemovedPathRows = 0, int InspectedPathRows = 0, int InspectedEntryVersions = 0)
 {
     public int AffectedItems => CompactedRevisions + RemovedEntryVersions + RemovedObjects + History.Runs + History.Workflows + History.Stages + RemovedPathRows;
     public string ToDetail() => JsonSerializer.Serialize(new
     {
         compactedRevisions = CompactedRevisions,
         removedEntryVersions = RemovedEntryVersions,
+        inspectedEntryVersions = InspectedEntryVersions,
         removedObjects = RemovedObjects,
         removedPathRows = RemovedPathRows,
+        inspectedPathRows = InspectedPathRows,
         history = History,
         vacuum = Vacuum,
         failedFileCount = FilesThatCouldNotBeDeleted.Count,
@@ -48,25 +50,25 @@ public sealed class RepositoryHousekeepingService
                 compacted += result.CompactedRevisions;
             }
         }
-        var entries = await repository.PruneUnreachableEntryVersionsAsync(
+        var entrySweep = await repository.SweepUnreachableEntryVersionsAsync(
             lease, sourceId, policy.BatchSize, cancellationToken);
+        var entries = entrySweep.RemovedRows;
         var removedObjects = 0;
-        var removedPathRows = 0;
         IReadOnlyList<string> failed = [];
         if (entries > 0 || compacted > 0)
         {
-            var garbage = await repository.CollectGarbageAsync(lease, cancellationToken);
+            var garbage = await repository.CollectGarbageAsync(lease, cancellationToken, collectPaths: false);
             removedObjects = garbage.DeletedObjects + garbage.DeletedPacks + garbage.DeletedOrphanFiles;
             failed = garbage.FilesThatCouldNotBeDeleted;
-            removedPathRows += garbage.DeletedPathRows;
         }
-        removedPathRows += await repository.PruneUnreferencedPathsAsync(lease, policy.BatchSize, cancellationToken);
+        // Exactly one dictionary pass per housekeeping cycle, sharing one inspection budget.
+        var pathSweep = await repository.SweepUnreferencedPathsAsync(lease, policy.BatchSize, cancellationToken);
         var history = policy.HistoryRetentionDays == 0
             ? new CompletedHistoryCleanup(0, 0, 0)
             : await repository.PruneCompletedHistoryAsync(
                 lease, DateTimeOffset.UtcNow.AddDays(-policy.HistoryRetentionDays),
                 policy.MinimumRetainedRuns, policy.BatchSize, cancellationToken);
         var vacuum = await repository.TryVacuumAsync(lease, maintenanceRunIndex, policy, cancellationToken);
-        return new RepositoryHousekeepingResult(compacted, entries, removedObjects, history, vacuum, failed, removedPathRows);
+        return new RepositoryHousekeepingResult(compacted, entries, removedObjects, history, vacuum, failed, pathSweep.RemovedRows, pathSweep.InspectedRows, entrySweep.InspectedRows);
     }
 }

@@ -6,12 +6,12 @@ internal sealed record RepositoryMigration(int Version, string Name, string Sql)
 
 internal static class RepositorySchema
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 5;
 
-    // Fresh format 2 / schema 3 repositories only. Older schemas have no upgrade path.
+    // Fresh format 2 / schema 5 repositories only. Older schemas have no upgrade path.
     public static IReadOnlyList<RepositoryMigration> Migrations { get; } =
     [
-        new RepositoryMigration(CurrentVersion, "normalized paths with immutable historical spellings",
+        new RepositoryMigration(CurrentVersion, "bounded version and path inspection",
             """
             CREATE TABLE repository_info (
                 singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton = 1),
@@ -162,6 +162,22 @@ internal static class RepositorySchema
             -- Supports FK checks and bounded collection without scanning all versions.
             CREATE INDEX ix_entry_versions_spelling ON entry_versions(path_id, spelling_id);
 
+            -- Resume inspection even when no rows can be deleted. Cursor progress
+            -- and deletion commit together; the cursor is not a liveness oracle.
+            CREATE TABLE entry_gc_cursors (
+                scope_source_id INTEGER NOT NULL PRIMARY KEY CHECK (scope_source_id>=0),
+                after_rowid INTEGER NULL
+            ) STRICT;
+
+            CREATE TABLE path_gc_cursor (
+                singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton=1),
+                spelling_path_id INTEGER NOT NULL,
+                spelling_id INTEGER NOT NULL,
+                empty_path_id INTEGER NULL,
+                spellings_first INTEGER NOT NULL CHECK (spellings_first IN (0,1))
+            ) STRICT;
+            INSERT INTO path_gc_cursor VALUES(1, -9223372036854775808, -1, NULL, 1);
+
             CREATE TABLE workflow_runs (
                 run_index INTEGER NOT NULL PRIMARY KEY,
                 pipeline TEXT NOT NULL,
@@ -233,6 +249,21 @@ internal static class RepositorySchema
 
             CREATE INDEX ix_revisions_pending_character ON revisions(source_id, revision)
                 WHERE state = 'Active' AND character_metadata_read = 0;
+
+            -- Keep current-only scans on the narrow live index even after adding
+            -- revision-maintenance indexes. Historical queries use entry_catalog.
+            CREATE VIEW current_entry_catalog AS
+            SELECT entry.*, path.path_key, spelling.display_path
+            FROM entry_versions AS entry INDEXED BY ix_entry_versions_current
+            JOIN paths AS path ON path.path_id=entry.path_id
+            JOIN path_spellings AS spelling
+              ON spelling.path_id=entry.path_id AND spelling.spelling_id=entry.spelling_id
+            WHERE entry.valid_to_revision IS NULL AND entry.tombstone=0;
+
+            CREATE INDEX ix_stored_objects_pack ON stored_objects(pack_id);
+            CREATE INDEX ix_entry_versions_revision_start ON entry_versions(source_id, valid_from_revision);
+            CREATE INDEX ix_entry_versions_revision_end ON entry_versions(source_id, valid_to_revision)
+                WHERE valid_to_revision IS NOT NULL;
 
             CREATE INDEX ix_stored_objects_dedup ON stored_objects(original_length, checksum) WHERE checksum_algorithm=3;
             """),

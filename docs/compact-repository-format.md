@@ -2,7 +2,9 @@
 
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
 
-The current layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
+Current schema is **4**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
+
+The earlier path-normalized layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
 for revision summaries and pre-compression deduplication, and [path normalization](path-normalization.md)
 for the current path dictionaries and verification. There is no migration or dual-format
 reader for format 1 or schemas 1/2. Old data is rejected with `repository-reset-required`,
@@ -83,3 +85,6 @@ full CI had crash reopen and shutdown sharing failures that are not dismissed or
 silenced by this optimization. Consult final-head CI before merging or publishing.
 The subsequently implemented path dictionary, its historical-spelling safeguards,
 layout tradeoffs and newer verification are described in [path normalization](path-normalization.md).
+
+For active-only automatic backups and schema-5 bounded version inspection, see
+[the follow-up](active-backup-followup.md). Earlier measurements above are historical.

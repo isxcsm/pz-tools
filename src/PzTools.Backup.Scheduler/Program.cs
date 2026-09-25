@@ -2,6 +2,7 @@ using PzTools.Control;
 using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 using PzTools.Scheduling;
+using PzTools.Zomboid.State;
 
 if (args.FirstOrDefault() is "help" or "--help" or "-h")
 {
@@ -49,7 +50,8 @@ try
         adapter.RunBackupAsync,
         adapter.RunMaintenanceAsync,
         configurationPath,
-        TimeSpan.FromSeconds(schedulerOptions.PreparationLeadSeconds));
+        TimeSpan.FromSeconds(schedulerOptions.PreparationLeadSeconds),
+        target => AutomaticBackupActivity.Probe(target.SourcePath) == ActivityState.Active);
     using var cancellation = new CancellationTokenSource();
     Console.CancelKeyPress += (_, eventArgs) =>
     {

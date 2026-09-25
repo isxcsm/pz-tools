@@ -110,7 +110,7 @@ public sealed class MaintenanceService
             await NotifyAsync("ObjectGc", "started");
             if (revisionCompaction is not null)
             {
-                var garbage = await repository.CollectGarbageAsync(lease, cancellationToken);
+                var garbage = await repository.CollectGarbageAsync(lease, cancellationToken, collectPaths: false);
                 failedFiles.AddRange(garbage.FilesThatCouldNotBeDeleted);
                 lanes.Add(new MaintenanceLaneResult(
                     "ObjectGc", failedFiles.Count == 0 ? "Succeeded" : "Degraded",

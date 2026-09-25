@@ -225,12 +225,13 @@ public sealed class NormalizedPathTests
             f.Lease, 3, new CancellationToken(true)));
         Assert.Equal(6, await f.ScalarAsync("SELECT COUNT(*) FROM paths;"));
         var removed = await f.Repository.PruneUnreferencedPathsAsync(f.Lease, 3);
-        Assert.Equal(3, removed);
+        Assert.InRange(removed, 0, 3);
         var options = new MaintenanceOptions { Housekeeping = new(HistoryRetentionDays: 0, BatchSize: 3, VacuumEnabled: false) };
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < 30; i++)
         {
             var result = await new RepositoryHousekeepingService().RunAsync(f.Repository, f.Lease, null, 0, options);
-            Assert.InRange(result.RemovedPathRows, 0, 3);
+            Assert.InRange(result.InspectedPathRows, 0, 3);
+            Assert.InRange(result.RemovedPathRows, 0, result.InspectedPathRows);
             removed += result.RemovedPathRows;
         }
         Assert.Equal(10, removed);

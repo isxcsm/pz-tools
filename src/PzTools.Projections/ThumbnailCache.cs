@@ -9,6 +9,8 @@ public sealed class ThumbnailCache(long maximumBytes = 64 * 1024 * 1024,
     private readonly Dictionary<string, CacheEntry> entries = new(StringComparer.Ordinal);
     private readonly long maximumBytes = maximumBytes > 0
         ? maximumBytes : throw new ArgumentOutOfRangeException(nameof(maximumBytes));
+    // Bound concurrent pack I/O on cache misses without retaining pack handles in UI.
+    private readonly SemaphoreSlim revisionReadGate = new(1, 1);
     private long bytes;
     private long accessSequence;
 
@@ -19,16 +21,21 @@ public sealed class ThumbnailCache(long maximumBytes = 64 * 1024 * 1024,
         long revision,
         CancellationToken cancellationToken = default)
     {
-        if (TryGet(cacheKey, out var cached)) return cached;
+        cancellationToken.ThrowIfCancellationRequested();
+        await revisionReadGate.WaitAsync(cancellationToken);
         try
         {
+            // Check the revision is still available before serving cached content.
+            // Repository identity prevents aliasing across reset repositories.
             var locator = await repository.TryLocateRevisionFileAsync(
                 sourceId, revision, "thumb.png", cancellationToken);
             if (locator is null) return null;
+            var objectKey = $"object:{repository.Identity.RepositoryId:D}:{locator.ObjectId:D}";
+            if (TryGet(objectKey, out var cached)) return cached;
             var value = await new RevisionFileReader(repository).ReadBytesAsync(
                 locator, Math.Min(maximumBytes, maximumImageBytes), cancellationToken);
             if (!IsPng(value)) return null;
-            Add(cacheKey, value);
+            Add(objectKey, value);
             return value;
         }
         catch (Exception exception) when (
@@ -36,6 +43,7 @@ public sealed class ThumbnailCache(long maximumBytes = 64 * 1024 * 1024,
         {
             return null;
         }
+        finally { revisionReadGate.Release(); }
     }
 
     public async Task<byte[]?> ReadLiveThumbnailAsync(

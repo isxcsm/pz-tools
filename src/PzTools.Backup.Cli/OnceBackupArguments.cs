@@ -9,7 +9,8 @@ internal sealed record OnceBackupArguments(
     string? ControlDatabasePath,
     bool SaveGame,
     ConfigurationArguments Configuration,
-    DateTimeOffset? ScheduledUtc = null)
+    DateTimeOffset? ScheduledUtc = null,
+    bool RequireActiveGame = false)
 {
     // Recover only an unambiguous caller identity for errors raised while
     // parsing other options. Full argument validation still happens in Parse.
@@ -29,10 +30,17 @@ internal sealed record OnceBackupArguments(
         long? revision = null;
         string? controlDatabasePath = null;
         var saveGame = false;
+        var requireActiveGame = false;
         DateTimeOffset? scheduledUtc = null;
         var configurationArguments = new List<string>();
         for (var index = 0; index < arguments.Length; index++)
         {
+            if (arguments[index] == "--require-active-game")
+            {
+                if (requireActiveGame) throw new BackupConfigurationException("--require-active-game may be specified only once.");
+                requireActiveGame = true;
+                continue;
+            }
             if (arguments[index] == "--scheduled-utc")
             {
                 if (scheduledUtc is not null || ++index >= arguments.Length
@@ -120,6 +128,6 @@ internal sealed record OnceBackupArguments(
             revision,
             controlDatabasePath,
             saveGame,
-            ConfigurationArguments.Parse(configurationArguments.ToArray()), scheduledUtc);
+            ConfigurationArguments.Parse(configurationArguments.ToArray()), scheduledUtc, requireActiveGame);
     }
 }

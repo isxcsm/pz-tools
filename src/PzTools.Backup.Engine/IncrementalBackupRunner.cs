@@ -413,9 +413,13 @@ public sealed class IncrementalBackupRunner(
         }
         finally
         {
-            if (packWriter is not null)
+            try
             {
-                await packWriter.DisposeAsync();
+                if (deduplicatingCapturer is not null) await deduplicatingCapturer.EndRunAsync();
+            }
+            finally
+            {
+                if (packWriter is not null) await packWriter.DisposeAsync();
             }
         }
     }

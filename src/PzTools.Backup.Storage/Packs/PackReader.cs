@@ -38,138 +38,145 @@ public sealed class PackReader : IAsyncDisposable
 
     public IReadOnlyList<PackObjectDescriptor> Objects { get; }
 
-    public static async Task<PackReader> OpenForLocatedReadsAsync(
-        string path,
-        Guid expectedPackId,
-        CancellationToken cancellationToken = default)
-    {
-        var validation = await ValidateAsync(path, verifyPayloads: false, cancellationToken);
-        if (validation.PackId != expectedPackId)
-        {
-            throw new PackFormatException("Pack identity does not match repository metadata.");
-        }
+    public static Task<PackReader> OpenForLocatedReadsAsync(
+        string path, Guid expectedPackId, CancellationToken cancellationToken = default) =>
+        OpenLocatedAsync(path, expectedPackId, FileShare.ReadWrite | FileShare.Delete, cancellationToken);
 
+    // Only for bounded operation-scoped reuse. Windows denies writers and path
+    // replacement for the entire lifetime of this verified handle. Ordinary UI
+    // readers retain their existing sharing behavior and are not put in this cache.
+    public static Task<PackReader> OpenPinnedForLocatedReadsAsync(
+        string path, Guid expectedPackId, CancellationToken cancellationToken = default) =>
+        OpenLocatedAsync(path, expectedPackId, FileShare.Read, cancellationToken);
+
+    private static async Task<PackReader> OpenLocatedAsync(
+        string path, Guid expectedPackId, FileShare sharing, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        cancellationToken.ThrowIfCancellationRequested();
         var absolutePath = System.IO.Path.GetFullPath(path);
-        var stream = OpenFile(absolutePath);
+        FileStream? stream = null;
         try
         {
+            stream = OpenFile(absolutePath, sharing);
+            var validation = await ValidateStreamAsync(stream, verifyPayloads: false, cancellationToken);
+            if (validation.PackId != expectedPackId)
+                throw new PackFormatException("Pack identity does not match repository metadata.");
             var offset = await ReadTrailerAsync(stream, cancellationToken);
-            return new PackReader(
-                absolutePath,
-                validation.PackId,
-                validation.RunIndex,
-                [],
-                stream,
-                offset);
+            cancellationToken.ThrowIfCancellationRequested();
+            var reader = new PackReader(absolutePath, validation.PackId, validation.RunIndex, [], stream, offset);
+            stream = null; // Transfer the exact validated handle, without a reopen race.
+            return reader;
         }
-        catch
+        catch (PackFormatException) { throw; }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or OverflowException)
         {
-            await stream.DisposeAsync();
-            throw;
+            throw new PackFormatException($"Invalid pack '{absolutePath}'.", exception);
+        }
+        finally
+        {
+            if (stream is not null) await stream.DisposeAsync();
         }
     }
 
     public static async Task<PackValidationResult> ValidateAsync(
-        string path,
-        bool verifyPayloads = true,
-        CancellationToken cancellationToken = default)
+        string path, bool verifyPayloads = true, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var absolutePath = System.IO.Path.GetFullPath(path);
         try
         {
             await using var stream = OpenFile(absolutePath);
-            var (packId, runIndex) = await ReadHeaderAsync(stream, cancellationToken);
-            var indexOffset = await ReadTrailerAsync(stream, cancellationToken);
-            stream.Position = indexOffset;
-            var indexHeader = new byte[PackFormat.IndexHeaderSize];
-            await ReadExactlyAsync(stream, indexHeader, cancellationToken);
-            if (!indexHeader.AsSpan(0, 8).SequenceEqual(PackFormat.IndexMagic))
-            {
-                throw new PackFormatException("Pack index magic is invalid.");
-            }
-
-            var count = PackFormat.ReadInt32(indexHeader.AsSpan(8, 4));
-            if (count < 0)
-            {
-                throw new PackFormatException("Pack index has a negative object count.");
-            }
-
-            var expectedEnd = checked(
-                indexOffset
-                + PackFormat.IndexHeaderSize
-                + checked((long)count * PackFormat.IndexEntrySize)
-                + PackFormat.IndexChecksumSize
-                + PackFormat.TrailerSize);
-            if (expectedEnd != stream.Length)
-            {
-                throw new PackFormatException("Pack index length does not match the file length.");
-            }
-
-            using var indexHasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            indexHasher.AppendData(indexHeader);
-            var expectedRecordOffset = (long)PackFormat.HeaderSize;
-            var entryBytes = new byte[PackFormat.IndexEntrySize];
-            for (var index = 0; index < count; index++)
-            {
-                await ReadExactlyAsync(stream, entryBytes, cancellationToken);
-                indexHasher.AppendData(entryBytes);
-                var nextIndexPosition = stream.Position;
-                var objectId = new Guid(entryBytes.AsSpan(0, 16));
-                var recordOffset = PackFormat.ReadInt64(entryBytes.AsSpan(16, 8));
-                if (recordOffset != expectedRecordOffset)
-                {
-                    throw new PackFormatException("Pack object records are not contiguous and ordered.");
-                }
-
-                var descriptor = await ReadObjectHeaderAsync(
-                    stream,
-                    objectId,
-                    recordOffset,
-                    indexOffset,
-                    cancellationToken);
-                if (verifyPayloads)
-                {
-                    await CopyDescriptorToAsync(
-                        stream,
-                        descriptor,
-                        Stream.Null,
-                        cancellationToken);
-                }
-
-                expectedRecordOffset = checked(
-                    descriptor.PayloadOffset + descriptor.StoredLength);
-                stream.Position = nextIndexPosition;
-            }
-
-            if (expectedRecordOffset != indexOffset)
-            {
-                throw new PackFormatException("Pack data area length does not match its index.");
-            }
-
-            var storedChecksum = new byte[PackFormat.IndexChecksumSize];
-            await ReadExactlyAsync(stream, storedChecksum, cancellationToken);
-            if (!CryptographicOperations.FixedTimeEquals(
-                    indexHasher.GetHashAndReset(),
-                    storedChecksum))
-            {
-                throw new PackFormatException("Pack index checksum does not match.");
-            }
-
-            return new PackValidationResult(packId, runIndex, count);
+            return await ValidateStreamAsync(stream, verifyPayloads, cancellationToken);
         }
-        catch (PackFormatException)
-        {
-            throw;
-        }
-        catch (Exception exception) when (
-            exception is EndOfStreamException
-            or IOException
-            or InvalidDataException
-            or OverflowException)
+        catch (PackFormatException) { throw; }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or OverflowException)
         {
             throw new PackFormatException($"Invalid pack '{absolutePath}'.", exception);
         }
+    }
+
+    private static async Task<PackValidationResult> ValidateStreamAsync(
+        FileStream stream, bool verifyPayloads, CancellationToken cancellationToken)
+    {
+        var (packId, runIndex) = await ReadHeaderAsync(stream, cancellationToken);
+        var indexOffset = await ReadTrailerAsync(stream, cancellationToken);
+        stream.Position = indexOffset;
+        var indexHeader = new byte[PackFormat.IndexHeaderSize];
+        await ReadExactlyAsync(stream, indexHeader, cancellationToken);
+        if (!indexHeader.AsSpan(0, 8).SequenceEqual(PackFormat.IndexMagic))
+        {
+            throw new PackFormatException("Pack index magic is invalid.");
+        }
+
+        var count = PackFormat.ReadInt32(indexHeader.AsSpan(8, 4));
+        if (count < 0)
+        {
+            throw new PackFormatException("Pack index has a negative object count.");
+        }
+
+        var expectedEnd = checked(
+            indexOffset
+            + PackFormat.IndexHeaderSize
+            + checked((long)count * PackFormat.IndexEntrySize)
+            + PackFormat.IndexChecksumSize
+            + PackFormat.TrailerSize);
+        if (expectedEnd != stream.Length)
+        {
+            throw new PackFormatException("Pack index length does not match the file length.");
+        }
+
+        using var indexHasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        indexHasher.AppendData(indexHeader);
+        var expectedRecordOffset = (long)PackFormat.HeaderSize;
+        var entryBytes = new byte[PackFormat.IndexEntrySize];
+        for (var index = 0; index < count; index++)
+        {
+            await ReadExactlyAsync(stream, entryBytes, cancellationToken);
+            indexHasher.AppendData(entryBytes);
+            var nextIndexPosition = stream.Position;
+            var objectId = new Guid(entryBytes.AsSpan(0, 16));
+            var recordOffset = PackFormat.ReadInt64(entryBytes.AsSpan(16, 8));
+            if (recordOffset != expectedRecordOffset)
+            {
+                throw new PackFormatException("Pack object records are not contiguous and ordered.");
+            }
+
+            var descriptor = await ReadObjectHeaderAsync(
+                stream,
+                objectId,
+                recordOffset,
+                indexOffset,
+                cancellationToken);
+            if (verifyPayloads)
+            {
+                await CopyDescriptorToAsync(
+                    stream,
+                    descriptor,
+                    Stream.Null,
+                    cancellationToken);
+            }
+
+            expectedRecordOffset = checked(
+                descriptor.PayloadOffset + descriptor.StoredLength);
+            stream.Position = nextIndexPosition;
+        }
+
+        if (expectedRecordOffset != indexOffset)
+        {
+            throw new PackFormatException("Pack data area length does not match its index.");
+        }
+
+        var storedChecksum = new byte[PackFormat.IndexChecksumSize];
+        await ReadExactlyAsync(stream, storedChecksum, cancellationToken);
+        if (!CryptographicOperations.FixedTimeEquals(
+                indexHasher.GetHashAndReset(),
+                storedChecksum))
+        {
+            throw new PackFormatException("Pack index checksum does not match.");
+        }
+
+        return new PackValidationResult(packId, runIndex, count);
     }
 
     public static async Task<PackReader> OpenAsync(
@@ -512,13 +519,13 @@ public sealed class PackReader : IAsyncDisposable
         }
     }
 
-    private static FileStream OpenFile(string path)
+    private static FileStream OpenFile(string path, FileShare sharing = FileShare.ReadWrite | FileShare.Delete)
     {
         return new FileStream(
             path,
             FileMode.Open,
             FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete,
+            sharing,
             bufferSize: 1,
             FileOptions.Asynchronous | FileOptions.RandomAccess);
     }

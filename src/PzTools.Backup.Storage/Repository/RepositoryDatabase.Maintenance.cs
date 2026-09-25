@@ -502,7 +502,8 @@ public sealed partial class RepositoryDatabase
 
     public async Task<GarbageCollectionResult> CollectGarbageAsync(
         RepositoryWriterLease lease,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool collectPaths = true)
     {
         EnsureLease(lease);
         await using var connection = await OpenConnectionAsync(cancellationToken);
@@ -526,8 +527,9 @@ public sealed partial class RepositoryDatabase
                 deletedObjects = await deleteObjects.ExecuteNonQueryAsync(cancellationToken);
             }
 
-            deletedPathRows = await PruneUnreferencedPathsCoreAsync(
-                connection, transaction, 1000, cancellationToken);
+            deletedPathRows = collectPaths
+                ? (await SweepUnreferencedPathsCoreAsync(connection, transaction, 1000, cancellationToken)).RemovedRows
+                : 0;
 
             deletedPackPaths = [];
             await using (var selectPacks = connection.CreateCommand())

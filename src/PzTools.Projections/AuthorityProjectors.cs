@@ -142,7 +142,8 @@ public sealed class SchedulerProjector(
     SchedulerDatabase database,
     RevisionedViewStore views,
     RepositoryDatabase? repository = null,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    bool requireActiveState = false)
 {
     private long cursor = -1;
     private BackupSchedulerState? cachedState;
@@ -158,15 +159,24 @@ public sealed class SchedulerProjector(
         else if (cachedState is { } cached) snapshot = cached;
         else return;
 
-        var nextDue = snapshot.CurrentTarget is null ? (DateTimeOffset?)null : snapshot.NextDueUtc;
+        var canCountDown = snapshot.AutomaticEnabled && snapshot.Mode == SchedulerMode.Continuous
+            && snapshot.CurrentTarget is not null;
+        if (canCountDown && requireActiveState)
+        {
+            var activity = views.ReadIfChanged<SaveListView>(ViewKey.SaveList, 0).Snapshot;
+            var active = activity?.Saves.Where(save => save.Activity == ActivityState.Active
+                && save.Freshness == ViewFreshness.Fresh).ToArray();
+            canCountDown = activity?.Game == GameState.Playing && active is { Length: 1 }
+                && StringComparer.OrdinalIgnoreCase.Equals(active[0].SourcePath, snapshot.CurrentTarget!.SourcePath);
+        }
+        var nextDue = canCountDown ? snapshot.NextDueUtc : (DateTimeOffset?)null;
         var periodicInProgress = false;
         // Scheduler authority keeps the admission due until completion for crash recovery
         // and busy retries. Display the next slot once this exact periodic worker starts
         // and its due time arrives (early preparation must retain the current countdown),
         // even if the scheduler revision has not changed. Do not infer this from any
         // unrelated manual/final backup or from the mere passage of time.
-        if (repository is not null && snapshot.AutomaticEnabled
-            && snapshot.Mode == SchedulerMode.Continuous && snapshot.CurrentTarget is not null)
+        if (repository is not null && canCountDown)
         {
             var workflow = await repository.TryReadWorkflowByAdmissionAsync(
                 snapshot.PeriodicAdmissionId, cancellationToken);

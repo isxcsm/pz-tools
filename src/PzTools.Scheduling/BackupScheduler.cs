@@ -11,7 +11,8 @@ public sealed class BackupScheduler(
     Func<string, BackupTarget, long, DateTimeOffset?, CancellationToken, Task<WorkerInvocation>> backupRunner,
     Func<string, BackupTarget, long, long, CancellationToken, Task<WorkerInvocation>> maintenanceRunner,
     string? telemetryConfigurationPath = null,
-    TimeSpan? preparationLead = null)
+    TimeSpan? preparationLead = null,
+    Func<BackupTarget, bool>? isTargetActive = null)
 {
     private readonly HashSet<string> recoveredRepositories = (
         new HashSet<string>(StringComparer.OrdinalIgnoreCase));
@@ -22,7 +23,7 @@ public sealed class BackupScheduler(
     {
         var admission = await schedulerDatabase.PrepareBackupTickAsync(
             now, cancellationToken, preparationLead);
-        if (admission is null)
+        if (admission is null || isTargetActive is not null && !isTargetActive(admission.Target))
         {
             return new BackupTickResult(
                 false, null, null, null, null, ProcessOutcome.Skipped);
@@ -81,12 +82,16 @@ public sealed class BackupScheduler(
             {
                 // 신호 전달 실패만으로 예정된 백업 자체를 중단하지 않습니다.
             }
-            backup = await backupRunner(
-                admission.RepositoryPath,
-                admission.Target,
-                workflow.RunIndex,
-                admission.Kind == BackupAdmissionKind.Periodic ? admission.ScheduledUtc : null,
-                cancellationToken);
+            // A stop/interval change can arrive while repository admission or yield is awaited.
+            var currentAdmission = await schedulerDatabase.PrepareBackupTickAsync(
+                now, cancellationToken, preparationLead);
+            backup = currentAdmission?.AdmissionId == admission.AdmissionId
+                && (isTargetActive is null || isTargetActive(admission.Target))
+                ? await backupRunner(
+                    admission.RepositoryPath, admission.Target, workflow.RunIndex,
+                    admission.Kind == BackupAdmissionKind.Periodic ? admission.ScheduledUtc : null,
+                    cancellationToken)
+                : new WorkerInvocation(false, ProcessOutcome.Skipped, "automatic-reservation-obsolete");
             if (backup.Outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange)
             {
                 var bound = await repository.ReadWorkflowAsync(

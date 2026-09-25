@@ -30,9 +30,14 @@ public sealed class RepositoryHousekeepingTests
         var visible = await repository.ReadRevisionEntriesAsync(1, 1);
         var state = await repository.GetSourceStateAsync(1);
         await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
-        Assert.Equal(1, await repository.PruneUnreachableEntryVersionsAsync(lease, 1, 1));
-        Assert.Equal(1, await repository.PruneUnreachableEntryVersionsAsync(lease, 1, 1));
-        Assert.Equal(0, await repository.PruneUnreachableEntryVersionsAsync(lease, 1, 1));
+        var removed = 0;
+        for (var i = 0; i < 6; i++)
+        {
+            var sweep = await repository.SweepUnreachableEntryVersionsAsync(lease, 1, 1);
+            Assert.InRange(sweep.InspectedRows, 0, 1);
+            removed += sweep.RemovedRows;
+        }
+        Assert.Equal(2, removed);
         Assert.Equal(visible, await repository.ReadRevisionEntriesAsync(1, 1));
         Assert.Equal(state, await repository.GetSourceStateAsync(1));
         Assert.Equal(1, await ScalarAsync(repository, "SELECT COUNT(*) FROM entry_versions WHERE valid_to_revision IS NULL AND tombstone=1;"));

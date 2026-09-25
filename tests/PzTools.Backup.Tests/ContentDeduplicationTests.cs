@@ -21,7 +21,7 @@ public sealed class ContentDeduplicationTests
         await File.WriteAllBytesAsync(firstPath, original);
         await File.WriteAllBytesAsync(secondPath, original);
         var metadata = new WindowsFileMetadataReader();
-        var deduplicating = new DeduplicatingFileCapturer(new StableFileCapturer(metadata));
+        await using var deduplicating = new DeduplicatingFileCapturer(new StableFileCapturer(metadata));
         await using var writer = await PackWriter.CreateAsync(repositoryPath, 1);
         var first = await deduplicating.CaptureAsync(
             repository, firstPath, writer, ChecksumAlgorithm.Sha256,
@@ -104,7 +104,7 @@ public sealed class ContentDeduplicationTests
         var source = await repository.AddOrGetSourceAsync(lease, "main", sourcePath);
         var metadata = new WindowsFileMetadataReader();
         var stable = new StableFileCapturer(metadata);
-        var deduplicating = new DeduplicatingFileCapturer(stable);
+        await using var deduplicating = new DeduplicatingFileCapturer(stable);
         var storage = new StorageOptions(
             ChecksumAlgorithm.Sha256,
             CompressionAlgorithm.None,

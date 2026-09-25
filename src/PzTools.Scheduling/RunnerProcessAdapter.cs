@@ -21,7 +21,7 @@ public sealed class RunnerProcessAdapter(
             [
                 "--repository", repositoryPath,
                 "--source-id", target.SourceKey,
-                "--save-game",
+                "--save-game", "--require-active-game",
                 "--source", $"{target.SourceKey}={target.SourcePath}",
                 "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--worker-directory", workerDirectory,

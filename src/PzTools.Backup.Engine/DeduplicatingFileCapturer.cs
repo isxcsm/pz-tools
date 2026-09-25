@@ -11,10 +11,29 @@ public sealed record StoredFileCapture(
     Guid PackId,
     bool Reused);
 
-public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
+public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer) : IAsyncDisposable
 {
     private readonly Dictionary<ContentKey, List<PackObjectDescriptor>> runCandidates = [];
     private Guid? activePackId;
+    private readonly ValidatedPackReaderCache readers = new();
+    private bool disposed;
+    internal int PackValidationCount => readers.ValidationCount;
+
+    // Injected runners may reuse the capturer, but never carry handles past a run.
+    internal async ValueTask EndRunAsync()
+    {
+        await readers.ClearAsync();
+        runCandidates.Clear();
+        activePackId = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (disposed) return;
+        disposed = true;
+        await readers.DisposeAsync();
+        runCandidates.Clear();
+    }
 
     public async Task<StoredFileCapture> CaptureAsync(
         RepositoryDatabase repository,
@@ -26,6 +45,7 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
         CancellationToken cancellationToken = default,
         Func<FileCopyProgress, ValueTask>? progress = null)
     {
+        ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(writer);
         if (contentDeduplication && checksum != ChecksumAlgorithm.Sha256)
@@ -36,14 +56,24 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
 
         if (activePackId != writer.PackId)
         {
-            runCandidates.Clear();
+            await EndRunAsync();
             activePackId = writer.PackId;
         }
 
-        await using var staged = await capturer.StageAsync(path, writer, cancellationToken, progress,
-            requireFullHash: contentDeduplication);
         try
         {
+            await using var staged = await capturer.StageAsync(path, writer, cancellationToken, progress,
+                requireFullHash: contentDeduplication);
+
+            async Task<StoredFileCapture> ReuseAsync(PackObjectDescriptor descriptor, Guid packId)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (progress is not null)
+                    await progress(new FileCopyProgress(staged.Content.Length, staged.Content.Length, 1, "deduplication"));
+                cancellationToken.ThrowIfCancellationRequested();
+                return new StoredFileCapture(staged.Reuse(descriptor), packId, Reused: true);
+            }
+
             if (!contentDeduplication)
                 return new StoredFileCapture(await staged.CaptureAsync(
                     writer, checksum, compression, cancellationToken, progress), writer.PackId, Reused: false);
@@ -84,17 +114,10 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
         {
             // Even direct callers must not seal a run after a failed/cancelled comparison.
             writer.Invalidate("deduplication capture failed");
+            await EndRunAsync();
             throw;
         }
 
-        async Task<StoredFileCapture> ReuseAsync(PackObjectDescriptor descriptor, Guid packId)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (progress is not null)
-                await progress(new FileCopyProgress(staged.Content.Length, staged.Content.Length, 1, "deduplication"));
-            cancellationToken.ThrowIfCancellationRequested();
-            return new StoredFileCapture(staged.Reuse(descriptor), packId, Reused: true);
-        }
     }
 
     private async Task<bool> ContentEqualsAsync(
@@ -130,14 +153,12 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer)
     {
         stagedContent.Position = 0;
         var packPath = ResolveRepositoryPath(repositoryPath, candidate.PackRelativePath);
-        await using var reader = await PackReader.OpenForLocatedReadsAsync(
-            packPath,
-            candidate.PackId,
-            cancellationToken);
         await using var comparer = new ContentComparisonStream(stagedContent);
         try
         {
-            await reader.CopyObjectAtAsync(
+            await readers.CopyObjectAtAsync(
+                packPath,
+                candidate.PackId,
                 candidate.ObjectId,
                 candidate.PackOffset,
                 comparer,

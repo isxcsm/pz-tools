@@ -47,7 +47,7 @@ internal static class OrphanBackupLane
                                     {
                                         saveId = item.SaveId,
                                         removedRevisions = item.Revisions,
-                                    }), configurationPath));
+                                    }), configurationPath), collectPaths: false);
                             var housekeeping = await new RepositoryHousekeepingService().RunAsync(
                                 repository, lease, null, run, options, token);
                             var failedFiles = result.FilesThatCouldNotBeDeleted

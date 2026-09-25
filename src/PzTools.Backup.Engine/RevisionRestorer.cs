@@ -16,6 +16,13 @@ public sealed record RestoreProgress(
 
 public sealed class RevisionRestorer
 {
+    private readonly Func<string, Guid, CancellationToken, Task<PackReader>> openPackReader;
+
+    public RevisionRestorer() : this(PackReader.OpenForLocatedReadsAsync) { }
+
+    internal RevisionRestorer(Func<string, Guid, CancellationToken, Task<PackReader>> openPackReader) =>
+        this.openPackReader = openPackReader ?? throw new ArgumentNullException(nameof(openPackReader));
+
     public Task<RestoreResult> RestoreAsync(
         RepositoryDatabase repository,
         long sourceId,
@@ -56,7 +63,7 @@ public sealed class RevisionRestorer
                 "workload.discovered", 0, files.LongLength, 0, totalBytes), cancellationToken);
         long completedItems = 0;
         long completedBytes = 0;
-        var readers = new Dictionary<Guid, PackReader>();
+        PackReader? reader = null;
         Directory.CreateDirectory(root);
         try
         {
@@ -68,7 +75,7 @@ public sealed class RevisionRestorer
                 Directory.CreateDirectory(item.FullPath);
             }
 
-            foreach (var item in planned.Where(item => item.Entry.EntryKind == "File"))
+            foreach (var item in files.OrderBy(item => item.Entry.PackId).ThenBy(item => item.Entry.PackOffset))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (observer is not null)
@@ -87,17 +94,18 @@ public sealed class RevisionRestorer
                 var parent = Path.GetDirectoryName(item.FullPath)!;
                 Directory.CreateDirectory(parent);
                 EnsureNoReparseAncestor(root, item.FullPath);
-                if (!readers.TryGetValue(item.Entry.PackId.Value, out var reader))
+                if (reader is null || reader.PackId != item.Entry.PackId.Value)
                 {
+                    if (reader is not null) await reader.DisposeAsync();
+                    reader = null;
                     var packPath = ResolveRepositoryPath(
                         repository.RepositoryPath,
                         item.Entry.PackRelativePath);
-                    reader = await PackReader.OpenForLocatedReadsAsync(
+                    reader = await openPackReader(
                         packPath,
                         item.Entry.PackId.Value,
                         cancellationToken);
 
-                    readers.Add(reader.PackId, reader);
                 }
 
                 var temporary = Path.Combine(parent, $".pztools-restore-{Guid.NewGuid():N}.tmp");
@@ -157,10 +165,7 @@ public sealed class RevisionRestorer
         }
         finally
         {
-            foreach (var reader in readers.Values)
-            {
-                await reader.DisposeAsync();
-            }
+            if (reader is not null) await reader.DisposeAsync();
         }
     }
 

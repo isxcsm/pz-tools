@@ -80,43 +80,6 @@ public sealed partial class RepositoryDatabase
         return sources;
     }
 
-    // Closed versions that intersect neither a visible revision nor the hidden latest
-    // baseline are unreachable. Keep ALL open versions, including current tombstones.
-    public async Task<int> PruneUnreachableEntryVersionsAsync(
-        RepositoryWriterLease lease, long? sourceId, int maximumEntries = 1000,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureLease(lease);
-        if (sourceId <= 0) throw new ArgumentOutOfRangeException(nameof(sourceId));
-        if (maximumEntries is < 1 or > 10000) throw new ArgumentOutOfRangeException(nameof(maximumEntries));
-        await using var connection = await OpenConnectionAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText =
-            """
-            DELETE FROM entry_versions WHERE rowid IN (
-                SELECT entry.rowid FROM entry_versions AS entry
-                WHERE ($sourceId IS NULL OR entry.source_id=$sourceId) AND entry.valid_to_revision IS NOT NULL
-                  AND NOT EXISTS (
-                      SELECT 1 FROM revisions AS revision
-                      WHERE revision.source_id=entry.source_id
-                        AND revision.revision>=entry.valid_from_revision
-                        AND revision.revision<entry.valid_to_revision
-                        AND (revision.state='Active' OR revision.revision=(
-                            SELECT current_revision FROM source_state WHERE source_id=entry.source_id))
-                  )
-                ORDER BY entry.rowid LIMIT $limit
-            );
-            """;
-        command.Parameters.AddWithValue("$sourceId", (object?)sourceId ?? DBNull.Value);
-        command.Parameters.AddWithValue("$limit", maximumEntries);
-        var removed = await command.ExecuteNonQueryAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        transaction.Commit();
-        return removed;
-    }
-
     // Run IDs are retained by repository_info, not recycled from deleted history.
     // Keep the newest IDs of BOTH histories and every revision/pack/live-stage owner.
     public async Task<CompletedHistoryCleanup> PruneCompletedHistoryAsync(

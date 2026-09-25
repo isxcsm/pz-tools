@@ -134,6 +134,7 @@ internal static class BackupCli
         Console.WriteLine("         [--always-include <relative-path>] [--run-index <n>] [--control-db <path>] [--revision <n>]");
         Console.WriteLine("         [--full-scan-hash-comparison <true|false>]");
         Console.WriteLine("         [--save-game]  Save the matching running single-player world before capture.");
+        Console.WriteLine("         [--require-active-game]  Skip automatic work if the selected world stops before capture.");
         Console.WriteLine("         [--save-game-before-backup <true|false>]  Override the game-save preference.");
         Console.WriteLine("         [--scheduled-utc <ISO 8601>]  Prepare ahead, then save/capture no earlier than this time.");
         Console.WriteLine("  restore --repository <path> --source-id <id> --revision <n> --target <path>");
@@ -181,16 +182,12 @@ internal static class BackupCli
                 options.EffectiveTuning.GameQueueTimeoutSeconds,
                 options.GameSaveCountdown
                     ? LanguageCatalog.Get(options.NameLanguage).Tag : null, request.ScheduledUtc);
-            BackupSourcePreparation? prepareSource = request.ScheduledUtc is not null || request.SaveGame && options.SaveGameBeforeBackup ? async (path, token) =>
+            var timing = new BackupTimingPreparation((path, token) => request.SaveGame && options.SaveGameBeforeBackup
+                ? gameSave.PrepareAsync(path, token) : Task.FromResult(new GameSaveResult("disabled")));
+            BackupSourcePreparation? prepareSource = request.RequireActiveGame || request.ScheduledUtc is not null
+                || request.SaveGame && options.SaveGameBeforeBackup ? async (path, token) =>
             {
-                var prepared = request.SaveGame && options.SaveGameBeforeBackup
-                    ? await gameSave.PrepareAsync(path, token) : new GameSaveResult("disabled");
-                // Inactive games and disabled JVM integration must not capture early either.
-                if (request.ScheduledUtc is { } due)
-                {
-                    var remaining = due - DateTimeOffset.UtcNow;
-                    if (remaining > TimeSpan.Zero) await Task.Delay(remaining, token);
-                }
+                var prepared = await timing.PrepareAsync(path, request.ScheduledUtc, request.RequireActiveGame, token);
                 return new BackupPreparationResult(prepared.Outcome, prepared.Detail);
             } : null;
             var result = await new OneShotBackupService(new UsnJournalReader(), prepareSource,
@@ -219,6 +216,14 @@ internal static class BackupCli
                 ProcessResultEnvelope<OneShotBackupResult>.Success(
                     "backup-worker", runIndex, outcome, started, result)));
             return ProcessExitCodes.FromOutcome(outcome);
+        }
+        catch (AutomaticBackupSkippedException exception)
+        {
+            await CompleteOwnedWorkflowAsync(ProcessOutcome.Skipped, "automatic-backup-inactive");
+            Console.WriteLine(ProcessResultJson.Serialize(ProcessResultEnvelope<object>.Success(
+                "backup-worker", runIndex, ProcessOutcome.Skipped, started,
+                new { code = "automatic-backup-inactive", reason = exception.Message })));
+            return ProcessExitCodes.FromOutcome(ProcessOutcome.Skipped);
         }
         catch (OperationCanceledException)
         {
@@ -270,6 +275,7 @@ internal static class BackupCli
                 {
                     ProcessOutcome.Succeeded => WorkflowStatus.Succeeded,
                     ProcessOutcome.NoChange => WorkflowStatus.NoChange,
+                    ProcessOutcome.Skipped => WorkflowStatus.Skipped,
                     ProcessOutcome.Busy => WorkflowStatus.Busy,
                     ProcessOutcome.Cancelled => WorkflowStatus.Cancelled,
                     _ => WorkflowStatus.Failed,

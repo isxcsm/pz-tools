@@ -2,7 +2,9 @@
 
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
 
-This follows compact format 2. The current repository is **format 2 / schema 3**.
+Current schema is **4**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
+
+This follows compact format 2. The repository at that follow-up was **format 2 / schema 3**.
 There is no migration or dual reader for schemas 1/2 or format 1. Opening older data
 fails with `repository-reset-required` before configuration writes; it is never
 automatically deleted. Start with a new empty backup directory. The game's
@@ -115,3 +117,6 @@ their IDs. Historical spelling, case-only renames, compaction, restore, cross-so
 sharing and dictionary collection have separate tests and layout measurements.
 See [path normalization](path-normalization.md) for its scope, cost tradeoffs and
 current verification rather than treating the older measurements above as schema-3 results.
+
+For active-only automatic backups and schema-5 bounded version inspection, see
+[the follow-up](active-backup-followup.md). Earlier measurements above are historical.

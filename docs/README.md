@@ -84,6 +84,8 @@ for the commit you plan to run; do not follow an old reset or migration plan bli
 | [Verification report / 검증 보고서](verification-report.md) | 한국어 | Dated local checks and remaining manual checks / 시점별 검증 기록 |
 | [Performance profile / 성능 프로파일](performance-profile.md) | 한국어 | Profiling method and measurements / 프로파일링 조건과 수치 |
 | [Storage performance follow-up / 저장소 성능 개선](storage-performance.md) | English | Implementation notes with commit-specific benchmarks / 구현과 당시 측정 |
+| [Storage hotpaths / 저장소 주요 경로](storage-hotpaths.md) | English | Request lookup, reader reuse and bounded collection / 조회·리더·정리 |
+| [Active-only backup and follow-up / 자동 백업과 추가 최적화](active-backup-followup.md) | English | Exit/settings guards, scan queries, thumbnails, restore and version inspection / 종료·간격 설정·추가 최적화 |
 | [Connection and merge review / 연결·병합 검토](connection-startup-and-merge-review.md) | English | Earlier connection fixes and merge evidence / 연결 수정·병합 기록 |
 | [Fingerprint reconciliation / 해시 브랜치 정리](fingerprint-followup.md) | English | Earlier branch reconciliation and regression evidence / 브랜치 정리 당시 검증 |
 | [Localization review / 문구 검토](localization-review.md) | English | Earlier UI wording changes and review boundaries / UI 문구 변경 범위 |
