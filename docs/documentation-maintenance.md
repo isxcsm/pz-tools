@@ -66,8 +66,7 @@ python scripts/test-documentation-checker.py
 python scripts/check-documentation.py
 ```
 
-The [Documentation workflow](../.github/workflows/docs.yml) runs these checks on Linux
-and Windows. The existing `pwsh scripts/test-readme-links.ps1` entry point calls the same
+The [CI workflow](../.github/workflows/windows.yml) runs these checks once on Linux. The existing `pwsh scripts/test-readme-links.ps1` entry point calls the same
 checker. Tests include injected missing pages/anchors, incomplete guides, broken language
 navigation and invalid local paths; a validator must fail on broken input, not just pass
 on the current repository.

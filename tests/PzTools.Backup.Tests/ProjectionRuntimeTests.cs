@@ -680,10 +680,27 @@ public sealed class ProjectionRuntimeTests
         var identity = temp.GetPath("identity");
         var store = await ProcessTelemetryStore.CreateForIdentityAsync(identity, "fixture");
         await store.RecordAsync("fixture", 7, "run.started");
-        for (var index = 0; index < 600; index++)
+        // This tests the reader crossing its 512-event boundary, not 600 individual
+        // writer transactions. Keep all 600 events, but seed them in one SQL statement.
+        await using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
-            await store.RecordAsync(
-                "fixture", 7, "file.capture.completed", "{\"bytes\":1}");
+            DataSource = store.DatabasePath, Mode = SqliteOpenMode.ReadWrite, Pooling = false,
+        }.ToString()))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                WITH RECURSIVE sequence(value) AS (
+                    SELECT 2 UNION ALL SELECT value+1 FROM sequence WHERE value<601
+                )
+                INSERT INTO telemetry_events(scope_id,component,run_index,event_sequence,
+                    event_name,occurred_utc,elapsed_ticks,payload_version,payload_json)
+                SELECT 'fixture','fixture',7,value,'file.capture.completed',$utc,0,1,'{"bytes":1}'
+                FROM sequence;
+                """;
+            command.Parameters.AddWithValue("$utc", DateTimeOffset.UtcNow.ToString("O"));
+            Assert.Equal(600, await command.ExecuteNonQueryAsync());
         }
         await store.RecordAsync("fixture", 7, "run.committed");
         var catalog = new TelemetrySourceCatalog();

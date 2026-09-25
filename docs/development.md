@@ -81,9 +81,10 @@ finally {
 ```
 
 This example clears its test-only environment overrides afterward; use a separate
-PowerShell session if you already rely on different values. The standard
-[Windows workflow](../.github/workflows/windows.yml) builds, tests, publishes, and
-then tests with the fresh distribution. Check its result for the exact commit.
+PowerShell session if you already rely on different values. The
+[CI workflow](../.github/workflows/windows.yml) builds once, optionally publishes,
+and then runs the applicable tests once with that fresh distribution. Check its
+result for the exact commit.
 
 ## Synthetic game integration and opt-in tests
 
@@ -134,3 +135,52 @@ Use [advanced runtime configuration](runtime-configuration.md) for component tun
 Old performance and verification results remain tied to their stated data, machines
 and commits; the [documentation index](README.md#measurements-and-history) separates
 those records from the current user instructions.
+
+## Lean CI and proportional validation
+
+One workflow replaces the former Windows, storage, crash, localization and dual-OS
+Documentation workflows. PRs target dev/main; pushes to those branches do not repeat
+the same PR validation. Release tags `v*` run full validation. Direct branch pushes
+without a PR therefore require a manual run before release.
+
+- Documentation-only PRs run one Linux job with offline documentation, localization,
+  SQL and selector checks. The PowerShell documentation wrapper calls the same Python
+  checker and is not run a second time in CI.
+- Code PRs additionally use one Windows job: one Release solution build, then one
+  `dotnet test --no-build --no-restore`. Storage, localization, scheduler and one-shot
+  crash/recovery tests remain in this common suite, not separate duplicate jobs.
+- Bridge/backup-engine changes run the synthetic JVM tests in that same invocation.
+  Their fixture reuses the freshly built Release bridge; there is no second Debug
+  build, extra runtime generation or separate managed test build.
+- Packaging, worker entry-point, build and workflow changes also publish a fresh
+  distribution **before** that one test invocation. Other PRs defer publication.
+- In Actions, choose **CI / Run workflow / full=true** for distribution, JVM and
+  repeated crash stress regardless of changed paths. Release tags do the same.
+  The five-repetition stress suite is tagged `Category=Stress`; the ordinary crash
+  boundary tests still run on every code PR. Local unfiltered tests still run stress.
+- Benchmarks are preserved but run only with the separate `benchmarks=true` input.
+  With full=false, a benchmark-only manual run uses Linux only. Full history is
+  fetched only for that historical comparison. Success without a
+  requested benchmark is not a new performance measurement.
+
+Dependencies, not compiled outputs or user data, are cached. Superseded PR runs are
+cancelled. TRX artifacts are kept seven days for failures or publication runs; normal
+success counts remain in the job log. This avoids repeated downloads of successful
+result bundles. No live-game, real-save or elevated-USN opt-in is enabled by CI.
+
+The mixed-history storage test now restores one multilingual history rather than
+rebuilding identical storage scenarios eighteen times; all-language resource and
+settings tests remain. The 600-event projection test still checks all 600 events and
+the terminal result, but seeds its input with one SQL statement instead of 600 durable
+writer calls. Product flush/checksum/transaction behavior is not weakened.
+
+Workflow check names change to `checks` and `windows`. Any required-check branch rule
+must be updated to these names before making them mandatory; repository protection is
+not changed automatically. A skipped Windows job on a docs-only PR is intentional.
+Workflow dispatch is available once the workflow is present on the default branch;
+before then, relevant packaging PRs already exercise fresh publication automatically.
+
+For routine changes, inspect one CI result and fetch detailed logs only on failure.
+Batch related file edits into one push. Do not create temporary CI workflows or a
+chain of fallback tools for ordinary Git operations such as deleting a merged branch;
+use a direct supported operation or report the unavailable operation promptly.

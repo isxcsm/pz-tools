@@ -35,6 +35,9 @@ internal static class NativeSqliteDiagnostics
     internal static string Snapshot() => $"logger={registrationResult}; " + string.Join("\n", messages);
 }
 
+// Routine CI already checks every boundary in InterruptedOperationRecoveryTests.
+// Repeating each boundary five times belongs to explicit full/release validation.
+[Trait("Category", "Stress")]
 public sealed class CrashRecoveryStressTests
 {
     [Theory]
