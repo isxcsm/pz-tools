@@ -22,7 +22,7 @@ jobs:
         shell: pwsh
         run: >-
           dotnet test tests/PzTools.Backup.Tests -c Release -warnaserror
-          --filter 'FullyQualifiedName~ConnectionOwnershipTests|FullyQualifiedName~CrashRecoveryStressTests|FullyQualifiedName~InterruptedOperationRecoveryTests'
+          --filter 'FullyQualifiedName~ConnectionOwnershipTests|FullyQualifiedName~RepositoryConnectionInitializationTests|FullyQualifiedName~CrashRecoveryStressTests|FullyQualifiedName~InterruptedOperationRecoveryTests'
           --logger 'trx;LogFileName=crash-recovery.trx' --results-directory artifacts/crash-validation
       - uses: actions/upload-artifact@v4
         if: always()
