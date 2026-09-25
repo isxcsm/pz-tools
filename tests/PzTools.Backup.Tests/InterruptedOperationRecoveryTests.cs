@@ -48,6 +48,8 @@ public sealed class InterruptedOperationRecoveryTests
         {
             if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
         }
+        try
+        {
         var repository = await RepositoryDatabase.CreateOrOpenAsync(Path.Combine(root, "repository"));
         var recovery = new InterruptedOperationRecoveryService();
         var result = await recovery.TryRunAsync(repository, Path.Combine(root, "Saves"));
@@ -70,6 +72,11 @@ public sealed class InterruptedOperationRecoveryTests
         var repeated = await recovery.TryRunAsync(repository, Path.Combine(root, "Saves"));
         Assert.Empty(repeated.Problems);
         Assert.Equal(0, repeated.RecoveredWorkflows + repeated.RecoveredSaves + repeated.DeletedArtifacts);
+        }
+        catch (SqliteException exception)
+        {
+            throw new Xunit.Sdk.XunitException($"Crash recovery mode={mode}; SQLite primary={exception.SqliteErrorCode}; extended={exception.SqliteExtendedErrorCode}; native={SQLitePCL.raw.sqlite3_libversion().utf8_to_string()}; {exception}");
+        }
     }
 
     [Theory]

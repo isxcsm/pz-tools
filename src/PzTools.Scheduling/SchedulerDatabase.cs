@@ -902,15 +902,28 @@ public sealed class SchedulerDatabase
         }
     }
 
-    private async Task<SqliteConnection> OpenAsync(CancellationToken token)
+    private Task<SqliteConnection> OpenAsync(CancellationToken token) =>
+        OpenConfiguredAsync(new SqliteConnection(connectionString), token);
+
+    // Own the native handle until every configuration statement succeeds.
+    // The caller cannot dispose a connection that was never returned.
+    private static async Task<SqliteConnection> OpenConfiguredAsync(
+        SqliteConnection connection, CancellationToken token)
     {
-        var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync(token);
-        await using var command = connection.CreateCommand();
-        command.CommandText =
-            "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=1000; PRAGMA journal_mode=WAL;";
-        await command.ExecuteNonQueryAsync(token);
-        return connection;
+        try
+        {
+            await connection.OpenAsync(token);
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=1000; PRAGMA journal_mode=WAL;";
+            await command.ExecuteNonQueryAsync(token);
+            return connection;
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     private sealed record PendingRun(

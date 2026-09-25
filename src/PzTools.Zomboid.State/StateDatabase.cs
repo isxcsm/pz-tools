@@ -323,14 +323,27 @@ public sealed class StateDatabase
         return new CurrentStateSnapshot(true, revision, game, saves);
     }
 
-    internal async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)
+    internal Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken) =>
+        OpenConfiguredAsync(new SqliteConnection(connectionString), cancellationToken);
+
+    // Own the native handle until every configuration statement succeeds.
+    // The caller cannot dispose a connection that was never returned.
+    private static async Task<SqliteConnection> OpenConfiguredAsync(
+        SqliteConnection connection, CancellationToken cancellationToken)
     {
-        var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=250; PRAGMA journal_mode=WAL;";
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        return connection;
+        try
+        {
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=250; PRAGMA journal_mode=WAL;";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return connection;
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     private static async Task<bool> HasColumnAsync(
