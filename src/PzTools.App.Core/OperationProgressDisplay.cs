@@ -37,7 +37,7 @@ public sealed record OperationProgressDisplay(bool IsVisible, bool IsIndetermina
 
     public static bool UsesBytes(OperationView operation) => operation.TotalBytes is > 0
         && operation.Phase is "copy" or "copy.retry" or "capture" or "hash" or "restore"
-            or "archive.restore" or "archive.snapshot" or "archive.compress" or "import";
+            or "deduplication" or "archive.restore" or "archive.snapshot" or "archive.compress" or "import";
 
     public static OperationProgressDisplay From(OperationView? operation, bool telemetryFaulted = false)
     {

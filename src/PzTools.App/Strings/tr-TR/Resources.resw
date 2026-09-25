@@ -38,15 +38,15 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Tema</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>Sistemi izleyin veya bir tema seçin.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>Sistem tepsisi</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Pencereyi kapattığınızda uygulama tepside çalışmaya devam etsin.</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>Pencereyi göster</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Pencere kapatıldığında PZ Tools çalışmaya devam eder. Tamamen kapatmak için saatin yanındaki simge menüsünden Çıkış'ı seçin.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>PZ Tools'u aç</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Çıkış</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>PZ Tools kapatılsın mı?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>Otomatik yedeklemeler durur ve devam eden işlemler kesintiye uğrayabilir.</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>Yollar</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>Klasörler</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>Kayıt ve yedek dosyalarının konumunu seçin.</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Kayıt dizini</value></data>
-  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Yedek dizini</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Oyun kayıtları klasörü</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Yedek klasörü</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Gözat</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Yedekleme</value></data>
   <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Otomatik yedeklemeyi kapatmak için 0 dakika seçin.</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Otomatik yedek sayısı</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Son 1–100 otomatik yedeği saklayın. Bu sınır manuel yedekleri silmez.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Karakter ölünce yedekle</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopyaları doğrula</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kopyalanan dosyaları karma değeriyle doğrulayın; değişmişlerse tekrar deneyin.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Kayıt dosyası kopyalanırken tekrar tekrar değişti. Sonraki yedeklemede yeniden denenecek.</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopyalanan dosyaları denetle</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kopyalanan dosyaların özgün dosyalarla eşleştiğini denetler. Kopyalama sırasında değişen dosyalar yeniden kopyalanır.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Yedekleme sırasında kayıt dosyaları sürekli değişti. Oyunun kaydetmeyi bitirmesini bekleyip yeniden yedekleyin.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Sonraki yedek: bekleniyor</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>Açık</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Koyu</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>Uygulama henüz hazır değil. Biraz sonra tekrar deneyin.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>Pencere henüz oluşturulmadı.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools hâlâ başlatılıyor. Biraz sonra yeniden deneyin.</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Otomatik yedekleme başlatılamadı.</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>Mevcut kayıt kullanılamıyor</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>Geçerli oyun kaydı bulunamadı</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Oyun modu: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>Oyun modu</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Karakter: {0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Bu arşivin sıkıştırma oranı olağandışı yüksek; güvenle içe aktarılamıyor.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuel yedek</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Seçili yedek geri yüklensin mi?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>“{0}” için mevcut dosyalar “{1}” ile değiştirilir. Değiştirme başarısız olursa önceki dosyalar otomatik geri yüklenir.</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>“{0}” kaydının geçerli dosyalarını “{1}” yedeğiyle değiştirir. Bu yedekten sonraki ilerleme kaybolur. Geri yükleme kesilirse bu kaydı oyunda açmadan önce PZ Tools'u yeniden açın.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Geri yükle</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>Geri yükle</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>PZ Tools kayıt yedeği</value></data>
@@ -139,7 +139,7 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>İşlemler ve günlükler</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>Ekran bilgileri</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>İşlem iptal edildi.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>İşlem sona erdi ancak temizliğin bir kısmı henüz tamamlanmadı.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>İşlem sorunlarla tamamlandı. Yeniden çalıştırmadan önce günlükleri kontrol edin.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Günlükler</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Günlükler</value></data>
   <data name="LogLevelSetting.Header" xml:space="preserve"><value>En düşük önem düzeyi</value></data>
@@ -156,7 +156,7 @@
   <data name="LogsSubtitle" xml:space="preserve"><value>Yedekleme ve oyun durumu geçmişi.</value></data>
   <data name="LogSeverityFilter" xml:space="preserve"><value>Önem düzeyi</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>İşlem türü</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>Çalıştırma numarası</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>İşlem numarası</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>Örn. 42</value></data>
   <data name="All" xml:space="preserve"><value>Tümü</value></data>
   <data name="NoLogs" xml:space="preserve"><value>Gösterilecek günlük yok.</value></data>
@@ -175,7 +175,7 @@
   <data name="LogNumberHint" xml:space="preserve"><value>Bu günlüğü tanımlayan sabit numara.</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>Düzey</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>Olay</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>Çalıştırma</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>İşlem</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>Toplam {0:N0}</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{0:N0} öğeden {1:N0}–{2:N0}</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>Önceki</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>Değişiklikleri denetleme</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>Dosyayı okuma</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>Yedek verilerini depolama</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>Yedeği kesinleştirme</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Yedeği kaydetmeyi tamamla</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>Yedeği geri yükleme</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} öğe</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>Başlatıldı: {0}.</value></data>
@@ -272,11 +272,11 @@
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>Yapılandırma dosyaları</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>Dosyayı düzenledikten sonra uygulamayı yeniden başlatın. İşlem sürerken yeniden başlatılamaz.</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>Yapılandırma dosyalarını aç</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Bileşenlerin TOML yapılandırma dosyalarını içeren klasörü açar. Normal uygulama ayarları başka bir yerde saklanır.</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Gelişmiş ayar dosyalarının bulunduğu klasörü açar. Genel uygulama ayarlarını bu ekrandan değiştirebilirsiniz.</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Değişiklikleri uygula</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Düzenlenen dosyaları doğrular ve uygulamayı yeniden başlatır. İşlem sürerken yeniden başlatılamaz.</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Gelişmiş yapılandırmayı sıfırla</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Geçerli yapılandırma klasörünü dosya adları ve uzantıları değişmeden arşivler, ardından varsayılanları yeniden oluşturur.</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Geçerli dosyaların bir kopyasını saklar ve gelişmiş ayarları varsayılan değerlere döndürür. Oyun kayıtları ve yedekler silinmez.</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Klasörü aç</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Ayarları uygula ve yeniden başlat</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Düzenlenen gelişmiş yapılandırma dosyaları doğrulanıp uygulama yeniden başlatılsın mı? İşlem sürerken yeniden başlatılamaz.</value></data>
@@ -337,7 +337,7 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Yedek temizliği</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Diğer işlem</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Kaydedilen işlem: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Dosyaya erişilemiyor. Oyunun veya başka bir uygulamanın dosyayı kullanıp kullanmadığını denetleyin.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Gerekli bir dosya veya klasöre erişim izniniz yok. İzinleri kontrol edip yeniden deneyin.</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>Gerekli bir dosya veya klasör bulunamadı. Yolu denetleyin.</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>İşlem tamamlanamadı. Ayrıntılar için Günlükler bölümüne bakın.</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>İşlem tamamlandı</value></data>
@@ -351,7 +351,7 @@
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Oynama durumu denetleniyor ve gerekirse oyun kaydediliyor…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Yedeklemeden önce oyunu kaydet</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Yedeklemeden önce oyunun kaydedilmesi gerekip gerekmediği denetleniyor.</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Yedekleme öncesi oyun kaydetme çağrısı geri döndü.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Oyunun kaydetme adımı bitti. Yedekleme şimdi devam edecek.</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>Seçilen dünya oynanmadığı için oyunu kaydetme adımı atlandı.</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>Yedekleme öncesi oyun kaydetme denetimi tamamlandı.</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Oyunun kaydedildiği doğrulanamadığı için yedekleme durduruldu.</value></data>
@@ -369,8 +369,21 @@
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Bir oyun kayıt dosyası güncellemesinin kurtarılması gerekiyor. Bu kaydı oyunda yüklemeyin. Güncellemeyi tamamlamak için PZ Tools’u yeniden başlatın. Kayıt kesintiden sonra değiştiyse otomatik kurtarma üzerine yazmak yerine durur.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Karakter kurtarma</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Bu kaydı oyun veya başka bir işlem kullanıyor. Oynamayı bırakıp yeniden deneyin. Asıl dosya değiştirilmedi.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>Veritabanında bekleyen işlem günlüğü verileri var. Oyundan normal şekilde çıkıp yeniden deneyin. Asıl dosya değiştirilmedi.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>Bu oyun kaydında tamamlanmamış değişiklikler var. Oyundan normal şekilde çıkıp yeniden deneyin. Özgün kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Yalnızca tek yerel karakter içeren tek oyunculu kayıtlar desteklenir. Rastgele bir karakter seçilmedi ve asıl dosya değiştirilmedi.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Karakterin kayıt biçimi güvenle doğrulanamadı. Şu anda desteklenen: Build 42, dünya sürümü 249. Asıl dosya değiştirilmedi.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Okuma başarısız; yeniden denenecek</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>Oyun veya başka bir işlem gerekli bir dosyayı kullanıyor. Kaydetmenin veya işlemin bitmesini bekleyip yeniden deneyin.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>Yeterli boş alan yok. Hedef sürücüde yer açıp yeniden deneyin.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Gerekli uygulama dosyaları eksik. İndirilen dosyaların tümünü tek bir klasöre çıkarın veya PZ Tools'u yeniden yükleyip açın.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Bu yedek klasörü farklı bir depolama biçimi kullanıyor. Ayarlardan yeni, boş bir yedek klasörü seçin. Eski yedekler gerekiyorsa önceki klasörü saklayın ve oyun kayıtlarınızı silmeyin.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Klasörleri değiştirmeden veya PZ Tools'u yeniden başlatmadan önce geçerli işlemin bitmesini bekleyin.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>Ayarlar uygulanamadı. Girdiğiniz değerleri ve gelişmiş ayarlarda düzenlediğiniz dosyaları kontrol edin.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>PZ Tools yeniden başlatılamadı. Devam eden işlemler bittikten sonra uygulamayı kapatıp yeniden açın.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Seçilen klasörler kullanılamadığı için önceki ayarlar geri yüklendi. Klasör konumlarını ve izinlerini kontrol edin.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Yeni klasörler kullanılamadı ve önceki ayarlar geri yüklenemedi. Devam etmeden önce Ayarlar'da klasör konumlarını kontrol edin.</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Önceden yedeklenmiş aynı veriler yeniden kullanılıyor</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>Önceden yedeklenmiş aynı veriler yeniden kullanılıyor</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>Açık</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>Kapalı</value></data>
 </root>

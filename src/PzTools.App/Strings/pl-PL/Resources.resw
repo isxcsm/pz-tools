@@ -38,14 +38,14 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Motyw</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>Użyj ustawień systemu lub wybierz motyw.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>Zasobnik systemowy</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Po zamknięciu okna pozostaw aplikację uruchomioną w zasobniku.</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>Pokaż okno</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>PZ Tools działa dalej po zamknięciu okna. Aby go zamknąć, wybierz opcję zakończenia w menu jego ikony obok zegara.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>Otwórz PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Zakończ</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>Zamknąć PZ Tools?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>Automatyczne kopie zostaną zatrzymane, a trwające operacje mogą zostać przerwane.</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>Ścieżki</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>Foldery</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>Wybierz miejsce zapisu gier i kopii zapasowych.</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Folder zapisów</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Folder zapisów gry</value></data>
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Folder kopii zapasowych</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Przeglądaj</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Kopia zapasowa</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Liczba automatycznych kopii</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Zachowaj ostatnie 1–100 automatycznych kopii. Ten limit nie usuwa kopii ręcznych.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Twórz kopię po śmierci postaci</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Sprawdzaj kopie</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Sprawdzaj skopiowane pliki za pomocą skrótu i ponawiaj próbę, gdy się zmienią.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Plik zapisu wielokrotnie zmienił się podczas kopiowania. Próba zostanie ponowiona przy następnej kopii.</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Sprawdzaj skopiowane pliki</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Sprawdza, czy skopiowane pliki są zgodne z oryginałami. Jeśli plik zmieni się podczas kopiowania, zostanie skopiowany ponownie.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Pliki zapisu gry zmieniały się podczas tworzenia kopii. Poczekaj, aż gra zakończy zapisywanie, i spróbuj ponownie.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Następna kopia: oczekiwanie</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>Jasny</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Ciemny</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>Aplikacja nie jest jeszcze gotowa. Spróbuj ponownie za chwilę.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>Okno nie zostało jeszcze utworzone.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools jeszcze się uruchamia. Spróbuj ponownie za chwilę.</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Nie udało się uruchomić automatycznych kopii.</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>Bieżący zapis niedostępny</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>Nie znaleziono bieżącego zapisu gry</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Tryb gry: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>Tryb gry</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Postać: {0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Archiwum ma nietypowo wysoki stopień kompresji i nie można go bezpiecznie zaimportować.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ręczna kopia</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Przywrócić wybraną kopię?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Zastąpić bieżące pliki „{0}” kopią „{1}”. Jeśli zamiana się nie powiedzie, poprzednie pliki zostaną przywrócone automatycznie.</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Zastąpić bieżące pliki „{0}” kopią „{1}”. Postępy od czasu utworzenia tej kopii zostaną utracone. Jeśli przywracanie zostanie przerwane, otwórz ponownie PZ Tools przed wczytaniem tego zapisu w grze.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Przywróć</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>Przywróć</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>Kopia zapisu PZ Tools</value></data>
@@ -139,7 +139,7 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>Operacje i dzienniki</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>Informacje o ekranie</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>Operacja została anulowana.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>Operacja się zakończyła, ale część porządkowania pozostaje do wykonania.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>Operacja zakończyła się z problemami. Przed jej ponownym uruchomieniem sprawdź dziennik.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Dziennik</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Dziennik</value></data>
   <data name="LogLevelSetting.Header" xml:space="preserve"><value>Minimalny poziom ważności</value></data>
@@ -156,7 +156,7 @@
   <data name="LogsSubtitle" xml:space="preserve"><value>Historia kopii zapasowych i stanu gry.</value></data>
   <data name="LogSeverityFilter" xml:space="preserve"><value>Ważność</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>Rodzaj operacji</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>Numer wykonania</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>Numer operacji</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>Np. 42</value></data>
   <data name="All" xml:space="preserve"><value>Wszystkie</value></data>
   <data name="NoLogs" xml:space="preserve"><value>Brak wpisów do wyświetlenia.</value></data>
@@ -175,7 +175,7 @@
   <data name="LogNumberHint" xml:space="preserve"><value>Stały numer identyfikujący ten wpis.</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>Poziom</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>Zdarzenie</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>Wykonanie</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>Operacja</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>Łącznie {0:N0}</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{1:N0}–{2:N0} z {0:N0}</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>Poprzednia</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>Sprawdzanie zmian</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>Odczyt pliku</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>Zapis danych kopii</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>Zatwierdzenie kopii</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Kończenie zapisu kopii zapasowej</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>Przywracanie kopii</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>Elementy: {0:N0}</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>Rozpoczęto: {0}.</value></data>
@@ -272,11 +272,11 @@
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>Pliki konfiguracji</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>Po edycji pliku uruchom aplikację ponownie. Ponowne uruchomienie jest niedostępne podczas operacji.</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>Otwórz pliki konfiguracji</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Otwiera folder z plikami TOML konfiguracji komponentów. Zwykłe ustawienia aplikacji są przechowywane gdzie indziej.</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Otwiera folder plików ustawień zaawansowanych. Zwykłe ustawienia aplikacji można zmieniać na tym ekranie.</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Zastosuj zmiany</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Sprawdza zmienione pliki i ponownie uruchamia aplikację. Ponowne uruchomienie jest niedostępne podczas operacji.</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Zresetuj konfigurację zaawansowaną</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Archiwizuje bieżący folder konfiguracji bez zmiany nazw i rozszerzeń plików, a następnie odtwarza ustawienia domyślne.</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Zachowuje kopię bieżących plików i przywraca domyślne ustawienia zaawansowane. Zapisy gry i kopie zapasowe nie zostaną usunięte.</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Otwórz folder</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Zastosuj ustawienia i uruchom ponownie</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Sprawdzić zmienione pliki konfiguracji zaawansowanej i ponownie uruchomić aplikację? Nie jest to możliwe podczas trwającej operacji.</value></data>
@@ -337,7 +337,7 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Porządkowanie kopii</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Inna operacja</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Zarejestrowana operacja: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Nie można uzyskać dostępu do pliku. Sprawdź, czy nie używa go gra lub inna aplikacja.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Brak uprawnień dostępu do wymaganego pliku lub folderu. Sprawdź uprawnienia i spróbuj ponownie.</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>Nie znaleziono wymaganego pliku lub folderu. Sprawdź ścieżkę.</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>Nie udało się ukończyć operacji. Szczegóły znajdują się w dziennikach.</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>Operacja ukończona</value></data>
@@ -351,7 +351,7 @@
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Sprawdzanie, czy trwa rozgrywka, i zapis w razie potrzeby…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Sprawdzanie, czy przed utworzeniem kopii wymagany jest zapis gry.</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Wywołanie zapisu gry przed utworzeniem kopii zakończyło się.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Etap zapisywania w grze zakończył się. Tworzenie kopii zapasowej będzie kontynuowane.</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>Pominięto zapis gry, ponieważ wybrany świat nie jest używany w rozgrywce.</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>Zakończono sprawdzanie zapisu gry przed utworzeniem kopii.</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Przerwano tworzenie kopii, ponieważ nie udało się potwierdzić zapisu gry.</value></data>
@@ -369,8 +369,21 @@
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Aktualizacja plików zapisu gry wymaga odzyskania. Nie wczytuj tego zapisu w grze. Uruchom ponownie PZ Tools, aby dokończyć aktualizację. Jeśli zapis zmienił się po przerwaniu, automatyczne odzyskiwanie zatrzyma się zamiast go nadpisywać.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Odzyskiwanie postaci</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gra lub inna operacja używa tego zapisu. Przestań grać i spróbuj ponownie. Oryginał nie został zmieniony.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>Baza danych zawiera oczekujące dane dziennika transakcji. Zakończ grę w zwykły sposób i spróbuj ponownie. Oryginał nie został zmieniony.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>Ten zapis gry zawiera niedokończone zmiany. Zamknij grę w zwykły sposób i spróbuj ponownie. Oryginalny zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Obsługiwane są tylko zapisy jednoosobowe z jedną lokalną postacią. Nie wybrano postaci arbitralnie i nie zmieniono oryginału.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie udało się bezpiecznie sprawdzić formatu postaci. Obecnie obsługiwane: Build 42, wersja świata 249. Oryginał nie został zmieniony.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Odczyt nieudany; nastąpi ponowna próba</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>Gra lub inna operacja korzysta z wymaganego pliku. Poczekaj na zakończenie zapisywania lub tej operacji i spróbuj ponownie.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>Za mało wolnego miejsca. Zwolnij miejsce na dysku docelowym i spróbuj ponownie.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Brakuje wymaganych plików aplikacji. Wypakuj całą pobraną zawartość do jednego folderu lub zainstaluj PZ Tools ponownie, a następnie uruchom aplikację.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Ten folder kopii używa innego formatu przechowywania. Wybierz nowy pusty folder w ustawieniach. Zachowaj stary folder, jeśli potrzebujesz jego kopii, i nie usuwaj zapisów gry.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Poczekaj na zakończenie bieżącej operacji, zanim zmienisz foldery lub ponownie uruchomisz PZ Tools.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>Nie można zastosować ustawień. Sprawdź wprowadzone wartości i pliki zmienione w ustawieniach zaawansowanych.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>Nie udało się ponownie uruchomić PZ Tools. Po zakończeniu trwających operacji zamknij aplikację i otwórz ją ponownie.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Nie można użyć wybranych folderów. Przywrócono poprzednie ustawienia. Sprawdź lokalizacje folderów i uprawnienia.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Nie można użyć nowych folderów ani przywrócić poprzednich ustawień. Przed kontynuowaniem sprawdź lokalizacje folderów w ustawieniach.</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Ponowne użycie identycznych danych z kopii zapasowej</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>Ponowne użycie identycznych danych z kopii zapasowej</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>Włączone</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>Wyłączone</value></data>
 </root>

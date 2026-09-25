@@ -40,7 +40,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         await client.RequestAsync(game.Pid, temp.Path, true);
         var notices = (await File.ReadAllLinesAsync(temp.GetPath("notices.txt")))
             .Select(line => line.Split('\t')).ToArray();
-        Assert.Equal(new[] { "Saving in 5s", "Saving in 4s", "Saving in 3s", "Saving in 2s", "Saving in 1s", "Save complete" },
+        Assert.Equal(new[] { "Game saving in 5 s", "Game saving in 4 s", "Game saving in 3 s", "Game saving in 2 s", "Game saving in 1 s", "Game save complete" },
             notices.Select(line => line[1]));
         Assert.InRange(long.Parse(notices[0][0]) - due.ToUnixTimeMilliseconds(), -5000, -4000);
         Assert.InRange(long.Parse(await File.ReadAllTextAsync(temp.GetPath("save-time.txt")))
@@ -64,7 +64,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
             notificationLanguage: "en", scheduledSaveUtc: due.AddSeconds(-10))
             .RequestAsync(game.Pid, temp.Path, true);
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4));
-        Assert.Contains("\tSave complete\t", Assert.Single(File.ReadAllLines(temp.GetPath("notices.txt"))));
+        Assert.Contains("\tGame save complete\t", Assert.Single(File.ReadAllLines(temp.GetPath("notices.txt"))));
     }
 
     [BridgeFact]
@@ -100,9 +100,9 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
                     using (var memory = new MemoryStream()) { stream.CopyTo(memory); bytes = memory.ToArray(); }
                     if (entry.FullName == "pztools/bridge/runtime/NoticeLanguageData.class")
                     {
-                        var index = bytes.AsSpan().IndexOf(Encoding.UTF8.GetBytes("Save complete"));
+                        var index = bytes.AsSpan().IndexOf(Encoding.UTF8.GetBytes("Game save complete"));
                         Assert.True(index >= 0);
-                        Encoding.UTF8.GetBytes("Save finished").CopyTo(bytes, index);
+                        Encoding.UTF8.GetBytes("Game save finished").CopyTo(bytes, index);
                     }
                     using var updated = rebuilt.CreateEntry(entry.FullName).Open();
                     updated.Write(bytes);
@@ -110,7 +110,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
             }
             File.Move(replacement, payload, overwrite: true);
             await client.RequestAsync(game.Pid, temp.Path, true);
-            Assert.Contains("Save finished", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
+            Assert.Contains("Game save finished", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
             await AssertDetachedAsync(temp);
         }
         catch (Exception exception)
@@ -266,7 +266,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         Assert.Contains("GameWindow.save(true) returned", result);
         var notices = (await File.ReadAllLinesAsync(temp.GetPath("notices.txt")))
             .Select(line => line.Split('\t')).ToArray();
-        Assert.Equal(new[] { "저장까지 5초", "저장까지 4초", "저장까지 3초", "저장까지 2초", "저장까지 1초", "저장 완료" },
+        Assert.Equal(new[] { "게임 저장까지 5초", "게임 저장까지 4초", "게임 저장까지 3초", "게임 저장까지 2초", "게임 저장까지 1초", "게임 저장 완료" },
             notices.Select(line => line[1]));
         Assert.All(notices, line => Assert.Equal("Synthetic-game-thread", line[2]));
         Assert.True(long.Parse(notices[5][0]) - long.Parse(notices[0][0]) >= 4900);
@@ -286,7 +286,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         await File.WriteAllTextAsync(temp.GetPath("leave-world"), "leave");
         Assert.Equal("not-in-world", (await Assert.ThrowsAsync<GameSaveException>(() => request)).Code);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
-        Assert.DoesNotContain("Save complete", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
+        Assert.DoesNotContain("Game save complete", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
     }
 
     [BridgeFact]
@@ -303,7 +303,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
         await Task.Delay(TimeSpan.FromSeconds(6));
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
-        Assert.DoesNotContain("Save complete", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
+        Assert.DoesNotContain("Game save complete", await File.ReadAllTextAsync(temp.GetPath("notices.txt")));
         Assert.Contains("Probe only", await client.RequestAsync(game.Pid, temp.Path, false));
         await AssertDetachedAsync(temp);
     }
@@ -327,8 +327,8 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
                 Assert.Equal("save-failed", (await Assert.ThrowsAsync<GameSaveException>(() =>
                     client.RequestAsync(game.Pid, temp.Path, true))).Code);
                 var notices = await File.ReadAllTextAsync(temp.GetPath("notices.txt"));
-                Assert.Contains("Save failed", notices);
-                Assert.DoesNotContain("Save complete", notices);
+                Assert.Contains("Game save failed", notices);
+                Assert.DoesNotContain("Game save complete", notices);
             }
         }
     }

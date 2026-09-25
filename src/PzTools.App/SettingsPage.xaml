@@ -40,7 +40,7 @@
                                     Header="화면" Description="언어, 테마와 창 닫기 동작을 설정합니다.">
             <toolkit:SettingsExpander.Items>
           <toolkit:SettingsCard x:Name="LanguageSettingCard"
-                                Header="언어" Description="한국어 또는 영어">
+                                Header="언어" Description="앱 언어를 선택합니다. 번역이 없는 항목은 영어로 표시합니다.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Globe" /></toolkit:SettingsCard.HeaderIcon>
             <ComboBox x:Name="LanguageCombo" MinWidth="200" MaxWidth="320"
                       SelectionChanged="SettingChanged" />
@@ -65,7 +65,7 @@
           <toolkit:SettingsExpander x:Name="PathSection" IsExpanded="True"
                                     Header="경로" Description="세이브와 백업 파일의 위치를 설정합니다.">
             <toolkit:SettingsExpander.Items>
-          <toolkit:SettingsCard x:Name="SavesPathSettingCard" Header="세이브 디렉터리">
+          <toolkit:SettingsCard x:Name="SavesPathSettingCard" Header="세이브 폴더">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Folder" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="SavesPathEditor" Width="420" ColumnSpacing="8">
               <Grid.ColumnDefinitions>
@@ -78,7 +78,7 @@
                       Content="찾아보기" Tag="saves" Click="BrowseFolder_Click" />
             </Grid>
           </toolkit:SettingsCard>
-          <toolkit:SettingsCard x:Name="BackupPathSettingCard" Header="백업 디렉터리">
+          <toolkit:SettingsCard x:Name="BackupPathSettingCard" Header="백업 폴더">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="SyncFolder" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="BackupPathEditor" Width="420" ColumnSpacing="8">
               <Grid.ColumnDefinitions>
@@ -120,7 +120,7 @@
             </Grid>
           </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="RetentionSettingCard"
-                                Header="자동 백업 보관 개수" Description="최근 자동 백업 1~100개를 보관합니다. 수동 백업은 직접 삭제할 때까지 유지됩니다.">
+                                Header="자동 백업 보관 개수" Description="최근 자동 백업 1~100개를 보관합니다. 이 개수 제한으로 수동 백업을 삭제하지 않습니다.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Library" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="RetentionEditor" Width="340" ColumnSpacing="16">
               <Grid.ColumnDefinitions>

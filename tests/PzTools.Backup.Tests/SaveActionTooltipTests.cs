@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using PzTools.Process.Contracts;
 
 namespace PzTools.Backup.Tests;
 
@@ -57,9 +58,10 @@ public sealed class SaveActionTooltipTests
         Assert.DoesNotContain("DispatcherQueueTimer", presenter);
     }
 
+    public static IEnumerable<object[]> Languages => LanguageCatalog.All.Select(language => new object[] { language.Tag });
+
     [Theory]
-    [InlineData("ko-KR")]
-    [InlineData("en-US")]
+    [MemberData(nameof(Languages))]
     public void AllPlayRestrictionsHaveLocalizedExplanations(string language)
     {
         var resources = XDocument.Load(Path.Combine(AppSource(), "Strings", language, "Resources.resw"));

@@ -38,15 +38,15 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Theme</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>Follow the system or choose a theme.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>System tray</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Keep the app running in the tray when you close its window.</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>Restore window</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Keep PZ Tools running when you close the window. To quit, choose Exit from its icon by the clock.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>Open PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Exit</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>Exit PZ Tools?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>Automatic backups will stop, and any operation in progress may be interrupted.</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>Paths</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>Folders</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>Choose where save and backup files are stored.</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Save directory</value></data>
-  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Backup directory</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Save folder</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Backup folder</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Browse</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Backup</value></data>
   <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>Set to 0 minutes to disable automatic backup.</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Automatic backup retention</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Keep the latest 1–100 automatic backups. This limit does not delete manual backups.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Back up when the character dies</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verify backup copies</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Check copied files with a hash and retry if they change.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save file changed repeatedly while being copied. The next backup will try again.</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Check copied files</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Check that copied files match the originals. If a file changes during copying, copy it again.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save kept changing during backup. Wait for the game to finish saving, then try the backup again.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Next backup: waiting</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>Light</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Dark</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>The app is not ready yet. Please try again shortly.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>The window has not been created yet.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools is still starting. Try again shortly.</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Automatic backups could not be started.</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>Live save unavailable</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>Current save not found</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Game mode: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>Game mode</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Character: {0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>This archive has an unusually high compression ratio and cannot be imported safely.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manual backup</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restore the selected backup?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Replace the current files for ‘{0}’ with ‘{1}’. If replacement fails, the existing files will be restored automatically.</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Replace the current files for ‘{0}’ with backup ‘{1}’. Progress made after that backup will be lost. If restoring is interrupted, reopen PZ Tools before loading this save in the game.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Restore</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>Restore</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>PzTools save backup</value></data>
@@ -139,10 +139,10 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>Activity and logs</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>Screen information</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>The operation was cancelled.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>The operation finished, but some cleanup is still required.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>The operation finished with issues. Check Logs before running it again.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Logs</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Logs</value></data>
-  <data name="LogLevelSetting.Header" xml:space="preserve"><value>Minimum severity</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>Logs to display</value></data>
   <data name="LogLevelSetting.Description" xml:space="preserve"><value>Show events at or above the selected level.</value></data>
   <data name="LogLimitSetting.Header" xml:space="preserve"><value>Recent log count</value></data>
   <data name="LogLimitSetting.Description" xml:space="preserve"><value>Number of recent events shown in the log view.</value></data>
@@ -154,9 +154,9 @@
   <data name="LogLevelAtOrAboveFormat" xml:space="preserve"><value>{0} or higher</value></data>
   <data name="LogsTitle" xml:space="preserve"><value>Logs</value></data>
   <data name="LogsSubtitle" xml:space="preserve"><value>Backup and game-status history.</value></data>
-  <data name="LogSeverityFilter" xml:space="preserve"><value>Severity</value></data>
+  <data name="LogSeverityFilter" xml:space="preserve"><value>Log level</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>Activity</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>Run index</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>Operation number</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>e.g. 42</value></data>
   <data name="All" xml:space="preserve"><value>All</value></data>
   <data name="NoLogs" xml:space="preserve"><value>There are no logs to display.</value></data>
@@ -169,13 +169,13 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Time ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>local</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Shown in the OS local time zone ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Times use your computer’s time zone ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>History · newest first</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Number</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>A stable number identifying this log.</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>Level</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>Event</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>Run</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>Operation</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>{0:N0} total</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{1:N0}–{2:N0} of {0:N0}</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>Previous</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>Check changes</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>Read file</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>Store backup data</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>Commit backup</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Finish saving the backup</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>Restore backup</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} items</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>{0} started.</value></data>
@@ -265,24 +265,24 @@
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>The backup schedule was checked.</value></data>
   <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Choose game saving, backup interval, history limit, and behavior after character death.</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>Choose the event level and number of entries shown in the log view.</value></data>
-  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Minimum log level</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Logs to display</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>Display limit</value></data>
   <data name="AdvancedSettings.Header" xml:space="preserve"><value>Advanced</value></data>
   <data name="AdvancedSettings.Description" xml:space="preserve"><value>Open advanced configuration files and apply changes.</value></data>
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>Configuration files</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>Restart the app after editing a file. Restart is unavailable while an operation is running.</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>Open configuration files</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Open the folder containing component configuration TOML files. Regular app settings are stored elsewhere.</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Open the folder containing advanced settings files. Change ordinary app settings on this screen.</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Apply changes</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Validate edited files and restart the app. Restart is unavailable during an operation.</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Reset advanced configuration</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Archive the current configuration folder with filenames and extensions intact, then recreate defaults.</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Keep a copy of the current files and restore the advanced defaults. Your saves and backups are not deleted.</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Open folder</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Apply settings and restart</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Validate the edited advanced configuration files and restart the app? The app cannot restart while an operation is running.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Restore default settings</value></data>
   <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restore the TOML files in the advanced configuration folder to their defaults and restart the app? Existing files will be kept under config-backups in the app data folder. Regular settings chosen in the app will be preserved.</value></data>
-  <data name="LogRecordLevel.Header" xml:space="preserve"><value>Minimum recorded level</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>Logs to record</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Applies to new logs. Existing history is kept.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Maximum log entries</value></data>
   <data name="LogMaxEntries.Description" xml:space="preserve"><value>Oldest entries are removed when the limit is exceeded. Default: 100,000.</value></data>
@@ -291,7 +291,7 @@
   <data name="BackupNameFormat" xml:space="preserve"><value>Backup {0:N0}</value></data>
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>Manual backup {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>Automatic backup {0:N0}</value></data>
-  <data name="AutomaticSaveLabel" xml:space="preserve"><value>Automatic save</value></data>
+  <data name="AutomaticSaveLabel" xml:space="preserve"><value>Automatic backup</value></data>
   <data name="BackupNamePlaceholder" xml:space="preserve"><value>Backup name</value></data>
   <data name="RenameRevisionTitle" xml:space="preserve"><value>Edit backup name</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>Rename {0}</value></data>
@@ -344,7 +344,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Backup cleanup</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Other activity</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Recorded activity for {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>The file cannot be accessed. Check whether the game or another app is using it.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>You do not have permission to access a required file or folder. Check its permissions and try again.</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>A required file or folder could not be found. Check the path.</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>The operation could not be completed. Check Logs for details.</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>Operation completed</value></data>
@@ -358,7 +358,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Checking play state and saving if needed…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Save game before backup</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Checking whether a game save is needed before backup.</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>The pre-backup game save call returned.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>The game's save step finished. The backup will now continue.</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>Skipped the game save because the selected world is not being played.</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>Pre-backup game save check completed.</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Backup stopped because the game save could not be confirmed.</value></data>
@@ -384,8 +384,21 @@ Only the current single-player save is edited. Playing, unsupported or ambiguous
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>A save-file update needs recovery. Do not load this save in the game. Restart PZ Tools so it can finish the update. If the save changed after the interruption, automatic recovery stops rather than overwriting it.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Character recovery</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or another operation is using this save. Stop playing and try again. The original was not changed.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>The database has pending journal data. Exit the game normally and try again. The original was not changed.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>This save has unfinished changes. Exit the game normally, then try again. The original save was not changed.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Only single-player saves containing one local character are supported. No character was selected arbitrarily and the original was not changed.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>The character's save format could not be validated safely. Currently supported: Build 42, world version 249. The original was not changed.</value></data>
-  <data name="SurvivalReadFailed" xml:space="preserve"><value>Read failed; will retry</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>Survival time unavailable · checking again</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>The game or another operation is using a required file. Wait for saving or that operation to finish, then try again.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>There is not enough free space. Free up space on the destination drive, then try again.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Required app files are missing. Extract the entire download into one folder or reinstall PZ Tools, then reopen it.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>This backup folder uses a different storage format. Choose a new empty backup folder in Settings. Keep the old folder if you need its backups, and do not delete your game saves.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Wait for the current operation to finish before changing folders or restarting PZ Tools.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>The settings could not be applied. Check the entered values and any files you edited under Advanced settings.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>PZ Tools could not restart. After any running operation finishes, close the app and open it again.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>The selected folders could not be used, so the previous settings were restored. Check the folder locations and permissions.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>The new folders could not be used, and the previous settings could not be restored. Check the folder locations in Settings before continuing.</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Reusing matching backup data</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>Reusing matching backup data</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>On</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>Off</value></data>
 </root>

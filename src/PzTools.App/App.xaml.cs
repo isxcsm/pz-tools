@@ -72,7 +72,7 @@ public partial class App : Application
             ShowSidebarNotification(InfoBarSeverity.Error,
                 "설정 파일을 읽지 못했습니다",
                 "고급 설정에서 파일을 수정하거나 '기본 설정으로 복원'을 사용해 주세요. "
-                + UserFacingError.FromException(configurationError));
+                + UserFacingError.FromConfigurationException(configurationError));
         ConfigureTray(settings.UseSystemTray);
         _ = StartHostAsync();
     }
@@ -127,8 +127,15 @@ public partial class App : Application
             var host = Host ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             if (host.HasRunningOperation())
                 throw new InvalidOperationException(
-                    "백업·복구 등 작업이 진행 중입니다. 작업이 끝난 뒤 다시 시작해 주세요.");
-            if (!resetToDefaults) host.Settings.ValidateEditableConfiguration();
+                    Localizer.Get("OperationError.SettingsBusy"));
+            if (!resetToDefaults)
+            {
+                try { host.Settings.ValidateEditableConfiguration(); }
+                catch (Exception exception)
+                {
+                    throw new InvalidOperationException(UserFacingError.FromConfigurationException(exception), exception);
+                }
+            }
             var repository = host.Repository?.RepositoryPath;
             if (repository is not null)
             {
@@ -141,7 +148,7 @@ public partial class App : Application
                     });
                 if (!stopped.Acquired)
                     throw new InvalidOperationException(
-                        "백업 저장소를 사용하는 작업이 있습니다. 작업이 끝난 뒤 다시 시작해 주세요.");
+                        Localizer.Get("OperationError.SettingsBusy"));
             }
             else await host.DisposeAsync();
             Host = null;
@@ -154,7 +161,8 @@ public partial class App : Application
                 }
                 // 성공하면 현재 프로세스가 종료됩니다. 실패한 경우에만 호출이 돌아옵니다.
                 var failure = Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
-                throw new InvalidOperationException($"앱을 다시 시작하지 못했습니다: {failure}");
+                throw new InvalidOperationException(Localizer.Get("OperationError.RestartFailed"),
+                    new InvalidOperationException($"App restart failed: {failure}"));
             }
             catch
             {
@@ -206,13 +214,13 @@ public partial class App : Application
                 catch (Exception rollbackFailure)
                 {
                     throw new AggregateException(
-                        "새 경로 적용과 이전 설정 복구가 모두 실패했습니다.",
+                        Localizer.Get("OperationError.SettingsRecoveryFailed"),
                         replacementFailure,
                         rollbackFailure);
                 }
 
                 throw new InvalidOperationException(
-                    "새 경로를 시작하지 못해 이전 설정으로 복구했습니다.",
+                    Localizer.Get("OperationError.SettingsReverted"),
                     replacementFailure);
             }
         }

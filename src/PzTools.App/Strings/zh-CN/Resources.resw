@@ -38,15 +38,15 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>主题</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>跟随系统或自行选择主题。</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>系统托盘</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>关闭窗口时，让应用继续在托盘中运行。</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>显示窗口</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>关闭窗口后继续运行 PZ Tools。要完全退出，请在时钟旁的 PZ Tools 图标菜单中选择“退出”。</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>打开 PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>退出</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>退出 PZ Tools？</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>自动备份将停止，正在进行的操作可能被中断。</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>路径</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>文件夹位置</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>选择存档和备份文件的存放位置。</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>存档目录</value></data>
-  <data name="BackupPathSetting.Header" xml:space="preserve"><value>备份目录</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>存档文件夹</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>备份文件夹</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>浏览</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>备份</value></data>
   <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>设为 0 分钟可关闭自动备份。</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自动备份保留数量</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>保留最近 1–100 个自动备份。此数量限制不会删除手动备份。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡时备份</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>验证备份副本</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>通过哈希验证复制的文件，发生变化时重试。</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>复制期间存档文件反复变化，将在下次备份时重试。</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>检查复制的文件</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>检查复制后的文件是否与原文件一致。如果复制期间原文件发生变化，则重新复制。</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>备份期间存档文件一直在变化。请等待游戏保存完成后重新备份。</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>下次备份：等待中</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>浅色</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>深色</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>应用尚未就绪，请稍后重试。</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>窗口尚未创建。</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools 正在启动，请稍后重试。</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>无法启动自动备份。</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>当前存档不可用</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>找不到当前存档</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>游戏模式：{0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>游戏模式</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>角色：{0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>此压缩包的压缩率异常，无法安全导入。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手动备份</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>恢复所选备份？</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>将“{0}”的当前文件替换为“{1}”。替换失败时，将自动还原原有文件。</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>将“{0}”的当前文件替换为备份“{1}”。该备份之后的游戏进度将丢失。如果恢复中断，请先重新打开 PZ Tools，再在游戏中加载此存档。</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>恢复</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>恢复</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>PZ Tools 存档备份</value></data>
@@ -139,7 +139,7 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>操作与日志</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>界面信息</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>操作已取消。</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>操作已结束，但仍有部分清理工作需要完成。</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>操作已结束，但仍有问题需要确认。请先查看日志，再决定是否重试。</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>日志</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>日志</value></data>
   <data name="LogLevelSetting.Header" xml:space="preserve"><value>最低级别</value></data>
@@ -156,7 +156,7 @@
   <data name="LogsSubtitle" xml:space="preserve"><value>备份与游戏状态记录。</value></data>
   <data name="LogSeverityFilter" xml:space="preserve"><value>级别</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>操作类型</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>运行编号</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>任务编号</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>例如：42</value></data>
   <data name="All" xml:space="preserve"><value>全部</value></data>
   <data name="NoLogs" xml:space="preserve"><value>没有可显示的日志。</value></data>
@@ -175,7 +175,7 @@
   <data name="LogNumberHint" xml:space="preserve"><value>用于识别此日志的固定编号。</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>级别</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>事件</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>运行</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>任务</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>共 {0:N0} 条</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>第 {1:N0}–{2:N0} 条，共 {0:N0} 条</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>上一页</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>检查变更</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>读取文件</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>存储备份数据</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>提交备份</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>完成备份保存</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>恢复备份</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} 项</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>{0}已开始。</value></data>
@@ -272,11 +272,11 @@
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>配置文件</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>编辑文件后请重启应用。有操作正在运行时无法重启。</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>打开配置文件</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>打开组件 TOML 配置文件所在的文件夹。常规应用设置存储在其他位置。</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>打开高级设置文件所在的文件夹。普通设置可在此界面中更改。</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>应用更改</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>验证编辑后的文件并重启应用。操作期间无法重启。</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>重置高级配置</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>保留文件名和扩展名，将当前配置文件夹归档，然后重新生成默认配置。</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>保留当前设置文件的副本，并将高级设置恢复为默认值。不会删除存档和备份。</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>打开文件夹</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>应用设置并重启</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>验证编辑后的高级配置文件并重启应用？有操作正在运行时无法重启。</value></data>
@@ -337,7 +337,7 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>备份清理</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>其他操作</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>已记录操作：{0}。</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>无法访问文件。请检查游戏或其他应用是否正在使用该文件。</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>没有权限访问所需的文件或文件夹。请检查其访问权限后重试。</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>找不到所需的文件或文件夹。请检查路径。</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>无法完成操作。请查看日志了解详情。</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>操作已完成</value></data>
@@ -351,7 +351,7 @@
   <data name="BackupGameSavePhase" xml:space="preserve"><value>正在检查游玩状态，并在需要时保存游戏…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>备份前保存游戏</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>正在检查备份前是否需要保存游戏。</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>备份前的游戏保存调用已返回。</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>游戏保存步骤已结束，接下来继续备份。</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>所选世界未在游玩中，已跳过游戏保存。</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>备份前的游戏保存检查已完成。</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>无法确认游戏保存结果，已停止备份。</value></data>
@@ -369,8 +369,21 @@
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>存档文件更新需要恢复。请勿在游戏中加载此存档。请重启 PZ Tools 以完成更新。如果中断后存档发生变化，自动恢复将停止，不会覆盖存档。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>角色恢复</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。请停止游玩后重试。原始文件未更改。</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>数据库有待处理的日志数据。请正常退出游戏后重试。原始文件未更改。</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档有尚未完成的更改。请正常退出游戏后重试。原存档未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>仅支持包含一个本地角色的单人存档。未擅自选择角色，原始文件未更改。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法安全验证角色存档格式。当前支持：Build 42，世界版本 249。原始文件未更改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>读取失败，将重试</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>游戏或其他操作正在使用所需的文件。请等待保存或相关操作结束后重试。</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>可用空间不足。请释放目标驱动器上的空间后重试。</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>缺少应用所需的文件。请将下载包完整解压到同一文件夹，或重新安装 PZ Tools 后再打开。</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>此备份文件夹的存储格式与当前应用不同。请在设置中选择一个新的空备份文件夹。如果仍需要旧备份，请保留原文件夹，不要删除游戏存档。</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>请等待当前操作结束后，再更改文件夹位置或重启 PZ Tools。</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>无法应用设置。请检查输入的值以及在高级设置中编辑过的文件。</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>PZ Tools 无法重启。请等待正在进行的操作结束后，关闭应用并重新打开。</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>无法使用所选文件夹，已恢复之前的设置。请检查文件夹位置和访问权限。</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>无法使用新文件夹，也无法恢复之前的设置。继续前请在设置中检查文件夹位置。</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>正在复用已备份的相同数据</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>正在复用已备份的相同数据</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>开启</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>关闭</value></data>
 </root>

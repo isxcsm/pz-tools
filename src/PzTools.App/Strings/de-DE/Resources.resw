@@ -38,15 +38,15 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Design</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>Systemeinstellung übernehmen oder ein Design wählen.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>Infobereich</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Die App beim Schließen des Fensters im Infobereich weiterlaufen lassen.</value></data>
-  <data name="TrayRestore" xml:space="preserve"><value>Fenster anzeigen</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>PZ Tools bleibt beim Schließen des Fensters aktiv. Zum Beenden wähle „Beenden“ im Menü des Symbols neben der Uhr.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>PZ Tools öffnen</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Beenden</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>PZ Tools beenden?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>Automatische Sicherungen werden gestoppt. Laufende Vorgänge können unterbrochen werden.</value></data>
-  <data name="PathSettings.Header" xml:space="preserve"><value>Pfade</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>Ordner</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>Speicherorte für Spielstände und Sicherungen wählen.</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Spielstandverzeichnis</value></data>
-  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Sicherungsverzeichnis</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Spielstandordner</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>Sicherungsordner</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Durchsuchen</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Sicherung</value></data>
   <data name="AutomaticBackupSettings.Description" xml:space="preserve"><value>0 Minuten deaktiviert automatische Sicherungen.</value></data>
@@ -55,9 +55,9 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Anzahl automatischer Sicherungen</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Die letzten 1–100 automatischen Sicherungen behalten. Manuelle Sicherungen werden durch dieses Limit nicht gelöscht.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
-  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Sicherungskopien prüfen</value></data>
-  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kopierte Dateien anhand ihres Hashwerts prüfen und bei Änderungen erneut kopieren.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Der Spielstand wurde während des Kopierens wiederholt verändert. Bei der nächsten Sicherung wird es erneut versucht.</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopierte Dateien prüfen</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Prüft, ob die Kopien mit den Originaldateien übereinstimmen. Ändert sich eine Datei während des Kopierens, wird sie erneut kopiert.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Die Spielstanddateien haben sich während der Sicherung wiederholt geändert. Warte, bis das Spiel fertig gespeichert hat, und versuche es erneut.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Nächste Sicherung: wartend</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -65,9 +65,9 @@
   <data name="ThemeLight.Content" xml:space="preserve"><value>Hell</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Dunkel</value></data>
   <data name="HostNotReady" xml:space="preserve"><value>Die App ist noch nicht bereit. Versuchen Sie es gleich erneut.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>Das Fenster wurde noch nicht erstellt.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools wird noch gestartet. Bitte versuche es gleich noch einmal.</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Automatische Sicherungen konnten nicht gestartet werden.</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>Aktueller Spielstand nicht verfügbar</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>Aktueller Spielstand nicht gefunden</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Spielmodus: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>Spielmodus</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Charakter: {0}</value></data>
@@ -118,7 +118,7 @@
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Dieses Archiv hat eine ungewöhnlich hohe Kompressionsrate und kann nicht sicher importiert werden.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuelle Sicherung</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Ausgewählte Sicherung wiederherstellen?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Die aktuellen Dateien von „{0}“ durch „{1}“ ersetzen. Schlägt dies fehl, werden die bisherigen Dateien automatisch wiederhergestellt.</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Die aktuellen Dateien von „{0}“ durch die Sicherung „{1}“ ersetzen. Fortschritte seit dieser Sicherung gehen verloren. Falls die Wiederherstellung unterbrochen wird, öffne PZ Tools erneut, bevor du diesen Spielstand im Spiel lädst.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Wiederherstellen</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>Wiederherstellen</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>PZ Tools Spielstandsicherung</value></data>
@@ -139,7 +139,7 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>Vorgänge und Protokolle</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>Bildschirminformationen</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>Der Vorgang wurde abgebrochen.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>Der Vorgang ist beendet, aber die Bereinigung ist noch nicht vollständig.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>Der Vorgang wurde mit Problemen beendet. Prüfe die Protokolle, bevor du ihn erneut ausführst.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Protokoll</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Protokoll</value></data>
   <data name="LogLevelSetting.Header" xml:space="preserve"><value>Mindestschweregrad</value></data>
@@ -156,7 +156,7 @@
   <data name="LogsSubtitle" xml:space="preserve"><value>Verlauf der Sicherungen und Spielstatusprüfungen.</value></data>
   <data name="LogSeverityFilter" xml:space="preserve"><value>Schweregrad</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>Vorgangsart</value></data>
-  <data name="LogRunIndexFilter" xml:space="preserve"><value>Laufnummer</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>Vorgangsnummer</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>z. B. 42</value></data>
   <data name="All" xml:space="preserve"><value>Alle</value></data>
   <data name="NoLogs" xml:space="preserve"><value>Es sind keine Protokolle vorhanden.</value></data>
@@ -175,7 +175,7 @@
   <data name="LogNumberHint" xml:space="preserve"><value>Eine feste Nummer zur eindeutigen Kennzeichnung dieses Protokolls.</value></data>
   <data name="LogLevelHeader" xml:space="preserve"><value>Stufe</value></data>
   <data name="LogMessageHeader" xml:space="preserve"><value>Ereignis</value></data>
-  <data name="LogRunHeader" xml:space="preserve"><value>Lauf</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>Vorgang</value></data>
   <data name="LogGroupCountFormat" xml:space="preserve"><value>Insgesamt {0:N0}</value></data>
   <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>{1:N0}–{2:N0} von {0:N0}</value></data>
   <data name="LogPreviousPage" xml:space="preserve"><value>Zurück</value></data>
@@ -234,7 +234,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>Änderungen prüfen</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>Datei lesen</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>Sicherungsdaten speichern</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>Sicherung abschließen</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Sicherung fertigstellen</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>Sicherung wiederherstellen</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} Elemente</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>Gestartet: {0}.</value></data>
@@ -272,11 +272,11 @@
   <data name="AdvancedFiles.Header" xml:space="preserve"><value>Konfigurationsdateien</value></data>
   <data name="AdvancedFiles.Description" xml:space="preserve"><value>Starten Sie die App nach dem Bearbeiten einer Datei neu. Während eines Vorgangs ist kein Neustart möglich.</value></data>
   <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>Konfigurationsdateien öffnen</value></data>
-  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Öffnet den Ordner mit den TOML-Konfigurationsdateien der Komponenten. Normale App-Einstellungen werden an anderer Stelle gespeichert.</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>Öffnet den Ordner mit den erweiterten Einstellungsdateien. Normale App-Einstellungen kannst du auf dieser Seite ändern.</value></data>
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Änderungen übernehmen</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Prüft die bearbeiteten Dateien und startet die App neu. Während eines Vorgangs ist kein Neustart möglich.</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Erweiterte Konfiguration zurücksetzen</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Archiviert den aktuellen Konfigurationsordner mit unveränderten Dateinamen und Erweiterungen und erstellt danach die Standardkonfiguration neu.</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Bewahrt eine Kopie der aktuellen Dateien auf und setzt die erweiterten Einstellungen zurück. Spielstände und Sicherungen werden nicht gelöscht.</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Ordner öffnen</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Einstellungen übernehmen und neu starten</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Die bearbeiteten erweiterten Konfigurationsdateien prüfen und die App neu starten? Während eines Vorgangs kann die App nicht neu gestartet werden.</value></data>
@@ -337,7 +337,7 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Sicherungsbereinigung</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Sonstiger Vorgang</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Vorgang aufgezeichnet: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Auf die Datei kann nicht zugegriffen werden. Prüfen Sie, ob das Spiel oder eine andere App sie verwendet.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Du hast keine Zugriffsberechtigung für eine benötigte Datei oder einen Ordner. Prüfe die Berechtigungen und versuche es erneut.</value></data>
   <data name="OperationError.FileMissing" xml:space="preserve"><value>Eine benötigte Datei oder ein Ordner wurde nicht gefunden. Prüfen Sie den Pfad.</value></data>
   <data name="OperationError.Generic" xml:space="preserve"><value>Der Vorgang konnte nicht abgeschlossen werden. Weitere Informationen finden Sie unter „Protokolle“.</value></data>
   <data name="OperationCardSucceeded" xml:space="preserve"><value>Vorgang abgeschlossen</value></data>
@@ -351,7 +351,7 @@
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Spielstatus wird geprüft und bei Bedarf gespeichert…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Es wird geprüft, ob das Spiel vor der Sicherung gespeichert werden muss.</value></data>
-  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Der Aufruf zum Speichern des Spiels vor der Sicherung ist zurückgekehrt.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Der Speicherschritt im Spiel ist beendet. Die Sicherung wird jetzt fortgesetzt.</value></data>
   <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>Die Spielspeicherung wurde übersprungen, da die ausgewählte Welt nicht gespielt wird.</value></data>
   <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>Die Prüfung der Spielspeicherung vor der Sicherung ist abgeschlossen.</value></data>
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Die Sicherung wurde gestoppt, weil die Spielspeicherung nicht bestätigt werden konnte.</value></data>
@@ -369,8 +369,21 @@
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Eine Spielstandaktualisierung muss wiederhergestellt werden. Laden Sie diesen Spielstand nicht im Spiel. Starten Sie PZ Tools neu, um die Aktualisierung abzuschließen. Hat sich der Spielstand nach der Unterbrechung geändert, wird die automatische Wiederherstellung gestoppt, statt ihn zu überschreiben.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Wiederherstellung des Charakters</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang verwendet diesen Spielstand. Beenden Sie das Spielen und versuchen Sie es erneut. Das Original wurde nicht geändert.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>Die Datenbank enthält noch ausstehende Journal-Daten. Beenden Sie das Spiel regulär und versuchen Sie es erneut. Das Original wurde nicht geändert.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>Dieser Spielstand enthält noch nicht abgeschlossene Änderungen. Beende das Spiel regulär und versuche es erneut. Der ursprüngliche Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Unterstützt werden nur Einzelspieler-Spielstände mit genau einem lokalen Charakter. Es wurde kein Charakter willkürlich ausgewählt und das Original wurde nicht geändert.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Das Speicherformat des Charakters konnte nicht sicher geprüft werden. Derzeit unterstützt: Build 42, Weltversion 249. Das Original wurde nicht geändert.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Lesen fehlgeschlagen; erneuter Versuch folgt</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang verwendet eine benötigte Datei. Warte, bis das Speichern oder der Vorgang beendet ist, und versuche es erneut.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>Es ist nicht genügend Speicherplatz frei. Gib Speicherplatz auf dem Ziellaufwerk frei und versuche es erneut.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Benötigte App-Dateien fehlen. Entpacke den gesamten Download in einen Ordner oder installiere PZ Tools neu und öffne es anschließend wieder.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Dieser Sicherungsordner verwendet ein anderes Speicherformat. Wähle in den Einstellungen einen neuen leeren Sicherungsordner. Behalte den alten Ordner, falls du seine Sicherungen noch brauchst, und lösche keine Spielstände.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Warte, bis der aktuelle Vorgang beendet ist, bevor du Ordner änderst oder PZ Tools neu startest.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>Die Einstellungen konnten nicht übernommen werden. Prüfe die eingegebenen Werte und die unter „Erweitert“ bearbeiteten Dateien.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>PZ Tools konnte nicht neu gestartet werden. Schließe die App nach Abschluss laufender Vorgänge und öffne sie erneut.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Die gewählten Ordner konnten nicht verwendet werden. Die vorherigen Einstellungen wurden wiederhergestellt. Prüfe die Ordnerpfade und Zugriffsrechte.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Die neuen Ordner konnten nicht verwendet und die vorherigen Einstellungen nicht wiederhergestellt werden. Prüfe die Ordnerpfade in den Einstellungen, bevor du fortfährst.</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Identische, bereits gesicherte Daten werden wiederverwendet</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>Identische, bereits gesicherte Daten werden wiederverwendet</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>Ein</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>Aus</value></data>
 </root>
