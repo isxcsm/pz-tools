@@ -18,7 +18,7 @@ public sealed class ConnectionOwnershipTests
         using var temp = new TempDirectory();
         using var cancellation = new CancellationTokenSource();
         var path = temp.GetPath("cancel.db");
-        var connection = new SqliteConnection($"Data Source={path};Pooling=False");
+        await using var connection = new SqliteConnection($"Data Source={path};Pooling=False");
         var opened = false;
         connection.StateChange += (_, change) =>
         {
@@ -30,7 +30,7 @@ public sealed class ConnectionOwnershipTests
             () => OpenConfiguredAsync(owner, connection, cancellation.Token));
         Assert.True(opened);
         Assert.Equal(ConnectionState.Closed, connection.State);
-        // Keep the managed connection reachable. A finalizer must not be needed to unlock it.
+        // Check before the test's own disposal. A finalizer must not be needed to unlock it.
         using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
         GC.KeepAlive(connection);
     }
@@ -39,28 +39,33 @@ public sealed class ConnectionOwnershipTests
     [InlineData(typeof(SchedulerDatabase))]
     [InlineData(typeof(StateDatabase))]
     [InlineData(typeof(ProcessTelemetryStore))]
-    public async Task ConfigurationFailure_ReleasesConnectionAndRollsBack(Type owner)
+    public async Task ConfigurationFailure_ReleasesConnectionWithoutChangingDatabase(Type owner)
     {
         using var temp = new TempDirectory();
         var path = temp.GetPath("failure.db");
-        var connection = new SqliteConnection($"Data Source={path};Pooling=False");
-        connection.StateChange += (_, change) =>
+        await using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
-            if (change.CurrentState != ConnectionState.Open) return;
-            using var command = connection.CreateCommand();
-            // SQLite cannot switch to WAL during a transaction. Fail after opening,
-            // not before acquiring a native database handle.
-            command.CommandText = "BEGIN IMMEDIATE; CREATE TABLE rollback_me(value INTEGER);";
-            command.ExecuteNonQuery();
-        };
-        await Assert.ThrowsAsync<SqliteException>(() => OpenConfiguredAsync(owner, connection, default));
+            await seed.OpenAsync();
+            await using var command = seed.CreateCommand();
+            command.CommandText = "PRAGMA journal_mode=DELETE; CREATE TABLE durable(value INTEGER); INSERT INTO durable VALUES(42);";
+            await command.ExecuteNonQueryAsync();
+        }
+        // Native open succeeds, but switching this read-only database to WAL fails.
+        // Do not inject a raw BEGIN: the provider is not required to track that transaction.
+        await using var connection = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
+        var opened = false;
+        connection.StateChange += (_, change) => opened |= change.CurrentState == ConnectionState.Open;
+        var error = await Assert.ThrowsAsync<SqliteException>(
+            () => OpenConfiguredAsync(owner, connection, default));
+        Assert.True(opened);
+        Assert.Equal(8, error.SqliteErrorCode);
         Assert.Equal(ConnectionState.Closed, connection.State);
         using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
         await using var check = new SqliteConnection($"Data Source={path};Pooling=False");
         await check.OpenAsync();
         await using var query = check.CreateCommand();
-        query.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE name='rollback_me';";
-        Assert.Equal(0L, await query.ExecuteScalarAsync());
+        query.CommandText = "SELECT value FROM durable;";
+        Assert.Equal(42L, await query.ExecuteScalarAsync());
         GC.KeepAlive(connection);
     }
 
@@ -71,7 +76,7 @@ public sealed class ConnectionOwnershipTests
     public async Task SuccessfulConfiguration_TransfersOpenConnectionToCaller(Type owner)
     {
         using var temp = new TempDirectory();
-        var connection = new SqliteConnection($"Data Source={temp.GetPath("success.db")};Pooling=False");
+        await using var connection = new SqliteConnection($"Data Source={temp.GetPath("success.db")};Pooling=False");
         await using var opened = await OpenConfiguredAsync(owner, connection, default);
         Assert.Same(connection, opened);
         Assert.Equal(ConnectionState.Open, opened.State);
