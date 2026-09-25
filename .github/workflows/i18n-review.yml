@@ -1,0 +1,20 @@
+name: Localization review
+on:
+  push:
+    branches: [i18n/user-friendly-messages]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive reviewed source
+        run: git archive --format=zip HEAD -o source.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: localization-source
+          path: source.zip
+          retention-days: 1
