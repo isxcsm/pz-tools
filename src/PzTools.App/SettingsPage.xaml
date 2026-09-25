@@ -161,7 +161,7 @@
               <toolkit:SettingsCard x:Name="ResetConfigurationCard" Header="고급 설정 초기화"
                                     Description="현재 설정 파일을 폴더째 보관하고 기본값을 다시 만듭니다.">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Undo" /></toolkit:SettingsCard.HeaderIcon>
-                <Button x:Name="ResetConfigurationFolderButton" Content="기본 설정으로 복원"
+                <Button x:Name="ResetConfigurationButton" Content="기본 설정으로 복원"
                         Click="ResetConfiguration_Click" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
