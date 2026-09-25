@@ -1,0 +1,22 @@
+name: Storage workbench
+on:
+  push:
+    branches: [optimize/repository-housekeeping]
+    paths: [.github/workflows/storage-workbench.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Archive exact source revision for isolated review
+        run: git archive --format=zip --output=source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: storage-source-${{ github.sha }}
+          path: source.zip
+          retention-days: 1
