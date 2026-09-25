@@ -188,7 +188,7 @@ public sealed class IncrementalBackupRunnerTests
         var metadata = new FrozenTimesMetadataReader();
         var storage = Storage with { Checksum = ChecksumAlgorithm.None };
         await using var setup = await CreateInitialAsync(temp, sourcePath, metadata, storage);
-        Assert.Equal(SHA256.HashData("before"u8), await ReadCurrentHashAsync(setup));
+        Assert.Equal(SHA256.HashData("before"u8)[..16], await ReadCurrentHashAsync(setup));
         await File.WriteAllTextAsync(path, "after!");
         var runner = CreateIncrementalRunner(metadata,
             new FakeJournal(new UsnJournalState(1, 999, 0, 300, 0), []), enabled);
@@ -201,12 +201,12 @@ public sealed class IncrementalBackupRunnerTests
             var target = temp.GetPath("restore");
             await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, 2, target);
             Assert.Equal("after!", await File.ReadAllTextAsync(Path.Combine(target, "file.bin")));
-            Assert.Equal(SHA256.HashData("after!"u8), await ReadCurrentHashAsync(setup));
+            Assert.Equal(SHA256.HashData("after!"u8)[..16], await ReadCurrentHashAsync(setup));
         }
         else
         {
             Assert.Null(result.Revision);
-            Assert.Equal(SHA256.HashData("before"u8), await ReadCurrentHashAsync(setup));
+            Assert.Equal(SHA256.HashData("before"u8)[..16], await ReadCurrentHashAsync(setup));
         }
     }
 
@@ -335,7 +335,7 @@ public sealed class IncrementalBackupRunnerTests
         var after = await setup.Repository.GetSourceStateAsync(setup.Source.SourceId);
         Assert.Equal(before.CurrentRevision, after.CurrentRevision);
         Assert.Equal(before.Checkpoint, after.Checkpoint);
-        Assert.Equal(SHA256.HashData("unchanged"u8), await ReadCurrentHashAsync(setup));
+        Assert.Equal(SHA256.HashData("unchanged"u8)[..16], await ReadCurrentHashAsync(setup));
     }
 
     [Theory]
@@ -372,7 +372,7 @@ public sealed class IncrementalBackupRunnerTests
         var after = await setup.Repository.GetSourceStateAsync(setup.Source.SourceId);
         Assert.Equal(before.CurrentRevision, after.CurrentRevision);
         Assert.Equal(before.Checkpoint, after.Checkpoint);
-        Assert.Equal(SHA256.HashData("original"u8), await ReadCurrentHashAsync(setup));
+        Assert.Equal(SHA256.HashData("original"u8)[..16], await ReadCurrentHashAsync(setup));
     }
 
     [Fact]
@@ -394,7 +394,7 @@ public sealed class IncrementalBackupRunnerTests
         var after = await setup.Repository.GetSourceStateAsync(setup.Source.SourceId);
         Assert.Equal(before.CurrentRevision, after.CurrentRevision);
         Assert.Equal(before.Checkpoint, after.Checkpoint);
-        Assert.Equal(SHA256.HashData("original"u8), await ReadCurrentHashAsync(setup));
+        Assert.Equal(SHA256.HashData("original"u8)[..16], await ReadCurrentHashAsync(setup));
     }
 
     private sealed class FailingPathMetadataReader(string failingPath, int errorCode) : IFileMetadataReader

@@ -32,8 +32,15 @@ jobs:
           distribution: temurin
           java-version: '25'
           architecture: x64
+      - name: Check fingerprint migration SQL independently
+        run: python scripts/check-fingerprint-sql.py
       - name: Build Windows solution
         run: dotnet build PzTools.sln -c Release -p:Platform=x64 -warnaserror
+      - name: Verify fingerprints and repository migration regressions
+        run: >-
+          dotnet test tests/PzTools.Backup.Tests -c Release --no-build
+          --filter "FullyQualifiedName~ContentFingerprintTests|FullyQualifiedName~RepositoryHousekeepingTests|FullyQualifiedName~StableFileCapturerTests|FullyQualifiedName~IncrementalBackupRunnerTests|FullyQualifiedName~RepositoryDatabaseTests|FullyQualifiedName~ContentDeduplicationTests"
+          --logger "trx;LogFileName=fingerprints.trx" --results-directory artifacts/test-results
       - name: Run tests without live-game or elevated-USN opt-ins
         run: >-
           dotnet test tests/PzTools.Backup.Tests -c Release

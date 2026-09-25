@@ -36,7 +36,7 @@ public sealed class RepositoryDatabaseTests
                 + "ALTER TABLE revisions DROP COLUMN hours_survived; "
                 + "ALTER TABLE revisions DROP COLUMN character_metadata_read; "
                 + "ALTER TABLE revisions DROP COLUMN character_metadata_error; "
-                + "DELETE FROM schema_migrations WHERE version IN (10,11); "
+                + "DELETE FROM schema_migrations WHERE version >= 10; "
                 + "ALTER TABLE revisions DROP COLUMN character_name; "
                 + "ALTER TABLE revisions DROP COLUMN character_state; "
                 + "ALTER TABLE revisions DROP COLUMN display_name; "
@@ -162,8 +162,7 @@ public sealed class RepositoryDatabaseTests
         Assert.Equal(first.RunIndex, repeated.RunIndex);
 
         await repository.AttachWorkflowStageAsync(first.RunIndex, "backup-runner");
-        await repository.CompleteWorkflowStageAsync(
-            first.RunIndex, "backup-runner", WorkflowStatus.Succeeded);
+        await repository.CompleteWorkflowStageAsync(first.RunIndex, "backup-runner", WorkflowStatus.Succeeded);
         await Assert.ThrowsAsync<InvalidOperationException>(() => repository.CompleteWorkflowAsync(
             first.RunIndex, "backup-runner", WorkflowStatus.Succeeded));
         await repository.CompleteWorkflowAsync(
