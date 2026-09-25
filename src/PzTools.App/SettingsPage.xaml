@@ -97,14 +97,6 @@
           <toolkit:SettingsExpander x:Name="BackupSection" IsExpanded="True"
                                     Header="백업" Description="게임 저장, 백업 주기와 보존 개수, 사망 시 동작을 설정합니다.">
             <toolkit:SettingsExpander.Items>
-          <toolkit:SettingsCard x:Name="GameSaveSettingCard" Header="백업 전 게임 저장">
-            <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Save" /></toolkit:SettingsCard.HeaderIcon>
-            <ToggleSwitch x:Name="GameSaveToggle" Toggled="SettingChanged" />
-          </toolkit:SettingsCard>
-          <toolkit:SettingsCard x:Name="GameSaveCountdownSettingCard" Header="게임 내 저장 카운트다운">
-            <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
-            <ToggleSwitch x:Name="GameSaveCountdownToggle" Toggled="SettingChanged" />
-          </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="AutomaticBackupSettingCard" Header="자동 백업">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="AutomaticBackupToggle" Toggled="AutomaticBackupToggle_Toggled" />
@@ -141,6 +133,14 @@
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="ProtectedDocument" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="DeathBackupToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
+          <toolkit:SettingsCard x:Name="GameSaveSettingCard" Header="백업 전 게임 저장">
+            <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Save" /></toolkit:SettingsCard.HeaderIcon>
+            <ToggleSwitch x:Name="GameSaveToggle" Toggled="SettingChanged" />
+          </toolkit:SettingsCard>
+          <toolkit:SettingsCard x:Name="GameSaveCountdownSettingCard" Header="게임 내 저장 카운트다운">
+            <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
+            <ToggleSwitch x:Name="GameSaveCountdownToggle" Toggled="SettingChanged" />
+          </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
           <toolkit:SettingsExpander x:Name="AdvancedSection" Header="고급"
@@ -161,7 +161,7 @@
               <toolkit:SettingsCard x:Name="ResetConfigurationCard" Header="고급 설정 초기화"
                                     Description="현재 설정 파일을 폴더째 보관하고 기본값을 다시 만듭니다.">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Undo" /></toolkit:SettingsCard.HeaderIcon>
-                <Button x:Name="ResetConfigurationButton" Content="기본 설정으로 복원"
+                <Button x:Name="ResetConfigurationFolderButton" Content="기본 설정으로 복원"
                         Click="ResetConfiguration_Click" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
