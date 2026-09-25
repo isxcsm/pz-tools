@@ -72,7 +72,7 @@ Nejprve vytvořte ruční zálohu nebo ZIP: **obnova postavy nevytváří dalš�
 
 Léčení nebo oživení obnoví zdraví a odstraní podporovaná zranění a dočasné stavy. Kladné i záporné vlastnosti, zkušenosti, dovednosti, recepty a stávající inventář zůstanou zachovány. Nejde o trvalou imunitu a neodstraňují se všechny účinky modů.
 
-Má-li mrtvá postava prázdný inventář, předměty lze získat jen z jediného odpovídajícího uloženého záznamu jejího zombie podle pozice a jména na průkazu totožnosti. Přemístění zombie, cíle bez průkazu a mrtvoly v mapových blocích nejsou podporovány. Vybavení rukou může být nutné znovu nastavit. Viz [obnova a omezení (anglicky)](../character-recovery.md).
+Pokud smrt vyprázdnila inventář, získá předměty ze zombie nebo mrtvoly postavy a tento zdroj odstraní. Průkaz totožnosti není nutný. Stav předmětů, obsah tašek a údaje o oblečení a připevnění zůstanou zachovány. Uložená ID obnoví předměty v rukou, jsou-li dostupná; jinak je nutné je znovu vybavit. Ztracené předměty nevytváří. Při nejisté totožnosti se nic nezmění. [obnova a omezení (anglicky)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

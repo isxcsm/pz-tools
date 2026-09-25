@@ -365,9 +365,17 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：等待当前任务</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢复</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>治愈／复活角色</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢复当前存档中的角色 {0}？&#xA;&#xA;恢复生命值、饱食度、水分、休息、耐力和精神状态，清除伤势、感染、中毒、戒断症状及尚未发作的运动酸痛。角色已死亡时将尝试复活。&#xA;&#xA;所有特质（包括负面特质）、技能、经验、体重、营养和位置均保持不变。特质或环境可能使症状再次出现；不会修改模组自定义疾病。&#xA;&#xA;如果角色物品栏为空，将从存档位置中唯一确认身份的本人僵尸处取回物品和衣物，并移除该僵尸。身份确认需要匹配的身份证。不回收伤口外观物品；保留物品状态和背包内容，不会自动将物品装备到手中。目前不支持从尸体回收物品。无法安全确认物品归属时，不会复活物品栏为空的死亡角色。&#xA;&#xA;仅修改当前单人存档。正在游玩、不受支持或无法明确识别的存档会被拒绝。</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢复当前存档中的角色 {0}？
+
+恢复生命值、饱食度、水分、休息、耐力和精神状态，清除伤势、感染、中毒、戒断症状及尚未发作的运动酸痛。角色已死亡时将尝试复活。
+
+所有特质（包括负面特质）、技能、经验、体重、营养和位置均保持不变。特质或环境可能使症状再次出现；不会修改模组自定义疾病。
+
+如果死亡清空了物品栏，将从角色的僵尸或尸体中取回物品并移除该来源。无需身份证。物品状态、背包内容、穿戴及附着信息均保留。保存的物品ID可用时会恢复手持装备，否则需手动重新装备。不会生成已丢失的物品；无法确认身份时不会修改存档。
+
+仅修改当前单人存档。正在游玩、不受支持或无法明确识别的存档会被拒绝。</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>角色恢复完成。特质、技能和经验值已保留。</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>无法唯一确定角色的物品归属。恢复需要在已保存的位置找到持有匹配身份证的玩家僵尸。不支持尸体物品栏。未进行任何更改。</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>无法唯一确定该角色的僵尸或尸体。无需身份证，但候选对象不唯一或旧存档身份信息不足时不会猜测。原始数据未更改。</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>存档文件更新需要恢复。请勿在游戏中加载此存档。请重启 PZ Tools 以完成更新。如果中断后存档发生变化，自动恢复将停止，不会覆盖存档。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>角色恢复</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。请停止游玩后重试。原始文件未更改。</value></data>

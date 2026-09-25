@@ -58,7 +58,7 @@ public static class UserFacingErrorCatalog
             return "RecoveryError.Ambiguous";
         if (HasCodePrefix(message, "recovery-invalid-database") || HasCodePrefix(message, "recovery-linked-path")
             || HasCodePrefix(message, "recovery-no-character") || HasCodePrefix(message, "recovery-validation-failed")
-            || HasCodePrefix(message, "recovery-unsupported-format") || HasCodePrefix(message, "recovery-unsupported-dictionary"))
+            || HasCodePrefix(message, "recovery-invalid-chunk") || HasCodePrefix(message, "recovery-unsupported-format") || HasCodePrefix(message, "recovery-unsupported-dictionary"))
             return "RecoveryError.Unsupported";
         if (HasCodePrefix(message, "repository-reset-required")) return "OperationError.RepositoryIncompatible";
         if (Starts(message, "Application workers are missing.") || Starts(message, "The configured worker directory is incomplete:"))

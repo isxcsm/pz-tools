@@ -72,7 +72,7 @@ Crea prima un backup manuale o un ZIP: **il recupero non crea una copia aggiunti
 
 Cura o resurrezione ripristinano la salute ed eliminano lesioni e condizioni temporanee supportate. Tratti positivi e negativi, esperienza, abilità, ricette e inventario esistente restano intatti. Non è un'immunità permanente e non rimuove tutti gli effetti specifici delle mod.
 
-Se l'inventario del personaggio morto è vuoto, gli oggetti possono essere recuperati solo da un unico record corrispondente del proprio zombi, tramite posizione salvata e nome sul documento d'identità. Zombi spostati, bersagli senza documento e cadaveri nei blocchi della mappa non sono supportati. Potrebbe essere necessario riequipaggiare le mani. Vedi [recupero e limiti (inglese)](../character-recovery.md).
+Se la morte ha svuotato l’inventario, recupera gli oggetti dallo zombi o cadavere del personaggio e rimuove tale origine. Non serve una carta d’identità. Stato degli oggetti, contenuto delle borse e dati di abbigliamento e agganci restano invariati. Gli ID salvati ripristinano gli oggetti in mano quando disponibili; altrimenti vanno riequipaggiati. Non vengono creati oggetti persi. In caso di identità incerta non cambia nulla. [recupero e limiti (inglese)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

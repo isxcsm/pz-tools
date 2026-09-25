@@ -17,6 +17,9 @@ public final class GameWindow {
     public static void save(boolean flag) throws IOException {
         if (Thread.currentThread() != gameThread || !flag) throw new IOException("Wrong save invocation");
         if (mode.equals("throw")) throw new IOException("Synthetic save failure");
+        var stamp = zombie.characters.IsoPlayer.getInstance().getModData();
+        Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "recovery-stamp.txt"),
+            stamp.rawget("pztools.recovery.id") + "\n" + stamp.rawget("pztools.recovery.primary") + "\n" + stamp.rawget("pztools.recovery.secondary"));
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "memory-only-state.txt"),
             Integer.toString(++memoryOnlyState));
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "calls.txt"),

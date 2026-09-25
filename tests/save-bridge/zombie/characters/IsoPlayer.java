@@ -8,6 +8,21 @@ import zombie.ZomboidFileSystem;
 public final class IsoPlayer {
     private static final IsoPlayer instance = new IsoPlayer();
     public String haloText;
+    private final SavedTable data = new SavedTable();
+    public boolean isDead() { return false; }
+    public SavedTable getModData() { return data; }
+    public SavedItem getPrimaryHandItem() { return new SavedItem(777); }
+    public SavedItem getSecondaryHandItem() { return new SavedItem(888); }
+    public static final class SavedItem {
+        private final int id;
+        SavedItem(int id) { this.id = id; }
+        public int getID() { return id; }
+    }
+    public static final class SavedTable {
+        private final java.util.HashMap<Object,Object> values = new java.util.HashMap<>();
+        public Object rawget(Object key) { return values.get(key); }
+        public void rawset(Object key, Object value) { values.put(key,value); }
+    }
 
     public static IsoPlayer getInstance() { return instance; }
 

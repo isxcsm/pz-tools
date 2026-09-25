@@ -72,7 +72,7 @@ Crea primero una copia manual o exporta un ZIP: **la recuperación no genera una
 
 La curación o resurrección recupera la salud y elimina lesiones y estados temporales compatibles. Conserva rasgos positivos y negativos, experiencia, habilidades, recetas e inventario existente. No concede inmunidad permanente ni elimina todos los efectos propios de los mods.
 
-Si el inventario del personaje muerto está vacío, solo se pueden recuperar objetos de un único registro guardado de su zombi, identificado por posición y nombre del documento de identidad. No se admiten zombis desplazados, objetivos sin documento ni cadáveres en bloques del mapa. Puede ser necesario volver a equipar las manos. Consulta [la recuperación y sus límites (inglés)](../character-recovery.md).
+Si la muerte vació el inventario, recupera los objetos del zombi o cadáver del personaje y elimina ese origen. No hace falta identificación. Conserva el estado, el contenido de las bolsas y los datos de ropa y objetos sujetos. Los identificadores guardados restauran el equipo en las manos cuando existen; de lo contrario, hay que equiparlo de nuevo. No crea objetos perdidos. Si la identidad es incierta, no modifica nada. [la recuperación y sus límites (inglés)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

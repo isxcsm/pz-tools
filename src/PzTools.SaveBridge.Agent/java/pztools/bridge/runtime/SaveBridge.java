@@ -192,13 +192,20 @@ public final class SaveBridge {
             String actual = validateWorld(request.expectedPath);
             if (!request.state.compareAndSet(1, 2)) return;
             long start = System.nanoTime();
-            if (request.save) save.invoke(null, true);
+            String recoveryError = null;
+            if (request.save) {
+                // Optional identity metadata must never replace or suppress the required game save.
+                try { RecoveryStamp.record(gameLoader); }
+                catch (ReflectiveOperationException | RuntimeException failure) { recoveryError = describe(failure); }
+                save.invoke(null, true);
+            }
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
             completeNotice(request, true);
             // A returned call is not a promise that the game's own caught errors do not exist.
             request.result.complete("OK\t" + encode((request.save ? "GameWindow.save(true) returned" : "Probe only; no save invoked")
                 + "; thread=" + Thread.currentThread().getName() + "; elapsedMs=" + elapsedMs + "; save=" + actual
-                + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError)));
+                + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError)
+                + (recoveryError == null ? "" : "; recovery-metadata-unavailable=" + recoveryError)));
         } catch (Throwable exception) {
             Throwable cause = exception instanceof InvocationTargetException invocation ? invocation.getCause() : exception;
             // Do not touch the old player's UI after leaving or switching worlds.

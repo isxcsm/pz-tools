@@ -378,11 +378,11 @@ Restore health, food, water, rest, endurance and mental condition. Remove injuri
 
 All traits (including negative traits), skills, XP, weight, nutrition and position remain unchanged. Traits or environmental conditions can cause symptoms to return. Mod-specific diseases are not edited.
 
-If the character's inventory is empty, recover belongings and clothing from a uniquely identified player zombie at the saved position and remove that zombie. Identification requires a matching ID card. Wound overlays are excluded; item condition and bag contents are preserved. Items are not automatically placed in the hands. Corpse inventories are not yet supported. A dead character with an empty inventory is not resurrected if belongings cannot be safely identified.
+If death emptied the inventory, recover belongings from the character&apos;s zombie or corpse and remove that source. No ID card is required. Item condition, bag contents, clothing and attachment data are preserved. Saved item IDs restore hand equipment when available; otherwise re-equip it manually. Missing items are not created. Uncertain identity stops the operation without changes.
 
 Only the current single-player save is edited. Playing, unsupported or ambiguous saves are rejected.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Character recovery completed. Traits, skills and XP were preserved.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>The character's belongings could not be uniquely identified. Recovery requires a player zombie at the saved position with a matching ID card. Corpse inventories are not supported. Nothing was changed.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>The character&apos;s zombie or corpse could not be uniquely identified. No ID card is required, but multiple candidates or insufficient identity data in older saves are not guessed. Nothing was changed.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>A save-file update needs recovery. Do not load this save in the game. Restart PZ Tools so it can finish the update. If the save changed after the interruption, automatic recovery stops rather than overwriting it.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Character recovery</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or another operation is using this save. Stop playing and try again. The original was not changed.</value></data>

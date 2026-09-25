@@ -365,9 +365,17 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>次回のバックアップ：現在の作業の完了待ち</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>キャラクターを回復</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>キャラクターの回復・蘇生</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>現在のセーブのキャラクター「{0}」を回復しますか？&#xA;&#xA;体力、満腹度、水分、休息、持久力、精神状態を回復し、負傷・感染・中毒・禁断症状・未発症の運動後の筋肉痛を取り除きます。死亡している場合は蘇生します。&#xA;&#xA;すべての特性（マイナス特性を含む）、スキル、経験値、体重、栄養、位置は維持します。特性や環境によって症状が再発する場合があります。MOD独自の病気は変更しません。&#xA;&#xA;所持品が空の場合は、保存位置にいる本人と一意に確認できたゾンビから所持品と衣服を回収し、そのゾンビを削除します。本人確認には一致する身分証明書が必要です。傷の表示用アイテムは除外し、アイテムの状態とバッグの中身を維持します。手への自動装備はしません。死体からの回収には未対応です。所持品を安全に特定できなければ、所持品が空の死亡キャラクターは蘇生しません。&#xA;&#xA;変更するのは現在のシングルプレイのセーブのみです。プレイ中・未対応形式・対象を特定できないセーブには実行しません。</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>現在のセーブのキャラクター「{0}」を回復しますか？
+
+体力、満腹度、水分、休息、持久力、精神状態を回復し、負傷・感染・中毒・禁断症状・未発症の運動後の筋肉痛を取り除きます。死亡している場合は蘇生します。
+
+すべての特性（マイナス特性を含む）、スキル、経験値、体重、栄養、位置は維持します。特性や環境によって症状が再発する場合があります。MOD独自の病気は変更しません。
+
+死亡で空になった所持品は本人のゾンビまたは遺体から回収し、回収元を削除します。身分証は不要です。物品の状態、バッグの中身、着用・装着情報を保持します。手持ち装備は保存された物品IDがある場合に復元し、それ以外は再装備が必要です。失われた物品は生成せず、本人と特定できない場合は変更しません。
+
+変更するのは現在のシングルプレイのセーブのみです。プレイ中・未対応形式・対象を特定できないセーブには実行しません。</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>キャラクターの回復が完了しました。特性・スキル・経験値は保持されています。</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>キャラクターの所持品を一意に特定できませんでした。回復には、保存された位置に一致する ID カードを持つプレイヤーゾンビが必要です。死体の所持品には対応していません。変更は行っていません。</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>本人のゾンビまたは遺体を一意に特定できませんでした。身分証は不要ですが、候補が複数ある場合や古いセーブの識別情報が不足する場合は推測しません。元のデータは変更していません。</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>セーブファイルの更新を復旧する必要があります。このセーブをゲームで読み込まないでください。PZ Tools を再起動して更新を完了させてください。中断後にセーブが変更されている場合、自動復旧は上書きせず停止します。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>キャラクターの回復</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>ゲームまたは別の操作がこのセーブを使用中です。プレイを終了してからやり直してください。元のファイルは変更していません。</value></data>
