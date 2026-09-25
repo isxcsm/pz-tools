@@ -1,5 +1,7 @@
 # 안정적 파일 캡처
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 안정적 캡처는 게임의 쓰기를 잠그거나 일시 정지하지 않습니다. 원본을
 read/write/delete 공유 모드로 열고, 해시로 검증한 임시 복사본만 압축 및
 중복 확인에 사용합니다. `storage.verify_staged_copies`는 기본적으로 켜져 있습니다.

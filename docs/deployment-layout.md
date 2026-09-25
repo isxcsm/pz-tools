@@ -1,5 +1,7 @@
 # 배포 및 실행 데이터 경로
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 PzTools는 설치 파일, 앱 제어 데이터, 사용자가 선택한 백업 저장소를 서로 다른
 수명과 권한 경계로 관리합니다.
 

@@ -1,5 +1,7 @@
 # Storage performance follow-up
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 This follows compact format 2. The current repository is **format 2 / schema 3**.
 There is no migration or dual reader for schemas 1/2 or format 1. Opening older data
 fails with `repository-reset-required` before configuration writes; it is never

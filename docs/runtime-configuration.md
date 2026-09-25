@@ -1,5 +1,7 @@
 # Advanced runtime configuration
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 Operational tuning is read at the owning process boundary and passed to the
 implementation. Libraries do not repeatedly read TOML during a scan or copy.
 Code defaults remain as fallbacks for omitted keys and direct library callers;

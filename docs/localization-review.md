@@ -1,5 +1,7 @@
 # User-facing localization review
 
+[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+
 Base: `dev` at `6ab613238081946b9d9fccd67d01c0719b11340f`.
 Branch: `i18n/user-friendly-messages`. This work is independent of the pending
 path-normalization PR. No backup/storage format, deletion policy, persisted language
