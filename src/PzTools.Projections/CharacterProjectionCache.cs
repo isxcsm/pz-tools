@@ -18,6 +18,9 @@ public sealed class CharacterProjectionCache(
         if (previous is not null && (previous.Version == version || now < previous.RetryAfter))
             return previous.Snapshot;
         var current = await read(path, token);
+        token.ThrowIfCancellationRequested();
+        // Start backoff after the I/O completes, not before a potentially slow lock wait.
+        now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         if (current.ReadSucceeded)
             entries[path] = new Entry(version, current, now, 0);
         else
