@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：等待当前任务</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢复</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>治愈／复活角色</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢复当前存档中的角色 {0}？
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢复角色{0}？
 
-恢复生命值、饱食度、水分、休息、耐力和精神状态，清除伤势、感染、中毒、戒断症状及尚未发作的运动酸痛。角色已死亡时将尝试复活。
+恢复生命值，治疗伤势和异常状态。如果角色已死亡，将复活并取回可找回的物品。取回物品后，对应的僵尸或尸体会被移除。
 
-所有特质（包括负面特质）、技能、经验、体重、营养和位置均保持不变。特质或环境可能使症状再次出现；不会修改模组自定义疾病。
+保留特质、技能、经验和位置。部分模组效果可能仍然存在。
 
-如果死亡清空了物品栏，将从角色的僵尸或尸体中取回物品并移除该来源。无需身份证。物品状态、背包内容、穿戴及附着信息均保留。保存的物品ID可用时会恢复手持装备，否则需手动重新装备。不会生成已丢失的物品；无法确认身份时不会修改存档。
-
-仅修改当前单人存档。正在游玩、不受支持或无法明确识别的存档会被拒绝。</value></data>
+结束游玩后，应用到选中的单人存档。</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>角色恢复完成。特质、技能和经验值已保留。</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>无法唯一确定该角色的僵尸或尸体。无需身份证，但候选对象不唯一或旧存档身份信息不足时不会猜测。原始数据未更改。</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>存档文件更新需要恢复。请勿在游戏中加载此存档。请重启 PZ Tools 以完成更新。如果中断后存档发生变化，自动恢复将停止，不会覆盖存档。</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>无法安全取回物品，已停止恢复。存档未被修改。</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>上一次存档修改尚未完成。请先重新打开PZ Tools，再在游戏中载入此存档。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>角色恢复</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。请停止游玩后重试。原始文件未更改。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档有尚未完成的更改。请正常退出游戏后重试。原存档未被修改。</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>仅支持包含一个本地角色的单人存档。未擅自选择角色，原始文件未更改。</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>此功能仅支持只有一名角色的单人存档。存档未被修改。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法安全修改此存档。请确认PZ Tools版本支持您的游戏版本。原存档未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>读取失败，将重试</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>游戏或其他操作正在使用所需的文件。请等待保存或相关操作结束后重试。</value></data>
@@ -402,14 +400,13 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>正在确认游戏状态</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>请只运行一个游戏</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>请确认上次游戏保存的结果，然后重新开启自动备份。</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>应用</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>清除筛选</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>全部清除</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · 点击筛选</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 点击切换显示的记录</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 或 40-50。留空表示不限。</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42或40-50。有效输入会自动应用，留空表示不限。</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>请输入整数编号或从小到大的编号范围。</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>直接输入日期和时间，或使用日历按钮选择。留空表示不限制。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>输入或通过日历选择后自动应用。留空表示不限。</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>请输入有效日期和时间，且开始不得晚于结束。</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>开始</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>结束</value></data>
@@ -417,5 +414,4 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>最近24小时</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>选择日期和时间</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>日期</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>使用此日期和时间</value></data>
 </root>

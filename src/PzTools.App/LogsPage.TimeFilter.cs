@@ -7,10 +7,9 @@ namespace PzTools.App;
 
 public sealed partial class LogsPage
 {
-    private static FrameworkElement CreateTimeInput(TextBox input, string label, DateTimeOffset fallback)
+    private static FrameworkElement CreateTimeInput(TextBox input, string label, DateTimeOffset fallback, Action selectionChanged)
     {
-        // Typed seconds/offsets remain supported. Pickers only edit this draft;
-        // the outer Apply button is the sole query commit point.
+        // Selecting a value updates the input; merely opening the picker does not apply a filter.
         var group = new StackPanel { Spacing = 6 };
         group.Children.Add(new TextBlock { Text = label });
         AutomationProperties.SetName(input, label);
@@ -33,25 +32,35 @@ public sealed partial class LogsPage
             Language = Localizer.Culture.Name, HorizontalAlignment = HorizontalAlignment.Stretch };
         AutomationProperties.SetName(date, $"{label} · {Localizer.Get("LogDateLabel")}");
         AutomationProperties.SetName(time, $"{label} · {Localizer.Get("Time")}");
-        var use = new Button { Content = Localizer.Get("LogTimeUseSelection"), HorizontalAlignment = HorizontalAlignment.Right };
         var picker = new StackPanel { Width = 280, Spacing = 12, Language = Localizer.Culture.Name };
-        picker.Children.Add(date); picker.Children.Add(time); picker.Children.Add(use);
+        picker.Children.Add(date); picker.Children.Add(time);
         var flyout = new Flyout { Content = picker };
         choose.Flyout = flyout;
+        var initializing = true;
+        DateTime? lastDate = null;
+        TimeSpan? lastTime = null;
         flyout.Opening += (_, _) =>
         {
+            initializing = true;
             var value = LogTimeFilterDraft.PickerValue(input.Text, fallback, TimeZoneInfo.Local);
-            // Calendar selection is a date, not an instant to convert between zones.
             var day = DateTime.SpecifyKind(value.Date.AddHours(12), DateTimeKind.Unspecified);
             date.Date = new DateTimeOffset(day, TimeZoneInfo.Local.GetUtcOffset(day));
             time.SelectedTime = value.TimeOfDay;
+            lastDate = date.Date?.Date;
+            lastTime = time.SelectedTime;
+            initializing = false;
         };
-        use.Click += (_, _) =>
+        void SelectionChanged()
         {
-            if (date.Date is not { } day || time.SelectedTime is not { } selected) return;
+            if (initializing || date.Date is not { } day || time.SelectedTime is not { } selected) return;
+            if (lastDate == day.Date && lastTime == selected) return;
+            lastDate = day.Date; lastTime = selected;
             input.Text = LogTimeFilterDraft.FormatSelection(day.LocalDateTime, selected);
-            flyout.Hide(); input.Focus(FocusState.Programmatic);
-        };
+            selectionChanged();
+        }
+        flyout.Closed += (_, _) => initializing = true;
+        date.DateChanged += (_, _) => SelectionChanged();
+        time.SelectedTimeChanged += (_, _) => SelectionChanged();
         return group;
     }
 }

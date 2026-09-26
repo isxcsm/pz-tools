@@ -372,22 +372,20 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Next backup: waiting for the current job</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Heal character</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Heal / resurrect character</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Heal the current saved character, {0}?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Heal {0}?
 
-Restore health, food, water, rest, endurance and mental condition. Remove injuries, infections, poisoning, withdrawal and pending exercise soreness. Resurrect the character if dead.
+Restore health and treat injuries and other conditions. If dead, resurrect the character and recover available belongings. The zombie or corpse the belongings are recovered from will be removed.
 
-All traits (including negative traits), skills, XP, weight, nutrition and position remain unchanged. Traits or environmental conditions can cause symptoms to return. Mod-specific diseases are not edited.
+Traits, skills, XP and position are kept. Some mod effects may remain.
 
-If death emptied the inventory, recover belongings from the character&apos;s zombie or corpse and remove that source. No ID card is required. Item condition, bag contents, clothing and attachment data are preserved. Saved item IDs restore hand equipment when available; otherwise re-equip it manually. Missing items are not created. Uncertain identity stops the operation without changes.
-
-Only the current single-player save is edited. Playing, unsupported or ambiguous saves are rejected.</value></data>
+Applies to the selected single-player save after you stop playing.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Character recovery completed. Traits, skills and XP were preserved.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>The character&apos;s zombie or corpse could not be uniquely identified. No ID card is required, but multiple candidates or insufficient identity data in older saves are not guessed. Nothing was changed.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>A save-file update needs recovery. Do not load this save in the game. Restart PZ Tools so it can finish the update. If the save changed after the interruption, automatic recovery stops rather than overwriting it.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Recovery stopped because belongings could not be recovered safely. Your save was not changed.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>A previous save update needs to finish. Reopen PZ Tools before loading this save in the game.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Character recovery</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or another operation is using this save. Stop playing and try again. The original was not changed.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>This save has unfinished changes. Exit the game normally, then try again. The original save was not changed.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Only single-player saves containing one local character are supported. No character was selected arbitrarily and the original was not changed.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>This feature requires a single-player save with one character. Your save was not changed.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>This save cannot be edited safely. Check that your PZ Tools version supports your game version. The original save was not changed.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Survival time unavailable · checking again</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>The game or another operation is using a required file. Wait for saving or that operation to finish, then try again.</value></data>
@@ -409,14 +407,13 @@ Only the current single-player save is edited. Playing, unsupported or ambiguous
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Checking game status</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Please run only one game</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verify the previous game-save outcome, then re-enable automatic backups.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Apply</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Clear filter</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Clear all</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · click to filter</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · click to change which logs are shown</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 or 40-50. Leave blank for no limit.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 or 40-50. Valid changes apply automatically. Leave blank for no limit.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Enter a whole number or an ascending range.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Type a date and time, or use the calendar button. Leave a field blank for no limit.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Type a date and time or choose them from the calendar. Valid changes apply automatically. Leave blank for no limit.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Enter valid dates/times with the start not after the end.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>From</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Through</value></data>
@@ -424,5 +421,4 @@ Only the current single-player save is edited. Playing, unsupported or ambiguous
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Last 24 hours</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Choose date and time</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Date</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Use this date and time</value></data>
 </root>

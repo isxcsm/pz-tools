@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: รองานปัจจุบัน</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>รักษาตัวละคร</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>รักษา / ชุบชีวิตตัวละคร</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>รักษาตัวละคร {0} ในเซฟปัจจุบันหรือไม่?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>ฟื้นฟูตัวละคร {0} หรือไม่?
 
-ฟื้นฟูสุขภาพ ความอิ่ม น้ำ การพักผ่อน ความอึด และสภาพจิตใจ ลบอาการบาดเจ็บ การติดเชื้อ พิษ อาการถอนสาร และอาการปวดกล้ามเนื้อจากการออกกำลังกายที่ยังไม่แสดงอาการ หากตัวละครตายแล้วจะชุบชีวิต
+ฟื้นฟูสุขภาพ รักษาบาดแผลและอาการผิดปกติ หากเสียชีวิตจะคืนชีพและนำสิ่งของที่ยังหาได้กลับมา ซอมบี้หรือศพที่นำสิ่งของกลับมาจะถูกลบ
 
-คุณลักษณะทั้งหมดรวมถึงคุณลักษณะด้านลบ ทักษะ ประสบการณ์ น้ำหนัก โภชนาการ และตำแหน่งจะคงเดิม คุณลักษณะหรือสภาพแวดล้อมอาจทำให้อาการกลับมาได้ ไม่แก้ไขโรคเฉพาะของม็อด
+คุณลักษณะ ทักษะ ประสบการณ์ และตำแหน่งจะคงเดิม ผลจากม็อดบางอย่างอาจยังอยู่
 
-หากการตายทำให้ช่องเก็บของว่าง จะกู้สิ่งของจากซอมบี้หรือศพของตัวละครแล้วนำต้นทางนั้นออก ไม่ต้องมีบัตรประจำตัว สภาพสิ่งของ ของในกระเป๋า เสื้อผ้าและข้อมูลการติดตั้งจะคงเดิม หากมีรหัสสิ่งของที่บันทึกไว้จะคืนอุปกรณ์ในมือ มิฉะนั้นต้องสวมใส่ใหม่ ไม่สร้างสิ่งของที่สูญหาย และจะไม่เปลี่ยนข้อมูลเมื่อระบุตัวตนไม่ได้แน่ชัด
-
-แก้ไขเฉพาะเซฟผู้เล่นคนเดียวปัจจุบันเท่านั้น ไม่ดำเนินการกับเซฟที่กำลังเล่น รูปแบบที่ไม่รองรับ หรือข้อมูลที่ระบุไม่ชัดเจน</value></data>
+ใช้กับเซฟผู้เล่นคนเดียวที่เลือก หลังจากหยุดเล่นแล้ว</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>ฟื้นฟูตัวละครเสร็จแล้ว คุณลักษณะ ทักษะ และค่าประสบการณ์ยังคงอยู่</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>ไม่สามารถระบุซอมบี้หรือศพของตัวละครได้อย่างแน่ชัด ไม่ต้องมีบัตรประจำตัว แต่จะไม่เดาเมื่อมีหลายตัวเลือกหรือข้อมูลระบุตัวตนในเซฟเก่าไม่เพียงพอ ไม่มีการเปลี่ยนแปลงข้อมูล</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>ต้องกู้คืนการอัปเดตไฟล์เซฟ อย่าโหลดเซฟนี้ในเกม โปรดเริ่ม PZ Tools ใหม่เพื่ออัปเดตให้เสร็จ หากเซฟเปลี่ยนไปหลังถูกขัดจังหวะ การกู้คืนอัตโนมัติจะหยุดแทนที่จะเขียนทับ</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>หยุดการฟื้นฟูเพราะไม่สามารถนำสิ่งของกลับมาได้อย่างปลอดภัย เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>ต้องดำเนินการแก้ไขเซฟครั้งก่อนให้เสร็จ โปรดเปิด PZ Tools ใหม่ก่อนโหลดเซฟนี้ในเกม</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>การฟื้นฟูตัวละคร</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรือการทำงานอื่นกำลังใช้เซฟนี้ โปรดหยุดเล่นแล้วลองใหม่ ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>เซฟนี้มีการเปลี่ยนแปลงที่ยังไม่เสร็จสมบูรณ์ กรุณาออกจากเกมตามปกติแล้วลองอีกครั้ง เซฟต้นฉบับยังไม่ถูกแก้ไข</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>รองรับเฉพาะเซฟผู้เล่นคนเดียวที่มีตัวละครในเครื่องเพียงตัวเดียว ไม่มีการสุ่มเลือกตัวละคร และไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>ใช้ได้กับเซฟผู้เล่นคนเดียวที่มีตัวละครเพียงคนเดียว เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>ไม่สามารถแก้ไขเซฟนี้ได้อย่างปลอดภัย โปรดตรวจสอบว่า PZ Tools รุ่นที่ใช้รองรับเกมรุ่นนี้ เซฟต้นฉบับไม่ได้ถูกแก้ไข</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านไม่สำเร็จ จะลองใหม่</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ที่จำเป็น รอให้การบันทึกหรืองานนั้นเสร็จแล้วลองอีกครั้ง</value></data>
@@ -402,14 +400,13 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>กำลังตรวจสอบสถานะเกม</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>โปรดเปิดเกมเพียงหนึ่งตัว</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>ตรวจสอบผลการบันทึกเกมครั้งก่อน แล้วเปิดการสำรองอัตโนมัติอีกครั้ง</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>ใช้</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>ล้างตัวกรอง</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>ล้างทั้งหมด</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · คลิกเพื่อกรอง</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · คลิกเพื่อเปลี่ยนรายการที่แสดง</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 หรือ 40-50 เว้นว่างเพื่อไม่จำกัด</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 หรือ 40-50 ค่าที่ถูกต้องจะใช้โดยอัตโนมัติ เว้นว่างเพื่อไม่จำกัด</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>ป้อนเลขจำนวนเต็มหรือช่วงจากน้อยไปมาก</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>พิมพ์วันที่และเวลาหรือใช้ปุ่มปฏิทิน เว้นว่างไว้หากไม่ต้องการจำกัด</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>พิมพ์วันที่และเวลาหรือเลือกจากปฏิทิน ค่าที่ถูกต้องจะใช้โดยอัตโนมัติ เว้นว่างเพื่อไม่จำกัด</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>ป้อนวันที่และเวลาที่ถูกต้อง โดยเวลาเริ่มต้องไม่อยู่หลังเวลาสิ้นสุด</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>เริ่ม</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>สิ้นสุด</value></data>
@@ -417,5 +414,4 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>24 ชั่วโมงล่าสุด</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>เลือกวันที่และเวลา</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>วันที่</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>ใช้วันที่และเวลานี้</value></data>
 </root>

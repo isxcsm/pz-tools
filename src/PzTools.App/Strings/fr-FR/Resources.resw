@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Prochaine sauvegarde : en attente de la tâche en cours</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Soigner le personnage</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Soigner / ressusciter le personnage</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Soigner le personnage {0} de la partie actuelle ?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Soigner {0} ?
 
-Rétablir la santé, la satiété, l’hydratation, le repos, l’endurance et l’état mental. Supprimer blessures, infections, intoxication, symptômes de sevrage et courbatures encore latentes. Ressusciter le personnage s’il est mort.
+Restaure la santé et soigne les blessures et affections. Si le personnage est mort, il est ressuscité et ses affaires disponibles sont récupérées. Le zombie ou cadavre dont elles proviennent est alors supprimé.
 
-Tous les traits, même négatifs, compétences, expérience, poids, nutrition et position sont conservés. Les traits ou l’environnement peuvent faire réapparaître les symptômes. Les maladies propres aux mods ne sont pas modifiées.
+Les traits, compétences, l’XP et la position sont conservés. Certains effets de mods peuvent subsister.
 
-Si la mort a vidé l’inventaire, récupère les objets sur le zombie ou le cadavre du personnage et supprime cette source. Aucune carte d’identité n’est nécessaire. L’état des objets, le contenu des sacs et les données de tenue et d’attache sont conservés. Les identifiants enregistrés rétablissent les objets en main si disponibles ; sinon, rééquipez-les. Aucun objet disparu n’est créé. Une identité incertaine interrompt l’opération sans modification.
-
-Seule la partie solo actuelle est modifiée. Les parties en cours d’utilisation, les formats non pris en charge et les données ambiguës sont refusés.</value></data>
+S’applique à la sauvegarde solo sélectionnée après avoir quitté la partie.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Le personnage a été rétabli. Ses traits, compétences et points d’expérience ont été conservés.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Le zombie ou le cadavre du personnage n’a pas pu être identifié de façon unique. Aucune carte d’identité n’est nécessaire, mais plusieurs candidats ou des données insuffisantes dans un ancien enregistrement ne permettent pas de choisir au hasard. Rien n’a été modifié.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Une mise à jour des fichiers de partie doit être récupérée. Ne chargez pas cette partie dans le jeu. Redémarrez PZ Tools pour terminer la mise à jour. Si la partie a changé depuis l’interruption, la récupération automatique s’arrête au lieu de l’écraser.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>La récupération a été arrêtée car les affaires ne pouvaient pas être récupérées en toute sécurité. La sauvegarde n’a pas été modifiée.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Une modification précédente de la sauvegarde doit être terminée. Rouvrez PZ Tools avant de charger cette sauvegarde dans le jeu.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Rétablissement du personnage</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Le jeu ou une autre opération utilise cette partie. Arrêtez de jouer et réessayez. L’original n’a pas été modifié.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Cette partie contient des modifications inachevées. Quittez le jeu normalement, puis réessayez. La partie d’origine n’a pas été modifiée.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Seules les parties solo contenant un unique personnage local sont prises en charge. Aucun personnage n’a été choisi arbitrairement et l’original n’a pas été modifié.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Cette fonction nécessite une sauvegarde solo contenant un seul personnage. La sauvegarde n’a pas été modifiée.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Cette partie ne peut pas être modifiée en toute sécurité. Vérifiez que votre version de PZ Tools est compatible avec celle du jeu. L’original n’a pas été modifié.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Échec de lecture ; nouvel essai prévu</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Le jeu ou une autre opération utilise un fichier nécessaire. Attendez la fin de l’enregistrement ou de cette opération, puis réessayez.</value></data>
@@ -402,14 +400,13 @@ Seule la partie solo actuelle est modifiée. Les parties en cours d’utilisatio
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Vérification de l’état du jeu</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Ne lancez qu’un seul jeu</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Vérifiez le résultat de la dernière sauvegarde du jeu, puis réactivez les sauvegardes automatiques.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Appliquer</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Effacer le filtre</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Tout effacer</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · cliquer pour filtrer</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · cliquer pour changer les entrées affichées</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 ou 40-50. Vide signifie sans limite.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 ou 40-50. Les saisies valides s’appliquent automatiquement. Laissez vide pour aucune limite.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Saisissez un numéro entier ou une plage croissante.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Saisissez la date et l’heure ou utilisez le bouton du calendrier. Un champ vide signifie aucune limite.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Saisissez la date et l’heure ou choisissez-les dans le calendrier. Les changements valides s’appliquent automatiquement. Vide signifie sans limite.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Saisissez des dates/heures valides, avec le début au plus tard à la fin.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Début</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Fin</value></data>
@@ -417,5 +414,4 @@ Seule la partie solo actuelle est modifiée. Les parties en cours d’utilisatio
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Dernières 24 heures</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Choisir la date et l’heure</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Date</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Utiliser cette date et cette heure</value></data>
 </root>

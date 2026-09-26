@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Следующая копия: ожидание текущей задачи</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Исцелить персонажа</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Исцелить / воскресить персонажа</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Исцелить персонажа «{0}» в текущем сохранении?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Восстановить персонажа {0}?
 
-Восстановить здоровье, сытость, запас воды, отдых, выносливость и психическое состояние. Устранить травмы, инфекции, отравление, симптомы отмены и ещё не проявившуюся боль после упражнений. Если персонаж погиб, воскресить его.
+Восстанавливает здоровье и лечит раны и другие недуги. Мёртвый персонаж воскреснет и вернёт доступные вещи. Зомби или труп, из которого забраны вещи, будет удалён.
 
-Все черты, включая отрицательные, навыки, опыт, вес, питание и положение сохраняются. Черты или окружающая среда могут снова вызвать симптомы. Болезни, добавленные модами, не изменяются.
+Черты, навыки, опыт и положение сохраняются. Некоторые эффекты модов могут остаться.
 
-Если смерть опустошила инвентарь, вещи возвращаются из зомби или трупа персонажа, а источник удаляется. Удостоверение личности не требуется. Состояние вещей, содержимое сумок, одежда и данные креплений сохраняются. Сохранённые ID восстанавливают предметы в руках, если доступны; иначе их нужно экипировать заново. Потерянные вещи не создаются. При сомнительной идентификации изменений не будет.
-
-Изменяется только текущее одиночное сохранение. Сохранения, используемые в игре, неподдерживаемые форматы и неоднозначные данные отклоняются.</value></data>
+Применяется к выбранному одиночному сохранению после выхода из игры.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Восстановление персонажа завершено. Черты, навыки и опыт сохранены.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Не удалось однозначно определить зомби или труп персонажа. Удостоверение личности не требуется, но при нескольких кандидатах или недостатке данных в старом сохранении программа не угадывает. Ничего не изменено.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Требуется восстановить обновление файлов сохранения. Не загружайте это сохранение в игре. Перезапустите PZ Tools, чтобы завершить обновление. Если сохранение изменилось после прерывания, автоматическое восстановление остановится, не перезаписывая его.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Восстановление остановлено: вещи нельзя вернуть безопасно. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Нужно завершить предыдущее изменение сохранения. Откройте PZ Tools заново, прежде чем загружать это сохранение в игре.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Восстановление персонажа</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Это сохранение используется игрой или другой операцией. Прекратите игру и повторите попытку. Оригинал не изменён.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>В этом сохранении есть незавершённые изменения. Выйдите из игры обычным способом и повторите попытку. Исходное сохранение не изменено.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Поддерживаются только одиночные сохранения с одним локальным персонажем. Персонаж не выбирался произвольно, оригинал не изменён.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Эта функция требует одиночного сохранения с одним персонажем. Сохранение не изменено.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Это сохранение нельзя безопасно изменить. Проверьте совместимость версий PZ Tools и игры. Оригинал не был изменён.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Ошибка чтения; будет повторная попытка</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Игра или другая операция использует нужный файл. Дождитесь завершения сохранения или операции и повторите попытку.</value></data>
@@ -402,14 +400,13 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Проверка состояния игры</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запустите только одну игру</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Проверьте результат последнего сохранения игры, затем снова включите автоматические копии.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Применить</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Снять фильтр</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Снять все</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · нажмите для фильтрации</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · нажмите, чтобы изменить отображаемые записи</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 или 40-50. Пустое поле — без ограничений.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 или 40-50. Верный ввод применяется автоматически. Пустое поле — без ограничения.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Введите целый номер или диапазон по возрастанию.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Введите дату и время или выберите их кнопкой календаря. Пустое поле означает отсутствие ограничения.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Введите дату и время или выберите их в календаре. Верные изменения применяются автоматически. Пустое поле — без ограничения.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Введите корректные дату и время; начало не должно быть позже конца.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>С</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>По</value></data>
@@ -417,5 +414,4 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Последние 24 часа</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Выбрать дату и время</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Дата</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Использовать дату и время</value></data>
 </root>
