@@ -391,13 +391,13 @@
   <data name="GameExtensions.Title" xml:space="preserve"><value>Spielerweiterungen</value></data>
   <data name="GameExtensions.Description" xml:space="preserve"><value>Optionale Erweiterungen für das Spiel verwalten.</value></data>
   <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Nahtloses Speichern</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>In Entwicklung. Bis der Spieladapter geprüft ist, wird die Standardspeicherung verwendet.</value></data>
+  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Beh&#228;lt das normale Speichern bei, &#252;berspringt das erzwungene Vorschaurendering und best&#228;tigt Datenbankschreibvorg&#228;nge. Chunk- und native Speichervorg&#228;nge k&#246;nnen das Spiel weiterhin anhalten. Nicht unterst&#252;tzte Versionen verwenden normales Speichern.</value></data>
   <data name="GameExtensions.Disabled" xml:space="preserve"><value>Aus · Standardspeicherung</value></data>
-  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Adapterprüfung ausstehend · Standardspeicherung</value></data>
+  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Kompatibilit&#228;tspr&#252;fung beim n&#228;chsten Speichern &#183; Experimentell</value></data>
   <data name="GameExtensions.Configure" xml:space="preserve"><value>Einstellungen</value></data>
   <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Einstellungen für {0}</value></data>
   <data name="GameExtensions.Apply" xml:space="preserve"><value>Übernehmen</value></data>
   <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Erweiterungseinstellungen nicht verfügbar</value></data>
   <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Die Änderungen konnten nicht gespeichert werden. Öffnen Sie die Seite erneut und prüfen Sie die Einstellungsdatei der Erweiterungen.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Diese Version enthält noch keinen geprüften Spielspeicheradapter. Beim Aktivieren wird nur Ihre Auswahl gespeichert; Backups verwenden weiterhin den bisherigen save(true)-Ablauf.</value></data>
+  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Beh&#228;lt das normale Speichern bei, &#252;berspringt das erzwungene Vorschaurendering und best&#228;tigt Datenbankschreibvorg&#228;nge. Chunk- und native Speichervorg&#228;nge k&#246;nnen das Spiel weiterhin anhalten. Nicht unterst&#252;tzte Versionen verwenden normales Speichern.</value></data>
 </root>

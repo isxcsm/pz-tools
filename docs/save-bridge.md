@@ -115,7 +115,7 @@ command was sent.
   path is pinned at bootstrap initialization. Each request retains the separate
   temporary callback authenticated by PID and a fresh random 256-bit token. An
   ambiguous endpoint/dispatch failure never triggers another load or save retry.
-- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` are the commands.
+- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` remain supported. Protocol 5 adds `PREPARE_SAVE` for an optional save provider.
   They are handled on `GameWindow.gameThread`; PROBE validates the world but never
   invokes save. Protocol 3 introduced `SAVE_COUNTDOWN`. Protocol 4 adds a fixed
   epoch-millisecond due time and an `off` notice mode to `SAVE_AT`. Language
@@ -192,3 +192,13 @@ scripts use the same dependency graph as a normal worker build; no game JAR is r
 For diagnostics, `GameSaveClient.RequestAsync(pid, savePath, save: false)`
 performs the same connection and game-thread checks without saving. Keep live-game
 save tests manual; synthetic JVM integration tests use isolated temporary data.
+
+## Optional game extensions
+
+The [game extension module](game-extensions.md) may be selected for a backup request.
+Its B42.20 adapter keeps the original save call, omits only the forced preview render,
+and observes player/vehicle database drains before completion. Chunk and native
+saving remain synchronous. An incompatible optional provider falls back in the same
+authenticated request before saving; a failure after provider admission is not replayed.
+Bootstrap API 2 contains the stable module API and requires a complete game restart
+when replacing an older bootstrap. Ordinary save/probe requests do not load modules.

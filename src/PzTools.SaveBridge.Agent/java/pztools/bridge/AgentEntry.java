@@ -1,6 +1,8 @@
 package pztools.bridge;
 
 import java.io.*;
+import pztools.extensions.api.SaveModules;
+import pztools.extensions.api.internal.ClassArchive;
 import java.lang.classfile.*;
 import java.lang.constant.*;
 import java.lang.instrument.*;
@@ -16,6 +18,8 @@ import java.util.zip.ZipInputStream;
 /** One bootstrap and idle dispatch hook per JVM; no save is performed by the control thread. */
 public final class AgentEntry {
     public static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
+    private static SaveModules extensionHost;
+    private static boolean extensionHostAttempted;
     private static Object owner;
     private static volatile Runnable callback;
     private static Instrumentation instrumentation;
@@ -47,6 +51,7 @@ public final class AgentEntry {
         control.setDaemon(true);
         try {
             control.start();
+            System.setProperty("pztools.bridge.bootstrap.api", "2");
             // Published only after the listener is bound. Never print this credential.
             System.setProperty(CONTROL_PROPERTY, "1:" + ProcessHandle.current().pid() + ":"
                 + server.getLocalPort() + ":" + secret);
@@ -54,6 +59,19 @@ public final class AgentEntry {
             server.close();
             throw failure;
         }
+    }
+
+    /** Optional modules are loaded only for an explicit provider request. */
+    public static synchronized SaveModules extensions() throws Exception {
+        if (extensionHost != null) return extensionHost;
+        if (extensionHostAttempted) throw new IllegalStateException("Extension runtime unavailable; restart required");
+        extensionHostAttempted = true;
+        Path directory = payload.getParent().resolve("extensions");
+        ClassLoader loader = ClassArchive.open(directory.resolve("pztools-extension-runtime.jar"),
+            "pztools.extensions.runtime", AgentEntry.class.getClassLoader());
+        extensionHost = (SaveModules)loader.loadClass("pztools.extensions.runtime.ModuleHost")
+            .getConstructor(Path.class).newInstance(directory);
+        return extensionHost;
     }
 
     private static void controlLoop(ServerSocket server, String secret) {

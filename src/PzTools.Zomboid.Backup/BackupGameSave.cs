@@ -14,7 +14,7 @@ public sealed class BackupGameSave(Func<string, CancellationToken, Task<string>>
         int queueTimeoutSeconds = 15, string? notificationLanguage = "en", DateTimeOffset? scheduledSaveUtc = null)
         : this(ConfiguredGameSaveProviders.Create(
             new GameSaveClient(bridgeDirectory, connectionTimeoutSeconds, completionTimeoutSeconds,
-                queueTimeoutSeconds, notificationLanguage, scheduledSaveUtc).SaveRunningGameAsync,
+                queueTimeoutSeconds, notificationLanguage, scheduledSaveUtc),
             PzToolsPathLayout.CreateDefault().DataRoot)) { }
 
     public async Task<GameSaveResult> PrepareAsync(string sourcePath, CancellationToken cancellationToken)

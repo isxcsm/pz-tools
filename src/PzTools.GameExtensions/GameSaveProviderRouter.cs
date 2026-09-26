@@ -1,6 +1,6 @@
 namespace PzTools.GameExtensions;
 
-public enum SaveCompletionKind { StandardCallReturned, CheckpointCommitted }
+public enum SaveCompletionKind { StandardCallReturned, CheckpointCommitted, GameSaveAndDatabaseQueuesDrained }
 public sealed record SavePreparationReceipt(string ProviderId, SaveCompletionKind Completion,
     string Detail, string? FallbackReason = null);
 public sealed record SaveProviderSupport(bool Supported, string? Reason = null);

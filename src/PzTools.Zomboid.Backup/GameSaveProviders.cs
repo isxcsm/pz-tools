@@ -28,11 +28,14 @@ internal sealed class SeamlessSaveAvailability : IGameSaveProvider
 
 public static class ConfiguredGameSaveProviders
 {
+    public static Func<string, CancellationToken, Task<string>> Create(GameSaveClient client, string runtimeRoot) =>
+        Create(client.SaveRunningGameAsync, runtimeRoot, new BridgeGameSaveProvider(client));
+
     public static Func<string, CancellationToken, Task<string>> Create(
-        Func<string, CancellationToken, Task<string>> standardSave, string runtimeRoot)
+        Func<string, CancellationToken, Task<string>> standardSave, string runtimeRoot, IGameSaveProvider? extension = null)
     {
         var store = new ExtensionSettingsStore(runtimeRoot);
-        var router = new GameSaveProviderRouter(new StandardGameSaveProvider(standardSave), new SeamlessSaveAvailability());
+        var router = new GameSaveProviderRouter(new StandardGameSaveProvider(standardSave), extension ?? new SeamlessSaveAvailability());
         return async (path, token) =>
         {
             bool enabled;
@@ -45,7 +48,7 @@ public static class ConfiguredGameSaveProviders
             }
             var result = await router.PrepareAsync(path, enabled, token);
             var fallback = configurationFailure ?? result.FallbackReason;
-            return result.Detail + (fallback is null ? "" : "; extension-fallback=" + fallback);
+            return result.Detail + "; provider=" + result.ProviderId + "; completion=" + result.Completion + (fallback is null ? "" : "; extension-fallback=" + fallback);
         };
     }
 }

@@ -391,13 +391,13 @@
   <data name="GameExtensions.Title" xml:space="preserve"><value>Extensions du jeu</value></data>
   <data name="GameExtensions.Description" xml:space="preserve"><value>Gérez les améliorations facultatives du jeu.</value></data>
   <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Sauvegarde fluide</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>En développement. La sauvegarde standard reste utilisée tant que l’adaptateur du jeu n’est pas validé.</value></data>
+  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Conserve la sauvegarde normale, &#233;vite le rendu forc&#233; de l’aper&#231;u et confirme les &#233;critures en base de donn&#233;es. La sauvegarde des zones et des donn&#233;es natives peut encore interrompre le jeu. Les versions non prises en charge utilisent la sauvegarde normale.</value></data>
   <data name="GameExtensions.Disabled" xml:space="preserve"><value>Désactivé · Sauvegarde standard</value></data>
-  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Validation de l’adaptateur en attente · Sauvegarde standard</value></data>
+  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Compatibilit&#233; v&#233;rifi&#233;e &#224; la prochaine sauvegarde &#183; Exp&#233;rimental</value></data>
   <data name="GameExtensions.Configure" xml:space="preserve"><value>Configurer</value></data>
   <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Paramètres de {0}</value></data>
   <data name="GameExtensions.Apply" xml:space="preserve"><value>Appliquer</value></data>
   <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Paramètres des extensions indisponibles</value></data>
   <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Impossible d’enregistrer vos modifications. Rouvrez la page et vérifiez le fichier des paramètres des extensions.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Cette version ne contient pas encore d’adaptateur de sauvegarde du jeu validé. L’activation enregistre seulement votre choix ; les sauvegardes utilisent toujours le mécanisme save(true) existant.</value></data>
+  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Conserve la sauvegarde normale, &#233;vite le rendu forc&#233; de l’aper&#231;u et confirme les &#233;critures en base de donn&#233;es. La sauvegarde des zones et des donn&#233;es natives peut encore interrompre le jeu. Les versions non prises en charge utilisent la sauvegarde normale.</value></data>
 </root>

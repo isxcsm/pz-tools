@@ -1,41 +1,50 @@
 package pztools.extensions.api;
 
+import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Stable, game-class-free save capability. Module lifecycle is separate from this capability. */
+/** Trusted save capability; game-specific state and bytecode belong to the module. */
 public interface SaveProvider {
     int API_MAJOR = 1;
     String id();
+    /** Connection-thread initialization, before any save is admitted. */
+    default Support initialize(Instrumentation instrumentation, ClassLoader gameClasses) throws Exception {
+        return new Support(true, null);
+    }
     Support inspect(Context context);
-    FrozenSnapshot capture(Context context, long maximumBytes) throws Exception;
+    PreparedSave capture(Context context, long maximumBytes) throws Exception;
 
     record Context(String requestId, String sessionId, String worldId, Path sourcePath,
-                   Thread gameThread, ClassLoader gameClasses) {
+                   Thread gameThread, ClassLoader gameClasses, AtomicBoolean worldValid) {
+        public Context(String requestId, String sessionId, String worldId, Path sourcePath,
+                       Thread gameThread, ClassLoader gameClasses) {
+            this(requestId, sessionId, worldId, sourcePath, gameThread, gameClasses, new AtomicBoolean(true));
+        }
         public Context {
-            Objects.requireNonNull(requestId);
-            Objects.requireNonNull(sessionId);
-            Objects.requireNonNull(worldId);
-            Objects.requireNonNull(sourcePath);
-            Objects.requireNonNull(gameThread);
-            Objects.requireNonNull(gameClasses);
+            Objects.requireNonNull(requestId); Objects.requireNonNull(sessionId); Objects.requireNonNull(worldId);
+            Objects.requireNonNull(sourcePath); Objects.requireNonNull(gameThread);
+            Objects.requireNonNull(gameClasses); Objects.requireNonNull(worldValid);
             if (!sourcePath.isAbsolute()) throw new IllegalArgumentException("Absolute save path required");
         }
         public void requireGameThread() {
             if (Thread.currentThread() != gameThread) throw new IllegalStateException("Wrong game thread");
+            if (!worldValid.get()) throw new IllegalStateException("World session ended");
         }
     }
     record Support(boolean supported, String reason) { }
+    enum Completion { DETACHED_WRITES_COMMITTED, GAME_SAVE_AND_DATABASE_QUEUES_DRAINED }
 
     /**
-     * Owned immutable capture, never live game objects or a pooled buffer that another writer may reuse.
-     * The adapter must respect its allocation budget DURING capture, not merely in retainedBytes().
-     * commit() must finish its writes and report internally swallowed errors before returning.
-     * A completed DB queue alone is not a world checkpoint. Cross-file consistency belongs to the adapter.
+     * Detached writes or a game-owned completion fence, never mutable world objects.
+     * The retained budget must be enforced during capture. commit() may wait on a worker,
+     * not on the game thread. A drained database queue is NOT an atomic world snapshot.
      */
-    interface FrozenSnapshot extends AutoCloseable {
+    interface PreparedSave extends AutoCloseable {
         long retainedBytes();
         void commit() throws Exception;
+        default Completion completion() { return Completion.DETACHED_WRITES_COMMITTED; }
         @Override void close() throws Exception;
     }
 }

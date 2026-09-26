@@ -19,21 +19,26 @@
     <MSBuild Projects="..\PzTools.SaveBridge.Native\PzTools.SaveBridge.Native.proj" Targets="Build"
              Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
   </Target>
-  <Target Name="BuildAgent" DependsOnTargets="PrepareAgent"
-          Inputs="$(MSBuildProjectFullPath);@(JavaSource);@(LanguageCatalog);$(_BridgeLanguageGenerator);$(MSBuildProjectDirectory)\MANIFEST.MF;$(BridgeOutputPath)\agent-inputs.txt;$(BridgeJdkPath)\release"
+  <Target Name="BuildAgent" DependsOnTargets="PrepareAgent;BuildExtensions"
+          Inputs="$(MSBuildProjectFullPath);@(JavaSource);@(LanguageCatalog);$(_BridgeLanguageGenerator);$(MSBuildProjectDirectory)\MANIFEST.MF;$(BridgeOutputPath)\agent-inputs.txt;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeJdkPath)\release"
           Outputs="$(BridgeOutputPath)\pztools-save-bridge.jar;$(BridgeOutputPath)\pztools-save-bootstrap.jar">
     <RemoveDir Directories="$(_BridgeClasses)" />
     <MakeDir Directories="$(_BridgeClasses)" />
     <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(_BridgeLanguageGenerator)&quot; -Catalog &quot;@(LanguageCatalog)&quot; -OutputFile &quot;$(_BridgeLanguageSource)&quot;" />
-    <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 --add-modules jdk.attach -d &quot;$(_BridgeClasses)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ') &quot;$(_BridgeLanguageSource)&quot;" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 --add-modules jdk.attach -cp &quot;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar&quot; -d &quot;$(_BridgeClasses)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ') &quot;$(_BridgeLanguageSource)&quot;" />
     <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --file &quot;$(BridgeOutputPath)\pztools-save-bridge.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)&quot; pztools/bridge/runtime -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AttachMain.class" />
     <!-- Package all stable bootstrap nested classes, but no attach/runtime classes. -->
     <ItemGroup><_BootstrapClasses Include="$(_BridgeClasses)\pztools\bridge\AgentEntry*.class" /></ItemGroup>
     <RemoveDir Directories="$(_BridgeClasses)\bootstrap" />
     <MakeDir Directories="$(_BridgeClasses)\bootstrap\pztools\bridge" />
     <Copy SourceFiles="@(_BootstrapClasses)" DestinationFolder="$(_BridgeClasses)\bootstrap\pztools\bridge" />
+    <ItemGroup>
+      <_BootstrapApi Include="$(MSBuildProjectDirectory)\..\PzTools.GameExtensions.Java\obj\$(Configuration)\classes\pztools\extensions\api\**\*.class" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_BootstrapApi)"
+          DestinationFiles="@(_BootstrapApi->'$(_BridgeClasses)\bootstrap\pztools\extensions\api\%(RecursiveDir)%(Filename)%(Extension)')" />
     <!-- Reproducible bytes let deployment leave the already loaded stable bootstrap alone. -->
-    <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-save-bootstrap.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)\bootstrap&quot; pztools/bridge" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-save-bootstrap.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)\bootstrap&quot; pztools" />
   </Target>
   <Target Name="BuildRuntime" DependsOnTargets="PrepareAgent"
           Inputs="$(BridgeJdkPath)\release;$(BridgeOutputPath)\runtime-inputs.txt;$(MSBuildProjectFullPath)"
@@ -42,6 +47,6 @@
     <Exec Command="&quot;$(BridgeJdkPath)\bin\jlink.exe&quot; --add-modules jdk.attach --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output &quot;$(BridgeOutputPath)\runtime&quot;" />
     <Touch Files="$(BridgeOutputPath)\runtime-built.txt" AlwaysCreate="true" />
   </Target>
-  <Target Name="BuildExtensions"><MSBuild Projects="..\PzTools.GameExtensions.SeamlessSave\PzTools.GameExtensions.SeamlessSave.proj" Targets="Build" Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" /></Target>
+  <Target Name="BuildExtensions" DependsOnTargets="ValidateBridgeToolchain"><MSBuild Projects="..\PzTools.GameExtensions.SeamlessSave\PzTools.GameExtensions.SeamlessSave.proj" Targets="Build" Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" /></Target>
   <Target Name="Build" DependsOnTargets="PrepareAgent;BuildNative;BuildAgent;BuildRuntime;BuildExtensions" />
 </Project>

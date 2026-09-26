@@ -1,94 +1,112 @@
-# Game extensions — staged implementation
+# Game extensions and Seamless Saving
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [Save bridge](save-bridge.md)
 
-## Status: foundation, not a completed seamless-save adapter
+## Current implementation (0.2, experimental)
 
-This branch adds the Game Extensions page and its first card, **Seamless Saving**
-(`pztools.seamless-save`). The toggle persists a desired preference. It does **not**
-activate an unvalidated game patch. The card and its settings dialog explicitly say
-that no real-game save adapter has been qualified yet. Standard `save(true)` remains
-in use according to the existing pre-backup-save setting; this extension never
-silently enables or disables that setting. Do not publish this as a stutter fix.
+The Game Extensions page contains the Seamless Saving card, a persisted toggle and
+an Apply/Cancel settings dialog. The toggle records the user's preference, not an
+already applied game patch. Compatibility is checked on the next backup request.
+All 18 UI languages describe the actual experimental scope.
 
-## Ownership
+The module now has an executable adapter for the locally inspected Build 42.20 /
+Java 25 game classes. It **does not yet implement fully nonblocking world saving**.
+It keeps the original `GameWindow.save(true)` on the game thread, suppresses only
+that request's forced thumbnail render, and waits off-thread for post-capture
+player/vehicle database drains. Chunk serialization, chunk file writes and native
+world-save waits still execute through the original synchronous game code.
+No reduction in real-game frame stalls or drag cancellation is claimed without a
+separate live-game comparison. The last thumbnail is retained rather than refreshed
+by this request. Normal game saves still create their thumbnails.
 
-- `PzTools.GameExtensions` targets plain `net10.0`: identifiers, curated catalog,
-  independent preference storage and the save-provider capability/router. No WinUI,
-  SQLite, game classes or platform process discovery dependencies.
-- `PzTools.App.Core.GameExtensionController` publishes committed preferences through
-  the existing revisioned view store. `GameExtensionsPage` only presents cards and
-  sends commands; it never attaches to the game or runs a save.
-- `PzTools.Zomboid.Backup` selects the standard provider when the optional provider
-  is disabled, unavailable or its settings cannot be read. A failure after save
-  admission is propagated, never retried with the standard provider.
-- `PzTools.GameExtensions.Java` contains the game-class-free Java API and a bounded,
-  single-owner checkpoint runtime. `PzTools.GameExtensions.SeamlessSave` is a separate
-  module/build unit containing the version-adapter boundary. Its shipped adapter
-  list is intentionally empty. No replacement game classes are distributed.
+## Boundaries
 
-## Implemented checkpoint contract
+- `PzTools.GameExtensions` owns platform-independent settings, preference revisions
+  and save-provider policy. Neither WinUI nor game classes are dependencies.
+- `PzTools.App.Core` projects preferences; `PzTools.App` displays cards and dialogs.
+- `PzTools.Zomboid.Backup` selects the configured provider. `PzTools.SaveBridge`
+  owns the existing authenticated transport and decodes typed completion receipts.
+- The bootstrap owns the stable Java API and bounded archive loader. The extension
+  runtime and game-sensitive module are separate JARs. Game classes are not shipped.
 
-A provider must capture mutable state on the designated game thread and return an
-owned, detached snapshot. Only its commit and cleanup run on the writer. One operation
-owns the runtime until both finish; a dequeued item is not a completion signal.
-A write already in progress is not interrupted when the client cancels. Admission,
-request/session/world identity, capture memory budget, failures and cleanup are explicit.
-Capture itself is still synchronous: this foundation does not promise zero frame stalls.
+`SaveModules` is a capability host, not a requirement that every future extension
+implement saving. A driving extension needs its own capability contract. The
+current catalogue is curated; arbitrary JAR installation, a marketplace and hot
+code replacement are outside this implementation. Class loaders isolate type
+ownership, not malicious Java code. Only trusted modules are supported.
 
-The Java module/API JARs are built and staged by the existing worker graph but are
-**not loaded into the game by this release**. The existing resident bootstrap and
-wire protocol are unchanged. Dynamic package discovery, compatibility negotiation and
-runtime SaveProvider invocation are follow-up work, not implemented capabilities.
-The C# fallback gate deliberately reports `adapter-validation-required`.
+## Actual request sequence
 
-## Preferences and UI
+1. The worker reads extension preferences. Disabled or malformed optional settings
+   retain standard saving. Disabling pre-backup game saving itself still takes
+   precedence; enabling an extension does not override that preference.
+2. Protocol 5 sends one `PREPARE_SAVE` request containing the requested provider.
+   The JVM resolves compatibility before any save starts. An unavailable module
+   falls back in the same session, with a reason. Ordinary SAVE/PROBE requests
+   do not load the extension runtime.
+3. The B42.20 adapter verifies inspected class fingerprints and method shapes,
+   installs four scoped hook points once, and retains its loader for this JVM.
+   Other agents modifying these methods are not universally supported.
+4. On the game thread it runs the original save, including OnSave, loaded chunks,
+   their vehicle updates, native subsystems and virtual vehicles. It then consumes
+   the player force-save flag and vehicle main-thread preparation in that tick.
+   Only the thumbnail call inside this module request is suppressed.
+5. A completion ticket is armed after capture. Player and vehicle drain calls
+   must **start after** that boundary and finish successfully. An empty queue or
+   an earlier drain is insufficient. Scoped logged exceptions fail the ticket.
+6. A module worker waits for the ticket. Game-loop polls only observe completion;
+   they do not join the worker. The response is sent after module cleanup.
+   Only then can the existing backup preparation continue to file capture.
 
-The independent `extensions/settings.json` lives beneath the existing data root.
-Schema validation, a stable cross-process lock, atomic replacement and an expected
-revision prevent silent overwrites. Unknown module preferences are preserved.
-Corrupt optional preferences do not rewrite the file or suppress standard saving.
-Desired enabled state is distinct from actual application; there is no Applied badge
-without a qualified adapter. The current modal edits only this implemented preference,
-not placeholder performance settings. Existing pre-backup-save off takes precedence.
-The page uses the existing 18-locale RESW mechanism and does no periodic game polling.
+## Guarantees and limitations
 
-## Validation
+`STANDARD_CALL_RETURNED`, `DETACHED_WRITES_COMMITTED`, and
+`GAME_SAVE_AND_DATABASE_QUEUES_DRAINED` are different observations. The production
+B42.20 adapter reports the last one. It does not claim a frozen cross-file world
+snapshot, durable hardware flush, or detection of every internally swallowed
+native/Lua error. The generic detached-write runtime is tested separately.
 
-Run the focused C# `GameExtensionTests` and adjacent save-policy/resource tests.
-`test-game-extensions.ps1` builds the standalone Java module and runs a small isolated
-checkpoint harness; the normal bridge test setup calls it without a second managed test run.
+No generic `runAsync(save(true))`, fixed completion sleep, blanket UI-state restore
+or partial player-only/occupied-vehicle save is used. The source world is not moved
+to a staging directory; its existing file identity and USN boundaries are retained.
+A future immutable-input design must explicitly separate logical source identity
+from any staging filesystem's file IDs and USN journal.
 
-The harness checks detached bytes, off-thread commit, exclusive ownership while a
-writer is working, error propagation, disposal and rejection of an oversized capture.
-It is not a real-game test or a frame-time measurement. No source-text/UI-layout
-assertions, full-suite duplication or new CI workflow are added.
+Cancelling a queued request prevents saving. Disconnecting during a module write
+retains ownership and the game-loop callback until completion. No standard save is
+replayed after a provider begins. World-cell identity, request/session/world IDs,
+and periodic world/path validation prevent accepting a stale completion. A world
+ending causes the completion waiter to fail rather than reporting an offline skip.
 
-## Work still required before this mode can actually activate
+## Deployment and compatibility
 
-1. Attribute drag cancellation and save stalls in a separate test world; do not assume
-   skipping a thumbnail fixes them. Keep mandatory in-memory player/vehicle data.
-2. Implement and qualify a Build 42.20 adapter: coherent capture of containers,
-   players, discovered-but-undriven and virtual vehicles, Lua OnSave semantics,
-   native save synchronization and explicit per-request write/error completion.
-3. Connect the optional module loader and version/capability negotiation to the
-   existing authenticated bridge without sharing the save-session slot with future
-   long-lived mods. Unsupported optional code must not affect the standard provider.
-4. Integrate an owned immutable backup input/lease if the adapter requires one;
-   temporary snapshot file IDs/USN must never become the source save's checkpoint.
-5. Verify restored content, toggle/failure/world-exit behavior and real frame times.
-   Only then replace the validation gate with the qualified adapter capability.
+The bootstrap API upgrade in this change requires one complete game restart.
+After that, module updates also require a game restart; toggles do not reload JARs
+or repeatedly retransform classes. The optional module's compatibility data stays
+in its own JAR. Unsupported game fingerprints fall back before saving, provided
+the base bridge is still compatible. A broken base bridge remains an error.
 
-No live game attach, save, user preference reset or repository migration is part of
-this foundation change. General package discovery and hot code replacement are not
-implemented merely to make the first card appear functional.
+No repository schema change or save reset is required. The Windows discovery and
+native Attach adapter remain platform-specific; management models and the Java
+module API do not depend on WinUI. Install matched app/worker/bootstrap components.
 
-## Foundation verification on Windows
+## Focused validation for this iteration
 
-The Release solution including WinUI, native bootstrap and both Java JARs built with
-zero warnings/errors. Focused C# extension, save-policy and localization tests passed
-69/69 (no skips); ten cases cover the new management/router/projection behavior.
-The Java 25 checkpoint harness passed. Both JARs in the app's staged worker directory
-match their build-output SHA-256 hashes. These are local Windows build/test results,
-not a published-distribution run or an interactive UI/game test. No real-game adapter,
-restored-world equivalence, drag preservation or frame-time improvement is claimed.
+Local Windows Release solution, WinUI/XAML, native bootstrap and Java builds
+succeeded with zero warnings/errors. The related .NET run passed 96 tests with one
+explicit live-game probe skipped; no live-game environment opt-in was enabled.
+The additional provider transport test uses a test-only JAR in a private copied
+bridge folder, never in application output. It verifies that the synthetic game
+loop keeps processing while a write waits, failed writes are not replayed, and
+transport cancellation retains admission until cleanup completes.
+
+Three short Java harnesses check detached writes/ownership, post-capture database
+fences/errors/world invalidation, and execution of transformed generated classes.
+The four target classes in the installed game JAR were also transformed and checked
+with the Java ClassFile verifier **offline, without executing game code**.
+That local check is optional and is not required by CI or redistributed with game bytes.
+
+Live drag handling, discovered-but-unoccupied vehicle restoration, native saving
+under real mods, full distribution testing and frame-time measurements remain
+unverified. Fully nonblocking chunk/native persistence requires a separate coherent
+snapshot design; this release does not hide that gap with a thread-pool wrapper.

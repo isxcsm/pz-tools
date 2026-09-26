@@ -20,10 +20,10 @@ public final class CheckpointRuntimeTest {
             byte[] live = new byte[] { 1, 2, 3 };
             var adapter = new SeamlessSaveProvider.GameAdapter() {
                 public SaveProvider.Support inspect(SaveProvider.Context ignored) { return new SaveProvider.Support(true, null); }
-                public SaveProvider.FrozenSnapshot capture(SaveProvider.Context ctx, long budget) {
+                public SaveProvider.PreparedSave capture(SaveProvider.Context ctx, long budget) {
                     ctx.requireGameThread();
                     byte[] frozen = live.clone();
-                    return new SaveProvider.FrozenSnapshot() {
+                    return new SaveProvider.PreparedSave() {
                         public long retainedBytes() { return frozen.length; }
                         public void commit() throws Exception {
                             check(Thread.currentThread() != ctx.gameThread(), "Disk work must leave game thread");
@@ -54,8 +54,8 @@ public final class CheckpointRuntimeTest {
             }
             var failedAdapter = new SeamlessSaveProvider.GameAdapter() {
                 public SaveProvider.Support inspect(SaveProvider.Context ctx) { return new SaveProvider.Support(true, null); }
-                public SaveProvider.FrozenSnapshot capture(SaveProvider.Context ctx, long budget) {
-                    return new SaveProvider.FrozenSnapshot() {
+                public SaveProvider.PreparedSave capture(SaveProvider.Context ctx, long budget) {
+                    return new SaveProvider.PreparedSave() {
                         public long retainedBytes() { return 1; }
                         public void commit() throws Exception { throw new java.io.IOException("fixture disk failure"); }
                         public void close() { disposed.incrementAndGet(); }

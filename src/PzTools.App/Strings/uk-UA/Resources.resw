@@ -391,13 +391,13 @@
   <data name="GameExtensions.Title" xml:space="preserve"><value>Розширення гри</value></data>
   <data name="GameExtensions.Description" xml:space="preserve"><value>Керування додатковими покращеннями гри.</value></data>
   <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Плавне збереження</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>У розробці. До перевірки адаптера гри використовується стандартне збереження.</value></data>
+  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Зберігає звичайний запис гри, пропускає примусове відтворення мініатюри та підтверджує запис у базу даних. Збереження ділянок світу й нативних даних досі може призупиняти гру. Непідтримувані версії використовують звичайне збереження.</value></data>
   <data name="GameExtensions.Disabled" xml:space="preserve"><value>Вимкнено · Стандартне збереження</value></data>
-  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Очікування перевірки адаптера · Стандартне збереження</value></data>
+  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Перевірка сумісності під час наступного збереження &#183; Експериментально</value></data>
   <data name="GameExtensions.Configure" xml:space="preserve"><value>Налаштувати</value></data>
   <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Налаштування: {0}</value></data>
   <data name="GameExtensions.Apply" xml:space="preserve"><value>Застосувати</value></data>
   <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Налаштування розширень недоступні</value></data>
   <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Не вдалося зберегти зміни. Відкрийте сторінку знову та перевірте файл налаштувань розширень.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>У цій версії ще немає перевіреного адаптера збереження гри. Увімкнення картки лише зберігає ваш вибір; резервне копіювання й надалі використовує наявний механізм save(true).</value></data>
+  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Зберігає звичайний запис гри, пропускає примусове відтворення мініатюри та підтверджує запис у базу даних. Збереження ділянок світу й нативних даних досі може призупиняти гру. Непідтримувані версії використовують звичайне збереження.</value></data>
 </root>

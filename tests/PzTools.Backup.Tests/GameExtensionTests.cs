@@ -16,7 +16,7 @@ public sealed class GameExtensionTests
         Assert.False(File.Exists(store.FilePath));
         var enabled = Assert.Single(service.SetEnabled(card.Definition.Id, true, card.SettingsRevision));
         Assert.True(enabled.Enabled);
-        Assert.Equal("adapter-validation-required", enabled.StatusCode);
+        Assert.Equal("compatibility-on-request", enabled.StatusCode);
     }
 
     [Fact]

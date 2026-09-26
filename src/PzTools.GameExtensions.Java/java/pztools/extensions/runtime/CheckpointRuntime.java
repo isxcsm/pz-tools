@@ -32,7 +32,7 @@ public final class CheckpointRuntime implements AutoCloseable {
         if (!support.supported()) throw new UnsupportedOperationException(support.reason());
         var job = new Job(context);
         if (!active.compareAndSet(null, job)) throw new IllegalStateException("A checkpoint is already owned");
-        SaveProvider.FrozenSnapshot snapshot = null;
+        SaveProvider.PreparedSave snapshot = null;
         try {
             // Only this phase reads mutable game state. The captured result must be detached.
             snapshot = Objects.requireNonNull(provider.capture(context, maximumBytes));
@@ -52,12 +52,13 @@ public final class CheckpointRuntime implements AutoCloseable {
         }
     }
 
-    private void commit(Job job, SaveProvider.FrozenSnapshot snapshot) {
+    private void commit(Job job, SaveProvider.PreparedSave snapshot) {
         Phase terminal = Phase.CANCELLED;
         Throwable error = null;
         try {
             if (job.beginWriting()) {
                 snapshot.commit();
+                job.completion = snapshot.completion();
                 terminal = Phase.COMMITTED;
             }
         } catch (Throwable failure) { terminal = Phase.FAILED; error = failure; }
@@ -83,10 +84,11 @@ public final class CheckpointRuntime implements AutoCloseable {
         if (closed.compareAndSet(false, true)) writer.shutdown();
     }
 
-    public static final class Job {
+    public static final class Job implements pztools.extensions.api.SaveTask {
         private final SaveProvider.Context context;
         private volatile Phase phase = Phase.CAPTURING;
-        private volatile Result result;
+        private volatile CheckpointRuntime.Result result;
+        private volatile SaveProvider.Completion completion = SaveProvider.Completion.DETACHED_WRITES_COMMITTED;
         private boolean cancelled;
         private Job(SaveProvider.Context context) { this.context = context; }
         private synchronized boolean beginWriting() {
@@ -95,8 +97,13 @@ public final class CheckpointRuntime implements AutoCloseable {
             return true;
         }
         public Phase phase() { return phase; }
+        @Override public pztools.extensions.api.SaveTask.Result completed() {
+            CheckpointRuntime.Result value = result;
+            return value == null ? null : new pztools.extensions.api.SaveTask.Result(value.requestId(), value.sessionId(),
+                value.worldId(), completion, value.error(), value.phase() == Phase.CANCELLED);
+        }
         /** Nonblocking observation. null means NOT completed, including a dequeued but still running write. */
-        public Result poll() { return result; }
+        public CheckpointRuntime.Result poll() { return result; }
         public synchronized boolean cancelBeforeWrite() {
             if (phase != Phase.QUEUED) return false;
             cancelled = true;
