@@ -38,3 +38,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Chunk I/O fixture compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Deferred chunk I/O behavior test failed.' }
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) VersionSupportTest (Join-Path $root 'tests/game-extensions/version-support.tsv')
 if ($LASTEXITCODE -ne 0) { throw 'Shared extension version rules failed.' }
+$nativeFixture = Join-Path $output 'native-fixture'
+New-Item -ItemType Directory -Force $nativeFixture | Out-Null
+$nativeSources = @(Get-ChildItem (Join-Path $root 'tests/game-extensions-native-fixture') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $classpath -d $nativeFixture @nativeSources
+if ($LASTEXITCODE -ne 0) { throw 'Native save fixture compilation failed.' }
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.NativeSaveWaitTest $nativeFixture
+if ($LASTEXITCODE -ne 0) { throw 'Native save completion behavior test failed.' }

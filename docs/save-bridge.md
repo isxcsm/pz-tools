@@ -220,3 +220,9 @@ alongside provider selection and a version-range override. Standard and extensio
 saves both preserve RecoveryStamp, pre-submission permission, cancellation admission,
 and completion-unknown behavior. `STATE2` extends observation with optional game
 version metadata; it is not a second source of pause/scheduling authority.
+## Native completion handoff (current bootstrap API 5)
+
+The optional 0.5 module keeps native submission and the original MCD worker but
+hands its acknowledged completion wait off the game loop. Later ordinary saves and
+world teardown are fenced. See [exact scope and limitations](seamless-native-wait.md).
+No new wire command, death policy, state poller or backup database is introduced.

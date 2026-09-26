@@ -9,7 +9,7 @@ save provider result. See [live-state ownership and validation](runtime-characte
 The extension card's last execution outcome and preparation/total timings are implemented;
 the preference itself is never presented as proof of successful application.
 
-## Current implementation (0.4, experimental)
+## Current implementation (0.5, experimental)
 
 The Game Extensions page contains the Seamless Saving card, a persisted toggle and
 an Apply/Cancel settings dialog. The toggle records the user's preference, not an
@@ -20,7 +20,8 @@ The module now has an executable adapter for the locally inspected Build 42.20 /
 Java 25 game classes. It **does not yet implement fully nonblocking world saving**.
 It keeps the original `GameWindow.save(true)` on the game thread, suppresses only
 that request's forced thumbnail render, and waits off-thread for post-capture
-player/vehicle database drains and bounded deferred existing-chunk writes. Chunk
+player/vehicle database drains, bounded deferred existing-chunk writes, and eligible
+collision/population native completion. See [native wait boundary](seamless-native-wait.md). Chunk
 serialization, first file creation, over-budget writes and native world-save waits
 still use the original synchronous game code. This is not a zero-stall guarantee.
 No reduction in real-game frame stalls or drag cancellation is claimed without a
@@ -42,7 +43,7 @@ Turning pause-aware scheduling off no longer disables the metadata feed needed b
 extension cards; it still disables the pause-specific scheduling policy.
 
 Both original branches had independently assigned wire protocol 5. Protocol 6 and
-bootstrap API 4 explicitly identify the integrated implementation. Restart the game
+bootstrap API 4 identified the integrated implementation (current bootstrap API: 5). Restart the game
 once after installing matched app/worker/JAR files. A guarded extension request
 carries its runtime ticket, provider ID and explicit version override together.
 Pause, epoch, replay and pre-submission permission checks still apply before save
@@ -84,9 +85,9 @@ or successfully patching every game release.
 1. **Chunk serialization is still synchronous.** Only bounded writes to existing
    chunk files leave the game thread. Large in-memory chunks can still stall it.
    Safe snapshot capture/consistent incremental serialization has not been built.
-2. **Native save waits are still synchronous.** Native collision/population save
-   requests and their game-thread wait loops have not been split into nonblocking
-   operations with independently verified completion/error signals.
+2. **Remaining native work is synchronous.** The collision/population worker's
+   explicit completion wait is now handed off in 0.5. Native input preparation,
+   shared-lock contention and other subsystems (including animals) still need work.
 3. **No immutable whole-world backup input.** The engine still captures the live
    save folder after preparation. Cross-file point-in-time consistency, including
    moving items between containers and player inventory, is not guaranteed.

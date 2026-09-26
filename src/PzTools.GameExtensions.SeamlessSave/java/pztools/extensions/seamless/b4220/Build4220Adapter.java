@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
-/** First executable adapter: no forced thumbnail redraw, original world save, then acknowledged DB drains. */
+/** Version-bound adapter: original capture, bounded file writes and acknowledged native/database completion. */
 public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter {
     private static final Map<String, String> GAME_CLASSES = Map.of(
         "zombie/GameWindow", "21666fb045fe1bd49d2fabdf196618952b5eda72985be49750c796c7e812087a",
@@ -20,7 +20,22 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         "zombie/iso/IsoChunk", "68431ace471b30c842ff7c2a6e706d8ba48d7a84ae07f876484153c0d62a794b",
         "zombie/iso/IsoChunkMap", "8a640e4756d98f6cafd77e6d36a7b9042ea844744af3f0bb2cda257726d3b61c",
         "zombie/vehicles/VirtualVehicleManager", "91849135296db0246ec51fd5eb3e3e890f4436c78b48dcc37e1ff573cdbd271e");
+    private static final Map<String, String> NATIVE_CLASSES = Map.of(
+        "zombie/MapCollisionData", "5ca2fd344cc34094ef218f657d516defa3f09e4f07e73a61bf45d43ee3cf3cae",
+        "zombie/MapCollisionData$MCDThread", "3a1e6698ca64baa7b08c899286954970e56b978b241167ab62acf2403bb29961",
+        "zombie/popman/ZombiePopulationManager", "d78514c622b513e5c43b5f6ab2f523f8a6bd64ae4f6efdde16d590351624072e");
     private final SaveSignals signals = new SaveSignals();
+    private NativeSaveWait nativeWait;
+    private final FileWriteHooks.Handler orderedWrites = new FileWriteHooks.Handler() {
+        public boolean tryDefer(java.io.File file, java.nio.ByteBuffer bytes) throws java.io.IOException {
+            return chunkWrites.tryDefer(file, bytes);
+        }
+        public void beforeRead(java.io.File file) throws java.io.IOException { chunkWrites.beforeRead(file); }
+        public void beforeSynchronousSave() {
+            nativeWait.awaitBeforeWorldSave();
+            chunkWrites.beforeSynchronousSave();
+        }
+    };
     private final DeferredChunkWrites chunkWrites = new DeferredChunkWrites();
     private final AtomicReference<Throwable> transformationFailure = new AtomicReference<>();
     private Method save, allowPlayers, getPlayers, updatePlayers, updateVehicles;
@@ -31,7 +46,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         if (initialized) return new SaveProvider.Support(transformationFailure.get() == null, "game-code-changed");
         if (instrumentation == null || Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
             return new SaveProvider.Support(false, "unsupported-runtime");
-        for (var entry : GAME_CLASSES.entrySet()) {
+        for (var entry : java.util.stream.Stream.concat(GAME_CLASSES.entrySet().stream(), NATIVE_CLASSES.entrySet().stream()).toList()) {
             try (var input = loader.getResourceAsStream(entry.getKey() + ".class")) {
                 if (input == null) return new SaveProvider.Support(false, "unsupported-game-build");
                 byte[] bytes = input.readNBytes(4 * 1024 * 1024 + 1);
@@ -39,7 +54,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
                 if (!digest.equals(entry.getValue())) return new SaveProvider.Support(false, "unsupported-game-build");
             }
         }
-        if (Class.forName(GameHooks.class.getName(), false, loader) != GameHooks.class)
+        if (Class.forName(GameHooks.class.getName(), false, loader) != GameHooks.class || Class.forName(SaveWaitHooks.class.getName(), false, loader) != SaveWaitHooks.class)
             return new SaveProvider.Support(false, "unsupported-game-loader");
         Class<?> window = Class.forName("zombie.GameWindow", false, loader);
         Class<?> playerDb = Class.forName("zombie.savefile.PlayerDB", false, loader);
@@ -50,7 +65,10 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         updatePlayers = playerDb.getMethod("updateMain"); updateVehicles = vehicleDb.getMethod("updateMain");
         vehicles = vehicleDb.getField("instance");
         Class<?> chunk = Class.forName("zombie.iso.IsoChunk", false, loader);
-        Class<?>[] targets = { window, playerDb, vehicleDb, logger, chunk };
+        Class<?> collision = Class.forName("zombie.MapCollisionData", false, loader);
+        nativeWait = new NativeSaveWait(loader);
+        signals.nativeWait = nativeWait;
+        Class<?>[] targets = { window, playerDb, vehicleDb, logger, chunk, collision };
         for (Class<?> type : targets) if (!instrumentation.isModifiableClass(type))
             return new SaveProvider.Support(false, "unmodifiable-game-class");
         Set<Class<?>> selected = Set.of(targets);
@@ -60,7 +78,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
                     ProtectionDomain domain, byte[] bytes) {
                 if (owner != loader || !selected.contains(type)) return null;
                 try {
-                    byte[] result = type == chunk ? ChunkSaveBytecode.transform(bytes, loader)
+                    byte[] result = type == collision ? NativeSaveBytecode.transform(bytes, loader) : type == chunk ? ChunkSaveBytecode.transform(bytes, loader)
                         : SaveBytecode.transform(name, bytes, loader);
                     transformed.add(type);
                     return result;
@@ -71,10 +89,13 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             }
         };
         signals.register();
-        try { FileWriteHooks.register(chunkWrites); }
-        catch (RuntimeException failure) { signals.unregister(); throw failure; }
-        instrumentation.addTransformer(transformer, true);
+        try { FileWriteHooks.register(orderedWrites); SaveWaitHooks.register(nativeWait); }
+        catch (RuntimeException failure) {
+            signals.unregister(); FileWriteHooks.unregister(orderedWrites); SaveWaitHooks.unregister(nativeWait);
+            throw failure;
+        }
         try {
+            instrumentation.addTransformer(transformer, true);
             instrumentation.retransformClasses(targets);
             if (transformed.size() != targets.length || transformationFailure.get() != null)
                 throw new IllegalStateException("Incomplete save interception", transformationFailure.get());
@@ -82,7 +103,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             return new SaveProvider.Support(true, null);
         } catch (Exception failure) {
             instrumentation.removeTransformer(transformer);
-            signals.unregister(); FileWriteHooks.unregister(chunkWrites);
+            signals.unregister(); FileWriteHooks.unregister(orderedWrites); SaveWaitHooks.unregister(nativeWait);
             chunkWrites.close(); // No capture has begun, so ordinary saving remains untouched.
             instrumentation.retransformClasses(targets);
             return new SaveProvider.Support(false, "unsupported-hook-layout");
@@ -103,6 +124,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         try {
             // This intentionally remains on the game thread. OnSave, loaded/virtual vehicles,
             // chunk serialization and native world saving are NOT replaced by a partial imitation.
+            batch.nativeSave = nativeWait.begin(context, batch::fail);
             batch.chunks = chunkWrites.begin(context, maximumBytes, batch::fail);
             save.invoke(null, true);
             // savePlayers() only sets a flag in B42.20. Capture its queued bytes in this same game tick.

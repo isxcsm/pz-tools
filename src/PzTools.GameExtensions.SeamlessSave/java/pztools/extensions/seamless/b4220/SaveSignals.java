@@ -11,6 +11,7 @@ final class SaveSignals {
     static final String PLAYERS = "pztools.save.players-drain.v1";
     static final String VEHICLES = "pztools.save.vehicles-drain.v1";
     static final String ERRORS = "pztools.save.error.v1";
+    NativeSaveWait nativeWait;
     private final AtomicReference<Batch> active = new AtomicReference<>();
     private final ThreadLocal<Integer> drainDepth = ThreadLocal.withInitial(() -> 0);
     private final GameHooks.Observer thumbnail = new GameHooks.Observer() {
@@ -23,6 +24,7 @@ final class SaveSignals {
     private final GameHooks.Observer vehicles = drain(2);
     private final GameHooks.Observer errors = new GameHooks.Observer() {
         public void error(Throwable failure) {
+            if (nativeWait != null) nativeWait.recordError(failure);
             Batch batch = active.get();
             if (batch != null && (drainDepth.get() > 0 || batch.capturing
                     && Thread.currentThread() == batch.context.gameThread())) batch.fail(failure);
@@ -75,8 +77,9 @@ final class SaveSignals {
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
         private volatile boolean capturing = true, armed, closing;
         DeferredChunkWrites.Batch chunks;
+        NativeSaveWait.Batch nativeSave;
         Batch(SaveProvider.Context context, int expected) { this.context = context; pending = new AtomicInteger(expected); }
-        void arm() { if (chunks != null) chunks.seal(); capturing = false; armed = true; }
+        void arm() { if (chunks != null) chunks.seal(); if (nativeSave != null) nativeSave.seal(); capturing = false; armed = true; }
         void fail(Throwable error) { if (error != null) failure.compareAndSet(null, error); }
         void acknowledge(int bit) {
             if (pending.updateAndGet(value -> value & ~bit) == 0) {
@@ -88,6 +91,7 @@ final class SaveSignals {
         public SaveProvider.Completion completion() { return chunks == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
         public void commit() throws Exception {
             if (chunks != null) chunks.await();
+            if (nativeSave != null) nativeSave.awaitSettled();
             while (!drained.await(100, TimeUnit.MILLISECONDS)) {
                 if (!context.worldValid().get()) throw new IOException("World changed before database writes were confirmed");
             }
@@ -97,10 +101,13 @@ final class SaveSignals {
         }
         public void close() throws Exception {
             // Even cancellation/world exit must not leave detached writes behind a released save owner.
-            if (chunks != null) chunks.await();
-            closing = true;
-            // Interrupted waiting does not release admission while native game writes are unresolved.
-            if (drained.getCount() == 0 || !context.worldValid().get()) active.compareAndSet(this, null);
+            try { if (chunks != null) chunks.await(); }
+            finally {
+                if (nativeSave != null) nativeSave.close();
+                closing = true;
+                // Interrupted waiting does not release admission while game writes are unresolved.
+                if (drained.getCount() == 0 || !context.worldValid().get()) active.compareAndSet(this, null);
+            }
         }
     }
 }

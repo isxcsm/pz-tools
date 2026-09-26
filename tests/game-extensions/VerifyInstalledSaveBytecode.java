@@ -1,5 +1,6 @@
 import pztools.extensions.seamless.b4220.SaveBytecode;
 import pztools.extensions.seamless.b4220.ChunkSaveBytecode;
+import pztools.extensions.seamless.b4220.NativeSaveBytecode;
 import java.lang.classfile.*;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -14,10 +15,11 @@ public final class VerifyInstalledSaveBytecode {
              var loader = new URLClassLoader(new java.net.URL[] { path.toUri().toURL() }, VerifyInstalledSaveBytecode.class.getClassLoader())) {
             var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)));
             for (String name : new String[] { "zombie/GameWindow", "zombie/savefile/PlayerDB",
-                    "zombie/vehicles/VehiclesDB2", "zombie/core/logger/ExceptionLogger", "zombie/iso/IsoChunk" }) {
+                    "zombie/vehicles/VehiclesDB2", "zombie/core/logger/ExceptionLogger", "zombie/iso/IsoChunk", "zombie/MapCollisionData" }) {
                 byte[] original;
                 try (var input = jar.getInputStream(jar.getJarEntry(name + ".class"))) { original = input.readAllBytes(); }
-                byte[] transformed = name.equals("zombie/iso/IsoChunk") ? ChunkSaveBytecode.transform(original, loader)
+                byte[] transformed = name.equals("zombie/MapCollisionData") ? NativeSaveBytecode.transform(original, loader)
+                    : name.equals("zombie/iso/IsoChunk") ? ChunkSaveBytecode.transform(original, loader)
                     : SaveBytecode.transform(name, original, loader);
                 var errors = cf.verify(transformed);
                 if (!errors.isEmpty()) throw new AssertionError(name + ": " + errors);
