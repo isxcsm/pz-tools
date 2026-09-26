@@ -453,4 +453,27 @@
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>후원 링크를 준비 중입니다.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>게임이 실행 중이 아닙니다</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>캐릭터 수면 중</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>차량 주행 개선</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>전진 가속·변속, 후진과 키보드 조향을 각각 개선합니다. 싱글플레이용 실험 기능입니다.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>자연스러운 가속·변속</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>엔진 회전수와 기어에 맞춰 전진 가속을 조절합니다.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>부드러운 후진</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>후진 출발과 속도를 완만하게 조절합니다.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>섬세한 스티어링</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>키보드 조향과 중앙 복귀를 점진적으로 조절합니다.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>각 옵션은 독립적으로 저장됩니다. 게임에서 확인한 적용 상태는 아래에 표시됩니다.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>게임 적용 확인 · 실험 기능</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>켜기 요청됨 · 게임 적용 확인 대기</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>해제 확인 · 기본 주행</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>끄기 요청됨 · 적용 상태 확인 전</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>아직 적용 중 · 해제 대기</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>적용 중 · 변경된 설정 확인 대기</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>지원하지 않음 · 기본 주행</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>확장 오류 · 기본 주행</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>이 확장을 사용하려면 게임을 다시 시작해 주세요</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>상세 정보: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>게임에 변경 사항을 적용하는 중입니다.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>확장을 적용할 수 없습니다. 자세한 내용은 로그를 확인해 주세요.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>싱글플레이 게임에 접속하면 저장된 설정을 적용합니다.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>게임을 재개하고 차량을 멈춘 뒤 가속·크루즈 입력을 놓으면 적용됩니다.</value></data>
 </root>

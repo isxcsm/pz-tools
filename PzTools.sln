@@ -101,6 +101,20 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Game extensions", "Game ext
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.GameExtensions", "src\PzTools.GameExtensions\PzTools.GameExtensions.csproj", "{9B85C7F7-8754-412F-B0FF-2C0E89C85E1E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.GameExtensions.VehicleDrivetrain", "PzTools.GameExtensions.VehicleDrivetrain", "{866EB2F5-B82A-4FF0-83E9-7AB17C927133}"
+	ProjectSection(SolutionItems) = preProject
+		src\PzTools.GameExtensions.VehicleDrivetrain\PzTools.GameExtensions.VehicleDrivetrain.proj = src\PzTools.GameExtensions.VehicleDrivetrain\PzTools.GameExtensions.VehicleDrivetrain.proj
+		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleDrivetrainProvider.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleDrivetrainProvider.java
+		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleAccess.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleAccess.java
+		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleBytecode.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleBytecode.java
+		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleControl.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\VehicleControl.java
+		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\DrivetrainConfig.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\DrivetrainConfig.java
+		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\DrivetrainModel.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\DrivetrainModel.java
+		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\VehicleProfile.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\VehicleProfile.java
+		config\game-extensions\vehicle-drivetrain.toml = config\game-extensions\vehicle-drivetrain.toml
+		docs\vehicle-drivetrain-design.md = docs\vehicle-drivetrain-design.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -536,5 +550,6 @@ Global
 		{48C37FD2-2E7B-44FE-A4AD-44564AA7195F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{BE83C552-D825-B481-AB48-5BBDC8028BC4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{9B85C7F7-8754-412F-B0FF-2C0E89C85E1E} = {BE83C552-D825-B481-AB48-5BBDC8028BC4}
+		{866EB2F5-B82A-4FF0-83E9-7AB17C927133} = {BE83C552-D825-B481-AB48-5BBDC8028BC4}
 	EndGlobalSection
 EndGlobal

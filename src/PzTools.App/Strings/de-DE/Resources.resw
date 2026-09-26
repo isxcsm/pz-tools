@@ -446,4 +446,27 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Der Unterstützungslink ist noch nicht verfügbar.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Das Spiel läuft nicht</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Charakter schläft</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Verbessertes Fahrverhalten</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Vorwärtsbeschleunigung, Gangwechsel, Rückwärtsfahren und Tastaturlenkung unabhängig verbessern. Experimentell; nur im Einzelspielermodus.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Natürliches Beschleunigen und Schalten</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Passt die Vorwärtsbeschleunigung an Motordrehzahl und Gang an.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Sanftes Rückwärtsfahren</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Ermöglicht sanftes Anfahren und begrenzt die Rückwärtsgeschwindigkeit.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Feinfühlige Lenkung</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Tastaturlenkung und Rückstellung zur Mitte erfolgen allmählich.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Jede Option wird einzeln gespeichert. Der im Spiel bestätigte Status steht unten.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Im Spiel angewendet · Experimentell</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Aktivierung angefordert · Bestätigung des Spiels ausstehend</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Deaktivierung bestätigt · Standardfahrverhalten</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Deaktivierung angefordert · Status noch unbestätigt</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Noch aktiv · Deaktivierung läuft</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Aktiv · Bestätigung der neuen Einstellungen ausstehend</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Nicht unterstützt · Standardfahrverhalten</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Erweiterungsfehler · Standardfahrverhalten</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Starten Sie das Spiel neu, um diese Erweiterung zu verwenden</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Details: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Änderungen werden im Spiel angewendet.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Die Erweiterung konnte nicht angewendet werden. Details stehen im Protokoll.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Gespeicherte Einstellungen werden beim Einstieg in ein Einzelspielerspiel angewendet.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Zum Anwenden das Spiel fortsetzen, das Fahrzeug anhalten, Gas loslassen und den Tempomaten ausschalten.</value></data>
 </root>

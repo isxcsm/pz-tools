@@ -446,4 +446,27 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Il link per il supporto non è ancora disponibile.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Il gioco non è in esecuzione</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Il personaggio sta dormendo</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Miglioramenti alla guida</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Migliora separatamente accelerazione, cambi marcia, retromarcia e sterzo da tastiera. Sperimentale; solo giocatore singolo.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Accelerazione e cambi marcia naturali</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Adatta l’accelerazione in avanti al regime del motore e alla marcia.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Retromarcia fluida</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Rende graduale la partenza in retromarcia e ne limita la velocità.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Sterzo preciso</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Rende graduali lo sterzo da tastiera e il ritorno al centro.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Ogni opzione viene salvata separatamente. Lo stato confermato dal gioco è mostrato sotto.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Applicato nel gioco · Sperimentale</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Attivazione richiesta · In attesa di conferma del gioco</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Disattivazione confermata · Guida originale</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Disattivazione richiesta · Stato non confermato</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Ancora attivo · Disattivazione in corso</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Attivo · In attesa di conferma delle nuove impostazioni</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Non supportato · Guida originale</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Errore dell’estensione · Guida originale</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Riavvia il gioco per usare questa estensione</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Dettagli: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Applicazione delle modifiche nel gioco.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Impossibile applicare l’estensione. Consulta i registri per i dettagli.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Le impostazioni salvate verranno applicate quando entrerai in una partita per giocatore singolo.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Per applicarle, riprendi il gioco, ferma il veicolo, rilascia l’acceleratore e disattiva il cruise control.</value></data>
 </root>

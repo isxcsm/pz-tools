@@ -18,7 +18,7 @@
     <RemoveDir Directories="$(Classes)" />
     <MakeDir Directories="$(Classes);$(ExtensionOutput)" />
     <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 -cp &quot;$(RuntimeJar)&quot; -d &quot;$(Classes)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ')" />
-    <WriteLinesToFile File="$(Classes)\module.mf" Lines="Manifest-Version: 1.0;PzTools-Extension-Api: 2" Overwrite="true" />
+    <WriteLinesToFile File="$(Classes)\module.mf" Lines="Manifest-Version: 1.0;PzTools-Extension-Api: 3" Overwrite="true" />
     <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --manifest &quot;$(Classes)\module.mf&quot; --file &quot;$(ExtensionOutput)\pztools-seamless-save.jar&quot; -C &quot;$(Classes)&quot; pztools" />
   </Target>
 </Project>

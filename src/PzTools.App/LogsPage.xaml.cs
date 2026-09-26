@@ -799,6 +799,10 @@ public sealed class LogEntryUiItem
     private string ActivityMessage(string key) => Localizer.Format(key, ActivityName);
     public string Message => model.EventName switch
     {
+        "extension.runtime.changed" when model.Level >= LogLevel.Warning =>
+            Localizer.Format("LogEvent.RunFailed", Localizer.Get("Extension.VehicleDrivetrain.Title")),
+        "extension.runtime.changed" =>
+            Localizer.Format("LogEvent.Other", Localizer.Get("Extension.VehicleDrivetrain.Title")),
         "tick.completed" when outcome == "Failed" => ActivityMessage("LogEvent.TickFailed"),
         "tick.failed" => ActivityMessage("LogEvent.TickFailed"),
         var name when name.EndsWith(".completed", StringComparison.Ordinal)

@@ -9,16 +9,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /** Refreshes closed deployment snapshots BETWEEN saves. WATCH never owns a module generation. */
-public final class ModuleHost implements SaveModules {
-    private record Definition(String id, String version, String jar, String namespace, String entry, VersionSupport support) { }
+public final class ModuleHost implements SaveModules, ContinuousModules {
+    private record Definition(String id, String version, String jar, String namespace, String entry, VersionSupport support, String capability) { }
     private Path directory;
     private final Map<String, Loaded> loaded = new HashMap<>();
     private record Rejected(Definition definition, String digest, String reason) { }
     private final Map<String, Rejected> rejected = new HashMap<>();
     private final CheckpointRuntime runtime = new CheckpointRuntime(64L * 1024 * 1024);
+    private final ContinuousRuntime continuous;
     private ClassLoader boundGameLoader;
-    private boolean closed, poisoned;
-    public ModuleHost(Path directory) throws Exception { this.directory = directory.toAbsolutePath().normalize(); catalogue(); }
+    private volatile boolean closed, poisoned;
+    public ModuleHost(Path directory) throws Exception { this.directory = directory.toAbsolutePath().normalize(); catalogue(); continuous = new ContinuousRuntime(this.directory); }
 
     private Map<String, Definition> catalogue() throws IOException {
         byte[] bytes;
@@ -30,20 +31,24 @@ public final class ModuleHost implements SaveModules {
         for (String line : new String(bytes, StandardCharsets.UTF_8).split("\\R")) {
             if (line.isBlank() || line.startsWith("#")) continue;
             String[] p = line.split("\t", -1);
-            if (p.length != 10 || definitions.size() >= 64 || !p[0].matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+")
+            if ((p.length != 10 && p.length != 11) || definitions.size() >= 64 || !p[0].matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+")
                     || !p[1].matches("[0-9]+(?:[.][0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?")
                     || !p[2].matches("pztools\\.extensions\\.[A-Za-z0-9_.]+") || !p[3].startsWith(p[2] + ".")
                     || !p[3].matches("[A-Za-z0-9_.]+") || !p[4].matches("[a-z0-9-]+\\.jar"))
                 throw new IOException("Invalid extension catalogue row");
             var range = new VersionSupport(p[5], p[6].equals("-") ? null : p[6], p[7].equals("-") ? null : p[7]);
-            if (definitions.putIfAbsent(p[0], new Definition(p[0], p[1], p[4], p[2], p[3], range)) != null)
+            String capability = p.length == 10 ? "save.prepare.v1" : p[10];
+            if (!Set.of("save.prepare.v1", "vehicle.drivetrain.v1").contains(capability)) throw new IOException("Unknown extension capability");
+            if (definitions.putIfAbsent(p[0], new Definition(p[0], p[1], p[4], p[2], p[3], range, capability)) != null)
                 throw new IOException("Duplicate module identity");
         }
         return definitions;
     }
     @Override public synchronized void relocate(Path next) throws Exception {
+        if (directory.equals(next.toAbsolutePath().normalize())) return;
         requireIdle();
         directory = next.toAbsolutePath().normalize();
+        continuous.relocate(directory);
     }
     private void requireIdle() {
         if (closed || poisoned) throw new IllegalStateException("Extension host requires restart");
@@ -59,11 +64,12 @@ public final class ModuleHost implements SaveModules {
         try {
             Definition definition = catalogue().get(id);
             if (definition == null) { retire(id, previous); return new Resolution(null, "unknown-provider"); }
+            if (!definition.capability.equals("save.prepare.v1")) return new Resolution(null, "not-a-save-capability");
             if (!forceVersion && !definition.support.matches(gameVersion))
                 return new Resolution(null, gameVersion == null ? "version-unknown" : "version-mismatch");
             // Read once: hash, manifest and loaded classes refer to the SAME bounded archive bytes.
             var archive = ClassArchive.read(directory.resolve(definition.jar));
-            archive.require("PzTools-Extension-Api", Integer.toString(SaveProvider.API_MAJOR));
+            archive.require("PzTools-Extension-Api", Integer.toString(ExtensionApi.HOST_ABI));
             Rejected rejection = rejected.get(id);
             if (rejection != null && rejection.definition.equals(definition) && rejection.digest.equals(archive.digest()))
                 return new Resolution(null, rejection.reason);
@@ -115,10 +121,27 @@ public final class ModuleHost implements SaveModules {
     @Override public synchronized void close() throws Exception {
         if (closed) return;
         requireIdle();
+        continuous.close();
         for (var entry : List.copyOf(loaded.entrySet())) retire(entry.getKey(), entry.getValue());
         runtime.close();
         if (!runtime.awaitTermination(5000)) { poisoned = true; throw new IOException("Extension executor did not retire"); }
         closed = true; loaded.clear(); rejected.clear(); boundGameLoader = null;
+    }
+    @Override public ContinuousModules.Status apply(ContinuousModules.Apply request, Instrumentation instrumentation, ClassLoader gameClasses, String version) {
+        if (closed || poisoned) return status();
+        return continuous.apply(request, instrumentation, gameClasses, version);
+    }
+    @Override public void tick(ContinuousProvider.Context context) { continuous.tick(context); }
+    @Override public void revoke(String reason) { continuous.revoke(reason); }
+    @Override public ContinuousModules.Status deactivate(String reason) { return hostStatus(continuous.deactivate(reason)); }
+    @Override public ContinuousModules.Status status() { return hostStatus(continuous.status()); }
+    private ContinuousModules.Status hostStatus(ContinuousModules.Status state) {
+        if (!poisoned) return state;
+        // Save and continuous providers share host ownership. A failed save-provider retirement
+        // must also prevent this control channel from claiming initialization is available.
+        // A normally closed host is NOT poisoned: hot reload may have replaced it successfully.
+        return new ContinuousModules.Status("RestartRequired", "host-retirement-failed", state.processId(),
+            state.worldId(), state.generation(), state.appliedRevision(), state.moduleVersion(), state.moduleSha256(), state.diagnostics());
     }
     private static final class Loaded implements SaveProvider {
         final Definition definition;

@@ -446,4 +446,27 @@
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Ссылка для поддержки пока недоступна.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Игра не запущена</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Персонаж спит</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Улучшенное управление автомобилем</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Независимо улучшает разгон вперёд, переключение передач, задний ход и управление с клавиатуры. Экспериментально; только для одиночной игры.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Естественный разгон и переключение передач</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Настраивает разгон вперёд в зависимости от оборотов двигателя и передачи.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Плавный задний ход</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Смягчает начало движения назад и ограничивает его скорость.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Точное рулевое управление</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Делает поворот колёс с клавиатуры и возврат к центру постепенными.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Каждый параметр сохраняется отдельно. Ниже показано состояние, подтверждённое игрой.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Применено в игре · Экспериментально</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Запрошено включение · Ожидание подтверждения игры</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Отключение подтверждено · Стандартное управление</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Запрошено отключение · Состояние не подтверждено</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Всё ещё активно · Отключение</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Активно · Ожидание подтверждения новых настроек</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Не поддерживается · Стандартное управление</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Ошибка расширения · Стандартное управление</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Перезапустите игру, чтобы использовать это расширение</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Подробности: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Применение изменений в игре.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Не удалось применить расширение. Подробности — в журнале.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Сохранённые настройки будут применены после входа в одиночную игру.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Для применения возобновите игру, остановите автомобиль, отпустите газ и отключите круиз-контроль.</value></data>
 </root>

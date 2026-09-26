@@ -446,4 +446,27 @@ S’applique à la sauvegarde solo sélectionnée après avoir quitté la partie
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Le lien de soutien n’est pas encore disponible.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Le jeu n’est pas lancé</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Le personnage dort</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Amélioration de la conduite</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Améliore séparément l’accélération, les rapports, la marche arrière et la direction au clavier. Fonction expérimentale, réservée au solo.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Accélération et rapports naturels</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Adapte l’accélération en marche avant au régime moteur et au rapport engagé.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Marche arrière progressive</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Adoucit le démarrage en marche arrière et limite sa vitesse.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Direction précise</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Rend progressifs la direction au clavier et le retour au centre.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Chaque option est enregistrée séparément. L’état confirmé par le jeu apparaît ci-dessous.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Appliqué dans le jeu · Expérimental</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Activation demandée · En attente de confirmation du jeu</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Désactivation confirmée · Conduite d’origine</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Désactivation demandée · État non confirmé</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Toujours actif · Désactivation en cours</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Actif · Mise à jour des réglages en attente de confirmation</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Non pris en charge · Conduite d’origine</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Erreur de l’extension · Conduite d’origine</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Redémarrez le jeu pour utiliser cette extension</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Détails : {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Application des modifications dans le jeu.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>L’extension n’a pas pu être appliquée. Consultez les journaux pour en savoir plus.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Les paramètres enregistrés seront appliqués lorsque vous rejoindrez une partie solo.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pour les appliquer, reprenez le jeu, arrêtez le véhicule, relâchez l’accélérateur et désactivez le régulateur de vitesse.</value></data>
 </root>

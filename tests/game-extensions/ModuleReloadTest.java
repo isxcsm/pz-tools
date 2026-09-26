@@ -46,6 +46,10 @@ public final class ModuleReloadTest {
                 check(host.value.resolve("fixture.save", null, context.gameClasses(), "42.20", false).provider() == next, "Relocation unnecessarily reloaded module");
             }
             check(Files.exists(root.resolve("closed-two")), "Host close did not retire provider");
+            var retired = new ModuleHost(root);
+            retired.close();
+            check(retired.status().state().equals("Disabled") && retired.deactivate("after-close").state().equals("Disabled"),
+                "Normal hot-reload retirement was mistaken for process poisoning");
             byte[] badClose = archive(root, "bad", true);
             Files.write(root.resolve("fixture.jar"), badClose);
             ModuleHost poisoned = new ModuleHost(root);
@@ -54,6 +58,9 @@ public final class ModuleReloadTest {
             Files.write(root.resolve("fixture.jar"), two);
             check(poisoned.resolve("fixture.save", null, ModuleReloadTest.class.getClassLoader(), "42.20", false).reason().equals("module-restart-required"), "Uncertain retirement admitted replacement");
             check(poisoned.resolve("fixture.save", null, ModuleReloadTest.class.getClassLoader(), "42.20", true).provider() == null, "Version force bypassed failed retirement");
+            check(poisoned.status().state().equals("RestartRequired"), "STATUS hid shared host poisoning");
+            check(poisoned.deactivate("user-disabled").state().equals("RestartRequired"), "OFF erased shared host poisoning");
+            check(poisoned.status().reason().equals("host-retirement-failed"), "Shared host failure lost its diagnostic reason");
             System.out.println("PASS: JAR hot reload, unchanged reuse, in-flight save ownership, invalid update, path move and retirement failure");
         } finally {
             try (var paths = Files.walk(root)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); }
@@ -94,7 +101,7 @@ public final class ModuleReloadTest {
         Files.writeString(source, code); Path classes=Files.createDirectories(root.resolve("classes-"+generation));
         int result=ToolProvider.getSystemJavaCompiler().run(null,null,null,"--release","25","-cp",System.getProperty("java.class.path"),"-d",classes.toString(),source.toString());
         check(result==0,"Fixture compilation failed");
-        var manifest=new Manifest();manifest.getMainAttributes().putValue("Manifest-Version","1.0");manifest.getMainAttributes().putValue("PzTools-Extension-Api","2");
+        var manifest=new Manifest();manifest.getMainAttributes().putValue("Manifest-Version","1.0");manifest.getMainAttributes().putValue("PzTools-Extension-Api",Integer.toString(ExtensionApi.HOST_ABI));
         var bytes=new ByteArrayOutputStream();
         try(var jar=new JarOutputStream(bytes,manifest);var files=Files.walk(classes)) {
             for(Path path:files.filter(Files::isRegularFile).toList()) {

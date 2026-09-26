@@ -2,6 +2,7 @@ package pztools.bridge;
 
 import java.io.*;
 import pztools.extensions.api.SaveModules;
+import pztools.extensions.api.ExtensionApi;
 import pztools.extensions.api.internal.ClassArchive;
 import java.lang.classfile.*;
 import java.lang.constant.*;
@@ -26,8 +27,12 @@ public final class AgentEntry {
     private static Object owner;
     private static volatile Runnable callback;
     private static volatile Runnable observerCallback;
+    private static Object lifecycleOwner;
+    private static volatile Runnable lifecycleCallback;
     private static final AtomicBoolean watchSession = new AtomicBoolean();
+    private static final AtomicBoolean extensionSession = new AtomicBoolean();
     private static Method payloadWatch;
+    private static Method payloadExtensions;
     private static final Object runtimeGate = new Object();
     private static Instrumentation instrumentation;
     private static Class<?> window;
@@ -58,7 +63,7 @@ public final class AgentEntry {
         control.setDaemon(true);
         try {
             control.start();
-            System.setProperty("pztools.bridge.bootstrap.api", "9");
+            System.setProperty("pztools.bridge.bootstrap.api", "10");
             // Published only after the listener is bound. Never print this credential.
             System.setProperty(CONTROL_PROPERTY, "2:" + ProcessHandle.current().pid() + ":"
                 + server.getLocalPort() + ":" + secret);
@@ -73,7 +78,7 @@ public final class AgentEntry {
         synchronized (runtimeGate) {
             Path directory = payload.getParent().resolve("extensions");
             var archive = ClassArchive.read(directory.resolve("pztools-extension-runtime.jar"));
-            archive.require("PzTools-Extension-Api", Integer.toString(pztools.extensions.api.SaveProvider.API_MAJOR));
+            archive.require("PzTools-Extension-Api", Integer.toString(ExtensionApi.HOST_ABI));
             if (extensionHost == null || !archive.digest().equals(extensionRuntimeDigest)) {
                 var loader = archive.loader("pztools.extensions.runtime", AgentEntry.class.getClassLoader(), true);
                 var next = (SaveModules)loader.loadClass("pztools.extensions.runtime.ModuleHost")
@@ -88,10 +93,10 @@ public final class AgentEntry {
     public static boolean runtimeReloadRequested() { return reloadRequested; }
 
     /** No callback is executed under runtimeGate or the admission monitor. */
-    private static Method preparePayload(Path requested, boolean watch) throws Exception {
+    private static Method preparePayload(Path requested, String kind) throws Exception {
         synchronized (runtimeGate) {
             var archive = ClassArchive.read(requested);
-            archive.require("PzTools-Bootstrap-Api", "9");
+            archive.require("PzTools-Bootstrap-Api", "10");
             if (payloadRun != null && archive.digest().equals(payloadDigest)) {
                 if (!payload.equals(requested)) {
                     synchronized (AgentEntry.class) {
@@ -99,7 +104,7 @@ public final class AgentEntry {
                         payload = requested;
                     }
                 }
-                return watch ? payloadWatch : payloadRun;
+                return kind.equals("WATCH") ? payloadWatch : kind.equals("EXTENSIONS") ? payloadExtensions : payloadRun;
             }
             synchronized (AgentEntry.class) {
                 if (session.get() || callback != null) throw new ReloadBusy();
@@ -108,20 +113,22 @@ public final class AgentEntry {
             var loader = archive.loader("pztools.bridge.runtime", AgentEntry.class.getClassLoader(), false);
             Method next = loader.loadClass("pztools.bridge.runtime.SaveBridge").getMethod("run", String.class, Instrumentation.class);
             Method nextWatch = loader.loadClass("pztools.bridge.runtime.RuntimeWatch").getMethod("run", String.class, Instrumentation.class);
+            Method nextExtensions = loader.loadClass("pztools.bridge.runtime.ExtensionControl").getMethod("run", String.class, Instrumentation.class);
             reloadRequested = true;
             synchronized (AgentEntry.class) { dispatchPaused = true; }
             try {
                 long deadline = System.nanoTime() + 3_000_000_000L;
                 while (true) {
                     synchronized (AgentEntry.class) {
-                        if (!session.get() && !watchSession.get() && callback == null && observerCallback == null && dispatching == 0) break;
+                        if (!session.get() && !watchSession.get() && !extensionSession.get() && callback == null
+                                && observerCallback == null && lifecycleCallback == null && dispatching == 0) break;
                     }
                     if (System.nanoTime() >= deadline) throw new ReloadBusy();
                     Thread.sleep(10); // Control thread only; never wait in game dispatch.
                 }
-                payloadRun = next; payloadWatch = nextWatch; payloadDigest = archive.digest();
+                payloadRun = next; payloadWatch = nextWatch; payloadExtensions = nextExtensions; payloadDigest = archive.digest();
                 payload = requested; payloadLoads++;
-                return watch ? nextWatch : next;
+                return kind.equals("WATCH") ? nextWatch : kind.equals("EXTENSIONS") ? nextExtensions : next;
             } finally {
                 synchronized (AgentEntry.class) { dispatchPaused = false; }
                 reloadRequested = false;
@@ -138,7 +145,7 @@ public final class AgentEntry {
                 var output = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 String line = readLimited(input);
                 String[] parts = line == null ? new String[0] : line.split("\\t", -1);
-                if ((parts.length != 4 && !(parts.length == 5 && parts[4].equals("WATCH"))) || !MessageDigest.isEqual(secret.getBytes(StandardCharsets.US_ASCII),
+                if ((parts.length != 4 && !(parts.length == 5 && (parts[4].equals("WATCH") || parts[4].equals("EXTENSIONS")))) || !MessageDigest.isEqual(secret.getBytes(StandardCharsets.US_ASCII),
                         parts[0].getBytes(StandardCharsets.US_ASCII))) {
                     output.println("REJECTED");
                     continue;
@@ -150,15 +157,15 @@ public final class AgentEntry {
                     output.println("RESTART_REQUIRED");
                     continue;
                 }
-                boolean watch = parts.length == 5;
+                String kind = parts.length == 5 ? parts[4] : "SAVE";
                 Method entry;
-                try { entry = preparePayload(requestedPayload.normalize(), watch); }
+                try { entry = preparePayload(requestedPayload.normalize(), kind); }
                 catch (ReloadBusy busy) { output.println("BUSY"); continue; }
                 catch (Exception incompatible) { output.println("PAYLOAD_UNAVAILABLE"); continue; }
-                AtomicBoolean slot = watch ? watchSession : session;
+                AtomicBoolean slot = kind.equals("WATCH") ? watchSession : kind.equals("EXTENSIONS") ? extensionSession : session;
                 if (!slot.compareAndSet(false, true)) { output.println("BUSY"); continue; }
                 try {
-                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2], watch, entry), watch ? "PzTools-runtime-watch" : "PzTools-save-bridge");
+                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2], kind, entry), "PzTools-" + kind.toLowerCase(Locale.ROOT));
                     worker.setDaemon(true);
                     worker.start();
                     output.println("ACCEPTED");
@@ -173,13 +180,13 @@ public final class AgentEntry {
         }
     }
 
-    private static void runSession(String options, boolean watch, Method invokeEntry) {
+    private static void runSession(String options, String kind, Method invokeEntry) {
         try {
-            if (!watch) sessions++;
+            if (kind.equals("SAVE")) sessions++;
             invokeEntry.invoke(null, options, instrumentation);
         } catch (Throwable failure) {
             System.err.println("[PzTools bridge session] " + failure);
-        } finally { (watch ? watchSession : session).set(false); }
+        } finally { (kind.equals("WATCH") ? watchSession : kind.equals("EXTENSIONS") ? extensionSession : session).set(false); }
     }
 
     /** Installs only the stable dispatch call, never a callback owned by a payload loader. */
@@ -253,12 +260,19 @@ public final class AgentEntry {
         owner = null;
     }
     public static void observe(Runnable observer) { observerCallback = observer; }
+    public static synchronized boolean acquireLifecycle(Object candidate, Runnable poll) {
+        if (lifecycleOwner != null) return false;
+        lifecycleOwner = candidate; lifecycleCallback = poll; return true;
+    }
+    public static synchronized void releaseLifecycle(Object candidate) {
+        if (lifecycleOwner == candidate) { lifecycleCallback = null; lifecycleOwner = null; }
+    }
     public static void poll() {
-        Runnable observer, current;
+        Runnable observer, current, lifecycle;
         synchronized (AgentEntry.class) {
             if (dispatchPaused) return;
-            observer = observerCallback; current = callback;
-            if (observer == null && current == null) return;
+            observer = observerCallback; current = callback; lifecycle = lifecycleCallback;
+            if (observer == null && current == null && lifecycle == null) return;
             dispatching++;
         }
         try {
@@ -266,6 +280,12 @@ public final class AgentEntry {
                 try { observer.run(); }
                 catch (Throwable failure) {
                     synchronized (AgentEntry.class) { if (observerCallback == observer) observerCallback = null; }
+                }
+            }
+            if (lifecycle != null) {
+                try { lifecycle.run(); }
+                catch (Throwable failure) {
+                    synchronized (AgentEntry.class) { if (lifecycleCallback == lifecycle) lifecycleCallback = null; }
                 }
             }
             if (current != null) current.run();

@@ -19,7 +19,10 @@ public sealed class RuntimeSnapshotStore(TimeProvider? timeProvider = null)
         if (value is null) return RuntimeObservation.Unknown("connecting");
         var elapsed = Math.Max(0, (long)clock.GetElapsedTime(value.Timestamp).TotalMilliseconds);
         var age = Math.Min(long.MaxValue - elapsed, value.Observation.AgeMilliseconds) + elapsed;
-        var result = value.Observation with { AgeMilliseconds = age };
+        var extension = value.Observation.Extension;
+        var result = value.Observation with { AgeMilliseconds = age,
+            Extension = extension is null ? null : extension with {
+                AgeMilliseconds = Math.Min(long.MaxValue - elapsed, extension.AgeMilliseconds) + elapsed } };
         return result.Quality == RuntimeQuality.Fresh && (!result.IsFresh
             || result.Snapshot!.SampleAgeMilliseconds > 2000 - Math.Min(age, 2000))
             ? result with { Quality = RuntimeQuality.Stale, Reason = "stale-game-sample" } : result;
@@ -32,10 +35,12 @@ public static class RuntimeStateFeed
     public static string PipeName(string schedulerPath) => "PzTools.Runtime." + Convert.ToHexString(
         SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(schedulerPath).ToUpperInvariant())))[..24];
 
-    public static Task ServeAsync(string schedulerPath, RuntimeSnapshotStore source, CancellationToken token) =>
-        Task.WhenAll(Enumerable.Range(0, 4).Select(_ => ServeOneAsync(PipeName(schedulerPath), source, token)));
+    public static Task ServeAsync(string schedulerPath, RuntimeSnapshotStore source, CancellationToken token,
+        RuntimeExtensionStatusStore? extensions = null) =>
+        Task.WhenAll(Enumerable.Range(0, 4).Select(_ => ServeOneAsync(PipeName(schedulerPath), source, token, extensions)));
 
-    private static async Task ServeOneAsync(string name, RuntimeSnapshotStore source, CancellationToken token)
+    private static async Task ServeOneAsync(string name, RuntimeSnapshotStore source, CancellationToken token,
+        RuntimeExtensionStatusStore? extensions)
     {
         while (!token.IsCancellationRequested)
         {
@@ -49,7 +54,9 @@ public static class RuntimeStateFeed
                 {
                     using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
                     deadline.CancelAfter(TimeSpan.FromSeconds(2));
-                    await writer.WriteLineAsync(RuntimeJson.Write(source.Read()).AsMemory(), deadline.Token);
+                    var observation = source.Read();
+                    if (extensions is not null) observation = observation with { Extension = extensions.Read() };
+                    await writer.WriteLineAsync(RuntimeJson.Write(observation).AsMemory(), deadline.Token);
                     await Task.Delay(250, token);
                 }
             }

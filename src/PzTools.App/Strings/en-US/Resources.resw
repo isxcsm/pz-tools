@@ -453,4 +453,27 @@ Applies to the selected single-player save after you stop playing.</value></data
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>The support link is not available yet.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Game is not running</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Character sleeping</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Vehicle Driving Improvements</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Improve forward acceleration and shifting, reversing, and keyboard steering independently. Experimental; single-player only.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Natural acceleration and shifting</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Adjust forward acceleration to engine speed and gear.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Smooth reversing</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Ease into reverse and limit reversing speed.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Fine steering control</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Make keyboard steering and return to center gradual.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Each option saves independently. The confirmed in-game state appears below.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Applied in game · Experimental</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>On requested · Waiting for game confirmation</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Off confirmed · Original driving</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Off requested · Applied state unconfirmed</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Still active · Turning off</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Active · Updated settings awaiting confirmation</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Unsupported · Original driving</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Extension error · Original driving</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Restart the game to use this extension</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Details: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Applying changes in the game.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>The extension could not be applied. Check the logs for details.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Saved settings will be applied when you enter a single-player game.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.</value></data>
 </root>

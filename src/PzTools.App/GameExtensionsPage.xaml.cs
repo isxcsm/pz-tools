@@ -1,11 +1,8 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
 using PzTools.App.Core;
-using PzTools.GameExtensions;
-using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.App;
 
@@ -13,11 +10,10 @@ public sealed partial class GameExtensionsPage : UserControl
 {
     private GameExtensionsView? snapshot;
     private bool refreshing;
-    private bool applying;
-    private bool dialogOpen;
     private IDisposable? subscription;
     private long viewRevision;
-    private readonly Dictionary<string, ToggleSwitch> toggles = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ExtensionSettingsSection> sections = new(StringComparer.Ordinal);
+    public ObservableCollection<SettingsExpander> Sections { get; } = [];
     private App App => (App)Application.Current;
 
     public GameExtensionsPage()
@@ -41,190 +37,83 @@ public sealed partial class GameExtensionsPage : UserControl
         Language = Localizer.Culture.Name;
         PageTitle.Text = Localizer.Get("GameExtensions.Title");
         ErrorInfo.Title = Localizer.Get("GameExtensions.SettingsError");
-        if (snapshot is not null) Render(snapshot);
+        ErrorInfo.Message = Localizer.Get("GameExtensions.SettingsErrorBody");
+        if (snapshot is not null) UpdateView(snapshot);
     }
 
     internal async Task RefreshForNavigationAsync()
     {
-        if (refreshing || applying) return;
-        var host = App.Host;
-        if (host is null) return;
+        if (refreshing || App.Host is not { } host) return;
         refreshing = true;
         LoadingIndicator.Visibility = snapshot is null ? Visibility.Visible : Visibility.Collapsed;
         LoadingIndicator.IsActive = snapshot is null;
-        try { Render(await host.GameExtensions.RefreshAsync()); }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
-        { ShowSettingsError(); }
+        try
+        {
+            await host.GameExtensions.RefreshAsync();
+            ApplyLatestView();
+        }
+        catch (Exception exception) when (IsSettingsError(exception)) { ShowSettingsError(); }
         finally { refreshing = false; LoadingIndicator.IsActive = false; LoadingIndicator.Visibility = Visibility.Collapsed; }
     }
 
     private void ApplyLatestView()
     {
-        if (applying || dialogOpen || App.Host is not { } host) return;
+        if (App.Host is not { } host) return;
         var changed = host.Views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, viewRevision);
-        if (changed.Modified && changed.Snapshot is { } view) { viewRevision = changed.ViewRevision; Render(view); }
-    }
-    private static string VersionDescription(ExtensionCardView card)
-    {
-        var support = card.Definition.SupportedVersions ?? GameVersionSupport.All;
-        string range = support.Scope == VersionSupportScope.All ? Localizer.Get("GameExtensions.VersionAll")
-            : Localizer.Format(support.Scope == VersionSupportScope.Major ? "GameExtensions.VersionMajor" : "GameExtensions.VersionMinor", support.RangeText);
-        return Localizer.Format("GameExtensions.VersionInfo", range, card.GameVersion ?? Localizer.Get("Unknown"));
-    }
-    private static string StatusText(ExtensionCardView item) => Localizer.Get(item.StatusCode switch
-    {
-        "version-mismatch" => "GameExtensions.VersionMismatch",
-        "version-unknown" => "GameExtensions.VersionUnknown",
-        "forced-version" => "GameExtensions.ForcedVersion",
-        "disabled" => "GameExtensions.Disabled",
-        _ => "GameExtensions.AwaitingValidation",
-    });
-    private void Render(GameExtensionsView view)
-    {
-        snapshot = view;
-        Cards.Children.Clear();
-        toggles.Clear();
-        foreach (var item in view.Cards)
+        if (changed.Modified && changed.Snapshot is { } view)
         {
-            var description = new StackPanel { Spacing = 4 };
-            description.Children.Add(new TextBlock
-            {
-                Text = Localizer.Get(item.Definition.DescriptionKey), TextWrapping = TextWrapping.Wrap,
-            });
-            description.Children.Add(new TextBlock
-            {
-                Text = !view.GameSavingEnabled && item.Definition.Capabilities.Contains("save.prepare.v1") ? Localizer.Get("GameSaveSetting.Header") + ": " + Localizer.Get("SettingDisabled")
-                    : StatusText(item),
-                TextWrapping = TextWrapping.Wrap,
-            });
-            description.Children.Add(new TextBlock { Text = VersionDescription(item), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
-            if (view.LastSave is { } last && last.RequestedProvider == item.Definition.Id)
-            {
-                string text = last.Outcome switch
-                {
-                    RuntimeSaveOutcome.Running => Localizer.Get("GameExtensions.ExecutionRunning"),
-                    RuntimeSaveOutcome.Failed => Localizer.Format("GameExtensions.ExecutionFailed", last.Reason ?? "save-failed"),
-                    _ when last.Provider != item.Definition.Id => Localizer.Format("GameExtensions.ExecutionFallback", last.Reason ?? "module-unavailable"),
-                    _ => Localizer.Get("GameExtensions.ExecutionSucceeded"),
-                };
-                description.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
-                if (last.Outcome != RuntimeSaveOutcome.Running)
-                    description.Children.Add(new TextBlock { Text = Localizer.Format("GameExtensions.ExecutionTiming", last.GameThreadMilliseconds, last.ElapsedMilliseconds), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
-            }
-            var toggle = new ToggleSwitch
-            {
-                IsOn = item.Enabled, IsEnabled = !applying && item.CanEnable,
-                OnContent = Localizer.Get("SettingEnabled"), OffContent = Localizer.Get("SettingDisabled"),
-            };
-            AutomationProperties.SetName(toggle, Localizer.Get(item.Definition.TitleKey));
-            toggle.Toggled += async (_, _) => await SetEnabledAsync(item, toggle.IsOn);
-            toggles[item.Definition.Id] = toggle;
-            // SettingsCard supplies native hover/pressed, keyboard and Invoke behavior.
-            // Its interactive ToggleSwitch content keeps its own input handling.
-            var card = new SettingsCard
-            {
-                Header = Localizer.Get(item.Definition.TitleKey), Description = description,
-                HeaderIcon = new ImageIcon { Width = 20, Height = 20,
-                    Source = new SvgImageSource(new Uri("ms-appx:///Assets/Navigation/extensions.svg")) },
-                Content = toggle, IsClickEnabled = true, IsEnabled = !applying,
-                IsActionIconVisible = true,
-                ActionIconToolTip = Localizer.Get("GameExtensions.Configure"),
-            };
-            AutomationProperties.SetName(card, Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)));
-            card.Click += async (_, _) => await ConfigureAsync(item);
-            Cards.Children.Add(card);
+            viewRevision = changed.ViewRevision;
+            UpdateView(view);
         }
     }
 
-    private async Task ConfigureAsync(ExtensionCardView item)
+    private void UpdateView(GameExtensionsView view)
     {
-        if (applying || dialogOpen) return;
-        dialogOpen = true;
-        try
+        snapshot = view;
+        var desired = new List<SettingsExpander>(view.Cards.Count);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var card in view.Cards)
         {
-            // The outer card owns activation. This dialog edits only extension options.
-            var current = snapshot?.Cards.FirstOrDefault(card => card.Definition.Id == item.Definition.Id) ?? item;
-            var force = new CheckBox
+            var id = card.Definition.Id;
+            ids.Add(id);
+            if (!sections.TryGetValue(id, out var section))
             {
-                Content = Localizer.Get("GameExtensions.ForceVersion"), IsChecked = current.ForceVersion,
-            };
-            var version = new TextBlock { Text = VersionDescription(current), TextWrapping = TextWrapping.Wrap };
-            var error = new InfoBar
-            {
-                IsClosable = false, Severity = InfoBarSeverity.Error,
-                Title = Localizer.Get("GameExtensions.SettingsError"),
-                Message = Localizer.Get("GameExtensions.SettingsErrorBody"),
-            };
-            var content = new StackPanel { Spacing = 16, MaxWidth = 460 };
-            content.Children.Add(new TextBlock { Text = Localizer.Get(item.Definition.DescriptionKey), TextWrapping = TextWrapping.Wrap });
-            content.Children.Add(version);
-            content.Children.Add(new TextBlock { Text = item.Definition.Id + " · " + item.Definition.Version });
-            content.Children.Add(force);
-            content.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.ForceWarning"), TextWrapping = TextWrapping.Wrap });
-            content.Children.Add(error);
-            var dialog = new LightDismissContentDialog
-            {
-                XamlRoot = XamlRoot, RequestedTheme = ActualTheme,
-                Title = Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)),
-                Content = content, DefaultButton = ContentDialogButton.None,
-            };
-            dialog.Closing += (_, args) => args.Cancel = applying;
-            dialog.KeyDown += (_, args) =>
-            {
-                if (args.Key != Windows.System.VirtualKey.Escape) return;
-                args.Handled = true;
-                if (!applying) dialog.Hide();
-            };
-            // Click is user-only: reflecting a committed value does not trigger another write.
-            force.Click += async (_, _) =>
-            {
-                if (applying) return;
-                force.IsEnabled = false;
-                error.IsOpen = false;
-                try
-                {
-                    current = snapshot?.Cards.FirstOrDefault(card => card.Definition.Id == item.Definition.Id) ?? current;
-                    var requestedForce = force.IsChecked == true;
-                    var enabled = current.Enabled && (current.VersionMatches || requestedForce);
-                    var saved = await SetEnabledAsync(current, enabled, requestedForce);
-                    current = snapshot?.Cards.FirstOrDefault(card => card.Definition.Id == item.Definition.Id) ?? current;
-                    force.IsChecked = current.ForceVersion;
-                    version.Text = VersionDescription(current);
-                    error.IsOpen = !saved;
-                }
-                finally { force.IsEnabled = true; }
-            };
-            await dialog.ShowAsync();
+                section = new ExtensionSettingsSection(id, (setting, value) => SaveEditAsync(id, setting, value));
+                sections.Add(id, section);
+            }
+            section.Update(view, card);
+            desired.Add(section.Control);
         }
-        finally { dialogOpen = false; ApplyLatestView(); }
+        // The same controls stay mounted through preference/runtime/localization updates.
+        // Only catalogue insertion/removal/reordering changes the visual collection.
+        IncrementalListReconciler.Reconcile(Sections, desired);
+        foreach (var removed in sections.Keys.Where(id => !ids.Contains(id)).ToArray()) sections.Remove(removed);
     }
-    private async Task<bool> SetEnabledAsync(ExtensionCardView item, bool enabled, bool? forceVersion = null)
+
+    private async Task SaveEditAsync(string id, GameExtensionSetting setting, bool value)
     {
-        if (applying || App.Host is not { } host) return false;
-        var saved = false;
-        applying = true;
-        foreach (var toggle in toggles.Values) toggle.IsEnabled = false;
+        if (App.Host is not { } host) { ShowSettingsError(); return; }
         try
         {
-            var view = await host.GameExtensions.SetPreferenceAsync(item.Definition.Id, enabled, forceVersion ?? item.ForceVersion, item.SettingsRevision);
+            await host.GameExtensions.ApplyEditAsync(id, setting, value);
             ErrorInfo.IsOpen = false;
-            snapshot = view;
-            saved = true;
         }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        catch (Exception exception) when (IsSettingsError(exception))
         {
             ShowSettingsError();
-            // A conflict never overwrites another client's settings. Re-read the committed state.
-            try { snapshot = await host.GameExtensions.RefreshAsync(); }
-            catch (Exception reload) when (reload is IOException or InvalidDataException or UnauthorizedAccessException) { }
+            // A concurrent external writer may have won. Reflect committed data, never replay a stale snapshot.
+            try { await host.GameExtensions.RefreshAsync(); }
+            catch (Exception reload) when (IsSettingsError(reload)) { }
         }
         finally
         {
-            applying = false;
-            if (snapshot is not null) Render(snapshot);
+            // Read the revisioned store, not an async command's potentially older return value.
+            ApplyLatestView();
         }
-        return saved;
     }
+
+    private static bool IsSettingsError(Exception exception) =>
+        exception is IOException or InvalidDataException or UnauthorizedAccessException;
 
     private void ShowSettingsError()
     {

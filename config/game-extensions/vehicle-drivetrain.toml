@@ -1,0 +1,48 @@
+# Experimental normalized game-force profile. Native force/time calibration and driving E2E remain pending.
+# Optional overrides: <runtimeRoot>/extensions/vehicle-drivetrain.toml (same flat keys).
+schema_version = 1
+# The app's three feature preferences (including unwritten UI defaults) override these transport defaults.
+torque_enabled = true            # Forward acceleration and transmission; independent of reverse/steering
+reverse_enabled = true           # Smooth reverse launch and direction transitions
+steering_enabled = true          # Progressive keyboard steering; gamepads retain original behavior
+force_scale = 1.0                 # 0.25..1.5; not an SI horsepower conversion
+low_gear_boost = 1.0              # 1.0..1.6; default adds no extra first-gear boost
+reverse_force_ratio = 0.85        # 0.4..1.0; relative to first gear
+reverse_max_speed_kph = 22.0      # 4..35; experimental soft propulsion governor, not a real-car specification
+reverse_ramp_seconds = 0.8        # 0.3..2.0; throttle AND delivered-force rise
+forward_ramp_seconds = 0.3        # 0.1..2.0
+direction_hold_seconds = 0.15     # 0.05..0.75; near-stop dwell before direction change
+max_dt_seconds = 0.1              # 0.02..0.25; larger gaps yield to the original controller
+shift_hold_seconds = 0.35         # 0.1..2.0
+upshift_rpm_fraction = 0.82       # 0.65..0.95; must exceed downshift by at least 0.15
+downshift_rpm_fraction = 0.32     # 0.15..0.55
+# Candidate profiles, not measured physical gearboxes. Unknown engine types stay unsupported.
+gear_ratio_span = 3.6            # 2.5..5.0; first/top ratio, geometrically spaced over 3..5 gears
+idle_rpm = 800.0                 # 500..1200; must be below launch_rpm
+launch_rpm = 1500.0              # 1000..2500; below all redlines and the minimum post-upshift RPM
+generic_redline_rpm = 5500.0      # 3000..6500; generic engine family
+utility_redline_rpm = 4500.0      # 3000..6500; van/jeep families
+sport_redline_rpm = 6500.0        # 3000..6500; firebird family
+generic_torque_peak_fraction = 0.50 # 0.25..0.80 of redline
+utility_torque_peak_fraction = 0.40 # 0.25..0.80 of redline
+sport_torque_peak_fraction = 0.65   # 0.25..0.80 of redline
+idle_torque_fraction = 0.60      # 0.30..0.80; bounded low-RPM curve baseline, not physical Nm
+rpm_response_seconds = 0.12     # 0.04..0.50; exponential RPM response time constant
+direction_speed_mps = 0.15      # 0.05..0.30; opposite-motion threshold for direction hold
+forward_governor_start_fraction = 1.0 # 0.75..1.0; default does not reduce propulsion before the nominal limit
+reverse_governor_start_fraction = 0.75 # 0.50..0.90 of the reverse limit
+shift_hysteresis_fraction = 0.08 # 0.04..0.15; lower-gear RPM separation from its upshift threshold
+demand_downshift_fraction = 0.48 # 0.25..0.60; kick-down request RPM threshold with >80% demand
+# Cross-check: min(redlines) * upshift_rpm_fraction / sqrt(gear_ratio_span) >= launch_rpm.
+# Low-mode over-rev protection and final torque fade remain bounded algorithm guards, not bypass options.
+# Center-to-lock response is time-compressed 3x: input rates x3, ramp duration /3.
+steering_initial_rate = 1.8     # 0.1..3.0; normalized steering travel per second on first input
+steering_full_rate = 7.5        # 0.5..8.0; sustained input; must be >= steering_initial_rate
+steering_ramp_seconds = 0.1     # 0.05..1.0; first-input to full steering rate
+steering_return_rate = 3.0      # 0.5..10.0; release-to-center rate
+steering_countersteer_rate = 4.0 # 0.5..12.0; unwind rate when pressing the opposite direction
+steering_high_speed_rate_factor = 0.6 # 0.2..1.0; rate fraction at maximum speed; original angle cap is preserved
+# Developer-only controls. Not exposed by the three user-facing switches.
+low_mode = false
+probe_only = false               # Observe without committing force/RPM/gear changes
+diagnostics_enabled = false      # Bounded latest sample and one-second aggregate driving diagnostics

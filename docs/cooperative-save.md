@@ -1,5 +1,7 @@
 # Frame-budgeted backup save (0.11)
 
+[Documentation index](README.md) · [Game extensions](game-extensions.md)
+
 This fixes the measured 0.10 main-thread batching problem; it is not a claim that
 uninterrupted real-game frame times have already been verified.
 

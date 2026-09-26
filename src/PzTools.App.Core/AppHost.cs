@@ -32,6 +32,7 @@ public sealed class AppHost : IAsyncDisposable
     private readonly object statusGate = new();
     private bool started;
     private readonly RuntimeSnapshotStore runtimeSnapshot = new();
+    private readonly ExtensionRuntimeDiagnostics extensionDiagnostics;
     private readonly SemaphoreSlim refreshGate = new(1, 1);
     private readonly object disposalGate = new();
     private Task? disposalTask;
@@ -79,12 +80,16 @@ public sealed class AppHost : IAsyncDisposable
         Projections = projections ?? new ProjectionHost();
         TelemetrySources = telemetrySources ?? new TelemetrySourceCatalog();
         Settings = new AppSettingsService(this.paths.RuntimeRoot, HasRunningOperation);
+        extensionDiagnostics = new(this.paths.RuntimeRoot, () => LogInbox);
         GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
             () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
             Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"),
             () => { var o = runtimeSnapshot.Read(); var s = o.Snapshot; var result = s?.LastSave;
-                return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; });
+                return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; },
+            () => ExtensionActivationView.SelectCurrentStatus(runtimeSnapshot.Read()),
+            () => { var o = runtimeSnapshot.Read(); return o.IsFresh && o.Snapshot?.IsWorldReady == true; },
+            extensionDiagnostics);
     }
 
     public RevisionedViewStore Views { get; }
@@ -229,6 +234,7 @@ public sealed class AppHost : IAsyncDisposable
         };
         var stateArguments = new[]
         {
+            "--runtime-root", paths.RuntimeRoot,
             "--scheduler-db", scheduler.DatabasePath,
             "--state-db", state.DatabasePath,
             "--saves-root", settings.SavesRoot,
@@ -269,7 +275,11 @@ public sealed class AppHost : IAsyncDisposable
                 WaitForSupervisorsAsync(),
                 DrainProjectionsAsync()).ConfigureAwait(false);
         }
-        finally { lifetime.Dispose(); }
+        finally
+        {
+            await extensionDiagnostics.FlushAsync().ConfigureAwait(false);
+            lifetime.Dispose();
+        }
 
         async Task WaitForSupervisorsAsync()
         {

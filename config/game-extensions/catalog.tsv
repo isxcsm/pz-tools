@@ -1,2 +1,3 @@
-# id	module version	namespace	entry class	jar	support scope	minimum inclusive	maximum inclusive	title resource	description resource
-pztools.seamless-save	0.11.0	pztools.extensions.seamless	pztools.extensions.seamless.SeamlessSaveProvider	pztools-seamless-save.jar	All	-	-	Extension.SeamlessSave.Title	Extension.SeamlessSave.Description
+# id	module version	namespace	entry class	jar	support scope	minimum inclusive	maximum inclusive	title resource	description resource	capability
+pztools.seamless-save	0.11.0	pztools.extensions.seamless	pztools.extensions.seamless.SeamlessSaveProvider	pztools-seamless-save.jar	All	-	-	Extension.SeamlessSave.Title	Extension.SeamlessSave.Description	save.prepare.v1
+pztools.vehicle-drivetrain	0.2.0	pztools.extensions.vehicle	pztools.extensions.vehicle.VehicleDrivetrainProvider	pztools-vehicle-drivetrain.jar	Minor	42.20	42.20	Extension.VehicleDrivetrain.Title	Extension.VehicleDrivetrain.Description	vehicle.drivetrain.v1

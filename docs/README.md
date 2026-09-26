@@ -48,6 +48,7 @@ GitHub does not switch README language automatically; select a guide explicitly.
 | [Deployment layout / 배포·데이터 경로](deployment-layout.md) | 한국어 | App files, user data and backup folders / 실행 파일과 데이터 구분 |
 | [CLI commands / 명령줄](cli.md) | 한국어 | Backup, restore, ZIP and maintenance commands / 작업별 명령 |
 | [Game extensions / 게임 확장](game-extensions.md) | English | Staged implementation and save-provider safety boundaries / 단계별 구현 범위 |
+| [Seamless save E2E / 저장 확장 E2E](e2e-seamless-save.md) | English | Disposable-world acceptance procedure / 테스트 월드 수락 절차 |
 | [Runtime pause / 게임 상태·일시정지](runtime-pause-backups.md) | English | Observation, pause/resume, guarded saving and state ownership / 관측·시간·저장 안전성 |
 | [Game-save bridge / 게임 저장 연동](save-bridge.md) | English | Connection behavior, game-version limits and build details / 게임 연결과 제한 |
 | [Character recovery / 캐릭터 회복](character-recovery.md) | English | Supported edits, inventory limits and interrupted edits / 지원 범위와 중단 처리 |
@@ -64,6 +65,11 @@ GitHub does not switch README language automatically; select a guide explicitly.
 | [USN tracking / USN 변경 추적](usn-journal.md) | 한국어 | Windows file-change tracking and fallback / 변경 감지와 전체 스캔 |
 | [Stable capture / 파일 복사 검증](stable-capture.md) | 한국어 | Copy verification, retries and inaccessible files / 검증·재시도·접근 실패 |
 | [Process architecture / 프로세스 구조](process-architecture.md) | 한국어 | Workers, scheduling, ownership and recovery / 작업 프로세스와 복구 |
+| [Cooperative saving / 분할 저장](cooperative-save.md) | English | Frame-budgeted capture and ownership / 프레임 분할·소유권 |
+| [Native save completion / native 저장 완료](seamless-native-wait.md) | English | Private native completion and its limits / 별도 native 완료 경로·제한 |
+| [JVM module reload / JVM 모듈 교체](module-reload.md) | English | Compatible generations and retirement / 호환 세대 교체·해제 |
+| [Vehicle drivetrain design / 차량 구동계 확장 설계](vehicle-drivetrain-design.md) | 한국어 | Torque/shift/reverse implementation design, integration risks and validation gates / 차량 구동계 구현 설계·위험·검증 기준 |
+| [Vehicle drivetrain E2E / 차량 구동계 E2E](e2e-vehicle-drivetrain.md) | 한국어 | Experimental candidate setup, user driving checks, tuning and rollback / 실행 후보·사용자 주행 검증·튜닝·복귀 |
 | [Telemetry / 진단 기록](telemetry.md) | 한국어 | Event storage, projections and progress / 로그와 진행률 |
 | [UI contract / 화면 설계](ui-ux-contract.md) | 한국어 | View and interaction contract; compare with current implementation / 화면·상호작용 계약 |
 | [UI assets / 앱 아이콘](ui-assets.md) | 한국어 | Icon sources and generated assets / 아이콘 원본과 생성물 |

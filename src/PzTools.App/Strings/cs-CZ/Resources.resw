@@ -446,4 +446,27 @@ Použije se na vybranou pozici pro jednoho hráče po ukončení hraní.</value>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Odkaz na podporu zatím není k dispozici.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Hra není spuštěna</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Postava spí</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Vylepšení řízení vozidel</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Samostatně vylepšuje zrychlování vpřed, řazení, couvání a řízení klávesnicí. Experimentální; pouze pro jednoho hráče.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Přirozené zrychlování a řazení</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Přizpůsobuje zrychlování vpřed otáčkám motoru a převodovému stupni.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Plynulé couvání</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Zjemňuje rozjezd při couvání a omezuje jeho rychlost.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Jemné řízení</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Zajišťuje pozvolné řízení klávesnicí a návrat do středové polohy.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Každá volba se ukládá samostatně. Níže je stav potvrzený hrou.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Použito ve hře · Experimentální</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Zapnutí vyžádáno · Čeká se na potvrzení hry</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Vypnutí potvrzeno · Původní jízdní vlastnosti</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Vypnutí vyžádáno · Stav nepotvrzen</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Stále aktivní · Probíhá vypínání</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Aktivní · Čeká se na potvrzení nového nastavení</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Nepodporováno · Původní jízdní vlastnosti</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Chyba rozšíření · Původní jízdní vlastnosti</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Pro použití tohoto rozšíření restartujte hru</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Podrobnosti: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Používání změn ve hře.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Rozšíření se nepodařilo použít. Podrobnosti najdete v protokolech.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Uložená nastavení se použijí po vstupu do hry pro jednoho hráče.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pro použití pokračujte ve hře, zastavte vozidlo, uvolněte plyn a vypněte tempomat.</value></data>
 </root>

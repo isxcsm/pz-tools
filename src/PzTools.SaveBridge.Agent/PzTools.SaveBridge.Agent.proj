@@ -47,6 +47,6 @@
     <Exec Command="&quot;$(BridgeJdkPath)\bin\jlink.exe&quot; --add-modules jdk.attach --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output &quot;$(BridgeOutputPath)\runtime&quot;" />
     <Touch Files="$(BridgeOutputPath)\runtime-built.txt" AlwaysCreate="true" />
   </Target>
-  <Target Name="BuildExtensions" DependsOnTargets="ValidateBridgeToolchain"><MSBuild Projects="..\PzTools.GameExtensions.SeamlessSave\PzTools.GameExtensions.SeamlessSave.proj" Targets="Build" Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" /></Target>
+  <Target Name="BuildExtensions" DependsOnTargets="ValidateBridgeToolchain"><MSBuild Projects="..\PzTools.GameExtensions.SeamlessSave\PzTools.GameExtensions.SeamlessSave.proj;..\PzTools.GameExtensions.VehicleDrivetrain\PzTools.GameExtensions.VehicleDrivetrain.proj" Targets="Build" Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" /></Target>
   <Target Name="Build" DependsOnTargets="PrepareAgent;BuildNative;BuildAgent;BuildRuntime;BuildExtensions" />
 </Project>

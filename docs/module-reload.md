@@ -1,12 +1,12 @@
 # Compatible JVM component updates
 
-[Game extensions](game-extensions.md) · [Save bridge](save-bridge.md)
+[Documentation index](README.md) · [Game extensions](game-extensions.md) · [Save bridge](save-bridge.md)
 
 ## User-visible policy
 
-Bootstrap API **9**, extension API **2**, save wire protocol **6**.
-A resident API 8 or older cannot gain this lifecycle retroactively: migrate with one
-game restart. With API9 resident, compatible updates are detected at the next request.
+Bootstrap API **10**, extension host ABI **3**, save wire protocol **6**.
+A resident API 9 or older cannot gain the continuous vehicle dispatcher retroactively:
+migrate with one game restart. With API10 resident, compatible updates are detected at the next request.
 The app executable may still need restarting for its own files; the game need not.
 This is module replacement under a resident agent, not forced JVM class unloading.
 
@@ -24,6 +24,9 @@ This is module replacement under a resident agent, not forced JVM class unloadin
 A module check runs on an explicit save request, not every game frame or filesystem
 notification. Updating files during a save does not change that accepted request.
 The next request selects the new generation after the old one has finished.
+This paragraph describes save providers. Continuous vehicle modules use a separate
+leased control session and settings revisions; they do not wait for a backup.
+See [vehicle lifecycle and acceptance](e2e-vehicle-drivetrain.md).
 Save diagnostics include `moduleVersion` and the SHA-256 of the exact loaded JAR.
 This is the actual executed module, not merely the version requested by a toggle.
 
