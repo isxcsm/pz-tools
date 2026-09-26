@@ -25,6 +25,11 @@ public final class VerifyInstalledSaveBytecode {
                 if (!errors.isEmpty()) throw new AssertionError(name + ": " + errors);
                 System.out.println("VERIFIED (not executed): " + name);
             }
+            var readiness = Class.forName("pztools.extensions.seamless.b4220.CaptureReadiness")
+                .getDeclaredConstructor(ClassLoader.class);
+            readiness.setAccessible(true);
+            readiness.newInstance(loader); // Class.forName(false) + field metadata only; never ready()/get static fields.
+            System.out.println("VERIFIED (not initialized): save readiness and database-thread field contracts");
         }
     }
 }

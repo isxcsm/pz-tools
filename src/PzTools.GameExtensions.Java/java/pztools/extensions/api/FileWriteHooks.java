@@ -12,6 +12,8 @@ public final class FileWriteHooks {
         boolean tryDefer(File file, ByteBuffer bytes) throws IOException;
         /** Called under the original read lock, before opening or measuring the file. */
         void beforeRead(File file) throws IOException;
+        /** Optional read-through of an owned immutable pending write; null retains the ordered disk read. */
+        default ByteBuffer tryRead(File file, ByteBuffer destination) throws IOException { return null; }
         default void beforeSynchronousSave() { }
     }
     private static volatile Handler handler;
@@ -31,6 +33,10 @@ public final class FileWriteHooks {
     public static void beforeSynchronousSave() {
         Handler current = handler;
         if (current != null) current.beforeSynchronousSave();
+    }
+    public static ByteBuffer tryRead(File file, ByteBuffer destination) throws IOException {
+        Handler current = handler;
+        return current == null ? null : current.tryRead(file, destination);
     }
     public static void beforeRead(File file) throws IOException {
         Handler current = handler;

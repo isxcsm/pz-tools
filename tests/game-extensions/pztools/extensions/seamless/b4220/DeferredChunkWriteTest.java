@@ -67,12 +67,19 @@ public final class DeferredChunkWriteTest {
                 ByteBuffer live = data(2); write(1, live); waitFor(started);
                 check(batch.deferred.get() == 1 && batch.retainedBytes() == 4, "Copy admitted and owned");
                 live.putInt(0, 999); // The game's shared buffer is immediately reused.
+                var loaded = threads.submit(() -> read(1));
+                check(loaded.get(10, TimeUnit.SECONDS) == 2, "Read-through finishes while the disk write is still blocked");
+                write(1, data(3));
+                var latest = (ByteBuffer)invoke("SafeRead", 1, ByteBuffer.allocate(1));
+                check(latest.position() == 0 && latest.limit() == 4 && latest.getInt() == 3, "Latest queued write wins; read buffer grows correctly");
+                latest.putInt(0, 1111);
+                check(read(1) == 3, "Game mutation cannot modify the write-back cache");
+                check(ByteBuffer.wrap(Files.readAllBytes(root.resolve("1_0.bin"))).getInt() == 1,
+                    "Read-through is not a false disk-commit receipt");
                 batch.seal();
                 var done = threads.submit(() -> { batch.await(); return true; });
-                var loaded = threads.submit(() -> read(1));
-                check(!done.isDone(), "Dequeued write cannot publish completion");
+                check(!done.isDone() && batch.readThrough.get() == 3, "Readers cannot finish the owned writes");
                 release.countDown();
-                check(loaded.get(10, TimeUnit.SECONDS) == 2, "Readers see the detached bytes, not stale/shared bytes");
                 done.get(10, TimeUnit.SECONDS);
                 check(error.get() == null && batch.retainedBytes() == 0, "Successful I/O releases memory and handles");
                 // Seal a second batch, then exercise ordinary saving while its earlier write is still pending.
@@ -135,6 +142,8 @@ public final class DeferredChunkWriteTest {
                 Path path = root.resolve("4_0.bin"), retired = root.resolve("retired.bin");
                 Files.move(path, retired);
                 Files.write(path, data(12).array());
+                check(io.tryRead(path.toFile(), ByteBuffer.allocate(4)) == null,
+                    "A replacement path must not read the retired file's pending bytes");
                 ctx.worldValid().set(false);
                 var done = thread.submit(() -> { batch.await(); return true; });
                 check(!done.isDone(), "World exit must not release an in-flight file write");

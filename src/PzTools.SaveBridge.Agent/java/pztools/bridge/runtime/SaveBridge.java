@@ -248,16 +248,26 @@ public final class SaveBridge {
                 catch (Exception exception) { request.noticeError = describe(exception); request.notice = null; }
             }
             if (System.nanoTime() < request.notBefore) return;
-            String actual = validateWorld(request.expectedPath);
+            String actual = request.context == null ? validateWorld(request.expectedPath) : request.saveDirectory;
             if (request.guard != null && request.guard.check() > 0) return;
             request.saveDirectory = actual;
             SaveProvider selected = request.provider;
             if (selected != null) {
-                request.cell = currentCell();
-                request.context = new SaveProvider.Context(request.id, JVM_SESSION, RuntimeIdentity.worldId(request.cell),
-                    Path.of(actual), Thread.currentThread(), gameLoader, new AtomicBoolean(true), PzRuntimeAdapter.readVersion(gameLoader), request.forceVersion);
+                if (request.context == null) {
+                    request.cell = currentCell();
+                    request.context = new SaveProvider.Context(request.id, JVM_SESSION, RuntimeIdentity.worldId(request.cell),
+                        Path.of(actual), Thread.currentThread(), gameLoader, new AtomicBoolean(true), PzRuntimeAdapter.readVersion(gameLoader), request.forceVersion);
+                } else if (currentCell() != request.cell) {
+                    request.context.worldValid().set(false);
+                    throw new BridgeFailure("save-world-changed", "World changed while waiting to prepare a save");
+                }
                 var support = selected.inspect(request.context);
                 if (!support.supported()) { request.fallbackReason = support.reason(); selected = null; }
+                else if (!selected.readyToCapture(request.context)) return;
+                actual = validateWorld(request.expectedPath);
+                request.saveDirectory = actual;
+                // A probe may race permission withdrawal. The guard and state CAS remain the admission boundary.
+                if (request.guard != null && request.guard.check() > 0) return;
             }
             if (!request.state.compareAndSet(1, 2)) return;
             request.saveStarted = System.nanoTime();

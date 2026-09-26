@@ -55,6 +55,7 @@ public final class ModuleHost implements SaveModules {
                         return new Support(false, context.gameVersion() == null ? "version-unknown" : "version-mismatch");
                     return provider.inspect(context);
                 }
+                public boolean readyToCapture(Context context) throws Exception { return provider.readyToCapture(context); }
                 public PreparedSave capture(Context context, long maximumBytes) throws Exception {
                     Support checked = inspect(context);
                     if (!checked.supported()) throw new IllegalStateException(checked.reason());

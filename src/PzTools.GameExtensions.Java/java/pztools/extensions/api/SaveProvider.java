@@ -14,6 +14,8 @@ public interface SaveProvider {
         return new Support(true, null);
     }
     Support inspect(Context context);
+    /** Side-effect-free game-thread probe. False yields to the next tick, never starts or partially saves. */
+    default boolean readyToCapture(Context context) throws Exception { context.requireGameThread(); return true; }
     PreparedSave capture(Context context, long maximumBytes) throws Exception;
 
     record Context(String requestId, String sessionId, String worldId, Path sourcePath,

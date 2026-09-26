@@ -440,4 +440,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Ultima richiesta: salvataggio standard utilizzato ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Ultima richiesta: salvataggio non riuscito ({0})</value></data>
   <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Preparazione nel thread del gioco: {0:N0} ms · completamento: {1:N0} ms</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Offrimi un caffè</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools ti è stato utile?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Il link per il supporto non è ancora disponibile.</value></data>
 </root>

@@ -28,7 +28,7 @@ def plan(paths, *, full=False, manual=False, benchmarks=False):
                          "src/PzTools.Scheduling/", "src/PzTools.Process.Hosting/",
                          "src/PzTools.Process.Contracts/", "scripts/build-save-bridge",
                          "scripts/test-save-bridge", "scripts/generate-bridge"))
-        or path.endswith(("GameSaveClientTests.cs", "GameSaveClientExtensionsTests.cs", "GameRuntimeBridgeTests.cs", "RuntimeExtensionIntegrationTests.cs", "ExtensionVersionTests.cs", "LiveCharacterBridgeTests.cs", "RuntimeDeathPolicyTests.cs")) for path in paths)
+        or path.endswith(("GameSaveClientTests.cs", "GameSaveClientExtensionsTests.cs", "SavePipelineIntegrationTests.cs", "GameRuntimeBridgeTests.cs", "RuntimeExtensionIntegrationTests.cs", "ExtensionVersionTests.cs", "LiveCharacterBridgeTests.cs", "RuntimeDeathPolicyTests.cs")) for path in paths)
     return dict(windows=full or (manual and not benchmarks) or any(not docs_only(path) for path in paths),
                 publish=publish, bridge=bridge, benchmarks=benchmarks)
 

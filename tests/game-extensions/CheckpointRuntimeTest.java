@@ -69,13 +69,46 @@ public final class CheckpointRuntimeTest {
                 check(job.poll().error() instanceof java.io.IOException, "Failure cause preserved");
             }
             try (var runtime = new CheckpointRuntime(1)) {
-                try { runtime.begin(new SeamlessSaveProvider(List.of(adapter)), context); throw new AssertionError("Oversized snapshot accepted"); }
-                catch (IllegalStateException expected) { }
+                var oversized = runtime.begin(new SeamlessSaveProvider(List.of(adapter)), context);
+                await(oversized);
+                check(oversized.poll().phase() == CheckpointRuntime.Phase.FAILED
+                    && oversized.poll().error() instanceof IllegalStateException, "Oversized snapshot cannot commit");
             }
+            failedCaptureCleanupIsOwned(context);
             System.out.println("PASS: unsupported adapter, detached capture, writer ownership, failure and memory budget");
         } finally {
             Files.deleteIfExists(directory.resolve("saved.bin"));
             Files.delete(directory);
+        }
+    }
+    private static void failedCaptureCleanupIsOwned(SaveProvider.Context context) throws Exception {
+        var closing = new CountDownLatch(1); var release = new CountDownLatch(1);
+        try (var runtime = new CheckpointRuntime(1)) {
+            var provider = new SaveProvider() {
+                public String id() { return "fixture.cleanup"; }
+                public Support inspect(Context ctx) { return new Support(true, null); }
+                public PreparedSave capture(Context ctx, long budget) {
+                    runtime.close(); // Shutdown races capture, but the completion worker was already admitted.
+                    return new PreparedSave() {
+                        public long retainedBytes() { return 2; } // Fail after acquiring a snapshot.
+                        public void commit() { throw new AssertionError("Rejected capture was committed"); }
+                        public void close() throws Exception {
+                            check(Thread.currentThread() != ctx.gameThread(), "Failure cleanup must not block game thread");
+                            closing.countDown();
+                            if (!release.await(10, TimeUnit.SECONDS)) throw new AssertionError("Fixture close timeout");
+                        }
+                    };
+                }
+            };
+            var failed = runtime.begin(provider, context);
+            try {
+                check(closing.await(10, TimeUnit.SECONDS), "Cleanup starts even during shutdown");
+                check(failed.poll() == null, "Failed capture still owns unfinished cleanup");
+                try { runtime.begin(provider, context); throw new AssertionError("Closing runtime accepted a new save"); }
+                catch (IllegalStateException expected) { }
+            } finally { release.countDown(); }
+            await(failed);
+            check(failed.poll().phase() == CheckpointRuntime.Phase.FAILED, "Failure is published only after cleanup");
         }
     }
     private static void await(CheckpointRuntime.Job job) throws Exception {

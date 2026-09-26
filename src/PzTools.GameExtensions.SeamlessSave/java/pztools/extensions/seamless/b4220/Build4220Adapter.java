@@ -24,6 +24,9 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         "zombie/MapCollisionData", "5ca2fd344cc34094ef218f657d516defa3f09e4f07e73a61bf45d43ee3cf3cae",
         "zombie/MapCollisionData$MCDThread", "3a1e6698ca64baa7b08c899286954970e56b978b241167ab62acf2403bb29961",
         "zombie/popman/ZombiePopulationManager", "d78514c622b513e5c43b5f6ab2f523f8a6bd64ae4f6efdde16d590351624072e");
+    private static final Map<String, String> BACKGROUND_CLASSES = Map.of(
+        "zombie/iso/ChunkSaveWorker", "b85359ec4a90030f4da9f048947fe69c7eccde341c2ff852e51be2e017dc90c5",
+        "zombie/iso/WorldStreamer", "da146ac8919e31902d805070f029a0276091892a06f36f38027780bb20d8f001");
     private final SaveSignals signals = new SaveSignals();
     private NativeSaveWait nativeWait;
     private final FileWriteHooks.Handler orderedWrites = new FileWriteHooks.Handler() {
@@ -31,6 +34,9 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             return chunkWrites.tryDefer(file, bytes);
         }
         public void beforeRead(java.io.File file) throws java.io.IOException { chunkWrites.beforeRead(file); }
+        public java.nio.ByteBuffer tryRead(java.io.File file, java.nio.ByteBuffer destination) throws java.io.IOException {
+            return chunkWrites.tryRead(file, destination);
+        }
         public void beforeSynchronousSave() {
             nativeWait.awaitBeforeWorldSave();
             chunkWrites.beforeSynchronousSave();
@@ -40,13 +46,14 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
     private final AtomicReference<Throwable> transformationFailure = new AtomicReference<>();
     private Method save, allowPlayers, getPlayers, updatePlayers, updateVehicles;
     private Field vehicles;
+    private CaptureReadiness readiness;
     private volatile boolean initialized;
     private ClassFileTransformer transformer;
     @Override public SaveProvider.Support initialize(Instrumentation instrumentation, ClassLoader loader) throws Exception {
         if (initialized) return new SaveProvider.Support(transformationFailure.get() == null, "game-code-changed");
         if (instrumentation == null || Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
             return new SaveProvider.Support(false, "unsupported-runtime");
-        for (var entry : java.util.stream.Stream.concat(GAME_CLASSES.entrySet().stream(), NATIVE_CLASSES.entrySet().stream()).toList()) {
+        for (var entry : java.util.stream.Stream.of(GAME_CLASSES, NATIVE_CLASSES, BACKGROUND_CLASSES).flatMap(map -> map.entrySet().stream()).toList()) {
             try (var input = loader.getResourceAsStream(entry.getKey() + ".class")) {
                 if (input == null) return new SaveProvider.Support(false, "unsupported-game-build");
                 byte[] bytes = input.readNBytes(4 * 1024 * 1024 + 1);
@@ -64,6 +71,8 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         allowPlayers = playerDb.getMethod("isAllow"); getPlayers = playerDb.getMethod("getInstance");
         updatePlayers = playerDb.getMethod("updateMain"); updateVehicles = vehicleDb.getMethod("updateMain");
         vehicles = vehicleDb.getField("instance");
+        readiness = new CaptureReadiness(loader);
+        PinnedFileIdentity.initialize(instrumentation);
         Class<?> chunk = Class.forName("zombie.iso.IsoChunk", false, loader);
         Class<?> collision = Class.forName("zombie.MapCollisionData", false, loader);
         nativeWait = new NativeSaveWait(loader);
@@ -114,13 +123,18 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         return new SaveProvider.Support(initialized && transformationFailure.get() == null,
             initialized ? "game-code-changed" : "adapter-not-initialized");
     }
+    @Override public boolean readyToCapture(SaveProvider.Context context) throws Exception {
+        context.requireGameThread();
+        return readiness.ready();
+    }
     @Override public SaveProvider.PreparedSave capture(SaveProvider.Context context, long maximumBytes) throws Exception {
         context.requireGameThread();
         if (!inspect(context).supported()) throw new IllegalStateException("Save adapter unavailable");
         boolean includePlayers = (boolean)allowPlayers.invoke(null);
         Object playerStore = includePlayers ? getPlayers.invoke(null) : null;
         Object vehicleStore = Objects.requireNonNull(vehicles.get(null), "Vehicle store unavailable");
-        var batch = signals.begin(context, includePlayers);
+        Thread databaseWorker = Objects.requireNonNull(readiness.databaseWorker(), "Database worker unavailable");
+        var batch = signals.begin(context, includePlayers, databaseWorker);
         try {
             // This intentionally remains on the game thread. OnSave, loaded/virtual vehicles,
             // chunk serialization and native world saving are NOT replaced by a partial imitation.

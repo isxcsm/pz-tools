@@ -89,7 +89,63 @@ public final class NativeSaveWaitTest {
             check(f.intValue("writes") == 1 && f.populationInt("finishes") == 1,
                 "No active module must preserve ordinary saving");
         }
+        combinedPipeline(classes, Path.of(args[1]));
         System.out.println("PASS: native save wait handoff, original worker, ordered saves/exit, failure, world change and fallback");
+    }
+    private static void combinedPipeline(Path nativeClasses, Path chunkClasses) throws Exception {
+        Path root = Files.createTempDirectory("pztools-combined-save-");
+        var releaseFile = new CountDownLatch(1); var fileStarted = new CountDownLatch(1);
+        try (Fixture f = new Fixture(nativeClasses, chunkClasses);
+             var io = new DeferredChunkWrites((channel, bytes) -> {
+                 fileStarted.countDown();
+                 try { if (!releaseFile.await(10, TimeUnit.SECONDS)) throw new java.io.IOException("File gate timed out"); }
+                 catch (InterruptedException stopped) { throw new java.io.IOException(stopped); }
+                 DeferredChunkWrites.writeBytes(channel, bytes);
+             })) {
+            FileWriteHooks.register(io);
+            try {
+                Class<?> chunks = f.loader.loadClass("ChunkIoTemplate");
+                chunks.getField("root").set(null, root.toFile());
+                Path file = root.resolve("1_0.bin");
+                Files.write(file, java.nio.ByteBuffer.allocate(4).putInt(1).array());
+                SaveSignals.Batch batch = f.game.submit(() -> {
+                    var context = new SaveProvider.Context("combined", "process", "world", root, Thread.currentThread(), f.loader);
+                    var captured = f.signals.begin(context, true);
+                    captured.nativeSave = f.nativeWait.begin(context, captured::fail);
+                    captured.chunks = io.begin(context, 32, captured::fail);
+                    try {
+                        chunks.getMethod("SafeWrite", int.class, int.class, java.nio.ByteBuffer.class)
+                            .invoke(null, 1, 0, java.nio.ByteBuffer.allocate(4).putInt(7));
+                        f.invoke("save");
+                    } finally { captured.arm(); }
+                    return captured;
+                }).get(10, TimeUnit.SECONDS);
+                check(fileStarted.await(10, TimeUnit.SECONDS), "File write did not enter"); f.await("entered");
+                Future<?> completed = f.complete(batch);
+                int loaded = f.game.submit(() -> ((java.nio.ByteBuffer)chunks.getMethod("SafeRead", int.class, int.class,
+                    java.nio.ByteBuffer.class).invoke(null, 1, 0, java.nio.ByteBuffer.allocate(4))).getInt()).get(10, TimeUnit.SECONDS);
+                check(loaded == 7 && !completed.isDone(), "Game read must continue, not acknowledge pending file/native writes");
+                f.release();
+                f.other.submit(() -> f.nativeWait.awaitBeforeWorldSave()).get(10, TimeUnit.SECONDS);
+                check(!completed.isDone(), "Native completion cannot substitute for file/database completion");
+                releaseFile.countDown();
+                f.other.submit(() -> { batch.chunks.await(); return true; }).get(10, TimeUnit.SECONDS);
+                check(!completed.isDone(), "Written files cannot substitute for database commits");
+                GameHooks.enter(SaveSignals.PLAYERS); GameHooks.exit(SaveSignals.PLAYERS, null);
+                check(!completed.isDone(), "Player completion cannot substitute for vehicle completion");
+                GameHooks.enter(SaveSignals.VEHICLES); GameHooks.exit(SaveSignals.VEHICLES, null);
+                completed.get(10, TimeUnit.SECONDS);
+                check(java.nio.ByteBuffer.wrap(Files.readAllBytes(file)).getInt() == 7 && batch.retainedBytes() == 0,
+                    "Combined receipt requires owned bytes on disk and released handles");
+            } finally {
+                releaseFile.countDown(); f.release();
+                for (String point : new String[]{SaveSignals.PLAYERS, SaveSignals.VEHICLES}) { GameHooks.enter(point); GameHooks.exit(point, null); }
+                FileWriteHooks.unregister(io);
+            }
+        } finally {
+            try (var files = Files.list(root)) { for (Path file : files.toList()) Files.delete(file); }
+            Files.delete(root);
+        }
     }
     private static void expectFailure(Future<?> work) throws Exception {
         try { work.get(10, TimeUnit.SECONDS); throw new AssertionError("Expected failed save"); }
@@ -100,11 +156,16 @@ public final class NativeSaveWaitTest {
     }
     private static void check(boolean value, String text) { if (!value) throw new AssertionError(text); }
     private static final class Loader extends URLClassLoader {
-        Loader(Path directory) throws Exception { super(new URL[]{directory.toUri().toURL()}, NativeSaveWaitTest.class.getClassLoader()); }
+        Loader(Path directory, Path chunkDirectory) throws Exception {
+            super(chunkDirectory == null ? new URL[]{directory.toUri().toURL()}
+                : new URL[]{directory.toUri().toURL(), chunkDirectory.toUri().toURL()}, NativeSaveWaitTest.class.getClassLoader());
+        }
         protected Class<?> findClass(String name) throws ClassNotFoundException {
-            if (!name.equals("zombie.MapCollisionData")) return super.findClass(name);
+            if (!name.equals("zombie.MapCollisionData") && !name.equals("ChunkIoTemplate")) return super.findClass(name);
             try (var in = getResourceAsStream(name.replace('.', '/') + ".class")) {
-                byte[] code = NativeSaveBytecode.transform(in.readAllBytes(), this);
+                byte[] original = in.readAllBytes();
+                byte[] code = name.equals("ChunkIoTemplate") ? ChunkSaveBytecode.transform(original, this)
+                    : NativeSaveBytecode.transform(original, this);
                 var errors = ClassFile.of().verify(code);
                 if (!errors.isEmpty()) throw new AssertionError(errors.toString());
                 return defineClass(name, code, 0, code.length);
@@ -119,8 +180,9 @@ public final class NativeSaveWaitTest {
         final SaveSignals signals = new SaveSignals();
         final ExecutorService game = Executors.newSingleThreadExecutor(), other = Executors.newCachedThreadPool();
         final AtomicReference<SaveProvider.Context> context = new AtomicReference<>();
-        Fixture(Path directory) throws Exception {
-            loader = new Loader(directory); type = loader.loadClass("zombie.MapCollisionData");
+        Fixture(Path directory) throws Exception { this(directory, null); }
+        Fixture(Path directory, Path chunkDirectory) throws Exception {
+            loader = new Loader(directory, chunkDirectory); type = loader.loadClass("zombie.MapCollisionData");
             target = type.getConstructor().newInstance();
             population = loader.loadClass("zombie.popman.ZombiePopulationManager").getField("instance").get(null);
             nativeWait = new NativeSaveWait(loader); signals.nativeWait = nativeWait;

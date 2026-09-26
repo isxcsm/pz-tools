@@ -8,9 +8,18 @@ import java.nio.file.*;
 public final class SeamlessSaveProvider implements SaveProvider {
     public String id() { return "pztools.seamless-save"; }
     public Support inspect(Context context) { context.requireGameThread(); return new Support(true, null); }
+    public boolean readyToCapture(Context context) throws Exception {
+        context.requireGameThread();
+        Path root = context.sourcePath();
+        if (!Files.exists(root.resolve("block-preparation"))) return true;
+        if (!Files.exists(root.resolve("preparation-waiting"))) Files.writeString(root.resolve("preparation-waiting"), "waiting");
+        return false;
+    }
     public PreparedSave capture(Context context, long maximumBytes) throws Exception {
         context.requireGameThread();
         Path root = context.sourcePath();
+        if (Files.exists(root.resolve("flush-game")))
+            Class.forName("zombie.GameWindow", false, context.gameClasses()).getMethod("save", boolean.class).invoke(null, true);
         Files.writeString(root.resolve("extension-identity"), context.sessionId() + "|" + context.worldId());
         Files.writeString(root.resolve("extension-started"), context.requestId());
         return new PreparedSave() {

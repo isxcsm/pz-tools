@@ -38,22 +38,28 @@ final class SaveSignals {
                 drainDepth.set(drainDepth.get() + 1);
                 if (scope.depth++ != 0) return;
                 Batch batch = active.get();
-                scope.ticket = batch != null && batch.armed ? batch : null;
+                scope.ticket = batch;
+                scope.acknowledge = batch != null && batch.armed;
+                if (batch != null) batch.enterDrain();
             }
             public void exit(Throwable failure) {
                 Scope scope = scopes.get();
                 try {
                     Batch current = active.get();
                     if (failure != null && current != null) current.fail(failure);
-                    if (failure == null && scope.depth == 1 && scope.ticket != null) scope.ticket.acknowledge(bit);
+                    if (failure == null && scope.depth == 1 && scope.ticket != null && scope.acknowledge)
+                        scope.ticket.acknowledge(bit);
                 } finally {
-                    if (--scope.depth == 0) scope.ticket = null;
+                    if (--scope.depth == 0) {
+                        if (scope.ticket != null) scope.ticket.exitDrain();
+                        scope.ticket = null;
+                    }
                     drainDepth.set(Math.max(0, drainDepth.get() - 1));
                 }
             }
         };
     }
-    private static final class Scope { Batch ticket; int depth; }
+    private static final class Scope { Batch ticket; int depth; boolean acknowledge; }
     void register() {
         try {
             GameHooks.register(THUMBNAIL, thumbnail); GameHooks.register(PLAYERS, players);
@@ -64,37 +70,56 @@ final class SaveSignals {
         GameHooks.unregister(THUMBNAIL, thumbnail); GameHooks.unregister(PLAYERS, players);
         GameHooks.unregister(VEHICLES, vehicles); GameHooks.unregister(ERRORS, errors);
     }
-    Batch begin(SaveProvider.Context context, boolean includePlayers) {
+    Batch begin(SaveProvider.Context context, boolean includePlayers) { return begin(context, includePlayers, null); }
+    Batch begin(SaveProvider.Context context, boolean includePlayers, Thread databaseWorker) {
         context.requireGameThread();
-        Batch batch = new Batch(context, includePlayers ? 3 : 2);
+        Batch batch = new Batch(context, includePlayers ? 3 : 2, databaseWorker);
         if (!active.compareAndSet(null, batch)) throw new IllegalStateException("Previous save is still draining");
         return batch;
     }
     final class Batch implements SaveProvider.PreparedSave {
         private final SaveProvider.Context context;
         private final AtomicInteger pending;
-        private final CountDownLatch drained = new CountDownLatch(1);
+        private final Object databaseGate = new Object();
+        private final Thread databaseWorker;
+        private int inFlight;
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
-        private volatile boolean capturing = true, armed, closing;
+        private volatile boolean capturing = true, armed;
         DeferredChunkWrites.Batch chunks;
         NativeSaveWait.Batch nativeSave;
-        Batch(SaveProvider.Context context, int expected) { this.context = context; pending = new AtomicInteger(expected); }
+        Batch(SaveProvider.Context context, int expected, Thread databaseWorker) {
+            this.context = context; this.databaseWorker = databaseWorker; pending = new AtomicInteger(expected);
+        }
         void arm() { if (chunks != null) chunks.seal(); if (nativeSave != null) nativeSave.seal(); capturing = false; armed = true; }
         void fail(Throwable error) { if (error != null) failure.compareAndSet(null, error); }
+        void enterDrain() { synchronized (databaseGate) { inFlight++; } }
+        void exitDrain() { synchronized (databaseGate) { inFlight--; databaseGate.notifyAll(); } }
         void acknowledge(int bit) {
-            if (pending.updateAndGet(value -> value & ~bit) == 0) {
-                drained.countDown();
-                if (closing) active.compareAndSet(this, null);
+            pending.updateAndGet(value -> value & ~bit);
+            synchronized (databaseGate) { databaseGate.notifyAll(); }
+        }
+        private boolean awaitDatabase() {
+            boolean interrupted = Thread.interrupted();
+            synchronized (databaseGate) {
+                while (pending.get() != 0 || inFlight != 0) {
+                    if (inFlight == 0 && databaseWorker != null && !databaseWorker.isAlive()) {
+                        fail(new IOException("Database worker stopped before acknowledging captured writes"));
+                        break;
+                    }
+                    // No lifetime signal exists in standalone hook fixtures. Never abandon an observed in-flight call.
+                    if (inFlight == 0 && databaseWorker == null && !context.worldValid().get()) break;
+                    try { databaseGate.wait(25); } catch (InterruptedException stop) { interrupted = true; }
+                }
             }
+            if (interrupted) Thread.currentThread().interrupt();
+            return interrupted;
         }
         public long retainedBytes() { return chunks == null ? 0 : chunks.retainedBytes(); }
         public SaveProvider.Completion completion() { return chunks == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
         public void commit() throws Exception {
             if (chunks != null) chunks.await();
             if (nativeSave != null) nativeSave.awaitSettled();
-            while (!drained.await(100, TimeUnit.MILLISECONDS)) {
-                if (!context.worldValid().get()) throw new IOException("World changed before database writes were confirmed");
-            }
+            if (awaitDatabase()) throw new InterruptedException("Interrupted after draining owned database writes");
             if (!context.worldValid().get()) throw new IOException("World changed during save");
             Throwable problem = failure.get();
             if (problem != null) throw new IOException("Game reported a save/write error", problem);
@@ -104,9 +129,9 @@ final class SaveSignals {
             try { if (chunks != null) chunks.await(); }
             finally {
                 if (nativeSave != null) nativeSave.close();
-                closing = true;
-                // Interrupted waiting does not release admission while game writes are unresolved.
-                if (drained.getCount() == 0 || !context.worldValid().get()) active.compareAndSet(this, null);
+                // World invalidation is an error, not proof that a database thread stopped writing.
+                awaitDatabase();
+                active.compareAndSet(this, null);
             }
         }
     }

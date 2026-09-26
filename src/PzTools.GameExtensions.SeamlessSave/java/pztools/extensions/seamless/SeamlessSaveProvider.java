@@ -11,6 +11,7 @@ public final class SeamlessSaveProvider implements SaveProvider {
             return new Support(true, null);
         }
         Support inspect(Context context);
+        default boolean readyToCapture(Context context) throws Exception { return true; }
         PreparedSave capture(Context context, long maximumBytes) throws Exception;
     }
     private final List<GameAdapter> adapters;
@@ -31,6 +32,11 @@ public final class SeamlessSaveProvider implements SaveProvider {
         long matches = adapters.stream().filter(adapter -> adapter.inspect(context).supported()).count();
         return matches == 1 ? new Support(true, null)
             : new Support(false, matches == 0 ? "adapter-validation-required" : "ambiguous-game-adapter");
+    }
+    @Override public boolean readyToCapture(Context context) throws Exception {
+        context.requireGameThread();
+        var supported = adapters.stream().filter(adapter -> adapter.inspect(context).supported()).toList();
+        return supported.size() == 1 && supported.getFirst().readyToCapture(context);
     }
     @Override public PreparedSave capture(Context context, long maximumBytes) throws Exception {
         context.requireGameThread();

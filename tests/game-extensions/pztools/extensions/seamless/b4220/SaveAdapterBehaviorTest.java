@@ -39,9 +39,27 @@ public final class SaveAdapterBehaviorTest {
             var changedContext = context();
             var ended = signals.begin(changedContext, false);
             ended.arm();
+            GameHooks.enter(SaveSignals.VEHICLES);
             changedContext.worldValid().set(false);
-            try { write(ended).get(10, TimeUnit.SECONDS); throw new AssertionError("Ended world reported success"); }
+            var ending = write(ended);
+            check(!ending.isDone(), "World invalidation does not release an observed in-flight DB call");
+            try { signals.begin(context(), false); throw new AssertionError("New capture overlapped old database cleanup"); }
+            catch (IllegalStateException expected) { }
+            GameHooks.exit(SaveSignals.VEHICLES, null);
+            try { ending.get(10, TimeUnit.SECONDS); throw new AssertionError("Ended world reported success"); }
             catch (ExecutionException expected) { check(expected.getCause() instanceof IOException, "World end retained"); }
+            var workerRelease = new CountDownLatch(1);
+            Thread database = new Thread(() -> { try { workerRelease.await(); } catch (InterruptedException ignored) { } });
+            database.start();
+            try {
+                var lost = context(); var lostBatch = signals.begin(lost, true, database);
+                lostBatch.arm(); lost.worldValid().set(false);
+                var lostResult = write(lostBatch);
+                check(!lostResult.isDone(), "A live pinned database worker is not finished merely because the world changed");
+                workerRelease.countDown(); database.join(10_000);
+                try { lostResult.get(10, TimeUnit.SECONDS); throw new AssertionError("Worker termination reported commit"); }
+                catch (ExecutionException expected) { check(expected.getCause() instanceof IOException, "Missing acknowledgement is failure"); }
+            } finally { workerRelease.countDown(); database.join(10_000); }
             System.out.println("PASS: preview scope, post-capture drains, in-flight writes, logged error, world end");
         } finally { signals.unregister(); }
     }

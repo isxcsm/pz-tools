@@ -80,7 +80,7 @@ public sealed partial class MainWindowShell : UserControl
         revisionInsertionAnimator = new ListInsertionAnimator(RevisionList);
         RevisionList.LayoutUpdated += (_, _) => RevealRevisionSelectionIfReady();
         notification = new TransientNotification(ActionResultCard, ActionResultTitle, ActionResultMessage);
-        // 수동 접힘에서는 DisplayMode가 Expanded인 채로 남을 수 있으므로 실제 열림 상태를 관찰합니다.
+        // Keep header/card presentation in sync with the responsive icon-only rail.
         Navigation.RegisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty,
             (_, _) => ApplyNavigationSpacing());
         ApplyLocalizedText();
@@ -129,6 +129,7 @@ public sealed partial class MainWindowShell : UserControl
     {
         Language = Localizer.Culture.Name;
         AppTitleText.Text = Localizer.Get("AppTitle");
+        LocalizeSupportButton();
         if (IsLoaded) App.MainWindow.Title = AppTitleText.Text;
         SavesItem.Content = Localizer.Get("SavesNavigation.Content");
         SavesPageTitle.Text = Localizer.Get("SavesNavigation.Content");
@@ -1105,6 +1106,12 @@ public sealed partial class MainWindowShell : UserControl
         // 기본 템플릿이 세로 2px 여백을 이미 제공하므로 중복해서 더하지 않습니다.
         var margin = expanded ? new Thickness(12, 0, 12, 0) : new Thickness(0);
         SavesItem.Margin = LogsItem.Margin = margin;
+        if (CoffeeSupportArea is not null && CoffeeSupportCopy is not null)
+        {
+            CoffeeSupportArea.Margin = expanded ? new Thickness(12) : new Thickness(4, 12, 4, 12);
+            CoffeeSupportCopy.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+            CoffeeSupportButton.Padding = expanded ? new Thickness(10) : new Thickness(8);
+        }
         if (Navigation.SettingsItem is NavigationViewItem settings)
             settings.Margin = expanded ? new Thickness(12, 0, 12, 8) : new Thickness(0, 0, 0, 8);
         if (ProgressCards is not null)

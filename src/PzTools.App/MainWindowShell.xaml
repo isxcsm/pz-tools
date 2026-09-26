@@ -10,16 +10,16 @@
     </Grid.RowDefinitions>
     <Grid x:Name="AppTitleBar" Background="Transparent" Margin="0,0,140,0">
       <StackPanel Orientation="Horizontal" Spacing="10" Margin="16,0,0,0" VerticalAlignment="Center">
-        <Image Width="20" Height="20">
+        <Image Width="24" Height="24">
           <Image.Source><SvgImageSource UriSource="ms-appx:///Assets/Navigation/pztools.svg" /></Image.Source>
         </Image>
         <TextBlock x:Name="AppTitleText" Text="PZ Tools · 프로젝트 좀보이드" Style="{ThemeResource CaptionTextBlockStyle}" />
       </StackPanel>
     </Grid>
   <NavigationView x:Name="Navigation" Grid.Row="1" IsSettingsVisible="True"
-                  IsBackButtonVisible="Collapsed" PaneDisplayMode="Auto"
+                  IsBackButtonVisible="Collapsed" PaneDisplayMode="Auto" IsPaneToggleButtonVisible="False"
                   OpenPaneLength="248" ExpandedModeThresholdWidth="1100"
-                  CompactModeThresholdWidth="720" IsTitleBarAutoPaddingEnabled="False"
+                  CompactModeThresholdWidth="0" IsTitleBarAutoPaddingEnabled="False"
                   SelectionChanged="Navigation_SelectionChanged" ItemInvoked="Navigation_ItemInvoked"
                   DisplayModeChanged="Navigation_DisplayModeChanged"
                   PaneOpened="Navigation_PaneChanged" PaneClosed="Navigation_PaneChanged">
@@ -31,6 +31,29 @@
       <!-- 기본 16px Viewbox가 컬러 SVG를 재축소하지 않도록 실제 도형 크기를 약 20px로 맞춥니다. -->
       <x:Double x:Key="NavigationViewItemOnLeftIconBoxHeight">24</x:Double>
     </NavigationView.Resources>
+    <NavigationView.PaneHeader>
+      <Grid x:Name="CoffeeSupportArea" Margin="12,12,12,12">
+        <HyperlinkButton x:Name="CoffeeSupportButton" IsEnabled="False" Padding="10"
+                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+          <Grid ColumnSpacing="10">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <Viewbox Width="20" Height="20" VerticalAlignment="Center">
+              <Canvas Width="24" Height="24">
+                <Path Stroke="{ThemeResource TextFillColorSecondaryBrush}" StrokeThickness="1.8"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                      Data="M4,8 H17 V15 C17,18.5 14.5,20 10.5,20 C6.5,20 4,18.5 4,15 Z M17,9 H19 A3,3 0 0 1 19,15 H17 M6,4 V5 M10.5,3 V5 M15,4 V5 M3,23 H18" />
+              </Canvas>
+            </Viewbox>
+            <StackPanel x:Name="CoffeeSupportCopy" Grid.Column="1" Spacing="3">
+              <TextBlock x:Name="CoffeeSupportMessage" FontSize="11" TextWrapping="Wrap"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock x:Name="CoffeeSupportTitle" FontSize="12" FontWeight="Normal" TextWrapping="Wrap" />
+            </StackPanel>
+          </Grid>
+        </HyperlinkButton>
+      </Grid>
+    </NavigationView.PaneHeader>
     <NavigationView.MenuItems>
       <NavigationViewItem x:Name="SavesItem" x:Uid="SavesNavigation" Content="세이브 관리" Tag="saves">
         <NavigationViewItem.Icon>
@@ -96,7 +119,8 @@
               <TextBlock x:Name="NextBackupText" Text="다음 백업: 대기 중"
                          TextWrapping="Wrap" Style="{StaticResource SecondaryTextStyle}" FontSize="12" />
               <TextBlock x:Name="NextBackupRemainingText" Visibility="Collapsed"
-                         FontSize="16" FontWeight="SemiBold" TextWrapping="NoWrap" />
+                         FontSize="12" FontWeight="Normal" TextWrapping="NoWrap"
+                         Style="{StaticResource SecondaryTextStyle}" />
             </StackPanel>
           </Grid>
         </Border>

@@ -1,5 +1,10 @@
 # Pre-backup game save bridge
 
+> Current experimental extension integration uses **bootstrap API 6 / save protocol 6**.
+> The consolidated request, ownership and remaining-work description is in
+> [Game extensions](game-extensions.md). Earlier numbered API notes below describe
+> individual changes, not the current deployment version.
+
 > Pause-aware periodic scheduling is implemented separately from the legacy UTC commands described below. It uses runtime observation and guarded SAVE_ACTIVE/PROBE_ACTIVE. Turning off pre-backup saving does not turn off this observation. See [runtime pause architecture](runtime-pause-backups.md). A loaded older bootstrap requires a full game restart.
 
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)

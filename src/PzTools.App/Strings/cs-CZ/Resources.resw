@@ -440,4 +440,7 @@ Použije se na vybranou pozici pro jednoho hráče po ukončení hraní.</value>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Poslední požadavek: použito běžné uložení ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Poslední požadavek: uložení selhalo ({0})</value></data>
   <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Příprava ve vlákně hry: {0:N0} ms · dokončení: {1:N0} ms</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Pozvat na kávu</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>Pomohl vám PZ Tools?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Odkaz na podporu zatím není k dispozici.</value></data>
 </root>

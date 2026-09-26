@@ -440,4 +440,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Última solicitud: se usó el guardado estándar ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Última solicitud: error al guardar ({0})</value></data>
   <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Preparación en el hilo del juego: {0:N0} ms · finalización: {1:N0} ms</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Invítame un café</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>¿Te sirvió PZ Tools?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>El enlace de apoyo aún no está disponible.</value></data>
 </root>

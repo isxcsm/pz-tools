@@ -35,25 +35,31 @@ public final class ChunkSaveBytecode {
                     .map(e -> (Instruction)e).toList();
                 int fileSlot = streamFileSlot(instructions, writing);
                 builder.transformMethod(method, MethodTransform.transformingCode(CodeTransform.ofStateful(() -> new CodeTransform() {
-                    private Label afterWrite;
+                    private Label afterIo;
                     private boolean started, bound;
-                    public void atStart(CodeBuilder code) { if (writing) afterWrite = code.newLabel(); }
+                    public void atStart(CodeBuilder code) { afterIo = code.newLabel(); }
                     public void accept(CodeBuilder code, CodeElement current) {
                         if (isStream(current, writing)) {
                             started = true;
                             code.aload(fileSlot);
                             if (writing) code.aload(2).invokestatic(HOOK, "tryDefer", MethodTypeDesc.of(
-                                ConstantDescs.CD_boolean, FILE, ClassDesc.of("java.nio.ByteBuffer"))).ifne(afterWrite);
-                            else code.invokestatic(HOOK, "beforeRead", MethodTypeDesc.of(ConstantDescs.CD_void, FILE));
+                                ConstantDescs.CD_boolean, FILE, ClassDesc.of("java.nio.ByteBuffer"))).ifne(afterIo);
+                            else {
+                                Label disk = code.newLabel();
+                                code.aload(2).invokestatic(HOOK, "tryRead", MethodTypeDesc.of(
+                                    ClassDesc.of("java.nio.ByteBuffer"), FILE, ClassDesc.of("java.nio.ByteBuffer")));
+                                code.dup().ifnull(disk).astore(2).goto_(afterIo).labelBinding(disk).pop();
+                                code.aload(fileSlot).invokestatic(HOOK, "beforeRead", MethodTypeDesc.of(ConstantDescs.CD_void, FILE));
+                            }
                         }
-                        if (writing && started && !bound && current instanceof FieldInstruction field
+                        if (started && !bound && current instanceof FieldInstruction field
                                 && field.opcode() == Opcode.GETSTATIC && field.name().equalsString("sanityCheck")) {
-                            code.labelBinding(afterWrite); bound = true;
+                            code.labelBinding(afterIo); bound = true;
                         }
                         code.with(current);
                     }
                     public void atEnd(CodeBuilder code) {
-                        if (!started || writing && !bound) throw new IllegalArgumentException("Missing chunk I/O boundary");
+                        if (!started || !bound) throw new IllegalArgumentException("Missing chunk I/O boundary");
                     }
                 })));
             } else builder.with(element);
