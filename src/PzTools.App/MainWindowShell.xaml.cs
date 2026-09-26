@@ -225,6 +225,7 @@ public sealed partial class MainWindowShell : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        FinishContentNavigation();
         LoadingSavesProgress.IsActive = false;
         CancelRevisionThumbnails();
         countdownTimer.Stop();
@@ -1070,20 +1071,14 @@ public sealed partial class MainWindowShell : UserControl
     private void Navigation_SelectionChanged(
         NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        var settings = args.IsSettingsSelected;
-        var tag = (args.SelectedItem as NavigationViewItem)?.Tag?.ToString();
-        var logs = !settings && tag == "logs";
-        var extensions = !settings && tag == "game-extensions";
-        GameExtensionsRoot.Visibility = extensions ? Visibility.Visible : Visibility.Collapsed;
-        if (extensions) _ = GameExtensionsRoot.RefreshForNavigationAsync();
-        SettingsRoot.Visibility = settings ? Visibility.Visible : Visibility.Collapsed;
-        LogsRoot.Visibility = logs ? Visibility.Visible : Visibility.Collapsed;
-        if (logs) LogsRoot.RefreshForNavigation();
-        // Keep the save lists laid out while another page is shown. Collapsing this grid
-        // unrealizes ListView rows, so its selection bar can reappear before the rows do.
-        var showSaves = !settings && !logs && !extensions;
-        SavesRoot.Opacity = showSaves ? 1 : 0;
-        SavesRoot.IsHitTestVisible = showSaves;
+        var page = args.IsSettingsSelected ? (FrameworkElement)SettingsRoot
+            : (args.SelectedItem as NavigationViewItem)?.Tag?.ToString() switch
+            {
+                "logs" => LogsRoot,
+                "game-extensions" => GameExtensionsRoot,
+                _ => SavesRoot,
+            };
+        NavigateToContent(page);
     }
 
     private void Navigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)

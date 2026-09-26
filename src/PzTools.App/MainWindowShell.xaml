@@ -126,7 +126,7 @@
         </Border>
       </StackPanel>
     </NavigationView.PaneFooter>
-    <Grid Background="Transparent">
+    <Grid x:Name="PageContent" Background="Transparent">
       <Grid x:Name="SavesRoot" Margin="24,24,24,16" ColumnSpacing="12" SizeChanged="SavesRoot_SizeChanged">
         <Grid.ColumnDefinitions>
           <ColumnDefinition x:Name="ListColumn" Width="420" MinWidth="320" />
