@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Pencadangan berikutnya: menunggu tugas saat ini</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Pulihkan karakter</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Pulihkan / hidupkan kembali karakter</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Pulihkan karakter {0} dalam simpanan saat ini?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Pulihkan {0}?
 
-Pulihkan kesehatan, rasa kenyang, hidrasi, istirahat, stamina, dan kondisi mental. Hapus luka, infeksi, keracunan, gejala putus zat, serta nyeri otot akibat latihan yang belum muncul. Hidupkan kembali karakter jika sudah mati.
+Memulihkan kesehatan serta menyembuhkan luka dan kondisi lainnya. Jika karakter mati, hidupkan kembali dan ambil barang yang masih tersedia. Zombi atau mayat tempat barang diambil akan dihapus.
 
-Semua sifat, termasuk sifat negatif, keterampilan, pengalaman, berat badan, nutrisi, dan posisi tetap dipertahankan. Sifat atau lingkungan dapat memicu gejala kembali. Penyakit khusus mod tidak diubah.
+Sifat, keterampilan, XP, dan posisi tetap dipertahankan. Beberapa efek mod mungkin tetap ada.
 
-Jika kematian mengosongkan inventaris, ambil barang dari zombi atau jasad karakter lalu hapus sumber itu. Kartu identitas tidak diperlukan. Kondisi barang, isi tas, pakaian, dan data pemasangan dipertahankan. ID barang tersimpan memulihkan perlengkapan tangan jika tersedia; jika tidak, pasang kembali secara manual. Barang yang hilang tidak dibuat. Identitas yang tidak pasti menghentikan perubahan.
-
-Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimainkan, format yang tidak didukung, atau data yang ambigu ditolak.</value></data>
+Diterapkan pada save pemain tunggal yang dipilih setelah berhenti bermain.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Pemulihan karakter selesai. Sifat, keterampilan, dan pengalaman tetap dipertahankan.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Zombi atau jasad karakter tidak dapat diidentifikasi secara unik. Kartu identitas tidak diperlukan, tetapi beberapa kandidat atau data identitas yang kurang pada simpanan lama tidak akan ditebak. Tidak ada yang diubah.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Pembaruan berkas simpanan perlu dipulihkan. Jangan muat simpanan ini di dalam gim. Mulai ulang PZ Tools untuk menyelesaikan pembaruan. Jika simpanan berubah setelah interupsi, pemulihan otomatis berhenti alih-alih menimpanya.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Pemulihan dihentikan karena barang tidak dapat diambil kembali dengan aman. Save tidak diubah.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Perubahan save sebelumnya perlu diselesaikan. Buka kembali PZ Tools sebelum memuat save ini di game.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Pemulihan karakter</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gim atau operasi lain sedang memakai simpanan ini. Berhenti bermain dan coba lagi. Berkas asli tidak diubah.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Simpanan ini memiliki perubahan yang belum selesai. Keluar dari gim secara normal, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Hanya simpanan pemain tunggal dengan satu karakter lokal yang didukung. Tidak ada karakter yang dipilih secara sembarang dan berkas asli tidak diubah.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Fitur ini memerlukan save pemain tunggal dengan satu karakter. Save tidak diubah.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Penyimpanan ini tidak dapat diedit dengan aman. Pastikan versi PZ Tools mendukung versi game Anda. Berkas asli tidak diubah.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Pembacaan gagal; akan dicoba lagi</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan berkas yang diperlukan. Tunggu hingga penyimpanan atau operasi itu selesai, lalu coba lagi.</value></data>
@@ -402,14 +400,13 @@ Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimaink
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Memeriksa status game</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Jalankan satu game saja</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Periksa hasil penyimpanan permainan sebelumnya, lalu aktifkan kembali pencadangan otomatis.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Terapkan</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Hapus filter</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Hapus semua</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · klik untuk memfilter</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · klik untuk mengubah log yang ditampilkan</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 atau 40-50. Kosong berarti tanpa batas.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 atau 40-50. Masukan yang valid diterapkan otomatis. Kosongkan untuk tanpa batas.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Masukkan nomor bulat atau rentang menaik.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Ketik tanggal dan waktu atau gunakan tombol kalender. Kosongkan kolom untuk tanpa batas.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Ketik tanggal dan waktu atau pilih dari kalender. Perubahan yang valid diterapkan otomatis. Kosongkan untuk tanpa batas.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Masukkan tanggal dan waktu yang valid; awal tidak boleh setelah akhir.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Dari</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Sampai</value></data>
@@ -417,7 +414,6 @@ Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimaink
   <data name="LogTimeRecentDay" xml:space="preserve"><value>24 jam terakhir</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Pilih tanggal dan waktu</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Tanggal</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Gunakan tanggal dan waktu ini</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Ekstensi game</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Kelola peningkatan opsional untuk game.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Penyimpanan tanpa jeda</value></data>
@@ -430,13 +426,13 @@ Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimaink
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Pengaturan ekstensi tidak tersedia</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Perubahan tidak dapat disimpan. Buka kembali halaman dan periksa berkas pengaturan ekstensi.</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Mempertahankan penyimpanan asli, melewati render pratinjau paksa, dan menulis berkas chunk yang sudah ada di latar belakang. Serialisasi, penyimpanan native, dan beberapa operasi berkas masih dapat menjeda permainan. Versi yang tidak didukung memakai penyimpanan standar.</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Semua versi</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Versi mayor {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Versi minor {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Didukung: {0} · Game saat ini: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Di luar rentang dukungan · Ekstensi tidak aktif</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Menunggu versi game · Ekstensi tidak aktif</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Paksa aktifkan di luar rentang dukungan</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versi yang tidak kompatibel dapat menyebabkan kesalahan. Hanya batas versi yang diabaikan; pemeriksaan keamanan penting tetap aktif.</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Batas versi diabaikan · Pemeriksaan penting tetap aktif</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Semua versi</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Versi mayor {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Versi minor {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Didukung: {0} · Game saat ini: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Di luar rentang dukungan · Ekstensi tidak aktif</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Menunggu versi game · Ekstensi tidak aktif</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Paksa aktifkan di luar rentang dukungan</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versi yang tidak kompatibel dapat menyebabkan kesalahan. Hanya batas versi yang diabaikan; pemeriksaan keamanan penting tetap aktif.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Batas versi diabaikan · Pemeriksaan penting tetap aktif</value></data>
 </root>

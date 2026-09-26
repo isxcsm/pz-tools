@@ -22,8 +22,8 @@ by this request. Normal game saves still create their thumbnails.
 
 ## Integrated dev runtime and version policy (0.4)
 
-This branch integrates dev `becefea` (including PR #12 pause-aware scheduling and
-subsequent UI/log updates). Observation and save requests use one bootstrap and one
+This branch integrates dev `2a24df1` (including PR #12 pause-aware scheduling and
+the subsequent inline log-filter and recovery-guidance updates). Observation and save requests use one bootstrap and one
 GameWindow dispatch hook. Observation has its own read-only session; it does not
 hold the exclusive save slot. Both consumers share process/world identities.
 The runtime stream now adds optional game-version metadata. The metadata getter
@@ -271,3 +271,10 @@ Counts overlap and do not mean a complete application regression run.
 All five small Java harnesses passed, including 14 numeric version-range cases
 shared with .NET. Actual gameplay, interactive WinUI, real-world restores and
 performance improvements are not newly verified by this integration.
+The final UI-only dev update `2a24df1` was then integrated as well, preserving its
+inline log filtering and shorter recovery guidance. Its resource conflicts were
+resolved by retaining every dev resource value and adding extension-specific keys.
+The full Release build still passed with zero warnings/errors, and the affected
+UI-filter/localization/version-policy tests passed **54/54** (`latest-dev-ui.trx`).
+These overlap the 99-case integration run; runtime/save code was not changed by
+this final dev update. Neither dev nor main was modified by this branch integration.

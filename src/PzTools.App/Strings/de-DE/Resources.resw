@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Nächste Sicherung: wartet auf aktuellen Auftrag</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Charakter heilen</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Charakter heilen / wiederbeleben</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Den Charakter „{0}“ im aktuellen Spielstand heilen?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>{0} heilen?
 
-Gesundheit, Sättigung, Flüssigkeit, Erholung, Ausdauer und geistigen Zustand wiederherstellen. Verletzungen, Infektionen, Vergiftungen, Entzugserscheinungen und noch ausstehenden Muskelkater entfernen. Ein verstorbener Charakter wird wiederbelebt.
+Stellt die Gesundheit wieder her und behandelt Verletzungen und Beschwerden. Tote Charaktere werden wiederbelebt; auffindbare Gegenstände werden zurückgeholt. Der zugehörige Zombie oder Leichnam wird dabei entfernt.
 
-Alle Eigenschaften (auch negative), Fertigkeiten, EP, Gewicht, Ernährung und Position bleiben unverändert. Eigenschaften oder Umgebung können erneut Symptome auslösen. Modspezifische Krankheiten werden nicht verändert.
+Eigenschaften, Fähigkeiten, EP und Position bleiben erhalten. Manche Mod-Effekte können bestehen bleiben.
 
-Ist das Inventar durch den Tod leer, werden Gegenstände vom eigenen Zombie oder Leichnam zurückgeholt und die Quelle entfernt. Ein Ausweis ist nicht nötig. Zustand, Tascheninhalt sowie Kleidungs- und Befestigungsdaten bleiben erhalten. Gespeicherte Gegenstands-IDs stellen die Handbelegung wieder her, sofern vorhanden; sonst ist erneutes Ausrüsten nötig. Fehlende Gegenstände werden nicht erzeugt. Bei unklarer Identität erfolgt keine Änderung.
-
-Nur der aktuelle Einzelspieler-Spielstand wird bearbeitet. Aktive, nicht unterstützte oder nicht eindeutig identifizierbare Spielstände werden abgelehnt.</value></data>
+Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das Spielen beendet haben.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Der Charakter wurde wiederhergestellt. Eigenschaften, Fertigkeiten und EP blieben erhalten.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Der eigene Zombie oder Leichnam konnte nicht eindeutig identifiziert werden. Ein Ausweis ist nicht nötig, doch bei mehreren Kandidaten oder fehlenden Identitätsdaten älterer Spielstände wird nicht geraten. Nichts wurde geändert.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Eine Spielstandaktualisierung muss wiederhergestellt werden. Laden Sie diesen Spielstand nicht im Spiel. Starten Sie PZ Tools neu, um die Aktualisierung abzuschließen. Hat sich der Spielstand nach der Unterbrechung geändert, wird die automatische Wiederherstellung gestoppt, statt ihn zu überschreiben.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Die Wiederherstellung wurde gestoppt, da Gegenstände nicht sicher zurückgeholt werden konnten. Ihr Spielstand wurde nicht verändert.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Eine vorherige Änderung des Spielstands muss abgeschlossen werden. Öffnen Sie PZ Tools erneut, bevor Sie diesen Spielstand im Spiel laden.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Wiederherstellung des Charakters</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang verwendet diesen Spielstand. Beenden Sie das Spielen und versuchen Sie es erneut. Das Original wurde nicht geändert.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Dieser Spielstand enthält noch nicht abgeschlossene Änderungen. Beende das Spiel regulär und versuche es erneut. Der ursprüngliche Spielstand wurde nicht verändert.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Unterstützt werden nur Einzelspieler-Spielstände mit genau einem lokalen Charakter. Es wurde kein Charakter willkürlich ausgewählt und das Original wurde nicht geändert.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Diese Funktion benötigt einen Einzelspieler-Spielstand mit genau einem Charakter. Ihr Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Dieser Spielstand kann nicht sicher bearbeitet werden. Prüfen Sie, ob Ihre PZ-Tools-Version die Spielversion unterstützt. Das Original wurde nicht geändert.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Lesen fehlgeschlagen; erneuter Versuch folgt</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang verwendet eine benötigte Datei. Warte, bis das Speichern oder der Vorgang beendet ist, und versuche es erneut.</value></data>
@@ -402,14 +400,13 @@ Nur der aktuelle Einzelspieler-Spielstand wird bearbeitet. Aktive, nicht unterst
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Spielstatus wird geprüft</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Bitte nur ein Spiel starten</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Prüfen Sie das Ergebnis des letzten Speicherns und aktivieren Sie automatische Backups erneut.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Anwenden</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Filter löschen</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Alle löschen</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · zum Filtern klicken</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · Klicken, um die angezeigten Einträge zu ändern</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 oder 40-50. Leer bedeutet unbegrenzt.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 oder 40-50. Gültige Eingaben werden automatisch angewendet. Leer bedeutet keine Begrenzung.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Eine ganze Nummer oder einen aufsteigenden Bereich eingeben.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Datum und Uhrzeit eingeben oder mit der Kalenderschaltfläche wählen. Ein leeres Feld bedeutet keine Begrenzung.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Datum und Uhrzeit eingeben oder im Kalender wählen. Gültige Änderungen gelten automatisch. Leer bedeutet keine Begrenzung.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Gültige Datums- und Zeitwerte eingeben; der Beginn darf nicht nach dem Ende liegen.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Von</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Bis</value></data>
@@ -417,7 +414,6 @@ Nur der aktuelle Einzelspieler-Spielstand wird bearbeitet. Aktive, nicht unterst
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Letzte 24 Stunden</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Datum und Uhrzeit wählen</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Datum</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Datum und Uhrzeit übernehmen</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Spielerweiterungen</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Optionale Erweiterungen für das Spiel verwalten.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Nahtloses Speichern</value></data>
@@ -430,13 +426,13 @@ Nur der aktuelle Einzelspieler-Spielstand wird bearbeitet. Aktive, nicht unterst
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Erweiterungseinstellungen nicht verfügbar</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Die Änderungen konnten nicht gespeichert werden. Öffnen Sie die Seite erneut und prüfen Sie die Einstellungsdatei der Erweiterungen.</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Behält das ursprüngliche Speichern bei, überspringt erzwungene Vorschaubilder und schreibt vorhandene Chunk-Dateien im Hintergrund. Serialisierung, natives Speichern und manche Dateioperationen können das Spiel weiterhin anhalten. Nicht unterstützte Versionen verwenden das normale Speichern.</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Alle Versionen</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Hauptversion {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Nebenversion {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Unterstützt: {0} · Aktuelles Spiel: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Außerhalb des unterstützten Bereichs · Erweiterung inaktiv</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Spielversion wird ermittelt · Erweiterung inaktiv</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Außerhalb des unterstützten Bereichs erzwingen</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Inkompatible Versionen können Fehler verursachen. Nur die Versionsbegrenzung wird umgangen; notwendige Sicherheitsprüfungen bleiben aktiv.</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Versionsbegrenzung ignoriert · Sicherheitsprüfungen bleiben aktiv</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Alle Versionen</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Hauptversion {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Nebenversion {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Unterstützt: {0} · Aktuelles Spiel: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Außerhalb des unterstützten Bereichs · Erweiterung inaktiv</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Spielversion wird ermittelt · Erweiterung inaktiv</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Außerhalb des unterstützten Bereichs erzwingen</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Inkompatible Versionen können Fehler verursachen. Nur die Versionsbegrenzung wird umgangen; notwendige Sicherheitsprüfungen bleiben aktiv.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Versionsbegrenzung ignoriert · Sicherheitsprüfungen bleiben aktiv</value></data>
 </root>

@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: čeká na aktuální úlohu</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Vyléčit postavu</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Vyléčit / oživit postavu</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Vyléčit postavu {0} v aktuální uložené hře?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Uzdravit postavu {0}?
 
-Obnovit zdraví, sytost, hydrataci, odpočinek, výdrž a duševní stav. Odstranit zranění, infekce, otravu, abstinenční příznaky a dosud neprojevenou bolest svalů po cvičení. Pokud postava zemřela, oživit ji.
+Obnoví zdraví a vyléčí zranění a další potíže. Pokud postava zemřela, oživí ji a získá zpět dostupné předměty. Zombie nebo tělo, ze kterého byly předměty získány, bude odstraněno.
 
-Všechny vlastnosti včetně negativních, dovednosti, zkušenosti, hmotnost, výživa a poloha zůstávají beze změny. Vlastnosti nebo prostředí mohou příznaky znovu vyvolat. Nemoci přidané mody se nemění.
+Vlastnosti, dovednosti, zkušenosti a poloha zůstanou zachovány. Některé účinky modů mohou přetrvat.
 
-Pokud smrt vyprázdnila inventář, získá předměty ze zombie nebo mrtvoly postavy a tento zdroj odstraní. Průkaz totožnosti není nutný. Stav předmětů, obsah tašek a údaje o oblečení a připevnění zůstanou zachovány. Uložená ID obnoví předměty v rukou, jsou-li dostupná; jinak je nutné je znovu vybavit. Ztracené předměty nevytváří. Při nejisté totožnosti se nic nezmění.
-
-Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě používané ve hře, nepodporované formáty a nejednoznačná data jsou odmítnuty.</value></data>
+Použije se na vybranou pozici pro jednoho hráče po ukončení hraní.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Obnova postavy dokončena. Vlastnosti, dovednosti a zkušenosti byly zachovány.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Zombie nebo mrtvolu postavy se nepodařilo jednoznačně určit. Průkaz totožnosti není nutný, ale při více kandidátech nebo nedostatku údajů ve starém uložení se nehádá. Nic nebylo změněno.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Aktualizaci souborů uložené hry je nutné obnovit. Tuto uloženou hru nenačítejte ve hře. Restartujte PZ Tools, aby se aktualizace dokončila. Pokud se uložená hra po přerušení změnila, automatická obnova se zastaví, místo aby ji přepsala.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Obnova byla zastavena, protože předměty nelze bezpečně získat zpět. Uložená pozice nebyla změněna.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Je třeba dokončit předchozí úpravu uložené pozice. Před jejím načtením ve hře znovu otevřete PZ Tools.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Obnova postavy</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Tuto uloženou hru používá hra nebo jiná operace. Přestaňte hrát a zkuste to znovu. Originál nebyl změněn.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Tato uložená hra obsahuje nedokončené změny. Ukončete hru běžným způsobem a zkuste to znovu. Původní uložená hra nebyla změněna.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Podporovány jsou pouze hry pro jednoho hráče s jedinou místní postavou. Žádná postava nebyla vybrána svévolně a originál nebyl změněn.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Tato funkce vyžaduje pozici pro jednoho hráče s jedinou postavou. Uložená pozice nebyla změněna.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Tuto uloženou hru nelze bezpečně upravit. Ověřte, že vaše verze PZ Tools podporuje verzi hry. Originál nebyl změněn.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Čtení selhalo; bude zopakováno</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Hra nebo jiná operace používá potřebný soubor. Počkejte na dokončení ukládání nebo dané operace a zkuste to znovu.</value></data>
@@ -402,14 +400,13 @@ Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě pou�
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Ověřování stavu hry</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Spusťte pouze jednu hru</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Ověřte výsledek posledního uložení hry a znovu zapněte automatické zálohování.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Použít</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Zrušit filtr</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Zrušit všechny</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknutím filtrovat</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknutím změníte zobrazené záznamy</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 nebo 40-50. Prázdné pole znamená bez omezení.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 nebo 40-50. Platné hodnoty se použijí automaticky. Prázdné pole znamená bez omezení.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Zadejte celé číslo nebo vzestupný rozsah.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Zadejte datum a čas nebo použijte tlačítko kalendáře. Prázdné pole znamená bez omezení.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Zadejte datum a čas nebo je vyberte z kalendáře. Platné změny se použijí automaticky. Prázdné pole znamená bez omezení.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Zadejte platné datum a čas; začátek nesmí být později než konec.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
@@ -417,7 +414,6 @@ Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě pou�
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Posledních 24 hodin</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Vybrat datum a čas</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Datum</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Použít toto datum a čas</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Rozšíření hry</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Spravujte volitelná vylepšení hry.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Plynulé ukládání</value></data>
@@ -430,13 +426,13 @@ Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě pou�
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Nastavení rozšíření není dostupné</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Změny se nepodařilo uložit. Znovu otevřete stránku a zkontrolujte soubor nastavení rozšíření.</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Zachovává původní ukládání hry, vynechává vynucené vykreslení náhledu a zapisuje existující soubory chunků na pozadí. Serializace, nativní ukládání a některé operace se soubory mohou hru stále pozastavit. Nepodporované verze používají standardní ukládání.</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Všechny verze</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Hlavní verze {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Vedlejší verze {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Podporováno: {0} · Aktuální hra: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Mimo podporovaný rozsah · Rozšíření neaktivní</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Čekání na verzi hry · Rozšíření neaktivní</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Vynutit zapnutí mimo podporovaný rozsah</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Nekompatibilní verze mohou způsobit chyby. Tato volba obchází pouze rozsah verzí; nezbytné bezpečnostní kontroly zůstávají aktivní.</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Omezení verze ignorováno · Bezpečnostní kontroly zachovány</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Všechny verze</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Hlavní verze {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Vedlejší verze {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Podporováno: {0} · Aktuální hra: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Mimo podporovaný rozsah · Rozšíření neaktivní</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Čekání na verzi hry · Rozšíření neaktivní</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Vynutit zapnutí mimo podporovaný rozsah</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Nekompatibilní verze mohou způsobit chyby. Tato volba obchází pouze rozsah verzí; nezbytné bezpečnostní kontroly zůstávají aktivní.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Omezení verze ignorováno · Bezpečnostní kontroly zachovány</value></data>
 </root>

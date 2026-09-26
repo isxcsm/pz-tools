@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Następna kopia: oczekiwanie na bieżące zadanie</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Ulecz postać</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Ulecz / wskrześ postać</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Uleczyć postać {0} w bieżącym zapisie?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Uleczyć postać {0}?
 
-Przywrócić zdrowie, sytość, nawodnienie, wypoczynek, wytrzymałość i stan psychiczny. Usunąć obrażenia, infekcje, zatrucie, objawy odstawienia i ból mięśni po ćwiczeniach, który jeszcze się nie pojawił. Wskrzesić postać, jeśli nie żyje.
+Przywraca zdrowie i leczy obrażenia oraz dolegliwości. Zmarła postać zostanie wskrzeszona, a dostępne przedmioty odzyskane. Zombie lub zwłoki, z których odzyskano przedmioty, zostaną usunięte.
 
-Wszystkie cechy, także negatywne, umiejętności, doświadczenie, waga, odżywianie i pozycja pozostają bez zmian. Cechy lub otoczenie mogą ponownie wywołać objawy. Choroby dodane przez mody nie są zmieniane.
+Cechy, umiejętności, doświadczenie i pozycja zostają zachowane. Niektóre efekty modów mogą pozostać.
 
-Jeśli śmierć opróżniła ekwipunek, odzyskuje przedmioty z zombie lub zwłok postaci i usuwa to źródło. Dowód tożsamości nie jest wymagany. Zachowuje stan przedmiotów, zawartość toreb oraz dane ubrania i mocowania. Zapisane identyfikatory przywracają przedmioty w dłoniach, jeśli są dostępne; w przeciwnym razie trzeba je ponownie wyposażyć. Nie tworzy utraconych przedmiotów. Niepewna tożsamość zatrzymuje operację bez zmian.
-
-Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, nieobsługiwane formaty i niejednoznaczne dane są odrzucane.</value></data>
+Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Odzyskiwanie postaci ukończone. Zachowano cechy, umiejętności i doświadczenie.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Nie udało się jednoznacznie rozpoznać zombie lub zwłok postaci. Dowód tożsamości nie jest wymagany, lecz przy wielu kandydatach lub niewystarczających danych starych zapisów program nie zgaduje. Niczego nie zmieniono.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Aktualizacja plików zapisu gry wymaga odzyskania. Nie wczytuj tego zapisu w grze. Uruchom ponownie PZ Tools, aby dokończyć aktualizację. Jeśli zapis zmienił się po przerwaniu, automatyczne odzyskiwanie zatrzyma się zamiast go nadpisywać.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Przerwano odzyskiwanie, ponieważ nie można bezpiecznie odzyskać przedmiotów. Zapis nie został zmieniony.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Poprzednia zmiana zapisu wymaga dokończenia. Otwórz ponownie PZ Tools przed wczytaniem tego zapisu w grze.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Odzyskiwanie postaci</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gra lub inna operacja używa tego zapisu. Przestań grać i spróbuj ponownie. Oryginał nie został zmieniony.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Ten zapis gry zawiera niedokończone zmiany. Zamknij grę w zwykły sposób i spróbuj ponownie. Oryginalny zapis nie został zmieniony.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Obsługiwane są tylko zapisy jednoosobowe z jedną lokalną postacią. Nie wybrano postaci arbitralnie i nie zmieniono oryginału.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Ta funkcja wymaga zapisu jednoosobowego z jedną postacią. Zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie można bezpiecznie edytować tego zapisu. Sprawdź, czy wersja PZ Tools obsługuje wersję gry. Oryginał nie został zmieniony.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Odczyt nieudany; nastąpi ponowna próba</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gra lub inna operacja korzysta z wymaganego pliku. Poczekaj na zakończenie zapisywania lub tej operacji i spróbuj ponownie.</value></data>
@@ -402,14 +400,13 @@ Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, 
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Sprawdzanie stanu gry</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Uruchom tylko jedną grę</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Sprawdź wynik ostatniego zapisu gry, a następnie ponownie włącz automatyczne kopie.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Zastosuj</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Usuń filtr</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Usuń wszystkie</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknij, aby filtrować</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknij, aby zmienić wyświetlane wpisy</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 lub 40-50. Puste pole oznacza brak limitu.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 lub 40-50. Poprawne wpisy są stosowane automatycznie. Puste pole oznacza brak limitu.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Wpisz liczbę całkowitą lub zakres rosnący.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Wpisz datę i godzinę lub użyj przycisku kalendarza. Puste pole oznacza brak ograniczenia.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Wpisz datę i czas lub wybierz je z kalendarza. Poprawne zmiany są stosowane automatycznie. Puste pole oznacza brak limitu.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Wpisz prawidłowe daty i godziny; początek nie może być późniejszy niż koniec.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
@@ -417,7 +414,6 @@ Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, 
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Ostatnie 24 godziny</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Wybierz datę i godzinę</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Użyj tej daty i godziny</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Rozszerzenia gry</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Zarządzaj opcjonalnymi ulepszeniami gry.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Płynne zapisywanie</value></data>
@@ -430,13 +426,13 @@ Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, 
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Ustawienia rozszerzeń są niedostępne</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Nie udało się zapisać zmian. Otwórz stronę ponownie i sprawdź plik ustawień rozszerzeń.</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Zachowuje oryginalny zapis gry, pomija wymuszone renderowanie podglądu i zapisuje istniejące pliki chunków w tle. Serializacja, zapis natywny i niektóre operacje na plikach nadal mogą wstrzymywać grę. Nieobsługiwane wersje używają standardowego zapisu.</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Wszystkie wersje</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Wersja główna {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Wersja podrzędna {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Obsługiwane: {0} · Bieżąca gra: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Poza obsługiwanym zakresem · Rozszerzenie nieaktywne</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oczekiwanie na wersję gry · Rozszerzenie nieaktywne</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Wymuś włączenie poza obsługiwanym zakresem</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Niezgodne wersje mogą powodować błędy. Pomijany jest tylko zakres wersji; niezbędne kontrole bezpieczeństwa pozostają aktywne.</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ograniczenie wersji pominięte · Kontrole bezpieczeństwa zachowane</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Wszystkie wersje</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Wersja główna {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Wersja podrzędna {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Obsługiwane: {0} · Bieżąca gra: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Poza obsługiwanym zakresem · Rozszerzenie nieaktywne</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oczekiwanie na wersję gry · Rozszerzenie nieaktywne</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Wymuś włączenie poza obsługiwanym zakresem</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Niezgodne wersje mogą powodować błędy. Pomijany jest tylko zakres wersji; niezbędne kontrole bezpieczeństwa pozostają aktywne.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ograniczenie wersji pominięte · Kontrole bezpieczeństwa zachowane</value></data>
 </root>

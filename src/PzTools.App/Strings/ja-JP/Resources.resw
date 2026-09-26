@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>次回のバックアップ：現在の作業の完了待ち</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>キャラクターを回復</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>キャラクターの回復・蘇生</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>現在のセーブのキャラクター「{0}」を回復しますか？
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>{0}を回復しますか？
 
-体力、満腹度、水分、休息、持久力、精神状態を回復し、負傷・感染・中毒・禁断症状・未発症の運動後の筋肉痛を取り除きます。死亡している場合は蘇生します。
+体力を回復し、けがや状態異常を治療します。死亡している場合は復活し、回収できる所持品を取り戻します。所持品の回収元となったゾンビ・死体は削除されます。
 
-すべての特性（マイナス特性を含む）、スキル、経験値、体重、栄養、位置は維持します。特性や環境によって症状が再発する場合があります。MOD独自の病気は変更しません。
+特性、スキル、経験値、位置は維持されます。一部のMODの効果は残る場合があります。
 
-死亡で空になった所持品は本人のゾンビまたは遺体から回収し、回収元を削除します。身分証は不要です。物品の状態、バッグの中身、着用・装着情報を保持します。手持ち装備は保存された物品IDがある場合に復元し、それ以外は再装備が必要です。失われた物品は生成せず、本人と特定できない場合は変更しません。
-
-変更するのは現在のシングルプレイのセーブのみです。プレイ中・未対応形式・対象を特定できないセーブには実行しません。</value></data>
+プレイを終了した状態で、選択したシングルプレイのセーブに適用します。</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>キャラクターの回復が完了しました。特性・スキル・経験値は保持されています。</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>本人のゾンビまたは遺体を一意に特定できませんでした。身分証は不要ですが、候補が複数ある場合や古いセーブの識別情報が不足する場合は推測しません。元のデータは変更していません。</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>セーブファイルの更新を復旧する必要があります。このセーブをゲームで読み込まないでください。PZ Tools を再起動して更新を完了させてください。中断後にセーブが変更されている場合、自動復旧は上書きせず停止します。</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>所持品を安全に回収できないため、回復を中止しました。セーブは変更していません。</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>前回のセーブ変更を完了する必要があります。このセーブをゲームで読み込む前にPZ Toolsを再起動してください。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>キャラクターの回復</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>ゲームまたは別の操作がこのセーブを使用中です。プレイを終了してからやり直してください。元のファイルは変更していません。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>このセーブには未完了の変更があります。ゲームを通常の手順で終了してから再試行してください。元のセーブは変更していません。</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>ローカルキャラクターが 1 人だけ含まれるシングルプレイのセーブにのみ対応しています。キャラクターを勝手に選択せず、元のファイルも変更していません。</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>キャラクターが1人のシングルプレイのセーブでのみ使用できます。セーブは変更していません。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>このセーブを安全に編集できません。PZ Toolsがゲームのバージョンに対応しているか確認してください。元のセーブは変更していません。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>読み取り失敗・再試行予定</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>ゲームや別の処理が必要なファイルを使用しています。保存や処理が終わってから再試行してください。</value></data>
@@ -402,14 +400,13 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>ゲームの状態を確認中</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>ゲームは1つだけ起動してください</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>前回のゲーム保存結果を確認してから自動バックアップを再度オンにしてください。</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>適用</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>フィルター解除</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>すべて解除</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · クリックで絞り込み</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · クリックすると表示する記録が変わります</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 または 40-50。空欄は制限なし。</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42または40-50。入力すると自動で適用されます。空欄は制限なしです。</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>整数の番号、または小さい番号からの範囲を入力してください。</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>日時を直接入力するか、カレンダーボタンで選択してください。空欄は制限なしです。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>入力またはカレンダーで選択すると自動で適用されます。空欄は制限なしです。</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>有効な日時を入力し、開始を終了以前にしてください。</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>開始</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>終了</value></data>
@@ -417,7 +414,6 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>過去24時間</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>日時を選択</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>日付</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>この日時を使用</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>ゲーム拡張</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>ゲームに適用する任意の拡張機能を管理します。</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>シームレスセーブ</value></data>
@@ -430,13 +426,13 @@
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>拡張設定を利用できません</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>変更を保存できませんでした。ページを開き直し、拡張設定ファイルを確認してください。</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>元のゲーム保存を維持し、プレビューの強制描画を省略して、既存チャンクファイルの書き込みをバックグラウンドで行います。シリアライズ、ネイティブ保存、一部のファイル処理では停止が残る場合があります。未対応のバージョンでは標準保存を使用します。</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>すべてのバージョン</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>メジャー {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>マイナー {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>対応: {0} · 現在のゲーム: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>対応範囲外 · 拡張は無効</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>ゲームバージョンを確認中 · 拡張は無効</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>対応範囲外でも強制的に有効化</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>互換性のないバージョンではエラーが発生する場合があります。バージョン範囲の制限のみ解除し、必須の安全確認は維持します。</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>バージョン制限を無視 · 必須の確認は維持</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>すべてのバージョン</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>メジャー {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>マイナー {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>対応: {0} · 現在のゲーム: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>対応範囲外 · 拡張は無効</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>ゲームバージョンを確認中 · 拡張は無効</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>対応範囲外でも強制的に有効化</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>互換性のないバージョンではエラーが発生する場合があります。バージョン範囲の制限のみ解除し、必須の安全確認は維持します。</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>バージョン制限を無視 · 必須の確認は維持</value></data>
 </root>

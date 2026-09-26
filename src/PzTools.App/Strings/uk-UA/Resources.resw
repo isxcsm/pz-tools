@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Наступна копія: очікування поточного завдання</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Зцілити персонажа</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Зцілити / воскресити персонажа</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Зцілити персонажа {0} у поточному збереженні?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Відновити персонажа {0}?
 
-Відновити здоров’я, ситість, запас води, відпочинок, витривалість і психічний стан. Усунути травми, інфекції, отруєння, симптоми відміни та біль у м’язах після вправ, який ще не проявився. Воскресити персонажа, якщо він загинув.
+Відновлює здоров’я та лікує поранення й інші недуги. Загиблий персонаж воскресне та поверне доступні речі. Зомбі або труп, з якого забрано речі, буде видалено.
 
-Усі риси, зокрема негативні, навички, досвід, вага, харчування та позиція залишаються незмінними. Риси або довкілля можуть знову спричинити симптоми. Хвороби, додані модами, не змінюються.
+Риси, навички, досвід і положення зберігаються. Деякі ефекти модів можуть залишитися.
 
-Якщо смерть спорожнила інвентар, речі повертаються із зомбі або тіла персонажа, а джерело видаляється. Посвідчення особи не потрібне. Стан речей, вміст сумок, одяг і дані кріплень зберігаються. Збережені ID відновлюють предмети в руках, якщо доступні; інакше їх треба спорядити знову. Втрачені речі не створюються. За непевної ідентифікації змін не буде.
-
-Змінюється лише поточне одиночне збереження. Збереження, що використовуються в грі, непідтримувані формати та неоднозначні дані відхиляються.</value></data>
+Застосовується до вибраного одиночного збереження після виходу з гри.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Відновлення персонажа завершено. Риси, навички та досвід збережено.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Не вдалося однозначно визначити зомбі або тіло персонажа. Посвідчення особи не потрібне, але за кількох кандидатів або браку даних у старому збереженні програма не вгадує. Нічого не змінено.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Потрібно відновити оновлення файлів збереження. Не завантажуйте це збереження в грі. Перезапустіть PZ Tools, щоб завершити оновлення. Якщо збереження змінилося після переривання, автоматичне відновлення зупиниться, не перезаписуючи його.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Відновлення зупинено: речі неможливо повернути безпечно. Збереження не змінено.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Потрібно завершити попередню зміну збереження. Знову відкрийте PZ Tools, перш ніж завантажувати це збереження у грі.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Відновлення персонажа</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Це збереження використовується грою або іншою операцією. Припиніть гру й повторіть спробу. Оригінал не змінено.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>У цьому збереженні є незавершені зміни. Вийдіть із гри звичайним способом і повторіть спробу. Початкове збереження не змінено.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Підтримуються лише одиночні збереження з одним локальним персонажем. Персонажа не вибирали довільно, оригінал не змінено.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Ця функція потребує одиночного збереження з одним персонажем. Збереження не змінено.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Це збереження неможливо безпечно змінити. Перевірте сумісність версій PZ Tools і гри. Оригінал не було змінено.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Помилка читання; буде повторна спроба</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Гра або інша операція використовує потрібний файл. Дочекайтеся завершення збереження чи операції та повторіть спробу.</value></data>
@@ -402,14 +400,13 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Перевірка стану гри</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запустіть лише одну гру</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Перевірте результат останнього збереження гри та знову ввімкніть автоматичні копії.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Застосувати</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Зняти фільтр</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Зняти всі</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · натисніть для фільтрації</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · натисніть, щоб змінити показані записи</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 або 40-50. Порожнє поле — без обмежень.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 або 40-50. Правильні значення застосовуються автоматично. Порожнє поле — без обмеження.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Введіть цілий номер або діапазон за зростанням.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Введіть дату й час або скористайтеся кнопкою календаря. Порожнє поле означає відсутність обмеження.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Введіть дату й час або виберіть їх у календарі. Правильні зміни застосовуються автоматично. Порожнє поле — без обмеження.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Введіть коректні дату й час; початок не може бути пізніше кінця.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Від</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>До</value></data>
@@ -417,7 +414,6 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Останні 24 години</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Вибрати дату й час</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Дата</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Використати цю дату й час</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Розширення гри</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Керування додатковими покращеннями гри.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Плавне збереження</value></data>
@@ -430,13 +426,13 @@
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Налаштування розширень недоступні</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Не вдалося зберегти зміни. Відкрийте сторінку знову та перевірте файл налаштувань розширень.</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Зберігає початковий механізм збереження, пропускає примусове малювання попереднього перегляду й записує наявні файли чанків у фоні. Серіалізація, нативне збереження та деякі файлові операції все ще можуть призупиняти гру. Непідтримувані версії використовують звичайне збереження.</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Усі версії</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Основна версія {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Молодша версія {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Підтримка: {0} · Поточна гра: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Поза підтримуваним діапазоном · Розширення неактивне</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Очікування версії гри · Розширення неактивне</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Примусово ввімкнути поза підтримуваним діапазоном</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Несумісні версії можуть спричиняти помилки. Ігнорується лише діапазон версій; обов’язкові перевірки безпеки залишаються активними.</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Обмеження версії вимкнено · Обов’язкові перевірки збережено</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Усі версії</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Основна версія {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Молодша версія {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Підтримка: {0} · Поточна гра: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Поза підтримуваним діапазоном · Розширення неактивне</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Очікування версії гри · Розширення неактивне</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Примусово ввімкнути поза підтримуваним діапазоном</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Несумісні версії можуть спричиняти помилки. Ігнорується лише діапазон версій; обов’язкові перевірки безпеки залишаються активними.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Обмеження версії вимкнено · Обов’язкові перевірки збережено</value></data>
 </root>

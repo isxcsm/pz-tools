@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próximo backup: aguardando a tarefa atual</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Curar personagem</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Curar / ressuscitar personagem</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Curar o personagem {0} da partida atual?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Recuperar {0}?
 
-Restaurar saúde, saciedade, hidratação, descanso, resistência e estado mental. Remover ferimentos, infecções, intoxicação, sintomas de abstinência e dores musculares ainda não manifestadas. Ressuscitar o personagem se estiver morto.
+Restaura a saúde e trata ferimentos e outras condições. Se o personagem morreu, ele é ressuscitado e os pertences disponíveis são recuperados. O zumbi ou cadáver de onde vieram os itens é removido.
 
-Todos os traços, inclusive os negativos, habilidades, XP, peso, nutrição e posição serão mantidos. Traços ou condições ambientais podem fazer os sintomas voltarem. Doenças específicas de mods não serão alteradas.
+Características, habilidades, XP e posição são mantidos. Alguns efeitos de mods podem permanecer.
 
-Se a morte esvaziou o inventário, recupera os pertences do zumbi ou cadáver do personagem e remove essa origem. Não é preciso documento de identidade. Preserva o estado dos itens, o conteúdo das bolsas e os dados de roupas e anexos. IDs salvos restauram os itens nas mãos quando disponíveis; caso contrário, reequipe-os. Itens perdidos não são criados. Identidade incerta interrompe a operação sem alterações.
-
-Somente a partida atual de um jogador será alterada. Partidas em uso, formatos não suportados ou dados ambíguos serão recusados.</value></data>
+Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>A recuperação do personagem foi concluída. Traços, habilidades e experiência foram preservados.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Não foi possível identificar unicamente o zumbi ou cadáver do personagem. Não é preciso documento de identidade, mas não há escolha por suposição entre vários candidatos ou com dados insuficientes de saves antigos. Nada foi alterado.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Uma atualização dos arquivos da partida precisa ser recuperada. Não carregue essa partida no jogo. Reinicie o PZ Tools para concluir a atualização. Se a partida mudou após a interrupção, a recuperação automática para em vez de sobrescrevê-la.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>A recuperação foi interrompida porque os pertences não puderam ser recuperados com segurança. O save não foi alterado.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Uma alteração anterior do save precisa ser concluída. Reabra o PZ Tools antes de carregar esse save no jogo.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Recuperação do personagem</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>O jogo ou outra operação está usando essa partida. Pare de jogar e tente novamente. O original não foi alterado.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Este jogo salvo tem alterações pendentes. Saia do jogo normalmente e tente novamente. O original não foi alterado.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Apenas partidas de um jogador com um único personagem local são compatíveis. Nenhum personagem foi escolhido arbitrariamente e o original não foi alterado.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Este recurso exige um save solo com apenas um personagem. O save não foi alterado.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Este jogo salvo não pode ser editado com segurança. Verifique se a versão do PZ Tools é compatível com a do jogo. O original não foi alterado.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Falha de leitura; nova tentativa será feita</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>O jogo ou outra operação está usando um arquivo necessário. Aguarde o salvamento ou essa operação terminar e tente novamente.</value></data>
@@ -402,14 +400,13 @@ Somente a partida atual de um jogador será alterada. Partidas em uso, formatos 
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Verificando o estado do jogo</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Execute apenas um jogo</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verifique o resultado do último salvamento do jogo e reative os backups automáticos.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Aplicar</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Limpar filtro</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Limpar todos</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · clique para filtrar</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · clique para mudar os registros exibidos</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 ou 40-50. Em branco significa sem limite.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 ou 40-50. Entradas válidas são aplicadas automaticamente. Deixe em branco para não limitar.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Insira um número inteiro ou um intervalo crescente.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Digite a data e a hora ou use o botão do calendário. Deixe um campo vazio para não limitar.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Digite a data e a hora ou escolha no calendário. Alterações válidas são aplicadas automaticamente. Em branco significa sem limite.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Insira datas e horários válidos; o início não pode ser posterior ao fim.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>De</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Até</value></data>
@@ -417,7 +414,6 @@ Somente a partida atual de um jogador será alterada. Partidas em uso, formatos 
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Últimas 24 horas</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Escolher data e hora</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Usar esta data e hora</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Extensões do jogo</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Gerencie melhorias opcionais para o jogo.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Salvamento sem interrupções</value></data>
@@ -430,13 +426,13 @@ Somente a partida atual de um jogador será alterada. Partidas em uso, formatos 
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Configurações de extensões indisponíveis</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Não foi possível salvar as alterações. Reabra a página e verifique o arquivo de configurações das extensões.</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Mantém o salvamento original, evita a renderização forçada da prévia e grava arquivos de chunks existentes em segundo plano. A serialização, o salvamento nativo e algumas operações de arquivo ainda podem pausar o jogo. Versões incompatíveis usam o salvamento padrão.</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Todas as versões</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Versão principal {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Versão secundária {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Compatível: {0} · Jogo atual: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Fora da faixa compatível · Extensão inativa</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Aguardando a versão do jogo · Extensão inativa</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Forçar ativação fora da faixa compatível</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versões incompatíveis podem causar erros. Apenas o limite de versões é ignorado; as verificações essenciais de segurança permanecem ativas.</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Limite de versão ignorado · Verificações essenciais mantidas</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Todas as versões</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Versão principal {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Versão secundária {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Compatível: {0} · Jogo atual: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Fora da faixa compatível · Extensão inativa</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Aguardando a versão do jogo · Extensão inativa</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Forçar ativação fora da faixa compatível</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versões incompatíveis podem causar erros. Apenas o limite de versões é ignorado; as verificações essenciais de segurança permanecem ativas.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Limite de versão ignorado · Verificações essenciais mantidas</value></data>
 </root>

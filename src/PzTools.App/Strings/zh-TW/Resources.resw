@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次備份：等待目前工作</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢復</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>治療／復活角色</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢復目前存檔中的角色 {0}？
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢復角色{0}？
 
-恢復生命值、飽食度、水分、休息、耐力與精神狀態，清除傷勢、感染、中毒、戒斷症狀及尚未發作的運動痠痛。角色已死亡時將嘗試復活。
+恢復生命值，治療傷勢和異常狀態。如果角色已死亡，將復活並取回可找回的物品。取回物品後，對應的殭屍或屍體會被移除。
 
-所有特質（包括負面特質）、技能、經驗、體重、營養與位置均保持不變。特質或環境可能使症狀再次出現；不會修改模組自訂疾病。
+保留特質、技能、經驗和位置。部分模組效果可能仍然存在。
 
-如果死亡清空了物品欄，將從角色的殭屍或屍體取回物品並移除該來源。無需身分證。物品狀態、背包內容、穿戴及附掛資訊均保留。儲存的物品ID可用時會恢復手持裝備，否則需手動重新裝備。不會生成已遺失的物品；無法確認身分時不會修改存檔。
-
-僅修改目前的單人存檔。正在遊玩、不受支援或無法明確識別的存檔會被拒絕。</value></data>
+結束遊玩後，套用至選取的單人存檔。</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>角色恢復完成。特質、技能和經驗值已保留。</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>無法唯一確定該角色的殭屍或屍體。無需身分證，但候選對象不唯一或舊存檔身分資訊不足時不會猜測。原始資料未更改。</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>存檔檔案更新需要復原。請勿在遊戲中載入此存檔。請重新啟動 PZ Tools 以完成更新。如果中斷後存檔發生變更，自動復原將停止，不會覆寫存檔。</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>無法安全取回物品，已停止恢復。存檔未被修改。</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>上一次存檔修改尚未完成。請先重新開啟PZ Tools，再在遊戲中載入此存檔。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>角色恢復</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>遊戲或其他作業正在使用此存檔。請停止遊玩後再試。原始檔案未變更。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存檔有尚未完成的變更。請正常結束遊戲後再試。原始存檔未被修改。</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>僅支援包含一個本機角色的單人存檔。未擅自選取角色，原始檔案未變更。</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>此功能僅支援只有一名角色的單人存檔。存檔未被修改。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>無法安全修改此存檔。請確認PZ Tools版本支援您的遊戲版本。原存檔未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>讀取失敗，將重試</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>遊戲或其他作業正在使用所需的檔案。請等儲存或相關作業結束後再試。</value></data>
@@ -402,14 +400,13 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>正在確認遊戲狀態</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>請只執行一個遊戲</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>請確認上次遊戲儲存的結果，再重新開啟自動備份。</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>套用</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>清除篩選</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>全部清除</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · 點選篩選</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 點選切換顯示的記錄</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 或 40-50。留空表示不限。</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42或40-50。有效輸入會自動套用，留空表示不限。</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>請輸入整數編號或由小到大的編號範圍。</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>直接輸入日期與時間，或使用月曆按鈕選擇。留空表示不限制。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>輸入或透過日曆選擇後自動套用。留空表示不限。</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>請輸入有效日期和時間，且開始不得晚於結束。</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>開始</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>結束</value></data>
@@ -417,7 +414,6 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>最近24小時</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>選擇日期與時間</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>日期</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>使用此日期與時間</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>遊戲擴充</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>管理選用的遊戲增強功能。</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>無縫儲存</value></data>
@@ -430,13 +426,13 @@
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>無法使用擴充設定</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>無法儲存變更。請重新開啟頁面並檢查擴充設定檔。</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>保留遊戲原有儲存流程，略過強制預覽繪製，並在背景寫入既有的區塊檔案。序列化、原生儲存及部分檔案操作仍可能使遊戲短暫停頓。不支援的版本使用標準儲存。</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>所有版本</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>主要版本 {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>次要版本 {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>支援範圍：{0} · 目前遊戲：{1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>超出支援範圍 · 擴充功能未啟用</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>等待確認遊戲版本 · 擴充功能未啟用</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>忽略支援範圍並強制啟用</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>不相容的版本可能造成錯誤。此選項僅略過版本範圍限制，不會關閉必要的安全檢查。</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>已忽略版本限制 · 保留必要安全檢查</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>所有版本</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>主要版本 {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>次要版本 {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>支援範圍：{0} · 目前遊戲：{1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>超出支援範圍 · 擴充功能未啟用</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>等待確認遊戲版本 · 擴充功能未啟用</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>忽略支援範圍並強制啟用</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>不相容的版本可能造成錯誤。此選項僅略過版本範圍限制，不會關閉必要的安全檢查。</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>已忽略版本限制 · 保留必要安全檢查</value></data>
 </root>

@@ -365,22 +365,20 @@
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Sonraki yedek: geçerli işi bekliyor</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Karakteri iyileştir</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Karakteri iyileştir / dirilt</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Mevcut kayıttaki {0} karakteri iyileştirilsin mi?
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>{0} iyileştirilsin mi?
 
-Sağlık, tokluk, su, dinlenme, dayanıklılık ve zihinsel durum yenilenir. Yaralar, enfeksiyonlar, zehirlenme, yoksunluk belirtileri ve henüz başlamamış egzersiz ağrıları giderilir. Karakter ölmüşse diriltilir.
+Sağlığı yeniler, yaraları ve diğer rahatsızlıkları iyileştirir. Karakter öldüyse diriltir ve bulunabilen eşyaları geri getirir. Eşyaların alındığı zombi veya ceset kaldırılır.
 
-Olumsuz olanlar dahil tüm özellikler, beceriler, deneyim, ağırlık, beslenme ve konum korunur. Özellikler veya çevre belirtilerin yeniden oluşmasına yol açabilir. Modlara özgü hastalıklar değiştirilmez.
+Özellikler, beceriler, deneyim ve konum korunur. Bazı mod etkileri kalabilir.
 
-Ölüm envanteri boşalttıysa eşyalar karakterin zombisinden veya cesedinden alınır ve bu kaynak kaldırılır. Kimlik kartı gerekmez. Eşya durumu, çanta içeriği, giyim ve takılı eşya verileri korunur. Kayıtlı eşya kimlikleri varsa ellerdeki ekipman geri yüklenir; yoksa yeniden kuşanmanız gerekir. Kayıp eşyalar üretilmez. Kimlik belirsizse değişiklik yapılmaz.
-
-Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtlar, desteklenmeyen biçimler ve belirsiz veriler reddedilir.</value></data>
+Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Karakter kurtarma tamamlandı. Özellikler, beceriler ve deneyim korundu.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Karakterin zombisi veya cesedi kesin olarak belirlenemedi. Kimlik kartı gerekmez; ancak birden fazla aday veya eski kayıtta yetersiz kimlik verisi varsa tahmin yürütülmez. Hiçbir şey değiştirilmedi.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Bir oyun kayıt dosyası güncellemesinin kurtarılması gerekiyor. Bu kaydı oyunda yüklemeyin. Güncellemeyi tamamlamak için PZ Tools’u yeniden başlatın. Kayıt kesintiden sonra değiştiyse otomatik kurtarma üzerine yazmak yerine durur.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Eşyalar güvenli biçimde geri alınamadığı için kurtarma durduruldu. Kayıt değiştirilmedi.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Önceki kayıt değişikliği tamamlanmalı. Bu kaydı oyunda açmadan önce PZ Tools&apos;u yeniden açın.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Karakter kurtarma</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Bu kaydı oyun veya başka bir işlem kullanıyor. Oynamayı bırakıp yeniden deneyin. Asıl dosya değiştirilmedi.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Bu oyun kaydında tamamlanmamış değişiklikler var. Oyundan normal şekilde çıkıp yeniden deneyin. Özgün kayıt değiştirilmedi.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Yalnızca tek yerel karakter içeren tek oyunculu kayıtlar desteklenir. Rastgele bir karakter seçilmedi ve asıl dosya değiştirilmedi.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Bu özellik, tek karakter içeren tek oyunculu bir kayıt gerektirir. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Bu kayıt güvenle düzenlenemiyor. PZ Tools sürümünüzün oyun sürümünü desteklediğini kontrol edin. Orijinal kayıt değiştirilmedi.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Okuma başarısız; yeniden denenecek</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Oyun veya başka bir işlem gerekli bir dosyayı kullanıyor. Kaydetmenin veya işlemin bitmesini bekleyip yeniden deneyin.</value></data>
@@ -402,14 +400,13 @@ Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtla
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Oyun durumu kontrol ediliyor</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Lütfen yalnızca bir oyun çalıştırın</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Son oyun kaydının sonucunu doğrulayın, ardından otomatik yedeklemeyi yeniden açın.</value></data>
-  <data name="LogFilterApply" xml:space="preserve"><value>Uygula</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Filtreyi temizle</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Tümünü temizle</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · filtrelemek için tıklayın</value></data>
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · gösterilen kayıtları değiştirmek için tıklayın</value></data>
-  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 veya 40-50. Boş bırakmak sınır olmadığı anlamına gelir.</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 veya 40-50. Geçerli girişler otomatik uygulanır. Sınır koymamak için boş bırakın.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Bir tam sayı veya artan sayı aralığı girin.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>Tarih ve saati yazın veya takvim düğmesini kullanın. Alanı boş bırakmak sınırı kaldırır.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Tarih ve saati yazın veya takvimden seçin. Geçerli değişiklikler otomatik uygulanır. Boş alan sınırsızdır.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Geçerli tarih ve saat girin; başlangıç bitişten sonra olamaz.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Başlangıç</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Bitiş</value></data>
@@ -417,7 +414,6 @@ Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtla
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Son 24 saat</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Tarih ve saat seç</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Tarih</value></data>
-  <data name="LogTimeUseSelection" xml:space="preserve"><value>Bu tarih ve saati kullan</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Oyun eklentileri</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Oyun için isteğe bağlı iyileştirmeleri yönetin.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Kesintisiz kayıt</value></data>
@@ -430,13 +426,13 @@ Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtla
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Eklenti ayarları kullanılamıyor</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Değişiklikler kaydedilemedi. Sayfayı yeniden açın ve eklenti ayarları dosyasını kontrol edin.</value></data>
 <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Oyunun özgün kaydını korur, zorunlu önizleme çizimini atlar ve mevcut parça dosyalarını arka planda yazar. Serileştirme, yerel kayıt ve bazı dosya işlemleri oyunu hâlâ duraklatabilir. Desteklenmeyen sürümler standart kaydı kullanır.</value></data>
-  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Tüm sürümler</value></data>
-  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Ana sürüm {0}</value></data>
-  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Alt sürüm {0}</value></data>
-  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Desteklenen: {0} · Mevcut oyun: {1}</value></data>
-  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Desteklenen aralığın dışında · Uzantı etkin değil</value></data>
-  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oyun sürümü bekleniyor · Uzantı etkin değil</value></data>
-  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Desteklenen aralığın dışında zorla etkinleştir</value></data>
-  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Uyumsuz sürümler hatalara neden olabilir. Yalnızca sürüm aralığı sınırı kaldırılır; temel güvenlik kontrolleri etkin kalır.</value></data>
-  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Sürüm sınırı kaldırıldı · Temel kontroller etkin</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Tüm sürümler</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Ana sürüm {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Alt sürüm {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Desteklenen: {0} · Mevcut oyun: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Desteklenen aralığın dışında · Uzantı etkin değil</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oyun sürümü bekleniyor · Uzantı etkin değil</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Desteklenen aralığın dışında zorla etkinleştir</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Uyumsuz sürümler hatalara neden olabilir. Yalnızca sürüm aralığı sınırı kaldırılır; temel güvenlik kontrolleri etkin kalır.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Sürüm sınırı kaldırıldı · Temel kontroller etkin</value></data>
 </root>
