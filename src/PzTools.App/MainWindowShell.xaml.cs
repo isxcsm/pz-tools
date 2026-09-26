@@ -128,9 +128,9 @@ public sealed partial class MainWindowShell : UserControl
     private void ApplyLocalizedText()
     {
         Language = Localizer.Culture.Name;
-        AppTitleText.Text = Localizer.Get("AppTitle");
+        AppSubtitleText.Text = Localizer.Get("AppSubtitle");
         LocalizeSupportButton();
-        if (IsLoaded) App.MainWindow.Title = AppTitleText.Text;
+        if (IsLoaded) App.MainWindow.Title = Localizer.Get("AppTitle");
         SavesItem.Content = Localizer.Get("SavesNavigation.Content");
         SavesPageTitle.Text = Localizer.Get("SavesNavigation.Content");
         AppToolTip.SetTip(SavesPageTitle, SavesPageTitle.Text);
@@ -189,7 +189,7 @@ public sealed partial class MainWindowShell : UserControl
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         App.MainWindow.SetTitleBar(AppTitleBar);
-        App.MainWindow.Title = AppTitleText.Text;
+        App.MainWindow.Title = Localizer.Get("AppTitle");
         UpdateTitleBar();
         Navigation.SelectedItem ??= SavesItem;
         // Avoid the automatic startup focus ring on the pane toggle. Keyboard

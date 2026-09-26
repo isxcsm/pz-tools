@@ -10,16 +10,21 @@
   </UserControl.Resources>
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="32" />
+      <RowDefinition Height="80" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
     <Grid x:Name="AppTitleBar" Background="Transparent" Margin="0,0,140,0">
-      <StackPanel Orientation="Horizontal" Spacing="10" Margin="16,0,0,0" VerticalAlignment="Center">
-        <Image Width="24" Height="24">
-          <Image.Source><SvgImageSource UriSource="ms-appx:///Assets/Navigation/pztools.svg" /></Image.Source>
-        </Image>
-        <TextBlock x:Name="AppTitleText" Text="PZ Tools · 프로젝트 좀보이드" Style="{ThemeResource CaptionTextBlockStyle}" />
-      </StackPanel>
+      <Grid Margin="24,12,0,12" ColumnSpacing="14" VerticalAlignment="Center">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Image Width="56" Height="56" Source="ms-appx:///Assets/Brand/pztools.png" Stretch="Uniform"
+               AutomationProperties.AccessibilityView="Raw" />
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock x:Name="AppTitleText" Text="PZ Tools" FontSize="24" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="AppSubtitleText" FontSize="13" TextTrimming="CharacterEllipsis"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+      </Grid>
     </Grid>
   <NavigationView x:Name="Navigation" Grid.Row="1" IsSettingsVisible="True"
                   IsBackButtonVisible="Collapsed" PaneDisplayMode="Auto" IsPaneToggleButtonVisible="False"
@@ -68,7 +73,11 @@
         </NavigationViewItem.Icon>
       </NavigationViewItem>
       <NavigationViewItem x:Name="GameExtensionsItem" Content="Game Extensions" Tag="game-extensions">
-        <NavigationViewItem.Icon><SymbolIcon Symbol="Repair" /></NavigationViewItem.Icon>
+        <NavigationViewItem.Icon>
+          <ImageIcon Width="20" Height="20">
+            <ImageIcon.Source><SvgImageSource UriSource="ms-appx:///Assets/Navigation/extensions.svg" /></ImageIcon.Source>
+          </ImageIcon>
+        </NavigationViewItem.Icon>
       </NavigationViewItem>
       <NavigationViewItem x:Name="LogsItem" Content="로그" Tag="logs">
         <NavigationViewItem.Icon>
