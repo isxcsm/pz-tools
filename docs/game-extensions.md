@@ -4,7 +4,7 @@
 
 ## Current scope
 
-Seamless Saving **0.9.0**, bootstrap API **8**, save protocol **6**.
+Seamless Saving **0.9.1**, bootstrap API **8**, save protocol **6**.
 Replace app/worker/JARs together and restart the entire game. In particular, an older
 bootstrap already containing the retired global hooks cannot be upgraded just by toggling
 the extension. No backup-repository reset is needed.
@@ -128,7 +128,7 @@ saving or attach to the user's running game.
 
 ### Acceptance boundary
 
-The candidate implements the selected low-interruption path: drag-safe admission,
+The candidate implements the selected low-interruption path: UI-independent admission,
 private full-save coverage, bounded chunk write handoff, private native completion,
 DB completion, normal-save isolation and the existing backup/restore integration.
 See [the disposable-world acceptance procedure](e2e-seamless-save.md).
@@ -181,12 +181,18 @@ or failures hidden inside C++ are not asserted safe/detected by these Java check
 
 ## Interaction and per-request diagnostics (0.9)
 
-The optional provider waits before mutation while an inventory drag/drop is still pending. A held mouse button alone does not block
-normal play or combat. It reads the current Lua table on
-the game thread and never resets input, clears a drag or recreates item references.
-Mouse release alone is insufficient: the UI must also finish its drop handling.
-Existing request lifetime, pause/death checks and cancellation apply during this wait;
-a stuck interaction times out WITHOUT saving, rather than being force-cleared.
+The provider does not read inventory drag tables, input buttons or UI focus to decide
+when saving may start. Only save-worker readiness and existing request guards apply.
+The private root omits its own SavefileThumbnail.create call, excluding that extra
+world/UI render path without replacing ordinary saving or normal frame processing.
+OnSave callbacks, including a mod that explicitly invokes normal saving, are preserved.
+No input state is cleared, reconstructed, or restored after saving.
+
+The former 0.9.0 drag-idle gate was an avoidance policy, not a fix for UI re-entry. It
+was removed together with its tests. The replacement regression actually saves with
+held/released-but-unprocessed drag state, checks persisted bytes and no preview callback,
+and verifies that legitimate callback cancellation is not resurrected. Its UI state
+is synthetic: it does not prove the real inventory event loop or root cause fixed.
 
 Private-only timing wrappers aggregate chunk-body, handoff, animal/native-call and
 remaining capture durations. The bounded diagnostic string is carried by the existing
@@ -195,7 +201,7 @@ Chunk-body time includes original locks/CRC and excludes the measured I/O handof
 native-call time describes submission/capture, not the off-thread completion interval.
 No counter history or per-frame logging is retained. The standard save path is not
 wrapped. Existing card/dialog descriptions in all 18 languages state the actual scope.
-### 0.9 local candidate verification
+### Previous 0.9.0 verification (superseded candidate)
 
 The final Windows Release solution/WinUI/native/Java build completed with zero
 warnings and zero errors. The existing four Java harness programs passed, including
@@ -218,3 +224,23 @@ This verifies the candidate's implementation and packaging, not real-game stutte
 FPS, drag behavior or restoration of actual vehicles/items. Those acceptance results
 remain unmeasured. The running user app, game installation, real saves, backup databases
 and user configuration were not changed by the development or automated verification.
+
+### 0.9.1 UI-admission correction
+
+Removed InteractionReadiness and its Lua inventory dependency from provider admission.
+The existing private thumbnail omission is retained, not a newly invented UI-idle policy.
+The replacement test keeps drag/focus active while the actual private graph serializes
+and writes files, checks that preview callbacks are not invoked, and also covers a
+released button awaiting UI processing and cancellation by a preserved OnSave callback.
+Synthetic text-selection/modal-focus values are unchanged. Normal saving still invokes
+its rendering callback. These checks are not a real-game input/drag reproduction.
+
+Local Windows verification: Release solution/WinUI/native/Java build passed with zero
+warnings/errors; four existing Java programs passed. ui-correction.trx records 58
+passed, zero failed/skipped; published-ui-correction.trx records two passed package
+checks. Installed-JAR adapter initialization and the five-original-save-body audit passed
+in a separate JVM without saving. No new CI job or test harness was added.
+
+The refreshed candidate is artifacts/e2e-seamless-0.9.1/app. Bootstrap API 8 and wire 6
+are unchanged. Restart the game for the new module; use the corrected E2E procedure,
+not the superseded 0.9.0 drag-wait expectation. Real-game behavior remains unverified.

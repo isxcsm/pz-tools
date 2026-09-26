@@ -1,5 +1,5 @@
 package se.krka.kahlua.vm;
-/** Test-only table; the product reads the real KahluaTable interface. */
+/** Test-only UI state. Saving must neither inspect nor reset this table. */
 public final class KahluaTable {
     private final java.util.Map<Object, Object> entries = new java.util.HashMap<>();
     public Object rawget(Object key) { return entries.get(key); }

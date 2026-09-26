@@ -33,7 +33,6 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
     private Method allowPlayers, getPlayers, updatePlayers, updateVehicles;
     private Field vehicles;
     private CaptureReadiness readiness;
-    private InteractionReadiness interaction;
     private final CaptureTimings timings = new CaptureTimings();
     private OwnedChunkWrites writes;
     private OwnedNativeSave nativeSave;
@@ -62,7 +61,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         Class<?> logger = Class.forName("zombie.core.logger.ExceptionLogger", false, loader);
         allowPlayers = playerDb.getMethod("isAllow"); getPlayers = playerDb.getMethod("getInstance");
         updatePlayers = playerDb.getMethod("updateMain"); updateVehicles = vehicleDb.getMethod("updateMain");
-        vehicles = vehicleDb.getField("instance"); readiness = new CaptureReadiness(loader); interaction = new InteractionReadiness(loader);
+        vehicles = vehicleDb.getField("instance"); readiness = new CaptureReadiness(loader);
         writes = new OwnedChunkWrites(new GameChunkAccess(loader));
         nativeSave = new OwnedNativeSave(loader);
         Class<?> nativeWorker = Class.forName("zombie.MapCollisionData$MCDThread", false, loader);
@@ -133,7 +132,8 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             initialized ? "game-code-changed" : "adapter-not-initialized");
     }
     @Override public boolean readyToCapture(SaveProvider.Context context) throws Exception {
-        context.requireGameThread(); return interaction.ready() && readiness.ready();
+        // Admission depends on save-worker readiness, never inventory/UI state.
+        context.requireGameThread(); return readiness.ready();
     }
     @Override public SaveProvider.PreparedSave capture(SaveProvider.Context context, long maximumBytes) throws Exception {
         context.requireGameThread();

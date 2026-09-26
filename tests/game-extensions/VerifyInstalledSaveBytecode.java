@@ -28,7 +28,7 @@ public final class VerifyInstalledSaveBytecode {
                 if(!cf.verify(observed).isEmpty()) throw new AssertionError("Observer verification failed: "+name);
                 System.out.println("VERIFIED (not executed): read-only observer "+name);
             }
-            for(String type : new String[]{"CaptureReadiness","GameChunkAccess","InteractionReadiness","OwnedNativeSave"}) {
+            for(String type : new String[]{"CaptureReadiness","GameChunkAccess","OwnedNativeSave"}) {
                 var constructor=Class.forName("pztools.extensions.seamless.b4220."+type).getDeclaredConstructor(ClassLoader.class);
                 constructor.setAccessible(true); constructor.newInstance(loader);
             }

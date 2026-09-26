@@ -74,53 +74,84 @@ public final class PrivateSaveEntryTest {
             PrivateNativeOwnershipTest.run(Path.of(args[0]));
             verifyBoundedIndependentCaptures(loader, root, chunk, completion);
             verifyLockAdmissionFailure(loader, root, completion);
-            System.out.println("PASS: private save isolation, bounded independent captures, single disk writer, fallback, failure and shutdown");
+            System.out.println("PASS: active-UI private saves without extra rendering, normal/nested saves, bounded I/O and native ownership");
         } finally {
             try (var paths = Files.walk(root)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); }
         }
     }
     private static void verifyInteractionAndTiming(ClassLoader loader, Path root, Class<?> chunk,
             ExecutorService completion, Path classes) throws Throwable {
-        var probe = new InteractionReadiness(loader);
+        Class<?> window = loader.loadClass("zombie.GameWindow"), thumbnail = loader.loadClass("zombie.savefile.SavefileThumbnail");
         Class<?> mouse = loader.loadClass("zombie.input.Mouse");
         Object environment = loader.loadClass("zombie.Lua.LuaManager").getField("env").get(null);
         Class<?> table = environment.getClass();
         Method put = table.getMethod("rawset", Object.class, Object.class), get = table.getMethod("rawget", Object.class);
         Object drag = table.getConstructor().newInstance(), focus = new Object(), items = new Object();
+        Object selection = new Object(), modalFocus = new Object();
         put.invoke(environment, "ISMouseDrag", drag);
-        check(probe.ready(), "Idle input rejected");
-        mouse.getField("leftDown").setBoolean(null, true);
-        check(probe.ready(), "A held mouse button without an inventory drag must not starve backup during normal play");
-        put.invoke(drag, "dragging", items); put.invoke(drag, "draggingFocus", focus);
-        mouse.getField("leftDown").setBoolean(null, false);
-        check(!probe.ready(), "Mouse release before the UI consumes the drop is not idle");
-        check(get.invoke(drag, "dragging") == items && get.invoke(drag, "draggingFocus") == focus,
-            "Readiness mutated or completed the drag");
-        put.invoke(drag, "dragging", null); put.invoke(drag, "draggingFocus", null);
-        check(probe.ready(), "Normal UI drop did not release save readiness");
-        // Use the actual private graph and writer, not a timing stub. Values have no machine-speed threshold.
+        put.invoke(environment, "TextSelection", selection); put.invoke(environment, "ModalFocus", modalFocus);
         Object world = loader.loadClass("zombie.iso.IsoWorld").getField("instance").get(null);
         Object cell = world.getClass().getField("currentCell").get(world);
         Object map = cell.getClass().getMethod("map").invoke(cell);
         map.getClass().getMethod("setChunk", chunk).invoke(map, chunk.getConstructor().newInstance());
         Map<String, byte[]> sources = new HashMap<>();
         for (var ref : PrivateSaveGraph.SOURCES) sources.put(ref.owner(), Files.readAllBytes(classes.resolve(ref.owner() + ".class")));
-        try (var io = new OwnedChunkWrites(new GameChunkAccess(loader))) {
+        var renderCallbacks = new AtomicInteger();
+        thumbnail.getField("onRender").set(null, (Runnable)renderCallbacks::incrementAndGet);
+        int rendersBefore = thumbnail.getField("renders").getInt(null);
+        var persisted = new AtomicReference<byte[]>();
+        try (var io = new OwnedChunkWrites(new GameChunkAccess(loader), (file, bytes) -> {
+            OwnedChunkWrites.writeBytes(file, bytes); persisted.set(bytes.clone());
+        })) {
             var metrics = new CaptureTimings();
             var target = MethodHandles.lookup().findVirtual(OwnedChunkWrites.class, "write",
                 MethodType.methodType(void.class, int.class, int.class, ByteBuffer.class)).bindTo(io);
             var entry = PrivateSaveGraph.create(loader, sources, target, metrics);
-            var context = new SaveProvider.Context("metrics", "s", "w", root, Thread.currentThread(), loader);
-            var errors = new AtomicReference<Throwable>();
-            var batch = io.begin(context, 4096, errors::set);
-            metrics.start();
-            try { entry.saveForBackup(); } finally { batch.seal(); }
-            String report = metrics.finish();
-            check(report.startsWith("chunkCount=1;") && report.contains("collisionSaveUs="), "Actual private stages not reported");
-            completion.submit(() -> { batch.await(); return null; }).get(10, TimeUnit.SECONDS);
-            check(errors.get() == null, "Measured saving failed");
-            // A later request must not inherit counters from this one.
-            metrics.start(); check(metrics.finish().startsWith("chunkCount=0;"), "Diagnostics grew across requests");
+            // Execute real private saving while UI state remains active: never clear it to obtain admission.
+            for (String scenario : new String[]{"held", "released-before-ui-update", "callback-cancellation"}) {
+                put.invoke(drag, "dragging", items); put.invoke(drag, "draggingFocus", focus);
+                boolean held = scenario.equals("held"), cancel = scenario.equals("callback-cancellation");
+                mouse.getField("leftDown").setBoolean(null, held);
+                var callbacks = new AtomicInteger();
+                var sawActive = new AtomicBoolean();
+                window.getField("onSave").set(null, (Runnable)() -> {
+                    try {
+                        sawActive.set(get.invoke(drag, "dragging") == items && get.invoke(drag, "draggingFocus") == focus);
+                        callbacks.incrementAndGet();
+                        if (cancel) { put.invoke(drag, "dragging", null); put.invoke(drag, "draggingFocus", null); }
+                    } catch (ReflectiveOperationException failure) { throw new RuntimeException(failure); }
+                });
+                persisted.set(null);
+                var context = new SaveProvider.Context(scenario, "s", "w", root, Thread.currentThread(), loader);
+                var errors = new AtomicReference<Throwable>();
+                var batch = io.begin(context, 4096, errors::set);
+                metrics.start();
+                try { entry.saveForBackup(); } finally { batch.seal(); }
+                String report = metrics.finish();
+                completion.submit(() -> { batch.await(); return null; }).get(10, TimeUnit.SECONDS);
+                check(callbacks.get() == 1 && sawActive.get(), "Saving did not execute with active UI state: " + scenario);
+                check(errors.get() == null && persisted.get() != null && read(chunk) == ByteBuffer.wrap(persisted.get()).getInt(),
+                    "UI-active save must persist its captured bytes: " + scenario);
+                check(get.invoke(drag, "dragging") == (cancel ? null : items)
+                        && get.invoke(drag, "draggingFocus") == (cancel ? null : focus),
+                    "Saving reset the drag or resurrected a legitimate callback cancellation: " + scenario);
+                check(get.invoke(environment, "TextSelection") == selection && get.invoke(environment, "ModalFocus") == modalFocus
+                        && mouse.getField("leftDown").getBoolean(null) == held,
+                    "Saving modified unrelated UI or input state: " + scenario);
+                check(thumbnail.getField("renders").getInt(null) == rendersBefore && renderCallbacks.get() == 0,
+                    "Private saving re-entered preview/UI rendering: " + scenario);
+                check(report.startsWith("chunkCount=1;") && report.contains("collisionSaveUs="), "Private stages not reported");
+                metrics.start(); check(metrics.finish().startsWith("chunkCount=0;"), "Diagnostics grew across requests");
+            }
+            window.getField("onSave").set(null, null);
+            invoke(window.getMethod("save", boolean.class), null, true);
+            check(thumbnail.getField("renders").getInt(null) == rendersBefore + 1 && renderCallbacks.get() == 1,
+                "Normal saving lost its original rendering callback after private saving");
+        } finally {
+            window.getField("onSave").set(null, null); thumbnail.getField("onRender").set(null, null);
+            mouse.getField("leftDown").setBoolean(null, false);
+            put.invoke(environment, "ISMouseDrag", null); put.invoke(environment, "TextSelection", null);
+            put.invoke(environment, "ModalFocus", null);
         }
     }
     private static void verifyFailureAndOrdering(ClassLoader loader, Path root, Class<?> chunk,

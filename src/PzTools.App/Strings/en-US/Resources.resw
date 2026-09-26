@@ -424,7 +424,7 @@ Applies to the selected single-player save after you stop playing.</value></data
 <data name="GameExtensions.Title" xml:space="preserve"><value>Game Extensions</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Manage optional enhancements for the game.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Seamless Saving</value></data>
-<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Uses a separate backup-save path without changing normal saves. Waits for item dragging to finish, skips its forced preview render and offloads eligible chunk writes. Serialization and native saving can still pause gameplay.</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Uses a separate save path without changing normal saving. Omits extra preview rendering and moves some writes and completion waits off the game thread. Does not wait for UI interactions to end. Serialization and locks may still cause pauses. Unsupported versions use normal saving.</value></data>
 <data name="GameExtensions.Disabled" xml:space="preserve"><value>Off · Standard saving</value></data>
 <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Compatibility checked on next save &#183; Experimental</value></data>
 <data name="GameExtensions.Configure" xml:space="preserve"><value>Configure</value></data>
@@ -432,7 +432,7 @@ Applies to the selected single-player save after you stop playing.</value></data
 <data name="GameExtensions.Apply" xml:space="preserve"><value>Apply</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Extension settings unavailable</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Your changes could not be saved. Reload the page and check the extension settings file.</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Uses a separate backup-save path without changing normal saves. Waits for item dragging to finish, skips its forced preview render and offloads eligible chunk writes. Serialization and native saving can still pause gameplay.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Uses a separate save path without changing normal saving. Omits extra preview rendering and moves some writes and completion waits off the game thread. Does not wait for UI interactions to end. Serialization and locks may still cause pauses. Unsupported versions use normal saving.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>All versions</value></data>
 <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Major {0}</value></data>
 <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Minor {0}</value></data>

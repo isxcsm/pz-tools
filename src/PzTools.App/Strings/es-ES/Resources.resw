@@ -417,7 +417,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
 <data name="GameExtensions.Title" xml:space="preserve"><value>Extensiones del juego</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Gestiona mejoras opcionales para el juego.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Guardado sin interrupciones</value></data>
-<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Usa una ruta de guardado independiente sin cambiar el guardado normal. Espera a que termine el arrastre de objetos, omite la vista previa forzada y escribe los bloques compatibles en segundo plano. La serialización y el guardado nativo aún pueden pausar el juego.</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Usa una ruta de guardado independiente sin modificar el guardado normal. Omite el renderizado adicional de la vista previa y saca algunas escrituras y esperas de finalización del hilo del juego. No espera a que terminen las interacciones con la interfaz. La serialización y los bloqueos aún pueden causar pausas. Las versiones no compatibles usan el guardado normal.</value></data>
 <data name="GameExtensions.Disabled" xml:space="preserve"><value>Desactivado · Guardado estándar</value></data>
 <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Compatibilidad comprobada al guardar &#183; Experimental</value></data>
 <data name="GameExtensions.Configure" xml:space="preserve"><value>Configurar</value></data>
@@ -425,7 +425,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
 <data name="GameExtensions.Apply" xml:space="preserve"><value>Aplicar</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Ajustes de extensiones no disponibles</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>No se han podido guardar los cambios. Vuelve a abrir la página y revisa el archivo de ajustes de extensiones.</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Usa una ruta de guardado independiente sin cambiar el guardado normal. Espera a que termine el arrastre de objetos, omite la vista previa forzada y escribe los bloques compatibles en segundo plano. La serialización y el guardado nativo aún pueden pausar el juego.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Usa una ruta de guardado independiente sin modificar el guardado normal. Omite el renderizado adicional de la vista previa y saca algunas escrituras y esperas de finalización del hilo del juego. No espera a que terminen las interacciones con la interfaz. La serialización y los bloqueos aún pueden causar pausas. Las versiones no compatibles usan el guardado normal.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Todas las versiones</value></data>
 <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Versión principal {0}</value></data>
 <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Versión secundaria {0}</value></data>
