@@ -414,4 +414,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Son 24 saat</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Tarih ve saat seç</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Tarih</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Bir kahve ısmarla</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools işinize yaradı mı?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Destek bağlantısı henüz hazır değil.</value></data>
 </root>

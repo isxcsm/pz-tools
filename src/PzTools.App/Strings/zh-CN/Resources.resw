@@ -414,4 +414,7 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>最近24小时</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>选择日期和时间</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>日期</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>请我喝杯咖啡</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>这个工具帮到您了吗？</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支持链接正在准备中。</value></data>
 </root>

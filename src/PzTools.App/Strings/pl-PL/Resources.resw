@@ -414,4 +414,7 @@ Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Ostatnie 24 godziny</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Wybierz datę i godzinę</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Postaw mi kawę</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools się przydał?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Link do wsparcia nie jest jeszcze dostępny.</value></data>
 </root>

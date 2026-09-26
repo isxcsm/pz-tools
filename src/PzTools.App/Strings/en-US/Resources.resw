@@ -421,4 +421,7 @@ Applies to the selected single-player save after you stop playing.</value></data
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Last 24 hours</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Choose date and time</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Date</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Buy me a coffee</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>Was PZ Tools helpful?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>The support link is not available yet.</value></data>
 </root>

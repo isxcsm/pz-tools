@@ -414,4 +414,7 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Últimas 24 horas</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Escolher data e hora</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Me pague um café</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>O PZ Tools foi útil?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>O link de apoio ainda não está disponível.</value></data>
 </root>

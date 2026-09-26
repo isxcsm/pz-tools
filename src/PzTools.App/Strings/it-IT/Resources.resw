@@ -414,4 +414,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Ultime 24 ore</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Scegli data e ora</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Offrimi un caffè</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools ti è stato utile?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Il link per il supporto non è ancora disponibile.</value></data>
 </root>
