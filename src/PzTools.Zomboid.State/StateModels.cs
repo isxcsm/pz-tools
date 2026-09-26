@@ -65,5 +65,3 @@ public sealed record SchedulerOutboxMessage(
     string SourcePath,
     string TransitionId,
     long StateRunIndex);
-
-public sealed record StateReactorOptions(bool BackupOnDeath = false);

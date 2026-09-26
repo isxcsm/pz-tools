@@ -10,6 +10,7 @@ public sealed partial class SchedulerDatabase
     private const string RuntimeSchema = """
         CREATE TABLE IF NOT EXISTS runtime_options(singleton INTEGER PRIMARY KEY CHECK(singleton=1), enabled INTEGER NOT NULL CHECK(enabled IN(0,1))) STRICT;
         INSERT OR IGNORE INTO runtime_options VALUES(1,0);
+        CREATE TABLE IF NOT EXISTS runtime_death_cursor(singleton INTEGER PRIMARY KEY CHECK(singleton=1), event_key TEXT NOT NULL) STRICT;
         CREATE TABLE IF NOT EXISTS runtime_schedule(singleton INTEGER PRIMARY KEY CHECK(singleton=1), generation INTEGER NOT NULL, body TEXT NOT NULL) STRICT;
         CREATE TABLE IF NOT EXISTS runtime_facts(singleton INTEGER PRIMARY KEY CHECK(singleton=1), revision INTEGER NOT NULL, body TEXT NOT NULL) STRICT;
         """;
@@ -52,7 +53,7 @@ public sealed partial class SchedulerDatabase
         q.Parameters.AddWithValue("$generation", state.Generation); q.Parameters.AddWithValue("$body", RuntimeJson.Write(state));
         await q.ExecuteNonQueryAsync(token); t.Commit();
     }
-    public async Task ApplyRuntimeTransitionAsync(RuntimeObservation observation, BackupTarget? resolvedTarget, CancellationToken token = default)
+    public async Task ApplyRuntimeTransitionAsync(RuntimeObservation observation, BackupTarget? resolvedTarget, CancellationToken token = default, bool backupOnDeath = false)
     {
         observation.Validate();
         await using var c = await OpenAsync(token); using var t = c.BeginTransaction();
@@ -85,6 +86,7 @@ public sealed partial class SchedulerDatabase
             }
             await IncrementRevisionAsync(c,t,token);
         }
+        await ApplyDeathAsync(c, t, observation, resolvedTarget, backupOnDeath, token);
         t.Commit();
     }
 }

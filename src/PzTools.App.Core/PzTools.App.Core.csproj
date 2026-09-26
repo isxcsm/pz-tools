@@ -6,6 +6,7 @@
     <ProjectReference Include="..\PzTools.Backup.Storage\PzTools.Backup.Storage.csproj" />
     <ProjectReference Include="..\PzTools.Backup.Engine\PzTools.Backup.Engine.csproj" />
     <ProjectReference Include="..\PzTools.Process.Contracts\PzTools.Process.Contracts.csproj" />
+    <ProjectReference Include="..\PzTools.GameExtensions\PzTools.GameExtensions.csproj" />
     <ProjectReference Include="..\PzTools.Process.Hosting\PzTools.Process.Hosting.csproj" />
     <ProjectReference Include="..\PzTools.Projections\PzTools.Projections.csproj" />
     <ProjectReference Include="..\PzTools.Scheduling\PzTools.Scheduling.csproj" />

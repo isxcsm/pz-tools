@@ -40,6 +40,7 @@ public final class GameWindow {
         ZomboidFileSystem.path = args[0];
         mode = args.length > 1 ? args[1] : "normal";
         if (mode.equals("menu")) states.current = new Object();
+        if (mode.equals("dead-at-start")) zombie.characters.IsoPlayer.die();
         if (mode.equals("multiplayer")) zombie.network.GameClient.client = true;
         gameThread = Thread.currentThread();
         gameThread.setName("Synthetic-game-thread");
@@ -49,6 +50,11 @@ public final class GameWindow {
         System.out.println("READY");
         System.out.flush();
         while (true) {
+            if (consumeSignal(Path.of(args[0], "die-player"))) zombie.characters.IsoPlayer.die();
+            if (consumeSignal(Path.of(args[0], "respawn-player"))) zombie.characters.IsoPlayer.respawn();
+            if (consumeSignal(Path.of(args[0], "ambiguous-players"))) zombie.characters.IsoPlayer.numPlayers = 2;
+            if (consumeSignal(Path.of(args[0], "single-player"))) zombie.characters.IsoPlayer.numPlayers = 1;
+            if (consumeSignal(Path.of(args[0], "fail-save"))) mode = "throw";
             if (consumeSignal(Path.of(args[0], "pause-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(0);
             if (consumeSignal(Path.of(args[0], "resume-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1);
             if (consumeSignal(Path.of(args[0], "fast-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(4);

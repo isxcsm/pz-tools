@@ -23,11 +23,19 @@ public sealed class GameSaveClient(string bridgeDirectory,
 {
     private static readonly SemaphoreSlim RequestGate = new(1, 1);
 
-    public Task<string> SaveRunningGameAsync(string expectedSavePath, CancellationToken cancellationToken = default) =>
-        RequestRunningGameAsync(expectedSavePath, true, cancellationToken);
-    public Task<string> ProbeRunningGameAsync(string expectedSavePath, CancellationToken cancellationToken = default) =>
-        RequestRunningGameAsync(expectedSavePath, false, cancellationToken);
-    private async Task<string> RequestRunningGameAsync(string expectedSavePath, bool save, CancellationToken cancellationToken)
+    public async Task<string> SaveRunningGameAsync(string expectedSavePath,
+        CancellationToken cancellationToken = default) =>
+        (await RequestRunningGameAsync(expectedSavePath, true, null, false, cancellationToken)).Detail;
+
+    public Task<GameSaveResponse> PrepareRunningGameAsync(string expectedSavePath, string providerId,
+        CancellationToken cancellationToken = default, bool forceVersion = false) =>
+        RequestRunningGameAsync(expectedSavePath, true, providerId, forceVersion, cancellationToken);
+
+    public async Task<string> ProbeRunningGameAsync(string expectedSavePath, CancellationToken cancellationToken = default) =>
+        (await RequestRunningGameAsync(expectedSavePath, false, null, false, cancellationToken)).Detail;
+
+    private async Task<GameSaveResponse> RequestRunningGameAsync(string expectedSavePath, bool save, string? providerId, bool forceVersion,
+        CancellationToken cancellationToken)
     {
         var games = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
             .SelectMany(DiagnosticsProcess.GetProcessesByName).ToArray();
@@ -37,15 +45,25 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 throw new GameSaveException(games.Length == 0 ? "game-not-running" : "multiple-games",
                     games.Length == 0 ? "Start the game and load the selected save first."
                         : "More than one game process is running. No process was selected.");
-            return await RequestAsync(games[0].Id, expectedSavePath, save, cancellationToken);
+            return await RequestCoreAsync(games[0].Id, expectedSavePath, save, providerId, cancellationToken, forceVersion);
         }
         finally { foreach (var game in games) game.Dispose(); }
     }
 
     // Explicit PID supports a no-save probe and isolated JVM integration tests.
     public async Task<string> RequestAsync(int processId, string expectedSavePath, bool save,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        (await RequestCoreAsync(processId, expectedSavePath, save, null, cancellationToken)).Detail;
+
+    public Task<GameSaveResponse> RequestProviderAsync(int processId, string expectedSavePath, string providerId,
+        CancellationToken cancellationToken = default, bool forceVersion = false) =>
+        RequestCoreAsync(processId, expectedSavePath, true, providerId, cancellationToken, forceVersion);
+
+    private async Task<GameSaveResponse> RequestCoreAsync(int processId, string expectedSavePath, bool save,
+        string? providerId, CancellationToken cancellationToken, bool forceVersion = false)
     {
+        if (providerId is not null && (providerId.Length > 80 || !System.Text.RegularExpressions.Regex.IsMatch(providerId, @"\A[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+\z")))
+            throw new ArgumentException("Invalid save provider identifier.", nameof(providerId));
         runtimeTicket?.Validate();
         if (processId <= 0) throw new ArgumentOutOfRangeException(nameof(processId));
         if (notificationLanguage is not null && !LanguageCatalog.All.Any(language =>
@@ -103,9 +121,11 @@ public sealed class GameSaveClient(string bridgeDirectory,
             using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
             using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
             var hello = await ReadLineAsync(reader, connectionDeadline.Token);
-            var supportsGuard = hello == $"HELLO\t5\t{processId}\t{token}";
-            if (runtimeTicket is not null && !supportsGuard) throw new GameSaveException("unsupported-protocol", "Restart the game with the current runtime bridge.");
-            var supportsSchedule = supportsGuard || hello == $"HELLO\t4\t{processId}\t{token}";
+            var supportsExtensions = hello == $"HELLO\t6\t{processId}\t{token}";
+            // Protocol 5 meant different capabilities on the two former branches.
+            if (runtimeTicket is not null && !supportsExtensions)
+                throw new GameSaveException("unsupported-protocol", "Restart the game with the integrated runtime bridge.");
+            var supportsSchedule = supportsExtensions || hello == $"HELLO\t4\t{processId}\t{token}";
             var supportsCountdown = supportsSchedule || hello == $"HELLO\t3\t{processId}\t{token}";
             var extendedTimeouts = supportsCountdown || hello == $"HELLO\t2\t{processId}\t{token}";
             if (!extendedTimeouts && hello != $"HELLO\t1\t{processId}\t{token}")
@@ -121,17 +141,19 @@ public sealed class GameSaveClient(string bridgeDirectory,
             completionDeadline.CancelAfter(TimeSpan.FromSeconds(completionTimeoutSeconds) + scheduledWait);
             var showCountdown = save && notificationLanguage is not null && supportsCountdown;
             var timedSave = save && scheduledSaveUtc is not null;
-            // Do not enqueue a zero-delay save before its first authority check completes.
-            // Subsequent changes still use the acknowledged CANCEL/save-start race protocol.
+            var useProvider = save && providerId is not null && supportsExtensions;
             if (runtimeTicket is not null && preparationAllowed is not null
                 && !await PreparationAllowedAsync(completionDeadline.Token))
                 throw new GameSaveException("runtime-deferred", "Scheduling permission was withdrawn before submission.");
-            await writer.WriteLineAsync(($"{(runtimeTicket is not null ? save ? "SAVE_ACTIVE" : "PROBE_ACTIVE" : timedSave ? "SAVE_AT" : showCountdown ? "SAVE_COUNTDOWN" : save ? "SAVE" : "PROBE")}\t"
-                + Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedSavePath))
-                + (extendedTimeouts ? $"\t{queueTimeoutSeconds}\t{completionTimeoutSeconds}" : "")
-                + (runtimeTicket is not null ? $"\t{(save ? notificationLanguage : null) ?? "off"}\t{runtimeTicket.Encode()}"
-                    : timedSave ? $"\t{notificationLanguage ?? "off"}\t{scheduledSaveUtc!.Value.ToUnixTimeMilliseconds()}"
-                    : showCountdown ? $"\t{notificationLanguage}" : "")).AsMemory(), completionDeadline.Token);
+            var encodedPath = Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedSavePath));
+            string command = useProvider
+                ? $"{(runtimeTicket is null ? "PREPARE_SAVE" : "PREPARE_SAVE_ACTIVE")}\t{encodedPath}\t{queueTimeoutSeconds}\t{completionTimeoutSeconds}\t{notificationLanguage ?? "off"}\t{(runtimeTicket is null ? (scheduledSaveUtc?.ToUnixTimeMilliseconds() ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture) : runtimeTicket.Encode())}\t{providerId}\t{(forceVersion ? "force" : "normal")}" 
+                : $"{(runtimeTicket is not null ? save ? "SAVE_ACTIVE" : "PROBE_ACTIVE" : timedSave ? "SAVE_AT" : showCountdown ? "SAVE_COUNTDOWN" : save ? "SAVE" : "PROBE")}\t"
+                    + encodedPath + (extendedTimeouts ? $"\t{queueTimeoutSeconds}\t{completionTimeoutSeconds}" : "")
+                    + (runtimeTicket is not null ? $"\t{(save ? notificationLanguage : null) ?? "off"}\t{runtimeTicket.Encode()}"
+                        : timedSave ? $"\t{notificationLanguage ?? "off"}\t{scheduledSaveUtc!.Value.ToUnixTimeMilliseconds()}"
+                        : showCountdown ? $"\t{notificationLanguage}" : "");
+            await writer.WriteLineAsync(command.AsMemory(), completionDeadline.Token);
             sent = true;
             using var permissionCancellation = CancellationTokenSource.CreateLinkedTokenSource(completionDeadline.Token);
             int saving = 0;
@@ -145,9 +167,12 @@ public sealed class GameSaveClient(string bridgeDirectory,
                     if (result == "SAVING") Interlocked.Exchange(ref saving, 1);
                     result = await ReadLineAsync(reader, completionDeadline.Token);
                 }
-                var detail = ParseResult(result);
-                return save && notificationLanguage is not null && !supportsCountdown
-                    ? detail + "; notice-unavailable=The connected bridge does not support notifications." : detail;
+                var response = ParseResponse(result, useProvider ? providerId : null);
+                if (providerId is not null && !supportsExtensions)
+                    response = response with { FallbackReason = "unsupported-extension-protocol" };
+                if (save && notificationLanguage is not null && !supportsCountdown)
+                    response = response with { Detail = response.Detail + "; notice-unavailable=The connected bridge does not support notifications." };
+                return response;
             }
             finally
             {
@@ -200,11 +225,31 @@ public sealed class GameSaveClient(string bridgeDirectory,
         }
     }
 
-    public static string ParseResult(string? result)
+    public static string ParseResult(string? result) => ParseResponse(result).Detail;
+
+    public static GameSaveResponse ParseResponse(string? result, string? requestedProvider = null)
     {
         var parts = result?.Split('\t') ?? [];
-        if (parts is ["OK", var success]) return Decode(success);
-        if (parts is ["ERROR", var code, var detail]) throw new GameSaveException(code, Decode(detail));
+        if (parts is ["ERROR", var code, var message]) throw new GameSaveException(code, Decode(message));
+        if (parts is ["OK", var success] && requestedProvider is null)
+            return new("pztools.standard-save", GameSaveCompletion.StandardCallReturned, Decode(success));
+        if (parts is ["SAVED", var provider, var completion, var detail, var fallback]
+            && requestedProvider is not null && (provider == requestedProvider || provider == "pztools.standard-save"))
+        {
+            var kind = completion switch
+            {
+                "STANDARD_CALL_RETURNED" => GameSaveCompletion.StandardCallReturned,
+                "DETACHED_WRITES_COMMITTED" => GameSaveCompletion.DetachedWritesCommitted,
+                "GAME_SAVE_AND_DATABASE_QUEUES_DRAINED" => GameSaveCompletion.GameSaveAndDatabaseQueuesDrained,
+                "GAME_SAVE_AND_PENDING_WRITES_DRAINED" => GameSaveCompletion.GameSaveAndPendingWritesDrained,
+                _ => throw new GameSaveException("invalid-response", "Unknown save completion kind."),
+            };
+            if ((provider == "pztools.standard-save") != (kind == GameSaveCompletion.StandardCallReturned)
+                || (provider == requestedProvider && fallback != "-")
+                || (provider == "pztools.standard-save" && string.IsNullOrWhiteSpace(fallback)))
+                throw new GameSaveException("invalid-response", "Inconsistent save completion receipt.");
+            return new(provider, kind, Decode(detail), fallback == "-" ? null : fallback);
+        }
         throw new GameSaveException("invalid-response", "Game connection ended without a valid result; completion is unknown.");
     }
 

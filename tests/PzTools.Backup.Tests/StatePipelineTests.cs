@@ -291,7 +291,7 @@ public sealed class StatePipelineTests
     }
 
     [Fact]
-    public async Task Reactor_QueuesRunOnceOnDeathOnlyWhenEnabled()
+    public async Task Reactor_PersistedDeathNeverQueuesALiveDeathBackup()
     {
         using var temp = new TempDirectory();
         var database = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
@@ -299,17 +299,15 @@ public sealed class StatePipelineTests
         var reactor = new StateReactor();
         await database.WritePendingBatchAsync(Batch(
             1, path, ActivityState.Active, character: CharacterState.Alive));
-        await reactor.RunAsync(database, new StateReactorOptions(BackupOnDeath: true));
+        await reactor.RunAsync(database);
         await database.WritePendingBatchAsync(Batch(
             2, path, ActivityState.Active, character: CharacterState.Alive));
-        await reactor.RunAsync(database, new StateReactorOptions(BackupOnDeath: true));
+        await reactor.RunAsync(database);
         await database.WritePendingBatchAsync(Batch(
             3, path, ActivityState.Active, character: CharacterState.Dead));
-        await reactor.RunAsync(database, new StateReactorOptions(BackupOnDeath: true));
+        await reactor.RunAsync(database);
 
-        Assert.Contains(
-            await database.ReadPendingOutboxAsync(),
-            item => item.Command == "RunOnceNow" && item.SaveId == "Sandbox/Save");
+        Assert.DoesNotContain(await database.ReadPendingOutboxAsync(), item => item.Command == "RunOnceNow");
     }
 
     [Fact]

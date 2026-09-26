@@ -40,6 +40,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Bridge inspector packaging failed' }
 $env:PZTOOLS_SAVE_BRIDGE_DIR = $bridgeRoot
 $env:PZTOOLS_BRIDGE_TEST_JAVA = Join-Path $JdkPath 'bin/java.exe'
 $env:PZTOOLS_BRIDGE_TEST_CLASSES = $fixtureOutput
+& (Join-Path $PSScriptRoot 'test-game-extensions.ps1') -JdkPath $JdkPath -Configuration $Configuration -BridgeDirectory $bridgeRoot
 # The CI caller runs the entire applicable suite once with these environment values.
 if ($PrepareOnly) { return }
 $arguments = @('test', (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'),

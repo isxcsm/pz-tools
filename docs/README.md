@@ -47,6 +47,7 @@ GitHub does not switch README language automatically; select a guide explicitly.
 | [Advanced runtime configuration / 고급 실행 설정](runtime-configuration.md) | English | Per-component tuning and validation / 구성요소별 설정 |
 | [Deployment layout / 배포·데이터 경로](deployment-layout.md) | 한국어 | App files, user data and backup folders / 실행 파일과 데이터 구분 |
 | [CLI commands / 명령줄](cli.md) | 한국어 | Backup, restore, ZIP and maintenance commands / 작업별 명령 |
+| [Game extensions / 게임 확장](game-extensions.md) | English | Staged implementation and save-provider safety boundaries / 단계별 구현 범위 |
 | [Runtime pause / 게임 상태·일시정지](runtime-pause-backups.md) | English | Observation, pause/resume, guarded saving and state ownership / 관측·시간·저장 안전성 |
 | [Game-save bridge / 게임 저장 연동](save-bridge.md) | English | Connection behavior, game-version limits and build details / 게임 연결과 제한 |
 | [Character recovery / 캐릭터 회복](character-recovery.md) | English | Supported edits, inventory limits and interrupted edits / 지원 범위와 중단 처리 |
@@ -103,3 +104,5 @@ Do not include private save data or personal paths unnecessarily.
 
 실행 패키지가 아직 없으면 소스 빌드 안내를 사용하세요. 문의에는 재현 순서와
 관련 로그를 적되 불필요한 전체 세이브나 개인 경로는 올리지 마세요.
+
+Live JVM character state and extension execution feedback: [design and validation](runtime-character-death.md).

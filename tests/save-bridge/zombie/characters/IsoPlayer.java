@@ -6,10 +6,14 @@ import zombie.GameWindow;
 import zombie.ZomboidFileSystem;
 
 public final class IsoPlayer {
-    private static final IsoPlayer instance = new IsoPlayer();
+    private static IsoPlayer instance = new IsoPlayer();
+    public static int numPlayers = 1;
+    public boolean dead;
+    public static void die() { instance.dead = true; }
+    public static void respawn() { instance = new IsoPlayer(); }
     public String haloText;
     private final SavedTable data = new SavedTable();
-    public boolean isDead() { return false; }
+    public boolean isDead() { return dead; }
     public SavedTable getModData() { return data; }
     public SavedItem getPrimaryHandItem() { return new SavedItem(777); }
     public SavedItem getSecondaryHandItem() { return new SavedItem(888); }

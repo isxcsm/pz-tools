@@ -23,17 +23,13 @@ public sealed class StateCheckPipeline(Func<RuntimeObservation?>? runtime = null
             var producer = "state-reactor";
             try
             {
-                // Read live settings each cycle, just as fresh Reactor processes did.
-                var configuration = ComponentConfiguration.Load(database.DatabasePath, "state-reactor", null,
-                    Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "settings.toml"));
-                var options = new StateReactorOptions(configuration.GetBoolean("state", "backup_on_death", false));
                 if (await database.HasPendingBatchesAsync(token))
-                    await reactor.RunAsync(database, options, token);
+                    await reactor.RunAsync(database, token);
                 producer = "state-collector";
                 await collector.RunAsync(database, savesRoot, runIndex, token);
                 await BestEffortProcessTelemetry.TryRecordAsync(database.DatabasePath, producer, runIndex, "collector.completed");
                 producer = "state-reactor";
-                await reactor.RunAsync(database, options, token);
+                await reactor.RunAsync(database, token);
                 await BestEffortProcessTelemetry.TryRecordAsync(database.DatabasePath, producer, runIndex, "reactor.completed");
                 await BestEffortProcessTelemetry.TryRecordAsync(database.DatabasePath, "state-runner", runIndex, "state-runner.completed");
                 return new WorkerInvocation(true, ProcessOutcome.Succeeded);

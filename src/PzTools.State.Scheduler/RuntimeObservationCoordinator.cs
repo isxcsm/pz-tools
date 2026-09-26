@@ -29,8 +29,8 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
             System.Diagnostics.Process[] games = [];
             try
             {
-                if (!(await scheduler.ReadRuntimeScheduleAsync(token)).Enabled)
-                { received.Publish(RuntimeObservation.Unknown("observer-disabled")); await Task.Delay(1000, token); continue; }
+                // A shared read-only runtime feed serves pause policy and extension metadata.
+                // Disabling pause-aware scheduling does not disable other consumers or create a second watcher.
                 games = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
                     .SelectMany(System.Diagnostics.Process.GetProcessesByName).ToArray();
                 if (games.Length != 1)
@@ -64,7 +64,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                         if (Stopwatch.GetElapsedTime(lastConfigurationCheck).TotalSeconds >= 2)
                         {
                             lastConfigurationCheck = Stopwatch.GetTimestamp();
-                            if (!(await scheduler.ReadRuntimeScheduleAsync(token)).Enabled) break;
+
                             var currentGames = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
                                 .SelectMany(System.Diagnostics.Process.GetProcessesByName).ToArray();
                             try

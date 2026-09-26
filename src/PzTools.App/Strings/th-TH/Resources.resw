@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>จำนวนข้อมูลสำรองอัตโนมัติที่เก็บไว้</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุด 1–100 ชุด ขีดจำกัดนี้จะไม่ลบข้อมูลสำรองที่สร้างด้วยตนเอง</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครตาย</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>ทำงานเมื่อเปิดการสำรองอัตโนมัติเท่านั้น และจะเก็บการตั้งค่านี้ไว้เมื่อปิด</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>สำรองข้อมูลเมื่อเกมที่กำลังทำงานรายงานว่าตัวละครเสียชีวิต ต้องเปิดการสำรองอัตโนมัติ การหยุดเกมชั่วคราวไม่ขัดขวางการสำรองนี้ ข้อมูลการเสียชีวิตในเซฟเกมจะแยกจัดเก็บต่างหาก</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>ตรวจสอบไฟล์ที่คัดลอก</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>ตรวจสอบว่าไฟล์ที่คัดลอกมีเนื้อหาตรงกับต้นฉบับ หากต้นฉบับเปลี่ยนระหว่างคัดลอก ระบบจะคัดลอกใหม่</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>ไฟล์เซฟเปลี่ยนแปลงต่อเนื่องระหว่างสำรองข้อมูล รอให้เกมบันทึกเสร็จแล้วลองสำรองอีกครั้ง</value></data>
@@ -414,6 +414,32 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>24 ชั่วโมงล่าสุด</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>เลือกวันที่และเวลา</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>วันที่</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>ส่วนขยายเกม</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>จัดการส่วนเสริมสำหรับเกมที่เลือกใช้ได้</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>การบันทึกแบบไม่สะดุด</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>ใช้เส้นทางบันทึกแยกโดยไม่เปลี่ยนการบันทึกปกติ ข้ามการเรนเดอร์ภาพตัวอย่างเพิ่มเติม และแยกการเขียนข้อมูลกับการรอให้เสร็จบางส่วนออกจากเธรดเกม ไม่รอให้การโต้ตอบกับหน้าจอสิ้นสุดก่อนบันทึก การแปลงข้อมูลและการล็อกยังอาจทำให้หยุดชั่วคราวได้ เวอร์ชันที่ไม่รองรับจะใช้การบันทึกปกติ</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>ปิด · ใช้การบันทึกมาตรฐาน</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>ตรวจสอบความเข้ากันได้เมื่อบันทึกครั้งถัดไป &#183; ทดลอง</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>ตั้งค่า</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>การตั้งค่า {0}</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>นำไปใช้</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>ไม่สามารถใช้การตั้งค่าส่วนขยายได้</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>บันทึกการเปลี่ยนแปลงไม่ได้ โปรดเปิดหน้านี้อีกครั้งและตรวจสอบไฟล์การตั้งค่าส่วนขยาย</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>ใช้เส้นทางบันทึกแยกโดยไม่เปลี่ยนการบันทึกปกติ ข้ามการเรนเดอร์ภาพตัวอย่างเพิ่มเติม และแยกการเขียนข้อมูลกับการรอให้เสร็จบางส่วนออกจากเธรดเกม ไม่รอให้การโต้ตอบกับหน้าจอสิ้นสุดก่อนบันทึก การแปลงข้อมูลและการล็อกยังอาจทำให้หยุดชั่วคราวได้ เวอร์ชันที่ไม่รองรับจะใช้การบันทึกปกติ</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>ทุกเวอร์ชัน</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>เวอร์ชันหลัก {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>เวอร์ชันย่อย {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>รองรับ: {0} · เกมปัจจุบัน: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>อยู่นอกช่วงที่รองรับ · ส่วนขยายไม่ทำงาน</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>กำลังรอเวอร์ชันเกม · ส่วนขยายไม่ทำงาน</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>บังคับเปิดใช้งานนอกช่วงที่รองรับ</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>เวอร์ชันที่เข้ากันไม่ได้อาจทำให้เกิดข้อผิดพลาด ตัวเลือกนี้ข้ามเฉพาะข้อจำกัดเวอร์ชัน แต่ยังคงตรวจสอบความปลอดภัยที่จำเป็น</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>ข้ามข้อจำกัดเวอร์ชัน · ยังคงตรวจสอบความปลอดภัย</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>กำลังบันทึกด้วยส่วนขยาย</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>คำขอล่าสุด: บันทึกด้วยส่วนขยายสำเร็จ</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>คำขอล่าสุด: ใช้การบันทึกมาตรฐาน ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>คำขอล่าสุด: บันทึกไม่สำเร็จ ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>เตรียมข้อมูลในเธรดเกม {0:N0} มิลลิวินาที · เสร็จสิ้น {1:N0} มิลลิวินาที</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>เลี้ยงกาแฟสักแก้ว</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools ช่วยคุณได้ไหม?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>ลิงก์สนับสนุนยังไม่พร้อมใช้งาน</value></data>

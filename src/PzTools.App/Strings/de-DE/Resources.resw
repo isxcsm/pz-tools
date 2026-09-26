@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Anzahl automatischer Sicherungen</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Die letzten 1–100 automatischen Sicherungen behalten. Manuelle Sicherungen werden durch dieses Limit nicht gelöscht.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Nur bei eingeschalteten automatischen Sicherungen aktiv. Diese Einstellung bleibt beim Ausschalten erhalten.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Sichert, wenn das laufende Spiel den Tod der Spielfigur meldet. Erfordert automatische Sicherungen; eine Spielpause blockiert diese Sicherung nicht. Todesangaben im Spielstand bleiben davon getrennt.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopierte Dateien prüfen</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Prüft, ob die Kopien mit den Originaldateien übereinstimmen. Ändert sich eine Datei während des Kopierens, wird sie erneut kopiert.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Die Spielstanddateien haben sich während der Sicherung wiederholt geändert. Warte, bis das Spiel fertig gespeichert hat, und versuche es erneut.</value></data>
@@ -414,6 +414,32 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Letzte 24 Stunden</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Datum und Uhrzeit wählen</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Datum</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>Spielerweiterungen</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>Optionale Erweiterungen für das Spiel verwalten.</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Nahtloses Speichern</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Verwendet einen separaten Speicherpfad, ohne das normale Speichern zu ändern. Zusätzliche Vorschaudarstellung entfällt; einige Schreibvorgänge und Abschlusswartezeiten werden aus dem Spielthread ausgelagert. Wartet nicht auf das Ende von UI-Interaktionen. Serialisierung und Sperren können weiterhin Pausen verursachen. Nicht unterstützte Versionen verwenden das normale Speichern.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>Aus · Standardspeicherung</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Kompatibilit&#228;tspr&#252;fung beim n&#228;chsten Speichern &#183; Experimentell</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>Einstellungen</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Einstellungen für {0}</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>Übernehmen</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>Erweiterungseinstellungen nicht verfügbar</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Die Änderungen konnten nicht gespeichert werden. Öffnen Sie die Seite erneut und prüfen Sie die Einstellungsdatei der Erweiterungen.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Verwendet einen separaten Speicherpfad, ohne das normale Speichern zu ändern. Zusätzliche Vorschaudarstellung entfällt; einige Schreibvorgänge und Abschlusswartezeiten werden aus dem Spielthread ausgelagert. Wartet nicht auf das Ende von UI-Interaktionen. Serialisierung und Sperren können weiterhin Pausen verursachen. Nicht unterstützte Versionen verwenden das normale Speichern.</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Alle Versionen</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Hauptversion {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Nebenversion {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Unterstützt: {0} · Aktuelles Spiel: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Außerhalb des unterstützten Bereichs · Erweiterung inaktiv</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Spielversion wird ermittelt · Erweiterung inaktiv</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Außerhalb des unterstützten Bereichs erzwingen</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Inkompatible Versionen können Fehler verursachen. Nur die Versionsbegrenzung wird umgangen; notwendige Sicherheitsprüfungen bleiben aktiv.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Versionsbegrenzung ignoriert · Sicherheitsprüfungen bleiben aktiv</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Erweiterte Speicherung läuft</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Letzte Anfrage: Erweiterte Speicherung abgeschlossen</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Letzte Anfrage: Standardspeicherung verwendet ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Letzte Anfrage: Speichern fehlgeschlagen ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Vorbereitung im Spielthread {0:N0} ms · Abschluss {1:N0} ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Einen Kaffee spendieren</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>War PZ Tools hilfreich?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Der Unterstützungslink ist noch nicht verfügbar.</value></data>

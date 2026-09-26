@@ -201,7 +201,7 @@ internal static class BackupCli
                     options.GameSaveCountdown ? LanguageCatalog.Get(options.NameLanguage).Tag : null,
                     runtimeTicket: request.RuntimeTicket,
                     preparationAllowed: token => PzTools.Scheduling.RuntimePreparationPermit.IsCurrentAsync(
-                        request.RuntimeAuthority!, request.RuntimeGeneration!.Value, options.Sources.Single(source => source.Id.Equals(request.SourceId, StringComparison.OrdinalIgnoreCase)).Path, token)));
+                        request.RuntimeAuthority!, request.RuntimeGeneration!.Value, options.Sources.Single(source => source.Id.Equals(request.SourceId, StringComparison.OrdinalIgnoreCase)).Path, token, request.RuntimeTicket)));
                 prepareSource = async (path, token) =>
                 {
                     try

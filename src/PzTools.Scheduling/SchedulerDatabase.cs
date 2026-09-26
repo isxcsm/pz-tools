@@ -323,7 +323,7 @@ public sealed partial class SchedulerDatabase
             await using (var retireFinal = connection.CreateCommand())
             {
                 retireFinal.Transaction = transaction;
-                retireFinal.CommandText = "DELETE FROM pending_backup_runs WHERE kind='Final';";
+                retireFinal.CommandText = "DELETE FROM pending_backup_runs WHERE kind='Final' OR (kind='RunOnce' AND pending_id GLOB 'state-transition:*');";
                 if (await retireFinal.ExecuteNonQueryAsync(cancellationToken) > 0)
                     await IncrementRevisionAsync(connection, transaction, cancellationToken);
             }
@@ -331,6 +331,19 @@ public sealed partial class SchedulerDatabase
                 connection, transaction, cancellationToken);
             if (pending is not null)
             {
+                PzTools.Process.Contracts.GameRuntime.RuntimeSaveTicket? deathTicket = null;
+                if (pending.PendingId.StartsWith(RuntimeDeathPolicy.Prefix, StringComparison.Ordinal))
+                {
+                    deathTicket = await ReadDeathTicketAsync(connection, transaction, pending.PendingId, pending.Target.SourcePath, cancellationToken);
+                    if (deathTicket is null)
+                    {
+                        await using var retire = connection.CreateCommand(); retire.Transaction = transaction;
+                        retire.CommandText = "DELETE FROM pending_backup_runs WHERE pending_id=$id;";
+                        retire.Parameters.AddWithValue("$id", pending.PendingId); await retire.ExecuteNonQueryAsync(cancellationToken);
+                        await IncrementRevisionAsync(connection, transaction, cancellationToken);
+                        transaction.Commit(); return null;
+                    }
+                }
                 transaction.Commit();
                 return new BackupTickAdmission(
                     $"backup-scheduler:pending:{pending.PendingId}:{pending.AttemptSequence}",
@@ -339,7 +352,7 @@ public sealed partial class SchedulerDatabase
                     control.RepositoryPath,
                     pending.EnqueuedUtc,
                     control.Generation,
-                    pending.PendingId);
+                    pending.PendingId, deathTicket);
             }
 
             if (await RuntimeEnabledAsync(connection, transaction, cancellationToken)
@@ -392,7 +405,7 @@ public sealed partial class SchedulerDatabase
             {
                 await using var pending = connection.CreateCommand();
                 pending.Transaction = transaction;
-                if (workerStarted)
+                if (workerStarted && !(admission.RuntimeTicket is { IsDeath: true } && outcome == ProcessOutcome.Skipped))
                 {
                     pending.CommandText =
                         "DELETE FROM pending_backup_runs WHERE pending_id=$id;";
@@ -607,6 +620,7 @@ public sealed partial class SchedulerDatabase
         var runtimeMode = await RuntimeEnabledAsync(connection, transaction, token);
         foreach (var command in commands)
         {
+            if (command.Kind == BackupTargetCommandKind.RunOnceNow && command.IdempotencyKey.StartsWith("state-transition:", StringComparison.Ordinal)) continue;
             // Weak file-lock transitions may not overwrite authenticated runtime authority.
             var actionable = !runtimeMode || command.Kind == BackupTargetCommandKind.RunOnceNow
                 && target is not null && SameTarget(target, command.Target);

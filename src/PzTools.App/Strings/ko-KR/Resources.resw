@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>자동 백업 보관 개수</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>최근 자동 백업 1~100개를 보관합니다. 이 개수 제한으로 수동 백업을 삭제하지 않습니다.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>캐릭터 사망 시 백업</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>자동 백업이 켜져 있을 때만 작동합니다. 자동 백업을 꺼도 이 설정은 유지됩니다.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>게임 실행 중 실시간으로 감지한 캐릭터 사망 시 백업합니다. 자동 백업이 켜져 있을 때만 작동하며, 게임 일시정지와 관계없이 실행합니다. 저장된 세이브의 사망 표시는 별도로 유지합니다.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>복사한 파일 확인</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>복사본의 내용이 원본과 같은지 확인합니다. 복사 중 원본이 바뀌면 다시 복사합니다.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>백업 중 세이브 파일이 계속 변경되었습니다. 게임 저장이 끝난 뒤 다시 백업해 주세요.</value></data>
@@ -421,6 +421,32 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>최근 24시간</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>날짜·시간 선택</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>날짜</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>게임 확장</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>게임에 적용할 선택형 확장 기능을 관리합니다.</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>끊김 없는 저장</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>기본 저장을 변경하지 않고 별도 경로로 저장합니다. 추가 미리보기 렌더링을 생략하고 일부 쓰기와 완료 대기를 분리합니다. UI 조작이 끝날 때까지 저장을 미루지 않습니다. 직렬화·잠금으로 인한 멈춤은 남을 수 있으며, 미지원 버전에서는 기본 저장을 사용합니다.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>꺼짐 · 기본 저장 사용</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>다음 저장에서 호환성 확인 &#183; 실험 단계</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>설정</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>{0} 설정</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>적용</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>확장 설정을 사용할 수 없음</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>변경 사항을 저장하지 못했습니다. 페이지를 다시 열고 확장 설정 파일을 확인해 주세요.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>기본 저장을 변경하지 않고 별도 경로로 저장합니다. 추가 미리보기 렌더링을 생략하고 일부 쓰기와 완료 대기를 분리합니다. UI 조작이 끝날 때까지 저장을 미루지 않습니다. 직렬화·잠금으로 인한 멈춤은 남을 수 있으며, 미지원 버전에서는 기본 저장을 사용합니다.</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>모든 버전</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>메이저 {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>마이너 {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>지원: {0} · 현재 게임: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>지원 범위 밖 · 확장 비활성</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>게임 버전 확인 대기 · 확장 비활성</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>지원 범위와 관계없이 강제 활성화</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>호환되지 않는 버전에서는 오류가 발생할 수 있습니다. 버전 범위 제한만 해제하며 필수 안전 검사는 유지합니다.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>버전 제한 무시 · 필수 안전 검사 유지</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>확장 저장 진행 중</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>마지막 요청: 확장 저장 완료</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>마지막 요청: 기본 저장 사용 ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>마지막 요청: 저장 실패 ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>게임 스레드 준비 {0:N0}ms · 완료까지 {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>커피 한 잔으로 응원</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>도움이 되셨나요?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>후원 링크를 준비 중입니다.</value></data>

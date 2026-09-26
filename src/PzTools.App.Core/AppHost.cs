@@ -31,6 +31,7 @@ public sealed class AppHost : IAsyncDisposable
         new(StringComparer.Ordinal);
     private readonly object statusGate = new();
     private bool started;
+    private readonly RuntimeSnapshotStore runtimeSnapshot = new();
     private readonly SemaphoreSlim refreshGate = new(1, 1);
     private readonly object disposalGate = new();
     private Task? disposalTask;
@@ -78,12 +79,19 @@ public sealed class AppHost : IAsyncDisposable
         Projections = projections ?? new ProjectionHost();
         TelemetrySources = telemetrySources ?? new TelemetrySourceCatalog();
         Settings = new AppSettingsService(this.paths.RuntimeRoot, HasRunningOperation);
+        GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
+            () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
+            () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
+            Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"),
+            () => { var o = runtimeSnapshot.Read(); var s = o.Snapshot; var result = s?.LastSave;
+                return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; });
     }
 
     public RevisionedViewStore Views { get; }
     public ProjectionHost Projections { get; }
     public TelemetrySourceCatalog TelemetrySources { get; }
     public AppSettingsService Settings { get; }
+    public GameExtensionController GameExtensions { get; }
     public SettingsProjector SettingsProjector { get; }
     public RepositoryDatabase? Repository { get; private set; }
     public SchedulerDatabase? Scheduler { get; private set; }
@@ -179,7 +187,7 @@ public sealed class AppHost : IAsyncDisposable
             repository, paths.WorkerDirectory, TelemetrySources, launcher,
             new RunIndexAllocator(paths.ControlDatabasePath),
             paths.OperationsRoot!, runtime, LogInbox);
-        var runtimeSnapshot = new RuntimeSnapshotStore();
+
         supervisors.Add(RuntimeStateFeed.FollowAsync(scheduler.DatabasePath, runtimeSnapshot, lifetime.Token));
         var stateProjector = new StateProjector(state, Views, observationBoundary,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.PausePeriodicDuringGame == true
@@ -195,6 +203,7 @@ public sealed class AppHost : IAsyncDisposable
         Projections.AddLoop("backup", backupProjector.ProjectOnceAsync, projectionInterval);
         Projections.AddLoop("character-metadata", token => characterMetadata.CollectOnceAsync(repository, token), projectionInterval);
         Projections.AddLoop("scheduler", schedulerProjector.ProjectOnceAsync, projectionInterval);
+        Projections.AddLoop("game-extensions", GameExtensions.RefreshRuntimeAsync, projectionInterval);
         Projections.AddLoop("details", composer.ComposeOnceAsync, projectionInterval);
         Projections.AddLoop("telemetry", token => telemetry.ProjectOnceAsync(cancellationToken: token),
             projectionInterval);

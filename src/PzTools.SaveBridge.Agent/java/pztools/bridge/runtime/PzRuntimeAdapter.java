@@ -10,6 +10,8 @@ final class PzRuntimeAdapter {
     private final Object[] none = new Object[0];
     String phase = "Unknown", pause = "Unknown", mode = "Unsupported", path;
     int speedLevel = -1;
+    String gameVersion;
+    private boolean versionRead;
     Object worldCell;
 
     PzRuntimeAdapter(Class<?> window) throws ReflectiveOperationException {
@@ -32,7 +34,16 @@ final class PzRuntimeAdapter {
         speed = Class.forName("zombie.ui.SpeedControls", false, loader).getMethod("getCurrentGameSpeed");
     }
 
+    static String readVersion(ClassLoader loader) {
+        try {
+            Class<?> core = Class.forName("zombie.core.Core", false, loader);
+            String value = (String)core.getMethod("getVersionNumber").invoke(core.getMethod("getInstance").invoke(null));
+            return value != null && value.length() <= 80 && value.indexOf('\0') < 0 ? value : null;
+        } catch (ReflectiveOperationException | RuntimeException unavailable) { return null; }
+    }
     void read() throws ReflectiveOperationException {
+        // Metadata failure must never invalidate pause/active-time observations.
+        if (!versionRead) { gameVersion = readVersion(window.getClassLoader()); versionRead = true; }
         Object machine = states.get(null), world = worldInstance.get(null);
         Object nextCell = world == null ? null : cell.get(world);
         boolean loaded = machine != null && ingame.isInstance(current.get(machine));

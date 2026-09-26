@@ -110,3 +110,12 @@ fixture data through initial/incremental backup and restore, and checks that pau
 no revision. Real-game frame time, hours-long memory use, mod compatibility and actual
 vehicle persistence are not implied by synthetic tests. The observer samples frame
 boundaries rather than claiming hard real-time or exactly-once game execution.
+## Shared runtime after game-extension integration
+
+The integrated bootstrap owns one observer and one save dispatch hook. Pause-aware
+scheduling, game-version display and extension admission consume the same runtime.
+Turning pause-aware scheduling off changes scheduling policy, not the shared
+observer's lifetime. Extension cards do not create additional game subscriptions.
+Protocol 6 combines guarded saves with optional provider selection; overrides of a
+module's declared version range never override pause/epoch/cancellation checks.
+See [Game extensions](game-extensions.md) for version ranges and remaining save work.

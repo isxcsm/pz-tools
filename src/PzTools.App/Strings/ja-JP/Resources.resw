@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動バックアップの保持数</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>最新の自動バックアップを1～100件保持します。この制限で手動バックアップは削除されません。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>キャラクター死亡時にバックアップ</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>自動バックアップがオンのときのみ動作します。オフにしてもこの設定は保持されます。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>実行中のゲームでキャラクターの死亡を検出するとバックアップします。自動バックアップが必要です。一時停止中も実行します。保存済みデータの死亡情報は別に管理します。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>コピーしたファイルを確認</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>コピーの内容が元のファイルと一致するか確認します。コピー中に元のファイルが変わった場合は、コピーし直します。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>バックアップ中にセーブファイルが繰り返し変更されました。ゲームの保存が終わってから、もう一度バックアップしてください。</value></data>
@@ -414,6 +414,32 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>過去24時間</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>日時を選択</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>日付</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>ゲーム拡張</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>ゲームに適用する任意の拡張機能を管理します。</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>シームレスセーブ</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>通常の保存を変更せず、専用の経路で保存します。追加のプレビュー描画を省き、一部の書き込みと完了待ちをゲームスレッドから分離します。UI操作の終了を待って保存を遅らせることはありません。データのシリアライズやロックによる停止は残る場合があります。未対応のバージョンでは通常の保存を使用します。</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>オフ · 標準の保存</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>次回保存時に互換性を確認 &#183; 実験段階</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>設定</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>{0} の設定</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>適用</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>拡張設定を利用できません</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>変更を保存できませんでした。ページを開き直し、拡張設定ファイルを確認してください。</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>通常の保存を変更せず、専用の経路で保存します。追加のプレビュー描画を省き、一部の書き込みと完了待ちをゲームスレッドから分離します。UI操作の終了を待って保存を遅らせることはありません。データのシリアライズやロックによる停止は残る場合があります。未対応のバージョンでは通常の保存を使用します。</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>すべてのバージョン</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>メジャー {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>マイナー {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>対応: {0} · 現在のゲーム: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>対応範囲外 · 拡張は無効</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>ゲームバージョンを確認中 · 拡張は無効</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>対応範囲外でも強制的に有効化</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>互換性のないバージョンではエラーが発生する場合があります。バージョン範囲の制限のみ解除し、必須の安全確認は維持します。</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>バージョン制限を無視 · 必須の確認は維持</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>拡張保存を実行中</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>前回の要求：拡張保存が完了</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>前回の要求：標準保存を使用（{0}）</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>前回の要求：保存に失敗（{0}）</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>ゲームスレッドの準備 {0:N0} ms · 完了まで {1:N0} ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>コーヒーで応援</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>お役に立ちましたか？</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支援リンクは準備中です。</value></data>

@@ -135,6 +135,7 @@ public sealed partial class MainWindowShell : UserControl
         SavesPageTitle.Text = Localizer.Get("SavesNavigation.Content");
         AppToolTip.SetTip(SavesPageTitle, SavesPageTitle.Text);
         LogsItem.Content = Localizer.Get("LogsNavigation.Content");
+        GameExtensionsItem.Content = Localizer.Get("GameExtensions.Title");
         if (Navigation.SettingsItem is NavigationViewItem settings)
             settings.Content = Localizer.Get("SettingsTitle.Text");
         ExportProgressTitle.Text = Localizer.Get("Exporting.Text");
@@ -175,6 +176,7 @@ public sealed partial class MainWindowShell : UserControl
         ApplyLocalizedText();
         SettingsRoot.ApplyLocalizedText();
         LogsRoot.ApplyLocalizedText();
+        GameExtensionsRoot.ApplyLocalizedText();
         saveListRevision = 0;
         scheduleRevision = 0;
         operationsRevision = 0;
@@ -1071,12 +1073,15 @@ public sealed partial class MainWindowShell : UserControl
         var settings = args.IsSettingsSelected;
         var tag = (args.SelectedItem as NavigationViewItem)?.Tag?.ToString();
         var logs = !settings && tag == "logs";
+        var extensions = !settings && tag == "game-extensions";
+        GameExtensionsRoot.Visibility = extensions ? Visibility.Visible : Visibility.Collapsed;
+        if (extensions) _ = GameExtensionsRoot.RefreshForNavigationAsync();
         SettingsRoot.Visibility = settings ? Visibility.Visible : Visibility.Collapsed;
         LogsRoot.Visibility = logs ? Visibility.Visible : Visibility.Collapsed;
         if (logs) LogsRoot.RefreshForNavigation();
         // Keep the save lists laid out while another page is shown. Collapsing this grid
         // unrealizes ListView rows, so its selection bar can reappear before the rows do.
-        var showSaves = !settings && !logs;
+        var showSaves = !settings && !logs && !extensions;
         SavesRoot.Opacity = showSaves ? 1 : 0;
         SavesRoot.IsHitTestVisible = showSaves;
     }

@@ -1,6 +1,8 @@
 package pztools.bridge.runtime;
 
 import pztools.bridge.AgentEntry;
+import pztools.extensions.api.*;
+import java.util.UUID;
 
 import java.io.*;
 import java.lang.classfile.*;
@@ -22,6 +24,8 @@ public final class SaveBridge {
     private static Class<?> window;
     private static Method save;
     private static Field gameThread;
+    private static Field worldInstance, worldCell;
+    private static final String JVM_SESSION = RuntimeIdentity.processId();
     private static ClassLoader gameLoader;
     private static boolean legacyRetired;
     private static final Object owner = new Object();
@@ -43,26 +47,30 @@ public final class SaveBridge {
             socket.setSoTimeout(5000);
             var input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
             var output = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
-            output.println("HELLO\t5\t" + ProcessHandle.current().pid() + "\t" + token);
+            output.println("HELLO\t6\t" + ProcessHandle.current().pid() + "\t" + token);
             try {
                 String line = readLimited(input);
                 if (line == null) return;
                 String[] command = line.split("\t", -1);
-                boolean active = (command[0].equals("SAVE_ACTIVE") || command[0].equals("PROBE_ACTIVE")) && command.length == 6;
+                boolean extension = (command[0].equals("PREPARE_SAVE") || command[0].equals("PREPARE_SAVE_ACTIVE"))
+                    && command.length == 8 && (command[7].equals("force") || command[7].equals("normal"))
+                    && command[6].length() <= 80 && command[6].matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+");
+                boolean active = (command[0].equals("SAVE_ACTIVE") || command[0].equals("PROBE_ACTIVE")) && command.length == 6
+                    || extension && command[0].equals("PREPARE_SAVE_ACTIVE");
                 RuntimeObserver.Ticket ticket = active ? RuntimeObserver.Ticket.parse(command[5]) : null;
-                if (active && !command[4].equals("off") && !NoticeLanguages.supports(command[4]))
+                if ((active || extension) && !command[4].equals("off") && !NoticeLanguages.supports(command[4]))
                     throw new BridgeFailure("protocol", "Invalid notice language");
                 boolean notice = command[0].equals("SAVE_COUNTDOWN");
                 boolean validPlain = (command.length == 2 || command.length == 4)
                     && (command[0].equals("SAVE") || command[0].equals("PROBE"));
-                boolean validNotice = notice && command.length == 5
-                    && NoticeLanguages.supports(command[4]);
+                boolean validNotice = notice && command.length == 5 && NoticeLanguages.supports(command[4]);
                 boolean timed = command[0].equals("SAVE_AT") && command.length == 6
                     && (NoticeLanguages.supports(command[4]) || command[4].equals("off"));
-                if (!validPlain && !validNotice && !timed && !active)
+                if (!validPlain && !validNotice && !timed && !extension && !active)
                     throw new BridgeFailure("protocol", "Invalid save/probe request");
-                long scheduledMillis = timed ? Long.parseLong(command[5]) : 0;
-                if (timed && (scheduledMillis <= 0 || scheduledMillis - System.currentTimeMillis() > 60000))
+                long scheduledMillis = timed || extension && !active ? Long.parseLong(command[5]) : 0;
+                if (timed && scheduledMillis <= 0 || extension && scheduledMillis < 0
+                        || (timed || extension) && scheduledMillis - System.currentTimeMillis() > 60000)
                     throw new BridgeFailure("protocol", "Scheduled save must be due within one minute");
                 int queueSeconds = command.length >= 4 ? Integer.parseInt(command[2]) : 15;
                 int completionSeconds = command.length >= 4 ? Integer.parseInt(command[3]) : 150;
@@ -81,8 +89,21 @@ public final class SaveBridge {
                 }
                 install(instrumentation);
                 if (ticket != null) RuntimeObserver.reserve(ticket);
+                SaveModules resolvedModules = null;
+                SaveModules.Resolution resolution = new SaveModules.Resolution(null, null);
+                if (extension) {
+                    try {
+                        resolvedModules = AgentEntry.extensions();
+                        resolution = resolvedModules.resolve(command[6], instrumentation, gameLoader, PzRuntimeAdapter.readVersion(gameLoader), command[7].equals("force"));
+                    } catch (Exception | LinkageError unavailable) {
+                        resolution = new SaveModules.Resolution(null, "module-unavailable");
+                    }
+                }
                 request = new Request(!command[0].startsWith("PROBE"), expected, queueSeconds,
-                    notice || (timed || active) && !command[4].equals("off") ? command[4] : null, scheduledMillis, ticket);
+                    notice || (timed || extension || active) && !command[4].equals("off") ? command[4] : null, scheduledMillis, ticket);
+                request.modules = resolvedModules; request.provider = resolution.provider();
+                request.requestedProvider = extension ? command[6] : null;
+                request.fallbackReason = resolution.reason(); request.forceVersion = extension && command[7].equals("force");
                 if (!pending.compareAndSet(null, request))
                     throw new BridgeFailure("busy", "Another bridge request is still pending or running");
                 awaitStarted(request, input, socket);
@@ -120,6 +141,8 @@ public final class SaveBridge {
 
     private static synchronized void cleanup(Instrumentation instrumentation) throws Exception {
         if (!acquired) return;
+        Request owned = pending.get();
+        if (owned != null && owned.state.get() == 2 && !owned.result.isDone()) return;
         // The game-thread monitor is held through save(true). A disconnected client
         // cannot release ownership while that call is still running.
         pending.set(null);
@@ -135,7 +158,7 @@ public final class SaveBridge {
             if (!saveStartedSent && request.state.get() == 2) { output.println("SAVING"); saveStartedSent = true; }
             if (System.nanoTime() >= deadline) {
                 if (request.cancelBeforeSave())
-                    return error("queue-timeout", "Countdown expired; cancelled without saving");
+                    return error("queue-timeout", "Save preparation expired while waiting for countdown, interaction or workers; cancelled without saving");
                 return error("completion-unknown", "The game call is still running. Do not retry until it finishes");
             }
             try {
@@ -185,20 +208,27 @@ public final class SaveBridge {
         Method logic = window.getDeclaredMethod("logic");
         save = window.getMethod("save", boolean.class);
         gameThread = window.getField("gameThread");
+        Class<?> worldType = gameClass("zombie.iso.IsoWorld");
+        worldInstance = worldType.getField("instance");
+        worldCell = worldType.getField("currentCell");
         if (!Modifier.isStatic(logic.getModifiers()) || logic.getReturnType() != void.class
                 || !Modifier.isStatic(save.getModifiers()) || save.getReturnType() != void.class)
             throw new BridgeFailure("unsupported-game", "Game method signatures have changed");
         installed = true;
     }
 
-    /** Called at a game-loop boundary, including paused frames; never does network I/O. */
+    /** Game-loop dispatch: native serialization remains on this thread; completion waits never do. */
     public static synchronized void poll() {
         Request request = pending.get();
         if (request == null) return;
-        boolean starting = request.state.compareAndSet(0, 1);
-        if (!starting && request.state.get() != 1) return;
-        if (starting) request.started.complete(null);
         try {
+            if (request.state.get() == 2) {
+                if (request.task != null) observeExtension(request);
+                return;
+            }
+            boolean starting = request.state.compareAndSet(0, 1);
+            if (!starting && request.state.get() != 1) return;
+            if (starting) request.started.complete(null);
             if (starting && System.nanoTime() > request.expiresAt)
                 throw new BridgeFailure("queue-timeout", "Request expired without saving");
             if (Thread.currentThread() != gameThread.get(null))
@@ -218,36 +248,112 @@ public final class SaveBridge {
                 catch (Exception exception) { request.noticeError = describe(exception); request.notice = null; }
             }
             if (System.nanoTime() < request.notBefore) return;
-            // The player can leave or switch worlds during the countdown.
-            String actual = validateWorld(request.expectedPath);
+            String actual = request.context == null ? validateWorld(request.expectedPath) : request.saveDirectory;
             if (request.guard != null && request.guard.check() > 0) return;
-            if (!request.state.compareAndSet(1, 2)) return;
-            long start = System.nanoTime();
-            String recoveryError = null;
-            if (request.save) {
-                // Optional identity metadata must never replace or suppress the required game save.
-                try { RecoveryStamp.record(gameLoader); }
-                catch (ReflectiveOperationException | RuntimeException failure) { recoveryError = describe(failure); }
-                save.invoke(null, true);
+            request.saveDirectory = actual;
+            SaveProvider selected = request.provider;
+            if (selected != null) {
+                if (request.context == null) {
+                    request.cell = currentCell();
+                    request.context = new SaveProvider.Context(request.id, JVM_SESSION, RuntimeIdentity.worldId(request.cell),
+                        Path.of(actual), Thread.currentThread(), gameLoader, new AtomicBoolean(true), PzRuntimeAdapter.readVersion(gameLoader), request.forceVersion);
+                } else if (currentCell() != request.cell) {
+                    request.context.worldValid().set(false);
+                    throw new BridgeFailure("save-world-changed", "World changed while waiting to prepare a save");
+                }
+                var support = selected.inspect(request.context);
+                if (!support.supported()) { request.fallbackReason = support.reason(); selected = null; }
+                else if (!selected.readyToCapture(request.context)) return;
+                actual = validateWorld(request.expectedPath);
+                request.saveDirectory = actual;
+                // A probe may race permission withdrawal. The guard and state CAS remain the admission boundary.
+                if (request.guard != null && request.guard.check() > 0) return;
             }
-            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-            completeNotice(request, true);
-            // A returned call is not a promise that the game's own caught errors do not exist.
-            request.result.complete("OK\t" + encode((request.save ? "GameWindow.save(true) returned" : "Probe only; no save invoked")
-                + "; thread=" + Thread.currentThread().getName() + "; elapsedMs=" + elapsedMs + "; save=" + actual
-                + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError)
-                + (recoveryError == null ? "" : "; recovery-metadata-unavailable=" + recoveryError)));
+            if (!request.state.compareAndSet(1, 2)) return;
+            request.saveStarted = System.nanoTime();
+            request.reportWorld = RuntimeIdentity.worldId(currentCell());
+            request.actualProvider = selected == null ? "pztools.standard-save" : selected.id();
+            publishExecution(request, "Running", request.fallbackReason);
+            if (request.save) {
+                try { RecoveryStamp.record(gameLoader); }
+                catch (ReflectiveOperationException | RuntimeException failure) { request.recoveryError = describe(failure); }
+            }
+            if (selected != null) {
+                // No catch-and-replay: begin() may already have changed world state.
+                request.task = request.modules.begin(selected, request.context);
+                request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
+                publishExecution(request, "Running", request.fallbackReason);
+                return;
+            }
+            if (request.save) save.invoke(null, true);
+            request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
+            completeSuccess(request, "pztools.standard-save", "STANDARD_CALL_RETURNED",
+                request.save ? "GameWindow.save(true) returned" : "Probe only; no save invoked");
         } catch (Throwable exception) {
             Throwable cause = exception instanceof InvocationTargetException invocation ? invocation.getCause() : exception;
-            // Do not touch the old player's UI after leaving or switching worlds.
-            if (request.state.get() == 2) completeNotice(request, false);
-            request.result.complete(error(cause instanceof RuntimeObserver.Deferred ? "runtime-deferred" : cause instanceof BridgeFailure failure ? failure.code : "save-failed", describe(cause)));
+            if (request.state.get() == 2 && (request.context == null || request.context.worldValid().get()))
+                completeNotice(request, false);
+            String failureCode = cause instanceof RuntimeObserver.Deferred ? "runtime-deferred" : cause instanceof BridgeFailure failure ? failure.code : "save-failed";
+            if (request.task == null && request.saveStarted != 0) request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
+            publishExecution(request, "Failed", failureCode);
+            request.result.complete(error(failureCode, describe(cause)));
         } finally {
             if (request.result.isDone()) {
-                request.state.set(3);
-                pending.compareAndSet(request, null);
+                request.state.set(3); pending.compareAndSet(request, null);
+                AgentEntry.release(owner); acquired = false;
             }
         }
+    }
+
+    private static void observeExtension(Request request) throws Exception {
+        if (request.context.worldValid().get()) {
+            try {
+                if (currentCell() != request.cell) request.context.worldValid().set(false);
+                if (System.nanoTime() >= request.nextValidation) {
+                    validateWorld(request.expectedPath);
+                    request.nextValidation = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+                }
+            } catch (Exception worldEnded) { request.context.worldValid().set(false); }
+        }
+        SaveTask.Result result = request.task.completed();
+        if (result == null) return;
+        if (!request.context.worldValid().get())
+            throw new BridgeFailure("save-world-changed", "World changed before save completion was confirmed");
+        try { validateWorld(request.expectedPath); }
+        catch (Exception worldEnded) {
+            request.context.worldValid().set(false);
+            throw new BridgeFailure("save-world-changed", "World ended before save completion");
+        }
+        if (!result.requestId().equals(request.id) || !result.sessionId().equals(JVM_SESSION)
+                || !result.worldId().equals(request.context.worldId()))
+            throw new BridgeFailure("extension-result-mismatch", "Unexpected save completion identity");
+        if (result.failure() != null) throw new BridgeFailure("extension-save-failed", describe(result.failure()));
+        if (result.cancelled()) throw new BridgeFailure("extension-save-cancelled", "Extension save did not commit");
+        completeSuccess(request, request.provider.id(), result.completion().name(), "Extension save completed");
+    }
+    private static Object currentCell() throws ReflectiveOperationException {
+        Object world = worldInstance.get(null);
+        return world == null ? null : worldCell.get(world);
+    }
+    private static void completeSuccess(Request request, String provider, String completion, String message) {
+        completeNotice(request, true);
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
+        String detail = message + "; thread=" + Thread.currentThread().getName() + "; elapsedMs=" + elapsed
+            + "; save=" + request.saveDirectory
+            + (request.recoveryError == null ? "" : "; recovery-metadata-unavailable=" + request.recoveryError)
+            + (request.task == null ? "" : "; captureMs=" + request.captureMillis + "; " + request.task.diagnostics())
+            + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError);
+        publishExecution(request, "Succeeded", request.fallbackReason);
+        if (request.requestedProvider == null) request.result.complete("OK\t" + encode(detail));
+        else request.result.complete("SAVED\t" + provider + "\t" + completion + "\t" + encode(detail)
+            + "\t" + (request.fallbackReason == null ? "-" : request.fallbackReason));
+    }
+
+    private static void publishExecution(Request request, String outcome, String reason) {
+        if (request.requestedProvider == null || request.reportWorld == null || request.saveStarted == 0) return;
+        SaveExecution.publish(new SaveExecution.Report(request.id, JVM_SESSION, request.reportWorld,
+            request.requestedProvider, request.actualProvider, outcome, reason, request.captureMillis,
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted)));
     }
 
     private static void completeNotice(Request request, boolean success) {
@@ -300,6 +406,16 @@ public final class SaveBridge {
         BridgeFailure(String code, String message) { super(message); this.code = code; }
     }
     private static final class Request {
+        final String id = UUID.randomUUID().toString();
+        SaveModules modules;
+        SaveProvider provider;
+        SaveTask task;
+        SaveProvider.Context context;
+        Object cell;
+        String requestedProvider, fallbackReason, saveDirectory, recoveryError, reportWorld, actualProvider;
+        long saveStarted, captureMillis;
+        boolean forceVersion;
+
         final boolean save;
         final String expectedPath;
         final long expiresAt;

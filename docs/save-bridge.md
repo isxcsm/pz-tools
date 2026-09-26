@@ -1,5 +1,10 @@
 # Pre-backup game save bridge
 
+> Current experimental extension integration uses **bootstrap API 6 / save protocol 6**.
+> The consolidated request, ownership and remaining-work description is in
+> [Game extensions](game-extensions.md). Earlier numbered API notes below describe
+> individual changes, not the current deployment version.
+
 > Pause-aware periodic scheduling is implemented separately from the legacy UTC commands described below. It uses runtime observation and guarded SAVE_ACTIVE/PROBE_ACTIVE. Turning off pre-backup saving does not turn off this observation. See [runtime pause architecture](runtime-pause-backups.md). A loaded older bootstrap requires a full game restart.
 
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
@@ -117,7 +122,7 @@ command was sent.
   path is pinned at bootstrap initialization. Each request retains the separate
   temporary callback authenticated by PID and a fresh random 256-bit token. An
   ambiguous endpoint/dispatch failure never triggers another load or save retry.
-- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` are the commands.
+- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` remain supported. Protocol 6 supports `PREPARE_SAVE` and guarded `PREPARE_SAVE_ACTIVE` for an optional save provider.
   They are handled on `GameWindow.gameThread`; PROBE validates the world but never
   invokes save. Protocol 3 introduced `SAVE_COUNTDOWN`. Protocol 4 adds a fixed
   epoch-millisecond due time and an `off` notice mode to `SAVE_AT`. Language
@@ -194,3 +199,32 @@ scripts use the same dependency graph as a normal worker build; no game JAR is r
 For diagnostics, `GameSaveClient.RequestAsync(pid, savePath, save: false)`
 performs the same connection and game-thread checks without saving. Keep live-game
 save tests manual; synthetic JVM integration tests use isolated temporary data.
+
+## Optional game extensions
+
+The [separate save module](game-extensions.md) is selected only for an explicit
+extension request. Standard saving still calls the original GameWindow.save(true).
+The B42.20 extension calls VersionedSaveEntry.saveForBackup using private generated
+companions; it does not rewrite GameWindow.save or the public chunk/native save
+and read/write paths. Nested saves from other mods remain normal saves.
+
+Bootstrap API 9 and matched app/worker/JARs are required. Older residents need one restart; compatible
+API9 payload/module changes use the [idle reload lifecycle](module-reload.md). The wire
+protocol remains 6. PREPARE_SAVE_ACTIVE combines provider selection, explicit version
+override and the same pause/death/permission guard used by the scheduling authority.
+STATE3 carries live facts and the actual provider result. It is not a second poller.
+
+Private chunk I/O uses the original counted file locks. The private native-save copy
+can defer its completion wait after the existing native worker starts and the original
+snapshot lock is secured. Public native save/stop bodies are not modified. Four
+nonthrowing read-only DB/error/native-phase observers support completion accounting.
+The retired global save/read-through rewrites are not reintroduced. A typed
+GAME_SAVE_AND_PENDING_WRITES_DRAINED receipt follows owned file/native work and required
+DB drains. It is not an atomic whole-world or hardware-flush receipt. Private readiness
+also waits for an inventory drag/drop to finish; it never clears or restores a drag.
+Bounded per-request stage timings travel in the existing result detail, not a new poller.
+
+Unsupported private sources fall back to standard saving before capture begins.
+After mutation starts, errors or unknown completion are never replayed as another
+standard save. RecoveryStamp, readiness, cancellation admission, game-thread/world
+identity and the general backup-preparation boundary remain in force.

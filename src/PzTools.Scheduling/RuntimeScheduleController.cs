@@ -19,11 +19,18 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
     public async Task<RuntimeAdmissionSelection> PrepareAsync(DateTimeOffset now, TimeSpan lead, CancellationToken token)
     {
         var storage = await database.ReadRuntimeScheduleAsync(token);
-        if (!storage.Enabled) { state = null; return new(false, null); }
+
         // Apply/discard pending file-derived commands before reading the current generation.
         var oneShot = await database.PrepareBackupTickAsync(now, token, lead);
         var control = await database.ReadBackupStateIfChangedAsync(-1, token);
         var observation = CommittedObservation(storage);
+        if (oneShot?.RuntimeTicket is { IsDeath: true } death)
+        {
+            bool valid = observation.IsFresh && observation.Snapshot is { } live && death.MatchesDeath(live)
+                && StringComparer.OrdinalIgnoreCase.Equals(live.SavePath, oneShot.Target.SourcePath);
+            return new(true, valid ? oneShot : null);
+        }
+        if (!storage.Enabled) { state = null; return new(false, null); }
         if (state is null)
         {
             recovering = storage.Checkpoint?.AttemptId is not null;
@@ -82,7 +89,7 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
     public async Task FinishAsync(BackupTickAdmission admission, WorkerInvocation? worker,
         ScheduleDisposition recoveredDisposition = ScheduleDisposition.Default, CancellationToken token = default)
     {
-        if (admission.RuntimeTicket is null || state is null) return;
+        if (admission.RuntimeTicket is null || admission.RuntimeTicket.IsDeath || state is null) return;
         var control = await database.ReadBackupStateIfChangedAsync(-1, token);
         if (control.Generation != admission.Generation || state.AttemptId != admission.RuntimeTicket.RequestId) return;
         var storage = await database.ReadRuntimeScheduleAsync(token);

@@ -6,6 +6,8 @@ namespace PzTools.Process.Contracts.GameRuntime;
 
 public enum WorldPhase { Unknown, Menu, Loading, Ready, Unloading }
 public enum GamePause { Unknown, Running, Paused }
+// Live JVM facts, deliberately separate from the persisted players.db CharacterState.
+public enum RuntimeCharacterLife { Unknown, Alive, Dead }
 public enum RuntimeMode { Unsupported, LocalSinglePlayer, Networked }
 public enum RuntimeQuality { Unknown, Fresh, Stale, Unsupported, Ambiguous, Offline }
 [Flags]
@@ -17,10 +19,10 @@ public sealed record RuntimeSnapshot(
     string ProcessSession, string ObserverEpoch, string WorldSession, long ClockEpoch,
     long EligibilityEpoch, long Sequence, WorldPhase Phase, GamePause Pause,
     RuntimeMode Mode, int SpeedLevel, long ActiveMilliseconds, long SampleAgeMilliseconds,
-    string? SavePath)
+    string? SavePath, string? GameVersion = null, RuntimeCharacterLife CharacterLife = RuntimeCharacterLife.Unknown, string? CharacterSession = null, string? DeathId = null, RuntimeSaveExecution? LastSave = null)
 {
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
-    public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}";
+    public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}";
     public bool IsWorldReady => Phase == WorldPhase.Ready && Mode == RuntimeMode.LocalSinglePlayer && SavePath is not null;
     public RuntimeSnapshot Validate()
     {
@@ -28,10 +30,15 @@ public sealed record RuntimeSnapshot(
             || ClockEpoch < 0 || EligibilityEpoch < 0 || Sequence < 0 || ActiveMilliseconds < 0
             || SampleAgeMilliseconds < 0 || !Enum.IsDefined(Phase) || !Enum.IsDefined(Pause)
             || !Enum.IsDefined(Mode) || SpeedLevel is < -1 or > 4
+            || !Enum.IsDefined(CharacterLife) || CharacterSession is not null && !Id(CharacterSession)
+            || DeathId is not null && (!Id(DeathId) || CharacterLife != RuntimeCharacterLife.Dead)
+            || CharacterLife != RuntimeCharacterLife.Unknown && (!IsWorldReady || CharacterSession is null)
+            || GameVersion is { Length: > 80 } || GameVersion?.IndexOf('\0') >= 0
             || SavePath is { Length: > 4096 } || SavePath?.IndexOf('\0') >= 0
             || SavePath is not null && !Path.IsPathFullyQualified(SavePath)
             || Phase == WorldPhase.Ready && SavePath is null)
             throw new InvalidDataException("Invalid runtime snapshot.");
+        LastSave?.Validate();
         // Java may report Windows paths with forward slashes. Normalize once at ingress,
         // before semantic keys or target comparisons, without probing the filesystem.
         var normalized = SavePath is null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(SavePath));
@@ -41,7 +48,7 @@ public sealed record RuntimeSnapshot(
     public static RuntimeSnapshot ParseWire(string line)
     {
         var p = line.Split('\t');
-        if (p.Length != 15 || p[0] != "STATE1") throw new InvalidDataException("Unsupported runtime frame.");
+        if (!(p.Length == 15 && p[0] == "STATE1" || p.Length == 16 && p[0] == "STATE2" || p.Length == 20 && p[0] == "STATE3")) throw new InvalidDataException("Unsupported runtime frame.");
         static long Number(string value) => long.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
         static T Kind<T>(string value) where T : struct, Enum =>
             Enum.TryParse<T>(value, false, out var result) && Enum.IsDefined(result)
@@ -49,7 +56,7 @@ public sealed record RuntimeSnapshot(
         return new RuntimeSnapshot(p[1], p[2], p[3], Number(p[4]), Number(p[5]), Number(p[6]),
             Kind<WorldPhase>(p[7]), Kind<GamePause>(p[8]), Kind<RuntimeMode>(p[9]),
             int.Parse(p[10], CultureInfo.InvariantCulture), Number(p[11]), Number(p[12]),
-            p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])))
+            p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length == 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null)
             .RequireCapabilities(p[14]).Validate();
     }
     private RuntimeSnapshot RequireCapabilities(string value)
@@ -84,30 +91,41 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
 
 /// <summary>A limited game-side predicate, not an arbitrary expression or remote method invocation.</summary>
 public sealed record RuntimeSaveTicket(string ProcessSession, string ObserverEpoch, string WorldSession,
-    long ClockEpoch, long EligibilityEpoch, long DueActiveMilliseconds, long CommandSequence, string RequestId)
+    long ClockEpoch, long EligibilityEpoch, long DueActiveMilliseconds, long CommandSequence, string RequestId,
+    string? CharacterSession = null, string? DeathId = null)
 {
+    public bool IsDeath => DeathId is not null;
     public RuntimeSaveTicket Validate()
     {
         if (!RuntimeSnapshot.Id(ProcessSession) || !RuntimeSnapshot.Id(ObserverEpoch)
             || !RuntimeSnapshot.Id(WorldSession) || !RuntimeSnapshot.Id(RequestId)
-            || ClockEpoch < 0 || EligibilityEpoch < 0 || DueActiveMilliseconds < 0 || CommandSequence <= 0)
+            || ClockEpoch < 0 || EligibilityEpoch < 0 || DueActiveMilliseconds < 0 || CommandSequence <= 0
+            || (CharacterSession is null) != (DeathId is null)
+            || IsDeath && (!RuntimeSnapshot.Id(CharacterSession) || !RuntimeSnapshot.Id(DeathId) || DueActiveMilliseconds != 0))
             throw new InvalidDataException("Invalid guarded save ticket.");
         return this;
     }
-    public string Encode() { Validate(); return string.Join('|', "1", ProcessSession, ObserverEpoch, WorldSession,
-        ClockEpoch.ToString(CultureInfo.InvariantCulture), EligibilityEpoch.ToString(CultureInfo.InvariantCulture),
-        DueActiveMilliseconds.ToString(CultureInfo.InvariantCulture), CommandSequence.ToString(CultureInfo.InvariantCulture), RequestId); }
+    public bool MatchesDeath(RuntimeSnapshot value) => IsDeath && value.IsWorldReady
+        && value.ProcessSession == ProcessSession && value.WorldSession == WorldSession
+        && value.CharacterLife == RuntimeCharacterLife.Dead && value.CharacterSession == CharacterSession && value.DeathId == DeathId;
+    public string Encode()
+    {
+        Validate();
+        var text = string.Join('|', IsDeath ? "2" : "1", ProcessSession, ObserverEpoch, WorldSession,
+            ClockEpoch.ToString(CultureInfo.InvariantCulture), EligibilityEpoch.ToString(CultureInfo.InvariantCulture),
+            DueActiveMilliseconds.ToString(CultureInfo.InvariantCulture), CommandSequence.ToString(CultureInfo.InvariantCulture), RequestId);
+        return IsDeath ? text + "|" + CharacterSession + "|" + DeathId : text;
+    }
     public static RuntimeSaveTicket Parse(string value)
     {
         if (value.Length > 1024) throw new InvalidDataException("Oversized save ticket.");
         var p = value.Split('|');
-        if (p.Length != 9 || p[0] != "1") throw new InvalidDataException("Unsupported save ticket.");
+        if (!(p.Length == 9 && p[0] == "1" || p.Length == 11 && p[0] == "2")) throw new InvalidDataException("Unsupported save ticket.");
         return new RuntimeSaveTicket(p[1], p[2], p[3], long.Parse(p[4], CultureInfo.InvariantCulture),
             long.Parse(p[5], CultureInfo.InvariantCulture), long.Parse(p[6], CultureInfo.InvariantCulture),
-            long.Parse(p[7], CultureInfo.InvariantCulture), p[8]).Validate();
+            long.Parse(p[7], CultureInfo.InvariantCulture), p[8], p.Length == 11 ? p[9] : null, p.Length == 11 ? p[10] : null).Validate();
     }
 }
-
 public static class RuntimeJson
 {
     public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web) { IgnoreReadOnlyProperties = true };

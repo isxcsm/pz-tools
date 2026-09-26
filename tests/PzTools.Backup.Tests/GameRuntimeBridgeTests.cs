@@ -188,12 +188,13 @@ public sealed partial class GameSaveClientTests
         private readonly CancellationTokenSource cancellation = new();
         private readonly Task worker;
         private RuntimeSnapshot? latest;
-        public RuntimeWatchCapture(int pid) => worker = ReceiveAsync(pid);
+        private readonly string bridgeDirectory;
+        public RuntimeWatchCapture(int pid, string? bridgeDirectory = null) { this.bridgeDirectory = bridgeDirectory ?? RuntimeBridgeDirectory(); worker = ReceiveAsync(pid); }
         private async Task ReceiveAsync(int pid)
         {
             try
             {
-                await foreach (var snapshot in new GameRuntimeClient(RuntimeBridgeDirectory()).WatchAsync(pid, cancellation.Token))
+                await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(pid, cancellation.Token))
                     Volatile.Write(ref latest, snapshot);
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }

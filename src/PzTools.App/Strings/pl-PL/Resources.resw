@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Liczba automatycznych kopii</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Zachowaj ostatnie 1–100 automatycznych kopii. Ten limit nie usuwa kopii ręcznych.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Twórz kopię po śmierci postaci</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Działa tylko przy włączonych automatycznych kopiach. To ustawienie jest zachowywane po ich wyłączeniu.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Tworzy kopię, gdy uruchomiona gra zgłosi śmierć postaci. Wymaga kopii automatycznych; pauza gry jej nie blokuje. Informacje o śmierci w zapisach gry są przechowywane osobno.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Sprawdzaj skopiowane pliki</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Sprawdza, czy skopiowane pliki są zgodne z oryginałami. Jeśli plik zmieni się podczas kopiowania, zostanie skopiowany ponownie.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Pliki zapisu gry zmieniały się podczas tworzenia kopii. Poczekaj, aż gra zakończy zapisywanie, i spróbuj ponownie.</value></data>
@@ -414,6 +414,32 @@ Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
   <data name="LogTimeRecentDay" xml:space="preserve"><value>Ostatnie 24 godziny</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>Wybierz datę i godzinę</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>Rozszerzenia gry</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>Zarządzaj opcjonalnymi ulepszeniami gry.</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Płynne zapisywanie</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Korzysta z osobnej ścieżki zapisu bez zmieniania zwykłego zapisywania. Pomija dodatkowe renderowanie podglądu i przenosi część zapisu oraz oczekiwania na zakończenie poza wątek gry. Nie czeka na zakończenie interakcji z interfejsem. Serializacja i blokady nadal mogą powodować przerwy. Nieobsługiwane wersje używają zwykłego zapisu.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>Wyłączone · Standardowy zapis</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Zgodność sprawdzana przy następnym zapisie &#183; Eksperymentalne</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>Konfiguruj</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Ustawienia: {0}</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>Zastosuj</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>Ustawienia rozszerzeń są niedostępne</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Nie udało się zapisać zmian. Otwórz stronę ponownie i sprawdź plik ustawień rozszerzeń.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Korzysta z osobnej ścieżki zapisu bez zmieniania zwykłego zapisywania. Pomija dodatkowe renderowanie podglądu i przenosi część zapisu oraz oczekiwania na zakończenie poza wątek gry. Nie czeka na zakończenie interakcji z interfejsem. Serializacja i blokady nadal mogą powodować przerwy. Nieobsługiwane wersje używają zwykłego zapisu.</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>Wszystkie wersje</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Wersja główna {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Wersja podrzędna {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Obsługiwane: {0} · Bieżąca gra: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Poza obsługiwanym zakresem · Rozszerzenie nieaktywne</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oczekiwanie na wersję gry · Rozszerzenie nieaktywne</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Wymuś włączenie poza obsługiwanym zakresem</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Niezgodne wersje mogą powodować błędy. Pomijany jest tylko zakres wersji; niezbędne kontrole bezpieczeństwa pozostają aktywne.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ograniczenie wersji pominięte · Kontrole bezpieczeństwa zachowane</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Trwa zapis przez rozszerzenie</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Ostatnie żądanie: zapis przez rozszerzenie ukończony</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Ostatnie żądanie: użyto zwykłego zapisu ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Ostatnie żądanie: zapis nie powiódł się ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Przygotowanie w wątku gry: {0:N0} ms · zakończenie: {1:N0} ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Postaw mi kawę</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools się przydał?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Link do wsparcia nie jest jeszcze dostępny.</value></data>

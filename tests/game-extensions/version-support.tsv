@@ -1,0 +1,14 @@
+All|-|-|42.20|true
+All|-|-|-|true
+Major|42|-|42.20|true
+Major|42|-|41.78|false
+Major|42|-|43.0|true
+Major|42|42|43.0|false
+Major|42|-|-|false
+Minor|42.20|42.20|42.20.7|true
+Minor|42.20|42.20|42.21|false
+Minor|42.9|42.20|42.10|true
+Minor|42.20|-|43.0|true
+Minor|42.20|42.20|42.20-unstable|true
+Minor|42.20|42.20|42.200|false
+Major|42|-|42.20garbage|false

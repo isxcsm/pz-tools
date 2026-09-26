@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自动备份保留数量</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>保留最近 1–100 个自动备份。此数量限制不会删除手动备份。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡时备份</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>仅在自动备份开启时生效。关闭自动备份后仍会保留此设置。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>运行中的游戏实时报告角色死亡时进行备份。需开启自动备份；游戏暂停不会阻止此备份。存档中的死亡信息单独保留。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>检查复制的文件</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>检查复制后的文件是否与原文件一致。如果复制期间原文件发生变化，则重新复制。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>备份期间存档文件一直在变化。请等待游戏保存完成后重新备份。</value></data>
@@ -414,6 +414,32 @@
   <data name="LogTimeRecentDay" xml:space="preserve"><value>最近24小时</value></data>
   <data name="LogChooseDateTime" xml:space="preserve"><value>选择日期和时间</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>日期</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>游戏扩展</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>管理可选的游戏增强功能。</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>无缝保存</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>使用独立的保存路径，不改变常规保存。省去额外的预览渲染，并将部分写入和完成等待移出游戏线程。不会等待界面操作结束才开始保存。序列化和锁仍可能造成短暂停顿；不支持的版本使用常规保存。</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>已关闭 · 标准保存</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>下次保存时检查兼容性 &#183; 实验阶段</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>设置</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>{0}设置</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>应用</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>无法使用扩展设置</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>无法保存更改。请重新打开页面并检查扩展设置文件。</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>使用独立的保存路径，不改变常规保存。省去额外的预览渲染，并将部分写入和完成等待移出游戏线程。不会等待界面操作结束才开始保存。序列化和锁仍可能造成短暂停顿；不支持的版本使用常规保存。</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>所有版本</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>主版本 {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>次版本 {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>支持范围：{0} · 当前游戏：{1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>超出支持范围 · 扩展未启用</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>等待确认游戏版本 · 扩展未启用</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>忽略支持范围并强制启用</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>不兼容的版本可能导致错误。此选项仅绕过版本范围限制，不会关闭必要的安全检查。</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>已忽略版本限制 · 保留必要安全检查</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>正在使用扩展保存</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>上次请求：扩展保存完成</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>上次请求：使用标准保存（{0}）</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>上次请求：保存失败（{0}）</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>游戏线程准备 {0:N0} 毫秒 · 完成用时 {1:N0} 毫秒</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>请我喝杯咖啡</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>这个工具帮到您了吗？</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支持链接正在准备中。</value></data>
