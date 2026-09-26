@@ -10,21 +10,24 @@
   </UserControl.Resources>
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="80" />
+      <RowDefinition Height="32" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
-    <Grid x:Name="AppTitleBar" Background="Transparent" Margin="0,0,140,0">
-      <Grid Margin="24,12,0,12" ColumnSpacing="14" VerticalAlignment="Center">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-        <Image Width="56" Height="56" Source="ms-appx:///Assets/Brand/pztools.png" Stretch="Uniform"
-               AutomationProperties.AccessibilityView="Raw" />
-        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-          <TextBlock x:Name="AppTitleText" Text="PZ Tools" FontSize="24" FontWeight="SemiBold"
-                     TextTrimming="CharacterEllipsis" />
-          <TextBlock x:Name="AppSubtitleText" FontSize="13" TextTrimming="CharacterEllipsis"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        </StackPanel>
-      </Grid>
+    <!-- The tall brand occupies only the rail, not a full-width content row.
+         The top 32 DIPs remain the title-bar drag region; page controls are below it. -->
+    <Grid x:Name="AppTitleBar" Background="Transparent" Margin="0,0,140,0" />
+    <Grid x:Name="AppBrand" Grid.RowSpan="2" Canvas.ZIndex="1" Width="212"
+          HorizontalAlignment="Left" VerticalAlignment="Top" Margin="24,8,12,0"
+          ColumnSpacing="14" IsHitTestVisible="False">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+      <Image x:Name="BrandImage" Width="56" Height="56" Source="ms-appx:///Assets/Brand/pztools.png"
+             Stretch="Uniform" AutomationProperties.AccessibilityView="Raw" />
+      <StackPanel x:Name="BrandCopy" Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+        <TextBlock x:Name="AppTitleText" Text="PZ Tools" FontSize="24" FontWeight="SemiBold"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBlock x:Name="AppSubtitleText" FontSize="13" TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
     </Grid>
   <NavigationView x:Name="Navigation" Grid.Row="1" IsSettingsVisible="True"
                   IsBackButtonVisible="Collapsed" PaneDisplayMode="Auto" IsPaneToggleButtonVisible="False"
@@ -42,7 +45,9 @@
       <x:Double x:Key="NavigationViewItemOnLeftIconBoxHeight">24</x:Double>
     </NavigationView.Resources>
     <NavigationView.PaneHeader>
-      <Grid x:Name="CoffeeSupportArea" Margin="12,12,12,12">
+      <StackPanel>
+      <Grid x:Name="BrandHeaderSpace" Height="36" />
+      <Grid x:Name="CoffeeSupportArea" Margin="12,0,12,4">
         <HyperlinkButton x:Name="CoffeeSupportButton" IsEnabled="False" Padding="10"
                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                          Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
@@ -63,6 +68,7 @@
           </Grid>
         </HyperlinkButton>
       </Grid>
+      </StackPanel>
     </NavigationView.PaneHeader>
     <NavigationView.MenuItems>
       <NavigationViewItem x:Name="SavesItem" x:Uid="SavesNavigation" Content="세이브 관리" Tag="saves">
