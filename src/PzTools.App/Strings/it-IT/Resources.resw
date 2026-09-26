@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Ora ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>locale</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Visualizzato nel fuso orario locale del sistema operativo ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Scegli gli orari visualizzati nel registro ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Cronologia · Più recenti prima</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Numero</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Numero fisso che identifica questo registro.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Applica impostazioni e riavvia</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Convalidare i file di configurazione avanzata modificati e riavviare l’app? Il riavvio non è disponibile durante un’operazione.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Ripristina impostazioni predefinite</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Ripristinare i file TOML della configurazione avanzata e riavviare l’app? I file attuali saranno conservati in config-backups nella cartella dati dell’app. Le impostazioni generali scelte nell’app saranno mantenute.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Ripristinare le impostazioni avanzate predefinite e riavviare l’app? Verrà conservata una copia dei file attuali. Le impostazioni normali, i salvataggi e i backup resteranno invariati.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Livello minimo registrato</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Si applica ai nuovi registri. La cronologia esistente viene conservata.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Numero massimo di voci</value></data>
@@ -359,21 +359,29 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Backup interrotto perché il salvataggio nel gioco non è stato confermato.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Salva il gioco prima del backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Conto alla rovescia nel gioco</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra un conto alla rovescia di cinque secondi sopra il personaggio e l’esito del salvataggio nel gioco. Disattivandolo scompaiono i messaggi e il conto alla rovescia dei backup manuali, ma il gioco viene comunque salvato. I backup automatici mantengono l’orario previsto. Le modifiche si applicano dal prossimo backup.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Chiede al gioco di salvare prima dei backup manuali e automatici. Disattiva questa opzione se usi una mod di salvataggio separata o se un aggiornamento del gioco causa problemi di compatibilità. Se disattivata, vengono copiati solo i file su disco e potrebbero mancare i progressi recenti. Le modifiche si applicano dal prossimo backup.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra un conto alla rovescia di cinque secondi e il risultato sopra il personaggio. Disattivando, nasconde i messaggi e salta l’attesa dei backup manuali, ma salva comunque il gioco. Gli orari dei backup automatici non cambiano.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Salva gli ultimi progressi nel gioco prima del backup. È consigliato lasciare attivo: disattivandolo, progressi, veicoli o oggetti non ancora salvati potrebbero mancare nel backup.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Prossimo backup: in attesa di avvio</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Prossimo backup: in attesa dell’attività attuale</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Cura personaggio</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Cura / resuscita personaggio</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Curare il personaggio {0} nel salvataggio attuale?&#xA;&#xA;Ripristinare salute, sazietà, idratazione, riposo, resistenza e stato mentale. Rimuovere ferite, infezioni, avvelenamento, sintomi di astinenza e dolori muscolari non ancora manifestati. Resuscitare il personaggio se è morto.&#xA;&#xA;Tutti i tratti, anche quelli negativi, abilità, esperienza, peso, nutrizione e posizione restano invariati. I tratti o l’ambiente possono far ricomparire i sintomi. Le malattie specifiche delle mod non vengono modificate.&#xA;&#xA;Se l’inventario è vuoto, oggetti e vestiti vengono recuperati dallo zombi di quel personaggio, identificato senza ambiguità nella posizione salvata, e lo zombi viene rimosso. È necessario un documento d’identità corrispondente. Gli elementi visivi delle ferite sono esclusi; lo stato degli oggetti e il contenuto delle borse vengono mantenuti. Nulla viene equipaggiato automaticamente nelle mani. Il recupero dai cadaveri non è ancora supportato. Se gli averi non possono essere identificati con certezza, un personaggio morto con inventario vuoto non viene resuscitato.&#xA;&#xA;Viene modificato solo il salvataggio attuale per giocatore singolo. Salvataggi in uso, formati non supportati o dati ambigui vengono rifiutati.</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Curare il personaggio {0} nel salvataggio attuale?
+
+Ripristinare salute, sazietà, idratazione, riposo, resistenza e stato mentale. Rimuovere ferite, infezioni, avvelenamento, sintomi di astinenza e dolori muscolari non ancora manifestati. Resuscitare il personaggio se è morto.
+
+Tutti i tratti, anche quelli negativi, abilità, esperienza, peso, nutrizione e posizione restano invariati. I tratti o l’ambiente possono far ricomparire i sintomi. Le malattie specifiche delle mod non vengono modificate.
+
+Se la morte ha svuotato l’inventario, recupera gli oggetti dallo zombi o cadavere del personaggio e rimuove tale origine. Non serve una carta d’identità. Stato degli oggetti, contenuto delle borse e dati di abbigliamento e agganci restano invariati. Gli ID salvati ripristinano gli oggetti in mano quando disponibili; altrimenti vanno riequipaggiati. Non vengono creati oggetti persi. In caso di identità incerta non cambia nulla.
+
+Viene modificato solo il salvataggio attuale per giocatore singolo. Salvataggi in uso, formati non supportati o dati ambigui vengono rifiutati.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Recupero del personaggio completato. Tratti, abilità ed esperienza sono stati conservati.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Non è stato possibile identificare in modo univoco gli oggetti del personaggio. Il recupero richiede uno zombi del giocatore nella posizione salvata, con una carta d’identità corrispondente. Gli inventari dei cadaveri non sono supportati. Nulla è stato modificato.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Non è stato possibile identificare univocamente lo zombi o cadavere del personaggio. Non serve una carta d’identità, ma non si procede per tentativi tra più candidati o con dati insufficienti nei vecchi salvataggi. Nulla è stato modificato.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Un aggiornamento dei file di salvataggio deve essere recuperato. Non caricare questo salvataggio nel gioco. Riavvia PZ Tools per completare l’aggiornamento. Se il salvataggio è cambiato dopo l’interruzione, il recupero automatico si ferma anziché sovrascriverlo.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Recupero del personaggio</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Il gioco o un’altra operazione sta usando questo salvataggio. Smetti di giocare e riprova. L’originale non è stato modificato.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Questo salvataggio contiene modifiche non completate. Esci normalmente dal gioco e riprova. Il salvataggio originale non è stato modificato.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Sono supportati solo salvataggi per giocatore singolo con un unico personaggio locale. Nessun personaggio è stato scelto arbitrariamente e l’originale non è stato modificato.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Non è stato possibile convalidare in sicurezza il formato del personaggio. Supporto attuale: Build 42, versione del mondo 249. L’originale non è stato modificato.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Questo salvataggio non può essere modificato in sicurezza. Verifica che la versione di PZ Tools supporti quella del gioco. L’originale non è stato modificato.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Lettura non riuscita; nuovo tentativo previsto</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Il gioco o un’altra operazione sta usando un file necessario. Attendi la fine del salvataggio o dell’operazione, poi riprova.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Lo spazio libero non è sufficiente. Libera spazio sull’unità di destinazione, poi riprova.</value></data>
@@ -388,16 +396,47 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Riutilizzo di dati identici già presenti nel backup</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Attivo</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Disattivo</value></data>
-  <data name="GameExtensions.Title" xml:space="preserve"><value>Estensioni del gioco</value></data>
-  <data name="GameExtensions.Description" xml:space="preserve"><value>Gestisci le migliorie facoltative del gioco.</value></data>
-  <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Salvataggio senza interruzioni</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Mantiene il salvataggio originale, evita il rendering forzato dell’anteprima e scrive in background i file dei chunk esistenti. La serializzazione, il salvataggio nativo e alcune operazioni sui file possono ancora bloccare brevemente il gioco. Le versioni non supportate usano il salvataggio standard.</value></data>
-  <data name="GameExtensions.Disabled" xml:space="preserve"><value>Disattivato · Salvataggio standard</value></data>
-  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Compatibilit&#224; verificata al prossimo salvataggio &#183; Sperimentale</value></data>
-  <data name="GameExtensions.Configure" xml:space="preserve"><value>Configura</value></data>
-  <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Impostazioni di {0}</value></data>
-  <data name="GameExtensions.Apply" xml:space="preserve"><value>Applica</value></data>
-  <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Impostazioni delle estensioni non disponibili</value></data>
-  <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Impossibile salvare le modifiche. Riapri la pagina e controlla il file delle impostazioni delle estensioni.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Mantiene il salvataggio originale, evita il rendering forzato dell’anteprima e scrive in background i file dei chunk esistenti. La serializzazione, il salvataggio nativo e alcune operazioni sui file possono ancora bloccare brevemente il gioco. Le versioni non supportate usano il salvataggio standard.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Attendi durante la pausa del gioco</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>La pausa del gioco ferma anche il conto alla rovescia del prossimo backup periodico, che continua quando riprendi. Attende anche se non è possibile verificare lo stato del gioco.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gioco in pausa</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Verifica dello stato del gioco</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Avvia un solo gioco</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verifica l’esito dell’ultimo salvataggio del gioco, poi riattiva i backup automatici.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Applica</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Rimuovi filtro</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Rimuovi tutti</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · fai clic per filtrare</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · fai clic per cambiare i registri visualizzati</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 o 40-50. Vuoto significa senza limiti.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Inserisci un numero intero o un intervallo crescente.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Digita data e ora oppure usa il pulsante del calendario. Lascia vuoto un campo per non impostare un limite.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Inserisci date e ore valide; l’inizio non può essere successivo alla fine.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Da</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>A</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>{0} rimanenti</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Ultime 24 ore</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Scegli data e ora</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Usa questa data e ora</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>Estensioni del gioco</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>Gestisci le migliorie facoltative del gioco.</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Salvataggio senza interruzioni</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Mantiene il salvataggio originale, evita il rendering forzato dell’anteprima e scrive in background i file dei chunk esistenti. La serializzazione, il salvataggio nativo e alcune operazioni sui file possono ancora bloccare brevemente il gioco. Le versioni non supportate usano il salvataggio standard.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>Disattivato · Salvataggio standard</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Compatibilit&#224; verificata al prossimo salvataggio &#183; Sperimentale</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>Configura</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Impostazioni di {0}</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>Applica</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>Impostazioni delle estensioni non disponibili</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Impossibile salvare le modifiche. Riapri la pagina e controlla il file delle impostazioni delle estensioni.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Mantiene il salvataggio originale, evita il rendering forzato dell’anteprima e scrive in background i file dei chunk esistenti. La serializzazione, il salvataggio nativo e alcune operazioni sui file possono ancora bloccare brevemente il gioco. Le versioni non supportate usano il salvataggio standard.</value></data>
+  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Tutte le versioni</value></data>
+  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Versione principale {0}</value></data>
+  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Versione secondaria {0}</value></data>
+  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Supportate: {0} · Gioco attuale: {1}</value></data>
+  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Fuori dall’intervallo supportato · Estensione inattiva</value></data>
+  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>In attesa della versione del gioco · Estensione inattiva</value></data>
+  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Forza l’attivazione fuori dall’intervallo supportato</value></data>
+  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Le versioni incompatibili possono causare errori. Viene ignorato solo il limite di versione; i controlli di sicurezza essenziali restano attivi.</value></data>
+  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Limite di versione ignorato · Controlli essenziali mantenuti</value></data>
 </root>

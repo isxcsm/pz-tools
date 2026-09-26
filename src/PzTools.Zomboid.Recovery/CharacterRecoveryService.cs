@@ -35,7 +35,7 @@ public sealed class CharacterRecoveryService
         var staging = Path.Combine(Path.GetDirectoryName(save)!, $".{segments[1]}.pztools-staging-{Guid.NewGuid():N}");
         Directory.CreateDirectory(staging);
         var stagedDatabase = Path.Combine(staging, "players.db");
-        FileStream? zombieGuard = null;
+        RemainsRecoveryPlan? remains = null;
         var recoveredItems = 0;
         var files = new List<PreparedSaveFile>();
         try
@@ -79,31 +79,15 @@ public sealed class CharacterRecoveryService
                         throw new InvalidDataException("recovery-ambiguous-character");
                 }
                 var healed = PlayerHealthEditor.Heal(blob, version, out var layout);
-                var zombiePath = Path.Combine(save, "reanimated.bin");
-                if (ZombieInventoryRecovery.IsEmpty(healed, layout) && (dead || File.Exists(zombiePath)))
+                if (dead && ZombieInventoryRecovery.IsEmpty(healed, layout))
                 {
-                    if (!File.Exists(zombiePath)) throw new InvalidDataException("recovery-inventory-unavailable");
-                    RejectLinks(zombiePath);
-                    zombieGuard = new FileStream(zombiePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete);
-                    var originalHash = await SaveFileEditTransaction.HashAsync(zombieGuard, cancellationToken);
-                    using var contents = new MemoryStream();
-                    await zombieGuard.CopyToAsync(contents, cancellationToken);
-                    var registryPath = Path.Combine(save, "WorldDictionary.bin");
-                    if (!File.Exists(registryPath)) throw new InvalidDataException("recovery-inventory-unavailable");
-                    RejectLinks(registryPath);
-                    var registry = WorldItemRegistry.Read(await File.ReadAllBytesAsync(registryPath, cancellationToken));
-                    InventoryRecovery? recovered = null;
-                    try { recovered = ZombieInventoryRecovery.Recover(healed, layout, name, contents.ToArray(), registry); }
-                    catch (InvalidDataException exception) when (!dead && exception.Message == "recovery-inventory-unavailable")
-                    { /* A living character may legitimately carry nothing. Healing still applies. */ }
-                    if (recovered is not null)
-                    {
-                        healed = recovered.Player;
-                        recoveredItems = recovered.Items;
-                        var stagedZombies = Path.Combine(staging, "reanimated.bin");
-                        await File.WriteAllBytesAsync(stagedZombies, recovered.Zombies, cancellationToken);
-                        files.Add(new("reanimated.bin", stagedZombies, originalHash));
-                    }
+                    remains = await WorldRemainsRecovery.FindAsync(save, healed, layout, cancellationToken);
+                    if (remains is null) throw new InvalidDataException("recovery-inventory-unavailable");
+                    healed = remains.Player;
+                    recoveredItems = remains.Items;
+                    var stagedWorld = Path.Combine(staging, "remains.bin");
+                    await File.WriteAllBytesAsync(stagedWorld, remains.UpdatedWorldFile, cancellationToken);
+                    files.Add(new(remains.RelativePath, stagedWorld, remains.OriginalHash));
                 }
                 // Idempotence also re-parses every edited boundary after optional fields shrink.
                 if (!PlayerHealthEditor.Heal(healed, version).AsSpan().SequenceEqual(healed))
@@ -135,7 +119,7 @@ public sealed class CharacterRecoveryService
         }
         finally
         {
-            if (zombieGuard is not null) await zombieGuard.DisposeAsync();
+            if (remains is not null) await remains.DisposeAsync();
             // Exact newly-created staging directory only; never clean the original/save parent.
             try { Directory.Delete(staging, recursive: true); }
             catch (IOException) { }

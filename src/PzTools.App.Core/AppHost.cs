@@ -31,6 +31,7 @@ public sealed class AppHost : IAsyncDisposable
         new(StringComparer.Ordinal);
     private readonly object statusGate = new();
     private bool started;
+    private readonly RuntimeSnapshotStore runtimeSnapshot = new();
     private readonly SemaphoreSlim refreshGate = new(1, 1);
     private readonly object disposalGate = new();
     private Task? disposalTask;
@@ -78,7 +79,10 @@ public sealed class AppHost : IAsyncDisposable
         Projections = projections ?? new ProjectionHost();
         TelemetrySources = telemetrySources ?? new TelemetrySourceCatalog();
         Settings = new AppSettingsService(this.paths.RuntimeRoot, HasRunningOperation);
-        GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views, () => Settings.Load().SaveGameBeforeBackup);
+        GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
+            () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
+            () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
+            Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"));
     }
 
     public RevisionedViewStore Views { get; }
@@ -181,11 +185,15 @@ public sealed class AppHost : IAsyncDisposable
             repository, paths.WorkerDirectory, TelemetrySources, launcher,
             new RunIndexAllocator(paths.ControlDatabasePath),
             paths.OperationsRoot!, runtime, LogInbox);
-        var stateProjector = new StateProjector(state, Views, observationBoundary);
+
+        supervisors.Add(RuntimeStateFeed.FollowAsync(scheduler.DatabasePath, runtimeSnapshot, lifetime.Token));
+        var stateProjector = new StateProjector(state, Views, observationBoundary,
+            () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.PausePeriodicDuringGame == true
+                ? runtimeSnapshot.Read() : null);
         var backupProjector = new BackupProjector(repository, Views);
         var characterMetadata = new PzTools.Zomboid.Backup.RevisionCharacterMetadataCollector(
             runtime.CharacterMetadataBatchSize, runtime.CharacterMetadataRetrySeconds);
-        var schedulerProjector = new SchedulerProjector(scheduler, Views, repository, requireActiveState: true);
+        var schedulerProjector = new SchedulerProjector(scheduler, Views, repository, requireActiveState: true, runtimeSnapshot: runtimeSnapshot);
         var composer = new SaveDetailComposer(Views);
         RegisterTelemetrySources(settings, state, scheduler, repository);
         var projectionInterval = TimeSpan.FromMilliseconds(runtime.ProjectionIntervalMs);
@@ -193,6 +201,7 @@ public sealed class AppHost : IAsyncDisposable
         Projections.AddLoop("backup", backupProjector.ProjectOnceAsync, projectionInterval);
         Projections.AddLoop("character-metadata", token => characterMetadata.CollectOnceAsync(repository, token), projectionInterval);
         Projections.AddLoop("scheduler", schedulerProjector.ProjectOnceAsync, projectionInterval);
+        Projections.AddLoop("game-extensions", GameExtensions.RefreshRuntimeAsync, projectionInterval);
         Projections.AddLoop("details", composer.ComposeOnceAsync, projectionInterval);
         Projections.AddLoop("telemetry", token => telemetry.ProjectOnceAsync(cancellationToken: token),
             projectionInterval);

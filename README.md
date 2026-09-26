@@ -72,7 +72,7 @@ Make a manual backup or export a ZIP first: **character recovery does not create
 
 Healing or revival restores health and clears supported injuries and temporary conditions. Positive and negative traits, experience, skills, recipes and existing inventory are preserved. It does not grant permanent immunity or remove every mod-specific effect.
 
-If the dead character's inventory is empty, items can be recovered only from a uniquely matching saved player zombie, based on saved position and the identity-card name. Moved zombies, targets without an identity card and corpses in map chunks are unsupported. Hand equipment may need to be set again. See [character recovery and its limits (English)](docs/character-recovery.md).
+If death emptied the inventory, recover belongings from the character's zombie or corpse and remove that source. No ID card is required. Item condition, bag contents, clothing and attachment data are preserved. Saved item IDs restore hand equipment when available; otherwise re-equip it manually. Missing items are not created. Uncertain identity stops the operation without changes. [character recovery and its limits (English)](docs/character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

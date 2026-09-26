@@ -4,6 +4,17 @@ namespace PzTools.Scheduling;
 
 public sealed class StateOutboxRelay
 {
+    public async Task RelayRuntimeAsync(StateDatabase state, SchedulerDatabase scheduler, string savesRoot, CancellationToken token = default)
+    {
+        foreach (var observation in await state.ReadRuntimeOutboxAsync(token))
+        {
+            var identity = observation.Snapshot is { } snapshot ? RuntimeSaveResolver.Resolve(snapshot, savesRoot) : null;
+            var target = identity is null ? null : new BackupTarget(identity.SaveId, identity.SaveId, identity.SourcePath);
+            await scheduler.ApplyRuntimeTransitionAsync(observation, target, token);
+            await state.AcknowledgeRuntimeAsync(observation.StateRevision, token);
+        }
+    }
+
     public async Task<int> RelayAsync(
         StateDatabase stateDatabase,
         SchedulerDatabase schedulerDatabase,

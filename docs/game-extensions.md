@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [Save bridge](save-bridge.md)
 
-## Current implementation (0.3, experimental)
+## Current implementation (0.4, experimental)
 
 The Game Extensions page contains the Seamless Saving card, a persisted toggle and
 an Apply/Cancel settings dialog. The toggle records the user's preference, not an
@@ -20,6 +20,82 @@ No reduction in real-game frame stalls or drag cancellation is claimed without a
 separate live-game comparison. The last thumbnail is retained rather than refreshed
 by this request. Normal game saves still create their thumbnails.
 
+## Integrated dev runtime and version policy (0.4)
+
+This branch integrates dev `becefea` (including PR #12 pause-aware scheduling and
+subsequent UI/log updates). Observation and save requests use one bootstrap and one
+GameWindow dispatch hook. Observation has its own read-only session; it does not
+hold the exclusive save slot. Both consumers share process/world identities.
+The runtime stream now adds optional game-version metadata. The metadata getter
+runs once per observation generation, not once per frame, and failure to read it
+does not invalidate the independent pause sample. The app reuses its existing
+runtime feed and does not start a second Attach process when opening extension cards.
+Pause scheduling is a policy consuming this shared runtime, not its lifetime owner.
+Turning pause-aware scheduling off no longer disables the metadata feed needed by
+extension cards; it still disables the pause-specific scheduling policy.
+
+Both original branches had independently assigned wire protocol 5. Protocol 6 and
+bootstrap API 4 explicitly identify the integrated implementation. Restart the game
+once after installing matched app/worker/JAR files. A guarded extension request
+carries its runtime ticket, provider ID and explicit version override together.
+Pause, epoch, replay and pre-submission permission checks still apply before save
+admission; a late pause/cancel cannot abort already-owned file/database writes.
+RecoveryStamp metadata is recorded before either standard or extension capture.
+
+`config/game-extensions/catalog.tsv` is the single deployment catalogue read by the
+UI and JVM. It is also embedded as the management library's offline default. The
+worker build stages it alongside the JARs. The catalogue defines inclusive ranges:
+
+| Scope | Min / max | Meaning |
+| --- | --- | --- |
+| All | - / - | No declared version restriction (Seamless Saving now uses this) |
+| Major | 42 / - | Major 42 and later; groundwork for a future vehicle module |
+| Major | 42 / 42 | Only major 42, all its minor/patch versions |
+| Minor | 42.20 / 42.20 | The 42.20 line, including patch versions |
+| Minor | 42.20 / 42.25 | Inclusive minor-version range |
+
+Comparisons use numeric components, not text ordering or decimal numbers. Unknown
+versions do not match a restricted range. No vehicle module/card is added yet.
+A mismatched card disables its ordinary activation toggle without erasing the saved
+preference. Settings remains available: the user can explicitly enable the version
+override, read its warning and apply both preference values atomically. Disabling an
+extension preserves its settings. Current/supported versions and override states are
+localized in all existing UI languages. Current version is from the running game,
+never from a backup's save-format number. Stale/disconnected metadata becomes unknown.
+
+**A declared range is not proof that arbitrary bytecode can be patched safely.**
+All allows activation requests for all versions, but the current implementation's
+low-level adapter still validates the inspected 42.20 game classes. Unsupported
+bytecode uses standard saving with a reason. The explicit override bypasses ONLY
+the declared range, not authentication, pause guards, world identity, modifiability,
+method layout, serialization checks or write-completion fences. A future adapter
+can broaden actual support in its own module package. Do not present All as testing
+or successfully patching every game release.
+
+### Remaining work — concrete boundaries
+
+1. **Chunk serialization is still synchronous.** Only bounded writes to existing
+   chunk files leave the game thread. Large in-memory chunks can still stall it.
+   Safe snapshot capture/consistent incremental serialization has not been built.
+2. **Native save waits are still synchronous.** Native collision/population save
+   requests and their game-thread wait loops have not been split into nonblocking
+   operations with independently verified completion/error signals.
+3. **No immutable whole-world backup input.** The engine still captures the live
+   save folder after preparation. Cross-file point-in-time consistency, including
+   moving items between containers and player inventory, is not guaranteed.
+4. **Drag cancellation and frame-time improvement are not verified in a real game.**
+   The module suppresses its forced thumbnail render, but the actual input-reset
+   cause and its resolution still need an isolated-world reproduction.
+5. **Real-game restore coverage is pending:** discovered-but-unoccupied vehicles,
+   inventory transfers, mods' OnSave data, interrupted writes, world exit and reload.
+   Synthetic Java tests do not replace these checks.
+6. **Card status is intent/compatibility, not an applied-patch receipt.** It shows
+   live game version, range, override and next-save compatibility checks. Persisted
+   per-module last-result/actual-application status is not yet implemented.
+
+This integration does not claim to finish the remaining nonblocking save work.
+No real game is attached/saved by its automated validation; all mutation fixtures
+use private temporary folders and synthetic JVMs.
 ## Boundaries
 
 - `PzTools.GameExtensions` owns platform-independent settings, preference revisions
@@ -41,7 +117,7 @@ ownership, not malicious Java code. Only trusted modules are supported.
 1. The worker reads extension preferences. Disabled or malformed optional settings
    retain standard saving. Disabling pre-backup game saving itself still takes
    precedence; enabling an extension does not override that preference.
-2. Protocol 5 sends one `PREPARE_SAVE` request containing the requested provider.
+2. Protocol 6 sends one `PREPARE_SAVE` request containing the requested provider.
    The JVM resolves compatibility before any save starts. An unavailable module
    falls back in the same session, with a reason. Ordinary SAVE/PROBE requests
    do not load the extension runtime.
@@ -84,7 +160,7 @@ ending causes the completion waiter to fail rather than reporting an offline ski
 
 ## Deployment and compatibility
 
-Bootstrap API 3 adds the stable file-handoff interface and requires one complete game restart.
+The current bootstrap API 4 includes the stable file-handoff interface and requires one complete game restart.
 After that, module updates also require a game restart; toggles do not reload JARs
 or repeatedly retransform classes. The optional module's compatibility data stays
 in its own JAR. Unsupported game fingerprints fall back before saving, provided
@@ -175,3 +251,23 @@ small bridge suite remains the integration gate; no new CI job is introduced.
 
 Real-game drag preservation, vehicle restoration, frame times and full publication testing remain unverified.
 This branch remains experimental; partial background I/O must not be described as a completely nonblocking save.
+
+## Validation of runtime integration and version policy (0.4)
+
+Windows Release solution including WinUI/XAML, Java and native bootstrap built with
+zero warnings/errors. The final targeted run passed **99/99**, with no skipped
+cases (`runtime-extension-final.trx`). It includes version policy, preferences,
+projections, pause/schedule logic, localization, and real protocol traffic between
+the existing synthetic JVM/watch/provider fixtures. The combined case verifies
+that force cannot bypass a pause before admission, a pause after writer admission
+does not drop ownership, watchers continue during a pending write, both paths use
+the same process/world identity, replay is rejected, and removing force after a
+cached module load restores normal version gating.
+
+The earlier broader run passed 130, failed one, and skipped one explicitly opt-in
+live probe. The failure was an unintended readiness-code rename; the existing
+contract was restored, not its assertion removed. The final 99 include that case.
+Counts overlap and do not mean a complete application regression run.
+All five small Java harnesses passed, including 14 numeric version-range cases
+shared with .NET. Actual gameplay, interactive WinUI, real-world restores and
+performance improvements are not newly verified by this integration.

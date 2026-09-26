@@ -29,24 +29,26 @@ internal sealed class SeamlessSaveAvailability : IGameSaveProvider
 public static class ConfiguredGameSaveProviders
 {
     public static Func<string, CancellationToken, Task<string>> Create(GameSaveClient client, string runtimeRoot) =>
-        Create(client.SaveRunningGameAsync, runtimeRoot, new BridgeGameSaveProvider(client));
+        Create(client.SaveRunningGameAsync, runtimeRoot, extensionFactory: preference => new BridgeGameSaveProvider(client, preference.ForceVersion));
 
     public static Func<string, CancellationToken, Task<string>> Create(
-        Func<string, CancellationToken, Task<string>> standardSave, string runtimeRoot, IGameSaveProvider? extension = null)
+        Func<string, CancellationToken, Task<string>> standardSave, string runtimeRoot, IGameSaveProvider? extension = null, Func<ExtensionPreference, IGameSaveProvider>? extensionFactory = null)
     {
         var store = new ExtensionSettingsStore(runtimeRoot);
-        var router = new GameSaveProviderRouter(new StandardGameSaveProvider(standardSave), extension ?? new SeamlessSaveAvailability());
+
         return async (path, token) =>
         {
-            bool enabled;
+            ExtensionPreference preference = new();
             string? configurationFailure = null;
-            try { enabled = store.Read().Extensions.GetValueOrDefault(ExtensionIds.SeamlessSave)?.Enabled ?? false; }
+            try { preference = store.Read().Extensions.GetValueOrDefault(ExtensionIds.SeamlessSave) ?? new(); }
             catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
             {
-                enabled = false;
+                preference = new();
                 configurationFailure = "extension-settings-unavailable";
             }
-            var result = await router.PrepareAsync(path, enabled, token);
+            var router = new GameSaveProviderRouter(new StandardGameSaveProvider(standardSave),
+                extensionFactory?.Invoke(preference) ?? extension ?? new SeamlessSaveAvailability());
+            var result = await router.PrepareAsync(path, preference.Enabled, token);
             var fallback = configurationFailure ?? result.FallbackReason;
             return result.Detail + "; provider=" + result.ProviderId + "; completion=" + result.Completion + (fallback is null ? "" : "; extension-fallback=" + fallback);
         };

@@ -29,7 +29,11 @@ public sealed class ExtensionSettingsStore
         catch (JsonException exception) { throw new InvalidDataException("Invalid extension settings.", exception); }
     }
 
-    public ExtensionConfiguration SetEnabled(string id, bool enabled, long expectedRevision)
+    public ExtensionConfiguration SetEnabled(string id, bool enabled, long expectedRevision) =>
+        Update(id, expectedRevision, existing => existing with { Enabled = enabled });
+    public ExtensionConfiguration SetPreference(string id, ExtensionPreference preference, long expectedRevision) =>
+        Update(id, expectedRevision, _ => preference);
+    private ExtensionConfiguration Update(string id, long expectedRevision, Func<ExtensionPreference, ExtensionPreference> change)
     {
         ExtensionIds.Validate(id);
         var directory = Path.GetDirectoryName(FilePath)!;
@@ -40,9 +44,11 @@ public sealed class ExtensionSettingsStore
         var current = Read();
         if (current.Revision != expectedRevision) throw new ExtensionSettingsConflictException();
         if (current.Revision == long.MaxValue) throw new InvalidDataException("Extension settings revision limit reached.");
-        if (current.Extensions.TryGetValue(id, out var existing) && existing.Enabled == enabled) return current;
+        var existing = current.Extensions.GetValueOrDefault(id) ?? new();
+        var preference = change(existing);
+        if (existing == preference) return current;
         var entries = new Dictionary<string, ExtensionPreference>(current.Extensions, StringComparer.Ordinal)
-        { [id] = new(enabled) };
+        { [id] = preference };
         var next = new ExtensionConfiguration(1, checked(current.Revision + 1), entries);
         Validate(next);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(next, Json);

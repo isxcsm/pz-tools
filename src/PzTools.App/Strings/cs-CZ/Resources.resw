@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Čas ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>místní</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Zobrazeno v místním časovém pásmu operačního systému ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Vyberte časy zobrazené v protokolu ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Historie · Od nejnovějších</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Číslo</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Stálé číslo identifikující tento záznam.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Použít nastavení a restartovat</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Ověřit upravené soubory pokročilé konfigurace a restartovat aplikaci? Během operace není restart možný.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Obnovit výchozí nastavení</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Obnovit výchozí soubory TOML pokročilého nastavení a restartovat aplikaci? Stávající soubory zůstanou v config-backups ve složce dat aplikace. Běžné nastavení zvolené v aplikaci se zachová.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Obnovit výchozí pokročilá nastavení a restartovat aplikaci? Kopie současných souborů bude zachována. Běžná nastavení, uložené hry a zálohy zůstanou beze změny.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Minimální zaznamenávaná úroveň</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Platí pro nové záznamy. Stávající historie zůstane zachována.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Maximální počet záznamů</value></data>
@@ -359,21 +359,29 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Zálohování bylo zastaveno, protože uložení hry se nepodařilo potvrdit.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odpočet uložení ve hře</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zobrazí pětisekundový odpočet nad postavou a výsledek uložení hry. Vypnutím zmizí zprávy i odpočet před ručními zálohami, hra se však stále ukládá. Automatické zálohy dodržují naplánovaný čas. Změny platí od příští zálohy.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Požádá hru o uložení před ručními i automatickými zálohami. Vypněte při používání samostatného ukládacího modu nebo při problémech s kompatibilitou po aktualizaci hry. Při vypnutí se zálohují pouze soubory na disku a nejnovější postup může chybět. Změny platí od příští zálohy.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Nad postavou zobrazí pětisekundový odpočet a výsledek uložení. Vypnutí skryje zprávy a přeskočí čekání při ručních zálohách, ale hra se stále uloží. Čas automatických záloh se nemění.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Před zálohou uloží nejnovější postup ve hře. Doporučujeme ponechat zapnuté: při vypnutí mohou v záloze chybět dosud neuložený postup, vozidla nebo předměty.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Příští záloha: čeká na spuštění</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: čeká na aktuální úlohu</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Vyléčit postavu</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Vyléčit / oživit postavu</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Vyléčit postavu {0} v aktuální uložené hře?&#xA;&#xA;Obnovit zdraví, sytost, hydrataci, odpočinek, výdrž a duševní stav. Odstranit zranění, infekce, otravu, abstinenční příznaky a dosud neprojevenou bolest svalů po cvičení. Pokud postava zemřela, oživit ji.&#xA;&#xA;Všechny vlastnosti včetně negativních, dovednosti, zkušenosti, hmotnost, výživa a poloha zůstávají beze změny. Vlastnosti nebo prostředí mohou příznaky znovu vyvolat. Nemoci přidané mody se nemění.&#xA;&#xA;Je-li inventář prázdný, věci a oblečení se získají ze zombie této postavy jednoznačně určené na uložené pozici a tato zombie se odstraní. Je nutný odpovídající průkaz totožnosti. Vizuální překryvy zranění se vynechají; stav předmětů a obsah tašek se zachovají. Předměty se automaticky nevybaví do rukou. Získávání věcí z mrtvol zatím není podporováno. Pokud nelze bezpečně určit, komu věci patří, mrtvá postava s prázdným inventářem nebude oživena.&#xA;&#xA;Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě používané ve hře, nepodporované formáty a nejednoznačná data jsou odmítnuty.</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Vyléčit postavu {0} v aktuální uložené hře?
+
+Obnovit zdraví, sytost, hydrataci, odpočinek, výdrž a duševní stav. Odstranit zranění, infekce, otravu, abstinenční příznaky a dosud neprojevenou bolest svalů po cvičení. Pokud postava zemřela, oživit ji.
+
+Všechny vlastnosti včetně negativních, dovednosti, zkušenosti, hmotnost, výživa a poloha zůstávají beze změny. Vlastnosti nebo prostředí mohou příznaky znovu vyvolat. Nemoci přidané mody se nemění.
+
+Pokud smrt vyprázdnila inventář, získá předměty ze zombie nebo mrtvoly postavy a tento zdroj odstraní. Průkaz totožnosti není nutný. Stav předmětů, obsah tašek a údaje o oblečení a připevnění zůstanou zachovány. Uložená ID obnoví předměty v rukou, jsou-li dostupná; jinak je nutné je znovu vybavit. Ztracené předměty nevytváří. Při nejisté totožnosti se nic nezmění.
+
+Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě používané ve hře, nepodporované formáty a nejednoznačná data jsou odmítnuty.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Obnova postavy dokončena. Vlastnosti, dovednosti a zkušenosti byly zachovány.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Věci postavy se nepodařilo jednoznačně určit. Obnova vyžaduje hráčovu zombie na uložené pozici s odpovídajícím průkazem totožnosti. Inventáře mrtvol nejsou podporovány. Nic nebylo změněno.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Zombie nebo mrtvolu postavy se nepodařilo jednoznačně určit. Průkaz totožnosti není nutný, ale při více kandidátech nebo nedostatku údajů ve starém uložení se nehádá. Nic nebylo změněno.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Aktualizaci souborů uložené hry je nutné obnovit. Tuto uloženou hru nenačítejte ve hře. Restartujte PZ Tools, aby se aktualizace dokončila. Pokud se uložená hra po přerušení změnila, automatická obnova se zastaví, místo aby ji přepsala.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Obnova postavy</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Tuto uloženou hru používá hra nebo jiná operace. Přestaňte hrát a zkuste to znovu. Originál nebyl změněn.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Tato uložená hra obsahuje nedokončené změny. Ukončete hru běžným způsobem a zkuste to znovu. Původní uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Podporovány jsou pouze hry pro jednoho hráče s jedinou místní postavou. Žádná postava nebyla vybrána svévolně a originál nebyl změněn.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Formát postavy se nepodařilo bezpečně ověřit. Aktuálně podporováno: Build 42, verze světa 249. Originál nebyl změněn.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Tuto uloženou hru nelze bezpečně upravit. Ověřte, že vaše verze PZ Tools podporuje verzi hry. Originál nebyl změněn.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Čtení selhalo; bude zopakováno</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Hra nebo jiná operace používá potřebný soubor. Počkejte na dokončení ukládání nebo dané operace a zkuste to znovu.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Není dostatek volného místa. Uvolněte místo na cílovém disku a zkuste to znovu.</value></data>
@@ -388,16 +396,47 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Opětovné použití shodných dat ze zálohy</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Zapnuto</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Vypnuto</value></data>
-  <data name="GameExtensions.Title" xml:space="preserve"><value>Rozšíření hry</value></data>
-  <data name="GameExtensions.Description" xml:space="preserve"><value>Spravujte volitelná vylepšení hry.</value></data>
-  <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Plynulé ukládání</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Zachovává původní ukládání hry, vynechává vynucené vykreslení náhledu a zapisuje existující soubory chunků na pozadí. Serializace, nativní ukládání a některé operace se soubory mohou hru stále pozastavit. Nepodporované verze používají standardní ukládání.</value></data>
-  <data name="GameExtensions.Disabled" xml:space="preserve"><value>Vypnuto · Standardní ukládání</value></data>
-  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Kompatibilita se ověř&#237; při př&#237;št&#237;m uložen&#237; &#183; Experiment&#225;ln&#237;</value></data>
-  <data name="GameExtensions.Configure" xml:space="preserve"><value>Nastavit</value></data>
-  <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Nastavení: {0}</value></data>
-  <data name="GameExtensions.Apply" xml:space="preserve"><value>Použít</value></data>
-  <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Nastavení rozšíření není dostupné</value></data>
-  <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Změny se nepodařilo uložit. Znovu otevřete stránku a zkontrolujte soubor nastavení rozšíření.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Zachovává původní ukládání hry, vynechává vynucené vykreslení náhledu a zapisuje existující soubory chunků na pozadí. Serializace, nativní ukládání a některé operace se soubory mohou hru stále pozastavit. Nepodporované verze používají standardní ukládání.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Počkat se zálohou během pauzy hry</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pozastavení hry zastaví odpočet do další pravidelné zálohy. Po obnovení hry odpočet pokračuje. Čeká také, pokud nelze ověřit stav hry.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Hra pozastavena</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Ověřování stavu hry</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Spusťte pouze jednu hru</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Ověřte výsledek posledního uložení hry a znovu zapněte automatické zálohování.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Použít</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Zrušit filtr</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Zrušit všechny</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknutím filtrovat</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknutím změníte zobrazené záznamy</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 nebo 40-50. Prázdné pole znamená bez omezení.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Zadejte celé číslo nebo vzestupný rozsah.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Zadejte datum a čas nebo použijte tlačítko kalendáře. Prázdné pole znamená bez omezení.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Zadejte platné datum a čas; začátek nesmí být později než konec.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Zbývá {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Posledních 24 hodin</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Vybrat datum a čas</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Datum</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Použít toto datum a čas</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>Rozšíření hry</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>Spravujte volitelná vylepšení hry.</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Plynulé ukládání</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Zachovává původní ukládání hry, vynechává vynucené vykreslení náhledu a zapisuje existující soubory chunků na pozadí. Serializace, nativní ukládání a některé operace se soubory mohou hru stále pozastavit. Nepodporované verze používají standardní ukládání.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>Vypnuto · Standardní ukládání</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Kompatibilita se ověř&#237; při př&#237;št&#237;m uložen&#237; &#183; Experiment&#225;ln&#237;</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>Nastavit</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Nastavení: {0}</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>Použít</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>Nastavení rozšíření není dostupné</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Změny se nepodařilo uložit. Znovu otevřete stránku a zkontrolujte soubor nastavení rozšíření.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Zachovává původní ukládání hry, vynechává vynucené vykreslení náhledu a zapisuje existující soubory chunků na pozadí. Serializace, nativní ukládání a některé operace se soubory mohou hru stále pozastavit. Nepodporované verze používají standardní ukládání.</value></data>
+  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Všechny verze</value></data>
+  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Hlavní verze {0}</value></data>
+  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Vedlejší verze {0}</value></data>
+  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Podporováno: {0} · Aktuální hra: {1}</value></data>
+  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Mimo podporovaný rozsah · Rozšíření neaktivní</value></data>
+  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Čekání na verzi hry · Rozšíření neaktivní</value></data>
+  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Vynutit zapnutí mimo podporovaný rozsah</value></data>
+  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Nekompatibilní verze mohou způsobit chyby. Tato volba obchází pouze rozsah verzí; nezbytné bezpečnostní kontroly zůstávají aktivní.</value></data>
+  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Omezení verze ignorováno · Bezpečnostní kontroly zachovány</value></data>
 </root>

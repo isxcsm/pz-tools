@@ -1002,7 +1002,8 @@ public sealed class AppCoreTests
         using var temp = new TempDirectory();
         var paths = await PrepareHostPathsAsync(temp);
         var scheduler = await SchedulerDatabase.CreateOrOpenAsync(paths.SchedulerDatabasePath);
-        var settings = new AppSettingsService(paths.RuntimeRoot).Load() with { BackupIntervalMinutes = 1 };
+        var settings = new AppSettingsService(paths.RuntimeRoot).Load() with
+        { BackupIntervalMinutes = 1, PausePeriodicDuringGame = false };
         await new AppSettingsService(paths.RuntimeRoot).SaveAndApplyAsync(settings, scheduler);
         var target = new BackupTarget("A", "Sandbox/A", temp.GetPath("saves/Sandbox/A"));
         await scheduler.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));

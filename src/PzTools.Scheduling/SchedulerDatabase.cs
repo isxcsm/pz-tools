@@ -4,9 +4,9 @@ using PzTools.Process.Contracts;
 
 namespace PzTools.Scheduling;
 
-public sealed class SchedulerDatabase
+public sealed partial class SchedulerDatabase
 {
-    private const int CurrentSchemaVersion = 4;
+    private const int CurrentSchemaVersion = 5;
     private readonly string connectionString;
 
     private SchedulerDatabase(string path)
@@ -118,6 +118,8 @@ public sealed class SchedulerDatabase
         }
 
         await MigrateAmbiguousModeAsync(connection, cancellationToken);
+        command.CommandText = RuntimeSchema;
+        await command.ExecuteNonQueryAsync(cancellationToken);
 
         command.CommandText =
             "SELECT COUNT(*) FROM pragma_table_info('scheduler_info') "
@@ -143,7 +145,8 @@ public sealed class SchedulerDatabase
         bool automaticEnabled,
         TimeSpan interval,
         DateTimeOffset now,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool pauseDuringGame = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryPath);
         ValidateBackupInterval(interval);
@@ -159,7 +162,8 @@ public sealed class SchedulerDatabase
             var applied = current is not null && await ApplyPendingCommandsAsync(
                 connection, transaction, current, now, cancellationToken);
             if (applied) current = await TryReadControlAsync(connection, transaction, cancellationToken);
-            var changed = current is null
+            var runtimeChanged = await ConfigureRuntimeCoreAsync(connection, transaction, pauseDuringGame, cancellationToken);
+            var changed = runtimeChanged || current is null
                 || !StringComparer.OrdinalIgnoreCase.Equals(
                     current.RepositoryPath, repository)
                 || current.AutomaticEnabled != automaticEnabled
@@ -338,7 +342,8 @@ public sealed class SchedulerDatabase
                     pending.PendingId);
             }
 
-            if (control.Mode != SchedulerMode.Continuous
+            if (await RuntimeEnabledAsync(connection, transaction, cancellationToken)
+                || control.Mode != SchedulerMode.Continuous
                 || control.CurrentTarget is null
                 || control.NextDueUtc > now + lead)
             {
@@ -421,7 +426,7 @@ public sealed class SchedulerDatabase
                     changed = true;
                 }
             }
-            else if (control.Generation == admission.Generation)
+            else if (admission.RuntimeTicket is null && control.Generation == admission.Generation)
             {
                 // A completed old admission must not overwrite a newer interval,
                 // disabled schedule, or target selected while its worker was running.
@@ -599,9 +604,13 @@ public sealed class SchedulerDatabase
         var attempts = control.AttemptsRemaining;
         var nextDue = control.NextDueUtc;
         var changed = false;
+        var runtimeMode = await RuntimeEnabledAsync(connection, transaction, token);
         foreach (var command in commands)
         {
-            switch (command.Kind)
+            // Weak file-lock transitions may not overwrite authenticated runtime authority.
+            var actionable = !runtimeMode || command.Kind == BackupTargetCommandKind.RunOnceNow
+                && target is not null && SameTarget(target, command.Target);
+            if (actionable) switch (command.Kind)
             {
                 case BackupTargetCommandKind.ActivateTarget:
                     target = command.Target;
@@ -656,7 +665,7 @@ public sealed class SchedulerDatabase
                 UPDATE backup_scheduler_control
                 SET current_save_id=$save,current_source_key=$source,
                     current_source_path=$path,mode=$mode,
-                    attempts_remaining=$attempts,generation=generation+1,
+                    attempts_remaining=$attempts,generation=generation+$generationStep,
                     next_due_utc=$due
                 WHERE singleton=1;
                 """;
@@ -667,6 +676,7 @@ public sealed class SchedulerDatabase
             update.Parameters.AddWithValue(
                 "$path", (object?)target?.SourcePath ?? DBNull.Value);
             update.Parameters.AddWithValue("$mode", mode.ToString());
+            update.Parameters.AddWithValue("$generationStep", runtimeMode ? 0 : 1);
             update.Parameters.AddWithValue("$attempts", attempts);
             update.Parameters.AddWithValue("$due", nextDue.ToString("O"));
             await update.ExecuteNonQueryAsync(token);

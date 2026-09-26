@@ -3,6 +3,7 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
+using PzTools.State.Scheduler;
 
 if (args.FirstOrDefault() is "help" or "--help" or "-h")
 {
@@ -30,7 +31,9 @@ try
         options.GetValueOrDefault("--interval-seconds")
         ?? settings.IntervalSeconds.ToString(
             System.Globalization.CultureInfo.InvariantCulture)));
-    var stateChecks = new StateCheckPipeline();
+    var runtime = new RuntimeSnapshotStore();
+    bool useRuntime = false;
+    var stateChecks = new StateCheckPipeline(() => useRuntime ? runtime.Read() : null);
     var allocator = new RunIndexAllocator(options.GetValueOrDefault("--control-db"));
     var scheduler = new StateScheduler(
         schedulerDb, interval,
@@ -47,40 +50,53 @@ try
     var mutex = NamedMutexRunner.CreateName("StateScheduler", schedulerDb.DatabasePath + "|" + stateDb.DatabasePath);
     var result = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {
-        using var gameExitWatcher = new GameProcessExitWatcher();
-        async Task RunAndRelayAsync(bool force)
+        using var runtimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var runtimeFeed = RuntimeStateFeed.ServeAsync(schedulerPath, runtime, runtimeCancellation.Token);
+        var observation = new RuntimeObservationCoordinator(stateDb, schedulerDb, savesRoot,
+            Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "save-bridge"), runtime);
+        var runtimeObservation = observation.RunAsync(runtimeCancellation.Token);
+        try
         {
+        using var gameExitWatcher = new GameProcessExitWatcher();
+        async Task<bool> RunAndRelayAsync(bool force)
+        {
+            useRuntime = (await schedulerDb.ReadRuntimeScheduleAsync(token)).Enabled;
             var tick = await scheduler.TickAsync(DateTimeOffset.UtcNow, token, force);
-            if (!tick.Due) return;
+            if (!tick.Due) return false;
             await relay.RelayAsync(stateDb, schedulerDb, token);
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(tick));
+            return tick.Runner is { Started: true, Outcome: ProcessOutcome.Succeeded };
         }
 
-        var starting = true;
+        var confirmationsRemaining = 2;
         do
         {
+            // Failed background observation/feed tasks must reach the existing host supervisor.
+            if (runtimeObservation.IsCompleted) { await runtimeObservation; throw new IOException("Runtime observation stopped."); }
+            if (runtimeFeed.IsCompleted) { await runtimeFeed; throw new IOException("Runtime state feed stopped."); }
             gameExitWatcher.Refresh();
             // Persisted due times must not delay the first probe after launching the app.
-            await RunAndRelayAsync(force: starting);
+            var confirmed = await RunAndRelayAsync(force: confirmationsRemaining > 0);
+            if (confirmed && confirmationsRemaining > 0) confirmationsRemaining--;
             if (orphanCleanup is not null) await orphanCleanup.TickAsync(DateTimeOffset.UtcNow, token);
             if (options.ContainsKey("--once")) break;
-            if (starting)
+            if (confirmationsRemaining > 0)
             {
-                // Confirm with a second independent sample, not a second copy of one result.
+                // Busy/failed acquisition is not an observation. Keep confirming instead of
+                // sleeping until a previously persisted (possibly very distant) due time.
                 await Task.Delay(confirmationDelay, token);
-                await RunAndRelayAsync(force: true);
-                starting = false;
+                continue;
             }
             if (await gameExitWatcher.WaitAsync(wakeInterval, token))
-            {
-                // Keep the two-observation debounce while confirming exit without
-                // waiting for the periodic poll interval.
-                await RunAndRelayAsync(force: true);
-                await Task.Delay(confirmationDelay, token);
-                await RunAndRelayAsync(force: true);
-            }
+                confirmationsRemaining = 2;
         } while (!token.IsCancellationRequested);
         return 0;
+        }
+        finally
+        {
+            await runtimeCancellation.CancelAsync();
+            try { await Task.WhenAll(runtimeFeed, runtimeObservation); } catch (OperationCanceledException) { }
+        }
     }, cancellation.Token);
     return result.Acquired ? 0 : 75;
 }

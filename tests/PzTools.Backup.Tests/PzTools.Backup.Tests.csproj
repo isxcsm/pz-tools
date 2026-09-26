@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -38,4 +38,5 @@
     <ProjectReference Include="..\..\src\PzTools.Control\PzTools.Control.csproj" />
   </ItemGroup>
 
+  <ItemGroup><None Include="..\game-extensions\version-support.tsv" Link="version-support.tsv" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

@@ -1,5 +1,7 @@
 using PzTools.Backup.Storage.Repository;
 using PzTools.Scheduling;
+using PzTools.Process.Contracts.GameRuntime;
+using PzTools.Process.Hosting;
 using PzTools.Zomboid.State;
 
 namespace PzTools.Projections;
@@ -7,7 +9,8 @@ namespace PzTools.Projections;
 public sealed class StateProjector(
     StateDatabase database,
     RevisionedViewStore views,
-    DateTimeOffset? observedAfterUtc = null)
+    DateTimeOffset? observedAfterUtc = null,
+    Func<RuntimeObservation?>? runtime = null)
 {
     private long cursor = -1;
     private bool awaitingFreshObservation = observedAfterUtc.HasValue;
@@ -48,6 +51,24 @@ public sealed class StateProjector(
             mapped.Add(item with { Character = character });
         }
         characters.RetainOnly(mapped.Select(item => Path.Combine(item.SourcePath, "players.db")));
+        var observation = runtime?.Invoke();
+        if (observation is not null)
+        {
+            var world = observation.Snapshot;
+            bool ready = observation.IsFresh && world?.IsWorldReady == true;
+            bool offline = observation.Quality == RuntimeQuality.Offline
+                || observation.IsFresh && world?.Phase is WorldPhase.Menu or WorldPhase.Unloading;
+            game = ready ? GameState.Playing : offline ? GameState.NotPlaying
+                : observation.Quality == RuntimeQuality.Ambiguous ? GameState.Ambiguous : GameState.Unknown;
+            for (int i = 0; i < mapped.Count; i++)
+            {
+                bool selected = ready && StringComparer.OrdinalIgnoreCase.Equals(mapped[i].SourcePath, world!.SavePath);
+                mapped[i] = mapped[i] with { Activity = selected ? ActivityState.Active
+                    : ready || offline ? ActivityState.Inactive : ActivityState.Unknown,
+                    Freshness = ready || offline ? ViewFreshness.Fresh : ViewFreshness.Stale };
+            }
+        }
+
         // A fresh state DB can publish an empty snapshot before the first collector
         // batch is applied. Only an initialized, conclusive empty discovery is Empty.
         // Empty + Unknown after initialization is an incomplete discovery, not absence.
@@ -141,7 +162,8 @@ public sealed class SchedulerProjector(
     RevisionedViewStore views,
     RepositoryDatabase? repository = null,
     TimeProvider? timeProvider = null,
-    bool requireActiveState = false)
+    bool requireActiveState = false,
+    RuntimeSnapshotStore? runtimeSnapshot = null)
 {
     private long cursor = -1;
     private BackupSchedulerState? cachedState;
@@ -157,6 +179,25 @@ public sealed class SchedulerProjector(
         else if (cachedState is { } cached) snapshot = cached;
         else return;
 
+        var runtimeSchedule = await database.ReadRuntimeScheduleAsync(cancellationToken);
+        if (runtimeSchedule.Enabled)
+        {
+            var runtimeView = RuntimeScheduleProjection.Build(snapshot, runtimeSchedule,
+                runtimeSnapshot?.Read() ?? RuntimeObservation.Unknown("runtime-feed-disconnected"));
+            if (repository is not null && runtimeView.RemainingMilliseconds == 0
+                && runtimeSchedule.Checkpoint is { AttemptId: { } attempt } checkpoint)
+            {
+                var execution = await repository.TryReadWorkflowByAdmissionAsync(
+                    $"runtime:{checkpoint.Generation}:{checkpoint.Slot}:{attempt}", cancellationToken);
+                if (execution?.Status == WorkflowStatus.Running)
+                {
+                    var stages = await repository.ReadWorkflowStagesAsync(execution.RunIndex, cancellationToken);
+                    runtimeView = runtimeView with { PeriodicBackupInProgress = stages.Any(stage => stage.Producer == "backup-worker") };
+                }
+            }
+            views.Publish(ViewKey.ScheduleStatus, runtimeView, cursor, EqualityComparer<ScheduleStatusView>.Default);
+            return;
+        }
         var canCountDown = snapshot.AutomaticEnabled && snapshot.Mode == SchedulerMode.Continuous
             && snapshot.CurrentTarget is not null;
         if (canCountDown && requireActiveState)

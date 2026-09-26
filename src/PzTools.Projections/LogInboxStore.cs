@@ -4,7 +4,8 @@ using Microsoft.Data.Sqlite;
 namespace PzTools.Projections;
 
 public sealed record LogPageQuery(LogLevel MinimumLevel, string ComponentCategory,
-    string RunText, int PageIndex, int PageSize = 100, long SnapshotMaxLogIndex = 0);
+    string RunText, int PageIndex, int PageSize = 100, long SnapshotMaxLogIndex = 0,
+    string LogText = "", DateTimeOffset? FromUtc = null, DateTimeOffset? ThroughUtc = null);
 
 public sealed record LogPageResult(IReadOnlyList<LogEntryView> Entries,
     int TotalGroups, long SnapshotMaxLogIndex);
@@ -15,7 +16,7 @@ public sealed record LogPageResult(IReadOnlyList<LogEntryView> Entries,
 /// </summary>
 public sealed class LogInboxStore
 {
-    private static string FilteredLogsSql(string extraPredicate = "1=1") => $$"""
+    private static string FilteredLogsSql(PageFilter filter, string extraPredicate = "1=1") => $$"""
         WITH filtered AS (
             SELECT logs.*, COALESCE(ack.acknowledged_through,0) AS acknowledged_through,
                    ack.acknowledged_at_utc,
@@ -26,9 +27,13 @@ public sealed class LogInboxStore
             LEFT JOIN log_acknowledgments AS ack ON ack.incident_key=logs.incident_key
             WHERE ({{extraPredicate}}) AND logs.log_index <= $snapshot
               AND logs.level >= $minimum
-              AND ($run='' OR instr(CAST(logs.run_index AS TEXT),$run)>0)
+              {{(filter.Runs is not null ? "AND logs.run_index BETWEEN $runFrom AND $runThrough" : "")}}
+              {{(filter.Numbers is not null ? "AND logs.log_index BETWEEN $numberFrom AND $numberThrough" : "")}}
+              {{(filter.FromUtc is not null ? "AND logs.occurred_utc >= $fromUtc" : "")}}
+              {{(filter.ThroughUtc is not null ? "AND logs.occurred_utc <= $throughUtc" : "")}}
               AND ($category='All' OR (CASE
                     WHEN logs.component IN ('backup-worker','backup-runner') THEN 'Backup'
+                    WHEN logs.component='character-recovery' THEN 'Recovery'
                     WHEN logs.component='restore-worker' OR logs.component LIKE 'restore-%' THEN 'Restore'
                     WHEN logs.component='archive-worker' OR logs.component LIKE 'archive-%' THEN 'Archive'
                     WHEN logs.component IN ('state-runner','state-collector','state-reactor','state-scheduler') THEN 'State'
@@ -37,8 +42,9 @@ public sealed class LogInboxStore
                     ELSE 'Other' END)=$category)
         )
         """;
-    private sealed record PageIndex(LogLevel Level, string Category, string RunText,
-        long Snapshot, IReadOnlyList<string> GroupKeys);
+    private sealed record PageFilter(LogLevel Level, string Category, LogNumberRange? Runs,
+        LogNumberRange? Numbers, DateTimeOffset? FromUtc, DateTimeOffset? ThroughUtc);
+    private sealed record PageIndex(PageFilter Filter, long Snapshot, IReadOnlyList<string> GroupKeys);
     private readonly string connectionString;
     private readonly SemaphoreSlim gate = new(1, 1);
     private LogsView? cachedView;
@@ -352,6 +358,11 @@ public sealed class LogInboxStore
         if (!Enum.IsDefined(query.MinimumLevel)) throw new ArgumentOutOfRangeException(nameof(query));
         if (query.PageIndex < 0 || query.PageSize is < 1 or > 500)
             throw new ArgumentOutOfRangeException(nameof(query));
+        if (!LogNumberRange.TryParse(query.RunText, out var runs)
+            || !LogNumberRange.TryParse(query.LogText, out var numbers) || query.FromUtc > query.ThroughUtc)
+            throw new ArgumentException("Invalid log filter range.", nameof(query));
+        var filter = new PageFilter(query.MinimumLevel, query.ComponentCategory, runs, numbers,
+            query.FromUtc?.ToUniversalTime(), query.ThroughUtc?.ToUniversalTime());
         await gate.WaitAsync(cancellationToken);
         try
         {
@@ -365,22 +376,19 @@ public sealed class LogInboxStore
                     CultureInfo.InvariantCulture);
             }
             var pageIndex = cachedPageIndex;
-            if (pageIndex is null || pageIndex.Level != query.MinimumLevel
-                || pageIndex.Category != query.ComponentCategory
-                || pageIndex.RunText != query.RunText || pageIndex.Snapshot != snapshot)
+            if (pageIndex is null || pageIndex.Filter != filter || pageIndex.Snapshot != snapshot)
             {
                 await using var indexCommand = connection.CreateCommand();
-                indexCommand.CommandText = FilteredLogsSql() + """
+                indexCommand.CommandText = FilteredLogsSql(filter) + """
                     SELECT group_key FROM filtered GROUP BY group_key
                     ORDER BY MAX(log_index) DESC;
                     """;
-                AddPageParameters(indexCommand, query, snapshot);
+                AddPageParameters(indexCommand, filter, snapshot);
                 var keys = new List<string>();
                 await using var indexReader = await indexCommand.ExecuteReaderAsync(cancellationToken);
                 while (await indexReader.ReadAsync(cancellationToken))
                     keys.Add(indexReader.GetString(0));
-                pageIndex = new PageIndex(query.MinimumLevel, query.ComponentCategory,
-                    query.RunText, snapshot, keys);
+                pageIndex = new PageIndex(filter, snapshot, keys);
                 cachedPageIndex = pageIndex;
             }
             var total = pageIndex.GroupKeys.Count;
@@ -399,14 +407,14 @@ public sealed class LogInboxStore
                 predicates.Add("logs.entry_key IN ("
                     + string.Join(',', singles.Select((_, i) => $"$entry{i}")) + ")");
             await using var command = connection.CreateCommand();
-            command.CommandText = FilteredLogsSql(string.Join(" OR ", predicates)) + """
+            command.CommandText = FilteredLogsSql(filter, string.Join(" OR ", predicates)) + """
                 SELECT f.log_index,f.entry_key,f.source_id,f.telemetry_instance_id,
                        f.event_id,f.occurred_utc,f.level,f.component,f.run_index,
                        f.event_name,f.payload_json,f.incident_key,
                        f.acknowledged_through,f.acknowledged_at_utc
                 FROM filtered AS f;
                 """;
-            AddPageParameters(command, query, snapshot);
+            AddPageParameters(command, filter, snapshot);
             for (var i = 0; i < incidents.Length; i++)
                 command.Parameters.AddWithValue($"$incident{i}", incidents[i]);
             for (var i = 0; i < singles.Length; i++)
@@ -439,12 +447,23 @@ public sealed class LogInboxStore
         finally { gate.Release(); }
     }
 
-    private static void AddPageParameters(SqliteCommand command, LogPageQuery query, long snapshot)
+    private static void AddPageParameters(SqliteCommand command, PageFilter filter, long snapshot)
     {
         command.Parameters.AddWithValue("$snapshot", snapshot);
-        command.Parameters.AddWithValue("$minimum", (int)query.MinimumLevel);
-        command.Parameters.AddWithValue("$category", query.ComponentCategory);
-        command.Parameters.AddWithValue("$run", query.RunText);
+        command.Parameters.AddWithValue("$minimum", (int)filter.Level);
+        command.Parameters.AddWithValue("$category", filter.Category);
+        if (filter.Runs is { } runs)
+        {
+            command.Parameters.AddWithValue("$runFrom", runs.First);
+            command.Parameters.AddWithValue("$runThrough", runs.Last);
+        }
+        if (filter.Numbers is { } numbers)
+        {
+            command.Parameters.AddWithValue("$numberFrom", numbers.First);
+            command.Parameters.AddWithValue("$numberThrough", numbers.Last);
+        }
+        if (filter.FromUtc is { } from) command.Parameters.AddWithValue("$fromUtc", from.ToString("O", CultureInfo.InvariantCulture));
+        if (filter.ThroughUtc is { } through) command.Parameters.AddWithValue("$throughUtc", through.ToString("O", CultureInfo.InvariantCulture));
     }
 
     public async Task AcknowledgeIssueAsync(

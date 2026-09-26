@@ -72,7 +72,7 @@ Geçerli kaydı veya yedeği ZIP olarak dışa aktarabilir, ZIP'i içe almadan �
 
 İyileştirme veya diriltme sağlığı düzeltir, desteklenen yaraları ve geçici durumları kaldırır. Olumlu ve olumsuz özellikler, deneyim, beceriler, tarifler ve mevcut envanter korunur. Kalıcı bağışıklık vermez ve modlara özgü tüm etkileri kaldırmaz.
 
-Ölen karakterin envanteri boşsa eşyalar yalnızca kayıtlı konum ve kimlikteki adla benzersiz eşleşen kendi zombi kaydından alınabilir. Yer değiştirmiş zombiler, kimliği olmayan hedefler ve harita parçalarındaki cesetler desteklenmez. Eldeki ekipmanı yeniden atamak gerekebilir. [İyileştirme ve sınırları (İngilizce)](../character-recovery.md) belgesine bakın.
+Ölüm envanteri boşalttıysa eşyalar karakterin zombisinden veya cesedinden alınır ve bu kaynak kaldırılır. Kimlik kartı gerekmez. Eşya durumu, çanta içeriği, giyim ve takılı eşya verileri korunur. Kayıtlı eşya kimlikleri varsa ellerdeki ekipman geri yüklenir; yoksa yeniden kuşanmanız gerekir. Kayıp eşyalar üretilmez. Kimlik belirsizse değişiklik yapılmaz. [İyileştirme ve sınırları (İngilizce)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

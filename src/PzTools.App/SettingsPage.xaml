@@ -115,6 +115,10 @@
                          SpinButtonPlacementMode="Inline" ValueChanged="IntervalNumber_ValueChanged" />
             </Grid>
           </toolkit:SettingsCard>
+          <toolkit:SettingsCard x:Name="PausePeriodicSettingCard" Header="게임 일시정지 중 정기백업 대기">
+            <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Pause" /></toolkit:SettingsCard.HeaderIcon>
+            <ToggleSwitch x:Name="PausePeriodicToggle" Toggled="SettingChanged" />
+          </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="RetentionSettingCard"
                                 Header="자동 백업 보관 개수" Description="최근 자동 백업 1~100개를 보관합니다. 이 개수 제한으로 수동 백업을 삭제하지 않습니다.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Library" /></toolkit:SettingsCard.HeaderIcon>

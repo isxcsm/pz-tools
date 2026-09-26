@@ -72,7 +72,7 @@ Faça primeiro um backup manual ou exporte um ZIP: **a recuperação não cria u
 
 Cura ou ressurreição restaura a saúde e elimina ferimentos e estados temporários compatíveis. Traços positivos e negativos, experiência, habilidades, receitas e inventário existente são preservados. Não há imunidade permanente nem remoção de todos os efeitos específicos de mods.
 
-Se o inventário do personagem morto estiver vazio, os itens só podem vir de um registro único do próprio zumbi, identificado pela posição salva e pelo nome na identidade. Zumbis deslocados, alvos sem identidade e cadáveres em blocos do mapa não são compatíveis. Pode ser necessário reequipar as mãos. Veja [recuperação e limites (inglês)](../character-recovery.md).
+Se a morte esvaziou o inventário, recupera os pertences do zumbi ou cadáver do personagem e remove essa origem. Não é preciso documento de identidade. Preserva o estado dos itens, o conteúdo das bolsas e os dados de roupas e anexos. IDs salvos restauram os itens nas mãos quando disponíveis; caso contrário, reequipe-os. Itens perdidos não são criados. Identidade incerta interrompe a operação sem alterações. [recuperação e limites (inglês)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

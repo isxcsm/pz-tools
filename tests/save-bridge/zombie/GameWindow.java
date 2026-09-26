@@ -12,11 +12,15 @@ public final class GameWindow {
     private static int memoryOnlyState;
     public static final class States { public Object current = new zombie.gameStates.IngameState(); }
 
+    public static boolean isIngameState() { return states.current instanceof zombie.gameStates.IngameState; }
     private static void logic() { ticks++; }
 
     public static void save(boolean flag) throws IOException {
         if (Thread.currentThread() != gameThread || !flag) throw new IOException("Wrong save invocation");
         if (mode.equals("throw")) throw new IOException("Synthetic save failure");
+        var stamp = zombie.characters.IsoPlayer.getInstance().getModData();
+        Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "recovery-stamp.txt"),
+            stamp.rawget("pztools.recovery.id") + "\n" + stamp.rawget("pztools.recovery.primary") + "\n" + stamp.rawget("pztools.recovery.secondary"));
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "memory-only-state.txt"),
             Integer.toString(++memoryOnlyState));
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "calls.txt"),
@@ -45,6 +49,9 @@ public final class GameWindow {
         System.out.println("READY");
         System.out.flush();
         while (true) {
+            if (consumeSignal(Path.of(args[0], "pause-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(0);
+            if (consumeSignal(Path.of(args[0], "resume-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1);
+            if (consumeSignal(Path.of(args[0], "fast-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(4);
             if (consumeSignal(Path.of(args[0], "inspect-hook")))
                 bridgefixture.Inspector.inspect(Path.of(args[0], "hook-state.txt"));
             if (consumeSignal(Path.of(args[0], "inspect-control"))) {

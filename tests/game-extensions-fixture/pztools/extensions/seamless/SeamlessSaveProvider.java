@@ -11,6 +11,7 @@ public final class SeamlessSaveProvider implements SaveProvider {
     public PreparedSave capture(Context context, long maximumBytes) throws Exception {
         context.requireGameThread();
         Path root = context.sourcePath();
+        Files.writeString(root.resolve("extension-identity"), context.sessionId() + "|" + context.worldId());
         Files.writeString(root.resolve("extension-started"), context.requestId());
         return new PreparedSave() {
             public long retainedBytes() { return 0; }

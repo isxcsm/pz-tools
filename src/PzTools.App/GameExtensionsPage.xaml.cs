@@ -12,6 +12,9 @@ public sealed partial class GameExtensionsPage : UserControl
     private GameExtensionsView? snapshot;
     private bool refreshing;
     private bool applying;
+    private bool dialogOpen;
+    private IDisposable? subscription;
+    private long viewRevision;
     private readonly Dictionary<string, ToggleSwitch> toggles = new(StringComparer.Ordinal);
     private App App => (App)Application.Current;
 
@@ -19,7 +22,16 @@ public sealed partial class GameExtensionsPage : UserControl
     {
         InitializeComponent();
         ApplyLocalizedText();
-        Loaded += async (_, _) => await RefreshForNavigationAsync();
+        Loaded += async (_, _) =>
+        {
+            subscription?.Dispose();
+            subscription = App.Host?.Views.Subscribe((key, _) =>
+            {
+                if (key == GameExtensionController.ViewKey) DispatcherQueue.TryEnqueue(ApplyLatestView);
+            });
+            await RefreshForNavigationAsync();
+        };
+        Unloaded += (_, _) => { subscription?.Dispose(); subscription = null; };
     }
 
     internal void ApplyLocalizedText()
@@ -45,6 +57,27 @@ public sealed partial class GameExtensionsPage : UserControl
         finally { refreshing = false; LoadingIndicator.IsActive = false; LoadingIndicator.Visibility = Visibility.Collapsed; }
     }
 
+    private void ApplyLatestView()
+    {
+        if (applying || dialogOpen || App.Host is not { } host) return;
+        var changed = host.Views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, viewRevision);
+        if (changed.Modified && changed.Snapshot is { } view) { viewRevision = changed.ViewRevision; Render(view); }
+    }
+    private static string VersionDescription(ExtensionCardView card)
+    {
+        var support = card.Definition.SupportedVersions ?? GameVersionSupport.All;
+        string range = support.Scope == VersionSupportScope.All ? Localizer.Get("GameExtensions.VersionAll")
+            : Localizer.Format(support.Scope == VersionSupportScope.Major ? "GameExtensions.VersionMajor" : "GameExtensions.VersionMinor", support.RangeText);
+        return Localizer.Format("GameExtensions.VersionInfo", range, card.GameVersion ?? Localizer.Get("Unknown"));
+    }
+    private static string StatusText(ExtensionCardView item) => Localizer.Get(item.StatusCode switch
+    {
+        "version-mismatch" => "GameExtensions.VersionMismatch",
+        "version-unknown" => "GameExtensions.VersionUnknown",
+        "forced-version" => "GameExtensions.ForcedVersion",
+        "disabled" => "GameExtensions.Disabled",
+        _ => "GameExtensions.AwaitingValidation",
+    });
     private void Render(GameExtensionsView view)
     {
         snapshot = view;
@@ -59,17 +92,18 @@ public sealed partial class GameExtensionsPage : UserControl
             });
             description.Children.Add(new TextBlock
             {
-                Text = !view.GameSavingEnabled ? Localizer.Get("GameSaveSetting.Header") + ": " + Localizer.Get("SettingDisabled")
-                    : Localizer.Get(item.Enabled ? "GameExtensions.AwaitingValidation" : "GameExtensions.Disabled"),
+                Text = !view.GameSavingEnabled && item.Definition.Capabilities.Contains("save.prepare.v1") ? Localizer.Get("GameSaveSetting.Header") + ": " + Localizer.Get("SettingDisabled")
+                    : StatusText(item),
                 TextWrapping = TextWrapping.Wrap,
             });
+            description.Children.Add(new TextBlock { Text = VersionDescription(item), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
             var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
             var configure = new Button { Content = Localizer.Get("GameExtensions.Configure"), IsEnabled = !applying };
             configure.Click += async (_, _) => await ConfigureAsync(item);
             AutomationProperties.SetName(configure, Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)));
             var toggle = new ToggleSwitch
             {
-                IsOn = item.Enabled, IsEnabled = !applying,
+                IsOn = item.Enabled, IsEnabled = !applying && item.CanEnable,
                 OnContent = Localizer.Get("SettingEnabled"), OffContent = Localizer.Get("SettingDisabled"),
             };
             AutomationProperties.SetName(toggle, Localizer.Get(item.Definition.TitleKey));
@@ -87,36 +121,46 @@ public sealed partial class GameExtensionsPage : UserControl
 
     private async Task ConfigureAsync(ExtensionCardView item)
     {
-        if (applying) return;
-        // v0.1 exposes only the implemented lifecycle preference, not pretend tuning options.
-        var enabled = new ToggleSwitch
+        if (applying || dialogOpen) return;
+        dialogOpen = true;
+        try
         {
-            Header = Localizer.Get(item.Definition.TitleKey), IsOn = item.Enabled,
-            OnContent = Localizer.Get("SettingEnabled"), OffContent = Localizer.Get("SettingDisabled"),
-        };
-        var content = new StackPanel { Spacing = 16, MaxWidth = 460 };
-        content.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.ValidationNotice"), TextWrapping = TextWrapping.Wrap });
-        content.Children.Add(new TextBlock { Text = item.Definition.Id + " · " + item.Definition.Version });
-        content.Children.Add(enabled);
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot, RequestedTheme = ActualTheme,
-            Title = Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)),
-            Content = content, PrimaryButtonText = Localizer.Get("GameExtensions.Apply"),
-            CloseButtonText = Localizer.Get("Cancel"), DefaultButton = ContentDialogButton.Close,
-        };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary && enabled.IsOn != item.Enabled)
-            await SetEnabledAsync(item, enabled.IsOn);
+            var enabled = new ToggleSwitch
+            {
+                Header = Localizer.Get(item.Definition.TitleKey), IsOn = item.Enabled, IsEnabled = item.CanEnable,
+                OnContent = Localizer.Get("SettingEnabled"), OffContent = Localizer.Get("SettingDisabled"),
+            };
+            var force = new CheckBox { Content = Localizer.Get("GameExtensions.ForceVersion"), IsChecked = item.ForceVersion };
+            force.Checked += (_, _) => enabled.IsEnabled = true;
+            force.Unchecked += (_, _) => { enabled.IsEnabled = item.VersionMatches; if (!item.VersionMatches) enabled.IsOn = false; };
+            var content = new StackPanel { Spacing = 16, MaxWidth = 460 };
+            content.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.ValidationNotice"), TextWrapping = TextWrapping.Wrap });
+            content.Children.Add(new TextBlock { Text = VersionDescription(item), TextWrapping = TextWrapping.Wrap });
+            content.Children.Add(new TextBlock { Text = item.Definition.Id + " · " + item.Definition.Version });
+            content.Children.Add(enabled);
+            content.Children.Add(force);
+            content.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.ForceWarning"), TextWrapping = TextWrapping.Wrap });
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot, RequestedTheme = ActualTheme,
+                Title = Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)),
+                Content = content, PrimaryButtonText = Localizer.Get("GameExtensions.Apply"),
+                CloseButtonText = Localizer.Get("Cancel"), DefaultButton = ContentDialogButton.Close,
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary
+                && (enabled.IsOn != item.Enabled || (force.IsChecked == true) != item.ForceVersion))
+                await SetEnabledAsync(item, enabled.IsOn, force.IsChecked == true);
+        }
+        finally { dialogOpen = false; ApplyLatestView(); }
     }
-
-    private async Task SetEnabledAsync(ExtensionCardView item, bool enabled)
+    private async Task SetEnabledAsync(ExtensionCardView item, bool enabled, bool? forceVersion = null)
     {
         if (applying || App.Host is not { } host) return;
         applying = true;
         foreach (var toggle in toggles.Values) toggle.IsEnabled = false;
         try
         {
-            var view = await host.GameExtensions.SetEnabledAsync(item.Definition.Id, enabled, item.SettingsRevision);
+            var view = await host.GameExtensions.SetPreferenceAsync(item.Definition.Id, enabled, forceVersion ?? item.ForceVersion, item.SettingsRevision);
             ErrorInfo.IsOpen = false;
             snapshot = view;
         }

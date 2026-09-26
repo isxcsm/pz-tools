@@ -1,5 +1,7 @@
 # Pre-backup game save bridge
 
+> Pause-aware periodic scheduling is implemented separately from the legacy UTC commands described below. It uses runtime observation and guarded SAVE_ACTIVE/PROBE_ACTIVE. Turning off pre-backup saving does not turn off this observation. See [runtime pause architecture](runtime-pause-backups.md). A loaded older bootstrap requires a full game restart.
+
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
 
 Manual and scheduled game backups request `GameWindow.save(true)` on the game
@@ -115,7 +117,7 @@ command was sent.
   path is pinned at bootstrap initialization. Each request retains the separate
   temporary callback authenticated by PID and a fresh random 256-bit token. An
   ambiguous endpoint/dispatch failure never triggers another load or save retry.
-- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` remain supported. Protocol 5 adds `PREPARE_SAVE` for an optional save provider.
+- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` remain supported. Protocol 6 supports `PREPARE_SAVE` and guarded `PREPARE_SAVE_ACTIVE` for an optional save provider.
   They are handled on `GameWindow.gameThread`; PROBE validates the world but never
   invokes save. Protocol 3 introduced `SAVE_COUNTDOWN`. Protocol 4 adds a fixed
   epoch-millisecond due time and an `off` notice mode to `SAVE_AT`. Language
@@ -200,11 +202,21 @@ Its B42.20 adapter keeps the original save call, omits only the forced preview r
 and observes player/vehicle database drains before completion. Chunk and native
 saving remain synchronous. An incompatible optional provider falls back in the same
 authenticated request before saving; a failure after provider admission is not replayed.
-Bootstrap API 2 contains the stable module API and requires a complete game restart
+The current bootstrap API 4 contains the stable module API and requires a complete game restart
 when replacing an older bootstrap. Ordinary save/probe requests do not load modules.
 
 
 The optional B42.20 module now reports `GAME_SAVE_AND_PENDING_WRITES_DRAINED` after
 its bounded existing-chunk file handoffs and database fences finish. New-file creation,
-serialization, native waits and ordered fallback I/O remain synchronous. Bootstrap API 3
+serialization, native waits and ordered fallback I/O remain synchronous. The current bootstrap API 4
 requires a game restart. See [ordered file handoff](game-extensions.md#ordered-chunk-file-handoff-03).
+
+## Combined runtime/extension protocol
+
+The pause-observation and game-extension branches previously assigned different
+meanings to protocol 5. The integrated wire protocol is 6 (bootstrap API 4).
+`PREPARE_SAVE_ACTIVE` includes the same runtime ticket as guarded standard saving,
+alongside provider selection and a version-range override. Standard and extension
+saves both preserve RecoveryStamp, pre-submission permission, cancellation admission,
+and completion-unknown behavior. `STATE2` extends observation with optional game
+version metadata; it is not a second source of pause/scheduling authority.

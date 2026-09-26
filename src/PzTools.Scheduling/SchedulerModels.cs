@@ -1,4 +1,5 @@
 using PzTools.Process.Contracts;
+using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.Scheduling;
 
@@ -98,12 +99,14 @@ public sealed record BackupTickAdmission(
     string RepositoryPath,
     DateTimeOffset ScheduledUtc,
     long Generation,
-    string? PendingCommandId);
+    string? PendingCommandId,
+    RuntimeSaveTicket? RuntimeTicket = null);
 
 public sealed record WorkerInvocation(
     bool Started,
     ProcessOutcome Outcome,
-    string? FailureCode = null);
+    string? FailureCode = null,
+    ScheduleDisposition ScheduleDisposition = ScheduleDisposition.Default);
 
 public sealed record BackupTickResult(
     bool Due,

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PzTools.Process.Contracts;
+using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
 
 namespace PzTools.Scheduling;
@@ -10,12 +11,17 @@ public sealed class RunnerProcessAdapter(
     public RunnerProcessAdapter(string workerDirectory, string? controlDatabasePath = null)
         : this(new ChildProcessHost(), Path.GetFullPath(workerDirectory), controlDatabasePath) { }
 
+    public Task<WorkerInvocation> RunBackupAsync(string repositoryPath, BackupTarget target, long runIndex,
+        DateTimeOffset? scheduledUtc, CancellationToken token) =>
+        RunBackupAsync(repositoryPath, target, runIndex, scheduledUtc, token, null);
+
     public Task<WorkerInvocation> RunBackupAsync(
         string repositoryPath,
         BackupTarget target,
         long runIndex,
         DateTimeOffset? scheduledUtc,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        RuntimeSaveTicket? runtimeTicket, string? runtimeAuthority = null, long? runtimeGeneration = null)
     {
         List<string> arguments =
             [
@@ -26,7 +32,15 @@ public sealed class RunnerProcessAdapter(
                 "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--worker-directory", workerDirectory,
             ];
-        if (scheduledUtc is { } due)
+        if (runtimeTicket is not null)
+        {
+            if (runtimeAuthority is null || runtimeGeneration is null) throw new InvalidOperationException("A guarded request requires its scheduling authority.");
+            arguments.AddRange(["--runtime-authority", runtimeAuthority, "--runtime-generation",
+                runtimeGeneration.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+            arguments.Add("--runtime-ticket");
+            arguments.Add((runtimeTicket with { CommandSequence = runIndex }).Encode());
+        }
+        else if (scheduledUtc is { } due)
         {
             arguments.Add("--scheduled-utc");
             arguments.Add(due.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
@@ -34,6 +48,9 @@ public sealed class RunnerProcessAdapter(
         return RunAsync("PzTools.Backup.Runner.exe", "backup-runner", runIndex,
             arguments, cancellationToken);
     }
+
+    public Task<WorkerInvocation> RunGuardedBackupAsync(BackupTickAdmission admission, long runIndex, CancellationToken token, string authority) =>
+        RunBackupAsync(admission.RepositoryPath, admission.Target, runIndex, null, token, admission.RuntimeTicket, authority, admission.Generation);
 
     public Task<WorkerInvocation> RunMaintenanceAsync(
         string repositoryPath,
@@ -99,7 +116,8 @@ public sealed class RunnerProcessAdapter(
             return new WorkerInvocation(
                 envelope.Result?.WorkerStarted == true,
                 envelope.Outcome,
-                envelope.Error?.Code);
+                envelope.Error?.Code ?? (envelope.ScheduleDisposition == ScheduleDisposition.Preserve ? "runtime-deferred" : null),
+                envelope.ScheduleDisposition);
         }
         catch (ProcessResultValidationException exception)
         {

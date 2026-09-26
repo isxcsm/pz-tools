@@ -4,7 +4,7 @@ using PzTools.SaveBridge;
 namespace PzTools.Zomboid.Backup;
 
 /// <summary>The JVM selects compatibility and fallback before starting, within the same authenticated request.</summary>
-internal sealed class BridgeGameSaveProvider(GameSaveClient client) : IGameSaveProvider
+internal sealed class BridgeGameSaveProvider(GameSaveClient client, bool forceVersion = false) : IGameSaveProvider
 {
     public string Id => ExtensionIds.SeamlessSave;
     public ValueTask<SaveProviderSupport> InspectAsync(string sourcePath, CancellationToken cancellationToken)
@@ -14,7 +14,7 @@ internal sealed class BridgeGameSaveProvider(GameSaveClient client) : IGameSaveP
     }
     public async Task<SavePreparationReceipt> PrepareAsync(string sourcePath, CancellationToken cancellationToken)
     {
-        var result = await client.PrepareRunningGameAsync(sourcePath, Id, cancellationToken);
+        var result = await client.PrepareRunningGameAsync(sourcePath, Id, cancellationToken, forceVersion);
         return new(result.ProviderId, result.Completion switch
         {
             GameSaveCompletion.StandardCallReturned => SaveCompletionKind.StandardCallReturned,

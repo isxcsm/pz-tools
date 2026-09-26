@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Время ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>местное</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Отображается в местном часовом поясе ОС ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Выберите время, как оно показано в журнале ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>История · Сначала новые</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Номер</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Постоянный номер, идентифицирующий эту запись.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Применить настройки и перезапустить</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Проверить изменённые файлы расширенной конфигурации и перезапустить приложение? Перезапуск невозможен во время операции.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Восстановить настройки по умолчанию</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Сбросить TOML-файлы расширенных настроек и перезапустить приложение? Текущие файлы останутся в папке config-backups внутри папки данных приложения. Обычные настройки приложения сохранятся.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Восстановить стандартные расширенные настройки и перезапустить приложение? Копия текущих файлов будет сохранена. Обычные настройки, сохранения игры и резервные копии останутся без изменений.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Минимальный записываемый уровень</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Применяется к новым журналам. Существующая история сохраняется.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Максимум записей журнала</value></data>
@@ -359,21 +359,29 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Копирование остановлено: сохранение игры не удалось подтвердить.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Сохранять игру перед копированием</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Обратный отсчёт в игре</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Показывает пятисекундный отсчёт над персонажем и результат сохранения игры. При выключении исчезают сообщения и отсчёт перед ручными копиями, но игра по-прежнему сохраняется. Автоматические копии создаются в назначенное время. Изменения действуют со следующего копирования.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Запрашивает сохранение игры перед ручным и автоматическим копированием. Выключите при использовании отдельного мода сохранения или при проблемах совместимости после обновления игры. При выключении копируются только файлы на диске; последний прогресс может отсутствовать. Изменения действуют со следующего копирования.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Показывает над персонажем пятисекундный отсчёт и результат сохранения. При отключении сообщения и ожидание ручных копий пропускаются, но игра по-прежнему сохраняется. Время автоматических копий не меняется.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Сохраняет свежий прогресс в игре перед созданием копии. Рекомендуется не отключать: иначе в копии могут отсутствовать ещё не сохранённые прогресс, транспорт или предметы.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Следующая копия: ожидание запуска</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Следующая копия: ожидание текущей задачи</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Исцелить персонажа</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Исцелить / воскресить персонажа</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Исцелить персонажа «{0}» в текущем сохранении?&#xA;&#xA;Восстановить здоровье, сытость, запас воды, отдых, выносливость и психическое состояние. Устранить травмы, инфекции, отравление, симптомы отмены и ещё не проявившуюся боль после упражнений. Если персонаж погиб, воскресить его.&#xA;&#xA;Все черты, включая отрицательные, навыки, опыт, вес, питание и положение сохраняются. Черты или окружающая среда могут снова вызвать симптомы. Болезни, добавленные модами, не изменяются.&#xA;&#xA;Если инвентарь пуст, вещи и одежда возвращаются из инвентаря однозначно опознанного зомби этого персонажа в сохранённой позиции; этот зомби удаляется. Требуется совпадающее удостоверение личности. Предметы для отображения ран исключаются. Состояние вещей и содержимое сумок сохраняются; предметы не экипируются в руки автоматически. Возврат вещей из трупов пока не поддерживается. Если нельзя безопасно установить принадлежность вещей, погибший персонаж с пустым инвентарём не будет воскрешён.&#xA;&#xA;Изменяется только текущее одиночное сохранение. Сохранения, используемые в игре, неподдерживаемые форматы и неоднозначные данные отклоняются.</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Исцелить персонажа «{0}» в текущем сохранении?
+
+Восстановить здоровье, сытость, запас воды, отдых, выносливость и психическое состояние. Устранить травмы, инфекции, отравление, симптомы отмены и ещё не проявившуюся боль после упражнений. Если персонаж погиб, воскресить его.
+
+Все черты, включая отрицательные, навыки, опыт, вес, питание и положение сохраняются. Черты или окружающая среда могут снова вызвать симптомы. Болезни, добавленные модами, не изменяются.
+
+Если смерть опустошила инвентарь, вещи возвращаются из зомби или трупа персонажа, а источник удаляется. Удостоверение личности не требуется. Состояние вещей, содержимое сумок, одежда и данные креплений сохраняются. Сохранённые ID восстанавливают предметы в руках, если доступны; иначе их нужно экипировать заново. Потерянные вещи не создаются. При сомнительной идентификации изменений не будет.
+
+Изменяется только текущее одиночное сохранение. Сохранения, используемые в игре, неподдерживаемые форматы и неоднозначные данные отклоняются.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Восстановление персонажа завершено. Черты, навыки и опыт сохранены.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Не удалось однозначно определить вещи персонажа. Для восстановления нужен зомби игрока в сохранённой позиции с подходящим удостоверением личности. Инвентарь трупов не поддерживается. Ничего не изменено.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Не удалось однозначно определить зомби или труп персонажа. Удостоверение личности не требуется, но при нескольких кандидатах или недостатке данных в старом сохранении программа не угадывает. Ничего не изменено.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Требуется восстановить обновление файлов сохранения. Не загружайте это сохранение в игре. Перезапустите PZ Tools, чтобы завершить обновление. Если сохранение изменилось после прерывания, автоматическое восстановление остановится, не перезаписывая его.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Восстановление персонажа</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Это сохранение используется игрой или другой операцией. Прекратите игру и повторите попытку. Оригинал не изменён.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>В этом сохранении есть незавершённые изменения. Выйдите из игры обычным способом и повторите попытку. Исходное сохранение не изменено.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Поддерживаются только одиночные сохранения с одним локальным персонажем. Персонаж не выбирался произвольно, оригинал не изменён.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Не удалось безопасно проверить формат персонажа. Сейчас поддерживаются: Build 42, версия мира 249. Оригинал не изменён.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Это сохранение нельзя безопасно изменить. Проверьте совместимость версий PZ Tools и игры. Оригинал не был изменён.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Ошибка чтения; будет повторная попытка</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Игра или другая операция использует нужный файл. Дождитесь завершения сохранения или операции и повторите попытку.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Недостаточно свободного места. Освободите место на диске назначения и повторите попытку.</value></data>
@@ -388,16 +396,47 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Повторное использование совпадающих данных резервной копии</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Включено</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Выключено</value></data>
-  <data name="GameExtensions.Title" xml:space="preserve"><value>Расширения игры</value></data>
-  <data name="GameExtensions.Description" xml:space="preserve"><value>Управление дополнительными улучшениями игры.</value></data>
-  <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Плавное сохранение</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Сохраняет исходный механизм сохранения, пропускает принудительную отрисовку предпросмотра и записывает существующие файлы чанков в фоне. Сериализация, нативное сохранение и некоторые файловые операции всё ещё могут приостанавливать игру. Для неподдерживаемых версий используется обычное сохранение.</value></data>
-  <data name="GameExtensions.Disabled" xml:space="preserve"><value>Выключено · Стандартное сохранение</value></data>
-  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Проверка совместимости при следующем сохранении &#183; Экспериментально</value></data>
-  <data name="GameExtensions.Configure" xml:space="preserve"><value>Настроить</value></data>
-  <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Настройки: {0}</value></data>
-  <data name="GameExtensions.Apply" xml:space="preserve"><value>Применить</value></data>
-  <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Настройки расширений недоступны</value></data>
-  <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Не удалось сохранить изменения. Откройте страницу заново и проверьте файл настроек расширений.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Сохраняет исходный механизм сохранения, пропускает принудительную отрисовку предпросмотра и записывает существующие файлы чанков в фоне. Сериализация, нативное сохранение и некоторые файловые операции всё ещё могут приостанавливать игру. Для неподдерживаемых версий используется обычное сохранение.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Ожидать во время паузы в игре</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Пауза в игре останавливает отсчёт до следующей периодической копии. Отсчёт продолжается после возобновления игры. Также ожидает, если состояние игры нельзя проверить.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Игра на паузе</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Проверка состояния игры</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запустите только одну игру</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Проверьте результат последнего сохранения игры, затем снова включите автоматические копии.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Применить</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Снять фильтр</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Снять все</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · нажмите для фильтрации</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · нажмите, чтобы изменить отображаемые записи</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 или 40-50. Пустое поле — без ограничений.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Введите целый номер или диапазон по возрастанию.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Введите дату и время или выберите их кнопкой календаря. Пустое поле означает отсутствие ограничения.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Введите корректные дату и время; начало не должно быть позже конца.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>С</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>По</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Осталось {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Последние 24 часа</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Выбрать дату и время</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Дата</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Использовать дату и время</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>Расширения игры</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>Управление дополнительными улучшениями игры.</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Плавное сохранение</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Сохраняет исходный механизм сохранения, пропускает принудительную отрисовку предпросмотра и записывает существующие файлы чанков в фоне. Сериализация, нативное сохранение и некоторые файловые операции всё ещё могут приостанавливать игру. Для неподдерживаемых версий используется обычное сохранение.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>Выключено · Стандартное сохранение</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Проверка совместимости при следующем сохранении &#183; Экспериментально</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>Настроить</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Настройки: {0}</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>Применить</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>Настройки расширений недоступны</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Не удалось сохранить изменения. Откройте страницу заново и проверьте файл настроек расширений.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Сохраняет исходный механизм сохранения, пропускает принудительную отрисовку предпросмотра и записывает существующие файлы чанков в фоне. Сериализация, нативное сохранение и некоторые файловые операции всё ещё могут приостанавливать игру. Для неподдерживаемых версий используется обычное сохранение.</value></data>
+  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Все версии</value></data>
+  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Основная версия {0}</value></data>
+  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Младшая версия {0}</value></data>
+  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Поддержка: {0} · Текущая игра: {1}</value></data>
+  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Вне поддерживаемого диапазона · Расширение неактивно</value></data>
+  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Ожидание версии игры · Расширение неактивно</value></data>
+  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Принудительно включить вне поддерживаемого диапазона</value></data>
+  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Несовместимые версии могут вызывать ошибки. Игнорируется только диапазон версий; обязательные проверки безопасности сохраняются.</value></data>
+  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ограничение версии отключено · Обязательные проверки сохранены</value></data>
 </root>

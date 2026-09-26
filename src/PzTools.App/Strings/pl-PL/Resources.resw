@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Czas ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>lokalny</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Wyświetlanie w lokalnej strefie czasowej systemu ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Wybierz godziny widoczne w dzienniku ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Historia · Od najnowszych</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Numer</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Stały numer identyfikujący ten wpis.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Zastosuj ustawienia i uruchom ponownie</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Sprawdzić zmienione pliki konfiguracji zaawansowanej i ponownie uruchomić aplikację? Nie jest to możliwe podczas trwającej operacji.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Przywróć ustawienia domyślne</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Przywrócić domyślne pliki TOML konfiguracji zaawansowanej i uruchomić aplikację ponownie? Obecne pliki zostaną zachowane w config-backups w folderze danych aplikacji. Ogólne ustawienia aplikacji pozostaną bez zmian.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Przywrócić domyślne ustawienia zaawansowane i uruchomić aplikację ponownie? Kopia obecnych plików zostanie zachowana. Zwykłe ustawienia, zapisy gry i kopie zapasowe pozostaną bez zmian.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Minimalny zapisywany poziom</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Dotyczy nowych wpisów. Istniejąca historia zostaje zachowana.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Maksymalna liczba wpisów</value></data>
@@ -359,21 +359,29 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Przerwano tworzenie kopii, ponieważ nie udało się potwierdzić zapisu gry.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odliczanie zapisu w grze</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Pokazuje pięciosekundowe odliczanie nad postacią i wynik zapisu gry. Wyłączenie usuwa komunikaty i odliczanie przed ręcznymi kopiami, ale gra nadal jest zapisywana. Automatyczne kopie zachowują zaplanowany czas. Zmiany obowiązują od następnej kopii.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Żąda zapisu gry przed kopiami ręcznymi i automatycznymi. Wyłącz, jeśli używasz osobnego moda do zapisu lub aktualizacja gry powoduje problemy ze zgodnością. Po wyłączeniu kopiowane są tylko pliki z dysku; może brakować najnowszych postępów. Zmiany obowiązują od następnej kopii.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Wyświetla nad postacią pięciosekundowe odliczanie i wynik zapisu. Wyłączenie ukrywa komunikaty i pomija oczekiwanie przy kopiach ręcznych, ale nadal zapisuje grę. Czas kopii automatycznych nie zmienia się.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje najnowszy postęp w grze przed utworzeniem kopii. Zalecamy pozostawienie tej opcji włączonej: po wyłączeniu w kopii może brakować niezapisanego postępu, pojazdów lub przedmiotów.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Następna kopia: oczekiwanie na start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Następna kopia: oczekiwanie na bieżące zadanie</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Ulecz postać</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Ulecz / wskrześ postać</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Uleczyć postać {0} w bieżącym zapisie?&#xA;&#xA;Przywrócić zdrowie, sytość, nawodnienie, wypoczynek, wytrzymałość i stan psychiczny. Usunąć obrażenia, infekcje, zatrucie, objawy odstawienia i ból mięśni po ćwiczeniach, który jeszcze się nie pojawił. Wskrzesić postać, jeśli nie żyje.&#xA;&#xA;Wszystkie cechy, także negatywne, umiejętności, doświadczenie, waga, odżywianie i pozycja pozostają bez zmian. Cechy lub otoczenie mogą ponownie wywołać objawy. Choroby dodane przez mody nie są zmieniane.&#xA;&#xA;Jeśli ekwipunek jest pusty, przedmioty i ubrania zostaną odzyskane od jednoznacznie rozpoznanego zombie tej postaci w zapisanej pozycji, a zombie zostanie usunięty. Wymagany jest zgodny dokument tożsamości. Pomijane są wizualne nakładki ran; stan przedmiotów i zawartość toreb zostają zachowane. Przedmioty nie trafiają automatycznie do rąk. Odzyskiwanie ze zwłok nie jest jeszcze obsługiwane. Jeśli nie da się bezpiecznie rozpoznać rzeczy, martwa postać z pustym ekwipunkiem nie zostanie wskrzeszona.&#xA;&#xA;Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, nieobsługiwane formaty i niejednoznaczne dane są odrzucane.</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Uleczyć postać {0} w bieżącym zapisie?
+
+Przywrócić zdrowie, sytość, nawodnienie, wypoczynek, wytrzymałość i stan psychiczny. Usunąć obrażenia, infekcje, zatrucie, objawy odstawienia i ból mięśni po ćwiczeniach, który jeszcze się nie pojawił. Wskrzesić postać, jeśli nie żyje.
+
+Wszystkie cechy, także negatywne, umiejętności, doświadczenie, waga, odżywianie i pozycja pozostają bez zmian. Cechy lub otoczenie mogą ponownie wywołać objawy. Choroby dodane przez mody nie są zmieniane.
+
+Jeśli śmierć opróżniła ekwipunek, odzyskuje przedmioty z zombie lub zwłok postaci i usuwa to źródło. Dowód tożsamości nie jest wymagany. Zachowuje stan przedmiotów, zawartość toreb oraz dane ubrania i mocowania. Zapisane identyfikatory przywracają przedmioty w dłoniach, jeśli są dostępne; w przeciwnym razie trzeba je ponownie wyposażyć. Nie tworzy utraconych przedmiotów. Niepewna tożsamość zatrzymuje operację bez zmian.
+
+Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, nieobsługiwane formaty i niejednoznaczne dane są odrzucane.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Odzyskiwanie postaci ukończone. Zachowano cechy, umiejętności i doświadczenie.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Nie udało się jednoznacznie zidentyfikować przedmiotów postaci. Odzyskiwanie wymaga zombie gracza w zapisanej pozycji z pasującym dokumentem tożsamości. Ekwipunek zwłok nie jest obsługiwany. Nic nie zostało zmienione.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Nie udało się jednoznacznie rozpoznać zombie lub zwłok postaci. Dowód tożsamości nie jest wymagany, lecz przy wielu kandydatach lub niewystarczających danych starych zapisów program nie zgaduje. Niczego nie zmieniono.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Aktualizacja plików zapisu gry wymaga odzyskania. Nie wczytuj tego zapisu w grze. Uruchom ponownie PZ Tools, aby dokończyć aktualizację. Jeśli zapis zmienił się po przerwaniu, automatyczne odzyskiwanie zatrzyma się zamiast go nadpisywać.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Odzyskiwanie postaci</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gra lub inna operacja używa tego zapisu. Przestań grać i spróbuj ponownie. Oryginał nie został zmieniony.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Ten zapis gry zawiera niedokończone zmiany. Zamknij grę w zwykły sposób i spróbuj ponownie. Oryginalny zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Obsługiwane są tylko zapisy jednoosobowe z jedną lokalną postacią. Nie wybrano postaci arbitralnie i nie zmieniono oryginału.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie udało się bezpiecznie sprawdzić formatu postaci. Obecnie obsługiwane: Build 42, wersja świata 249. Oryginał nie został zmieniony.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie można bezpiecznie edytować tego zapisu. Sprawdź, czy wersja PZ Tools obsługuje wersję gry. Oryginał nie został zmieniony.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Odczyt nieudany; nastąpi ponowna próba</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gra lub inna operacja korzysta z wymaganego pliku. Poczekaj na zakończenie zapisywania lub tej operacji i spróbuj ponownie.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Za mało wolnego miejsca. Zwolnij miejsce na dysku docelowym i spróbuj ponownie.</value></data>
@@ -388,16 +396,47 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Ponowne użycie identycznych danych z kopii zapasowej</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Włączone</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Wyłączone</value></data>
-  <data name="GameExtensions.Title" xml:space="preserve"><value>Rozszerzenia gry</value></data>
-  <data name="GameExtensions.Description" xml:space="preserve"><value>Zarządzaj opcjonalnymi ulepszeniami gry.</value></data>
-  <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Płynne zapisywanie</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Zachowuje oryginalny zapis gry, pomija wymuszone renderowanie podglądu i zapisuje istniejące pliki chunków w tle. Serializacja, zapis natywny i niektóre operacje na plikach nadal mogą wstrzymywać grę. Nieobsługiwane wersje używają standardowego zapisu.</value></data>
-  <data name="GameExtensions.Disabled" xml:space="preserve"><value>Wyłączone · Standardowy zapis</value></data>
-  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Zgodność sprawdzana przy następnym zapisie &#183; Eksperymentalne</value></data>
-  <data name="GameExtensions.Configure" xml:space="preserve"><value>Konfiguruj</value></data>
-  <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Ustawienia: {0}</value></data>
-  <data name="GameExtensions.Apply" xml:space="preserve"><value>Zastosuj</value></data>
-  <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Ustawienia rozszerzeń są niedostępne</value></data>
-  <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Nie udało się zapisać zmian. Otwórz stronę ponownie i sprawdź plik ustawień rozszerzeń.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Zachowuje oryginalny zapis gry, pomija wymuszone renderowanie podglądu i zapisuje istniejące pliki chunków w tle. Serializacja, zapis natywny i niektóre operacje na plikach nadal mogą wstrzymywać grę. Nieobsługiwane wersje używają standardowego zapisu.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Wstrzymuj kopie podczas pauzy w grze</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pauza w grze zatrzymuje odliczanie do następnej okresowej kopii. Odliczanie jest kontynuowane po wznowieniu gry. Oczekuje także, gdy nie można sprawdzić stanu gry.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gra wstrzymana</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Sprawdzanie stanu gry</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Uruchom tylko jedną grę</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Sprawdź wynik ostatniego zapisu gry, a następnie ponownie włącz automatyczne kopie.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Zastosuj</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Usuń filtr</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Usuń wszystkie</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknij, aby filtrować</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknij, aby zmienić wyświetlane wpisy</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 lub 40-50. Puste pole oznacza brak limitu.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Wpisz liczbę całkowitą lub zakres rosnący.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Wpisz datę i godzinę lub użyj przycisku kalendarza. Puste pole oznacza brak ograniczenia.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Wpisz prawidłowe daty i godziny; początek nie może być późniejszy niż koniec.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Pozostało {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Ostatnie 24 godziny</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Wybierz datę i godzinę</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Użyj tej daty i godziny</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>Rozszerzenia gry</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>Zarządzaj opcjonalnymi ulepszeniami gry.</value></data>
+<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Płynne zapisywanie</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Zachowuje oryginalny zapis gry, pomija wymuszone renderowanie podglądu i zapisuje istniejące pliki chunków w tle. Serializacja, zapis natywny i niektóre operacje na plikach nadal mogą wstrzymywać grę. Nieobsługiwane wersje używają standardowego zapisu.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>Wyłączone · Standardowy zapis</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Zgodność sprawdzana przy następnym zapisie &#183; Eksperymentalne</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>Konfiguruj</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Ustawienia: {0}</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>Zastosuj</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>Ustawienia rozszerzeń są niedostępne</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Nie udało się zapisać zmian. Otwórz stronę ponownie i sprawdź plik ustawień rozszerzeń.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Zachowuje oryginalny zapis gry, pomija wymuszone renderowanie podglądu i zapisuje istniejące pliki chunków w tle. Serializacja, zapis natywny i niektóre operacje na plikach nadal mogą wstrzymywać grę. Nieobsługiwane wersje używają standardowego zapisu.</value></data>
+  <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Wszystkie wersje</value></data>
+  <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Wersja główna {0}</value></data>
+  <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Wersja podrzędna {0}</value></data>
+  <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Obsługiwane: {0} · Bieżąca gra: {1}</value></data>
+  <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Poza obsługiwanym zakresem · Rozszerzenie nieaktywne</value></data>
+  <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oczekiwanie na wersję gry · Rozszerzenie nieaktywne</value></data>
+  <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Wymuś włączenie poza obsługiwanym zakresem</value></data>
+  <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Niezgodne wersje mogą powodować błędy. Pomijany jest tylko zakres wersji; niezbędne kontrole bezpieczeństwa pozostają aktywne.</value></data>
+  <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ograniczenie wersji pominięte · Kontrole bezpieczeństwa zachowane</value></data>
 </root>

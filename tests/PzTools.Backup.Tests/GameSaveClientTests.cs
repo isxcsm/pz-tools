@@ -13,6 +13,20 @@ namespace PzTools.Backup.Tests;
 public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [BridgeFact]
+    public async Task Bridge_StoresStableCharacterAndHandIdsBeforeRequiredSave()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = Client();
+        await client.RequestAsync(game.Pid, temp.Path, true);
+        var first = await File.ReadAllLinesAsync(temp.GetPath("recovery-stamp.txt"));
+        Assert.True(Guid.TryParse(first[0], out _));
+        Assert.Equal("777.0", first[1]); Assert.Equal("888.0", first[2]);
+        await client.RequestAsync(game.Pid, temp.Path, true);
+        Assert.Equal(first, await File.ReadAllLinesAsync(temp.GetPath("recovery-stamp.txt")));
+        Assert.Equal(2, File.ReadAllLines(temp.GetPath("calls.txt")).Length);
+    }
+    [BridgeFact]
     public async Task Bridge_AllCatalogLanguagesUsePackagedUtf8Messages()
     {
         using var temp = new TempDirectory();
@@ -250,7 +264,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         while (!File.Exists(temp.GetPath("control-state.txt"))) await Task.Delay(20, deadline.Token);
         var fields = (await File.ReadAllTextAsync(temp.GetPath("control-state.txt"))).Split(':');
-        Assert.Equal("1", fields[0]);
+        Assert.Equal("2", fields[0]);
         using (var socket = new System.Net.Sockets.TcpClient())
         {
             await socket.ConnectAsync(System.Net.IPAddress.Loopback, int.Parse(fields[2]), deadline.Token);

@@ -36,3 +36,5 @@ New-Item -ItemType Directory -Force $chunkFixture | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Chunk I/O fixture compilation failed.' }
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.DeferredChunkWriteTest $chunkFixture
 if ($LASTEXITCODE -ne 0) { throw 'Deferred chunk I/O behavior test failed.' }
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) VersionSupportTest (Join-Path $root 'tests/game-extensions/version-support.tsv')
+if ($LASTEXITCODE -ne 0) { throw 'Shared extension version rules failed.' }

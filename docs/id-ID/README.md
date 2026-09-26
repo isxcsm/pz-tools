@@ -72,7 +72,7 @@ Buat cadangan manual atau ekspor ZIP terlebih dahulu: **pemulihan karakter tidak
 
 Penyembuhan atau kebangkitan memulihkan kesehatan dan menghapus luka serta kondisi sementara yang didukung. Sifat positif dan negatif, pengalaman, keterampilan, resep, serta inventaris yang ada tetap dipertahankan. Ini bukan kekebalan permanen dan tidak menghapus seluruh efek khusus mod.
 
-Jika inventaris karakter yang mati kosong, barang hanya dapat diambil dari satu catatan zombi pemain yang cocok secara unik berdasarkan posisi tersimpan dan nama pada kartu identitas. Zombi yang berpindah, target tanpa kartu identitas, dan mayat dalam bagian peta tidak didukung. Peralatan di tangan mungkin perlu dipasang kembali. Lihat [pemulihan dan batasannya (Inggris)](../character-recovery.md).
+Jika kematian mengosongkan inventaris, ambil barang dari zombi atau jasad karakter lalu hapus sumber itu. Kartu identitas tidak diperlukan. Kondisi barang, isi tas, pakaian, dan data pemasangan dipertahankan. ID barang tersimpan memulihkan perlengkapan tangan jika tersedia; jika tidak, pasang kembali secara manual. Barang yang hilang tidak dibuat. Identitas yang tidak pasti menghentikan perubahan. [pemulihan dan batasannya (Inggris)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>

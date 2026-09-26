@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace PzTools.GameExtensions;
 
 public sealed record ExtensionDefinition(string Id, string Version, string TitleKey,
-    string DescriptionKey, string ReadinessCode, IReadOnlyList<string> Capabilities);
+    string DescriptionKey, string ReadinessCode, IReadOnlyList<string> Capabilities, GameVersionSupport? SupportedVersions = null);
 
 public static partial class ExtensionIds
 {
@@ -17,18 +17,7 @@ public static partial class ExtensionIds
     private static partial Regex ValidId();
 }
 
-// Discovery is deliberately curated in v1. No arbitrary JAR, XAML, shell or network package execution.
-public static class ExtensionCatalog
-{
-    public static IReadOnlyList<ExtensionDefinition> BuiltIn { get; } = Array.AsReadOnly(new[]
-    {
-        new ExtensionDefinition(ExtensionIds.SeamlessSave, "0.3.0", "Extension.SeamlessSave.Title",
-            "Extension.SeamlessSave.Description", "compatibility-on-request",
-            Array.AsReadOnly(new[] { "save.prepare.v1" })),
-    });
-}
-
-public sealed record ExtensionPreference(bool Enabled = false);
+public sealed record ExtensionPreference(bool Enabled = false, bool ForceVersion = false);
 public sealed record ExtensionConfiguration(int SchemaVersion, long Revision,
     Dictionary<string, ExtensionPreference> Extensions)
 {
@@ -36,28 +25,53 @@ public sealed record ExtensionConfiguration(int SchemaVersion, long Revision,
 }
 
 public sealed record ExtensionCardView(ExtensionDefinition Definition, bool Enabled,
-    string StatusCode, long SettingsRevision);
+    string StatusCode, long SettingsRevision, bool ForceVersion = false, bool VersionMatches = true, string? GameVersion = null)
+{
+    public ExtensionCardView WithVersion(string? version)
+    {
+        bool matches = (Definition.SupportedVersions ?? GameVersionSupport.All).Matches(version);
+        string status = !matches && !ForceVersion ? version is null ? "version-unknown" : "version-mismatch"
+            : !Enabled ? "disabled" : ForceVersion && !matches ? "forced-version" : Definition.ReadinessCode;
+        return this with { GameVersion = version, VersionMatches = matches, StatusCode = status };
+    }
+    public bool CanEnable => VersionMatches || ForceVersion;
+    public bool EffectiveEnabled => Enabled && CanEnable;
+}
 
 public sealed class ExtensionSettingsConflictException()
     : IOException("Extension settings changed in another client. Reload before applying.");
 
 /// <summary>Management plane only. A saved preference is never evidence of an applied game patch.</summary>
-public sealed class GameExtensionService(ExtensionSettingsStore settings)
+public sealed class GameExtensionService(ExtensionSettingsStore settings, Func<string?>? gameVersion = null, Func<IReadOnlyList<ExtensionDefinition>>? catalogue = null)
 {
     public IReadOnlyList<ExtensionCardView> ReadCards()
     {
         var config = settings.Read();
-        return ExtensionCatalog.BuiltIn.Select(definition =>
+        return (catalogue?.Invoke() ?? ExtensionCatalog.BuiltIn).Select(definition =>
         {
-            var enabled = config.Extensions.GetValueOrDefault(definition.Id)?.Enabled ?? false;
+            var preference = config.Extensions.GetValueOrDefault(definition.Id) ?? new();
+            var enabled = preference.Enabled;
+            var version = gameVersion?.Invoke();
+            bool matches = (definition.SupportedVersions ?? GameVersionSupport.All).Matches(version);
             return new ExtensionCardView(definition, enabled,
-                enabled ? definition.ReadinessCode : "disabled", config.Revision);
+                !matches && !preference.ForceVersion ? version is null ? "version-unknown" : "version-mismatch"
+                    : !enabled ? "disabled" : preference.ForceVersion && !matches ? "forced-version" : definition.ReadinessCode,
+                config.Revision, preference.ForceVersion, matches, version);
         }).ToArray();
+    }
+    public IReadOnlyList<ExtensionCardView> SetPreference(string id, bool enabled, bool forceVersion, long revision)
+    {
+        var card = ReadCards().Single(item => item.Definition.Id == id);
+        if (enabled && !card.VersionMatches && !forceVersion) throw new InvalidDataException("Extension version mismatch; explicit override required.");
+        settings.SetPreference(id, new(enabled, forceVersion), revision);
+        return ReadCards();
     }
     public IReadOnlyList<ExtensionCardView> SetEnabled(string id, bool enabled, long revision)
     {
-        if (!ExtensionCatalog.BuiltIn.Any(item => item.Id == id))
+        if (!(catalogue?.Invoke() ?? ExtensionCatalog.BuiltIn).Any(item => item.Id == id))
             throw new ArgumentException("Unknown extension.", nameof(id));
+        var card = ReadCards().Single(item => item.Definition.Id == id);
+        if (enabled && !card.CanEnable) throw new InvalidDataException("Extension version mismatch; explicit override required.");
         settings.SetEnabled(id, enabled, revision);
         return ReadCards();
     }

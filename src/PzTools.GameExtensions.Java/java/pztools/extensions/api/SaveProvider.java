@@ -17,10 +17,14 @@ public interface SaveProvider {
     PreparedSave capture(Context context, long maximumBytes) throws Exception;
 
     record Context(String requestId, String sessionId, String worldId, Path sourcePath,
-                   Thread gameThread, ClassLoader gameClasses, AtomicBoolean worldValid) {
+                   Thread gameThread, ClassLoader gameClasses, AtomicBoolean worldValid, String gameVersion, boolean forceVersion) {
         public Context(String requestId, String sessionId, String worldId, Path sourcePath,
                        Thread gameThread, ClassLoader gameClasses) {
-            this(requestId, sessionId, worldId, sourcePath, gameThread, gameClasses, new AtomicBoolean(true));
+            this(requestId, sessionId, worldId, sourcePath, gameThread, gameClasses, new AtomicBoolean(true), null, false);
+        }
+        public Context(String requestId, String sessionId, String worldId, Path sourcePath,
+                       Thread gameThread, ClassLoader gameClasses, AtomicBoolean worldValid) {
+            this(requestId, sessionId, worldId, sourcePath, gameThread, gameClasses, worldValid, null, false);
         }
         public Context {
             Objects.requireNonNull(requestId); Objects.requireNonNull(sessionId); Objects.requireNonNull(worldId);

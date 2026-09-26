@@ -72,7 +72,7 @@ Erstelle zuerst eine manuelle Sicherung oder ein ZIP: **Die Charakterwiederherst
 
 Heilung oder Wiederbelebung stellt Gesundheit wieder her und entfernt unterstützte Verletzungen und vorübergehende Zustände. Positive und negative Eigenschaften, Erfahrung, Fähigkeiten, Rezepte und vorhandenes Inventar bleiben erhalten. Das ist keine dauerhafte Immunität und entfernt nicht alle modabhängigen Effekte.
 
-Bei leerem Inventar eines verstorbenen Charakters ist eine Gegenstandsrückholung nur aus einem eindeutig passenden gespeicherten Spielerzombie möglich, anhand von Position und Ausweisname. Bewegte Zombies, Ziele ohne Ausweis und Leichen in Karten-Chunks werden nicht unterstützt. Handausrüstung muss eventuell neu zugewiesen werden. Siehe [Charakterwiederherstellung und Grenzen (Englisch)](../character-recovery.md).
+Ist das Inventar durch den Tod leer, werden Gegenstände vom eigenen Zombie oder Leichnam zurückgeholt und die Quelle entfernt. Ein Ausweis ist nicht nötig. Zustand, Tascheninhalt sowie Kleidungs- und Befestigungsdaten bleiben erhalten. Gespeicherte Gegenstands-IDs stellen die Handbelegung wieder her, sofern vorhanden; sonst ist erneutes Ausrüsten nötig. Fehlende Gegenstände werden nicht erzeugt. Bei unklarer Identität erfolgt keine Änderung. [Charakterwiederherstellung und Grenzen (Englisch)](../character-recovery.md)
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-limits"></a>
