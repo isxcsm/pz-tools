@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>จำนวนข้อมูลสำรองอัตโนมัติที่เก็บไว้</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุด 1–100 ชุด ขีดจำกัดนี้จะไม่ลบข้อมูลสำรองที่สร้างด้วยตนเอง</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครตาย</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>ทำงานเมื่อเปิดการสำรองอัตโนมัติเท่านั้น และจะเก็บการตั้งค่านี้ไว้เมื่อปิด</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>สำรองข้อมูลเมื่อเกมที่กำลังทำงานรายงานว่าตัวละครเสียชีวิต ต้องเปิดการสำรองอัตโนมัติ การหยุดเกมชั่วคราวไม่ขัดขวางการสำรองนี้ ข้อมูลการเสียชีวิตในเซฟเกมจะแยกจัดเก็บต่างหาก</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>ตรวจสอบไฟล์ที่คัดลอก</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>ตรวจสอบว่าไฟล์ที่คัดลอกมีเนื้อหาตรงกับต้นฉบับ หากต้นฉบับเปลี่ยนระหว่างคัดลอก ระบบจะคัดลอกใหม่</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>ไฟล์เซฟเปลี่ยนแปลงต่อเนื่องระหว่างสำรองข้อมูล รอให้เกมบันทึกเสร็จแล้วลองสำรองอีกครั้ง</value></data>
@@ -435,4 +435,9 @@
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>บังคับเปิดใช้งานนอกช่วงที่รองรับ</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>เวอร์ชันที่เข้ากันไม่ได้อาจทำให้เกิดข้อผิดพลาด ตัวเลือกนี้ข้ามเฉพาะข้อจำกัดเวอร์ชัน แต่ยังคงตรวจสอบความปลอดภัยที่จำเป็น</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>ข้ามข้อจำกัดเวอร์ชัน · ยังคงตรวจสอบความปลอดภัย</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>กำลังบันทึกด้วยส่วนขยาย</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>คำขอล่าสุด: บันทึกด้วยส่วนขยายสำเร็จ</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>คำขอล่าสุด: ใช้การบันทึกมาตรฐาน ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>คำขอล่าสุด: บันทึกไม่สำเร็จ ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>เตรียมข้อมูลในเธรดเกม {0:N0} มิลลิวินาที · เสร็จสิ้น {1:N0} มิลลิวินาที</value></data>
 </root>

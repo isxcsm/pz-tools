@@ -2,6 +2,13 @@
 
 [Documentation index](README.md) · [Save bridge](save-bridge.md)
 
+## Live death and execution feedback
+
+The shared runtime now carries independent live character/death facts and the actual
+save provider result. See [live-state ownership and validation](runtime-character-death.md).
+The extension card's last execution outcome and preparation/total timings are implemented;
+the preference itself is never presented as proof of successful application.
+
 ## Current implementation (0.4, experimental)
 
 The Game Extensions page contains the Seamless Saving card, a persisted toggle and
@@ -89,9 +96,11 @@ or successfully patching every game release.
 5. **Real-game restore coverage is pending:** discovered-but-unoccupied vehicles,
    inventory transfers, mods' OnSave data, interrupted writes, world exit and reload.
    Synthetic Java tests do not replace these checks.
-6. **Card status is intent/compatibility, not an applied-patch receipt.** It shows
-   live game version, range, override and next-save compatibility checks. Persisted
-   per-module last-result/actual-application status is not yet implemented.
+**Completed follow-up:** The card now shows the last admitted extension-save outcome,
+actual provider/fallback code, and game-thread preparation/total timings from the shared
+runtime stream. This is session-scoped observed execution, not a persistent result archive.
+The installed-game structural check now also includes IsoChunk (five verified classes);
+real-game behavior and restoration checks above remain outstanding.
 
 This integration does not claim to finish the remaining nonblocking save work.
 No real game is attached/saved by its automated validation; all mutation fixtures

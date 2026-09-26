@@ -82,7 +82,9 @@ public sealed class AppHost : IAsyncDisposable
         GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
             () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
-            Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"));
+            Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"),
+            () => { var o = runtimeSnapshot.Read(); var s = o.Snapshot; var result = s?.LastSave;
+                return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; });
     }
 
     public RevisionedViewStore Views { get; }

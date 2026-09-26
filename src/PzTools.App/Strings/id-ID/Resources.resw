@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Jumlah cadangan otomatis</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Simpan 1–100 cadangan otomatis terbaru. Batas ini tidak menghapus cadangan manual.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Cadangkan saat karakter mati</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Hanya berjalan saat pencadangan otomatis aktif. Pilihan ini tetap disimpan saat pencadangan otomatis dinonaktifkan.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Cadangkan saat gim yang berjalan melaporkan kematian karakter. Memerlukan pencadangan otomatis; jeda gim tidak menghalangi pencadangan ini. Informasi kematian dalam simpanan gim dikelola terpisah.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Periksa berkas yang disalin</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Memeriksa apakah berkas salinan sama dengan aslinya. Berkas yang berubah saat disalin akan disalin ulang.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Berkas simpanan terus berubah selama pencadangan. Tunggu hingga gim selesai menyimpan, lalu coba cadangkan lagi.</value></data>
@@ -435,4 +435,9 @@ Diterapkan pada save pemain tunggal yang dipilih setelah berhenti bermain.</valu
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Paksa aktifkan di luar rentang dukungan</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versi yang tidak kompatibel dapat menyebabkan kesalahan. Hanya batas versi yang diabaikan; pemeriksaan keamanan penting tetap aktif.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Batas versi diabaikan · Pemeriksaan penting tetap aktif</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Penyimpanan ekstensi berlangsung</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Permintaan terakhir: penyimpanan ekstensi selesai</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Permintaan terakhir: penyimpanan standar digunakan ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Permintaan terakhir: penyimpanan gagal ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Persiapan thread gim {0:N0} ms · selesai {1:N0} ms</value></data>
 </root>

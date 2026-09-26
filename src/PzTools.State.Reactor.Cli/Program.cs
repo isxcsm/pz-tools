@@ -19,13 +19,7 @@ try
         : await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync();
     if (runIndex <= 0) throw new ArgumentOutOfRangeException("--run-index");
     hasRunIndex = true;
-    var configuration = ComponentConfiguration.Load(
-        statePath, "state-reactor", configurationPath,
-        Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "settings.toml"));
-    var result = await new StateReactor().RunAsync(
-        database,
-        new StateReactorOptions(
-            configuration.GetBoolean("state", "backup_on_death", false)));
+    var result = await new StateReactor().RunAsync(database);
     await TryTelemetryAsync(
         statePath, runIndex, "reactor.completed", configurationPath);
     Console.WriteLine(ProcessResultJson.Serialize(

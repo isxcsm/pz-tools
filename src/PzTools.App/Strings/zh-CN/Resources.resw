@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自动备份保留数量</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>保留最近 1–100 个自动备份。此数量限制不会删除手动备份。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡时备份</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>仅在自动备份开启时生效。关闭自动备份后仍会保留此设置。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>运行中的游戏实时报告角色死亡时进行备份。需开启自动备份；游戏暂停不会阻止此备份。存档中的死亡信息单独保留。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>检查复制的文件</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>检查复制后的文件是否与原文件一致。如果复制期间原文件发生变化，则重新复制。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>备份期间存档文件一直在变化。请等待游戏保存完成后重新备份。</value></data>
@@ -435,4 +435,9 @@
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>忽略支持范围并强制启用</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>不兼容的版本可能导致错误。此选项仅绕过版本范围限制，不会关闭必要的安全检查。</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>已忽略版本限制 · 保留必要安全检查</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>正在使用扩展保存</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>上次请求：扩展保存完成</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>上次请求：使用标准保存（{0}）</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>上次请求：保存失败（{0}）</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>游戏线程准备 {0:N0} 毫秒 · 完成用时 {1:N0} 毫秒</value></data>
 </root>

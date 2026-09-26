@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Кількість автоматичних копій</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Зберігати останні 1–100 автоматичних копій. Цей ліміт не видаляє ручні копії.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Створювати копію після смерті персонажа</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Працює лише з увімкненими автоматичними копіями. Це налаштування зберігається після їх вимкнення.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Створює копію, коли запущена гра повідомляє про смерть персонажа. Потребує автоматичних копій; пауза гри не блокує цю копію. Відомості про смерть у збереженнях зберігаються окремо.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Перевіряти скопійовані файли</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Перевіряє, чи збігається вміст копій з оригіналами. Якщо файл зміниться під час копіювання, його буде скопійовано знову.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Під час резервного копіювання файли збереження постійно змінювалися. Дочекайтеся завершення збереження в грі та повторіть спробу.</value></data>
@@ -435,4 +435,9 @@
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Примусово ввімкнути поза підтримуваним діапазоном</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Несумісні версії можуть спричиняти помилки. Ігнорується лише діапазон версій; обов’язкові перевірки безпеки залишаються активними.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Обмеження версії вимкнено · Обов’язкові перевірки збережено</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Триває збереження розширенням</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Останній запит: збереження розширенням завершено</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Останній запит: звичайне збереження ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Останній запит: помилка збереження ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Підготовка в потоці гри: {0:N0} мс · завершення: {1:N0} мс</value></data>
 </root>

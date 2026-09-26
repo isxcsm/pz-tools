@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Cantidad de copias automáticas</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserva las últimas 1–100 copias automáticas. Este límite no elimina copias manuales.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crear copia cuando muera el personaje</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Solo funciona con las copias automáticas activadas. Esta preferencia se conserva al desactivarlas.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Crea un respaldo cuando el juego en ejecución informa de la muerte del personaje. Requiere respaldos automáticos; la pausa no bloquea este respaldo. La información de muerte de las partidas guardadas se mantiene por separado.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verificar los archivos copiados</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Comprueba que las copias coincidan con los archivos originales. Si un archivo cambia durante la copia, se vuelve a copiar.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Los archivos de la partida cambiaron repetidamente durante la copia de seguridad. Espera a que el juego termine de guardar y vuelve a intentarlo.</value></data>
@@ -435,4 +435,9 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Forzar la activación fuera del rango compatible</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Las versiones incompatibles pueden causar errores. Solo se omite el límite de versiones; las comprobaciones de seguridad esenciales siguen activas.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Límite de versión omitido · Comprobaciones esenciales activas</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Guardado de la extensión en curso</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Última solicitud: guardado de la extensión completado</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Última solicitud: se usó el guardado estándar ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Última solicitud: error al guardar ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Preparación en el hilo del juego: {0:N0} ms · finalización: {1:N0} ms</value></data>
 </root>

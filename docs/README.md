@@ -104,3 +104,5 @@ Do not include private save data or personal paths unnecessarily.
 
 실행 패키지가 아직 없으면 소스 빌드 안내를 사용하세요. 문의에는 재현 순서와
 관련 로그를 적되 불필요한 전체 세이브나 개인 경로는 올리지 마세요.
+
+Live JVM character state and extension execution feedback: [design and validation](runtime-character-death.md).

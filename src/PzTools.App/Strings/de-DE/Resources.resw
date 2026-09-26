@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Anzahl automatischer Sicherungen</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Die letzten 1–100 automatischen Sicherungen behalten. Manuelle Sicherungen werden durch dieses Limit nicht gelöscht.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Nur bei eingeschalteten automatischen Sicherungen aktiv. Diese Einstellung bleibt beim Ausschalten erhalten.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Sichert, wenn das laufende Spiel den Tod der Spielfigur meldet. Erfordert automatische Sicherungen; eine Spielpause blockiert diese Sicherung nicht. Todesangaben im Spielstand bleiben davon getrennt.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopierte Dateien prüfen</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Prüft, ob die Kopien mit den Originaldateien übereinstimmen. Ändert sich eine Datei während des Kopierens, wird sie erneut kopiert.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Die Spielstanddateien haben sich während der Sicherung wiederholt geändert. Warte, bis das Spiel fertig gespeichert hat, und versuche es erneut.</value></data>
@@ -435,4 +435,9 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Außerhalb des unterstützten Bereichs erzwingen</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Inkompatible Versionen können Fehler verursachen. Nur die Versionsbegrenzung wird umgangen; notwendige Sicherheitsprüfungen bleiben aktiv.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Versionsbegrenzung ignoriert · Sicherheitsprüfungen bleiben aktiv</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Erweiterte Speicherung läuft</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Letzte Anfrage: Erweiterte Speicherung abgeschlossen</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Letzte Anfrage: Standardspeicherung verwendet ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Letzte Anfrage: Speichern fehlgeschlagen ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Vorbereitung im Spielthread {0:N0} ms · Abschluss {1:N0} ms</value></data>
 </root>

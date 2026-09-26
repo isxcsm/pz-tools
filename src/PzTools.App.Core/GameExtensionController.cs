@@ -1,12 +1,13 @@
 using PzTools.GameExtensions;
 using PzTools.Projections;
+using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.App.Core;
 
-public sealed record GameExtensionsView(IReadOnlyList<ExtensionCardView> Cards, bool GameSavingEnabled);
+public sealed record GameExtensionsView(IReadOnlyList<ExtensionCardView> Cards, bool GameSavingEnabled, RuntimeSaveExecution? LastSave = null);
 
 /// <summary>UI-independent controller. Disk I/O runs away from the dispatcher; only committed preferences are projected.</summary>
-public sealed class GameExtensionController(string runtimeRoot, RevisionedViewStore views, Func<bool>? gameSavingEnabled = null, Func<string?>? gameVersion = null, string? cataloguePath = null)
+public sealed class GameExtensionController(string runtimeRoot, RevisionedViewStore views, Func<bool>? gameSavingEnabled = null, Func<string?>? gameVersion = null, string? cataloguePath = null, Func<RuntimeSaveExecution?>? lastSave = null)
 {
     public static ViewKey ViewKey { get; } = new("game-extensions");
     private readonly GameExtensionService service = new(new ExtensionSettingsStore(runtimeRoot), gameVersion,
@@ -55,14 +56,14 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
     private GameExtensionsView Publish(IReadOnlyList<ExtensionCardView> cards)
     {
         cachedCards = cards;
-        var view = new GameExtensionsView(cards, gameSavingEnabled?.Invoke() ?? true);
+        var view = new GameExtensionsView(cards, gameSavingEnabled?.Invoke() ?? true, lastSave?.Invoke());
         views.Publish(ViewKey, view, comparer: new ViewComparer());
         return view;
     }
     private sealed class ViewComparer : IEqualityComparer<GameExtensionsView>
     {
         public bool Equals(GameExtensionsView? x, GameExtensionsView? y) =>
-            ReferenceEquals(x, y) || x is not null && y is not null && x.GameSavingEnabled == y.GameSavingEnabled && x.Cards.SequenceEqual(y.Cards);
+            ReferenceEquals(x, y) || x is not null && y is not null && x.GameSavingEnabled == y.GameSavingEnabled && x.LastSave == y.LastSave && x.Cards.SequenceEqual(y.Cards);
         public int GetHashCode(GameExtensionsView obj) => obj.Cards.Count;
     }
 }

@@ -7,10 +7,8 @@ public sealed class StateReactor
 {
     public async Task<ReactorResult> RunAsync(
         StateDatabase database,
-        StateReactorOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        options ??= new StateReactorOptions();
         await using var connection = await database.OpenAsync(cancellationToken);
         using var transaction = connection.BeginTransaction();
         try
@@ -172,18 +170,8 @@ public sealed class StateReactor
                             nextRevision,
                             cancellationToken);
                         transitionCount++;
-                        if (options.BackupOnDeath
-                            && confirmed == ActivityState.Active
-                            && observation.Activity == ActivityState.Active
-                            && observation.ActivityLaneStatus == LaneStatus.Succeeded
-                            && previousCharacter == CharacterState.Alive
-                            && character == CharacterState.Dead)
-                        {
-                            await InsertOutboxAsync(
-                                connection, transaction, transitionId, "RunOnceNow",
-                                ToBackupTarget(observation), batch.RunIndex, cancellationToken);
-                            outboxCount++;
-                        }
+                        // Persisted character changes update save metadata only. Live death commands come from JVM facts.
+
                     }
                 }
 

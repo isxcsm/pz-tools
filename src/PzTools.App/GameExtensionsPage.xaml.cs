@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using PzTools.App.Core;
 using PzTools.GameExtensions;
+using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.App;
 
@@ -97,6 +98,19 @@ public sealed partial class GameExtensionsPage : UserControl
                 TextWrapping = TextWrapping.Wrap,
             });
             description.Children.Add(new TextBlock { Text = VersionDescription(item), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
+            if (view.LastSave is { } last && last.RequestedProvider == item.Definition.Id)
+            {
+                string text = last.Outcome switch
+                {
+                    RuntimeSaveOutcome.Running => Localizer.Get("GameExtensions.ExecutionRunning"),
+                    RuntimeSaveOutcome.Failed => Localizer.Format("GameExtensions.ExecutionFailed", last.Reason ?? "save-failed"),
+                    _ when last.Provider != item.Definition.Id => Localizer.Format("GameExtensions.ExecutionFallback", last.Reason ?? "module-unavailable"),
+                    _ => Localizer.Get("GameExtensions.ExecutionSucceeded"),
+                };
+                description.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
+                if (last.Outcome != RuntimeSaveOutcome.Running)
+                    description.Children.Add(new TextBlock { Text = Localizer.Format("GameExtensions.ExecutionTiming", last.GameThreadMilliseconds, last.ElapsedMilliseconds), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
+            }
             var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
             var configure = new Button { Content = Localizer.Get("GameExtensions.Configure"), IsEnabled = !applying };
             configure.Click += async (_, _) => await ConfigureAsync(item);

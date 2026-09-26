@@ -10,7 +10,7 @@ public sealed class StateOutboxRelay
         {
             var identity = observation.Snapshot is { } snapshot ? RuntimeSaveResolver.Resolve(snapshot, savesRoot) : null;
             var target = identity is null ? null : new BackupTarget(identity.SaveId, identity.SaveId, identity.SourcePath);
-            await scheduler.ApplyRuntimeTransitionAsync(observation, target, token);
+            await scheduler.ApplyRuntimeTransitionAsync(observation, target, token, RuntimeDeathPolicy.EventKey(observation.Snapshot) is not null && RuntimeDeathPolicy.ReadEnabled(state.DatabasePath));
             await state.AcknowledgeRuntimeAsync(observation.StateRevision, token);
         }
     }
@@ -23,6 +23,8 @@ public sealed class StateOutboxRelay
         var count = 0;
         foreach (var message in await stateDatabase.ReadPendingOutboxAsync(cancellationToken))
         {
+            // Retire any pre-upgrade DB-derived death command instead of replaying it as a live event.
+            if (message.Command == "RunOnceNow") { await stateDatabase.AcknowledgeOutboxAsync(message.MessageId, cancellationToken); continue; }
             var commandKind = message.Command switch
             {
                 "ActivateTarget" => BackupTargetCommandKind.ActivateTarget,

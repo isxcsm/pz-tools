@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Liczba automatycznych kopii</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Zachowaj ostatnie 1–100 automatycznych kopii. Ten limit nie usuwa kopii ręcznych.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Twórz kopię po śmierci postaci</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Działa tylko przy włączonych automatycznych kopiach. To ustawienie jest zachowywane po ich wyłączeniu.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Tworzy kopię, gdy uruchomiona gra zgłosi śmierć postaci. Wymaga kopii automatycznych; pauza gry jej nie blokuje. Informacje o śmierci w zapisach gry są przechowywane osobno.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Sprawdzaj skopiowane pliki</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Sprawdza, czy skopiowane pliki są zgodne z oryginałami. Jeśli plik zmieni się podczas kopiowania, zostanie skopiowany ponownie.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Pliki zapisu gry zmieniały się podczas tworzenia kopii. Poczekaj, aż gra zakończy zapisywanie, i spróbuj ponownie.</value></data>
@@ -435,4 +435,9 @@ Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Wymuś włączenie poza obsługiwanym zakresem</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Niezgodne wersje mogą powodować błędy. Pomijany jest tylko zakres wersji; niezbędne kontrole bezpieczeństwa pozostają aktywne.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ograniczenie wersji pominięte · Kontrole bezpieczeństwa zachowane</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Trwa zapis przez rozszerzenie</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Ostatnie żądanie: zapis przez rozszerzenie ukończony</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Ostatnie żądanie: użyto zwykłego zapisu ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Ostatnie żądanie: zapis nie powiódł się ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Przygotowanie w wątku gry: {0:N0} ms · zakończenie: {1:N0} ms</value></data>
 </root>

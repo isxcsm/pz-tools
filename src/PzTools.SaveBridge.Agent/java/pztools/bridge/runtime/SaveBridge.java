@@ -261,6 +261,9 @@ public final class SaveBridge {
             }
             if (!request.state.compareAndSet(1, 2)) return;
             request.saveStarted = System.nanoTime();
+            request.reportWorld = RuntimeIdentity.worldId(currentCell());
+            request.actualProvider = selected == null ? "pztools.standard-save" : selected.id();
+            publishExecution(request, "Running", request.fallbackReason);
             if (request.save) {
                 try { RecoveryStamp.record(gameLoader); }
                 catch (ReflectiveOperationException | RuntimeException failure) { request.recoveryError = describe(failure); }
@@ -269,16 +272,21 @@ public final class SaveBridge {
                 // No catch-and-replay: begin() may already have changed world state.
                 request.task = request.modules.begin(selected, request.context);
                 request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
+                publishExecution(request, "Running", request.fallbackReason);
                 return;
             }
             if (request.save) save.invoke(null, true);
+            request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
             completeSuccess(request, "pztools.standard-save", "STANDARD_CALL_RETURNED",
                 request.save ? "GameWindow.save(true) returned" : "Probe only; no save invoked");
         } catch (Throwable exception) {
             Throwable cause = exception instanceof InvocationTargetException invocation ? invocation.getCause() : exception;
             if (request.state.get() == 2 && (request.context == null || request.context.worldValid().get()))
                 completeNotice(request, false);
-            request.result.complete(error(cause instanceof RuntimeObserver.Deferred ? "runtime-deferred" : cause instanceof BridgeFailure failure ? failure.code : "save-failed", describe(cause)));
+            String failureCode = cause instanceof RuntimeObserver.Deferred ? "runtime-deferred" : cause instanceof BridgeFailure failure ? failure.code : "save-failed";
+            if (request.task == null && request.saveStarted != 0) request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
+            publishExecution(request, "Failed", failureCode);
+            request.result.complete(error(failureCode, describe(cause)));
         } finally {
             if (request.result.isDone()) {
                 request.state.set(3); pending.compareAndSet(request, null);
@@ -325,9 +333,17 @@ public final class SaveBridge {
             + (request.recoveryError == null ? "" : "; recovery-metadata-unavailable=" + request.recoveryError)
             + (request.task == null ? "" : "; captureMs=" + request.captureMillis)
             + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError);
+        publishExecution(request, "Succeeded", request.fallbackReason);
         if (request.requestedProvider == null) request.result.complete("OK\t" + encode(detail));
         else request.result.complete("SAVED\t" + provider + "\t" + completion + "\t" + encode(detail)
             + "\t" + (request.fallbackReason == null ? "-" : request.fallbackReason));
+    }
+
+    private static void publishExecution(Request request, String outcome, String reason) {
+        if (request.requestedProvider == null || request.reportWorld == null || request.saveStarted == 0) return;
+        SaveExecution.publish(new SaveExecution.Report(request.id, JVM_SESSION, request.reportWorld,
+            request.requestedProvider, request.actualProvider, outcome, reason, request.captureMillis,
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted)));
     }
 
     private static void completeNotice(Request request, boolean success) {
@@ -386,7 +402,7 @@ public final class SaveBridge {
         SaveTask task;
         SaveProvider.Context context;
         Object cell;
-        String requestedProvider, fallbackReason, saveDirectory, recoveryError;
+        String requestedProvider, fallbackReason, saveDirectory, recoveryError, reportWorld, actualProvider;
         long saveStarted, captureMillis;
         boolean forceVersion;
 

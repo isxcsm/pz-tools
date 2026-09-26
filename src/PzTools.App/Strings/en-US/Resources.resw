@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Automatic backup retention</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Keep the latest 1–100 automatic backups. This limit does not delete manual backups.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Back up when the character dies</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Only runs when automatic backups are on. This preference is kept while automatic backups are off.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Back up when the running game reports a character death. Requires automatic backups; game pause does not block this backup. Death information in saved games is kept separately.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Check copied files</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Check that copied files match the originals. If a file changes during copying, copy it again.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save kept changing during backup. Wait for the game to finish saving, then try the backup again.</value></data>
@@ -442,4 +442,9 @@ Applies to the selected single-player save after you stop playing.</value></data
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Force enable outside the supported range</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Incompatible versions may cause errors. This overrides the version range only; essential safety checks remain enabled.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Version override · Essential checks still apply</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Extension save in progress</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Last request: extension save completed</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Last request: standard save used ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Last request: save failed ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Game-thread preparation {0:N0} ms · completion {1:N0} ms</value></data>
 </root>

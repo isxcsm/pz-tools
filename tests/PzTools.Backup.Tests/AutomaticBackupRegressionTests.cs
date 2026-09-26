@@ -45,7 +45,7 @@ public sealed class AutomaticBackupRegressionTests
             await state.WritePendingBatchAsync(new(Guid.NewGuid().ToString("D"), run, now, now, 0, true,
                 [new SaveObservation(path, "Sandbox", "Save", true, false, activity, character,
                     LaneStatus.Succeeded, LaneStatus.Succeeded)]));
-            await new StateReactor().RunAsync(state, new StateReactorOptions(BackupOnDeath: true));
+            await new StateReactor().RunAsync(state);
         }
     }
 

@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Numero di backup automatici</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserva gli ultimi 1–100 backup automatici. Questo limite non elimina i backup manuali.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crea un backup alla morte del personaggio</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Funziona solo con i backup automatici attivi. Questa preferenza viene conservata quando li disattivi.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Esegue il backup quando il gioco in esecuzione segnala la morte del personaggio. Richiede i backup automatici; la pausa non blocca questo backup. Le informazioni sulla morte nei salvataggi sono gestite separatamente.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verifica i file copiati</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Controlla che i file copiati corrispondano agli originali. Se un file cambia durante la copia, viene copiato di nuovo.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>I file del salvataggio continuavano a cambiare durante il backup. Attendi che il gioco finisca di salvare, poi riprova.</value></data>
@@ -435,4 +435,9 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Forza l’attivazione fuori dall’intervallo supportato</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Le versioni incompatibili possono causare errori. Viene ignorato solo il limite di versione; i controlli di sicurezza essenziali restano attivi.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Limite di versione ignorato · Controlli essenziali mantenuti</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Salvataggio dell’estensione in corso</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Ultima richiesta: salvataggio dell’estensione completato</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Ultima richiesta: salvataggio standard utilizzato ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Ultima richiesta: salvataggio non riuscito ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Preparazione nel thread del gioco: {0:N0} ms · completamento: {1:N0} ms</value></data>
 </root>

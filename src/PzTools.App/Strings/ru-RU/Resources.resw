@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Количество автоматических копий</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Хранить последние 1–100 автоматических копий. Этот лимит не удаляет ручные копии.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Создавать копию при смерти персонажа</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Работает только при включённых автоматических копиях. Эта настройка сохраняется при их отключении.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Создаёт копию, когда запущенная игра сообщает о смерти персонажа. Требует автоматических копий; пауза игры не блокирует эту копию. Сведения о смерти в сохранениях хранятся отдельно.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Проверять скопированные файлы</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Проверять, совпадает ли содержимое копий с оригиналами. Если файл меняется во время копирования, скопировать его заново.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Во время резервного копирования файлы сохранения постоянно менялись. Дождитесь завершения сохранения в игре и повторите попытку.</value></data>
@@ -435,4 +435,9 @@
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Принудительно включить вне поддерживаемого диапазона</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Несовместимые версии могут вызывать ошибки. Игнорируется только диапазон версий; обязательные проверки безопасности сохраняются.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ограничение версии отключено · Обязательные проверки сохранены</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Сохранение расширением выполняется</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Последний запрос: сохранение расширением завершено</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Последний запрос: обычное сохранение ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Последний запрос: ошибка сохранения ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Подготовка в потоке игры: {0:N0} мс · завершение: {1:N0} мс</value></data>
 </root>

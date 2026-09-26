@@ -56,7 +56,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Počet automatických záloh</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Ponechat posledních 1–100 automatických záloh. Tento limit nemaže ruční zálohy.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Zálohovat při smrti postavy</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Funguje pouze při zapnutém automatickém zálohování. Tato volba zůstane po jeho vypnutí zachována.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Vytvoří zálohu, když spuštěná hra ohlásí smrt postavy. Vyžaduje automatické zálohy; pauza hry ji neblokuje. Údaje o smrti v uložených hrách se uchovávají odděleně.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kontrolovat zkopírované soubory</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kontroluje, zda zkopírované soubory odpovídají originálům. Pokud se soubor během kopírování změní, zkopíruje se znovu.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Soubory uložené hry se během zálohování opakovaně měnily. Počkejte, až hra dokončí ukládání, a zkuste zálohu znovu.</value></data>
@@ -435,4 +435,9 @@ Použije se na vybranou pozici pro jednoho hráče po ukončení hraní.</value>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Vynutit zapnutí mimo podporovaný rozsah</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Nekompatibilní verze mohou způsobit chyby. Tato volba obchází pouze rozsah verzí; nezbytné bezpečnostní kontroly zůstávají aktivní.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Omezení verze ignorováno · Bezpečnostní kontroly zachovány</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Probíhá ukládání rozšířením</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Poslední požadavek: uložení rozšířením dokončeno</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Poslední požadavek: použito běžné uložení ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Poslední požadavek: uložení selhalo ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Příprava ve vlákně hry: {0:N0} ms · dokončení: {1:N0} ms</value></data>
 </root>
