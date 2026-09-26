@@ -102,6 +102,15 @@ public final class SaveBridge {
                 request = new Request(!command[0].startsWith("PROBE"), expected, queueSeconds,
                     notice || (timed || extension || active) && !command[4].equals("off") ? command[4] : null, scheduledMillis, ticket);
                 request.modules = resolvedModules; request.provider = resolution.provider();
+                // Resolve the optional host capability before any capture is admitted.
+                // Runtime and payload use sibling class loaders; resident SaveTask stays unchanged.
+                if (resolvedModules != null) {
+                    try {
+                        request.cooperativeTask = Class.forName("pztools.extensions.runtime.CooperativeTask",
+                            false, resolvedModules.getClass().getClassLoader());
+                        request.advanceCapture = request.cooperativeTask.getMethod("advanceOnGameThread");
+                    } catch (ClassNotFoundException olderHost) { request.cooperativeTask = null; }
+                }
                 request.requestedProvider = extension ? command[6] : null;
                 request.fallbackReason = resolution.reason(); request.forceVersion = extension && command[7].equals("force");
                 if (!pending.compareAndSet(null, request))
@@ -281,7 +290,9 @@ public final class SaveBridge {
             if (selected != null) {
                 // No catch-and-replay: begin() may already have changed world state.
                 request.task = request.modules.begin(selected, request.context);
-                request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
+                request.captureNanos = System.nanoTime() - request.saveStarted;
+                request.maximumSliceNanos = request.captureNanos;
+                request.captureMillis = TimeUnit.NANOSECONDS.toMillis(request.captureNanos);
                 publishExecution(request, "Running", request.fallbackReason);
                 return;
             }
@@ -315,7 +326,19 @@ public final class SaveBridge {
                 }
             } catch (Exception worldEnded) { request.context.worldValid().set(false); }
         }
-        SaveTask.Result result = request.task.completed();
+        SaveTask.Result result;
+        long stepStarted = System.nanoTime();
+        try {
+            if (request.cooperativeTask != null && request.cooperativeTask.isInstance(request.task))
+                request.advanceCapture.invoke(request.task);
+            result = request.task.completed();
+        }
+        finally {
+            long occupied = System.nanoTime() - stepStarted;
+            request.captureNanos += occupied;
+            request.maximumSliceNanos = Math.max(request.maximumSliceNanos, occupied);
+            request.captureMillis = TimeUnit.NANOSECONDS.toMillis(request.captureNanos);
+        }
         if (result == null) return;
         if (!request.context.worldValid().get())
             throw new BridgeFailure("save-world-changed", "World changed before save completion was confirmed");
@@ -341,7 +364,8 @@ public final class SaveBridge {
         String detail = message + "; thread=" + Thread.currentThread().getName() + "; elapsedMs=" + elapsed
             + "; save=" + request.saveDirectory
             + (request.recoveryError == null ? "" : "; recovery-metadata-unavailable=" + request.recoveryError)
-            + (request.task == null ? "" : "; captureMs=" + request.captureMillis + "; " + request.task.diagnostics())
+            + (request.task == null ? "" : "; captureMs=" + request.captureMillis + "; maxCaptureSliceMs="
+                + TimeUnit.NANOSECONDS.toMillis(request.maximumSliceNanos) + "; " + request.task.diagnostics())
             + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError);
         publishExecution(request, "Succeeded", request.fallbackReason);
         if (request.requestedProvider == null) request.result.complete("OK\t" + encode(detail));
@@ -352,7 +376,8 @@ public final class SaveBridge {
     private static void publishExecution(Request request, String outcome, String reason) {
         if (request.requestedProvider == null || request.reportWorld == null || request.saveStarted == 0) return;
         SaveExecution.publish(new SaveExecution.Report(request.id, JVM_SESSION, request.reportWorld,
-            request.requestedProvider, request.actualProvider, outcome, reason, request.captureMillis,
+            request.requestedProvider, request.actualProvider, outcome, reason, request.task == null ? request.captureMillis
+                : TimeUnit.NANOSECONDS.toMillis(request.maximumSliceNanos),
             TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted)));
     }
 
@@ -410,10 +435,12 @@ public final class SaveBridge {
         SaveModules modules;
         SaveProvider provider;
         SaveTask task;
+        Class<?> cooperativeTask;
+        Method advanceCapture;
         SaveProvider.Context context;
         Object cell;
         String requestedProvider, fallbackReason, saveDirectory, recoveryError, reportWorld, actualProvider;
-        long saveStarted, captureMillis;
+        long saveStarted, captureMillis, captureNanos, maximumSliceNanos;
         boolean forceVersion;
 
         final boolean save;

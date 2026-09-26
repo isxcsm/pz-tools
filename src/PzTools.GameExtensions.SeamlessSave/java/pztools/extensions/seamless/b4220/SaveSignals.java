@@ -94,13 +94,20 @@ final class SaveSignals {
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
         private volatile boolean capturing = true, armed;
         OwnedChunkWrites.Batch chunks;
+        CooperativeChunkWrites.Batch cooperative;
         OwnedNativeSave.Batch nativeWork;
         String detail = "";
         public String diagnostics() { return detail; }
         Batch(SaveProvider.Context context, int expected, Thread databaseWorker) {
             this.context = context; this.databaseWorker = databaseWorker; pending = new AtomicInteger(expected);
         }
-        void arm() { if (chunks != null) chunks.seal(); capturing = false; armed = true; }
+        Throwable problem() { return failure.get(); }
+        void capturing(boolean value) { capturing = value; }
+        void arm() {
+            if (chunks != null) chunks.seal();
+            if (cooperative != null) cooperative.seal();
+            capturing = false; armed = true;
+        }
         void fail(Throwable error) { if (error != null) failure.compareAndSet(null, error); }
         void enterDrain() { synchronized (databaseGate) { inFlight++; } }
         void exitDrain() { synchronized (databaseGate) { inFlight--; databaseGate.notifyAll(); } }
@@ -124,10 +131,11 @@ final class SaveSignals {
             if (interrupted) Thread.currentThread().interrupt();
             return interrupted;
         }
-        public long retainedBytes() { return chunks == null ? 0 : chunks.retainedBytes(); }
-        public SaveProvider.Completion completion() { return chunks == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
+        public long retainedBytes() { return cooperative != null ? cooperative.retainedBytes() : chunks == null ? 0 : chunks.retainedBytes(); }
+        public SaveProvider.Completion completion() { return chunks == null && cooperative == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
         public void commit() throws Exception {
             if (chunks != null) chunks.await();
+            if (cooperative != null) cooperative.await();
             if (nativeWork != null) nativeWork.await();
             if (awaitDatabase()) throw new InterruptedException("Interrupted after draining owned database writes");
             if (!context.worldValid().get()) throw new IOException("World changed during save");
@@ -138,7 +146,10 @@ final class SaveSignals {
         }
         public void close() throws Exception {
             // Even cancellation/world exit must not leave detached writes behind a released save owner.
-            try { if (chunks != null) chunks.await(); }
+            try {
+                if (chunks != null) chunks.await();
+                if (cooperative != null) cooperative.await();
+            }
             finally {
                 // World invalidation is an error, not proof that a database thread stopped writing.
                 try { if (nativeWork != null) nativeWork.close(); }

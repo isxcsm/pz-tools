@@ -439,7 +439,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Letzte Anfrage: Erweiterte Speicherung abgeschlossen</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Letzte Anfrage: Standardspeicherung verwendet ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Letzte Anfrage: Speichern fehlgeschlagen ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Vorbereitung im Spielthread {0:N0} ms · Abschluss {1:N0} ms</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Längster Speicherschritt im Spiel-Thread {0:N0}ms · Abschluss {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Einen Kaffee spendieren</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>War PZ Tools hilfreich?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Der Unterstützungslink ist noch nicht verfügbar.</value></data>

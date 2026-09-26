@@ -75,6 +75,7 @@ public final class CheckpointRuntimeTest {
                     && oversized.poll().error() instanceof IllegalStateException, "Oversized snapshot cannot commit");
             }
             failedCaptureCleanupIsOwned(context);
+            pztools.extensions.seamless.b4220.CooperativeCaptureTest.run();
             ModuleReloadTest.run();
             System.out.println("PASS: unsupported adapter, detached capture, writer ownership, failure and memory budget");
         } finally {

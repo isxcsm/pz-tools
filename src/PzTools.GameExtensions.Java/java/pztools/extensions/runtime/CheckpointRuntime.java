@@ -27,7 +27,8 @@ public final class CheckpointRuntime implements AutoCloseable {
         if (closed.get()) throw new IllegalStateException("Runtime is closed");
         var support = provider.inspect(context);
         if (!support.supported()) throw new UnsupportedOperationException(support.reason());
-        var job = new Job(context);
+        var job = new Job(context, maximumBytes);
+        long started = System.nanoTime();
         if (!active.compareAndSet(null, job)) throw new IllegalStateException("A checkpoint is already owned");
         try {
             // Rejection occurs BEFORE touching the world. Shutdown cannot strand post-capture cleanup.
@@ -47,8 +48,10 @@ public final class CheckpointRuntime implements AutoCloseable {
                 throw new IllegalStateException("Capture exceeds the configured memory budget");
         } catch (Throwable failure) { job.captureFailure = failure; }
         finally {
-            job.phase = Phase.QUEUED;
-            job.captured.countDown();
+            job.recordCapture(System.nanoTime() - started);
+            job.initialized = true;
+            if (job.captureFailure != null) job.abortCapture(job.captureFailure);
+            else if (!(job.snapshot instanceof CooperativeCapture)) job.captureFinished();
         }
         // Once capture begins, failure also has an owned asynchronous completion; no synchronous close/join.
         return job;
@@ -56,7 +59,11 @@ public final class CheckpointRuntime implements AutoCloseable {
     private void complete(Job job) {
         boolean interrupted = false;
         while (true) {
-            try { job.captured.await(); break; }
+            try {
+                if (job.captured.await(25, TimeUnit.MILLISECONDS)) break;
+                if (job.initialized && (!job.context.worldValid().get() || !job.context.gameThread().isAlive()))
+                    job.abortCapture(new java.io.IOException("World ended during cooperative capture"));
+            }
             catch (InterruptedException signal) { interrupted = true; }
         }
         Phase terminal = job.captureFailure == null ? Phase.CANCELLED : Phase.FAILED;
@@ -91,10 +98,15 @@ public final class CheckpointRuntime implements AutoCloseable {
     /** Stops admission. Submitted capture/cleanup drains without interruption. */
     @Override public void close() { if (closed.compareAndSet(false, true)) writer.shutdown(); }
 
-    public static final class Job implements pztools.extensions.api.SaveTask {
+    public static final class Job implements CooperativeTask {
         private final SaveProvider.Context context;
         private final CountDownLatch captured = new CountDownLatch(1);
-        private SaveProvider.PreparedSave snapshot;
+        private volatile SaveProvider.PreparedSave snapshot;
+        private final Object captureGate = new Object();
+        private final long maximumBytes;
+        private volatile boolean initialized;
+        private long captureNanos, maximumSliceNanos;
+        private int slices;
         private Throwable captureFailure;
         private volatile Phase phase = Phase.CAPTURING;
         private volatile CheckpointRuntime.Result result;
@@ -102,7 +114,54 @@ public final class CheckpointRuntime implements AutoCloseable {
         @Override public String diagnostics() { return diagnostics; }
         private volatile SaveProvider.Completion completion = SaveProvider.Completion.DETACHED_WRITES_COMMITTED;
         private boolean cancelled;
-        private Job(SaveProvider.Context context) { this.context = context; }
+        private Job(SaveProvider.Context context, long maximumBytes) {
+            this.context = context; this.maximumBytes = maximumBytes;
+        }
+
+        private void recordCapture(long nanos) {
+            captureNanos += nanos; maximumSliceNanos = Math.max(maximumSliceNanos, nanos); slices++;
+        }
+        private void captureFinished() { phase = Phase.QUEUED; captured.countDown(); }
+        private void abortCapture(Throwable failure) {
+            synchronized (captureGate) {
+                if (captured.getCount() == 0) return;
+                captureFailure = failure;
+                try { if (snapshot instanceof CooperativeCapture plan) plan.abort(failure); }
+                catch (Throwable cleanup) { if (cleanup != failure) failure.addSuppressed(cleanup); }
+                captureFinished();
+            }
+        }
+        @Override public void advanceOnGameThread() {
+            synchronized (captureGate) {
+                if (!initialized || captured.getCount() == 0) return;
+                if (!context.worldValid().get()) {
+                    abortCapture(new java.io.IOException("World changed during capture")); return;
+                }
+                context.requireGameThread();
+                long start = System.nanoTime();
+                boolean done = false;
+                var plan = (CooperativeCapture)snapshot;
+                try {
+                    done = plan.advance(4_000_000L);
+                    long bytes = plan.retainedBytes();
+                    if (bytes < 0 || bytes > maximumBytes)
+                        throw new IllegalStateException("Capture exceeds the configured memory budget");
+                } catch (Throwable failure) {
+                    captureFailure = failure; done = true;
+                    try { plan.abort(failure); }
+                    catch (Throwable cleanup) { if (cleanup != failure) failure.addSuppressed(cleanup); }
+                } finally {
+                    recordCapture(System.nanoTime() - start);
+                    try {
+                        String text = plan.diagnostics();
+                        diagnostics = "captureStatsV1=" + captureNanos / 1000 + ","
+                            + maximumSliceNanos / 1000 + "," + slices + "; "
+                            + (text == null ? "" : text.substring(0, Math.min(text.length(), 1800)));
+                    } catch (Throwable unavailable) { diagnostics = "diagnostics-unavailable"; }
+                    if (done) captureFinished();
+                }
+            }
+        }
         private synchronized boolean beginWriting() {
             if (cancelled) return false;
             phase = Phase.WRITING; return true;

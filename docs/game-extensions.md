@@ -4,7 +4,7 @@
 
 ## Current scope
 
-Seamless Saving **0.10.0**, bootstrap API **9**, extension API **2**, save protocol **6**.
+Seamless Saving **0.11.0**, bootstrap API **9**, extension API **2**, save protocol **6**.
 Install matching app/worker/JARs. The first move from bootstrap API 8 (or older) to 9
 requires one complete game restart: the old resident has no retirement protocol.
 After that, compatible module, extension-host and bridge-payload updates are applied
@@ -44,48 +44,18 @@ source disables new private captures. The normal provider remains the pre-captur
 No automatic replay occurs after a private capture starts. Later third-party agents
 can still interfere with a shared JVM; this is not an arbitrary-mod compatibility guarantee.
 
-## Ordered I/O without changing normal readers or writers
+## Frame-budgeted capture and ordered I/O
 
-The private chunk path copies serialized bytes and reserves the game's counted per-file
-lock. A bounded virtual-thread owner acquires that original write lock, opens the
-existing file without truncation, and admits a write to ONE platform disk worker
-before acknowledging handoff to the game thread. The same owner holds the lock until
-writing AND channel close finish, then unlocks and releases the counted reference.
-The disk worker never acquires a game lock or reads mutable game objects. Task
-submission/completion establishes visibility of the immutable input and write result.
-Unmodified ordinary readers/writers still use the same original locks.
+The production provider now returns a frame-advanced capture plan rather than calling
+the full private save graph in one game-thread turn. Metadata phases and a bounded
+number of chunks run between normal frames. The I/O worker prepares file baselines;
+no per-chunk ownership future is awaited on the game thread. Checked transfers cause
+recapture before final player and all-loaded-vehicle serialization. See
+[the current cooperative save design and limits](cooperative-save.md).
 
-Previously the single disk worker also had to acquire each following file lock, so a
-blocked write on chunk A delayed capture of independent chunk B. In 0.8 the bounded
-owners can secure B while A is writing. Physical writes remain serial and ordered by
-admission: the game cannot submit the next chunk until this one has entered the disk
-queue. Same-file dependencies and contended lock acquisition may still block.
-
-At most 128 accepted operations/virtual owners/channels and 64 MiB of copied data are
-retained. The limit includes operations acquiring a lock, queued writes and cleanup.
-Virtual owners do not each create an operating-system thread; inheritance of game
-thread-local state is disabled. They terminate when their own resource lease ends.
-The single disk worker times out while idle. No per-frame task or polling loop was
-added. Java's supported virtual-thread API is used, not JDK-internal access.
-
-Capacity/byte exhaustion, a new file or an unsuitable buffer uses original synchronous
-SafeWrite before submission, without skipping data. After admission, lock/open/write/
-close failures are errors, not a reason to replay the original write. Completion waits
-for every owned lock, channel and copied input; an error remains an error after cleanup.
-Shutdown stops new ownership but keeps disk submission open for already-admitted owners.
-Cancellation/world change never discards accepted data or interrupts an owned channel.
-
-The channel pins the selected existing file; renaming after handoff does not redirect
-its write. The private native copy can also hand off its completion wait under the
-original snapshot lock, as described below. Public save/stop remain unchanged; no
-public read-through hook, extra native writer or path override is added.
-These immutable per-chunk inputs are NOT a coherent whole-world snapshot, and the
-backup engine still reads the live save directory after preparation.
-
-The previous FileWriteHooks/SaveWaitHooks, public SafeRead read-through, JDK-internal
-file-key adapter, auxiliary-output rewrites and native save/stop rewrites were removed.
-They are not hidden fallback modes. Some earlier optimizations are consequently no
-longer active; no performance improvement over 0.6 is asserted without measurements.
+The old single-call graph and writer remain in baseline/isolation verification,
+not as an automatic retry after a cooperative capture has begun. Original game
+save/read/write/stop and normal UI callbacks remain unchanged.
 
 ## Observation and ownership
 
@@ -131,7 +101,7 @@ saving or attach to the user's running game.
 
 ### Acceptance boundary
 
-The candidate implements the selected low-interruption path: UI-independent admission,
+The candidate implements the selected low-interruption path: UI-independent, frame-budgeted admission,
 private full-save coverage, bounded chunk write handoff, private native completion,
 DB completion, normal-save isolation and the existing backup/restore integration.
 See [the disposable-world acceptance procedure](e2e-seamless-save.md).
@@ -140,7 +110,7 @@ It is NOT a fully nonblocking serializer: large chunk/animal input capture, orig
 locks, first-file creation and capacity fallback can still stall. The source remains
 the live save directory; an atomic whole-world snapshot is not provided. Neither is
 silently declared implemented. A whole-world transaction is not a prerequisite for
-testing this candidate, but safe multi-frame serialization needs additional design.
+testing this candidate, and checked transfer consistency is described in the cooperative capture document.
 Real-game dragging, frame times, other mods and restored vehicles/items are unverified
 until the acceptance run; synthetic tests do not establish those results.
 ### Verification

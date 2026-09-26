@@ -24,6 +24,7 @@ public sealed partial class GameSaveClientTests
         File.Copy(Environment.GetEnvironmentVariable("PZTOOLS_EXTENSION_FIXTURE_JAR")!,
             Path.Combine(bridge, "extensions", "pztools-seamless-save.jar"), true);
         await File.WriteAllTextAsync(Path.Combine(source, "flush-game"), "require full fixture game save");
+        await File.WriteAllTextAsync(Path.Combine(source, "cooperative-fixture"), "incremental capture");
         await File.WriteAllTextAsync(Path.Combine(source, "block-preparation"), "busy prior writes");
         await using var game = await FakeGame.StartAsync(source, "normal");
         await using var watch = new RuntimeWatchCapture(game.Pid, bridge);
@@ -41,6 +42,8 @@ public sealed partial class GameSaveClientTests
                 {
                     var receipt = await client.RequestProviderAsync(game.Pid, path, "pztools.seamless-save", token);
                     Assert.Equal(GameSaveCompletion.DetachedWritesCommitted, receipt.Completion);
+                    Assert.Contains("captureStatsV1=", receipt.Detail);
+                    Assert.Contains("maxCaptureSliceMs=", receipt.Detail);
                     return new BackupPreparationResult("saved", receipt.Detail);
                 }
                 catch (GameSaveException error) when (error.Code == "runtime-deferred")
@@ -65,14 +68,23 @@ public sealed partial class GameSaveClientTests
             File.Delete(Path.Combine(source, "extension-started"));
             File.Delete(Path.Combine(source, "release-extension"));
             var current = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
+            await File.WriteAllTextAsync(Path.Combine(source, "block-cooperative"), "busy capture inputs");
+            File.Delete(Path.Combine(source, "cooperative-waiting"));
             var backup = BackupAsync(current);
             try
             {
+                await AwaitExtensionFileAsync(Path.Combine(source, "cooperative-waiting"));
+                await watch.WaitAsync(s => s.Sequence > current.Sequence + 1);
+                Assert.False(backup.IsCompleted);
+                File.Delete(Path.Combine(source, "block-cooperative"));
                 await AwaitExtensionFileAsync(Path.Combine(source, "extension-started"));
                 Assert.False(backup.IsCompleted); // Source capture cannot precede the provider's final write.
                 Assert.Equal(revision.ToString(), await File.ReadAllTextAsync(Path.Combine(source, "memory-only-state.txt")));
             }
-            finally { await File.WriteAllTextAsync(Path.Combine(source, "release-extension"), "complete"); }
+            finally {
+                File.Delete(Path.Combine(source, "block-cooperative"));
+                await File.WriteAllTextAsync(Path.Combine(source, "release-extension"), "complete");
+            }
             Assert.Equal(revision, (await backup).Revision);
         }
         var repository = await RepositoryDatabase.OpenExistingAsync(options.RepositoryPath);

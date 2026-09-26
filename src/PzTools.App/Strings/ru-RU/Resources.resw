@@ -439,7 +439,7 @@
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Последний запрос: сохранение расширением завершено</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Последний запрос: обычное сохранение ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Последний запрос: ошибка сохранения ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Подготовка в потоке игры: {0:N0} мс · завершение: {1:N0} мс</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Самый долгий этап сохранения в потоке игры {0:N0}мс · завершение {1:N0}мс</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Угостить кофе</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools оказался полезным?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Ссылка для поддержки пока недоступна.</value></data>

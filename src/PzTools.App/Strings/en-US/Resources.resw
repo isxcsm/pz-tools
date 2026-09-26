@@ -446,7 +446,7 @@ Applies to the selected single-player save after you stop playing.</value></data
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Last request: extension save completed</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Last request: standard save used ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Last request: save failed ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Game-thread preparation {0:N0} ms · completion {1:N0} ms</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Longest game-thread save step {0:N0}ms · completion {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Buy me a coffee</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>Was PZ Tools helpful?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>The support link is not available yet.</value></data>
