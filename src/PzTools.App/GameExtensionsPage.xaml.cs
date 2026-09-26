@@ -2,6 +2,7 @@ using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
 using PzTools.App.Core;
 using PzTools.GameExtensions;
 using PzTools.Process.Contracts.GameRuntime;
@@ -111,10 +112,6 @@ public sealed partial class GameExtensionsPage : UserControl
                 if (last.Outcome != RuntimeSaveOutcome.Running)
                     description.Children.Add(new TextBlock { Text = Localizer.Format("GameExtensions.ExecutionTiming", last.GameThreadMilliseconds, last.ElapsedMilliseconds), TextWrapping = TextWrapping.Wrap, Opacity = 0.7 });
             }
-            var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-            var configure = new Button { Content = Localizer.Get("GameExtensions.Configure"), IsEnabled = !applying };
-            configure.Click += async (_, _) => await ConfigureAsync(item);
-            AutomationProperties.SetName(configure, Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)));
             var toggle = new ToggleSwitch
             {
                 IsOn = item.Enabled, IsEnabled = !applying && item.CanEnable,
@@ -123,13 +120,20 @@ public sealed partial class GameExtensionsPage : UserControl
             AutomationProperties.SetName(toggle, Localizer.Get(item.Definition.TitleKey));
             toggle.Toggled += async (_, _) => await SetEnabledAsync(item, toggle.IsOn);
             toggles[item.Definition.Id] = toggle;
-            controls.Children.Add(configure);
-            controls.Children.Add(toggle);
-            Cards.Children.Add(new SettingsCard
+            // SettingsCard supplies native hover/pressed, keyboard and Invoke behavior.
+            // Its interactive ToggleSwitch content keeps its own input handling.
+            var card = new SettingsCard
             {
                 Header = Localizer.Get(item.Definition.TitleKey), Description = description,
-                HeaderIcon = new SymbolIcon(Symbol.Repair), Content = controls,
-            });
+                HeaderIcon = new ImageIcon { Width = 20, Height = 20,
+                    Source = new SvgImageSource(new Uri("ms-appx:///Assets/Navigation/extensions.svg")) },
+                Content = toggle, IsClickEnabled = true, IsEnabled = !applying,
+                IsActionIconVisible = true,
+                ActionIconToolTip = Localizer.Get("GameExtensions.Configure"),
+            };
+            AutomationProperties.SetName(card, Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)));
+            card.Click += async (_, _) => await ConfigureAsync(item);
+            Cards.Children.Add(card);
         }
     }
 

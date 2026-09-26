@@ -28,11 +28,14 @@ public sealed partial class MainWindowShell
         var compositor = CompositionTarget.GetCompositorForCurrentThread();
         countdownPulse = compositor.CreateScalarKeyFrameAnimation();
         countdownPulse.Target = "Opacity";
-        var ease = compositor.CreateLinearEasingFunction();
+        // Hold each state for 650 ms, then switch instantly. No per-frame UI timer.
+        var ease = compositor.CreateStepEasingFunction(1);
+        ease.IsInitialStepSingleFrame = false;
+        ease.IsFinalStepSingleFrame = true;
         countdownPulse.InsertKeyFrame(0, 1);
-        countdownPulse.InsertKeyFrame(0.5f, 0.45f, ease);
+        countdownPulse.InsertKeyFrame(0.5f, 0.35f, ease);
         countdownPulse.InsertKeyFrame(1, 1, ease);
-        countdownPulse.Duration = TimeSpan.FromMilliseconds(2600);
+        countdownPulse.Duration = TimeSpan.FromMilliseconds(1300);
         countdownPulse.IterationBehavior = AnimationIterationBehavior.Forever;
         NextBackupRemainingText.StartAnimation(countdownPulse);
     }

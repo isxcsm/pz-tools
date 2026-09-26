@@ -5,6 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="AppTitle" xml:space="preserve"><value>PZ Tools · Project Zomboid</value></data>
+  <data name="AppSubtitle" xml:space="preserve"><value>Project Zomboid</value></data>
   <data name="SavesNavigation.Content" xml:space="preserve"><value>Správa uložených her</value></data>
   <data name="Exporting.Text" xml:space="preserve"><value>Exportování</value></data>
   <data name="BackingUp.Text" xml:space="preserve"><value>Zálohování</value></data>
