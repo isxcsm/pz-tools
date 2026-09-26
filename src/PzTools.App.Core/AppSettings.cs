@@ -26,7 +26,8 @@ public sealed record AppSettings(
     int LogMaxEntries = 100000,
     bool SaveGameBeforeBackup = true,
     bool GameSaveCountdown = true,
-    bool AutomaticBackupEnabled = true)
+    bool AutomaticBackupEnabled = true,
+    bool PausePeriodicDuringGame = true)
 {
     public static AppSettings CreateDefault()
     {
@@ -90,7 +91,8 @@ public sealed class SettingsProjector(RevisionedViewStore views)
                 value.LogMaxEntries,
                 value.SaveGameBeforeBackup,
                 value.GameSaveCountdown,
-                value.AutomaticBackupEnabled),
+                value.AutomaticBackupEnabled,
+                value.PausePeriodicDuringGame),
             comparer: EqualityComparer<SettingsView>.Default);
     }
 }
@@ -231,7 +233,8 @@ public sealed class AppSettingsService
                 GetBoolean(backupConfig, "capture", "save_game_before_backup", true)),
             GetBoolean(model, "backup", "game_save_countdown",
                 GetBoolean(backupConfig, "capture", "game_save_countdown", true)),
-            automaticEnabled);
+            automaticEnabled,
+            ReadPausePolicy(model, defaults.PausePeriodicDuringGame));
         // 기존 설정의 추적 표시값은 새 기록 하한보다 낮을 수 있습니다.
         return (loaded with { LogMinimumLevel =
             (LogLevel)Math.Max((int)loaded.LogMinimumLevel, (int)loaded.LogRecordMinimumLevel) }).Validate();
@@ -301,7 +304,7 @@ public sealed class AppSettingsService
                 settings.AutomaticBackupEnabled,
                 TimeSpan.FromMinutes(settings.BackupIntervalMinutes),
                 DateTimeOffset.UtcNow,
-                cancellationToken);
+                cancellationToken, pauseDuringGame: settings.PausePeriodicDuringGame);
             appliedBackupRoot ??= settings.BackupRoot;
         }
         catch (Exception applyFailure)
@@ -332,6 +335,7 @@ public sealed class AppSettingsService
         + $"backup_root = {Quote(value.BackupRoot)}{Environment.NewLine}{Environment.NewLine}"
         + $"[backup]{Environment.NewLine}"
         + $"automatic_enabled = {value.AutomaticBackupEnabled.ToString().ToLowerInvariant()}{Environment.NewLine}"
+        + $"pause_periodic_during_game = {value.PausePeriodicDuringGame.ToString().ToLowerInvariant()}{Environment.NewLine}"
         + $"interval_minutes = {value.BackupIntervalMinutes}{Environment.NewLine}"
         + $"retained_revisions = {value.RetainedRevisions}{Environment.NewLine}"
         + $"backup_on_death = {value.BackupOnDeath.ToString().ToLowerInvariant()}{Environment.NewLine}"
@@ -441,6 +445,13 @@ public sealed class AppSettingsService
         if (minutes < 1)
             throw new InvalidDataException("backup.interval_minutes must be an integer from 1 to 60.");
         return (flag, minutes);
+    }
+
+    private static bool ReadPausePolicy(TomlTable root, bool fallback)
+    {
+        if (!Section(root, "backup").TryGetValue("pause_periodic_during_game", out var value)) return fallback;
+        return value is bool enabled ? enabled
+            : throw new InvalidDataException("backup.pause_periodic_during_game must be a boolean.");
     }
 
     private static TomlTable Section(TomlTable root, string name) =>

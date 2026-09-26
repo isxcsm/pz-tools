@@ -47,6 +47,7 @@ GitHub does not switch README language automatically; select a guide explicitly.
 | [Advanced runtime configuration / 고급 실행 설정](runtime-configuration.md) | English | Per-component tuning and validation / 구성요소별 설정 |
 | [Deployment layout / 배포·데이터 경로](deployment-layout.md) | 한국어 | App files, user data and backup folders / 실행 파일과 데이터 구분 |
 | [CLI commands / 명령줄](cli.md) | 한국어 | Backup, restore, ZIP and maintenance commands / 작업별 명령 |
+| [Runtime pause / 게임 상태·일시정지](runtime-pause-backups.md) | English | Observation, pause/resume, guarded saving and state ownership / 관측·시간·저장 안전성 |
 | [Game-save bridge / 게임 저장 연동](save-bridge.md) | English | Connection behavior, game-version limits and build details / 게임 연결과 제한 |
 | [Character recovery / 캐릭터 회복](character-recovery.md) | English | Supported edits, inventory limits and interrupted edits / 지원 범위와 중단 처리 |
 

@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using PzTools.Process.Contracts;
+using PzTools.Process.Contracts.GameRuntime;
 using DiagnosticsProcess = System.Diagnostics.Process;
 
 namespace PzTools.SaveBridge;
@@ -16,12 +17,17 @@ public sealed class GameSaveException(string code, string message) : Exception($
 /// <summary>Authenticated, game-thread save requests through the JVM Attach bridge.</summary>
 public sealed class GameSaveClient(string bridgeDirectory,
     int connectionTimeoutSeconds = 30, int completionTimeoutSeconds = 150, int queueTimeoutSeconds = 15,
-    string? notificationLanguage = null, DateTimeOffset? scheduledSaveUtc = null)
+    string? notificationLanguage = null, DateTimeOffset? scheduledSaveUtc = null,
+    RuntimeSaveTicket? runtimeTicket = null,
+    Func<CancellationToken, Task<bool>>? preparationAllowed = null)
 {
     private static readonly SemaphoreSlim RequestGate = new(1, 1);
 
-    public async Task<string> SaveRunningGameAsync(string expectedSavePath,
-        CancellationToken cancellationToken = default)
+    public Task<string> SaveRunningGameAsync(string expectedSavePath, CancellationToken cancellationToken = default) =>
+        RequestRunningGameAsync(expectedSavePath, true, cancellationToken);
+    public Task<string> ProbeRunningGameAsync(string expectedSavePath, CancellationToken cancellationToken = default) =>
+        RequestRunningGameAsync(expectedSavePath, false, cancellationToken);
+    private async Task<string> RequestRunningGameAsync(string expectedSavePath, bool save, CancellationToken cancellationToken)
     {
         var games = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
             .SelectMany(DiagnosticsProcess.GetProcessesByName).ToArray();
@@ -31,7 +37,7 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 throw new GameSaveException(games.Length == 0 ? "game-not-running" : "multiple-games",
                     games.Length == 0 ? "Start the game and load the selected save first."
                         : "More than one game process is running. No process was selected.");
-            return await RequestAsync(games[0].Id, expectedSavePath, save: true, cancellationToken);
+            return await RequestAsync(games[0].Id, expectedSavePath, save, cancellationToken);
         }
         finally { foreach (var game in games) game.Dispose(); }
     }
@@ -40,6 +46,7 @@ public sealed class GameSaveClient(string bridgeDirectory,
     public async Task<string> RequestAsync(int processId, string expectedSavePath, bool save,
         CancellationToken cancellationToken = default)
     {
+        runtimeTicket?.Validate();
         if (processId <= 0) throw new ArgumentOutOfRangeException(nameof(processId));
         if (notificationLanguage is not null && !LanguageCatalog.All.Any(language =>
                 language.Tag == notificationLanguage) && notificationLanguage is not ("ko" or "en"))
@@ -96,7 +103,9 @@ public sealed class GameSaveClient(string bridgeDirectory,
             using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
             using var writer = new StreamWriter(stream, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
             var hello = await ReadLineAsync(reader, connectionDeadline.Token);
-            var supportsSchedule = hello == $"HELLO\t4\t{processId}\t{token}";
+            var supportsGuard = hello == $"HELLO\t5\t{processId}\t{token}";
+            if (runtimeTicket is not null && !supportsGuard) throw new GameSaveException("unsupported-protocol", "Restart the game with the current runtime bridge.");
+            var supportsSchedule = supportsGuard || hello == $"HELLO\t4\t{processId}\t{token}";
             var supportsCountdown = supportsSchedule || hello == $"HELLO\t3\t{processId}\t{token}";
             var extendedTimeouts = supportsCountdown || hello == $"HELLO\t2\t{processId}\t{token}";
             if (!extendedTimeouts && hello != $"HELLO\t1\t{processId}\t{token}")
@@ -112,18 +121,39 @@ public sealed class GameSaveClient(string bridgeDirectory,
             completionDeadline.CancelAfter(TimeSpan.FromSeconds(completionTimeoutSeconds) + scheduledWait);
             var showCountdown = save && notificationLanguage is not null && supportsCountdown;
             var timedSave = save && scheduledSaveUtc is not null;
-            await writer.WriteLineAsync(($"{(timedSave ? "SAVE_AT" : showCountdown ? "SAVE_COUNTDOWN" : save ? "SAVE" : "PROBE")}\t"
+            // Do not enqueue a zero-delay save before its first authority check completes.
+            // Subsequent changes still use the acknowledged CANCEL/save-start race protocol.
+            if (runtimeTicket is not null && preparationAllowed is not null
+                && !await PreparationAllowedAsync(completionDeadline.Token))
+                throw new GameSaveException("runtime-deferred", "Scheduling permission was withdrawn before submission.");
+            await writer.WriteLineAsync(($"{(runtimeTicket is not null ? save ? "SAVE_ACTIVE" : "PROBE_ACTIVE" : timedSave ? "SAVE_AT" : showCountdown ? "SAVE_COUNTDOWN" : save ? "SAVE" : "PROBE")}\t"
                 + Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedSavePath))
                 + (extendedTimeouts ? $"\t{queueTimeoutSeconds}\t{completionTimeoutSeconds}" : "")
-                + (timedSave ? $"\t{notificationLanguage ?? "off"}\t{scheduledSaveUtc!.Value.ToUnixTimeMilliseconds()}"
+                + (runtimeTicket is not null ? $"\t{(save ? notificationLanguage : null) ?? "off"}\t{runtimeTicket.Encode()}"
+                    : timedSave ? $"\t{notificationLanguage ?? "off"}\t{scheduledSaveUtc!.Value.ToUnixTimeMilliseconds()}"
                     : showCountdown ? $"\t{notificationLanguage}" : "")).AsMemory(), completionDeadline.Token);
             sent = true;
-            var result = await ReadLineAsync(reader, completionDeadline.Token);
-            if (result == "RUNNING") result = await ReadLineAsync(reader, completionDeadline.Token);
-            var detail = ParseResult(result);
-            return save && notificationLanguage is not null && !supportsCountdown
-                ? detail + "; notice-unavailable=The connected bridge does not support notifications."
-                : detail;
+            using var permissionCancellation = CancellationTokenSource.CreateLinkedTokenSource(completionDeadline.Token);
+            int saving = 0;
+            var permission = runtimeTicket is null || preparationAllowed is null ? Task.CompletedTask
+                : MonitorPermissionAsync(writer, runtimeTicket.RequestId, () => Volatile.Read(ref saving) != 0, permissionCancellation.Token);
+            try
+            {
+                var result = await ReadLineAsync(reader, completionDeadline.Token);
+                while (result is "RUNNING" or "SAVING")
+                {
+                    if (result == "SAVING") Interlocked.Exchange(ref saving, 1);
+                    result = await ReadLineAsync(reader, completionDeadline.Token);
+                }
+                var detail = ParseResult(result);
+                return save && notificationLanguage is not null && !supportsCountdown
+                    ? detail + "; notice-unavailable=The connected bridge does not support notifications." : detail;
+            }
+            finally
+            {
+                await permissionCancellation.CancelAsync();
+                try { await permission; } catch (OperationCanceledException) { }
+            }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -141,6 +171,32 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 finally { helper.Dispose(); }
             }
             RequestGate.Release();
+        }
+    }
+
+    private async Task<bool> PreparationAllowedAsync(CancellationToken token)
+    {
+        try { return await preparationAllowed!(token); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception) { return false; }
+    }
+
+    private async Task MonitorPermissionAsync(StreamWriter writer, string requestId, Func<bool> hasStarted, CancellationToken token)
+    {
+        while (!hasStarted())
+        {
+            bool allowed;
+            try { allowed = await preparationAllowed!(token); }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception) { allowed = false; } // Missing authority is never permission to begin saving.
+            if (hasStarted()) return;
+            if (!allowed)
+            {
+                try { await writer.WriteLineAsync(("CANCEL\t" + requestId).AsMemory(), token); }
+                catch (IOException) { } // The response reader still decides whether completion is known.
+                return;
+            }
+            await Task.Delay(100, token);
         }
     }
 

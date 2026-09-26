@@ -1,0 +1,156 @@
+package pztools.bridge.runtime;
+
+import pztools.bridge.AgentEntry;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
+import java.nio.charset.StandardCharsets;
+
+/** One latest snapshot; no I/O, subscriber locks or serialization on the game thread. */
+public final class RuntimeObserver {
+    private static final String PROCESS = id();
+    private static volatile Context context;
+    // World identity survives a subscription reconnect without retaining the game world.
+    private static java.lang.ref.WeakReference<Object> knownCell = new java.lang.ref.WeakReference<>(null);
+    private static String knownWorld = id();
+    private static String id() { return UUID.randomUUID().toString().replace("-", ""); }
+
+    public record Snapshot(String process, String observer, String world, long clock, long eligibility,
+        long sequence, String phase, String pause, String mode, int speed, long activeMillis, String path) {
+        String wire(long age) {
+            String encoded = path == null ? "-" : Base64.getEncoder().encodeToString(path.getBytes(StandardCharsets.UTF_8));
+            return String.join("\t", "STATE1", process, observer, world, Long.toString(clock),
+                Long.toString(eligibility), Long.toString(sequence), phase, pause, mode,
+                Integer.toString(speed), Long.toString(activeMillis), Long.toString(age), encoded,
+                "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1");
+        }
+    }
+    /** A stopped generation is never mutated/reused by the next subscription. */
+    private static final class Context {
+        final PzRuntimeAdapter adapter;
+        final String observer = id();
+        final AtomicLong commandWatermark = new AtomicLong();
+        volatile boolean active = true;
+        volatile Snapshot snapshot;
+        volatile long lastSample;
+        String world = id(), phase = "Unknown", pause = "Unknown", mode = "Unsupported";
+        Object lastCell;
+        long clockEpoch, eligibility, sequence, activeNanos, lastTick, published;
+        boolean wasRunning;
+        Context(Class<?> window) throws Exception {
+            adapter = new PzRuntimeAdapter(window);
+            lastSample = System.nanoTime(); published = lastSample;
+            snapshot = exact();
+        }
+        Snapshot exact() {
+            return new Snapshot(PROCESS, observer, world, clockEpoch, eligibility, sequence,
+                phase, pause, mode, adapter.speedLevel, activeNanos / 1_000_000L,
+                phase.equals("Ready") ? adapter.path : null);
+        }
+        void sample() {
+            if (!active) return;
+            long now = System.nanoTime();
+            try {
+                adapter.read();
+                boolean ready = adapter.phase.equals("Ready") && adapter.mode.equals("LocalSinglePlayer");
+                boolean running = ready && adapter.pause.equals("Running");
+                boolean newWorld = ready && adapter.worldCell != lastCell;
+                boolean gap = lastTick != 0 && (now - lastTick < 0 || now - lastTick > 2_000_000_000L);
+                boolean changed = !adapter.phase.equals(phase) || !adapter.pause.equals(pause)
+                    || !adapter.mode.equals(mode) || newWorld;
+                if (newWorld) {
+                    if (knownCell.get() != adapter.worldCell) {
+                        knownCell = new java.lang.ref.WeakReference<>(adapter.worldCell);
+                        knownWorld = id();
+                    }
+                    world = knownWorld; clockEpoch++; activeNanos = 0;
+                }
+                else if (gap) { clockEpoch++; activeNanos = 0; }
+                else if (lastTick != 0 && wasRunning && running) activeNanos += now - lastTick;
+                if (gap || newWorld || !running && wasRunning || !adapter.phase.equals(phase)) eligibility++;
+                lastTick = now; lastSample = now;
+                if (ready) lastCell = adapter.worldCell;
+                else if (adapter.phase.equals("Menu") || adapter.phase.equals("Unloading")) {
+                    lastCell = null; knownCell = new java.lang.ref.WeakReference<>(null);
+                }
+                wasRunning = running;
+                phase = adapter.phase; pause = adapter.pause; mode = adapter.mode;
+                if (changed || gap || now - published >= 100_000_000L) {
+                    sequence++; snapshot = exact(); published = now;
+                }
+            } catch (Throwable failure) {
+                wasRunning = false; lastTick = now; lastSample = now;
+                boolean changed = !phase.equals("Unknown");
+                if (changed) eligibility++;
+                phase = "Unknown"; pause = "Unknown"; mode = "Unsupported";
+                if (changed || now - published >= 100_000_000L) {
+                    sequence++; snapshot = exact(); published = now;
+                }
+            }
+        }
+    }
+    public static synchronized boolean start() throws Exception {
+        if (context != null && context.active) return false;
+        Context next = new Context(AgentEntry.ensureGameHook());
+        context = next;
+        AgentEntry.observe(next::sample);
+        return true;
+    }
+    public static synchronized void stop() {
+        Context previous = context;
+        if (previous != null) {
+            previous.active = false;
+            SaveBridge.cancelObserver(previous.observer);
+        }
+        AgentEntry.observe(null);
+        context = null;
+    }
+    static String frame() {
+        Context value = context;
+        if (value == null || !value.active) throw new Deferred("runtime-unavailable");
+        return value.snapshot.wire(Math.max(0, (System.nanoTime() - value.lastSample) / 1_000_000L));
+    }
+    public static Snapshot currentOnGameThread() {
+        Context value = context;
+        if (value == null || !value.active) throw new Deferred("runtime-unavailable");
+        value.sample();
+        if (value != context || !value.active || System.nanoTime() - value.lastSample > 2_000_000_000L)
+            throw new Deferred("runtime-unavailable");
+        return value.exact();
+    }
+    public static void reserve(Ticket ticket) {
+        Context value = context;
+        if (value == null || !value.active || !value.observer.equals(ticket.observer))
+            throw new Deferred("runtime-epoch-changed");
+        long previous;
+        do {
+            previous = value.commandWatermark.get();
+            if (ticket.ordinal <= previous) throw new Deferred("runtime-request-replayed");
+        } while (!value.commandWatermark.compareAndSet(previous, ticket.ordinal));
+    }
+    public record Ticket(String process, String observer, String world, long clock, long eligibility,
+                         long due, long ordinal, String request) {
+        static Ticket parse(String text) {
+            if (text.length() > 1024) throw new IllegalArgumentException("Oversized runtime ticket");
+            String[] p = text.split("\\|", -1);
+            if (p.length != 9 || !p[0].equals("1")) throw new IllegalArgumentException("Unsupported runtime ticket");
+            for (int i : new int[]{1,2,3,8})
+                if (!p[i].matches("[0-9a-fA-F]{32}")) throw new IllegalArgumentException("Invalid ticket identity");
+            Ticket result = new Ticket(p[1],p[2],p[3],Long.parseLong(p[4]),Long.parseLong(p[5]),
+                Long.parseLong(p[6]),Long.parseLong(p[7]),p[8]);
+            if (result.clock < 0 || result.eligibility < 0 || result.due < 0 || result.ordinal <= 0)
+                throw new IllegalArgumentException("Invalid ticket values");
+            return result;
+        }
+        long check() {
+            Snapshot s = currentOnGameThread();
+            if (!s.process.equals(process) || !s.observer.equals(observer) || !s.world.equals(world)
+                || s.clock != clock || s.eligibility != eligibility) throw new Deferred("runtime-epoch-changed");
+            if (!s.phase.equals("Ready") || !s.mode.equals("LocalSinglePlayer")) throw new Deferred("runtime-world-unavailable");
+            if (!s.pause.equals("Running")) throw new Deferred("runtime-game-paused");
+            long remaining = due - s.activeMillis;
+            if (remaining > 60_000) throw new Deferred("runtime-deadline-invalid");
+            return Math.max(0, remaining);
+        }
+    }
+    public static final class Deferred extends RuntimeException { public Deferred(String code) { super(code); } }
+}

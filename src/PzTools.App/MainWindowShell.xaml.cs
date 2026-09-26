@@ -1,3 +1,4 @@
+using PzTools.Process.Contracts.GameRuntime;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Numerics;
@@ -1015,6 +1016,27 @@ public sealed partial class MainWindowShell : UserControl
         if (schedule is null || !schedule.AutomaticEnabled)
         {
             NextBackupText.Text = Localizer.Get("AutomaticBackupOff");
+            return;
+        }
+        if (schedule.PauseAware)
+        {
+            var seconds = (long)Math.Ceiling(Math.Max(0, schedule.RemainingMilliseconds ?? 0) / 1000d);
+            var clock = $"{seconds / 60:00}:{seconds % 60:00}";
+            if (schedule.CompletionUncertain)
+                NextBackupText.Text = Localizer.Get("RuntimeBackupCompletionUnknown");
+            else if ((schedule.Hold & ScheduleHold.Ambiguous) != 0)
+                NextBackupText.Text = Localizer.Format("RuntimeBackupAmbiguous", clock);
+            else if ((schedule.Hold & (ScheduleHold.Unknown | ScheduleHold.Unsupported)) != 0)
+                NextBackupText.Text = Localizer.Format("RuntimeBackupWaiting", clock);
+            else if ((schedule.Hold & ScheduleHold.NoWorld) != 0)
+                NextBackupText.Text = Localizer.Get("NextBackupWaitingDynamic");
+            else if ((schedule.Hold & ScheduleHold.GamePaused) != 0)
+                NextBackupText.Text = Localizer.Format("RuntimeBackupPaused", clock);
+            else if (seconds == 0)
+                NextBackupText.Text = Localizer.Get(schedule.PeriodicBackupInProgress
+                    ? "NextBackupWaitingForCurrent" : "NextBackupWaitingToStart");
+            else NextBackupText.Text = Localizer.Format("NextBackupFormat",
+                DateTimeOffset.Now.AddSeconds(seconds).ToString("T"), clock);
             return;
         }
         if (schedule.NextDueUtc is not { } due)

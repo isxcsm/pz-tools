@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>バックアップ前にゲームを保存</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>ゲーム内の保存カウントダウン</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>キャラクターの頭上に 5 秒のカウントダウンとゲームの保存結果を表示します。オフにするとメッセージと手動バックアップのカウントダウンがなくなりますが、ゲームの保存は行います。自動バックアップの予定時刻は変わりません。変更は次回のバックアップから適用されます。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>手動・自動バックアップの前にゲームへ保存を要求します。別の保存 MOD を使う場合や、ゲームの更新で互換性に問題が生じた場合はオフにできます。オフの場合はディスク上のファイルだけをバックアップするため、直近の進行状況が含まれないことがあります。変更は次回のバックアップから適用されます。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>バックアップ前にゲームの変更をディスクへ保存します。オフにするとメモリ上だけのデータが失われる可能性があります。一時停止の検出接続は別設定です。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>次回のバックアップ：開始待ち</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>次回のバックアップ：現在の作業の完了待ち</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>キャラクターを回復</value></data>
@@ -396,6 +396,12 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>バックアップ済みの同じデータを再利用中</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>オン</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>オフ</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>ゲームの一時停止中は定期バックアップを待機</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>一時停止中は残り時間を保持し、再開後に続きを数えます。ゲーム状態を確認できない場合も待機します。保存前の処理とは別にJVMの状態を監視します。</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>ゲーム一時停止中 · 残り{0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>ゲーム状態の確認待ち · 残り{0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>複数のゲームが実行中 · {0}を保持</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>前回のゲーム保存結果を確認してから自動バックアップを再度オンにしてください。</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>適用</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>フィルター解除</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>すべて解除</value></data>

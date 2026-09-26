@@ -1,5 +1,7 @@
 # Pre-backup game save bridge
 
+> Pause-aware periodic scheduling is implemented separately from the legacy UTC commands described below. It uses runtime observation and guarded SAVE_ACTIVE/PROBE_ACTIVE. Turning off pre-backup saving does not turn off this observation. See [runtime pause architecture](runtime-pause-backups.md). A loaded older bootstrap requires a full game restart.
+
 [Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
 
 Manual and scheduled game backups request `GameWindow.save(true)` on the game

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PzTools.Process.Contracts.GameRuntime;
 using System.Text.Json.Serialization;
 
 namespace PzTools.Process.Contracts;
@@ -32,6 +33,8 @@ public sealed record ProcessResultEnvelope<T>(
     T? Result,
     ProcessError? Error)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ScheduleDisposition ScheduleDisposition { get; init; }
     public static ProcessResultEnvelope<T> Success(
         string component,
         long runIndex,
@@ -92,7 +95,7 @@ public static class ProcessResultJson
             throw new InvalidDataException("The process result identity is invalid.");
         }
 
-        if (!Enum.IsDefined(envelope.Outcome)
+        if (!Enum.IsDefined(envelope.ScheduleDisposition) || !Enum.IsDefined(envelope.Outcome)
             || envelope.CompletedUtc < envelope.StartedUtc)
         {
             throw new InvalidDataException("The process result state is invalid.");

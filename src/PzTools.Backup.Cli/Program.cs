@@ -12,6 +12,7 @@ using PzTools.Process.Telemetry;
 using PzTools.Backup.ChangeTracking.Windows;
 using PzTools.Zomboid.Backup;
 using PzTools.SaveBridge;
+using PzTools.Process.Contracts.GameRuntime;
 
 return await BackupCli.RunAsync(args);
 
@@ -151,9 +152,11 @@ internal static class BackupCli
         var started = DateTimeOffset.UtcNow;
         var runIndex = OnceBackupArguments.ReadFailureRunIndex(arguments) ?? 1L;
         RepositoryDatabase? ownedWorkflowRepository = null;
+        var guardedRequest = false;
         try
         {
             var request = OnceBackupArguments.Parse(arguments);
+            guardedRequest = request.RuntimeTicket is not null;
             // Configuration can fail before the engine creates its telemetry.
             // Preserve the caller's identity in that failure response too.
             runIndex = request.RunIndex ?? runIndex;
@@ -190,6 +193,26 @@ internal static class BackupCli
                 var prepared = await timing.PrepareAsync(path, request.ScheduledUtc, request.RequireActiveGame, token);
                 return new BackupPreparationResult(prepared.Outcome, prepared.Detail);
             } : null;
+            if (request.RuntimeTicket is not null)
+            {
+                var guarded = new GuardedGamePreparation(new GameSaveClient(Path.Combine(AppContext.BaseDirectory, "save-bridge"),
+                    options.EffectiveTuning.GameConnectionTimeoutSeconds, options.EffectiveTuning.GameCompletionTimeoutSeconds,
+                    options.EffectiveTuning.GameQueueTimeoutSeconds,
+                    options.GameSaveCountdown ? LanguageCatalog.Get(options.NameLanguage).Tag : null,
+                    runtimeTicket: request.RuntimeTicket,
+                    preparationAllowed: token => PzTools.Scheduling.RuntimePreparationPermit.IsCurrentAsync(
+                        request.RuntimeAuthority!, request.RuntimeGeneration!.Value, options.Sources.Single(source => source.Id.Equals(request.SourceId, StringComparison.OrdinalIgnoreCase)).Path, token)));
+                prepareSource = async (path, token) =>
+                {
+                    try
+                    {
+                        var prepared = await guarded.PrepareAsync(path, options.SaveGameBeforeBackup, token);
+                        return new BackupPreparationResult(prepared.Outcome, prepared.Detail);
+                    }
+                    catch (GameSaveException exception) when (exception.Code is "runtime-deferred" or "queue-timeout")
+                    { throw new BackupPreparationDeferredException(exception.Message); }
+                };
+            }
             var result = await new OneShotBackupService(new UsnJournalReader(), prepareSource,
                 RevisionCharacterMetadataCollector.PopulateAsync).RunAsync(
                 options,
@@ -217,6 +240,15 @@ internal static class BackupCli
                     "backup-worker", runIndex, outcome, started, result)));
             return ProcessExitCodes.FromOutcome(outcome);
         }
+        catch (BackupPreparationDeferredException exception) when (guardedRequest)
+        {
+            await CompleteOwnedWorkflowAsync(ProcessOutcome.Skipped, "runtime-deferred");
+            var deferred = ProcessResultEnvelope<object>.Success("backup-worker", runIndex, ProcessOutcome.Skipped,
+                started, new { code = "runtime-deferred", reason = exception.Message })
+                with { ScheduleDisposition = ScheduleDisposition.Preserve };
+            Console.WriteLine(ProcessResultJson.Serialize(deferred));
+            return ProcessExitCodes.Success;
+        }
         catch (AutomaticBackupSkippedException exception)
         {
             await CompleteOwnedWorkflowAsync(ProcessOutcome.Skipped, "automatic-backup-inactive");
@@ -230,7 +262,7 @@ internal static class BackupCli
             await CompleteOwnedWorkflowAsync(ProcessOutcome.Cancelled, "cancelled");
             return WriteBackupFailure(
                 runIndex, ProcessOutcome.Cancelled, started,
-                "cancelled", "Operation cancelled.");
+                "cancelled", "Operation cancelled.", guardedRequest ? ScheduleDisposition.CompletionUnknown : ScheduleDisposition.Default);
         }
         catch (RepositoryBusyException exception)
         {
@@ -253,14 +285,16 @@ internal static class BackupCli
         {
             var code = "game-save-" + exception.Code;
             await CompleteOwnedWorkflowAsync(ProcessOutcome.Failed, code);
-            return WriteBackupFailure(runIndex, ProcessOutcome.Failed, started, code, exception.Message);
+            return WriteBackupFailure(runIndex, ProcessOutcome.Failed, started, code, exception.Message,
+                guardedRequest ? ScheduleDisposition.CompletionUnknown : ScheduleDisposition.Default);
         }
         catch (Exception exception)
         {
             await CompleteOwnedWorkflowAsync(ProcessOutcome.Failed, "backup-failed");
             return WriteBackupFailure(
                 runIndex, ProcessOutcome.Failed, started,
-                "backup-failed", exception.Message);
+                "backup-failed", exception.Message,
+                guardedRequest ? ScheduleDisposition.CompletionUnknown : ScheduleDisposition.Default);
         }
 
         async Task CompleteOwnedWorkflowAsync(ProcessOutcome outcome, string? failureCode)
@@ -302,11 +336,12 @@ internal static class BackupCli
         ProcessOutcome outcome,
         DateTimeOffset started,
         string code,
-        string message)
+        string message, ScheduleDisposition disposition = ScheduleDisposition.Default)
     {
         Console.WriteLine(ProcessResultJson.Serialize(
             ProcessResultEnvelope<object>.Failure(
-                "backup-worker", Math.Max(1, runIndex), outcome, started, code, message)));
+                "backup-worker", Math.Max(1, runIndex), outcome, started, code, message)
+                with { ScheduleDisposition = disposition }));
         return ProcessExitCodes.FromOutcome(outcome);
     }
 

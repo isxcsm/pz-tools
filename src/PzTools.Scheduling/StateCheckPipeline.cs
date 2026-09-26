@@ -3,13 +3,14 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Zomboid.State;
+using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.Scheduling;
 
 /// <summary>Periodic checks reuse the scheduler process, while preserving durable batches/outbox and collection exclusion.</summary>
-public sealed class StateCheckPipeline
+public sealed class StateCheckPipeline(Func<RuntimeObservation?>? runtime = null)
 {
-    private readonly StateCollector collector = new();
+    private readonly StateCollector collector = new(new SaveDiscoveryLane(), new GameActivityLane(runtime), new CharacterStateLane());
     private readonly StateReactor reactor = new();
 
     public async Task<WorkerInvocation> RunAsync(StateDatabase database, string savesRoot, long runIndex,

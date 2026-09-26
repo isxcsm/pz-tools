@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Speicher-Countdown im Spiel</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zeigt einen fünfsekündigen Countdown über dem Charakter und das Ergebnis der Spielspeicherung an. Beim Ausschalten entfallen die Meldungen und der Countdown vor manuellen Sicherungen, das Spiel wird aber weiterhin gespeichert. Automatische Sicherungen behalten ihre geplante Zeit. Änderungen gelten ab der nächsten Sicherung.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Fordert das Spiel vor manuellen und automatischen Sicherungen zum Speichern auf. Deaktivieren Sie dies bei einer separaten Speicher-Mod oder bei Kompatibilitätsproblemen nach einem Spielupdate. Im ausgeschalteten Zustand werden nur Dateien auf dem Datenträger gesichert; der neueste Fortschritt kann fehlen. Änderungen gelten ab der nächsten Sicherung.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Schreibt Spieländerungen vor dem Backup auf den Datenträger. Ohne diese Funktion können Daten fehlen, die nur im Speicher liegen. Die Pausenerkennung wird separat eingestellt.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Nächste Sicherung: wartet auf Start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Nächste Sicherung: wartet auf aktuellen Auftrag</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Charakter heilen</value></data>
@@ -396,6 +396,12 @@ Nur der aktuelle Einzelspieler-Spielstand wird bearbeitet. Aktive, nicht unterst
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Identische, bereits gesicherte Daten werden wiederverwendet</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Ein</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Aus</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Bei Spielpause mit regelmäßigen Backups warten</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Bewahrt die Restzeit bei Pause und zählt nach dem Fortsetzen weiter. Wartet auch bei unbekanntem Spielzustand. Die JVM-Beobachtung ist vom Speichern vor dem Backup unabhängig.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Spiel pausiert · noch {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Warten auf Spielzustand · noch {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Mehrere Spiele laufen · {0} angehalten</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Prüfen Sie das Ergebnis des letzten Speicherns und aktivieren Sie automatische Backups erneut.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Anwenden</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Filter löschen</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Alle löschen</value></data>

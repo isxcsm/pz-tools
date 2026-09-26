@@ -12,6 +12,7 @@ public final class GameWindow {
     private static int memoryOnlyState;
     public static final class States { public Object current = new zombie.gameStates.IngameState(); }
 
+    public static boolean isIngameState() { return states.current instanceof zombie.gameStates.IngameState; }
     private static void logic() { ticks++; }
 
     public static void save(boolean flag) throws IOException {
@@ -48,6 +49,9 @@ public final class GameWindow {
         System.out.println("READY");
         System.out.flush();
         while (true) {
+            if (consumeSignal(Path.of(args[0], "pause-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(0);
+            if (consumeSignal(Path.of(args[0], "resume-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1);
+            if (consumeSignal(Path.of(args[0], "fast-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(4);
             if (consumeSignal(Path.of(args[0], "inspect-hook")))
                 bridgefixture.Inspector.inspect(Path.of(args[0], "hook-state.txt"));
             if (consumeSignal(Path.of(args[0], "inspect-control"))) {

@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>备份前保存游戏</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>游戏内保存倒计时</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>在角色头顶显示五秒倒计时及游戏保存结果。关闭后不再显示消息，也不再进行手动备份倒计时，但仍会保存游戏。自动备份仍按预定时间执行。更改从下次备份开始生效。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>手动及自动备份前请求游戏保存。使用其他保存模组，或游戏更新导致兼容性问题时可关闭。关闭后仅备份磁盘上的文件，可能缺少最近的游戏进度。更改从下次备份开始生效。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前将游戏更改写入磁盘。关闭后可能遗漏仅在内存中的数据。暂停检测连接单独设置。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次备份：等待开始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：等待当前任务</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢复</value></data>
@@ -396,6 +396,12 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>正在复用已备份的相同数据</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>开启</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>关闭</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>游戏暂停时等待定时备份</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>暂停时保留剩余时间，继续游戏后接着计时。无法获取游戏状态时也会等待。JVM状态观测与备份前保存相互独立。</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>游戏已暂停 · 剩余{0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>等待游戏状态 · 剩余{0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>多个游戏正在运行 · 保留{0}</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>请确认上次游戏保存的结果，然后重新开启自动备份。</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>应用</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>清除筛选</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>全部清除</value></data>

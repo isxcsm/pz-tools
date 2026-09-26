@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Guardar el juego antes de la copia</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Cuenta regresiva dentro del juego</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Muestra una cuenta regresiva de cinco segundos sobre el personaje y el resultado del guardado del juego. Al desactivarla se eliminan los mensajes y la cuenta regresiva de las copias manuales, pero se sigue guardando el juego. Las copias automáticas mantienen su horario previsto. Los cambios se aplican a partir de la siguiente copia.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Solicita al juego que guarde antes de las copias manuales y automáticas. Desactiva esta opción si usas otro mod de guardado o si una actualización del juego causa problemas de compatibilidad. Si está desactivada, solo se copian los archivos del disco; podría faltar el progreso reciente. Los cambios se aplican a partir de la siguiente copia.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Guarda los cambios del juego en disco antes de la copia. Desactivarlo puede omitir datos que solo estén en memoria. La detección de pausas se configura por separado.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próxima copia: esperando para iniciar</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próxima copia: esperando a la tarea actual</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Curar personaje</value></data>
@@ -396,6 +396,12 @@ Solo se modifica la partida actual de un jugador. Se rechazan partidas en uso, f
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reutilizando datos idénticos ya respaldados</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Activado</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Desactivado</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Esperar durante la pausa del juego</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Conserva el tiempo restante de las copias periódicas durante la pausa y continúa al reanudar. También espera si no se conoce el estado del juego. La observación JVM es independiente del guardado previo.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Juego en pausa · quedan {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Esperando el estado del juego · quedan {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Varios juegos abiertos · {0} en espera</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Comprueba el resultado del último guardado del juego y vuelve a activar las copias automáticas.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Aplicar</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Quitar filtro</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Quitar todos</value></data>

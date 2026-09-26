@@ -10,7 +10,7 @@ using PzTools.Backup.Storage.Repository;
 
 namespace PzTools.Backup.Tests;
 
-public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper output)
+public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [BridgeFact]
     public async Task Bridge_StoresStableCharacterAndHandIdsBeforeRequiredSave()
@@ -264,7 +264,7 @@ public sealed class GameSaveClientTests(Xunit.Abstractions.ITestOutputHelper out
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         while (!File.Exists(temp.GetPath("control-state.txt"))) await Task.Delay(20, deadline.Token);
         var fields = (await File.ReadAllTextAsync(temp.GetPath("control-state.txt"))).Split(':');
-        Assert.Equal("1", fields[0]);
+        Assert.Equal("2", fields[0]);
         using (var socket = new System.Net.Sockets.TcpClient())
         {
             await socket.ConnectAsync(System.Net.IPAddress.Loopback, int.Parse(fields[2]), deadline.Token);

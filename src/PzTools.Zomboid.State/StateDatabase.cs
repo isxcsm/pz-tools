@@ -3,9 +3,9 @@ using Microsoft.Data.Sqlite;
 
 namespace PzTools.Zomboid.State;
 
-public sealed class StateDatabase
+public sealed partial class StateDatabase
 {
-    private const int CurrentSchemaVersion = 3;
+    private const int CurrentSchemaVersion = 4;
     private readonly string connectionString;
 
     private StateDatabase(string path)
@@ -148,6 +148,8 @@ public sealed class StateDatabase
         }
         await database.MigrateOutboxToDynamicTargetsAsync(connection, cancellationToken);
         await database.MigrateLastPlayedUtcAsync(connection, cancellationToken);
+        schema.CommandText = RuntimeSchema + "UPDATE state_info SET schema_version=4 WHERE singleton=1;";
+        await schema.ExecuteNonQueryAsync(cancellationToken);
         return database;
     }
 

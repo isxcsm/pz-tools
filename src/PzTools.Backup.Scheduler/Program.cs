@@ -44,6 +44,8 @@ try
         options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory,
         options.GetValueOrDefault("--control-db"));
     var allocator = new RunIndexAllocator(options.GetValueOrDefault("--control-db"));
+    var runtimeSnapshot = new RuntimeSnapshotStore();
+    var runtimeSchedule = new RuntimeScheduleController(database, runtimeSnapshot);
     var scheduler = new BackupScheduler(
         database,
         token => allocator.AllocateAsync(cancellationToken: token),
@@ -51,7 +53,8 @@ try
         adapter.RunMaintenanceAsync,
         configurationPath,
         TimeSpan.FromSeconds(schedulerOptions.PreparationLeadSeconds),
-        target => AutomaticBackupActivity.Probe(target.SourcePath) == ActivityState.Active);
+        target => AutomaticBackupActivity.Probe(target.SourcePath) == ActivityState.Active,
+        runtimeSchedule, (admission, run, token) => adapter.RunGuardedBackupAsync(admission, run, token, database.DatabasePath));
     using var cancellation = new CancellationTokenSource();
     Console.CancelKeyPress += (_, eventArgs) =>
     {
@@ -62,6 +65,10 @@ try
         "BackupScheduler", database.DatabasePath);
     var result = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {
+        using var feedCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var feed = RuntimeStateFeed.FollowAsync(schedulerPath, runtimeSnapshot, feedCancellation.Token);
+        try
+        {
         do
         {
             var tick = await scheduler.TickAsync(DateTimeOffset.UtcNow, token);
@@ -71,6 +78,8 @@ try
             await Task.Delay(wakeInterval, token);
         } while (!token.IsCancellationRequested);
         return 0;
+        }
+        finally { await feedCancellation.CancelAsync(); try { await feed; } catch (OperationCanceledException) { } }
     }, cancellation.Token);
     return result.Acquired ? 0 : 75;
 }

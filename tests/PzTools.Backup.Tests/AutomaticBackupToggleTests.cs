@@ -206,7 +206,7 @@ public sealed class AutomaticBackupToggleTests
     private static AppSettings Settings(TempDirectory temp) => AppSettings.CreateDefault() with
     {
         SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups"),
-        BackupIntervalMinutes = 17, BackupOnDeath = true,
+        BackupIntervalMinutes = 17, BackupOnDeath = true, PausePeriodicDuringGame = false,
     };
     private static BackupTarget Target(TempDirectory temp) => new("Sandbox/Save", "Sandbox/Save", temp.GetPath("saves/Save"));
 }

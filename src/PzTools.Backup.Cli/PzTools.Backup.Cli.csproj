@@ -1,6 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\PzTools.Scheduling\PzTools.Scheduling.csproj" />
     <ProjectReference Include="..\PzTools.Zomboid.Backup\PzTools.Zomboid.Backup.csproj" />
     <ProjectReference Include="..\PzTools.Backup.Core\PzTools.Backup.Core.csproj" />
     <ProjectReference Include="..\PzTools.Backup.Engine\PzTools.Backup.Engine.csproj" />
@@ -21,6 +22,7 @@
 
   <Import Project="..\..\build\SaveBridgePayload.targets" />
   <ItemGroup>
+    <ProjectReference Include="..\PzTools.Scheduling\PzTools.Scheduling.csproj" />
     <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

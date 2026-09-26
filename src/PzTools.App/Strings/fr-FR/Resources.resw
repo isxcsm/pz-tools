@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Enregistrer dans le jeu avant la sauvegarde</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Compte à rebours dans le jeu</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Affiche un compte à rebours de cinq secondes au-dessus du personnage et le résultat de l’enregistrement dans le jeu. Désactiver cette option supprime les messages et le compte à rebours des sauvegardes manuelles, mais le jeu est toujours enregistré. Les sauvegardes automatiques conservent leur horaire prévu. Les changements prennent effet à la prochaine sauvegarde.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Demande au jeu d’enregistrer avant les sauvegardes manuelles et automatiques. Désactivez cette option si vous utilisez un mod d’enregistrement distinct ou si une mise à jour du jeu provoque un problème de compatibilité. Lorsqu’elle est désactivée, seuls les fichiers sur disque sont copiés ; la progression récente peut manquer. Les changements prennent effet à la prochaine sauvegarde.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Enregistre les changements du jeu sur disque avant la copie. Désactiver cette option peut omettre les données présentes uniquement en mémoire. La détection des pauses se règle séparément.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Prochaine sauvegarde : en attente de démarrage</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Prochaine sauvegarde : en attente de la tâche en cours</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Soigner le personnage</value></data>
@@ -396,6 +396,12 @@ Seule la partie solo actuelle est modifiée. Les parties en cours d’utilisatio
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Réutilisation des données identiques déjà sauvegardées</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Activé</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Désactivé</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Attendre lorsque le jeu est en pause</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Conserve le temps restant des sauvegardes périodiques pendant la pause, puis reprend le décompte. Attend aussi si l’état du jeu est inconnu. L’observation JVM est indépendante de la sauvegarde préalable.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Jeu en pause · reste {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>En attente de l’état du jeu · reste {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Plusieurs jeux ouverts · {0} en attente</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Vérifiez le résultat de la dernière sauvegarde du jeu, puis réactivez les sauvegardes automatiques.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Appliquer</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Effacer le filtre</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Tout effacer</value></data>

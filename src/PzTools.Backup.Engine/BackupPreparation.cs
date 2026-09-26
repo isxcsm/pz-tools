@@ -3,6 +3,9 @@ using PzTools.Backup.Storage.Telemetry;
 
 namespace PzTools.Backup.Engine;
 
+/// <summary>A preparation declined before any capture; this is not a failed integrity check.</summary>
+public sealed class BackupPreparationDeferredException(string reason) : OperationCanceledException(reason) { }
+
 public sealed record BackupPreparationResult(string Outcome, string? Detail = null);
 
 public delegate Task<BackupPreparationResult> BackupSourcePreparation(
