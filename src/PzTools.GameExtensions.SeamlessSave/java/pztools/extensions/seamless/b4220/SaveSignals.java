@@ -43,9 +43,10 @@ final class SaveSignals {
                 } finally {
                     if (--scope.depth == 0) {
                         if (scope.ticket != null) scope.ticket.exitDrain();
-                        scope.ticket = null;
+                        scope.ticket = null; scopes.remove();
                     }
-                    drainDepth.set(Math.max(0, drainDepth.get() - 1));
+                    int remaining = Math.max(0, drainDepth.get() - 1);
+                    if (remaining == 0) drainDepth.remove(); else drainDepth.set(remaining);
                 }
             }
         };
@@ -60,6 +61,13 @@ final class SaveSignals {
     void unregister() {
         GameHooks.unregister(PLAYERS, players);
         GameHooks.unregister(VEHICLES, vehicles); GameHooks.unregister(ERRORS, errors);
+    }
+    boolean isIdle() { return active.get() == null; }
+    void retire() throws Exception {
+        if (!isIdle()) throw new IllegalStateException("Save signals still owned");
+        var pending = java.util.List.of(GameHooks.unregister(PLAYERS, players),
+            GameHooks.unregister(VEHICLES, vehicles), GameHooks.unregister(ERRORS, errors));
+        for (var registration : pending) registration.await(5000);
     }
     private static final String[] OBSERVATION_POINTS = { PLAYERS, VEHICLES, ERRORS, OwnedNativeSave.POINT };
     Throwable observationFailure() {

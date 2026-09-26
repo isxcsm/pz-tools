@@ -19,7 +19,7 @@ public final class RuntimeWatch {
             owned = RuntimeObserver.start();
             if (!owned) { send(channel, "ERROR\tbusy"); return; }
             ByteBuffer input = ByteBuffer.allocate(1);
-            while (true) {
+            while (!pztools.bridge.AgentEntry.runtimeReloadRequested()) {
                 int read = channel.read(input);
                 if (read != 0) return; // EOF or unsolicited data ends this read-only subscription.
                 send(channel, RuntimeObserver.frame());

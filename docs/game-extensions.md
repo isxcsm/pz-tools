@@ -4,10 +4,13 @@
 
 ## Current scope
 
-Seamless Saving **0.9.1**, bootstrap API **8**, save protocol **6**.
-Replace app/worker/JARs together and restart the entire game. In particular, an older
-bootstrap already containing the retired global hooks cannot be upgraded just by toggling
-the extension. No backup-repository reset is needed.
+Seamless Saving **0.10.0**, bootstrap API **9**, extension API **2**, save protocol **6**.
+Install matching app/worker/JARs. The first move from bootstrap API 8 (or older) to 9
+requires one complete game restart: the old resident has no retirement protocol.
+After that, compatible module, extension-host and bridge-payload updates are applied
+at an idle request boundary, including deployments in another folder. No save or
+in-flight native/file/DB operation is interrupted to make an update. Repository data
+and game-save formats do not change. See [reload lifecycle](module-reload.md).
 
 This remains experimental low-interruption saving, not a zero-stall or atomic world
 snapshot guarantee. The public game save implementation is preserved. The extension
@@ -244,3 +247,12 @@ in a separate JVM without saving. No new CI job or test harness was added.
 The refreshed candidate is artifacts/e2e-seamless-0.9.1/app. Bootstrap API 8 and wire 6
 are unchanged. Restart the game for the new module; use the corrected E2E procedure,
 not the superseded 0.9.0 drag-wait expectation. Real-game behavior remains unverified.
+
+## Current verification
+
+The reload tests use independently compiled module generations and the actual bridge
+inside an isolated JVM. They cover held writes, stale resolutions, invalid archives,
+retirement failures, unchanged-byte reuse, deployment relocation, WATCH continuity,
+bridge reconnect and retained death identities. Installed-class inspection includes
+retiring and reinstalling the production adapter in fresh loaders without game saving.
+These are not real-game drag, vehicle-restore or frame-time acceptance results.

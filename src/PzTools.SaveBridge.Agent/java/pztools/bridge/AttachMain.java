@@ -38,7 +38,7 @@ public final class AttachMain {
                     vm.loadAgent(payload.getParent().resolve("pztools-save-bootstrap.jar").toString(), "BOOTSTRAP1:" + encoded);
                     endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
                 }
-                if (!"8".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
+                if (!"9".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
                     throw new IOException("Restart the game to use the updated bridge; no save request was sent");
             } finally { vm.detach(); }
             if (endpoint == null) throw new IOException("Bootstrap is incompatible; restart the game with matching app/workers");
@@ -49,7 +49,7 @@ public final class AttachMain {
             if (controlPort < 1 || controlPort > 65535) throw new IOException("Invalid bootstrap port");
             try (var socket = new Socket()) {
                 socket.connect(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), controlPort), 2000);
-                socket.setSoTimeout(3000);
+                socket.setSoTimeout(5000);
                 var out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 var in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
                 out.println(fields[3] + "\t" + port + "\t" + args[3] + "\t" + encoded + (args.length == 5 ? "\tWATCH" : ""));
@@ -60,8 +60,13 @@ public final class AttachMain {
                     if (count == response.length) throw new IOException("Oversized bootstrap response");
                     if (ch != '\r') response[count++] = (char)ch;
                 }
-                if (!new String(response, 0, count).equals("ACCEPTED"))
-                    throw new IOException("Bridge unavailable or busy; no save command sent. Restart the game after bootstrap updates.");
+                String status = new String(response, 0, count);
+                if (status.equals("BUSY"))
+                    throw new IOException("A prior request or runtime transition is still active. No save command sent; retry after it finishes.");
+                if (status.equals("PAYLOAD_UNAVAILABLE"))
+                    throw new IOException("Bridge payload is incomplete or incompatible. Restore matching deployment files; no save command was sent.");
+                if (!status.equals("ACCEPTED"))
+                    throw new IOException("Bridge rejected the connection. No save command was sent.");
             }
         }
     }

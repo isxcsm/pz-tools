@@ -19,7 +19,10 @@ import java.util.zip.ZipInputStream;
 public final class AgentEntry {
     public static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
     private static SaveModules extensionHost;
-    private static boolean extensionHostAttempted;
+    private static String extensionRuntimeDigest;
+    private static volatile boolean reloadRequested;
+    private static boolean dispatchPaused;
+    private static int dispatching;
     private static Object owner;
     private static volatile Runnable callback;
     private static volatile Runnable observerCallback;
@@ -31,7 +34,7 @@ public final class AgentEntry {
     private static ClassFileTransformer hook;
     private static final AtomicBoolean session = new AtomicBoolean();
     private static Path payload;
-    private static byte[] payloadDigest;
+    private static String payloadDigest;
     private static Method payloadRun;
     private static volatile long payloadLoads;
     private static volatile long hookInstalls;
@@ -55,7 +58,7 @@ public final class AgentEntry {
         control.setDaemon(true);
         try {
             control.start();
-            System.setProperty("pztools.bridge.bootstrap.api", "8");
+            System.setProperty("pztools.bridge.bootstrap.api", "9");
             // Published only after the listener is bound. Never print this credential.
             System.setProperty(CONTROL_PROPERTY, "2:" + ProcessHandle.current().pid() + ":"
                 + server.getLocalPort() + ":" + secret);
@@ -65,18 +68,67 @@ public final class AgentEntry {
         }
     }
 
-    /** Optional modules are loaded only for an explicit provider request. */
-    public static synchronized SaveModules extensions() throws Exception {
-        if (extensionHost != null) return extensionHost;
-        if (extensionHostAttempted) throw new IllegalStateException("Extension runtime unavailable; restart required");
-        extensionHostAttempted = true;
-        Path directory = payload.getParent().resolve("extensions");
-        ClassLoader loader = ClassArchive.open(directory.resolve("pztools-extension-runtime.jar"),
-            "pztools.extensions.runtime", AgentEntry.class.getClassLoader());
-        extensionHost = (SaveModules)loader.loadClass("pztools.extensions.runtime.ModuleHost")
-            .getConstructor(Path.class).newInstance(directory);
-        return extensionHost;
+    /** Reload optional runtime/modules only at a save-session boundary; WATCH stays connected. */
+    public static SaveModules extensions() throws Exception {
+        synchronized (runtimeGate) {
+            Path directory = payload.getParent().resolve("extensions");
+            var archive = ClassArchive.read(directory.resolve("pztools-extension-runtime.jar"));
+            archive.require("PzTools-Extension-Api", Integer.toString(pztools.extensions.api.SaveProvider.API_MAJOR));
+            if (extensionHost == null || !archive.digest().equals(extensionRuntimeDigest)) {
+                var loader = archive.loader("pztools.extensions.runtime", AgentEntry.class.getClassLoader(), true);
+                var next = (SaveModules)loader.loadClass("pztools.extensions.runtime.ModuleHost")
+                    .getConstructor(Path.class).newInstance(directory);
+                try { if (extensionHost != null) extensionHost.close(); }
+                catch (Exception failedRetirement) { next.close(); throw failedRetirement; }
+                extensionHost = next; extensionRuntimeDigest = archive.digest();
+            } else extensionHost.relocate(directory);
+            return extensionHost;
+        }
     }
+    public static boolean runtimeReloadRequested() { return reloadRequested; }
+
+    /** No callback is executed under runtimeGate or the admission monitor. */
+    private static Method preparePayload(Path requested, boolean watch) throws Exception {
+        synchronized (runtimeGate) {
+            var archive = ClassArchive.read(requested);
+            archive.require("PzTools-Bootstrap-Api", "9");
+            if (payloadRun != null && archive.digest().equals(payloadDigest)) {
+                if (!payload.equals(requested)) {
+                    synchronized (AgentEntry.class) {
+                        if (session.get() || callback != null) throw new ReloadBusy();
+                        payload = requested;
+                    }
+                }
+                return watch ? payloadWatch : payloadRun;
+            }
+            synchronized (AgentEntry.class) {
+                if (session.get() || callback != null) throw new ReloadBusy();
+            }
+            // Stage and link before asking the old WATCH generation to finish.
+            var loader = archive.loader("pztools.bridge.runtime", AgentEntry.class.getClassLoader(), false);
+            Method next = loader.loadClass("pztools.bridge.runtime.SaveBridge").getMethod("run", String.class, Instrumentation.class);
+            Method nextWatch = loader.loadClass("pztools.bridge.runtime.RuntimeWatch").getMethod("run", String.class, Instrumentation.class);
+            reloadRequested = true;
+            synchronized (AgentEntry.class) { dispatchPaused = true; }
+            try {
+                long deadline = System.nanoTime() + 3_000_000_000L;
+                while (true) {
+                    synchronized (AgentEntry.class) {
+                        if (!session.get() && !watchSession.get() && callback == null && observerCallback == null && dispatching == 0) break;
+                    }
+                    if (System.nanoTime() >= deadline) throw new ReloadBusy();
+                    Thread.sleep(10); // Control thread only; never wait in game dispatch.
+                }
+                payloadRun = next; payloadWatch = nextWatch; payloadDigest = archive.digest();
+                payload = requested; payloadLoads++;
+                return watch ? nextWatch : next;
+            } finally {
+                synchronized (AgentEntry.class) { dispatchPaused = false; }
+                reloadRequested = false;
+            }
+        }
+    }
+    private static final class ReloadBusy extends Exception { }
 
     private static void controlLoop(ServerSocket server, String secret) {
         while (!server.isClosed()) {
@@ -94,15 +146,19 @@ public final class AgentEntry {
                 int port = Integer.parseInt(parts[1]);
                 Path requestedPayload = Path.of(new String(Base64.getDecoder().decode(parts[3]), StandardCharsets.UTF_8));
                 if (port < 1 || port > 65535 || !parts[2].matches("[0-9a-f]{64}")
-                        || !requestedPayload.isAbsolute() || !payload.equals(requestedPayload.normalize())) {
+                        || !requestedPayload.isAbsolute()) {
                     output.println("RESTART_REQUIRED");
                     continue;
                 }
                 boolean watch = parts.length == 5;
+                Method entry;
+                try { entry = preparePayload(requestedPayload.normalize(), watch); }
+                catch (ReloadBusy busy) { output.println("BUSY"); continue; }
+                catch (Exception incompatible) { output.println("PAYLOAD_UNAVAILABLE"); continue; }
                 AtomicBoolean slot = watch ? watchSession : session;
                 if (!slot.compareAndSet(false, true)) { output.println("BUSY"); continue; }
                 try {
-                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2], watch), watch ? "PzTools-runtime-watch" : "PzTools-save-bridge");
+                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2], watch, entry), watch ? "PzTools-runtime-watch" : "PzTools-save-bridge");
                     worker.setDaemon(true);
                     worker.start();
                     output.println("ACCEPTED");
@@ -117,60 +173,8 @@ public final class AgentEntry {
         }
     }
 
-    private static void runSession(String options, boolean watch) {
+    private static void runSession(String options, boolean watch, Method invokeEntry) {
         try {
-            // Read a closed snapshot, never JarFile/URL caches. One current payload loader is retained.
-            // A changed payload replaces it only between sessions; old request state cannot overlap.
-            Method invokeEntry;
-            synchronized (runtimeGate) {
-            byte[] archive;
-            try (var stream = Files.newInputStream(payload)) {
-                archive = stream.readNBytes(16 * 1024 * 1024 + 1);
-            }
-            if (archive.length > 16 * 1024 * 1024) throw new IOException("Oversized bridge payload");
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(archive);
-            if (payloadRun == null || !MessageDigest.isEqual(digest, payloadDigest)) {
-                if (payloadRun != null && (observerCallback != null || callback != null || (watch ? session.get() : watchSession.get())))
-                    throw new IOException("Runtime changed while observing; restart the game to replace it safely");
-                var classes = new HashMap<String, byte[]>();
-                int total = 0;
-                try (var zip = new ZipInputStream(new ByteArrayInputStream(archive))) {
-                    for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
-                        String name = entry.getName();
-                        if (name.startsWith("pztools/bridge/runtime/") && name.endsWith(".class")) {
-                            byte[] bytes = zip.readNBytes(2 * 1024 * 1024 + 1);
-                            total = Math.addExact(total, bytes.length);
-                            if (bytes.length > 2 * 1024 * 1024 || total > 16 * 1024 * 1024)
-                                throw new IOException("Oversized runtime classes");
-                            classes.put(name.substring(0, name.length() - 6).replace('/', '.'), bytes);
-                        }
-                    }
-                }
-                var loader = new ClassLoader(AgentEntry.class.getClassLoader()) {
-                    @Override protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-                        if (!name.startsWith("pztools.bridge.runtime.")) return super.loadClass(name, resolve);
-                        synchronized (getClassLoadingLock(name)) {
-                            Class<?> loaded = findLoadedClass(name);
-                            if (loaded == null) {
-                                byte[] bytes = classes.get(name);
-                                if (bytes == null) throw new ClassNotFoundException(name);
-                                loaded = defineClass(name, bytes, 0, bytes.length);
-                            }
-                            if (resolve) resolveClass(loaded);
-                            return loaded;
-                        }
-                    }
-                };
-                Method next = loader.loadClass("pztools.bridge.runtime.SaveBridge")
-                    .getMethod("run", String.class, Instrumentation.class);
-                payloadWatch = loader.loadClass("pztools.bridge.runtime.RuntimeWatch")
-                    .getMethod("run", String.class, Instrumentation.class);
-                payloadRun = next;
-                payloadDigest = digest;
-                payloadLoads++;
-            }
-            invokeEntry = watch ? payloadWatch : payloadRun;
-            }
             if (!watch) sessions++;
             invokeEntry.invoke(null, options, instrumentation);
         } catch (Throwable failure) {
@@ -250,12 +254,22 @@ public final class AgentEntry {
     }
     public static void observe(Runnable observer) { observerCallback = observer; }
     public static void poll() {
-        Runnable observer = observerCallback;
-        if (observer != null) {
-            try { observer.run(); } catch (Throwable failure) { observerCallback = null; }
+        Runnable observer, current;
+        synchronized (AgentEntry.class) {
+            if (dispatchPaused) return;
+            observer = observerCallback; current = callback;
+            if (observer == null && current == null) return;
+            dispatching++;
         }
-        Runnable current = callback;
-        if (current != null) current.run();
+        try {
+            if (observer != null) {
+                try { observer.run(); }
+                catch (Throwable failure) {
+                    synchronized (AgentEntry.class) { if (observerCallback == observer) observerCallback = null; }
+                }
+            }
+            if (current != null) current.run();
+        } finally { synchronized (AgentEntry.class) { dispatching--; } }
     }
     // Test/diagnostic counters: never include credentials or payload paths.
     public static synchronized String diagnostics() {

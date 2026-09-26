@@ -7,6 +7,8 @@ import java.util.List;
 public final class SeamlessSaveProvider implements SaveProvider {
     /** Owned by this module, not by the bridge, UI, backup engine or common extension runtime. */
     public interface GameAdapter {
+        default boolean supportsReload() { return false; }
+        default void close() throws Exception { throw new UnsupportedOperationException("Adapter requires restart"); }
         default Support initialize(java.lang.instrument.Instrumentation instrumentation, ClassLoader gameClasses) throws Exception {
             return new Support(true, null);
         }
@@ -25,6 +27,13 @@ public final class SeamlessSaveProvider implements SaveProvider {
             if (support.supported()) matches++; else reason = support.reason();
         }
         return new Support(matches == 1, matches > 1 ? "ambiguous-game-adapter" : matches == 1 ? null : reason);
+    }
+    @Override public boolean supportsReload() { return adapters.stream().allMatch(GameAdapter::supportsReload); }
+    @Override public void close() throws Exception {
+        Exception problem = null;
+        for (var adapter : adapters) try { adapter.close(); }
+        catch (Exception failure) { if (problem == null) problem = failure; else problem.addSuppressed(failure); }
+        if (problem != null) throw problem;
     }
     @Override public String id() { return "pztools.seamless-save"; }
     @Override public Support inspect(Context context) {

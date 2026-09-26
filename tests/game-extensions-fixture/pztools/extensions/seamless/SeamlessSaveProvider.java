@@ -6,6 +6,9 @@ import java.nio.file.*;
 
 /** Isolated transport fixture, never included in the product JAR or used with a real game. */
 public final class SeamlessSaveProvider implements SaveProvider {
+    private final String generation = java.util.UUID.randomUUID().toString();
+    public boolean supportsReload() { return true; }
+    public void close() { }
     public String id() { return "pztools.seamless-save"; }
     public Support inspect(Context context) { context.requireGameThread(); return new Support(true, null); }
     public boolean readyToCapture(Context context) throws Exception {
@@ -24,7 +27,7 @@ public final class SeamlessSaveProvider implements SaveProvider {
         Files.writeString(root.resolve("extension-started"), context.requestId());
         return new PreparedSave() {
             public long retainedBytes() { return 0; }
-            public String diagnostics() { return "fixtureCapture=complete"; }
+            public String diagnostics() { return "fixtureCapture=complete; fixtureGeneration=" + generation; }
             public void commit() throws Exception {
                 if (Thread.currentThread() == context.gameThread()) throw new AssertionError("Writer blocked game thread");
                 while (!Files.exists(root.resolve("release-extension"))) {

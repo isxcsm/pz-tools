@@ -83,6 +83,11 @@ public final class CheckpointRuntime implements AutoCloseable {
         active.compareAndSet(job, null);
         job.result = new Result(job.context.requestId(), job.context.sessionId(), job.context.worldId(), phase, failure);
     }
+    /** True only after capture, commit and close have released their ownership. */
+    public boolean isIdle() { return active.get() == null; }
+    public boolean awaitTermination(long milliseconds) throws InterruptedException {
+        return writer.awaitTermination(milliseconds, TimeUnit.MILLISECONDS);
+    }
     /** Stops admission. Submitted capture/cleanup drains without interruption. */
     @Override public void close() { if (closed.compareAndSet(false, true)) writer.shutdown(); }
 

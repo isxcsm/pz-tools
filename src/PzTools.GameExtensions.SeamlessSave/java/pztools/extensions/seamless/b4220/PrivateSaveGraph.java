@@ -49,12 +49,16 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
     // One private helper in the game's unnamed module obtains a full lookup. No new members are added to GameWindow.
     private static MethodHandles.Lookup gameLookup(Class<?> anchor) throws Throwable {
         var cf = ClassFile.of();
-        ClassDesc name = ClassDesc.of(anchor.getPackageName() + ".PzToolsSaveAccess$" + UUID.randomUUID().toString().replace("-", ""));
+        ClassDesc name = ClassDesc.of(anchor.getPackageName() + ".PzToolsSaveAccess$V1");
         byte[] bytes = cf.build(name, b -> b.withFlags(ClassFile.ACC_FINAL | ClassFile.ACC_SUPER)
             .withMethodBody("lookup", MethodTypeDesc.of(LOOKUP), ClassFile.ACC_STATIC | ClassFile.ACC_PRIVATE,
                 c -> c.invokestatic(ClassDesc.of("java.lang.invoke.MethodHandles"), "lookup", MethodTypeDesc.of(LOOKUP)).areturn()));
         var packageLookup = MethodHandles.privateLookupIn(anchor, MethodHandles.lookup());
-        Class<?> helper = packageLookup.defineClass(bytes);
+        Class<?> helper;
+        synchronized (anchor) {
+            try { helper = Class.forName(anchor.getPackageName() + ".PzToolsSaveAccess$V1", false, anchor.getClassLoader()); }
+            catch (ClassNotFoundException absent) { helper = packageLookup.defineClass(bytes); }
+        }
         var privateLookup = MethodHandles.privateLookupIn(helper, MethodHandles.lookup());
         return (MethodHandles.Lookup)privateLookup.findStatic(helper, "lookup", MethodType.methodType(MethodHandles.Lookup.class)).invokeExact();
     }

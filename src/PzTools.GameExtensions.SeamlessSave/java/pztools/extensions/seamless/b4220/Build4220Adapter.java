@@ -39,7 +39,13 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
     private pztools.extensions.seamless.VersionedSaveEntry entry;
     private volatile boolean initialized;
     private ClassFileTransformer transformer;
+    private Instrumentation installedInstrumentation;
+    private Class<?>[] observerTargets = new Class<?>[0];
+    private final Object transformationGate = new Object();
+    private volatile boolean retiring;
+    private boolean disposed;
     @Override public SaveProvider.Support initialize(Instrumentation instrumentation, ClassLoader loader) throws Exception {
+        if (retiring) return new SaveProvider.Support(false, "module-generation-retired");
         if (initialized) return new SaveProvider.Support(transformationFailure.get() == null, "game-code-changed");
         if (instrumentation == null || Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
             return new SaveProvider.Support(false, "unsupported-runtime");
@@ -86,7 +92,8 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         Set<Class<?>> observed = ConcurrentHashMap.newKeySet();
         transformer = new ClassFileTransformer() {
             @Override public byte[] transform(ClassLoader owner, String name, Class<?> type, ProtectionDomain domain, byte[] bytes) {
-                if (owner != loader || !targets.contains(type)) return null;
+                synchronized (transformationGate) {
+                if (retiring || owner != loader || !targets.contains(type)) return null;
                 try {
                     for (var method : guardMethods) if (method.owner().equals(name))
                         if (!Arrays.equals(fingerprints.get(method), PrivateSaveGraph.methodFingerprint(loader, bytes, method)))
@@ -105,8 +112,12 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
                 } catch (Throwable failure) {
                     transformationFailure.compareAndSet(null, failure); signals.failActive(failure); return null;
                 }
+                }
             }
         };
+        installedInstrumentation = instrumentation;
+        var changed = new ArrayList<>(observers); changed.add(nativeWorker);
+        observerTargets = changed.toArray(Class<?>[]::new);
         signals.register();
         try { nativeSave.register(); } catch (RuntimeException failure) { signals.unregister(); throw failure; }
         try {
@@ -126,9 +137,31 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             return new SaveProvider.Support(false, "unsupported-private-save-layout");
         }
     }
+    @Override public boolean supportsReload() { return true; }
+    @Override public synchronized void close() throws Exception {
+        if (disposed) return;
+        if (!signals.isIdle() || writes != null && !writes.isIdle() || nativeSave != null && !nativeSave.isIdle())
+            throw new IllegalStateException("Cannot retire an owned save");
+        // Guard late transformer invocations, then restore only OUR observation transforms.
+        // Retransformation composes remaining third-party transforms; no raw original bytes are forced back.
+        synchronized (transformationGate) { retiring = true; initialized = false; }
+        if (installedInstrumentation != null && transformer != null) {
+            installedInstrumentation.removeTransformer(transformer);
+            installedInstrumentation.retransformClasses(observerTargets);
+        }
+        Exception problem = null;
+        try { signals.retire(); } catch (Exception failure) { problem = failure; }
+        try { if (nativeSave != null) nativeSave.retire(); }
+        catch (Exception failure) { if (problem == null) problem = failure; else problem.addSuppressed(failure); }
+        try { if (writes != null) writes.retire(); }
+        catch (Exception failure) { if (problem == null) problem = failure; else problem.addSuppressed(failure); }
+        if (problem != null) throw problem;
+        transformer = null; observerTargets = new Class<?>[0]; entry = null;
+        writes = null; nativeSave = null; installedInstrumentation = null; disposed = true;
+    }
     @Override public SaveProvider.Support inspect(SaveProvider.Context context) {
         context.requireGameThread();
-        return new SaveProvider.Support(initialized && transformationFailure.get() == null && signals.observationFailure() == null,
+        return new SaveProvider.Support(!retiring && initialized && transformationFailure.get() == null && signals.observationFailure() == null,
             initialized ? "game-code-changed" : "adapter-not-initialized");
     }
     @Override public boolean readyToCapture(SaveProvider.Context context) throws Exception {

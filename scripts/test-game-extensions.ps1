@@ -24,7 +24,8 @@ New-Item -ItemType Directory -Force $fixtureClasses | Out-Null
 & (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp (Join-Path $jars 'pztools-extension-runtime.jar') -d $fixtureClasses $fixtureSource
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture compilation failed.' }
 $env:PZTOOLS_EXTENSION_FIXTURE_JAR = Join-Path $output 'fixture-module.jar'
-& (Join-Path $JdkPath 'bin/jar.exe') --create --file $env:PZTOOLS_EXTENSION_FIXTURE_JAR -C $fixtureClasses pztools
+[IO.File]::WriteAllText((Join-Path $output 'fixture-module.mf'), "Manifest-Version: 1.0`nPzTools-Extension-Api: 2`n`n", [Text.UTF8Encoding]::new($false))
+& (Join-Path $JdkPath 'bin/jar.exe') --create --manifest (Join-Path $output 'fixture-module.mf') --file $env:PZTOOLS_EXTENSION_FIXTURE_JAR -C $fixtureClasses pztools
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture packaging failed.' }
 
 $privateFixture = Join-Path $output 'private-save-fixture'

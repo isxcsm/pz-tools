@@ -41,6 +41,11 @@ final class OwnedNativeSave {
     }
     void register() { GameHooks.register(POINT, observer); }
     void unregister() { GameHooks.unregister(POINT, observer); }
+    boolean isIdle() { return active.get() == null; }
+    void retire() throws Exception {
+        if (!isIdle()) throw new IllegalStateException("Native work still owned");
+        GameHooks.unregister(POINT, observer).await(5000);
+    }
     Batch begin(SaveProvider.Context context, Consumer<Throwable> report) {
         context.requireGameThread();
         Batch batch = new Batch(context, report);

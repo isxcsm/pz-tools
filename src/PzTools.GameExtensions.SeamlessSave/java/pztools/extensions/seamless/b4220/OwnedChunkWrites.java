@@ -144,6 +144,13 @@ final class OwnedChunkWrites implements AutoCloseable {
             if (batch == null || batch.pendingCount() == 0) writer.shutdown();
         }
     }
+    boolean isIdle() { return active.get() == null; }
+    void retire() throws Exception {
+        if (!isIdle()) throw new IllegalStateException("Chunk writes still owned");
+        close();
+        if (!owners.awaitTermination(5, TimeUnit.SECONDS) || !writer.awaitTermination(5, TimeUnit.SECONDS))
+            throw new IOException("Chunk executors did not retire");
+    }
     private void released() {
         synchronized (lifecycle) {
             Batch batch = active.get();

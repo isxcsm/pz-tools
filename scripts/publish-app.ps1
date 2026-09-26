@@ -20,10 +20,17 @@ if (-not (Test-Path -LiteralPath $DotNetPath -PathType Leaf)) {
     -Configuration $Configuration -Output $Output -DotNetPath $DotNetPath -JdkPath $JdkPath -SaveBridgeOutput $SaveBridgeOutput
 if ($LASTEXITCODE -ne 0) { throw 'worker 게시에 실패했습니다.' }
 
+# Forward the same toolchain/output selection used by workers into the App dependency graph.
+$publishProperties = @()
+if (-not [string]::IsNullOrWhiteSpace($JdkPath)) { $publishProperties += "-p:JdkPath=$JdkPath" }
+if (-not [string]::IsNullOrWhiteSpace($SaveBridgeOutput)) {
+    $bridgePath = [IO.Path]::GetFullPath((Join-Path $repositoryRoot $SaveBridgeOutput))
+    $publishProperties += "-p:SaveBridgeDirectory=$bridgePath"
+}
 & $DotNetPath publish `
     (Join-Path $repositoryRoot 'src/PzTools.App/PzTools.App.csproj') `
     -c $Configuration -p:Platform=x64 -r win-x64 --self-contained false --force `
-    -p:CopyOutputSymbolsToPublishDirectory=false -o $outputPath
+    -p:CopyOutputSymbolsToPublishDirectory=false -o $outputPath @publishProperties
 if ($LASTEXITCODE -ne 0) { throw 'WinUI 앱 게시에 실패했습니다.' }
 
 Write-Host "PzTools 앱 게시 완료: $outputPath"

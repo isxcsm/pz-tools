@@ -63,6 +63,22 @@ public final class VerifyInstalledSaveBytecode {
                     if (verified.size() != PrivateSaveGraph.SOURCES.size()) throw new AssertionError("Original-save audit incomplete");
                 } finally { instrumentation.removeTransformer(audit); }
                 System.out.println("VERIFIED (separate JVM, not saved): production adapter admission and unchanged original save bodies");
+                adapter.close();
+                Path moduleJar = Path.of(Build4220Adapter.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+                var registrations = pztools.extensions.api.GameHooks.class.getDeclaredField("observers"); registrations.setAccessible(true);
+                int baseline = ((Map<?,?>)registrations.get(null)).size();
+                for (int generation = 0; generation < 3; generation++) {
+                    var moduleLoader = pztools.extensions.api.internal.ClassArchive.open(moduleJar,
+                        "pztools.extensions.seamless", pztools.extensions.api.SaveProvider.class.getClassLoader());
+                    var provider = (pztools.extensions.api.SaveProvider)moduleLoader.loadClass("pztools.extensions.seamless.SeamlessSaveProvider").getConstructor().newInstance();
+                    if (!provider.initialize(instrumentation, loader).supported()) throw new AssertionError("Reloaded real adapter rejected");
+                    provider.close();
+                    if (((Map<?,?>)registrations.get(null)).size() != baseline) throw new AssertionError("Retired adapter retained observations");
+                }
+                long helpers = Arrays.stream(instrumentation.getAllLoadedClasses()).filter(c -> c.getClassLoader() == loader
+                    && c.getName().equals("zombie.PzToolsSaveAccess$V1")).count();
+                if (helpers != 1) throw new AssertionError("Reload leaked named game helpers: " + helpers);
+                System.out.println("VERIFIED: installed adapter reload/retirement in three fresh module loaders; no observer or named-helper growth");
             }
         }
     }

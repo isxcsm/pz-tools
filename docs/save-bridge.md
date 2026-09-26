@@ -208,7 +208,8 @@ The B42.20 extension calls VersionedSaveEntry.saveForBackup using private genera
 companions; it does not rewrite GameWindow.save or the public chunk/native save
 and read/write paths. Nested saves from other mods remain normal saves.
 
-Bootstrap API 8 and matched app/worker/JARs require a full game restart. The wire
+Bootstrap API 9 and matched app/worker/JARs are required. Older residents need one restart; compatible
+API9 payload/module changes use the [idle reload lifecycle](module-reload.md). The wire
 protocol remains 6. PREPARE_SAVE_ACTIVE combines provider selection, explicit version
 override and the same pause/death/permission guard used by the scheduling authority.
 STATE3 carries live facts and the actual provider result. It is not a second poller.
