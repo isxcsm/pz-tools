@@ -39,6 +39,7 @@ public sealed class ExtensionSettingsStore
             FileAccess.ReadWrite, FileShare.None);
         var current = Read();
         if (current.Revision != expectedRevision) throw new ExtensionSettingsConflictException();
+        if (current.Revision == long.MaxValue) throw new InvalidDataException("Extension settings revision limit reached.");
         if (current.Extensions.TryGetValue(id, out var existing) && existing.Enabled == enabled) return current;
         var entries = new Dictionary<string, ExtensionPreference>(current.Extensions, StringComparer.Ordinal)
         { [id] = new(enabled) };

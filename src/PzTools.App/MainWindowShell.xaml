@@ -39,6 +39,9 @@
           </ImageIcon>
         </NavigationViewItem.Icon>
       </NavigationViewItem>
+      <NavigationViewItem x:Name="GameExtensionsItem" Content="Game Extensions" Tag="game-extensions">
+        <NavigationViewItem.Icon><SymbolIcon Symbol="Repair" /></NavigationViewItem.Icon>
+      </NavigationViewItem>
       <NavigationViewItem x:Name="LogsItem" Content="로그" Tag="logs">
         <NavigationViewItem.Icon>
           <ImageIcon Width="20" Height="20">
@@ -403,6 +406,7 @@
       </Grid>
       <local:LogsPage x:Name="LogsRoot" Visibility="Collapsed" />
       <local:SettingsPage x:Name="SettingsRoot" Visibility="Collapsed" />
+      <local:GameExtensionsPage x:Name="GameExtensionsRoot" Visibility="Collapsed" />
     </Grid>
   </NavigationView>
   </Grid>

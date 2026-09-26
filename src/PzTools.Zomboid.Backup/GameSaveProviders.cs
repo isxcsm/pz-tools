@@ -38,7 +38,7 @@ public static class ConfiguredGameSaveProviders
             bool enabled;
             string? configurationFailure = null;
             try { enabled = store.Read().Extensions.GetValueOrDefault(ExtensionIds.SeamlessSave)?.Enabled ?? false; }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
             {
                 enabled = false;
                 configurationFailure = "extension-settings-unavailable";

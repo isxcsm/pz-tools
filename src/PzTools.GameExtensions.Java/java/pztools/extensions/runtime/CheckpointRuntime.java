@@ -74,8 +74,8 @@ public final class CheckpointRuntime implements AutoCloseable {
 
     private void finish(Job job, Phase phase, Throwable failure) {
         job.phase = phase;
-        job.result = new Result(job.context.requestId(), job.context.sessionId(), job.context.worldId(), phase, failure);
         active.compareAndSet(job, null);
+        job.result = new Result(job.context.requestId(), job.context.sessionId(), job.context.worldId(), phase, failure);
     }
 
     /** Stops admission. Existing writes drain; shutdownNow/interrupt would not make their completion known. */

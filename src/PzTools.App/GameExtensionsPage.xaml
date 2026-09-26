@@ -11,7 +11,7 @@
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
       </StackPanel>
       <InfoBar x:Name="ErrorInfo" IsClosable="True" Severity="Error" />
-      <ProgressRing x:Name="Loading" IsActive="False" Visibility="Collapsed"
+      <ProgressRing x:Name="LoadingIndicator" IsActive="False" Visibility="Collapsed"
                     HorizontalAlignment="Center" />
       <StackPanel x:Name="Cards" Spacing="8" />
     </StackPanel>

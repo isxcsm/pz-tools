@@ -37,12 +37,12 @@ public sealed partial class GameExtensionsPage : UserControl
         var host = App.Host;
         if (host is null) return;
         refreshing = true;
-        Loading.Visibility = snapshot is null ? Visibility.Visible : Visibility.Collapsed;
-        Loading.IsActive = snapshot is null;
+        LoadingIndicator.Visibility = snapshot is null ? Visibility.Visible : Visibility.Collapsed;
+        LoadingIndicator.IsActive = snapshot is null;
         try { Render(await host.GameExtensions.RefreshAsync()); }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
         { ShowSettingsError(); }
-        finally { refreshing = false; Loading.IsActive = false; Loading.Visibility = Visibility.Collapsed; }
+        finally { refreshing = false; LoadingIndicator.IsActive = false; LoadingIndicator.Visibility = Visibility.Collapsed; }
     }
 
     private void Render(GameExtensionsView view)
@@ -59,7 +59,8 @@ public sealed partial class GameExtensionsPage : UserControl
             });
             description.Children.Add(new TextBlock
             {
-                Text = Localizer.Get(item.Enabled ? "GameExtensions.AwaitingValidation" : "GameExtensions.Disabled"),
+                Text = !view.GameSavingEnabled ? Localizer.Get("GameSaveSetting.Header") + ": " + Localizer.Get("SettingDisabled")
+                    : Localizer.Get(item.Enabled ? "GameExtensions.AwaitingValidation" : "GameExtensions.Disabled"),
                 TextWrapping = TextWrapping.Wrap,
             });
             var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
@@ -119,12 +120,12 @@ public sealed partial class GameExtensionsPage : UserControl
             ErrorInfo.IsOpen = false;
             snapshot = view;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
         {
             ShowSettingsError();
             // A conflict never overwrites another client's settings. Re-read the committed state.
             try { snapshot = await host.GameExtensions.RefreshAsync(); }
-            catch (Exception reload) when (reload is IOException or UnauthorizedAccessException) { }
+            catch (Exception reload) when (reload is IOException or InvalidDataException or UnauthorizedAccessException) { }
         }
         finally
         {

@@ -78,12 +78,14 @@ public sealed class AppHost : IAsyncDisposable
         Projections = projections ?? new ProjectionHost();
         TelemetrySources = telemetrySources ?? new TelemetrySourceCatalog();
         Settings = new AppSettingsService(this.paths.RuntimeRoot, HasRunningOperation);
+        GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views, () => Settings.Load().SaveGameBeforeBackup);
     }
 
     public RevisionedViewStore Views { get; }
     public ProjectionHost Projections { get; }
     public TelemetrySourceCatalog TelemetrySources { get; }
     public AppSettingsService Settings { get; }
+    public GameExtensionController GameExtensions { get; }
     public SettingsProjector SettingsProjector { get; }
     public RepositoryDatabase? Repository { get; private set; }
     public SchedulerDatabase? Scheduler { get; private set; }

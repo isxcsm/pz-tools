@@ -388,4 +388,16 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Opětovné použití shodných dat ze zálohy</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Zapnuto</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Vypnuto</value></data>
+  <data name="GameExtensions.Title" xml:space="preserve"><value>Rozšíření hry</value></data>
+  <data name="GameExtensions.Description" xml:space="preserve"><value>Spravujte volitelná vylepšení hry.</value></data>
+  <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Plynulé ukládání</value></data>
+  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Ve vývoji. Do ověření herního adaptéru se používá standardní ukládání.</value></data>
+  <data name="GameExtensions.Disabled" xml:space="preserve"><value>Vypnuto · Standardní ukládání</value></data>
+  <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Čeká na ověření adaptéru · Standardní ukládání</value></data>
+  <data name="GameExtensions.Configure" xml:space="preserve"><value>Nastavit</value></data>
+  <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Nastavení: {0}</value></data>
+  <data name="GameExtensions.Apply" xml:space="preserve"><value>Použít</value></data>
+  <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Nastavení rozšíření není dostupné</value></data>
+  <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Změny se nepodařilo uložit. Znovu otevřete stránku a zkontrolujte soubor nastavení rozšíření.</value></data>
+  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Tato verze zatím neobsahuje ověřený adaptér ukládání hry. Zapnutí karty pouze uloží vaši volbu; zálohy stále používají stávající postup save(true).</value></data>
 </root>
