@@ -64,6 +64,10 @@ GitHub does not switch README language automatically; select a guide explicitly.
 | [USN tracking / USN 변경 추적](usn-journal.md) | 한국어 | Windows file-change tracking and fallback / 변경 감지와 전체 스캔 |
 | [Stable capture / 파일 복사 검증](stable-capture.md) | 한국어 | Copy verification, retries and inaccessible files / 검증·재시도·접근 실패 |
 | [Process architecture / 프로세스 구조](process-architecture.md) | 한국어 | Workers, scheduling, ownership and recovery / 작업 프로세스와 복구 |
+| [Frame-budgeted saves / 프레임 분할 저장](cooperative-save.md) | English | Capture budgets, bounded I/O and timing diagnostics / 캡처 예산·파일 처리·시간 진단 |
+| [Save acceptance checks / 저장 E2E 확인](e2e-seamless-save.md) | 한국어 | Real-game acceptance procedure and timing comparison / 실게임 확인과 시간 비교 |
+| [JVM component reload / JVM 구성요소 교체](module-reload.md) | English | Compatible updates and generation ownership / 호환 업데이트와 작업 소유권 |
+| [Native save completion / 네이티브 저장 완료](seamless-native-wait.md) | English | Private native-save ownership and completion limits / 네이티브 저장 소유권과 완료 한계 |
 | [Telemetry / 진단 기록](telemetry.md) | 한국어 | Event storage, projections and progress / 로그와 진행률 |
 | [UI contract / 화면 설계](ui-ux-contract.md) | 한국어 | View and interaction contract; compare with current implementation / 화면·상호작용 계약 |
 | [UI assets / 앱 아이콘](ui-assets.md) | 한국어 | Icon sources and generated assets / 아이콘 원본과 생성물 |

@@ -1,5 +1,7 @@
 # Private native-save completion
 
+[Documentation index](README.md) · [Game extensions](game-extensions.md)
+
 The old public save/stop rewrites were removed in 0.7 and are NOT reintroduced.
 Module 0.9 uses a private save companion, read-only native phase observation and the
 game's existing snapshot lock. See [current ownership and limits](game-extensions.md#private-native-completion-09).

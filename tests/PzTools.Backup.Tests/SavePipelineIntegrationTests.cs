@@ -2,8 +2,10 @@ using PzTools.Backup.ChangeTracking.Windows;
 using PzTools.Backup.Core.Configuration;
 using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
+using PzTools.Backup.Storage.Telemetry;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.SaveBridge;
+using System.Text.Json;
 
 namespace PzTools.Backup.Tests;
 
@@ -31,7 +33,7 @@ public sealed partial class GameSaveClientTests
         var options = new BackupOptions(BackupConfiguration.CurrentFormatVersion, temp.GetPath("repository"),
             [new BackupSourceOptions("world", source)],
             new StorageOptions(ChecksumAlgorithm.Sha256, CompressionAlgorithm.None, false),
-            new TelemetryOptions(TelemetryMode.Off, 16, 10, 10, 32))
+            new TelemetryOptions(TelemetryMode.Phase, 16, 10, 10, 32))
             { AlwaysIncludePaths = ["memory-only-state.txt", "calls.txt", "extension-written"] };
         long ordinal = 0;
         Task<OneShotBackupResult> BackupAsync(RuntimeSnapshot snapshot) =>
@@ -47,7 +49,7 @@ public sealed partial class GameSaveClientTests
                     return new BackupPreparationResult("saved", receipt.Detail);
                 }
                 catch (GameSaveException error) when (error.Code == "runtime-deferred")
-                { throw new BackupPreparationDeferredException(error.Message); }
+                { throw new BackupPreparationDeferredException(error.Message, error.Diagnostics); }
             }).RunAsync(options, "world");
 
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
@@ -57,7 +59,15 @@ public sealed partial class GameSaveClientTests
         Assert.False(File.Exists(Path.Combine(source, "calls.txt"))); // No partial save during readiness.
         await File.WriteAllTextAsync(Path.Combine(source, "pause-game"), "pause");
         var paused = await watch.WaitAsync(s => s.Pause == GamePause.Paused);
-        await Assert.ThrowsAsync<BackupPreparationDeferredException>(() => waiting);
+        var deferred = await Assert.ThrowsAsync<BackupPreparationDeferredException>(() => waiting);
+        Assert.Contains("bridgeAdmissionStatsV1=", deferred.Diagnostics);
+        var telemetry = await TelemetryStore.CreateOrOpenAsync(options.RepositoryPath);
+        using (var cancelled = JsonDocument.Parse(Assert.Single(await telemetry.ReadEventsAsync(1),
+            item => item.Name == "run.cancelled").PayloadJson!))
+        {
+            Assert.Equal("source-deferred", cancelled.RootElement.GetProperty("code").GetString());
+            Assert.Equal(deferred.Diagnostics, cancelled.RootElement.GetProperty("diagnostics").GetString());
+        }
         Assert.False(File.Exists(Path.Combine(source, "extension-started")));
 
         File.Delete(Path.Combine(source, "block-preparation"));

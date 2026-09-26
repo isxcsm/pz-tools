@@ -1,10 +1,15 @@
 using System.Text.Json;
 using PzTools.Backup.Storage.Telemetry;
+using PzTools.Process.Contracts;
 
 namespace PzTools.Backup.Engine;
 
 /// <summary>A preparation declined before any capture; this is not a failed integrity check.</summary>
-public sealed class BackupPreparationDeferredException(string reason) : OperationCanceledException(reason) { }
+public sealed class BackupPreparationDeferredException(string reason, string? diagnostics = null)
+    : OperationCanceledException(reason), IFailureDiagnostics
+{
+    public string? Diagnostics { get; } = diagnostics;
+}
 
 public sealed record BackupPreparationResult(string Outcome, string? Detail = null);
 

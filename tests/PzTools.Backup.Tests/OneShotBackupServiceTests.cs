@@ -69,8 +69,9 @@ public sealed class OneShotBackupServiceTests
         };
         var journal = new FakeJournal(new UsnJournalState(1, 2, 0, 100, 0));
         if (incremental) await new OneShotBackupService(journal).RunAsync(options, "main");
+        const string failureDiagnostics = "captureStatsV1=10,5,2; bridgeAdmissionStatsV1=1,20";
         var service = new OneShotBackupService(journal, (_, _) =>
-            throw new GameSaveException(code, "Cannot confirm save"));
+            throw new GameSaveException(code, "Cannot confirm save", failureDiagnostics));
         journal.State = journal.State with { NextUsn = 200 };
         await Assert.ThrowsAsync<GameSaveException>(() => service.RunAsync(options, "main"));
         var repository = await RepositoryDatabase.OpenExistingAsync(options.RepositoryPath);
@@ -87,6 +88,68 @@ public sealed class OneShotBackupServiceTests
         using var payload = JsonDocument.Parse(Assert.Single(events, item => item.Name == "run.failed").PayloadJson!);
         Assert.Equal("source.prepare", payload.RootElement.GetProperty("phase").GetString());
         Assert.Contains(code, payload.RootElement.GetProperty("message").GetString());
+        Assert.Equal(failureDiagnostics, payload.RootElement.GetProperty("diagnostics").GetString());
+    }
+
+    [Theory]
+    [InlineData(false, "queue-timeout")]
+    [InlineData(true, "queue-timeout")]
+    [InlineData(false, "runtime-deferred")]
+    [InlineData(true, "runtime-deferred")]
+    public async Task PreparationDeferred_PreservesBoundedDiagnosticsInCancelledWorkerAndAppLogs(bool incremental, string code)
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        await File.WriteAllTextAsync(Path.Combine(sourcePath, "players.db"), "old");
+        var options = CreateOptions(temp.GetPath("repository"), sourcePath) with
+        {
+            Telemetry = new(TelemetryMode.Phase, 16, 10, 100, 32),
+        };
+        var journal = new FakeJournal(new UsnJournalState(1, 2, 0, 100, 0));
+        if (incremental) await new OneShotBackupService(journal).RunAsync(options, "main");
+        var original = new GameSaveException(code, "Preparation deferred",
+            sourcePath + "\nbridgeAdmissionStatsV1=3,900; " + new string('x', 7000));
+        var service = new OneShotBackupService(journal, (_, _) =>
+            throw new BackupPreparationDeferredException(original.Message, original.Diagnostics));
+        journal.State = journal.State with { NextUsn = 200 };
+        var deferred = await Assert.ThrowsAsync<BackupPreparationDeferredException>(() => service.RunAsync(options, "main"));
+        Assert.Equal(original.Diagnostics, deferred.Diagnostics);
+        var repository = await RepositoryDatabase.OpenExistingAsync(options.RepositoryPath);
+        var source = await repository.GetSourceAsync("main");
+        var state = await repository.GetSourceStateAsync(source!.SourceId);
+        Assert.Equal(incremental ? 1 : 0, state.CurrentRevision);
+        if (!incremental) Assert.Null(state.Checkpoint);
+        else Assert.Equal(100, state.Checkpoint!.NextUsn);
+        var telemetry = await TelemetryStore.CreateOrOpenAsync(options.RepositoryPath);
+        var runIndex = incremental ? 2 : 1;
+        Assert.Equal("Cancelled", (await telemetry.ReadRunAsync(runIndex))!.Status);
+        var events = await telemetry.ReadEventsAsync(runIndex);
+        Assert.DoesNotContain(events, item => item.Name is "scan.started" or "planning.started" or "run.committed" or "run.failed");
+        var cancelled = Assert.Single(events, item => item.Name == "run.cancelled");
+        using var payload = JsonDocument.Parse(cancelled.PayloadJson!);
+        Assert.Equal("source-deferred", payload.RootElement.GetProperty("code").GetString());
+        Assert.Equal("source.prepare", payload.RootElement.GetProperty("phase").GetString());
+        var detail = payload.RootElement.GetProperty("diagnostics").GetString()!;
+        Assert.StartsWith("<save> bridgeAdmissionStatsV1=3,900; ", detail);
+        Assert.DoesNotContain(sourcePath, detail);
+        Assert.DoesNotContain('\n', detail);
+        Assert.Equal(6145, detail.Length); // Shared limit plus the truncation marker.
+        Assert.EndsWith("…", detail);
+
+        var catalog = new TelemetrySourceCatalog();
+        catalog.Register(new TelemetrySourceRegistration("backup-worker", "backup-worker",
+            options.RepositoryPath, telemetry.DatabasePath, TelemetryDatabaseKind.Backup, true));
+        var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
+        var views = new RevisionedViewStore();
+        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        projector.ConfigureRecordingLevel(LogLevel.Warning);
+        await projector.ProjectOnceAsync();
+        var logged = Assert.Single((await inbox.ReadPageAsync(
+            new LogPageQuery(LogLevel.Warning, "All", "", 0))).Entries,
+            item => item.RunIndex == runIndex && item.EventName == "run.cancelled");
+        Assert.Equal(LogLevel.Warning, logged.Level);
+        Assert.Equal(cancelled.PayloadJson, logged.PayloadJson);
     }
 
     [Fact]

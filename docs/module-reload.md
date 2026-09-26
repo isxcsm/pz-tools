@@ -1,6 +1,6 @@
 # Compatible JVM component updates
 
-[Game extensions](game-extensions.md) · [Save bridge](save-bridge.md)
+[Documentation index](README.md) · [Game extensions](game-extensions.md) · [Save bridge](save-bridge.md)
 
 ## User-visible policy
 

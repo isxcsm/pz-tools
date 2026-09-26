@@ -1,5 +1,7 @@
 # 끊김 없는 저장 0.13.0 — E2E 후보 확인
 
+[문서 목록](README.md) · [저장 구조](cooperative-save.md)
+
 이 문서는 실제 게임에서 아직 검증하지 않은 결과를 확인하는 절차입니다.
 합성 JVM 테스트 통과가 드래그·프레임 시간·차량 복원 검증을 대신하지는 않습니다.
 이 후보는 저중단 저장이며 모든 직렬화가 논블로킹이거나 월드 전체가 원자적 스냅샷이라는 보장은 없습니다.
@@ -112,5 +114,7 @@ API 9가 로드된 뒤에는 완료된 저장 사이에 호환되는 모듈을 �
 디버깅 기록은 `%LOCALAPPDATA%/PzTools/config/app/default.toml`에서
 `[logs].record_minimum_level = "Trace"`로 설정한 후 앱을 다시 실행합니다.
 로그 화면의 경고 필터는 별개입니다. 성공은 `source.prepare.completed.detail`,
-실패는 원본 `backup-worker`의 `run.failed.diagnostics`를 확인합니다. 시작 전 대기는
-`bridgeAdmissionStatsV1`로 구분합니다. 파일별·프레임별 로그를 무제한 생성하지 않습니다.
+실패는 원본 `backup-worker`의 `run.failed.diagnostics`를 확인합니다. 준비 단계에서
+보류된 자동 저장은 `run.cancelled`의 `code=source-deferred`와 `diagnostics`를 확인합니다.
+시작 전 대기는 `bridgeAdmissionStatsV1`로 구분합니다. 보류·타임아웃의 진단은 그 시점까지의
+부분 기록이며 저장 완료를 뜻하지 않습니다. 파일별·프레임별 로그를 무제한 생성하지 않습니다.

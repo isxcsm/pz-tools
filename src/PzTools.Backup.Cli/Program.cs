@@ -210,7 +210,7 @@ internal static class BackupCli
                         return new BackupPreparationResult(prepared.Outcome, prepared.Detail);
                     }
                     catch (GameSaveException exception) when (exception.Code is "runtime-deferred" or "queue-timeout")
-                    { throw new BackupPreparationDeferredException(exception.Message); }
+                    { throw new BackupPreparationDeferredException(exception.Message, exception.Diagnostics); }
                 };
             }
             var result = await new OneShotBackupService(new UsnJournalReader(), prepareSource,

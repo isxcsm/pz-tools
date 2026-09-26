@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using PzTools.Backup.Core.Capture;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts;
@@ -6,6 +7,15 @@ namespace PzTools.Backup.Engine;
 
 internal static class BackupFailureTelemetry
 {
+    public static string CreateDeferred(RepositorySource source, BackupPreparationDeferredException exception)
+    {
+        var details = JsonNode.Parse(Create(source, RunStatus.Cancelled, "source-deferred",
+            exception, "source.prepare", null))!.AsObject();
+        // Keep the existing cancellation code while using the shared bounds and path redaction.
+        details["code"] = "source-deferred";
+        return details.ToJsonString();
+    }
+
     public static string Create(
         RepositorySource source,
         RunStatus status,

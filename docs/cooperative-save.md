@@ -1,5 +1,7 @@
 # Frame-budgeted backup save (0.13.0)
 
+[Documentation index](README.md) · [Game extensions](game-extensions.md)
+
 This fixes the measured 0.10 main-thread batching problem; it is not a claim that
 uninterrupted real-game frame times have already been verified.
 
@@ -129,7 +131,11 @@ Successful receipts keep the existing `source.prepare.completed` detail. Optiona
 failure diagnostics travel inside the existing ERROR envelope but are separated
 from the short exception message by the client. Failure telemetry records them in
 a bounded, source-path-redacted `diagnostics` field; older message-only errors
-remain compatible. No per-frame or per-file log stream is added.
+remain compatible. Readiness timeout/withdrawal translated into a deferred automatic
+backup preserves that field in `run.cancelled` with `code=source-deferred`; its
+Cancelled/Skipped outcome and Warning severity are unchanged. Timeout and cancellation
+reports are partial observations, not completion receipts. No per-frame or per-file
+log stream is added.
 
 Existing harnesses cover a real 361-chunk frame plan, blocked file preparation,
 transfer recapture with final inventory reconciliation, newer ordinary file writes,
@@ -204,3 +210,29 @@ confirmed unchanged original save bodies and retired three replacement loaders.
 The Debug app's staged bridge/bootstrap/runtime/module JARs, catalog and backup
 engine matched the tested outputs by SHA-256. No live game save, user-data change,
 release publish or ZIP creation was performed.
+
+## Two-lane I/O and diagnostics verification (0.13.0)
+
+Verified from the isolated `fix/seamless-save-io-tracing` worktree on 2026-09-27.
+The final Debug x64 solution build completed with zero warnings/errors. All five
+Java harness entrypoints passed, including independent-path overlap, same-path
+FIFO, cancellation, newer vanilla-write conflicts, shared queue/byte bounds,
+world exit and retirement. Readiness tests retain the serialization barriers and
+verify bounded baseline preparation during blocked frames.
+
+The final .NET suite recorded 995 passed, zero failed and 28 explicitly gated
+environment-dependent skips in `artifacts/test-results/seamless-io-final/seamless-io-final.trx`.
+Coverage includes preparation timeouts, failure diagnostics, bounded Korean/emoji
+transport, initial/incremental deferred backup diagnostics through the app log
+projection, and unchanged revisions/checkpoints when preparation is declined.
+
+The installed-game verifier admitted the production adapter in a separate JVM,
+confirmed unchanged original save bodies and retired three replacement loaders.
+The Debug app's staged bridge/bootstrap/runtime/module JARs, catalog and affected
+worker DLLs matched the tested build outputs by SHA-256. Documentation checks passed.
+
+Only the separate worktree's Debug output was built. The shared dev checkout and
+vehicle worktree were not changed. The user's app recording configuration remains
+Trace; the repository's default is unchanged. No app launch, real-game save, user
+save mutation, release ZIP or push was performed. Real-game completion time and
+frame-time improvement still require comparison in the same world with 0.13.0.
