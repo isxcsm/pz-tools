@@ -27,21 +27,12 @@ $env:PZTOOLS_EXTENSION_FIXTURE_JAR = Join-Path $output 'fixture-module.jar'
 & (Join-Path $JdkPath 'bin/jar.exe') --create --file $env:PZTOOLS_EXTENSION_FIXTURE_JAR -C $fixtureClasses pztools
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture packaging failed.' }
 
-& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) SaveBytecodeExecutionTest
-if ($LASTEXITCODE -ne 0) { throw 'Save bytecode behavior test failed.' }
-
-$chunkFixture = Join-Path $output 'chunk-fixture'
-New-Item -ItemType Directory -Force $chunkFixture | Out-Null
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d $chunkFixture (Join-Path $root 'tests/game-extensions-chunk-fixture/ChunkIoTemplate.java')
-if ($LASTEXITCODE -ne 0) { throw 'Chunk I/O fixture compilation failed.' }
-& (Join-Path $JdkPath 'bin/java.exe') --add-opens=java.base/sun.nio.ch=ALL-UNNAMED -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.DeferredChunkWriteTest $chunkFixture
-if ($LASTEXITCODE -ne 0) { throw 'Deferred chunk I/O behavior test failed.' }
+$privateFixture = Join-Path $output 'private-save-fixture'
+New-Item -ItemType Directory -Force $privateFixture | Out-Null
+$privateSources = @(Get-ChildItem (Join-Path $root 'tests/game-extensions-private-fixture') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d $privateFixture @privateSources
+if ($LASTEXITCODE -ne 0) { throw 'Private save fixture compilation failed.' }
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.PrivateSaveEntryTest $privateFixture
+if ($LASTEXITCODE -ne 0) { throw 'Private entry isolation/ownership behavior failed.' }
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) VersionSupportTest (Join-Path $root 'tests/game-extensions/version-support.tsv')
 if ($LASTEXITCODE -ne 0) { throw 'Shared extension version rules failed.' }
-$nativeFixture = Join-Path $output 'native-fixture'
-New-Item -ItemType Directory -Force $nativeFixture | Out-Null
-$nativeSources = @(Get-ChildItem (Join-Path $root 'tests/game-extensions-native-fixture') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $classpath -d $nativeFixture @nativeSources
-if ($LASTEXITCODE -ne 0) { throw 'Native save fixture compilation failed.' }
-& (Join-Path $JdkPath 'bin/java.exe') --add-opens=java.base/sun.nio.ch=ALL-UNNAMED -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.NativeSaveWaitTest $nativeFixture $chunkFixture
-if ($LASTEXITCODE -ne 0) { throw 'Native save completion behavior test failed.' }

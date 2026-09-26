@@ -1,185 +1,138 @@
-# Game extensions and Seamless Saving
+# Game extensions and private backup saving
 
 [Documentation index](README.md) · [Save bridge](save-bridge.md) · [Live character state](runtime-character-death.md)
 
 ## Current scope
 
-The experimental Seamless Saving module is **0.6.0**. It uses save protocol **6**,
-bootstrap API **6**, and the shared runtime observation stream. Install matching
-app/worker/JARs and completely restart the game after changing bootstrap or module
-code. No backup-repository schema reset is needed.
+Seamless Saving **0.7.0**, bootstrap API **7**, save protocol **6**.
+Replace app/worker/JARs together and restart the entire game. In particular, an older
+bootstrap already containing the retired global hooks cannot be upgraded just by toggling
+the extension. No backup-repository reset is needed.
 
-This is a low-interruption save pipeline, **not a fully nonblocking or atomic world
-snapshot**. It preserves the original game-thread `GameWindow.save(true)` and its
-OnSave, chunk serialization, player/vehicle, virtual vehicle, animal and native
-subsystem work. The optional module changes selected waiting and I/O boundaries;
-it does not replace full saving with a player-only or occupied-vehicle-only save.
-Real-game drag behavior, frame-time improvement and restored worlds still require
-isolated gameplay validation. The card name is not a zero-stall guarantee.
+This remains experimental low-interruption saving, not a zero-stall or atomic world
+snapshot guarantee. The public game save implementation is preserved. The extension
+now uses an explicit private, versioned entry rather than intercepting ordinary saves.
 
-This branch incorporates dev `cc5f591`, retaining the icon/support UI, inline log
-filters, recovery guidance and pause-aware scheduling. Integration is into the
-feature branch only, not a merge of this feature into dev or main.
+## Separate entry points
 
-## One request pipeline
+```text
+Standard provider / game / other mod -> original GameWindow.save(true)
+Our selected extension             -> VersionedSaveEntry.saveForBackup()
+                                  -> private GameWindow / IsoCell / ChunkMap / Chunk bodies
+                                  -> original serializers, native saving and guarded chunk I/O
+```
 
-1. **Select and validate.** Read extension preferences, check its declared game
-   version range, resolve the optional provider and validate the actual game code.
-   Unsupported modules use standard saving before mutation starts. The pre-backup
-   game-save setting retains precedence over extension preferences.
-2. **Wait before capture, without saving.** The provider's side-effect-free
-   `readyToCapture` probe yields to the next game tick while known chunk/native
-   work is busy or the database worker is unavailable. No sleep/join, partial
-   serialization or source write happens in this new phase. Countdown cancellation,
-   pause/death tickets and permission withdrawal can still cancel it. World/cell
-   identity is pinned during this wait and revalidated before admission.
-3. **Capture once on the correct thread.** Reserve the completion worker BEFORE
-   capture can mutate the game. Keep the original save and serializers, including
-   recovery metadata. Suppress only this module request's forced thumbnail render;
-   the existing thumbnail remains. Ordinary saves still render their thumbnail.
-4. **Own and order writes.** Existing chunk-file writes use copied immutable bytes
-   and an already opened destination channel. The single writer preserves order.
-   New files, unsupported buffers and budget exhaustion use original ordered I/O.
-   Limits remain 64 MiB of owned copies and 128 pending/executing file operations.
-5. **Serve dependent game reads.** A locked `SafeRead` may copy the latest pending
-   bytes into its own buffer instead of waiting for disk. It never receives the
-   retained array. The original read lock and sanity/finally cleanup still run.
-   A replaced path or unavailable identity uses the ordered disk-read path instead.
-6. **Await all required completions.** The original native worker must finish its
-   collision/population save; post-capture player/vehicle drains must acknowledge;
-   owned chunk channels, read copies and failure cleanup must be released. Only
-   then is a typed success receipt visible and the existing backup preparation
-   callback allowed to return. Native, file and DB completions cannot substitute
-   for one another.
-7. **Back up and report.** The unchanged engine captures the live source directory.
-   The shared runtime reports the actual provider, fallback/failure and preparation/
-   total time to the extension card. A requested toggle is not proof of application.
+`PrivateSaveGraph` builds four hidden nestmate companions from the inspected game
+method bodies. Only their internal call sites use private handles. The game classes
+are not replaced and receive no added save methods or fields. Their original save,
+read, write, thumbnail and native-stop implementations remain installed unchanged.
+Companions are generated in the target JVM; no game classes or copied game code are
+redistributed in our JARs.
 
-The readiness probe is advisory, not a new lock or an atomic idle reservation.
-A worker starting immediately after it is handled by the ORIGINAL game's checks;
-those checks were not removed. Waiting remains bounded by the existing request
-lifetime, and expiration before capture is not a successful save.
+Only the private root omits its own preview. A nested `OnSave` handler calling the
+original `GameWindow.save` still gets the normal preview and normal I/O. Virtual calls
+on modded subclasses use the original virtual method instead of bypassing its override.
+The original full-save coverage, including chunk serialization's vehicle effects,
+player/virtual vehicles, animals, native systems and Lua events, is not reduced.
 
-### Read-through and Windows file identity
+A read-only transformer inspects the live source methods and returns null for them.
+Canonical method fingerprints detect relevant changes by other transformers; a changed
+source disables new private captures. The normal provider remains the pre-capture fallback.
+No automatic replay occurs after a private capture starts. Later third-party agents
+can still interfere with a shared JVM; this is not an arbitrary-mod compatibility guarantee.
 
-`BasicFileAttributes.fileKey()` is null in the inspected Windows JDK. Timestamps or
-sizes are NOT used as substitute identities. The version-bound module obtains the
-JDK's file key from an OPEN `FileChannel` descriptor and compares it to an opened
-read channel for the current path. Thus a pending write for a renamed file is not
-returned as data for a replacement at the old path.
+## Ordered I/O without changing normal readers or writers
 
-`PinnedFileIdentity` contains the JDK-25 implementation dependency. Instrumentation
-opens only `java.base/sun.nio.ch` to this trusted module's module identity, not to
-all game code. No new DLL, process, hard link or file sidecar is added. When this
-access/layout is unavailable, the read-through optimization is disabled and the
-ordered disk read remains. The standalone harness grants equivalent test-process
-access explicitly; that launch flag is not added to the user's game command line.
+The private chunk path copies serialized bytes and reserves the game's counted per-file
+lock. One worker acquires that original write lock, opens the existing file without
+truncation, then acknowledges the handoff. Only then may the game continue. The worker
+writes the detached bytes, closes the channel, unlocks on the SAME worker thread, and
+releases the counted reference. Normal unmodified reads/writes use this same game lock.
+They cannot read half a file or let a later write be overwritten by the older private write.
+The opened channel pins the file; renaming after handoff does not redirect the write.
 
-A memory read is NOT a disk-commit acknowledgement. The backup cannot proceed on
-the basis of a successful cache read; it still awaits every required completion.
-Pending bytes remain within the same accounting budget through concurrent copying.
+There is one I/O worker, at most two retained operations, and a 64 MiB copy budget.
+New files, unsupported buffers and unavailable capacity use the original synchronous
+SafeWrite before any handoff is accepted. No chunk is omitted. World exit/cancellation
+does not discard accepted writes or report completion before resource release.
 
-### Failure, cancellation and world changes
+The handoff can wait for a competing lock or the previous I/O. Native saving, including
+its completion wait, is synchronous again. This is deliberate: returning early from
+shared native writes required modifying ordinary save/stop paths to remain safe.
 
-Completion execution is submitted before capture starts. Submission failure therefore
-cannot strand a partially mutated save. Once capture begins, snapshot validation
-failure and shutdown also finish via the already-owned completion worker. Potentially
-blocking `PreparedSave.close()` never runs on the game thread in that path.
+The previous FileWriteHooks/SaveWaitHooks, public SafeRead read-through, JDK-internal
+file-key adapter, auxiliary-output rewrites and native save/stop rewrites were removed.
+They are not hidden fallback modes. Some earlier optimizations are consequently no
+longer active; no performance improvement over 0.6 is asserted without measurements.
 
-Database drain scopes track in-flight calls as well as post-capture acknowledgements.
-Losing the world is an error, not evidence that the pinned database thread stopped
-writing. Cleanup waits for the acknowledged work or that exact worker's termination;
-a dead worker without acknowledgements is failure, not success. A still-running,
-unacknowledged worker retains ownership and the client reports completion unknown.
-There is no automatic replay of standard saving after an extension starts.
+## Observation and ownership
 
-The native-wait boundary retains the original worker, inputs and two native save
-calls. Later ordinary saves and shutdown may wait for a dependency on earlier work.
-See [native wait analysis](seamless-native-wait.md) for the exact B42.20 boundary.
+The existing game-loop dispatch and WATCH session still supply pause, version, live
+character/death and execution status. Saved players.db state stays independent.
+Three narrow read-only observers remain: PlayerDB/VehicleDB drain enter/exit and
+ExceptionLogger errors. They do not replace serializers, swallow game exceptions,
+suppress calls, start saves or perform file I/O. Observer failures cannot escape into
+the game caller; they are latched and invalidate/fail our operation instead.
 
-## Project and state ownership
+Preparation readiness remains side-effect-free. Pause/death identity, revocable
+permission and source checks precede capture. Completion capacity is reserved before
+mutation. The completion worker drains owned files and acknowledges player/vehicle DB
+work; it never interprets a dequeued task as a committed save. The existing bridge
+receipt, worker preparation boundary and backup engine integration are unchanged.
 
-| Layer | Responsibility |
-| --- | --- |
-| GameExtensions (`net10.0`) | Extension catalogue, numeric version policy, preference revisions; no WinUI/game dependency |
-| App.Core / App | Projection, card, toggle and modal; no game persistence code |
-| Zomboid.Backup / SaveBridge | Existing preparation policy, authenticated transport and typed result |
-| Stable Java API / runtime | Provider readiness/capture/completion and bounded ownership |
-| SeamlessSave/b4220 | Game/JDK-sensitive reflection, transformation, file and native/DB completion policy |
-| Backup.Engine | Source preparation followed by normal capture/revision creation; no mod-specific branch |
+## Layers and version policy
 
-One bootstrap and GameWindow dispatch hook serve independent WATCH and exclusive
-SAVE sessions. Pause, game version, live character state and save execution feedback
-reuse the same observation stream. There is no extra per-card Attach/collector/DB.
-Saved `players.db` CharacterState is still separate from JVM Alive/Dead facts and
-observed death episodes. Periodic pause guards, exact-character death guards and
-master automatic-backup settings continue to apply to both save providers.
+WinUI presents cards and settings; App.Core projects committed preferences and the
+actual provider result. GameExtensions owns OS-independent configuration and inclusive
+All/Major/Minor version rules. The bridge owns authentication/admission, not game
+serialization. The separate SeamlessSave JAR owns the versioned entry, private copies,
+original-lock access and compatibility validation. The general backup engine contains
+no module-specific branch. The private-call linker carries only per-companion immutable
+handles; it is not a global method registry or arbitrary remote invocation facility.
 
-## Version and activation policy
-
-`config/game-extensions/catalog.tsv` is the shared UI/JVM deployment catalogue.
-
-| Scope | Example | Meaning |
-| --- | --- | --- |
-| All | - / - | No declared restriction; current Seamless Saving policy |
-| Major | 42 / - | Major 42 and later, available to a future vehicle extension |
-| Major | 42 / 42 | Only 42.x |
-| Minor | 42.20 / 42.25 | Inclusive minor range, including patch versions |
-
-Numeric components are compared, not decimal values or lexicographic strings.
-Restricted unknown/mismatched versions disable normal activation without erasing
-preferences. The settings modal permits an explicit warned version override.
-Override affects the declaration ONLY, not authentication, code shape, thread/world
-identity, save guards or completion checks. All is not an assertion that arbitrary
-game binaries are supported: this adapter still validates the inspected 42.20 code.
-Module code updates require restart; toggles do not reload JARs or retransform classes.
+The shared catalogue continues to declare Seamless Saving as All. Major min=42 can
+be used for a future vehicle module; Minor supports ranges such as 42.20-42.25.
+Explicit override bypasses the declared range only, never essential structure,
+identity, admission or completion checks. All is not proof of compatibility with
+unexamined binaries. Existing card/modal translations and actual-result reporting remain.
 
 ## Validation and remaining work
 
-Focused validation uses the existing Windows/JVM path, not new CI jobs. It covers
-controlled pre-capture delay/cancellation, transformed read-through before blocked
-disk writes finish, native/file/DB combined barriers, failure cleanup during runtime
-shutdown and DB worker termination. One end-to-end .NET regression connects a
-synthetic JVM provider to real initial/incremental backups and restores their bytes.
-The fixture's game save must flush its memory-only state before either capture.
-Actual installed classes are additionally transformed/verified offline without
-running game static initializers. These checks are not real-game vehicle/drag tests.
+The ordinary Java checks now combine private-entry execution, nested normal saving,
+virtual mod overrides, original-lock ordering, failure cleanup and file ownership.
+They replace tests of the retired global-hook implementation rather than accumulating
+additional jobs. Existing readiness/pause/death and initial/incremental backup/restore
+integration checks are retained. Installed-JAR validation additionally creates the
+actual private companions and initializes the production adapter in a separate test
+JVM, then checks that original save bodies have not changed. It does not call game
+saving or attach to the user's running game.
 
-Remaining work is grouped into two product milestones rather than separate helper
-features:
+Two product milestones remain:
 
-- **Consistent capture with a bounded game-thread pause.** Large chunk/animal/native
-  input serialization still occupies the game thread. Splitting it across frames
-  needs a coherent snapshot or mutation tracking, together with a fixed backup
-  input lifetime. The current source is still live; copying files or read-through
-  caching alone does not make container/player transfers atomic across files.
-- **Real-game acceptance on a disposable world.** Reproduce dragging while saving,
-  compare frame times against standard saving, restore discovered/unoccupied
-  vehicles and moved items, and exercise mods' OnSave, failure and world exit.
-  Only after this is it appropriate to claim the observed gameplay problem solved.
+1. **Coherent snapshot and bounded capture.** Chunk/animal/native input serialization
+   still uses the game thread. The backup engine still reads the live source after
+   preparation. Splitting mutable objects across frames without snapshot/mutation
+   tracking would mix different item/vehicle states. A genuinely nonblocking design
+   must isolate its input and output lifetime, not reintroduce global save hooks.
+2. **Disposable-world acceptance.** Reproduce dragging, compare frame times and
+   restore unoccupied discovered vehicles, transferred items and mod OnSave data.
+   Include normal/mod saves overlapping our request, failure and world exit.
+   Synthetic Java tests and installed-bytecode admission are not real-game acceptance.
 
-Existing synchronous fallbacks, dependency locks and first file creation can still
-stall. Preparation/total durations shown on the card are not frame-time statistics.
-### Latest local validation
+### Latest local verification
 
-The integrated Windows Release solution/WinUI/native/Java build passed with zero
-warnings and errors. `artifacts/game-extension-tests/combined-save.trx` reports
-**149 passed, zero failed, one explicit live-game probe skipped**. This includes the
-new source-preparation/initial/incremental/restore pipeline case, existing runtime
-pause/death/version cases, provider cancellation and localization/log-filter checks.
-The six existing Java harness programs pass, including the combined transformed
-file/native/DB barrier and failure cleanup. Installed GameWindow, PlayerDB,
-VehiclesDB2, ExceptionLogger, IsoChunk and MapCollisionData bytecode verifies offline;
-readiness/database-thread field metadata also verifies without initialization.
-The app's four deployed worker JARs and catalogue match the build outputs by SHA-256.
+Windows Release solution/WinUI/native/Java build: zero warnings and errors.
+`artifacts/game-extension-tests/private-save.trx`: 117 passed, zero failed,
+one explicitly skipped live-game probe. The four current Java harnesses pass.
+The private-entry harness executes normal saving before/after the extension, a nested
+mod save, a virtual subclass override, original-lock ordering, failed writes and
+ownership through world invalidation. Existing .NET coverage also connects readiness,
+pause and completion to initial/incremental backups and restored bytes.
 
-During validation, Windows returned no BasicFileAttributes key, so the initial
-read-through attempt correctly fell back to waiting and failed its nonblocking
-behavior test. The opened-handle adapter above fixed this; the check was not removed
-or replaced with a timestamp. Interruption behavior was also preserved after the
-DB fence change. The final .NET set ran once after those Java fixes. No additional
-CI job/workflow or repeated full-repository .NET run was introduced.
-
-No user's game was attached or saved, and no user's save, backup DB, settings or
-installed application was modified. These are development-worktree and synthetic
-fixture results, not live-game acceptance results or GitHub CI results.
+Using the installed JAR read-only in a separate JVM, the production adapter initializes
+successfully and four original save bodies remain canonically identical after its
+installation/retransformation. Private companions and three observation transforms
+verify; original file-lock/worker field contracts resolve without game initialization.
+The four app-worker JARs and catalogue match the build outputs by SHA-256. Removed
+global-hook classes are absent from those JARs. These are local checks, not GitHub CI
+or real gameplay, drag, frame-time or vehicle-restoration acceptance results.

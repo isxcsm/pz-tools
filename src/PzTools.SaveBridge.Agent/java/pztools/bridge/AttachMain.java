@@ -38,7 +38,7 @@ public final class AttachMain {
                     vm.loadAgent(payload.getParent().resolve("pztools-save-bootstrap.jar").toString(), "BOOTSTRAP1:" + encoded);
                     endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
                 }
-                if (!"6".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
+                if (!"7".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
                     throw new IOException("Restart the game to use the updated bridge; no save request was sent");
             } finally { vm.detach(); }
             if (endpoint == null) throw new IOException("Bootstrap is incompatible; restart the game with matching app/workers");

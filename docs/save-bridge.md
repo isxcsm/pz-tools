@@ -202,32 +202,24 @@ save tests manual; synthetic JVM integration tests use isolated temporary data.
 
 ## Optional game extensions
 
-The [game extension module](game-extensions.md) may be selected for a backup request.
-Its B42.20 adapter keeps the original save call, omits only the forced preview render,
-and observes player/vehicle database drains before completion. Chunk and native
-saving remain synchronous. An incompatible optional provider falls back in the same
-authenticated request before saving; a failure after provider admission is not replayed.
-The current bootstrap API 4 contains the stable module API and requires a complete game restart
-when replacing an older bootstrap. Ordinary save/probe requests do not load modules.
+The [separate save module](game-extensions.md) is selected only for an explicit
+extension request. Standard saving still calls the original GameWindow.save(true).
+The B42.20 extension calls VersionedSaveEntry.saveForBackup using private generated
+companions; it does not rewrite GameWindow.save or the public chunk/native save
+and read/write paths. Nested saves from other mods remain normal saves.
 
+Bootstrap API 7 and matched app/worker/JARs require a full game restart. The wire
+protocol remains 6. PREPARE_SAVE_ACTIVE combines provider selection, explicit version
+override and the same pause/death/permission guard used by the scheduling authority.
+STATE3 carries live facts and the actual provider result. It is not a second poller.
 
-The optional B42.20 module now reports `GAME_SAVE_AND_PENDING_WRITES_DRAINED` after
-its bounded existing-chunk file handoffs and database fences finish. New-file creation,
-serialization, native waits and ordered fallback I/O remain synchronous. The current bootstrap API 4
-requires a game restart. See [ordered file handoff](game-extensions.md#ordered-chunk-file-handoff-03).
+Private chunk I/O uses the original counted file locks. Native saving is synchronous;
+the earlier global native-wait/read-through hooks have been removed. Three nonthrowing
+read-only DB/error observers preserve completion and failure accounting. A typed
+GAME_SAVE_AND_PENDING_WRITES_DRAINED receipt is emitted only after owned I/O and the
+required DB drains complete. It is not an atomic whole-world or hardware-flush receipt.
 
-## Combined runtime/extension protocol
-
-The pause-observation and game-extension branches previously assigned different
-meanings to protocol 5. The integrated wire protocol is 6 (bootstrap API 4).
-`PREPARE_SAVE_ACTIVE` includes the same runtime ticket as guarded standard saving,
-alongside provider selection and a version-range override. Standard and extension
-saves both preserve RecoveryStamp, pre-submission permission, cancellation admission,
-and completion-unknown behavior. `STATE2` extends observation with optional game
-version metadata; it is not a second source of pause/scheduling authority.
-## Native completion handoff (current bootstrap API 5)
-
-The optional 0.5 module keeps native submission and the original MCD worker but
-hands its acknowledged completion wait off the game loop. Later ordinary saves and
-world teardown are fenced. See [exact scope and limitations](seamless-native-wait.md).
-No new wire command, death policy, state poller or backup database is introduced.
+Unsupported private sources fall back to standard saving before capture begins.
+After mutation starts, errors or unknown completion are never replayed as another
+standard save. RecoveryStamp, readiness, cancellation admission, game-thread/world
+identity and the general backup-preparation boundary remain in force.

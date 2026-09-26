@@ -12,13 +12,8 @@ public final class SaveAdapterBehaviorTest {
         try {
             var context = context();
             var batch = signals.begin(context, true);
-            check(GameHooks.suppress(SaveSignals.THUMBNAIL), "Only the module capture suppresses its preview");
-            var offThread = new FutureTask<Boolean>(() -> GameHooks.suppress(SaveSignals.THUMBNAIL));
-            new Thread(offThread).start();
-            check(!offThread.get(10, TimeUnit.SECONDS), "Another thread's preview is unaffected");
             GameHooks.enter(SaveSignals.PLAYERS); // This drain started before the capture boundary.
             batch.arm();
-            check(!GameHooks.suppress(SaveSignals.THUMBNAIL), "Normal rendering resumes after capture");
             var result = write(batch);
             GameHooks.exit(SaveSignals.PLAYERS, null);
             drain(SaveSignals.VEHICLES);
@@ -60,7 +55,7 @@ public final class SaveAdapterBehaviorTest {
                 try { lostResult.get(10, TimeUnit.SECONDS); throw new AssertionError("Worker termination reported commit"); }
                 catch (ExecutionException expected) { check(expected.getCause() instanceof IOException, "Missing acknowledgement is failure"); }
             } finally { workerRelease.countDown(); database.join(10_000); }
-            System.out.println("PASS: preview scope, post-capture drains, in-flight writes, logged error, world end");
+            System.out.println("PASS: post-capture drains, in-flight ownership, logged error, world end");
         } finally { signals.unregister(); }
     }
     private static SaveProvider.Context context() {

@@ -7,24 +7,15 @@ import java.util.concurrent.atomic.*;
 
 /** Completion tickets, not queue-length guesses. A drain must START after capture is armed. */
 final class SaveSignals {
-    static final String THUMBNAIL = "pztools.save.thumbnail.v1";
     static final String PLAYERS = "pztools.save.players-drain.v1";
     static final String VEHICLES = "pztools.save.vehicles-drain.v1";
     static final String ERRORS = "pztools.save.error.v1";
-    NativeSaveWait nativeWait;
     private final AtomicReference<Batch> active = new AtomicReference<>();
     private final ThreadLocal<Integer> drainDepth = ThreadLocal.withInitial(() -> 0);
-    private final GameHooks.Observer thumbnail = new GameHooks.Observer() {
-        public boolean suppress() {
-            Batch batch = active.get();
-            return batch != null && batch.capturing && Thread.currentThread() == batch.context.gameThread();
-        }
-    };
     private final GameHooks.Observer players = drain(1);
     private final GameHooks.Observer vehicles = drain(2);
     private final GameHooks.Observer errors = new GameHooks.Observer() {
         public void error(Throwable failure) {
-            if (nativeWait != null) nativeWait.recordError(failure);
             Batch batch = active.get();
             if (batch != null && (drainDepth.get() > 0 || batch.capturing
                     && Thread.currentThread() == batch.context.gameThread())) batch.fail(failure);
@@ -62,14 +53,23 @@ final class SaveSignals {
     private static final class Scope { Batch ticket; int depth; boolean acknowledge; }
     void register() {
         try {
-            GameHooks.register(THUMBNAIL, thumbnail); GameHooks.register(PLAYERS, players);
+            GameHooks.register(PLAYERS, players);
             GameHooks.register(VEHICLES, vehicles); GameHooks.register(ERRORS, errors);
         } catch (RuntimeException failure) { unregister(); throw failure; }
     }
     void unregister() {
-        GameHooks.unregister(THUMBNAIL, thumbnail); GameHooks.unregister(PLAYERS, players);
+        GameHooks.unregister(PLAYERS, players);
         GameHooks.unregister(VEHICLES, vehicles); GameHooks.unregister(ERRORS, errors);
     }
+    private static final String[] OBSERVATION_POINTS = { PLAYERS, VEHICLES, ERRORS };
+    Throwable observationFailure() {
+        for (String point : OBSERVATION_POINTS) {
+            Throwable failure = GameHooks.failure(point);
+            if (failure != null) return failure;
+        }
+        return null;
+    }
+    void failActive(Throwable failure) { Batch batch = active.get(); if (batch != null) batch.fail(failure); }
     Batch begin(SaveProvider.Context context, boolean includePlayers) { return begin(context, includePlayers, null); }
     Batch begin(SaveProvider.Context context, boolean includePlayers, Thread databaseWorker) {
         context.requireGameThread();
@@ -85,12 +85,11 @@ final class SaveSignals {
         private int inFlight;
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
         private volatile boolean capturing = true, armed;
-        DeferredChunkWrites.Batch chunks;
-        NativeSaveWait.Batch nativeSave;
+        OwnedChunkWrites.Batch chunks;
         Batch(SaveProvider.Context context, int expected, Thread databaseWorker) {
             this.context = context; this.databaseWorker = databaseWorker; pending = new AtomicInteger(expected);
         }
-        void arm() { if (chunks != null) chunks.seal(); if (nativeSave != null) nativeSave.seal(); capturing = false; armed = true; }
+        void arm() { if (chunks != null) chunks.seal(); capturing = false; armed = true; }
         void fail(Throwable error) { if (error != null) failure.compareAndSet(null, error); }
         void enterDrain() { synchronized (databaseGate) { inFlight++; } }
         void exitDrain() { synchronized (databaseGate) { inFlight--; databaseGate.notifyAll(); } }
@@ -118,9 +117,10 @@ final class SaveSignals {
         public SaveProvider.Completion completion() { return chunks == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
         public void commit() throws Exception {
             if (chunks != null) chunks.await();
-            if (nativeSave != null) nativeSave.awaitSettled();
             if (awaitDatabase()) throw new InterruptedException("Interrupted after draining owned database writes");
             if (!context.worldValid().get()) throw new IOException("World changed during save");
+            Throwable observation = observationFailure();
+            if (observation != null) fail(observation);
             Throwable problem = failure.get();
             if (problem != null) throw new IOException("Game reported a save/write error", problem);
         }
@@ -128,7 +128,6 @@ final class SaveSignals {
             // Even cancellation/world exit must not leave detached writes behind a released save owner.
             try { if (chunks != null) chunks.await(); }
             finally {
-                if (nativeSave != null) nativeSave.close();
                 // World invalidation is an error, not proof that a database thread stopped writing.
                 awaitDatabase();
                 active.compareAndSet(this, null);
