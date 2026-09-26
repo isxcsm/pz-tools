@@ -7,7 +7,7 @@ public sealed partial class GameSaveClientTests
     [Fact]
     public void ProviderReceiptDistinguishesDrainedQueuesFromAnAtomicCheckpoint()
     {
-        const string id = "pztools.seamless-save";
+        const string id = "pztools.test-save";
         var response = GameSaveClient.ParseResponse($"SAVED\t{id}\tGAME_SAVE_AND_DATABASE_QUEUES_DRAINED\t{Encode("completed")}\t-", id);
         Assert.Equal(GameSaveCompletion.GameSaveAndDatabaseQueuesDrained, response.Completion);
         Assert.Null(response.FallbackReason);
@@ -22,9 +22,9 @@ public sealed partial class GameSaveClientTests
     [Fact]
     public void ProviderFailurePreservesOptionalDiagnosticsOutsideTheShortMessage()
     {
-        const string detail = "captureStatsV1=500,100,5; chunkIoDetailStatsV1=1,2,3";
+        const string detail = "legacy-provider-context";
         var failure = Assert.Throws<GameSaveException>(() => GameSaveClient.ParseResponse(
-            $"ERROR\textension-save-failed\t{Encode("write failed\nSave diagnostics: " + detail)}", "pztools.seamless-save"));
+            $"ERROR\textension-save-failed\t{Encode("write failed\nSave diagnostics: " + detail)}", "pztools.test-save"));
         Assert.Equal("[extension-save-failed] write failed", failure.Message);
         Assert.Equal(detail, failure.Diagnostics);
         var legacy = Assert.Throws<GameSaveException>(() => GameSaveClient.ParseResponse(
@@ -34,14 +34,14 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
-    public async Task ProviderUnsupportedBuildFallsBackInTheSameSessionAndSavesExactlyOnce()
+    public async Task RemovedSaveProviderFallsBackInTheSameSessionAndSavesExactlyOnce()
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         var result = await Client().RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
         Assert.Equal("pztools.standard-save", result.ProviderId);
         Assert.Equal(GameSaveCompletion.StandardCallReturned, result.Completion);
-        Assert.Equal("unsupported-game-build", result.FallbackReason);
+        Assert.Equal("unknown-provider", result.FallbackReason);
         Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));
         await AssertIdleAsync(temp);
     }
@@ -57,23 +57,19 @@ public sealed partial class GameSaveClientTests
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(source, destination);
         }
-        File.Copy(Environment.GetEnvironmentVariable("PZTOOLS_EXTENSION_FIXTURE_JAR")!,
-            Path.Combine(bridge, "extensions", "pztools-seamless-save.jar"), true);
+        InstallTestSaveProvider(bridge);
         await File.WriteAllTextAsync(temp.GetPath("block-preparation"), "defer admission");
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         var shortDeadline = new GameSaveClient(bridge, completionTimeoutSeconds: 30, queueTimeoutSeconds: 10);
         var timedOut = await Assert.ThrowsAsync<GameSaveException>(() =>
-            shortDeadline.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save"));
+            shortDeadline.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save"));
         Assert.Equal("queue-timeout", timedOut.Code);
-        var timedAdmission = System.Text.RegularExpressions.Regex.Match(timedOut.Diagnostics!, @"bridgeAdmissionStatsV1=(\d+),(\d+)");
-        Assert.True(timedAdmission.Success);
-        Assert.True(long.Parse(timedAdmission.Groups[1].Value) > 0);
-        Assert.True(long.Parse(timedAdmission.Groups[2].Value) > 0);
+        Assert.Null(timedOut.Diagnostics);
         Assert.False(File.Exists(temp.GetPath("extension-started")));
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
         File.Delete(temp.GetPath("preparation-waiting"));
         var client = new GameSaveClient(bridge);
-        var first = client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
+        var first = client.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
         try
         {
             await AwaitExtensionFileAsync(temp.GetPath("preparation-waiting"));
@@ -87,46 +83,31 @@ public sealed partial class GameSaveClientTests
         finally { await File.WriteAllTextAsync(temp.GetPath("release-extension"), "release"); }
         var result = await first;
         Assert.Equal(GameSaveCompletion.DetachedWritesCommitted, result.Completion);
-        Assert.Contains("fixtureCapture=complete", result.Detail);
-        var admission = System.Text.RegularExpressions.Regex.Match(result.Detail, @"bridgeAdmissionStatsV1=(\d+),(\d+)");
-        Assert.True(admission.Success);
-        Assert.True(long.Parse(admission.Groups[1].Value) > 0);
-        Assert.True(long.Parse(admission.Groups[2].Value) > 0);
+        Assert.Equal("pztools.test-save", result.ProviderId);
         Assert.True(File.Exists(temp.GetPath("extension-written")));
         Assert.True(File.Exists(temp.GetPath("extension-closed")));
         Assert.False(File.Exists(temp.GetPath("calls.txt"))); // Fixture provider, not a replayed standard save.
         await File.WriteAllTextAsync(temp.GetPath("fail-extension"), "fail");
-        var failed = await Assert.ThrowsAsync<GameSaveException>(() => client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save"));
+        var failed = await Assert.ThrowsAsync<GameSaveException>(() => client.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save"));
         Assert.Equal("extension-save-failed", failed.Code);
         Assert.Contains("IOException: Fixture write failure", failed.Message);
-        Assert.Contains("SeamlessSaveProvider", failed.Message);
-        Assert.Contains("captureStatsV1=", failed.Diagnostics);
-        Assert.Contains("completionStatsV1=", failed.Diagnostics);
-        Assert.Contains("fixtureCapture=complete", failed.Diagnostics);
-        Assert.DoesNotContain("captureStatsV1=", failed.Message);
+        Assert.Contains("TestSaveProvider", failed.Message);
+        Assert.Null(failed.Diagnostics);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
         File.Delete(temp.GetPath("fail-extension"));
         await File.WriteAllTextAsync(temp.GetPath("unsupported-extension"), "fail");
-        var unsupported = await Assert.ThrowsAsync<GameSaveException>(() => client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save"));
+        var unsupported = await Assert.ThrowsAsync<GameSaveException>(() => client.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save"));
         Assert.Equal("extension-save-failed", unsupported.Code);
         Assert.Contains("UnsupportedOperationException", unsupported.Message);
-        Assert.Contains("SeamlessSaveProvider.failUnsupportedOperation", unsupported.Message);
+        Assert.Contains("TestSaveProvider.failUnsupportedOperation", unsupported.Message);
         Assert.DoesNotContain("UnsupportedOperationException: null", unsupported.Message);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
         File.Delete(temp.GetPath("unsupported-extension"));
-        await File.WriteAllTextAsync(temp.GetPath("long-diagnostics"), "non-ASCII wire bound");
-        var longReport = await client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
-        Assert.Contains("추적", longReport.Detail);
-        Assert.Contains("diagnosticsTruncated=true", longReport.Detail);
-        Assert.DoesNotContain("\uFFFD", longReport.Detail);
-        Assert.DoesNotContain("?", longReport.Detail);
-        Assert.True(System.Text.Encoding.UTF8.GetByteCount(longReport.Detail) < 10000);
-        File.Delete(temp.GetPath("long-diagnostics"));
         File.Delete(temp.GetPath("release-extension"));
         File.Delete(temp.GetPath("extension-started"));
         File.Delete(temp.GetPath("extension-closed"));
         using var cancellation = new CancellationTokenSource();
-        var abandoned = client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save", cancellation.Token);
+        var abandoned = client.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save", cancellation.Token);
         try
         {
             await AwaitExtensionFileAsync(temp.GetPath("extension-started"));

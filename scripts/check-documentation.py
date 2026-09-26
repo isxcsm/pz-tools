@@ -33,6 +33,7 @@ GUIDE_FACT_TOKENS = (
     'PzTools.App.exe', '.NET 10', 'Windows x64', 'Java 25',
     '%LOCALAPPDATA%\\PzTools', 'repository-reset-required', 'Zomboid/Saves',
     'repository.db', 'global.json', '42.20.4', '249', 'ID 1', 'Brotli', 'USN',
+    'GameWindow.save(true)',
 )
 BUILD_COMMANDS = (
     "dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath=\"$jdk\"",
@@ -289,8 +290,8 @@ def validate_link(root: Path, source: Path, link: Link,
 def guides_from_catalog(root: Path) -> dict[str, Path]:
     catalog = root / 'src/PzTools.Process.Contracts/Localization/languages.tsv'
     rows = [line.split('\t') for line in catalog.read_text(encoding='utf-8').splitlines() if line.strip()]
-    if not rows or any(len(row) != 9 for row in rows):
-        raise DocumentationError('Language catalog must contain nine fields per row')
+    if not rows or any(len(row) != 10 for row in rows):
+        raise DocumentationError('Language catalog must contain ten fields per row')
     tags = [row[1] for row in rows]
     if 'en-US' not in tags or len(tags) != len(set(tags)):
         raise DocumentationError('Language catalog is missing English or has duplicate tags')

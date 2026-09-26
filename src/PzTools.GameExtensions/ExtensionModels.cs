@@ -10,7 +10,6 @@ public sealed record ExtensionDefinition(string Id, string Version, string Title
 
 public static partial class ExtensionIds
 {
-    public const string SeamlessSave = "pztools.seamless-save";
     public const string VehicleDrivetrain = "pztools.vehicle-drivetrain";
     public static void Validate(string id)
     {

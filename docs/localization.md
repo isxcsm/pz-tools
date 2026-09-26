@@ -44,7 +44,7 @@ from native speakers of all supported languages.
 
 | Source | Responsibility |
 | --- | --- |
-| [languages.tsv](../src/PzTools.Process.Contracts/Localization/languages.tsv) | Enum ID, locale tag, native name, three backup-name prefixes and three game-notice templates |
+| [languages.tsv](../src/PzTools.Process.Contracts/Localization/languages.tsv) | Enum ID, locale tag, native name, three backup-name prefixes and four game-notice templates (countdown, completion, failure, in progress) |
 | [App Strings](../src/PzTools.App/Strings) | Complete UI resources for each locale |
 | [LanguageCatalog](../src/PzTools.Process.Contracts/LanguageCatalog.cs) | Supported IDs, validation and legacy-name parsing |
 | [Localizer](../src/PzTools.App/Localizer.cs) | Resource context and date/number culture; English fallback |

@@ -1,8 +1,6 @@
 import pztools.extensions.api.SaveProvider;
 import pztools.extensions.runtime.CheckpointRuntime;
-import pztools.extensions.seamless.SeamlessSaveProvider;
 import java.nio.file.*;
-import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
@@ -13,12 +11,12 @@ public final class CheckpointRuntimeTest {
         var context = new SaveProvider.Context("request-1", "session-1", "world-1", directory,
             Thread.currentThread(), CheckpointRuntimeTest.class.getClassLoader());
         try {
-            check(!new SeamlessSaveProvider().inspect(context).supported(), "Unqualified module must remain unavailable");
             var writing = new CountDownLatch(1);
             var release = new CountDownLatch(1);
             var disposed = new AtomicInteger();
             byte[] live = new byte[] { 1, 2, 3 };
-            var adapter = new SeamlessSaveProvider.GameAdapter() {
+            var provider = new SaveProvider() {
+                public String id() { return "fixture.checkpoint"; }
                 public SaveProvider.Support inspect(SaveProvider.Context ignored) { return new SaveProvider.Support(true, null); }
                 public SaveProvider.PreparedSave capture(SaveProvider.Context ctx, long budget) {
                     ctx.requireGameThread();
@@ -36,7 +34,6 @@ public final class CheckpointRuntimeTest {
                 }
             };
             try (var runtime = new CheckpointRuntime(1024)) {
-                var provider = new SeamlessSaveProvider(List.of(adapter));
                 var job = runtime.begin(provider, context);
                 try {
                     check(writing.await(10, TimeUnit.SECONDS), "Writer must start");
@@ -52,7 +49,8 @@ public final class CheckpointRuntimeTest {
                 check(Files.readAllBytes(directory.resolve("saved.bin"))[0] == 1, "Write must use detached snapshot");
                 check(job.poll().sessionId().equals("session-1"), "Completion retains world/session identity");
             }
-            var failedAdapter = new SeamlessSaveProvider.GameAdapter() {
+            var failedProvider = new SaveProvider() {
+                public String id() { return "fixture.failed-checkpoint"; }
                 public SaveProvider.Support inspect(SaveProvider.Context ctx) { return new SaveProvider.Support(true, null); }
                 public SaveProvider.PreparedSave capture(SaveProvider.Context ctx, long budget) {
                     return new SaveProvider.PreparedSave() {
@@ -63,24 +61,23 @@ public final class CheckpointRuntimeTest {
                 }
             };
             try (var runtime = new CheckpointRuntime(1)) {
-                var job = runtime.begin(new SeamlessSaveProvider(List.of(failedAdapter)), context);
+                var job = runtime.begin(failedProvider, context);
                 await(job);
                 check(job.poll().phase() == CheckpointRuntime.Phase.FAILED, "Failed write is never a success receipt");
                 check(job.poll().error() instanceof java.io.IOException, "Failure cause preserved");
             }
             try (var runtime = new CheckpointRuntime(1)) {
-                var oversized = runtime.begin(new SeamlessSaveProvider(List.of(adapter)), context);
+                var oversized = runtime.begin(provider, context);
                 await(oversized);
                 check(oversized.poll().phase() == CheckpointRuntime.Phase.FAILED
                     && oversized.poll().error() instanceof IllegalStateException, "Oversized snapshot cannot commit");
             }
             failedCaptureCleanupIsOwned(context);
             diagnosticsAreFinalAndNotPerFrame(context);
-            pztools.extensions.seamless.b4220.CooperativeCaptureTest.run();
             ModuleReloadTest.run();
-        pztools.extensions.runtime.ContinuousRuntimeTest.run();
-        pztools.extensions.runtime.VehicleHooksTest.run();
-            System.out.println("PASS: unsupported adapter, detached capture, writer ownership, failure and memory budget");
+            pztools.extensions.runtime.ContinuousRuntimeTest.run();
+            pztools.extensions.runtime.VehicleHooksTest.run();
+            System.out.println("PASS: detached capture, writer ownership, failure and memory budget");
         } finally {
             Files.deleteIfExists(directory.resolve("saved.bin"));
             Files.delete(directory);
@@ -113,30 +110,10 @@ public final class CheckpointRuntimeTest {
             job.advanceOnGameThread(); await(job);
             check(job.poll().error() == null && reports.get() == 2, "Only capture and cleanup boundaries report diagnostics");
             String detail = job.diagnostics();
-            check(detail.contains("closed=true") && detail.contains("captureGapStatsV1=")
-                && detail.contains("completionStatsV1="), "Final completion timings were not published");
-            long[] capture = counters(detail, "captureStatsV1", 3);
-            long[] gaps = counters(detail, "captureGapStatsV1", 2);
-            counters(detail, "completionStatsV1", 3);
-            check(capture[2] == 9 && capture[0] >= capture[1], "Capture counters lost begin/advance steps");
-            check(gaps[0] >= gaps[1], "Maximum capture gap exceeds the total gap");
-            check(detail.length() == 4096, "Detailed diagnostic result lost capacity or exceeded its bound");
+            check(detail.startsWith("closed=true; "), "Final provider diagnostics were not retained");
+            check(detail.length() == 4096 && detail.endsWith("; diagnosticsTruncated=true"),
+                "Provider diagnostics exceeded their bound or lost the truncation marker");
         }
-    }
-    private static long[] counters(String detail, String name, int count) {
-        String marker = name + "=";
-        int start = detail.indexOf(marker);
-        check(start >= 0, "Missing diagnostic " + name);
-        start += marker.length();
-        int end = detail.indexOf(';', start);
-        String[] fields = detail.substring(start, end < 0 ? detail.length() : end).split(",");
-        check(fields.length == count, "Unexpected diagnostic shape for " + name);
-        long[] values = new long[count];
-        for (int i = 0; i < count; i++) {
-            values[i] = Long.parseLong(fields[i]);
-            check(values[i] >= 0, "Negative elapsed time/count in " + name);
-        }
-        return values;
     }
     private static void failedCaptureCleanupIsOwned(SaveProvider.Context context) throws Exception {
         var closing = new CountDownLatch(1); var release = new CountDownLatch(1);

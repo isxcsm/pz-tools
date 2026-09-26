@@ -41,7 +41,7 @@ public sealed partial class GameSaveClientTests
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
         var first = Ticket(ready, 1, 30_000);
         var submitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var queued = new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: first,
+        var queued = new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: first, notificationLanguage: "en",
             preparationAllowed: _ => { submitted.TrySetResult(); return Task.FromResult(true); })
             .RequestAsync(game.Pid, temp.Path, true);
         await submitted.Task.WaitAsync(TimeSpan.FromSeconds(15));
@@ -50,15 +50,18 @@ public sealed partial class GameSaveClientTests
         var deferred = await Assert.ThrowsAsync<GameSaveException>(() => queued);
         Assert.Equal("runtime-deferred", deferred.Code);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
+        Assert.False(File.Exists(temp.GetPath("notices.txt")));
         await File.WriteAllTextAsync(temp.GetPath("resume-game"), "resume");
         var resumed = await watch.WaitAsync(s => s.Pause == GamePause.Running && s.EligibilityEpoch > first.EligibilityEpoch);
         var second = Ticket(resumed, 2);
-        await new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: second).RequestAsync(game.Pid, temp.Path, true);
+        await new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: second, notificationLanguage: "en").RequestAsync(game.Pid, temp.Path, true);
         var duplicate = await Assert.ThrowsAsync<GameSaveException>(() =>
-            new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: second).RequestAsync(game.Pid, temp.Path, true));
+            new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: second, notificationLanguage: "en").RequestAsync(game.Pid, temp.Path, true));
         Assert.Equal("runtime-deferred", duplicate.Code);
         Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));
         Assert.Equal("1", await File.ReadAllTextAsync(temp.GetPath("memory-only-state.txt")));
+        Assert.Equal(new[] { "Saving", "Game save complete" },
+            File.ReadAllLines(temp.GetPath("notices.txt")).Select(line => line.Split('\t')[1]));
     }
 
     [BridgeFact]
@@ -70,7 +73,7 @@ public sealed partial class GameSaveClientTests
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
         int permission = 1;
         var submitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var queued = new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: Ticket(ready, 1, 30_000),
+        var queued = new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: Ticket(ready, 1, 30_000), notificationLanguage: "en",
             preparationAllowed: _ => { submitted.TrySetResult(); return Task.FromResult(Volatile.Read(ref permission) == 1); })
             .RequestAsync(game.Pid, temp.Path, true);
         await submitted.Task.WaitAsync(TimeSpan.FromSeconds(15));
@@ -78,6 +81,7 @@ public sealed partial class GameSaveClientTests
         var result = await Assert.ThrowsAsync<GameSaveException>(() => queued);
         Assert.Equal("runtime-deferred", result.Code);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
+        Assert.False(File.Exists(temp.GetPath("notices.txt")));
         var latest = await watch.WaitAsync(s => s.Sequence > ready.Sequence);
         Assert.Equal(GamePause.Running, latest.Pause);
         await new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: Ticket(latest, 2),

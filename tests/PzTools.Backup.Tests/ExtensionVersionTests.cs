@@ -19,14 +19,14 @@ public sealed class ExtensionVersionTests
         Assert.Throws<InvalidDataException>(() => new GameVersionSupport(VersionSupportScope.Minor, "42.21", "42.20").Validate());
         Assert.Throws<InvalidDataException>(() => new GameVersionSupport(VersionSupportScope.Major, "42.20").Validate());
         Assert.Throws<InvalidDataException>(() => new GameVersionSupport(VersionSupportScope.All, "42").Validate());
-        Assert.Equal(VersionSupportScope.All, ExtensionCatalog.BuiltIn.Single(item => item.Id == ExtensionIds.SeamlessSave).SupportedVersions!.Scope);
+        Assert.Equal(VersionSupportScope.Minor, Assert.Single(ExtensionCatalog.BuiltIn).SupportedVersions!.Scope);
     }
     [Fact]
     public void VersionAdmissionIsSeparateFromSavedPreferencesAndStillRequiresOverrideOnMismatch()
     {
         using var temp = new TempDirectory();
         string? version = "41.78";
-        var definition = ExtensionCatalog.BuiltIn.Single(item => item.Id == ExtensionIds.SeamlessSave) with { SupportedVersions = new(VersionSupportScope.Major, "42") };
+        var definition = Assert.Single(ExtensionCatalog.BuiltIn) with { SupportedVersions = new(VersionSupportScope.Major, "42") };
         var store = new ExtensionSettingsStore(temp.Path);
         var service = new GameExtensionService(store, () => version, () => new[] { definition });
         var first = Assert.Single(service.ReadCards());

@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using System.Text.RegularExpressions;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.SaveBridge;
 
@@ -13,8 +12,7 @@ public sealed partial class GameSaveClientTests
         using var temp = new TempDirectory();
         string bridge = temp.GetPath("bridge");
         CopyReloadTree(RuntimeBridgeDirectory(), bridge);
-        File.Copy(Environment.GetEnvironmentVariable("PZTOOLS_EXTENSION_FIXTURE_JAR")!,
-            Path.Combine(bridge, "extensions", "pztools-seamless-save.jar"), true);
+        InstallTestSaveProvider(bridge);
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         var watch = new RuntimeWatchCapture(game.Pid, bridge);
         bool stoppedForDiagnostic = false;
@@ -22,25 +20,24 @@ public sealed partial class GameSaveClientTests
         {
             var ready = await watch.WaitAsync(s => s.CharacterLife == RuntimeCharacterLife.Alive);
             var client = new GameSaveClient(bridge);
-            var first = client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
+            var first = client.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
             await AwaitExtensionFileAsync(temp.GetPath("extension-started"));
-            ChangeReloadArchive(Path.Combine(bridge, "extensions", "pztools-seamless-save.jar"), "module-two");
+            ChangeReloadArchive(Path.Combine(bridge, "extensions", "pztools-test-save.jar"), "module-two");
             // File replacement alone must not complete/dispose the accepted write.
             await watch.WaitAsync(s => s.Sequence > ready.Sequence + 1);
             Assert.False(first.IsCompleted);
             Assert.False(File.Exists(temp.GetPath("extension-closed")));
             await File.WriteAllTextAsync(temp.GetPath("release-extension"), "release");
             var one = await first;
-            var two = await client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
-            if (two.ProviderId != "pztools.seamless-save")
+            var two = await client.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
+            if (two.ProviderId != "pztools.test-save")
             {
                 stoppedForDiagnostic = true;
                 Assert.Fail($"Unexpected fallback: {two.FallbackReason}; {await game.StopAndReadErrorsAsync()}");
             }
-            Assert.NotEqual(ReloadGeneration(one.Detail), ReloadGeneration(two.Detail));
-            Assert.Contains("moduleVersion=", two.Detail); Assert.Contains("moduleSha256=", two.Detail);
-            var unchanged = await client.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
-            Assert.Equal(ReloadGeneration(two.Detail), ReloadGeneration(unchanged.Detail));
+            Assert.Equal(one.ProviderId, two.ProviderId);
+            var unchanged = await client.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
+            Assert.Equal(two.ProviderId, unchanged.ProviderId);
             var continuing = await watch.WaitAsync(s => s.Sequence > ready.Sequence + 2);
             Assert.Equal(ready.ObserverEpoch, continuing.ObserverEpoch); // Module reload did not disconnect WATCH.
             Assert.False(File.Exists(temp.GetPath("calls.txt")));
@@ -49,8 +46,8 @@ public sealed partial class GameSaveClientTests
             var dead = await watch.WaitAsync(s => s.CharacterLife == RuntimeCharacterLife.Dead && s.DeathId is not null);
             string moved = temp.GetPath("updated-install"); CopyReloadTree(bridge, moved);
             var updated = new GameSaveClient(moved);
-            var relocated = await updated.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
-            Assert.Equal(ReloadGeneration(two.Detail), ReloadGeneration(relocated.Detail)); // Same bytes, new folder.
+            var relocated = await updated.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
+            Assert.Equal(two.ProviderId, relocated.ProviderId); // Same bytes, new folder.
             ChangeReloadArchive(Path.Combine(moved, "pztools-save-bridge.jar"), "bridge-two");
             // A no-save probe drives a compatible payload update. Nothing replays as a save.
             await updated.RequestAsync(game.Pid, temp.Path, false);
@@ -68,8 +65,8 @@ public sealed partial class GameSaveClientTests
             Assert.False(File.Exists(temp.GetPath("calls.txt")));
             var beforeHost = await resumed.WaitAsync(s => s.Sequence > after.Sequence + 1);
             ChangeReloadArchive(Path.Combine(moved, "extensions", "pztools-extension-runtime.jar"), "host-two");
-            var runtimeReloaded = await updated.RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
-            Assert.NotEqual(ReloadGeneration(two.Detail), ReloadGeneration(runtimeReloaded.Detail));
+            var runtimeReloaded = await updated.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
+            Assert.Equal(two.ProviderId, runtimeReloaded.ProviderId);
             var last = await resumed.WaitAsync(s => s.Sequence > beforeHost.Sequence + 1);
             Assert.Equal(after.ObserverEpoch, last.ObserverEpoch); // Extension-host update also preserves WATCH.
             var hooks = await ReadHookAsync(temp);
@@ -83,11 +80,6 @@ public sealed partial class GameSaveClientTests
             catch (IOException) when (stoppedForDiagnostic) { }
             catch (EndOfStreamException) { } // The explicit payload update intentionally retired this subscription.
         }
-    }
-    private static string ReloadGeneration(string detail)
-    {
-        var match = Regex.Match(detail, @"fixtureGeneration=([a-f0-9-]+)");
-        Assert.True(match.Success, detail); return match.Groups[1].Value;
     }
     private static void ChangeReloadArchive(string path, string value)
     {

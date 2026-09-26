@@ -11,7 +11,7 @@ public sealed class ExtensionCapabilityClassificationTests
     [InlineData(ExtensionCapabilities.VehicleDrivetrain, ExtensionActivationKind.Continuous)]
     public void ARecognizedSingleCapabilityDeterminesBehaviorIndependentlyOfIdentity(string capability, ExtensionActivationKind expected)
     {
-        foreach (var id in new[] { ExtensionIds.SeamlessSave, ExtensionIds.VehicleDrivetrain, "pztools.another-extension" })
+        foreach (var id in new[] { "pztools.test-save", ExtensionIds.VehicleDrivetrain, "pztools.another-extension" })
             Assert.Equal(expected, Definition(id, [capability]).ActivationKind);
     }
 

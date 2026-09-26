@@ -11,7 +11,7 @@ public enum SupportedLanguage
 
 public sealed record LanguageDefinition(SupportedLanguage Id, string Tag, string NativeName,
     string BackupName, string ManualBackupName, string AutomaticBackupName,
-    string SaveCountdown, string SaveCompleted, string SaveFailed);
+    string SaveCountdown, string SaveCompleted, string SaveFailed, string SaveInProgress);
 
 /// <summary>Shared locale identifiers, persisted-name compatibility and worker messages.</summary>
 public static class LanguageCatalog
@@ -56,9 +56,9 @@ public static class LanguageCatalog
         while (reader.ReadLine() is { } line)
         {
             var fields = line.Split('\t');
-            if (fields.Length != 9) throw new InvalidDataException("Invalid language catalog entry.");
+            if (fields.Length != 10) throw new InvalidDataException("Invalid language catalog entry.");
             languages.Add(new(Enum.Parse<SupportedLanguage>(fields[0]), fields[1], fields[2],
-                fields[3], fields[4], fields[5], fields[6], fields[7], fields[8]));
+                fields[3], fields[4], fields[5], fields[6], fields[7], fields[8], fields[9]));
         }
         return languages.AsReadOnly();
     }

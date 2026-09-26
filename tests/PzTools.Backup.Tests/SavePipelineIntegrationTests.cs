@@ -23,8 +23,7 @@ public sealed partial class GameSaveClientTests
             var target = Path.Combine(bridge, Path.GetRelativePath(RuntimeBridgeDirectory(), path));
             Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.Copy(path, target);
         }
-        File.Copy(Environment.GetEnvironmentVariable("PZTOOLS_EXTENSION_FIXTURE_JAR")!,
-            Path.Combine(bridge, "extensions", "pztools-seamless-save.jar"), true);
+        InstallTestSaveProvider(bridge);
         await File.WriteAllTextAsync(Path.Combine(source, "flush-game"), "require full fixture game save");
         await File.WriteAllTextAsync(Path.Combine(source, "cooperative-fixture"), "incremental capture");
         await File.WriteAllTextAsync(Path.Combine(source, "block-preparation"), "busy prior writes");
@@ -42,10 +41,9 @@ public sealed partial class GameSaveClientTests
                 var client = new GameSaveClient(bridge, runtimeTicket: Ticket(snapshot, ++ordinal));
                 try
                 {
-                    var receipt = await client.RequestProviderAsync(game.Pid, path, "pztools.seamless-save", token);
+                    var receipt = await client.RequestProviderAsync(game.Pid, path, "pztools.test-save", token);
                     Assert.Equal(GameSaveCompletion.DetachedWritesCommitted, receipt.Completion);
-                    Assert.Contains("captureStatsV1=", receipt.Detail);
-                    Assert.Contains("maxCaptureSliceMs=", receipt.Detail);
+                    Assert.Equal("pztools.test-save", receipt.ProviderId);
                     return new BackupPreparationResult("saved", receipt.Detail);
                 }
                 catch (GameSaveException error) when (error.Code == "runtime-deferred")
@@ -60,13 +58,13 @@ public sealed partial class GameSaveClientTests
         await File.WriteAllTextAsync(Path.Combine(source, "pause-game"), "pause");
         var paused = await watch.WaitAsync(s => s.Pause == GamePause.Paused);
         var deferred = await Assert.ThrowsAsync<BackupPreparationDeferredException>(() => waiting);
-        Assert.Contains("bridgeAdmissionStatsV1=", deferred.Diagnostics);
+        Assert.Null(deferred.Diagnostics);
         var telemetry = await TelemetryStore.CreateOrOpenAsync(options.RepositoryPath);
         using (var cancelled = JsonDocument.Parse(Assert.Single(await telemetry.ReadEventsAsync(1),
             item => item.Name == "run.cancelled").PayloadJson!))
         {
             Assert.Equal("source-deferred", cancelled.RootElement.GetProperty("code").GetString());
-            Assert.Equal(deferred.Diagnostics, cancelled.RootElement.GetProperty("diagnostics").GetString());
+            Assert.False(cancelled.RootElement.TryGetProperty("diagnostics", out _));
         }
         Assert.False(File.Exists(Path.Combine(source, "extension-started")));
 

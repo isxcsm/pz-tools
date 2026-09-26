@@ -1,8 +1,8 @@
 # Pre-backup game save bridge
 
-> Current experimental extension integration uses **bootstrap API 6 / save protocol 6**.
-> The consolidated request, ownership and remaining-work description is in
-> [Game extensions](game-extensions.md). Earlier numbered API notes below describe
+> Current integration uses **bootstrap API 10 / extension host ABI 3 / save protocol 6**.
+> Backups use the original game save call; Vehicle Drivetrain is the shipped optional
+> [game extension](game-extensions.md). Earlier numbered API notes below describe
 > individual changes, not the current deployment version.
 
 > Pause-aware periodic scheduling is implemented separately from the legacy UTC commands described below. It uses runtime observation and guarded SAVE_ACTIVE/PROBE_ACTIVE. Turning off pre-backup saving does not turn off this observation. See [runtime pause architecture](runtime-pause-backups.md). A loaded older bootstrap requires a full game restart.
@@ -14,8 +14,9 @@ thread before scanning or capturing files when the selected world is active.
 The debug save button has been removed.
 
 For an active world, preparation displays a five-second overhead countdown before
-the game save: `Saving in 5s` through `Saving in 1s`, then `Save complete` after
-the call returns (or `Save failed` on failure). There is no start message at zero.
+the game save: `Game saving in 5 s` through `Game saving in 1 s`, then a saving
+message at actual save admission and `Game save complete` after completion (or
+`Game save failed` on failure). Reaching zero alone does not announce admission.
 The app language selects equivalent messages from the shared 18-locale catalog
 (`src/PzTools.Process.Contracts/Localization/languages.tsv`). Both the worker and
 the Java agent package this catalog; the protocol accepts only its locale tags
@@ -35,21 +36,24 @@ interval, before starting projections or scheduler workers. An overdue reservati
 from the previous session is not executed on launch. Worker restarts and unrelated
 settings changes do not reset the countdown; pending final/one-shot jobs retain
 their separate recovery semantics.
-`Save complete` means the game save call returned, not that backup capture or
-compression has completed; backup completion remains in the app's progress card.
+`Game save complete` means the original game save call returned, not that backup
+capture or compression has completed; backup completion remains in the app's
+progress card.
 Settings > Backup > In-game save countdown defaults to on. Turning it off skips
 the messages (and the manual five-second delay), without disabling pre-backup saving.
 Periodic backups still wait until their scheduled time, even with saving disabled
 or the selected game inactive; preparation never captures files early.
 It applies to the next worker, including when changed during a running backup.
 The app preference `[backup].game_save_countdown` overrides the worker default
-`[capture].game_save_countdown`. Disabling pre-backup saving disables all bridge
-calls and makes this subordinate toggle unavailable without erasing its preference.
+`[capture].game_save_countdown`. Disabling pre-backup saving skips the backup's
+bridge request and makes this subordinate toggle unavailable without erasing its
+preference. Runtime observation and vehicle control retain their separate lifecycles.
 
 The agent uses `IsoPlayer.getInstance().setHaloNote(...)`, which replaces the same
 overhead text object instead of queuing speech. It updates once per second using
 monotonic elapsed time at game-loop boundaries, without sleeping on the game
-thread. No notice is emitted at zero, and saving is not delayed to render a notice.
+thread. Actual save admission replaces the countdown with the saving message;
+saving is not delayed by an extra frame to render it.
 The completion message fades using the game's normal halo timer. This shares the
 game's halo-note slot: another game or mod notification can replace the message.
 The game world is revalidated during countdown and immediately before saving.
@@ -59,8 +63,9 @@ in progress. The read-only probe never displays messages or waits for countdown.
 Notification API failures do not abort a valid save: the response reports
 `notice-unavailable`. One current payload class loader is reused while the payload's
 SHA-256 stays unchanged. A changed payload at the same path replaces that loader
-between requests. Bootstrap updates or a changed installation path require a game
-restart. Previously resident legacy hooks are retired before the first request;
+between requests. Compatible relocation can adopt a changed installation path;
+an incompatible resident bootstrap requires a game restart. See the
+[reload lifecycle](module-reload.md). Previously resident legacy hooks are retired before the first request;
 an in-progress old request is rejected as busy rather than forcibly interrupted.
 The app and scheduler pass `--save-game` through the backup runner to the worker;
 the generic CLI and backup engine remain usable for non-game directories without
@@ -68,8 +73,9 @@ attaching to a game. Direct CLI game backups should also pass `--save-game`.
 Neither `-debug` nor a Workshop mod is required.
 
 Settings > Backup > Save game before backup is on by default. Turning it off
-skips the entire JVM connection and save request in both manual and automatic
-backups. This is useful with a separate save mod or when a game update breaks
+skips the pre-backup JVM connection and save request in both manual and automatic
+backups. Runtime observation and vehicle control remain independent. This is useful
+with a separate save mod or when a game update breaks
 bridge compatibility. Only on-disk state is then backed up; recent in-memory
 changes can be absent after restore. File-copy verification and hashing are
 unchanged. The preference is persisted in app settings and read afresh by each
@@ -122,7 +128,9 @@ command was sent.
   path is pinned at bootstrap initialization. Each request retains the separate
   temporary callback authenticated by PID and a fresh random 256-bit token. An
   ambiguous endpoint/dispatch failure never triggers another load or save retry.
-- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` remain supported. Protocol 6 supports `PREPARE_SAVE` and guarded `PREPARE_SAVE_ACTIVE` for an optional save provider.
+- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` remain supported.
+  Protocol 6 retains `PREPARE_SAVE` and guarded `PREPARE_SAVE_ACTIVE` contracts;
+  no optional save provider is shipped, so backups use the standard game save.
   They are handled on `GameWindow.gameThread`; PROBE validates the world but never
   invokes save. Protocol 3 introduced `SAVE_COUNTDOWN`. Protocol 4 adds a fixed
   epoch-millisecond due time and an `off` notice mode to `SAVE_AT`. Language
@@ -202,29 +210,18 @@ save tests manual; synthetic JVM integration tests use isolated temporary data.
 
 ## Optional game extensions
 
-The [separate save module](game-extensions.md) is selected only for an explicit
-extension request. Standard saving still calls the original GameWindow.save(true).
-The B42.20 extension calls VersionedSaveEntry.saveForBackup using private generated
-companions; it does not rewrite GameWindow.save or the public chunk/native save
-and read/write paths. Nested saves from other mods remain normal saves.
+[Vehicle Drivetrain](game-extensions.md) runs through a separate continuous control
+session using the selected WATCH process/world. Its settings do not select a save
+provider or replace the pre-backup `GameWindow.save(true)` call. Game-save options,
+localized notices, RecoveryStamp, cancellation admission, game-thread/world identity
+and the backup-preparation boundary remain in force.
 
-Bootstrap API 9 and matched app/worker/JARs are required. Older residents need one restart; compatible
-API9 payload/module changes use the [idle reload lifecycle](module-reload.md). The wire
-protocol remains 6. PREPARE_SAVE_ACTIVE combines provider selection, explicit version
-override and the same pause/death/permission guard used by the scheduling authority.
-STATE3 carries live facts and the actual provider result. It is not a second poller.
+Bootstrap API 10 and matched app/worker/JARs are required for current extension
+control. Older residents need one game restart; compatible updates then use the
+[idle reload lifecycle](module-reload.md). Save protocol 6 and the common
+save-provider/checkpoint API remain available for compatibility and synthetic tests.
+The deployment catalogue contains no optional save provider.
 
-Private chunk I/O uses the original counted file locks. The private native-save copy
-can defer its completion wait after the existing native worker starts and the original
-snapshot lock is secured. Public native save/stop bodies are not modified. Four
-nonthrowing read-only DB/error/native-phase observers support completion accounting.
-The retired global save/read-through rewrites are not reintroduced. A typed
-GAME_SAVE_AND_PENDING_WRITES_DRAINED receipt follows owned file/native work and required
-DB drains. It is not an atomic whole-world or hardware-flush receipt. Private readiness
-also waits for an inventory drag/drop to finish; it never clears or restores a drag.
-Bounded per-request stage timings travel in the existing result detail, not a new poller.
-
-Unsupported private sources fall back to standard saving before capture begins.
-After mutation starts, errors or unknown completion are never replayed as another
-standard save. RecoveryStamp, readiness, cancellation admission, game-thread/world
-identity and the general backup-preparation boundary remain in force.
+Saving remains synchronous on the game thread and may pause gameplay for the
+duration of the original call. Errors or unknown completion are never replayed as
+another save. A returned call is not an atomic whole-world or hardware-flush receipt.

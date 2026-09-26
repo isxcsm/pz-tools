@@ -14,7 +14,8 @@
                Link="save-bridge\pztools-save-bootstrap.jar" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(BridgeOutputPath)\pztools-attach-bootstrap.dll"
                Link="save-bridge\pztools-attach-bootstrap.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\*.jar" />
+      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\*.jar"
+                        Exclude="$(BridgeOutputPath)\extensions\pztools-seamless-save.jar" />
       <Content Include="@(_BridgeExtension)" Link="save-bridge\extensions\%(_BridgeExtension.Filename)%(_BridgeExtension.Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(SaveBridgeRepositoryRoot)\config\game-extensions\catalog.tsv" Link="save-bridge\extensions\catalog.tsv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(SaveBridgeRepositoryRoot)\config\game-extensions\vehicle-drivetrain.toml" Link="save-bridge\extensions\vehicle-drivetrain.toml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
@@ -25,5 +26,11 @@
                Link="save-bridge\runtime\%(_BridgeRuntime.RecursiveDir)%(_BridgeRuntime.Filename)%(_BridgeRuntime.Extension)"
                CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
+  </Target>
+  <!-- Incremental builds must also remove the retired provider from old outputs. -->
+  <Target Name="RemoveRetiredSaveExtension" BeforeTargets="CopyFilesToOutputDirectory;ComputeFilesToPublish"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Delete Files="$(TargetDir)save-bridge\extensions\pztools-seamless-save.jar" Condition="'$(TargetDir)' != ''" />
+    <Delete Files="$(PublishDir)save-bridge\extensions\pztools-seamless-save.jar" Condition="'$(PublishDir)' != ''" />
   </Target>
 </Project>

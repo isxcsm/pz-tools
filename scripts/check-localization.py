@@ -25,7 +25,7 @@ def resources(tag: str) -> dict[str, str]:
 
 def main() -> None:
     languages = [line.split('\t') for line in CATALOG.read_text(encoding='utf-8').splitlines()]
-    assert all(len(row) == 9 for row in languages), 'Catalog entries require nine fields'
+    assert all(len(row) == 10 for row in languages), 'Catalog entries require ten fields'
     tags = [row[1] for row in languages]
     assert len(tags) == len(set(tags)), 'Duplicate language tags'
     assert set(tags) == {path.parent.name for path in STRINGS.glob('*/Resources.resw')}
@@ -53,7 +53,7 @@ def main() -> None:
         assert localized['ManualBackupNameFormat'] == row[4] + ' {0:N0}'
         assert localized['AutomaticBackupNameFormat'] == row[5] + ' {0:N0}'
         assert TOKEN.findall(row[6]) == ['{0}'], f'{tag}: game countdown parameter differs'
-        assert not TOKEN.findall(row[7]) and not TOKEN.findall(row[8]), f'{tag}: unexpected notice parameters'
+        assert all(row[index].strip() and not TOKEN.findall(row[index]) for index in (7, 8, 9)), f'{tag}: missing notice or unexpected parameters'
         assert localized['SettingEnabled'] != localized['SettingDisabled']
         assert localized['BackupDeduplicationPhase'] == localized['LogPhase.deduplication']
     print(f'PASS: {len(tags)} languages, {len(keys)} keys, {values_checked} values; '

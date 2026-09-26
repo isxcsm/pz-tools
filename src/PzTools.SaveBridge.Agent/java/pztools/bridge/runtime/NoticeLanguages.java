@@ -21,8 +21,8 @@ final class NoticeLanguages {
         // into a payload class so already-running games need no bootstrap upgrade.
         for (String line : NoticeLanguageData.ROWS) {
             String[] fields = line.split("\t", -1);
-            if (fields.length != 9) throw new IllegalStateException("Invalid language catalog");
-            result.put(fields[1], new String[] { fields[6], fields[7], fields[8] });
+            if (fields.length != 10) throw new IllegalStateException("Invalid language catalog");
+            result.put(fields[1], new String[] { fields[6], fields[7], fields[8], fields[9] });
         }
         result.put("ko", result.get("ko-KR"));
         result.put("en", result.get("en-US"));

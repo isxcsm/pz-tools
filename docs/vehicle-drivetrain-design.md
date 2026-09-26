@@ -196,7 +196,7 @@ DirectionHold는 입력 키를 바꾸지 않지만 처리된 제어 모드를 �
 
 카탈로그에 버전이 명시된 capability 열을 도입하고 .NET/Java가 같은 fixture를 읽도록 합니다. 기존 10열 저장 행을 허용하는 호환 경로는 저장 capability로만 제한하며 새 차량 행을 SaveProvider로 캐스팅하지 않습니다. 알 수 없는 capability·manifest 조합은 활성화 전에 거절합니다.
 
-현재 버전은 bootstrap API10, 공용 extension host ABI3, extension-control wire1입니다. 기존 save wire6·WATCH STATE4와 SaveProvider의 저장 메서드 의미는 유지합니다. 공용 ABI 상수를 `ExtensionApi`로 분리했고 host/agent/모듈 manifest 검사를 함께 변경했습니다. 기존 API2 모듈의 자동 호환을 가정하지 않고, 저장·차량 모듈을 ABI3 패키지로 함께 검증하여 배포합니다.
+현재 버전은 bootstrap API10, 공용 extension host ABI3, extension-control wire1입니다. 기존 save wire6·WATCH STATE4와 SaveProvider의 저장 메서드 의미는 유지합니다. 공용 ABI 상수를 `ExtensionApi`로 분리했고 host/agent/모듈 manifest 검사를 함께 변경했습니다. 기존 API2 모듈의 자동 호환을 가정하지 않으며, 현재 배포하는 확장은 ABI3 차량 모듈 하나입니다. 공통 저장 계약은 호스트 호환성과 합성 테스트에 남지만 선택형 저장 모듈은 배포하지 않습니다. 활성 월드의 백업 전 저장은 기본 `GameWindow.save(true)`를 호출합니다.
 
 bootstrap에 새 dispatcher/lifecycle 계약을 넣는 권장안은 resident API 변경이므로 **API9가 이미 적재된 게임에는 최초 도입 시 한 번 재시작이 필요합니다**. 에이전트가 없는 실행 중 게임에는 새 버전으로 동적 연결하는 것을 지원 목표로 합니다. 이는 매번 앱을 켤 때 재시작해야 한다는 뜻이 아니며, API9에 없는 계약을 호환 JAR 교체만으로 소급 제공한다고 약속하지 않습니다.
 

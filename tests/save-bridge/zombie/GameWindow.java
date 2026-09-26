@@ -13,7 +13,7 @@ public final class GameWindow {
     public static final class States { public Object current = new zombie.gameStates.IngameState(); }
 
     public static boolean isIngameState() { return states.current instanceof zombie.gameStates.IngameState; }
-    private static void logic() { ticks++; }
+    private static void logic() { ticks++; zombie.characters.IsoPlayer.tickHalo(); }
 
     public static void save(boolean flag) throws IOException {
         if (Thread.currentThread() != gameThread || !flag) throw new IOException("Wrong save invocation");
@@ -62,6 +62,11 @@ public final class GameWindow {
             if (consumeSignal(Path.of(args[0], "fast-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(4);
             if (consumeSignal(Path.of(args[0], "inspect-hook")))
                 bridgefixture.Inspector.inspect(Path.of(args[0], "hook-state.txt"));
+            if (consumeSignal(Path.of(args[0], "inspect-halo"))) {
+                Path staged = Path.of(args[0], "halo-state.tmp");
+                zombie.characters.IsoPlayer.inspectHalo(staged);
+                Files.move(staged, Path.of(args[0], "halo-state.txt"), StandardCopyOption.REPLACE_EXISTING);
+            }
             if (consumeSignal(Path.of(args[0], "inspect-control"))) {
                 String endpoint = System.getProperty("pztools.bridge.control.v1", "");
                 Path staged = Path.of(args[0], "control-state.tmp");

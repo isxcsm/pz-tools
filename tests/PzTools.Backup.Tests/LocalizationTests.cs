@@ -30,6 +30,10 @@ public sealed class LocalizationTests
             Assert.Equal(1, CompositeFormat.Parse(language.SaveCountdown).MinimumArgumentCount);
             Assert.DoesNotContain('\t', language.SaveCompleted);
             Assert.DoesNotContain('\n', language.SaveFailed);
+            Assert.False(string.IsNullOrWhiteSpace(language.SaveInProgress));
+            Assert.Equal(0, CompositeFormat.Parse(language.SaveInProgress).MinimumArgumentCount);
+            Assert.DoesNotContain('\t', language.SaveInProgress);
+            Assert.DoesNotContain('\n', language.SaveInProgress);
         }
         Assert.Equal(SupportedLanguage.Korean, LanguageCatalog.Parse("ko"));
         Assert.Equal(SupportedLanguage.English, LanguageCatalog.Parse("en"));

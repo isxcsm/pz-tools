@@ -96,15 +96,18 @@ public sealed class GameExtensionEditTests
     public async Task EditsAcrossExtensionsShareSerializationWithoutReplacingOtherPreferences()
     {
         using var temp = new TempDirectory();
-        var controller = new GameExtensionController(temp.Path, new RevisionedViewStore());
+        var catalogue = temp.GetPath("catalog.tsv");
+        File.WriteAllText(catalogue, Row("pztools.test-save", ExtensionCapabilities.SavePreparation) + "\n"
+            + Row(ExtensionIds.VehicleDrivetrain, ExtensionCapabilities.VehicleDrivetrain));
+        var controller = new GameExtensionController(temp.Path, new RevisionedViewStore(), cataloguePath: catalogue);
         await Task.WhenAll(
-            controller.ApplyEditAsync(ExtensionIds.SeamlessSave, GameExtensionSetting.Enabled, true),
+            controller.ApplyEditAsync("pztools.test-save", GameExtensionSetting.Enabled, true),
             controller.ApplyEditAsync(ExtensionIds.VehicleDrivetrain, GameExtensionSetting.Reverse, false),
-            controller.ApplyEditAsync(ExtensionIds.SeamlessSave, GameExtensionSetting.ForceVersion, true));
+            controller.ApplyEditAsync("pztools.test-save", GameExtensionSetting.ForceVersion, true));
 
         var saved = new ExtensionSettingsStore(temp.Path).Read();
         Assert.Equal(3, saved.Revision);
-        Assert.Equal(new ExtensionPreference(true, true), saved.Extensions[ExtensionIds.SeamlessSave]);
+        Assert.Equal(new ExtensionPreference(true, true), saved.Extensions["pztools.test-save"]);
         Assert.Equal(new ExtensionPreference(false, false, new(true, false, true)),
             saved.Extensions[ExtensionIds.VehicleDrivetrain]);
     }
@@ -160,15 +163,15 @@ public sealed class GameExtensionEditTests
     }
 
     [Theory]
-    [InlineData(ExtensionIds.SeamlessSave, GameExtensionSetting.Torque)]
-    [InlineData(ExtensionIds.SeamlessSave, GameExtensionSetting.Reverse)]
-    [InlineData(ExtensionIds.SeamlessSave, GameExtensionSetting.Steering)]
+    [InlineData("pztools.test-save", GameExtensionSetting.Torque)]
+    [InlineData("pztools.test-save", GameExtensionSetting.Reverse)]
+    [InlineData("pztools.test-save", GameExtensionSetting.Steering)]
     [InlineData("pztools.another-driver", GameExtensionSetting.Torque)]
     public async Task VehicleOptionsCannotBeRoutedToAnotherModule(string id, GameExtensionSetting setting)
     {
         using var temp = new TempDirectory();
         var catalogue = temp.GetPath("catalog.tsv");
-        var capability = id == ExtensionIds.SeamlessSave ? ExtensionCapabilities.SavePreparation : ExtensionCapabilities.VehicleDrivetrain;
+        var capability = id == "pztools.test-save" ? ExtensionCapabilities.SavePreparation : ExtensionCapabilities.VehicleDrivetrain;
         File.WriteAllText(catalogue, Row(id, capability));
         var controller = new GameExtensionController(temp.GetPath("runtime"), new RevisionedViewStore(), cataloguePath: catalogue);
 

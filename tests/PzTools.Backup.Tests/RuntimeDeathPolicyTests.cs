@@ -88,7 +88,7 @@ public sealed class RuntimeDeathPolicyTests
         var original = (await controller.RefreshAsync()).Cards;
         Assert.NotEmpty(original);
         Assert.All(original, card => Assert.False(card.Enabled));
-        last = new(Id(), Id(), Id(), "pztools.seamless-save", "pztools.standard-save", RuntimeSaveOutcome.Succeeded, "unsupported-game-build", 25, 30);
+        last = new(Id(), Id(), Id(), "pztools.test-save", "pztools.standard-save", RuntimeSaveOutcome.Succeeded, "unsupported-game-build", 25, 30);
         await controller.RefreshRuntimeAsync(default);
         var view = views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0).Snapshot!;
         Assert.Equal(last, view.LastSave);

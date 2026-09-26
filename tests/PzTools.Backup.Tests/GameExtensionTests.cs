@@ -1,5 +1,4 @@
 using PzTools.GameExtensions;
-using PzTools.Zomboid.Backup;
 
 namespace PzTools.Backup.Tests;
 
@@ -10,13 +9,14 @@ public sealed class GameExtensionTests
     {
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.GetPath("runtime"));
-        var service = new GameExtensionService(store);
-        var card = service.ReadCards().Single(item => item.Definition.Id == ExtensionIds.SeamlessSave);
+        var service = new GameExtensionService(store, () => "42.20");
+        var card = Assert.Single(service.ReadCards());
+        Assert.Equal(ExtensionIds.VehicleDrivetrain, card.Definition.Id);
         Assert.False(card.Enabled);
         Assert.False(File.Exists(store.FilePath));
-        var enabled = service.SetEnabled(card.Definition.Id, true, card.SettingsRevision).Single(item => item.Definition.Id == ExtensionIds.SeamlessSave);
+        var enabled = Assert.Single(service.SetEnabled(card.Definition.Id, true, card.SettingsRevision));
         Assert.True(enabled.Enabled);
-        Assert.Equal("compatibility-on-request", enabled.StatusCode);
+        Assert.Equal("runtime-pending", enabled.StatusCode);
     }
 
     [Fact]
@@ -25,11 +25,11 @@ public sealed class GameExtensionTests
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.GetPath("runtime"));
         store.SetEnabled("pztools.other-module", true, 0);
-        var current = store.SetEnabled(ExtensionIds.SeamlessSave, true, 1);
-        Assert.Throws<ExtensionSettingsConflictException>(() => store.SetEnabled(ExtensionIds.SeamlessSave, false, 1));
+        var current = store.SetEnabled("pztools.test-save", true, 1);
+        Assert.Throws<ExtensionSettingsConflictException>(() => store.SetEnabled("pztools.test-save", false, 1));
         var reopened = new ExtensionSettingsStore(temp.GetPath("runtime"));
-        Assert.True(reopened.Read().Extensions[ExtensionIds.SeamlessSave].Enabled);
-        reopened.SetEnabled(ExtensionIds.SeamlessSave, false, current.Revision);
+        Assert.True(reopened.Read().Extensions["pztools.test-save"].Enabled);
+        reopened.SetEnabled("pztools.test-save", false, current.Revision);
         Assert.True(reopened.Read().Extensions["pztools.other-module"].Enabled);
     }
 
@@ -42,7 +42,7 @@ public sealed class GameExtensionTests
         var store = new ExtensionSettingsStore(temp.GetPath("runtime"));
         Directory.CreateDirectory(Path.GetDirectoryName(store.FilePath)!);
         File.WriteAllText(store.FilePath, original);
-        Assert.Throws<InvalidDataException>(() => store.SetEnabled(ExtensionIds.SeamlessSave, true, 0));
+        Assert.Throws<InvalidDataException>(() => store.SetEnabled("pztools.test-save", true, 0));
         Assert.Equal(original, File.ReadAllText(store.FilePath));
     }
 
@@ -79,31 +79,22 @@ public sealed class GameExtensionTests
     }
 
     [Fact]
-    public async Task ConfiguredUnqualifiedModuleKeepsMandatoryStandardSave()
-    {
-        using var temp = new TempDirectory();
-        var root = temp.GetPath("runtime");
-        new ExtensionSettingsStore(root).SetEnabled(ExtensionIds.SeamlessSave, true, 0);
-        var calls = 0;
-        var prepare = ConfiguredGameSaveProviders.Create((_, _) => { calls++; return Task.FromResult("saved"); }, root);
-        var detail = await prepare("source", default);
-        Assert.Equal(1, calls);
-        Assert.Contains("adapter-validation-required", detail);
-    }
-
-    [Fact]
-    public async Task CorruptOptionalSettingsDoNotSkipMandatoryStandardSave()
+    public void RemovedSavePreferencesDoNotRestoreAnExtensionCardOrChangeVehicleSettings()
     {
         using var temp = new TempDirectory();
         var root = temp.GetPath("runtime");
         var store = new ExtensionSettingsStore(root);
-        Directory.CreateDirectory(Path.GetDirectoryName(store.FilePath)!);
-        File.WriteAllText(store.FilePath, "not json");
-        var calls = 0;
-        var prepare = ConfiguredGameSaveProviders.Create((_, _) => { calls++; return Task.FromResult("saved"); }, root);
-        Assert.Contains("extension-settings-unavailable", await prepare("source", default));
-        Assert.Equal(1, calls);
-        Assert.Equal("not json", File.ReadAllText(store.FilePath));
+        store.SetPreference("pztools.seamless-save", new(true, true), 0);
+        var vehicle = new ExtensionPreference(true, false, new(false, true, false));
+        store.SetPreference(ExtensionIds.VehicleDrivetrain, vehicle, 1);
+        var original = File.ReadAllText(store.FilePath);
+        var service = new GameExtensionService(store, () => "42.20");
+        var card = Assert.Single(service.ReadCards());
+        Assert.Equal(ExtensionIds.VehicleDrivetrain, card.Definition.Id);
+        Assert.Equal(vehicle.Enabled, card.Enabled);
+        Assert.Equal(vehicle.VehicleDrivetrain, card.VehicleDrivetrain);
+        Assert.Throws<ArgumentException>(() => service.SetEnabled("pztools.seamless-save", true, 2));
+        Assert.Equal(original, File.ReadAllText(store.FilePath));
     }
 
     private sealed class Provider(string id, bool supported = true, Exception? failure = null) : IGameSaveProvider

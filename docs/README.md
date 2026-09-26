@@ -47,8 +47,7 @@ GitHub does not switch README language automatically; select a guide explicitly.
 | [Advanced runtime configuration / 고급 실행 설정](runtime-configuration.md) | English | Per-component tuning and validation / 구성요소별 설정 |
 | [Deployment layout / 배포·데이터 경로](deployment-layout.md) | 한국어 | App files, user data and backup folders / 실행 파일과 데이터 구분 |
 | [CLI commands / 명령줄](cli.md) | 한국어 | Backup, restore, ZIP and maintenance commands / 작업별 명령 |
-| [Game extensions / 게임 확장](game-extensions.md) | English | Staged implementation and save-provider safety boundaries / 단계별 구현 범위 |
-| [Seamless save E2E / 저장 확장 E2E](e2e-seamless-save.md) | English | Disposable-world acceptance procedure / 테스트 월드 수락 절차 |
+| [Game extensions / 게임 확장](game-extensions.md) | English | Vehicle extension, standard game saving and compatibility boundaries / 차량 확장·기본 게임 저장·호환 범위 |
 | [Runtime pause / 게임 상태·일시정지](runtime-pause-backups.md) | English | Observation, pause/resume, guarded saving and state ownership / 관측·시간·저장 안전성 |
 | [Game-save bridge / 게임 저장 연동](save-bridge.md) | English | Connection behavior, game-version limits and build details / 게임 연결과 제한 |
 | [Character recovery / 캐릭터 회복](character-recovery.md) | English | Supported edits, inventory limits and interrupted edits / 지원 범위와 중단 처리 |
@@ -65,10 +64,7 @@ GitHub does not switch README language automatically; select a guide explicitly.
 | [USN tracking / USN 변경 추적](usn-journal.md) | 한국어 | Windows file-change tracking and fallback / 변경 감지와 전체 스캔 |
 | [Stable capture / 파일 복사 검증](stable-capture.md) | 한국어 | Copy verification, retries and inaccessible files / 검증·재시도·접근 실패 |
 | [Process architecture / 프로세스 구조](process-architecture.md) | 한국어 | Workers, scheduling, ownership and recovery / 작업 프로세스와 복구 |
-| [Frame-budgeted saves / 프레임 분할 저장](cooperative-save.md) | English | Capture budgets, bounded I/O and timing diagnostics / 캡처 예산·파일 처리·시간 진단 |
-| [Save acceptance checks / 저장 E2E 확인](e2e-seamless-save.md) | 한국어 | Real-game acceptance procedure and timing comparison / 실게임 확인과 시간 비교 |
 | [JVM component reload / JVM 구성요소 교체](module-reload.md) | English | Compatible updates and generation ownership / 호환 업데이트와 작업 소유권 |
-| [Native save completion / 네이티브 저장 완료](seamless-native-wait.md) | English | Private native-save ownership and completion limits / 네이티브 저장 소유권과 완료 한계 |
 | [Vehicle drivetrain design / 차량 구동계 확장 설계](vehicle-drivetrain-design.md) | 한국어 | Torque/shift/reverse implementation design, integration risks and validation gates / 차량 구동계 구현 설계·위험·검증 기준 |
 | [Vehicle drivetrain E2E / 차량 구동계 E2E](e2e-vehicle-drivetrain.md) | 한국어 | Experimental candidate setup, user driving checks, tuning and rollback / 실행 후보·사용자 주행 검증·튜닝·복귀 |
 | [Telemetry / 진단 기록](telemetry.md) | 한국어 | Event storage, projections and progress / 로그와 진행률 |

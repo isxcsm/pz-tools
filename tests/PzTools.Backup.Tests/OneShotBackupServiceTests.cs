@@ -69,7 +69,7 @@ public sealed class OneShotBackupServiceTests
         };
         var journal = new FakeJournal(new UsnJournalState(1, 2, 0, 100, 0));
         if (incremental) await new OneShotBackupService(journal).RunAsync(options, "main");
-        const string failureDiagnostics = "captureStatsV1=10,5,2; bridgeAdmissionStatsV1=1,20";
+        const string failureDiagnostics = "preparation-context; attempt=2";
         var service = new OneShotBackupService(journal, (_, _) =>
             throw new GameSaveException(code, "Cannot confirm save", failureDiagnostics));
         journal.State = journal.State with { NextUsn = 200 };
@@ -109,7 +109,7 @@ public sealed class OneShotBackupServiceTests
         var journal = new FakeJournal(new UsnJournalState(1, 2, 0, 100, 0));
         if (incremental) await new OneShotBackupService(journal).RunAsync(options, "main");
         var original = new GameSaveException(code, "Preparation deferred",
-            sourcePath + "\nbridgeAdmissionStatsV1=3,900; " + new string('x', 7000));
+            sourcePath + "\npreparation-context; " + new string('x', 7000));
         var service = new OneShotBackupService(journal, (_, _) =>
             throw new BackupPreparationDeferredException(original.Message, original.Diagnostics));
         journal.State = journal.State with { NextUsn = 200 };
@@ -131,7 +131,7 @@ public sealed class OneShotBackupServiceTests
         Assert.Equal("source-deferred", payload.RootElement.GetProperty("code").GetString());
         Assert.Equal("source.prepare", payload.RootElement.GetProperty("phase").GetString());
         var detail = payload.RootElement.GetProperty("diagnostics").GetString()!;
-        Assert.StartsWith("<save> bridgeAdmissionStatsV1=3,900; ", detail);
+        Assert.StartsWith("<save> preparation-context; ", detail);
         Assert.DoesNotContain(sourcePath, detail);
         Assert.DoesNotContain('\n', detail);
         Assert.Equal(6145, detail.Length); // Shared limit plus the truncation marker.

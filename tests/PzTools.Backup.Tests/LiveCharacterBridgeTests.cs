@@ -26,8 +26,9 @@ public sealed partial class GameSaveClientTests
         var ticket = new RuntimeSaveTicket(dead.ProcessSession, dead.ObserverEpoch, dead.WorldSession, dead.ClockEpoch,
             dead.EligibilityEpoch, 0, 1, Guid.NewGuid().ToString("N"), dead.CharacterSession, dead.DeathId);
         var receipt = await new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: ticket)
-            .RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save");
-        Assert.Equal("pztools.standard-save", receipt.ProviderId); // Synthetic classes cannot pass real-game structural gates.
+            .RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
+        Assert.Equal("pztools.standard-save", receipt.ProviderId);
+        Assert.Equal("unknown-provider", receipt.FallbackReason);
         Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));
         var report = await watch.WaitAsync(s => s.LastSave?.Outcome == RuntimeSaveOutcome.Succeeded);
         Assert.Equal(receipt.ProviderId, report.LastSave!.Provider);
@@ -43,7 +44,7 @@ public sealed partial class GameSaveClientTests
         await File.WriteAllTextAsync(temp.GetPath("fail-save"), "fail");
         // Ensure the game processed the signal before submitting another request.
         await watch.WaitAsync(s => s.Sequence > next.Sequence + 1);
-        await Assert.ThrowsAsync<GameSaveException>(() => Client().RequestProviderAsync(game.Pid, temp.Path, "pztools.seamless-save"));
+        await Assert.ThrowsAsync<GameSaveException>(() => Client().RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save"));
         var failed = await watch.WaitAsync(s => s.LastSave?.Outcome == RuntimeSaveOutcome.Failed);
         Assert.NotEqual(report.LastSave.RequestId, failed.LastSave!.RequestId);
         q.CommandText = "SELECT isDead FROM localPlayers;"; Assert.Equal(0L, await q.ExecuteScalarAsync());

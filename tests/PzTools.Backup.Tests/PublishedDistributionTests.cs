@@ -56,9 +56,11 @@ public sealed class PublishedDistributionTests
     {
         var bridge = Path.Combine(Root, "save-bridge");
         var extensions = Path.Combine(bridge, "extensions");
-        string[] payload = ["pztools-extension-runtime.jar", "pztools-seamless-save.jar",
+        string[] payload = ["pztools-extension-runtime.jar",
             "pztools-vehicle-drivetrain.jar", "catalog.tsv", "vehicle-drivetrain.toml"];
         foreach (var name in payload) Assert.True(File.Exists(Path.Combine(extensions, name)), name);
+        Assert.False(File.Exists(Path.Combine(extensions, "pztools-seamless-save.jar")));
+        Assert.False(File.Exists(Path.Combine(extensions, "pztools-test-save.jar")));
         foreach (var name in payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)))
         {
             using var jar = ZipFile.OpenRead(Path.Combine(extensions, name));
@@ -71,7 +73,8 @@ public sealed class PublishedDistributionTests
             Assert.NotNull(runtime.GetEntry("pztools/extensions/runtime/ContinuousRuntime.class"));
         }
         var cataloguePath = Path.Combine(extensions, "catalog.tsv");
-        var vehicle = Assert.Single(ExtensionCatalog.ReadFile(cataloguePath), entry => entry.Id == ExtensionIds.VehicleDrivetrain);
+        var vehicle = Assert.Single(ExtensionCatalog.ReadFile(cataloguePath));
+        Assert.Equal(ExtensionIds.VehicleDrivetrain, vehicle.Id);
         Assert.Equal("vehicle.drivetrain.v1", Assert.Single(vehicle.Capabilities));
         var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(ExtensionIds.VehicleDrivetrain + "\t", StringComparison.Ordinal)).Split('\t');
         Assert.Equal(11, row.Length);

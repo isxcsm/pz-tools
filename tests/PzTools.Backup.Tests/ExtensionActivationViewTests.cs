@@ -168,7 +168,7 @@ public sealed class ExtensionActivationViewTests
     [Fact]
     public void SaveProviderIsAnExplicitPerSaveSelectionNotContinuousActivation()
     {
-        var card = Card() with { Definition = Definition(ExtensionIds.SeamlessSave) };
+        var card = Card() with { Definition = Definition("pztools.test-save") };
         var unready = ExtensionActivationView.Project(card, true, false, Active());
         Assert.True(unready.IsPerSave);
         Assert.False(unready.IsOn);

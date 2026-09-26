@@ -417,8 +417,6 @@
   <data name="LogDateLabel" xml:space="preserve"><value>日期</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>遊戲擴充</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>管理選用的遊戲增強功能。</value></data>
-<data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>無縫儲存</value></data>
-<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>使用獨立的儲存路徑，不改變一般儲存。略過額外的預覽繪製，並將部分寫入和完成等待移出遊戲執行緒。不會等待介面操作結束才開始儲存。序列化與鎖定仍可能造成短暫停頓；不支援的版本使用一般儲存。</value></data>
 <data name="GameExtensions.Disabled" xml:space="preserve"><value>已關閉 · 標準儲存</value></data>
 <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>下次儲存時檢查相容性 &#183; 實驗階段</value></data>
 <data name="GameExtensions.Configure" xml:space="preserve"><value>設定</value></data>

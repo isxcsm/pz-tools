@@ -1,4 +1,4 @@
-package pztools.extensions.seamless;
+package pztools.extensions.fixture;
 
 import pztools.extensions.api.SaveProvider;
 import pztools.extensions.runtime.CooperativeCapture;
@@ -6,11 +6,11 @@ import java.io.IOException;
 import java.nio.file.*;
 
 /** Isolated transport fixture, never included in the product JAR or used with a real game. */
-public final class SeamlessSaveProvider implements SaveProvider {
+public final class TestSaveProvider implements SaveProvider {
     private final String generation = java.util.UUID.randomUUID().toString();
     public boolean supportsReload() { return true; }
     public void close() { }
-    public String id() { return "pztools.seamless-save"; }
+    public String id() { return "pztools.test-save"; }
     public Support inspect(Context context) { context.requireGameThread(); return new Support(true, null); }
     public boolean readyToCapture(Context context) throws Exception {
         context.requireGameThread();
@@ -50,8 +50,7 @@ public final class SeamlessSaveProvider implements SaveProvider {
             Class.forName("zombie.GameWindow", false, context.gameClasses()).getMethod("save", boolean.class).invoke(null, true);
         Files.writeString(root.resolve("extension-identity"), context.sessionId() + "|" + context.worldId());
         Files.writeString(root.resolve("extension-started"), context.requestId());
-        String detail = "fixtureCapture=complete; fixtureGeneration=" + generation
-            + (Files.exists(root.resolve("long-diagnostics")) ? "; unicode=" + "추적😀".repeat(2500) : "");
+        String detail = "fixtureCapture=complete; fixtureGeneration=" + generation;
         return new PreparedSave() {
             public long retainedBytes() { return 0; }
             public String diagnostics() { return detail; }
