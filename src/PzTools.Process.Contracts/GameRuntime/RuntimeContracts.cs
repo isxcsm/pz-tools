@@ -72,7 +72,8 @@ public sealed record RuntimeSnapshot(
 
 /// <summary>Current state, not a complete event history. Only committed semantic revisions may be published.</summary>
 public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quality, RuntimeSnapshot? Snapshot,
-    long StateRevision = 0, long AgeMilliseconds = 0, string? Reason = null, string AuthorityEpoch = "")
+    long StateRevision = 0, long AgeMilliseconds = 0, string? Reason = null, string AuthorityEpoch = "",
+    RuntimeExtensionStatus? Extension = null)
 {
     public string SemanticKey => $"{StreamEpoch}/{Quality}/{Snapshot?.SemanticKey}/{Reason}";
     public bool IsFresh => Quality == RuntimeQuality.Fresh && AgeMilliseconds <= 2000
@@ -85,6 +86,7 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
             || AuthorityEpoch.Length != 0 && !RuntimeSnapshot.Id(AuthorityEpoch) || Reason?.Length > 200 || Quality == RuntimeQuality.Fresh && !RuntimeSnapshot.Id(StreamEpoch))
             throw new InvalidDataException("Invalid runtime observation.");
         var normalized = Snapshot?.Validate();
+        Extension?.Validate();
         if (Quality == RuntimeQuality.Fresh && normalized is null) throw new InvalidDataException("Missing live snapshot.");
         return ReferenceEquals(normalized, Snapshot) ? this : this with { Snapshot = normalized };
     }

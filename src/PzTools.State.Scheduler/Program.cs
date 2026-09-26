@@ -32,6 +32,7 @@ try
         ?? settings.IntervalSeconds.ToString(
             System.Globalization.CultureInfo.InvariantCulture)));
     var runtime = new RuntimeSnapshotStore();
+    var extensions = new RuntimeExtensionStatusStore();
     bool useRuntime = false;
     var stateChecks = new StateCheckPipeline(() => useRuntime ? runtime.Read() : null);
     var allocator = new RunIndexAllocator(options.GetValueOrDefault("--control-db"));
@@ -51,9 +52,10 @@ try
     var result = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {
         using var runtimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var runtimeFeed = RuntimeStateFeed.ServeAsync(schedulerPath, runtime, runtimeCancellation.Token);
+        var runtimeFeed = RuntimeStateFeed.ServeAsync(schedulerPath, runtime, runtimeCancellation.Token, extensions);
         var observation = new RuntimeObservationCoordinator(stateDb, schedulerDb, savesRoot,
-            Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "save-bridge"), runtime);
+            Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "save-bridge"), runtime,
+            options.GetValueOrDefault("--runtime-root") ?? Path.GetDirectoryName(Path.GetFullPath(schedulerPath))!, extensions);
         var runtimeObservation = observation.RunAsync(runtimeCancellation.Token);
         try
         {
@@ -114,7 +116,7 @@ static Dictionary<string, string?> Parse(string[] arguments)
     var allowed = new HashSet<string>(StringComparer.Ordinal)
     {
         "--scheduler-db", "--state-db", "--saves-root", "--interval-seconds",
-        "--worker-directory", "--once", "--config", "--control-db", "--repository",
+        "--worker-directory", "--once", "--config", "--control-db", "--repository", "--runtime-root",
     };
     var result = new Dictionary<string, string?>(StringComparer.Ordinal);
     for (var index = 0; index < arguments.Length; index++)

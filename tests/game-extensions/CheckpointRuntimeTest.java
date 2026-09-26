@@ -78,6 +78,8 @@ public final class CheckpointRuntimeTest {
             diagnosticsAreFinalAndNotPerFrame(context);
             pztools.extensions.seamless.b4220.CooperativeCaptureTest.run();
             ModuleReloadTest.run();
+        pztools.extensions.runtime.ContinuousRuntimeTest.run();
+        pztools.extensions.runtime.VehicleHooksTest.run();
             System.out.println("PASS: unsupported adapter, detached capture, writer ownership, failure and memory budget");
         } finally {
             Files.deleteIfExists(directory.resolve("saved.bin"));

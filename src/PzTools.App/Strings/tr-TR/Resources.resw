@@ -446,4 +446,27 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Destek bağlantısı henüz hazır değil.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Karakter uyuyor</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanmayı, vites geçişlerini, geri sürüşü ve klavyeyle direksiyonu bağımsız iyileştirir. Deneyseldir; yalnızca tek oyunculu oyun içindir.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Doğal hızlanma ve vites geçişleri</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>İleri hızlanmayı motor devrine ve vitese göre ayarlar.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Yumuşak geri sürüş</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Geri kalkışı yumuşatır ve geri sürüş hızını sınırlar.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Hassas direksiyon</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Klavyeyle direksiyon hareketini ve merkeze dönüşü kademeli yapar.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Her seçenek ayrı kaydedilir. Oyunun doğruladığı durum aşağıda gösterilir.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Oyunda uygulandı · Deneysel</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Açılması istendi · Oyun onayı bekleniyor</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Kapatıldığı doğrulandı · Özgün sürüş</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Kapatılması istendi · Durum doğrulanmadı</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Hâlâ etkin · Kapatılıyor</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Etkin · Yeni ayarların onayı bekleniyor</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Desteklenmiyor · Özgün sürüş</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Eklenti hatası · Özgün sürüş</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Bu eklentiyi kullanmak için oyunu yeniden başlatın</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Ayrıntılar: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Değişiklikler oyunda uygulanıyor.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Eklenti uygulanamadı. Ayrıntılar için günlükleri kontrol edin.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Kaydedilen ayarlar, tek oyunculu bir oyuna girdiğinizde uygulanır.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Uygulamak için oyuna devam edin, aracı durdurun, gazı bırakın ve hız sabitleyiciyi kapatın.</value></data>
 </root>

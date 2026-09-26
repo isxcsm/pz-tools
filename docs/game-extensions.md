@@ -4,9 +4,10 @@
 
 ## Current scope
 
-Seamless Saving **0.13.0**, bootstrap API **9**, extension API **2**, save protocol **6**.
-Install matching app/worker/JARs. The first move from bootstrap API 8 (or older) to 9
-requires one complete game restart: the old resident has no retirement protocol.
+Seamless Saving **0.13.0**, Vehicle Drivetrain **0.2.0** (experimental, default OFF),
+bootstrap API **10**, extension host ABI **3**, save protocol **6**.
+Install matching app/worker/JARs. Moving from a resident bootstrap API 9 (or older) to 10
+requires one complete game restart: the old resident lacks the vehicle dispatcher contract.
 After that, compatible module, extension-host and bridge-payload updates are applied
 at an idle request boundary, including deployments in another folder. No save or
 in-flight native/file/DB operation is interrupted to make an update. Repository data
@@ -15,6 +16,15 @@ and game-save formats do not change. See [reload lifecycle](module-reload.md).
 This remains experimental low-interruption saving, not a zero-stall or atomic world
 snapshot guarantee. The public game save implementation is preserved. The extension
 now uses an explicit private, versioned entry rather than intercepting ordinary saves.
+
+Vehicle Drivetrain is a separate continuous provider for the inspected 42.20 code
+family. It uses the selected WATCH process/world, not the save-provider slot. It is
+not a native tire/collision overhaul or a claim of real horsepower simulation.
+Driving settings expose three independent switches: acceleration/transmission,
+smooth reverse, and fine keyboard steering. Disabled paths retain original control.
+Probe, diagnostics and low-gear tuning remain developer-only TOML options. Version
+override remains in technical settings and cannot bypass structural safety checks.
+See [design](vehicle-drivetrain-design.md) and [user E2E procedure](e2e-vehicle-drivetrain.md).
 
 ## Separate entry points
 
@@ -82,11 +92,11 @@ original-lock access and compatibility validation. The general backup engine con
 no module-specific branch. The private-call linker carries only per-companion immutable
 handles; it is not a global method registry or arbitrary remote invocation facility.
 
-The shared catalogue continues to declare Seamless Saving as All. Major min=42 can
-be used for a future vehicle module; Minor supports ranges such as 42.20-42.25.
+The shared catalogue continues to declare Seamless Saving as All. Vehicle Drivetrain
+uses Minor 42.20–42.20 plus structural and bytecode admission checks.
 Explicit override bypasses the declared range only, never essential structure,
 identity, admission or completion checks. All is not proof of compatibility with
-unexamined binaries. Existing card/modal translations and actual-result reporting remain.
+unexamined binaries. Existing extension translations and actual-result reporting remain; settings use inline expandable rows without a separate modal.
 
 ## Validation and remaining work
 

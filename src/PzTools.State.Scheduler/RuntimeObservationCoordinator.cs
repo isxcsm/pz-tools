@@ -9,7 +9,8 @@ namespace PzTools.State.Scheduler;
 
 /// <summary>Composition root for observation. Reception never waits for slow save discovery/SQLite.</summary>
 internal sealed class RuntimeObservationCoordinator(StateDatabase state, SchedulerDatabase scheduler,
-    string savesRoot, string bridgeDirectory, RuntimeSnapshotStore published)
+    string savesRoot, string bridgeDirectory, RuntimeSnapshotStore published,
+    string runtimeRoot, RuntimeExtensionStatusStore extensions)
 {
     private readonly RuntimeSnapshotStore received = new();
 
@@ -35,6 +36,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                     .SelectMany(System.Diagnostics.Process.GetProcessesByName).ToArray();
                 if (games.Length != 1)
                 {
+                    extensions.Publish(new(RuntimeExtensionState.Disabled, games.Length == 0 ? "no-game-process" : "multiple-games"));
                     received.Publish(new("", games.Length == 0 ? RuntimeQuality.Offline : RuntimeQuality.Ambiguous,
                         null, Reason: games.Length == 0 ? "no-game-process" : "multiple-games"));
                     failures = 0; await Task.Delay(1000, token); continue;
@@ -42,6 +44,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 var game = games[0];
                 var started = game.StartTime.ToUniversalTime(); // Bind discovery to an OS process instance, not just PID.
                 string stream = Guid.NewGuid().ToString("N");
+                received.Publish(RuntimeObservation.Unknown("connecting"));
                 using var connection = CancellationTokenSource.CreateLinkedTokenSource(token);
                 async Task WatchExitAsync()
                 {
@@ -54,11 +57,14 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                     catch (OperationCanceledException) { }
                 }
                 var exit = WatchExitAsync();
+                var control = new RuntimeExtensionCoordinator(bridgeDirectory, runtimeRoot, received, extensions)
+                    .RunAsync(game.Id, stream, connection.Token);
                 try
                 {
                     long lastConfigurationCheck = 0;
                     await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(game.Id, connection.Token))
                     {
+                        if (control.IsCompleted) { await control; throw new IOException("Extension controller stopped."); }
                         if (game.HasExited || game.StartTime.ToUniversalTime() != started) break;
                         failures = 0;
                         if (Stopwatch.GetElapsedTime(lastConfigurationCheck).TotalSeconds >= 2)
@@ -82,14 +88,18 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                             : new(stream, RuntimeQuality.Unsupported, snapshot, Reason: "outside-configured-save-root"));
                     }
                 }
-                finally { await connection.CancelAsync(); try { await exit; } catch (OperationCanceledException) { } }
+                finally { await connection.CancelAsync(); try { await Task.WhenAll(exit, control); } catch (OperationCanceledException) { } }
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             { if (received.Read().Quality != RuntimeQuality.Offline) received.Publish(RuntimeObservation.Unknown("runtime-disconnected")); }
             catch (Exception error) when (error is IOException or GameSaveException or InvalidOperationException
                 or System.ComponentModel.Win32Exception or FormatException or OverflowException or UnauthorizedAccessException
                 or Microsoft.Data.Sqlite.SqliteException)
-            { received.Publish(RuntimeObservation.Unknown("runtime-unavailable")); }
+            {
+                bool restart = error is GameSaveException { Code: "restart-required" };
+                received.Publish(RuntimeObservation.Unknown(restart ? "runtime-restart-required" : "runtime-unavailable"));
+                if (restart) extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
+            }
             finally { foreach (var game in games) game.Dispose(); }
             failures = Math.Min(5, failures + 1);
             await Task.Delay(TimeSpan.FromSeconds(Math.Min(30, 1 << failures)), token);

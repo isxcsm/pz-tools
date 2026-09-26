@@ -11,10 +11,10 @@ public sealed class GameExtensionTests
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.GetPath("runtime"));
         var service = new GameExtensionService(store);
-        var card = Assert.Single(service.ReadCards());
+        var card = service.ReadCards().Single(item => item.Definition.Id == ExtensionIds.SeamlessSave);
         Assert.False(card.Enabled);
         Assert.False(File.Exists(store.FilePath));
-        var enabled = Assert.Single(service.SetEnabled(card.Definition.Id, true, card.SettingsRevision));
+        var enabled = service.SetEnabled(card.Definition.Id, true, card.SettingsRevision).Single(item => item.Definition.Id == ExtensionIds.SeamlessSave);
         Assert.True(enabled.Enabled);
         Assert.Equal("compatibility-on-request", enabled.StatusCode);
     }

@@ -41,6 +41,12 @@ $env:PZTOOLS_SAVE_BRIDGE_DIR = $bridgeRoot
 $env:PZTOOLS_BRIDGE_TEST_JAVA = Join-Path $JdkPath 'bin/java.exe'
 $env:PZTOOLS_BRIDGE_TEST_CLASSES = $fixtureOutput
 & (Join-Path $PSScriptRoot 'test-game-extensions.ps1') -JdkPath $JdkPath -Configuration $Configuration -BridgeDirectory $bridgeRoot
+$controlClasspath = @($fixtureOutput, (Join-Path $bridgeRoot 'pztools-save-bridge.jar'), (Join-Path $bridgeRoot 'pztools-save-bootstrap.jar'), (Join-Path $bridgeRoot 'extensions/pztools-extension-runtime.jar')) -join ';'
+$controlSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-control') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $controlClasspath -d $fixtureOutput @controlSources
+if ($LASTEXITCODE -ne 0) { throw 'Continuous control protocol fixture compilation failed' }
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp $controlClasspath pztools.bridge.runtime.ExtensionControlTest
+if ($LASTEXITCODE -ne 0) { throw 'Continuous control protocol tests failed' }
 # The CI caller runs the entire applicable suite once with these environment values.
 if ($PrepareOnly) { return }
 $arguments = @('test', (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'),

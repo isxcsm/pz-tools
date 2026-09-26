@@ -446,4 +446,27 @@
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支援リンクは準備中です。</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>ゲームが起動していません</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>キャラクターが睡眠中</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>車両の運転改善</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>前進時の加速・変速、後退、キーボード操舵を個別に改善します。シングルプレイ専用の実験的な機能です。</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>自然な加速・変速</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>エンジン回転数とギアに合わせて前進時の加速を調整します。</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>滑らかな後退</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>後退時の発進を穏やかにし、速度を制限します。</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>細やかなステアリング</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>キーボード操舵と中央への戻りを段階的に調整します。</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>各オプションは個別に保存されます。ゲームで確認した適用状態を下に表示します。</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>ゲームへの適用を確認 · 実験的機能</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>有効化を要求済み · ゲームの確認待ち</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>解除を確認 · 標準の運転</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>無効化を要求済み · 適用状態は未確認</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>まだ有効 · 解除待ち</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>適用中 · 設定変更の確認待ち</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>未対応 · 標準の運転</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>拡張機能のエラー · 標準の運転</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>この拡張機能を使用するにはゲームを再起動してください</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>詳細: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>ゲームに変更を適用しています。</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>拡張機能を適用できませんでした。詳細はログを確認してください。</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>保存した設定はシングルプレイのゲームに入ると適用されます。</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>ゲームを再開して車を止め、アクセルを離してクルーズコントロールを解除すると適用されます。</value></data>
 </root>

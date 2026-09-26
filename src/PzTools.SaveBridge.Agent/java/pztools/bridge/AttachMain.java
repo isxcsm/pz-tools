@@ -12,7 +12,7 @@ import java.util.Base64;
 public final class AttachMain {
     private static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
     public static void main(String[] args) throws Exception {
-        if (args.length != 4 && !(args.length == 5 && args[4].equals("WATCH"))) throw new IllegalArgumentException("Expected pid, agent jar, port, token");
+        if (args.length != 4 && !(args.length == 5 && (args[4].equals("WATCH") || args[4].equals("EXTENSIONS")))) throw new IllegalArgumentException("Expected pid, agent jar, port, token");
         long pid = Long.parseLong(args[0]);
         int port = Integer.parseInt(args[2]);
         if (pid <= 0 || port < 1 || port > 65535 || !args[3].matches("[0-9a-f]{64}"))
@@ -38,7 +38,7 @@ public final class AttachMain {
                     vm.loadAgent(payload.getParent().resolve("pztools-save-bootstrap.jar").toString(), "BOOTSTRAP1:" + encoded);
                     endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
                 }
-                if (!"9".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
+                if (!"10".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
                     throw new IOException("Restart the game to use the updated bridge; no save request was sent");
             } finally { vm.detach(); }
             if (endpoint == null) throw new IOException("Bootstrap is incompatible; restart the game with matching app/workers");
@@ -52,7 +52,7 @@ public final class AttachMain {
                 socket.setSoTimeout(5000);
                 var out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 var in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                out.println(fields[3] + "\t" + port + "\t" + args[3] + "\t" + encoded + (args.length == 5 ? "\tWATCH" : ""));
+                out.println(fields[3] + "\t" + port + "\t" + args[3] + "\t" + encoded + (args.length == 5 ? "\t" + args[4] : ""));
                 // Fixed-size reply, never log the endpoint credential. An ambiguous dispatch is NOT retried.
                 char[] response = new char[32];
                 int count = 0, ch;

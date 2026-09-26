@@ -446,4 +446,27 @@ Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Link do wsparcia nie jest jeszcze dostępny.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Gra nie jest uruchomiona</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Postać śpi</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Ulepszenia prowadzenia pojazdów</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Osobno ulepsza przyspieszanie, zmianę biegów, cofanie i kierowanie klawiaturą. Funkcja eksperymentalna, tylko dla jednego gracza.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Naturalne przyspieszanie i zmiana biegów</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Dostosowuje przyspieszanie do przodu do obrotów silnika i biegu.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Płynne cofanie</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Łagodzi ruszanie do tyłu i ogranicza prędkość cofania.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Precyzyjne kierowanie</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Zapewnia stopniowe kierowanie klawiaturą i powrót do pozycji środkowej.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Każda opcja jest zapisywana osobno. Poniżej widoczny jest stan potwierdzony przez grę.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Zastosowano w grze · Eksperymentalne</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Zażądano włączenia · Oczekiwanie na potwierdzenie gry</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Potwierdzono wyłączenie · Oryginalne prowadzenie</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Zażądano wyłączenia · Stan niepotwierdzony</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Nadal aktywne · Trwa wyłączanie</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Aktywne · Oczekiwanie na potwierdzenie nowych ustawień</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Nieobsługiwane · Oryginalne prowadzenie</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Błąd rozszerzenia · Oryginalne prowadzenie</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Uruchom grę ponownie, aby użyć tego rozszerzenia</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>Szczegóły: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>Stosowanie zmian w grze.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Nie udało się zastosować rozszerzenia. Szczegóły znajdziesz w dziennikach.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Zapisane ustawienia zostaną zastosowane po wejściu do gry jednoosobowej.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Aby je zastosować, wznów grę, zatrzymaj pojazd, puść gaz i wyłącz tempomat.</value></data>
 </root>

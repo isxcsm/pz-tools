@@ -30,15 +30,23 @@ public static class ExtensionCatalog
             var row = line.TrimEnd('\r');
             if (string.IsNullOrWhiteSpace(row) || row.StartsWith('#')) continue;
             var p = row.Split('\t');
-            if (p.Length != 10 || !Enum.TryParse<VersionSupportScope>(p[5], out var scope) || !Enum.IsDefined(scope))
+            if (p.Length is not (10 or 11) || !Enum.TryParse<VersionSupportScope>(p[5], out var scope) || !Enum.IsDefined(scope))
                 throw new InvalidDataException("Invalid extension catalogue row.");
+            var capability = p.Length == 10 ? ExtensionCapabilities.SavePreparation : p[10];
+            var capabilities = Array.AsReadOnly(new[] { capability });
+            var activationKind = ExtensionCapabilities.Classify(capabilities);
+            if (activationKind == ExtensionActivationKind.Unsupported)
+                throw new InvalidDataException("Unsupported extension capability.");
+            if (p[0] == ExtensionIds.VehicleDrivetrain && capability != ExtensionCapabilities.VehicleDrivetrain)
+                throw new InvalidDataException("The vehicle extension requires an explicit vehicle capability.");
             try { ExtensionIds.Validate(p[0]); } catch (ArgumentException failure) { throw new InvalidDataException("Invalid extension catalogue identifier.", failure); }
             if (!ids.Add(p[0]) || result.Count >= 64 || p.Any(part => part.Length > 200)
                 || !Version.TryParse(p[1], out _) || !p[8].StartsWith("Extension.", StringComparison.Ordinal)
                 || !p[9].StartsWith("Extension.", StringComparison.Ordinal))
                 throw new InvalidDataException("Invalid extension catalogue identity.");
             var support = new GameVersionSupport(scope, p[6] == "-" ? null : p[6], p[7] == "-" ? null : p[7]).Validate();
-            result.Add(new(p[0], p[1], p[8], p[9], "compatibility-on-request", Array.AsReadOnly(new[] { "save.prepare.v1" }), support));
+            result.Add(new(p[0], p[1], p[8], p[9], activationKind == ExtensionActivationKind.PerSave ? "compatibility-on-request" : "runtime-pending",
+                capabilities, support));
         }
         return result.AsReadOnly();
     }

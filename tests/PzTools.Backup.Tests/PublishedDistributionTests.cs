@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using System.Text.Json;
+using PzTools.GameExtensions;
 
 namespace PzTools.Backup.Tests;
 
@@ -47,6 +49,81 @@ public sealed class PublishedDistributionTests
             || Path.GetFileName(path).StartsWith("onnxruntime", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(path).Equals("DirectML.dll", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(path).Equals("System.Numerics.Tensors.dll", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [DistributionFact]
+    public void VehicleExtensionPublishesAnAbiConsistentCatalogueModuleAndValidatedConfiguration()
+    {
+        var bridge = Path.Combine(Root, "save-bridge");
+        var extensions = Path.Combine(bridge, "extensions");
+        string[] payload = ["pztools-extension-runtime.jar", "pztools-seamless-save.jar",
+            "pztools-vehicle-drivetrain.jar", "catalog.tsv", "vehicle-drivetrain.toml"];
+        foreach (var name in payload) Assert.True(File.Exists(Path.Combine(extensions, name)), name);
+        foreach (var name in payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)))
+        {
+            using var jar = ZipFile.OpenRead(Path.Combine(extensions, name));
+            Assert.Equal("3", Manifest(jar)["PzTools-Extension-Api"]);
+        }
+        using (var runtime = ZipFile.OpenRead(Path.Combine(extensions, "pztools-extension-runtime.jar")))
+        {
+            Assert.NotNull(runtime.GetEntry("pztools/extensions/api/ContinuousProvider.class"));
+            Assert.NotNull(runtime.GetEntry("pztools/extensions/api/VehicleHooks.class"));
+            Assert.NotNull(runtime.GetEntry("pztools/extensions/runtime/ContinuousRuntime.class"));
+        }
+        var cataloguePath = Path.Combine(extensions, "catalog.tsv");
+        var vehicle = Assert.Single(ExtensionCatalog.ReadFile(cataloguePath), entry => entry.Id == ExtensionIds.VehicleDrivetrain);
+        Assert.Equal("vehicle.drivetrain.v1", Assert.Single(vehicle.Capabilities));
+        var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(ExtensionIds.VehicleDrivetrain + "\t", StringComparison.Ordinal)).Split('\t');
+        Assert.Equal(11, row.Length);
+        Assert.Equal("pztools-vehicle-drivetrain.jar", row[4]);
+        using (var module = ZipFile.OpenRead(Path.Combine(extensions, row[4])))
+        {
+            Assert.NotNull(module.GetEntry(row[3].Replace('.', '/') + ".class"));
+            Assert.NotNull(module.GetEntry("pztools/extensions/vehicle/model/DrivetrainModel.class"));
+            Assert.NotNull(module.GetEntry("pztools/extensions/vehicle/model/SteeringModel.class"));
+            Assert.NotNull(module.GetEntry("pztools/extensions/vehicle/model/VehicleProfile.class"));
+        }
+        foreach (var name in new[] { "pztools-save-bootstrap.jar", "pztools-save-bridge.jar" })
+        {
+            using var jar = ZipFile.OpenRead(Path.Combine(bridge, name));
+            Assert.Equal("10", Manifest(jar)["PzTools-Bootstrap-Api"]);
+            if (name == "pztools-save-bootstrap.jar")
+            {
+                Assert.NotNull(jar.GetEntry("pztools/bridge/AgentEntry.class"));
+                Assert.NotNull(jar.GetEntry("pztools/extensions/api/VehicleHooks.class"));
+                Assert.Null(jar.GetEntry("pztools/extensions/vehicle/VehicleDrivetrainProvider.class"));
+            }
+            else Assert.NotNull(jar.GetEntry("pztools/bridge/AttachMain.class"));
+        }
+        using var temporaryRuntime = new TempDirectory();
+        var configuration = VehicleDrivetrainConfiguration.Load(bridge, temporaryRuntime.Path);
+        var packagedConfiguration = Tomlyn.TomlSerializer.Deserialize<Tomlyn.Model.TomlTable>(
+            File.ReadAllText(Path.Combine(extensions, "vehicle-drivetrain.toml")))!;
+        Assert.Equal(configuration.Keys.Order(StringComparer.Ordinal), packagedConfiguration.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(40, configuration.Count);
+        Assert.Equal("1", configuration["schema_version"]);
+        Assert.Equal("1", configuration["low_gear_boost"]);
+        Assert.Equal("0.85", configuration["reverse_force_ratio"]);
+        Assert.Equal("3.6", configuration["gear_ratio_span"]);
+        Assert.Equal("false", configuration["probe_only"]);
+        Assert.Equal("true", configuration["torque_enabled"]);
+        Assert.Equal("true", configuration["reverse_enabled"]);
+        Assert.Equal("true", configuration["steering_enabled"]);
+        Assert.Equal("22", configuration["reverse_max_speed_kph"]);
+        Assert.False(Directory.Exists(Path.Combine(temporaryRuntime.Path, "extensions")));
+    }
+
+    private static IReadOnlyDictionary<string, string> Manifest(ZipArchive archive)
+    {
+        var entry = archive.GetEntry("META-INF/MANIFEST.MF");
+        Assert.NotNull(entry);
+        using var reader = new StreamReader(entry.Open());
+        // JAR manifests fold long logical headers using a leading space on the next line.
+        var lines = reader.ReadToEnd().Replace("\r\n ", "", StringComparison.Ordinal)
+            .Replace("\n ", "", StringComparison.Ordinal).Split('\n');
+        return lines.Select(line => line.TrimEnd('\r')).TakeWhile(line => line.Length != 0)
+            .Select(line => line.Split(": ", 2, StringSplitOptions.None))
+            .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed class DistributionFactAttribute : FactAttribute
