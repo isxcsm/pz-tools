@@ -5,6 +5,7 @@ public enum GameSaveCompletion
     StandardCallReturned,
     DetachedWritesCommitted,
     GameSaveAndDatabaseQueuesDrained,
+    GameSaveAndPendingWritesDrained,
 }
 
 /// <summary>A completion observation, not a promise of a transaction across the whole world.</summary>

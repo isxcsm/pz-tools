@@ -22,7 +22,7 @@ public static class ExtensionCatalog
 {
     public static IReadOnlyList<ExtensionDefinition> BuiltIn { get; } = Array.AsReadOnly(new[]
     {
-        new ExtensionDefinition(ExtensionIds.SeamlessSave, "0.2.0", "Extension.SeamlessSave.Title",
+        new ExtensionDefinition(ExtensionIds.SeamlessSave, "0.3.0", "Extension.SeamlessSave.Title",
             "Extension.SeamlessSave.Description", "compatibility-on-request",
             Array.AsReadOnly(new[] { "save.prepare.v1" })),
     });

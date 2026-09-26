@@ -202,3 +202,9 @@ saving remain synchronous. An incompatible optional provider falls back in the s
 authenticated request before saving; a failure after provider admission is not replayed.
 Bootstrap API 2 contains the stable module API and requires a complete game restart
 when replacing an older bootstrap. Ordinary save/probe requests do not load modules.
+
+
+The optional B42.20 module now reports `GAME_SAVE_AND_PENDING_WRITES_DRAINED` after
+its bounded existing-chunk file handoffs and database fences finish. New-file creation,
+serialization, native waits and ordered fallback I/O remain synchronous. Bootstrap API 3
+requires a game restart. See [ordered file handoff](game-extensions.md#ordered-chunk-file-handoff-03).

@@ -185,6 +185,7 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 "STANDARD_CALL_RETURNED" => GameSaveCompletion.StandardCallReturned,
                 "DETACHED_WRITES_COMMITTED" => GameSaveCompletion.DetachedWritesCommitted,
                 "GAME_SAVE_AND_DATABASE_QUEUES_DRAINED" => GameSaveCompletion.GameSaveAndDatabaseQueuesDrained,
+                "GAME_SAVE_AND_PENDING_WRITES_DRAINED" => GameSaveCompletion.GameSaveAndPendingWritesDrained,
                 _ => throw new GameSaveException("invalid-response", "Unknown save completion kind."),
             };
             if ((provider == "pztools.standard-save") != (kind == GameSaveCompletion.StandardCallReturned)

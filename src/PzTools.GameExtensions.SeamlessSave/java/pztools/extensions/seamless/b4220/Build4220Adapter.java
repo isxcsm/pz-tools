@@ -21,6 +21,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         "zombie/iso/IsoChunkMap", "8a640e4756d98f6cafd77e6d36a7b9042ea844744af3f0bb2cda257726d3b61c",
         "zombie/vehicles/VirtualVehicleManager", "91849135296db0246ec51fd5eb3e3e890f4436c78b48dcc37e1ff573cdbd271e");
     private final SaveSignals signals = new SaveSignals();
+    private final DeferredChunkWrites chunkWrites = new DeferredChunkWrites();
     private final AtomicReference<Throwable> transformationFailure = new AtomicReference<>();
     private Method save, allowPlayers, getPlayers, updatePlayers, updateVehicles;
     private Field vehicles;
@@ -48,7 +49,8 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         allowPlayers = playerDb.getMethod("isAllow"); getPlayers = playerDb.getMethod("getInstance");
         updatePlayers = playerDb.getMethod("updateMain"); updateVehicles = vehicleDb.getMethod("updateMain");
         vehicles = vehicleDb.getField("instance");
-        Class<?>[] targets = { window, playerDb, vehicleDb, logger };
+        Class<?> chunk = Class.forName("zombie.iso.IsoChunk", false, loader);
+        Class<?>[] targets = { window, playerDb, vehicleDb, logger, chunk };
         for (Class<?> type : targets) if (!instrumentation.isModifiableClass(type))
             return new SaveProvider.Support(false, "unmodifiable-game-class");
         Set<Class<?>> selected = Set.of(targets);
@@ -58,7 +60,8 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
                     ProtectionDomain domain, byte[] bytes) {
                 if (owner != loader || !selected.contains(type)) return null;
                 try {
-                    byte[] result = SaveBytecode.transform(name, bytes, loader);
+                    byte[] result = type == chunk ? ChunkSaveBytecode.transform(bytes, loader)
+                        : SaveBytecode.transform(name, bytes, loader);
                     transformed.add(type);
                     return result;
                 } catch (Throwable failure) {
@@ -68,6 +71,8 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             }
         };
         signals.register();
+        try { FileWriteHooks.register(chunkWrites); }
+        catch (RuntimeException failure) { signals.unregister(); throw failure; }
         instrumentation.addTransformer(transformer, true);
         try {
             instrumentation.retransformClasses(targets);
@@ -77,7 +82,8 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             return new SaveProvider.Support(true, null);
         } catch (Exception failure) {
             instrumentation.removeTransformer(transformer);
-            signals.unregister(); // Partially installed guards are inert; ordinary saving is untouched.
+            signals.unregister(); FileWriteHooks.unregister(chunkWrites);
+            chunkWrites.close(); // No capture has begun, so ordinary saving remains untouched.
             instrumentation.retransformClasses(targets);
             return new SaveProvider.Support(false, "unsupported-hook-layout");
         }
@@ -97,6 +103,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         try {
             // This intentionally remains on the game thread. OnSave, loaded/virtual vehicles,
             // chunk serialization and native world saving are NOT replaced by a partial imitation.
+            batch.chunks = chunkWrites.begin(context, maximumBytes, batch::fail);
             save.invoke(null, true);
             // savePlayers() only sets a flag in B42.20. Capture its queued bytes in this same game tick.
             if (includePlayers) updatePlayers.invoke(playerStore);

@@ -23,7 +23,7 @@ def plan(paths, *, full=False, manual=False, benchmarks=False):
         for path in paths)
     bridge = full or publish or any(
         path.startswith(("src/PzTools.SaveBridge", "tests/save-bridge/",
-                         "src/PzTools.GameExtensions", "tests/game-extensions/", "scripts/test-game-extensions",
+                         "src/PzTools.GameExtensions", "tests/game-extensions", "scripts/test-game-extensions",
                          "src/PzTools.Backup.Engine/", "src/PzTools.Zomboid.Backup/",
                          "src/PzTools.Scheduling/", "src/PzTools.Process.Hosting/",
                          "src/PzTools.Process.Contracts/", "scripts/build-save-bridge",

@@ -4,7 +4,7 @@ import java.lang.classfile.*;
 import java.lang.classfile.instruction.*;
 import java.lang.constant.*;
 
-/** Narrow, version-bound call-site transforms. Original serializers and native saving are retained. */
+/** Narrow, version-bound call-site transforms; original serializers and native saving remain. */
 public final class SaveBytecode {
     private static final ClassDesc HOOKS = ClassDesc.of("pztools.extensions.api.GameHooks");
     private static final MethodTypeDesc ENTER = MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_String);
@@ -23,7 +23,6 @@ public final class SaveBytecode {
         if (targets.size() != 1 || targets.getFirst().code().isEmpty())
             throw new IllegalArgumentException("Unsupported save method: " + name);
         var body = targets.getFirst().code().orElseThrow();
-        // Already composed hooks are preserved, not duplicated during external retransformation.
         if (body.elementStream().anyMatch(e -> e instanceof InvokeInstruction i
                 && i.owner().asInternalName().equals("pztools/extensions/api/GameHooks")))
             throw new IllegalArgumentException("Save method already intercepted");
@@ -31,12 +30,18 @@ public final class SaveBytecode {
         if (method.equals("save")) {
             if (body.elementStream().filter(SaveBytecode::isThumbnail).count() != 1)
                 throw new IllegalArgumentException("Expected one thumbnail call");
-            transform = (builder, element) -> {
-                if (!isThumbnail(element)) { builder.with(element); return; }
-                Label original = builder.newLabel(), after = builder.newLabel();
-                builder.ldc(SaveSignals.THUMBNAIL).invokestatic(HOOKS, "suppress",
-                    MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_String));
-                builder.ifeq(original).goto_(after).labelBinding(original).with(element).labelBinding(after);
+            transform = new CodeTransform() {
+                public void atStart(CodeBuilder builder) {
+                    builder.invokestatic(ClassDesc.of("pztools.extensions.api.FileWriteHooks"), "beforeSynchronousSave",
+                        MethodTypeDesc.of(ConstantDescs.CD_void));
+                }
+                public void accept(CodeBuilder builder, CodeElement element) {
+                    if (!isThumbnail(element)) { builder.with(element); return; }
+                    Label original = builder.newLabel(), after = builder.newLabel();
+                    builder.ldc(SaveSignals.THUMBNAIL).invokestatic(HOOKS, "suppress",
+                        MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_String));
+                    builder.ifeq(original).goto_(after).labelBinding(original).with(element).labelBinding(after);
+                }
             };
         } else if (method.equals("logException")) {
             transform = CodeTransform.ofStateful(() -> new CodeTransform() {

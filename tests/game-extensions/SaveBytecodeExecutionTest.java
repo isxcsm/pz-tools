@@ -7,7 +7,7 @@ import java.lang.reflect.InvocationTargetException;
 /** Executes transformed generated classes, without attaching to or loading any game installation. */
 public final class SaveBytecodeExecutionTest {
     public static boolean throwing, suppress;
-    public static int previews, enters, exits;
+    public static int previews, enters, exits, barriers;
     public static Throwable lastFailure;
     public static void main(String[] args) throws Exception {
         var cf = ClassFile.of();
@@ -23,12 +23,22 @@ public final class SaveBytecodeExecutionTest {
             code -> code.invokestatic(thumbnail, "create", MethodTypeDesc.of(ConstantDescs.CD_void)).return_()));
         var observer = new GameHooks.Observer() { public boolean suppress() { return suppress; } };
         GameHooks.register("pztools.save.thumbnail.v1", observer);
+        var fileObserver = new pztools.extensions.api.FileWriteHooks.Handler() {
+            public boolean tryDefer(java.io.File file, java.nio.ByteBuffer buffer) { return false; }
+            public void beforeRead(java.io.File file) { }
+            public void beforeSynchronousSave() { barriers++; }
+        };
+        pztools.extensions.api.FileWriteHooks.register(fileObserver);
         try {
             var save = loader.define("GeneratedWindow", SaveBytecode.transform("zombie/GameWindow", window, loader))
                 .getMethod("save", boolean.class);
             save.invoke(null, true); suppress = true; save.invoke(null, true);
             check(previews == 1, "Preview interception must not skip the ordinary call");
-        } finally { GameHooks.unregister("pztools.save.thumbnail.v1", observer); }
+            check(barriers == 2, "Original save must enter the pending-file fence");
+        } finally {
+            GameHooks.unregister("pztools.save.thumbnail.v1", observer);
+            pztools.extensions.api.FileWriteHooks.unregister(fileObserver);
+        }
         byte[] drain = cf.build(ClassDesc.of("GeneratedDrain"), b -> b.withFlags(ClassFile.ACC_PUBLIC).withMethodBody("updateWorldStreamer",
             MethodTypeDesc.of(ConstantDescs.CD_void), ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC, code -> {
                 Label end = code.newLabel();

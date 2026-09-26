@@ -11,6 +11,10 @@ public sealed partial class GameSaveClientTests
         var response = GameSaveClient.ParseResponse($"SAVED\t{id}\tGAME_SAVE_AND_DATABASE_QUEUES_DRAINED\t{Encode("completed")}\t-", id);
         Assert.Equal(GameSaveCompletion.GameSaveAndDatabaseQueuesDrained, response.Completion);
         Assert.Null(response.FallbackReason);
+        var fileResponse = GameSaveClient.ParseResponse($"SAVED\t{id}\tGAME_SAVE_AND_PENDING_WRITES_DRAINED\t{Encode("completed")}\t-", id);
+        Assert.Equal(GameSaveCompletion.GameSaveAndPendingWritesDrained, fileResponse.Completion);
+        Assert.Throws<GameSaveException>(() => GameSaveClient.ParseResponse(
+            $"SAVED\tpztools.standard-save\tGAME_SAVE_AND_PENDING_WRITES_DRAINED\t{Encode("returned")}\t-", id));
         Assert.Throws<GameSaveException>(() => GameSaveClient.ParseResponse($"OK\t{Encode("returned")}", id));
         Assert.Throws<GameSaveException>(() => GameSaveClient.ParseResponse($"SAVED\tpztools.standard-save\tDETACHED_WRITES_COMMITTED\t{Encode("returned")}\t-", id));
     }
@@ -78,6 +82,17 @@ public sealed partial class GameSaveClientTests
         }
         finally { await File.WriteAllTextAsync(temp.GetPath("release-extension"), "release"); }
         await AwaitExtensionFileAsync(temp.GetPath("extension-closed"));
+        // The writer's close marker precedes the next game-loop observation and callback release.
+        // Wait for the actual idle condition, not a fixed delay or a weaker close-file proxy.
+        using (var idleDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+        {
+            while (true)
+            {
+                var state = await ReadHookAsync(temp);
+                if (state.Contains("callbackActive=false") && !state.Contains("bridge-session-active")) break;
+                await Task.Delay(20, idleDeadline.Token);
+            }
+        }
         await AssertIdleAsync(temp);
         await client.RequestAsync(game.Pid, temp.Path, true);
         Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));

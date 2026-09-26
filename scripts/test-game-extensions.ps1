@@ -29,3 +29,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture packaging failed.'
 
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) SaveBytecodeExecutionTest
 if ($LASTEXITCODE -ne 0) { throw 'Save bytecode behavior test failed.' }
+
+$chunkFixture = Join-Path $output 'chunk-fixture'
+New-Item -ItemType Directory -Force $chunkFixture | Out-Null
+& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d $chunkFixture (Join-Path $root 'tests/game-extensions-chunk-fixture/ChunkIoTemplate.java')
+if ($LASTEXITCODE -ne 0) { throw 'Chunk I/O fixture compilation failed.' }
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.DeferredChunkWriteTest $chunkFixture
+if ($LASTEXITCODE -ne 0) { throw 'Deferred chunk I/O behavior test failed.' }

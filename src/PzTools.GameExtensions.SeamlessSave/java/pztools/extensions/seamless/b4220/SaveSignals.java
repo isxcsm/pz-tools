@@ -74,8 +74,9 @@ final class SaveSignals {
         private final CountDownLatch drained = new CountDownLatch(1);
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
         private volatile boolean capturing = true, armed, closing;
+        DeferredChunkWrites.Batch chunks;
         Batch(SaveProvider.Context context, int expected) { this.context = context; pending = new AtomicInteger(expected); }
-        void arm() { capturing = false; armed = true; }
+        void arm() { if (chunks != null) chunks.seal(); capturing = false; armed = true; }
         void fail(Throwable error) { if (error != null) failure.compareAndSet(null, error); }
         void acknowledge(int bit) {
             if (pending.updateAndGet(value -> value & ~bit) == 0) {
@@ -83,9 +84,10 @@ final class SaveSignals {
                 if (closing) active.compareAndSet(this, null);
             }
         }
-        public long retainedBytes() { return 0; }
-        public SaveProvider.Completion completion() { return SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED; }
+        public long retainedBytes() { return chunks == null ? 0 : chunks.retainedBytes(); }
+        public SaveProvider.Completion completion() { return chunks == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
         public void commit() throws Exception {
+            if (chunks != null) chunks.await();
             while (!drained.await(100, TimeUnit.MILLISECONDS)) {
                 if (!context.worldValid().get()) throw new IOException("World changed before database writes were confirmed");
             }
@@ -93,7 +95,9 @@ final class SaveSignals {
             Throwable problem = failure.get();
             if (problem != null) throw new IOException("Game reported a save/write error", problem);
         }
-        public void close() {
+        public void close() throws Exception {
+            // Even cancellation/world exit must not leave detached writes behind a released save owner.
+            if (chunks != null) chunks.await();
             closing = true;
             // Interrupted waiting does not release admission while native game writes are unresolved.
             if (drained.getCount() == 0 || !context.worldValid().get()) active.compareAndSet(this, null);

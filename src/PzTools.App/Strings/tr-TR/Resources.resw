@@ -391,7 +391,7 @@
   <data name="GameExtensions.Title" xml:space="preserve"><value>Oyun eklentileri</value></data>
   <data name="GameExtensions.Description" xml:space="preserve"><value>Oyun için isteğe bağlı iyileştirmeleri yönetin.</value></data>
   <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Kesintisiz kayıt</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Normal oyun kaydını korur, zorunlu &#246;nizleme &#231;izimini atlar ve veritabanı yazımlarını doğrular. B&#246;lge ve yerel veri kaydı oyunu h&#226;l&#226; duraklatabilir. Desteklenmeyen s&#252;r&#252;mler normal kaydı kullanır.</value></data>
+  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Oyunun özgün kaydını korur, zorunlu önizleme çizimini atlar ve mevcut parça dosyalarını arka planda yazar. Serileştirme, yerel kayıt ve bazı dosya işlemleri oyunu hâlâ duraklatabilir. Desteklenmeyen sürümler standart kaydı kullanır.</value></data>
   <data name="GameExtensions.Disabled" xml:space="preserve"><value>Kapalı · Standart kayıt</value></data>
   <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Uyumluluk sonraki kayıtta denetlenir &#183; Deneysel</value></data>
   <data name="GameExtensions.Configure" xml:space="preserve"><value>Yapılandır</value></data>
@@ -399,5 +399,5 @@
   <data name="GameExtensions.Apply" xml:space="preserve"><value>Uygula</value></data>
   <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Eklenti ayarları kullanılamıyor</value></data>
   <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Değişiklikler kaydedilemedi. Sayfayı yeniden açın ve eklenti ayarları dosyasını kontrol edin.</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Normal oyun kaydını korur, zorunlu &#246;nizleme &#231;izimini atlar ve veritabanı yazımlarını doğrular. B&#246;lge ve yerel veri kaydı oyunu h&#226;l&#226; duraklatabilir. Desteklenmeyen s&#252;r&#252;mler normal kaydı kullanır.</value></data>
+  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Oyunun özgün kaydını korur, zorunlu önizleme çizimini atlar ve mevcut parça dosyalarını arka planda yazar. Serileştirme, yerel kayıt ve bazı dosya işlemleri oyunu hâlâ duraklatabilir. Desteklenmeyen sürümler standart kaydı kullanır.</value></data>
 </root>

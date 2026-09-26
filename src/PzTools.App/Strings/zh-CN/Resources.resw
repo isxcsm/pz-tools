@@ -391,7 +391,7 @@
   <data name="GameExtensions.Title" xml:space="preserve"><value>游戏扩展</value></data>
   <data name="GameExtensions.Description" xml:space="preserve"><value>管理可选的游戏增强功能。</value></data>
   <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>无缝保存</value></data>
-  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>保留常规游戏保存，跳过强制预览渲染，并确认数据库写入完成。区块和原生数据保存仍可能暂停游戏。不支持的版本将使用常规保存。</value></data>
+  <data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>保留游戏原有保存流程，跳过强制预览渲染，并在后台写入已有的区块文件。序列化、原生保存和部分文件操作仍可能使游戏短暂停顿。不支持的版本使用标准保存。</value></data>
   <data name="GameExtensions.Disabled" xml:space="preserve"><value>已关闭 · 标准保存</value></data>
   <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>下次保存时检查兼容性 &#183; 实验阶段</value></data>
   <data name="GameExtensions.Configure" xml:space="preserve"><value>设置</value></data>
@@ -399,5 +399,5 @@
   <data name="GameExtensions.Apply" xml:space="preserve"><value>应用</value></data>
   <data name="GameExtensions.SettingsError" xml:space="preserve"><value>无法使用扩展设置</value></data>
   <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>无法保存更改。请重新打开页面并检查扩展设置文件。</value></data>
-  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>保留常规游戏保存，跳过强制预览渲染，并确认数据库写入完成。区块和原生数据保存仍可能暂停游戏。不支持的版本将使用常规保存。</value></data>
+  <data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>保留游戏原有保存流程，跳过强制预览渲染，并在后台写入已有的区块文件。序列化、原生保存和部分文件操作仍可能使游戏短暂停顿。不支持的版本使用标准保存。</value></data>
 </root>

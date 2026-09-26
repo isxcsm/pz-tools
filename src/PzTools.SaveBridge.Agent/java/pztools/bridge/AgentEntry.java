@@ -51,7 +51,7 @@ public final class AgentEntry {
         control.setDaemon(true);
         try {
             control.start();
-            System.setProperty("pztools.bridge.bootstrap.api", "2");
+            System.setProperty("pztools.bridge.bootstrap.api", "3");
             // Published only after the listener is bound. Never print this credential.
             System.setProperty(CONTROL_PROPERTY, "1:" + ProcessHandle.current().pid() + ":"
                 + server.getLocalPort() + ":" + secret);

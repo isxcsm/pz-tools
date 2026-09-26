@@ -34,7 +34,7 @@ public interface SaveProvider {
         }
     }
     record Support(boolean supported, String reason) { }
-    enum Completion { DETACHED_WRITES_COMMITTED, GAME_SAVE_AND_DATABASE_QUEUES_DRAINED }
+    enum Completion { DETACHED_WRITES_COMMITTED, GAME_SAVE_AND_DATABASE_QUEUES_DRAINED, GAME_SAVE_AND_PENDING_WRITES_DRAINED }
 
     /**
      * Detached writes or a game-owned completion fence, never mutable world objects.

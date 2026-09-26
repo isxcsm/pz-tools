@@ -20,6 +20,7 @@ internal sealed class BridgeGameSaveProvider(GameSaveClient client) : IGameSaveP
             GameSaveCompletion.StandardCallReturned => SaveCompletionKind.StandardCallReturned,
             GameSaveCompletion.DetachedWritesCommitted => SaveCompletionKind.CheckpointCommitted,
             GameSaveCompletion.GameSaveAndDatabaseQueuesDrained => SaveCompletionKind.GameSaveAndDatabaseQueuesDrained,
+            GameSaveCompletion.GameSaveAndPendingWritesDrained => SaveCompletionKind.GameSaveAndPendingWritesDrained,
             _ => throw new GameSaveException("invalid-response", "Unknown save completion."),
         }, result.Detail, result.FallbackReason);
     }
