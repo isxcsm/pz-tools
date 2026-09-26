@@ -440,7 +440,7 @@
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>คำขอล่าสุด: บันทึกด้วยส่วนขยายสำเร็จ</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>คำขอล่าสุด: ใช้การบันทึกมาตรฐาน ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>คำขอล่าสุด: บันทึกไม่สำเร็จ ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>เตรียมข้อมูลในเธรดเกม {0:N0} มิลลิวินาที · เสร็จสิ้น {1:N0} มิลลิวินาที</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>ขั้นตอนบันทึกบนเธรดเกมที่นานที่สุด {0:N0}ms · เสร็จสิ้น {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>เลี้ยงกาแฟสักแก้ว</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools ช่วยคุณได้ไหม?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>ลิงก์สนับสนุนยังไม่พร้อมใช้งาน</value></data>

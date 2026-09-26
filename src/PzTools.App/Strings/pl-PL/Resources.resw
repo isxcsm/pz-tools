@@ -440,7 +440,7 @@ Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Ostatnie żądanie: zapis przez rozszerzenie ukończony</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Ostatnie żądanie: użyto zwykłego zapisu ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Ostatnie żądanie: zapis nie powiódł się ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Przygotowanie w wątku gry: {0:N0} ms · zakończenie: {1:N0} ms</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Najdłuższy etap zapisu w wątku gry {0:N0}ms · ukończenie {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Postaw mi kawę</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools się przydał?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Link do wsparcia nie jest jeszcze dostępny.</value></data>

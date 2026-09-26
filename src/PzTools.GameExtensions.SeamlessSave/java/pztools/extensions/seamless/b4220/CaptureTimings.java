@@ -5,13 +5,14 @@ import java.nio.ByteBuffer;
 
 /** One save's aggregate durations, only on private calls. No frame poller, history or file I/O. */
 final class CaptureTimings {
-    private long started, chunk, handoff, animal, collision;
+    private long started, total, chunk, handoff, animal, collision;
     private int chunks;
     private boolean active;
-    void start() { chunk = handoff = animal = collision = 0; chunks = 0; active = true; started = System.nanoTime(); }
+    void start() { total = chunk = handoff = animal = collision = 0; chunks = 0; active = false; resume(); }
+    void resume() { if (!active) { active = true; started = System.nanoTime(); } }
+    void pause() { if (active) { total += System.nanoTime() - started; active = false; } }
     String finish() {
-        long total = System.nanoTime() - started;
-        active = false;
+        pause();
         return "chunkCount=" + chunks + "; chunkBodyUs=" + Math.max(0, chunk - handoff) / 1000
             + "; chunkHandoffUs=" + handoff / 1000 + "; animalSaveUs=" + animal / 1000
             + "; collisionSaveUs=" + collision / 1000

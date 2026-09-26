@@ -440,7 +440,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Son istek: eklenti kaydı tamamlandı</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Son istek: standart kayıt kullanıldı ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Son istek: kayıt başarısız ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Oyun iş parçacığı hazırlığı: {0:N0} ms · tamamlanma: {1:N0} ms</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Oyun iş parçacığında en uzun kayıt adımı {0:N0}ms · tamamlanma {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Bir kahve ısmarla</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools işinize yaradı mı?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Destek bağlantısı henüz hazır değil.</value></data>

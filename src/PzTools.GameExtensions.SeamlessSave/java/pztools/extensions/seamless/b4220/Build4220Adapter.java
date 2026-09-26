@@ -34,9 +34,12 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
     private Field vehicles;
     private CaptureReadiness readiness;
     private final CaptureTimings timings = new CaptureTimings();
-    private OwnedChunkWrites writes;
+    private CooperativeChunkWrites writes;
+    private WorldChunkCapture worldCapture;
+    private Method savePlayers, updateVehicle;
+    private Field chunkVehicles;
+    private PrivateSaveGraph.Phases phases;
     private OwnedNativeSave nativeSave;
-    private pztools.extensions.seamless.VersionedSaveEntry entry;
     private volatile boolean initialized;
     private ClassFileTransformer transformer;
     private Instrumentation installedInstrumentation;
@@ -68,7 +71,11 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         allowPlayers = playerDb.getMethod("isAllow"); getPlayers = playerDb.getMethod("getInstance");
         updatePlayers = playerDb.getMethod("updateMain"); updateVehicles = vehicleDb.getMethod("updateMain");
         vehicles = vehicleDb.getField("instance"); readiness = new CaptureReadiness(loader);
-        writes = new OwnedChunkWrites(new GameChunkAccess(loader));
+        writes = new CooperativeChunkWrites(new GameChunkAccess(loader));
+        worldCapture = new WorldChunkCapture(loader);
+        savePlayers = playerDb.getMethod("savePlayers");
+        updateVehicle = vehicleDb.getMethod("updateVehicle", Class.forName("zombie.vehicles.BaseVehicle", false, loader));
+        chunkVehicles = Class.forName("zombie.iso.IsoChunk", false, loader).getField("vehicles");
         nativeSave = new OwnedNativeSave(loader);
         Class<?> nativeWorker = Class.forName("zombie.MapCollisionData$MCDThread", false, loader);
         Set<Class<?>> observers = Set.of(playerDb, vehicleDb, logger);
@@ -76,6 +83,9 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         targets.add(nativeWorker);
         var guardMethods = new ArrayList<>(PrivateSaveGraph.SOURCES);
         guardMethods.add(PrivateSaveGraph.WRITE);
+        guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/iso/IsoChunk", "Save",
+            "(Ljava/nio/ByteBuffer;Ljava/util/zip/CRC32;Z)Ljava/nio/ByteBuffer;"));
+        guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/vehicles/VehiclesDB2", "updateVehicle", "(Lzombie/vehicles/BaseVehicle;)V"));
         guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/iso/IsoChunk", "SafeRead", "(IILjava/nio/ByteBuffer;)Ljava/nio/ByteBuffer;"));
         guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/MapCollisionData", "stop", "()V"));
         guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/MapCollisionData$MCDThread", "runInner", "()V"));
@@ -125,9 +135,9 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             instrumentation.retransformClasses(targets.toArray(Class<?>[]::new));
             if (observed.size() != observers.size() + 1 || transformationFailure.get() != null || captured.size() != PrivateSaveGraph.SOURCES.size())
                 throw new IllegalStateException("Private save source or observers unavailable", transformationFailure.get());
-            MethodHandle sink = MethodHandles.lookup().findVirtual(OwnedChunkWrites.class, "write",
+            MethodHandle sink = MethodHandles.lookup().findVirtual(CooperativeChunkWrites.class, "write",
                 MethodType.methodType(void.class, int.class, int.class, java.nio.ByteBuffer.class)).bindTo(writes);
-            entry = PrivateSaveGraph.create(loader, captured, sink, timings, nativeSave);
+            phases = PrivateSaveGraph.createPhases(loader, captured, sink, timings, nativeSave);
             initialized = true; captured.clear(); return new SaveProvider.Support(true, null);
         } catch (Throwable failure) {
             instrumentation.removeTransformer(transformer); signals.unregister(); nativeSave.unregister(); writes.close();
@@ -156,7 +166,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         try { if (writes != null) writes.retire(); }
         catch (Exception failure) { if (problem == null) problem = failure; else problem.addSuppressed(failure); }
         if (problem != null) throw problem;
-        transformer = null; observerTargets = new Class<?>[0]; entry = null;
+        transformer = null; observerTargets = new Class<?>[0]; phases = null; worldCapture = null;
         writes = null; nativeSave = null; installedInstrumentation = null; disposed = true;
     }
     @Override public SaveProvider.Support inspect(SaveProvider.Context context) {
@@ -175,20 +185,34 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         Object playerStore = includePlayers ? getPlayers.invoke(null) : null;
         Object vehicleStore = Objects.requireNonNull(vehicles.get(null), "Vehicle store unavailable");
         var batch = signals.begin(context, includePlayers, readiness.databaseWorker());
-        timings.start();
         try {
             batch.nativeWork = nativeSave.begin(context, batch::fail);
-            batch.chunks = writes.begin(context, maximumBytes, batch::fail);
-            entry.saveForBackup(); // Explicit private entry, NOT GameWindow.save(true).
-            if (includePlayers) updatePlayers.invoke(playerStore);
-            updateVehicles.invoke(vehicleStore);
+            // Share the overall budget between detached bytes and structural membership checks.
+            batch.cooperative = writes.begin(context, maximumBytes / 2, batch::fail);
+            var saving = new FrameSavePlan.Saving() {
+                public void chunk(Object value) throws Throwable { phases.chunk(value); }
+                public void stage(int value) throws Throwable { phases.stage(value); }
+                public void finish(List<WorldChunkCapture.Chunk> chunks) throws Throwable {
+                    var seen = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
+                    for (var chunk : chunks) {
+                        for (Object vehicle : (List<?>)chunkVehicles.get(chunk.object()))
+                            if (seen.add(vehicle)) updateVehicle.invoke(vehicleStore, vehicle);
+                    }
+                    // Not just occupied vehicles: every loaded chunk contributes its vehicles above.
+                    if (includePlayers) {
+                        savePlayers.invoke(playerStore);
+                        updatePlayers.invoke(playerStore);
+                    }
+                    updateVehicles.invoke(vehicleStore);
+                    phases.stage(SaveStageFilter.VEHICLES);
+                }
+            };
+            return new FrameSavePlan(context, worldCapture, saving, readiness::ready,
+                writes, batch.cooperative, batch, timings, maximumBytes - maximumBytes / 2);
         } catch (Throwable failure) {
             batch.fail(failure instanceof InvocationTargetException invocation ? invocation.getCause() : failure);
-        } finally {
-            try { batch.detail = timings.finish(); }
-            catch (Throwable unavailable) { batch.detail = "timing-unavailable"; }
-            finally { batch.arm(); }
+            batch.arm();
+            return batch; // Completion/cleanup remains owned by the reserved completion worker.
         }
-        return batch;
     }
 }

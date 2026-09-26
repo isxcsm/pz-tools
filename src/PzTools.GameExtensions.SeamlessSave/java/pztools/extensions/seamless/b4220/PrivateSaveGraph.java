@@ -9,7 +9,7 @@ import java.lang.reflect.Modifier;
 import java.util.*;
 import static java.lang.constant.ConstantDescs.*;
 
-/** Copy four pinned method bodies into private nestmates, not into the installed game classes. */
+/** Build private full-save and phase entries without replacing installed game methods. */
 public final class PrivateSaveGraph implements VersionedSaveEntry {
     public record MethodRef(String owner, String name, String descriptor) { }
     public static final MethodRef WINDOW = new MethodRef("zombie/GameWindow", "save", "(Z)V");
@@ -46,6 +46,34 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
         return new PrivateSaveGraph(root);
     }
 
+    record Phases(MethodHandle chunk, MethodHandle[] stages) {
+        void chunk(Object receiver) throws Throwable { chunk.invokeExact(receiver, true); }
+        void stage(int index) throws Throwable { stages[index].invokeExact(true); }
+    }
+    static Phases createPhases(ClassLoader loader, Map<String, byte[]> sources, MethodHandle output,
+                               CaptureTimings timings, OwnedNativeSave nativeSave) throws Throwable {
+        MethodHandles.Lookup lookup = gameLookup(Class.forName(WINDOW.owner.replace('/', '.'), false, loader));
+        MethodHandle chunk = copy(loader, lookup, sources.get(CHUNK.owner), CHUNK, WRITE,
+            timings.write(output), 2, null, null, -1, true);
+        Class<?> chunkType = Class.forName(CHUNK.owner.replace('/', '.'), false, loader);
+        MethodHandle originalChunk = MethodHandles.privateLookupIn(chunkType, lookup)
+            .findVirtual(chunkType, "Save", MethodType.methodType(void.class, boolean.class));
+        MethodHandle exact = MethodHandles.lookup().findStatic(PrivateSaveGraph.class, "exactReceiver",
+            MethodType.methodType(boolean.class, Class.class, Object.class)).bindTo(chunkType)
+            .asType(MethodType.methodType(boolean.class, chunkType));
+        chunk = MethodHandles.guardWithTest(exact, chunk, originalChunk);
+        Class<?> mapType = Class.forName(MAP.owner.replace('/', '.'), false, loader);
+        MethodHandle noTraversal = MethodHandles.empty(MethodType.methodType(void.class, mapType));
+        MethodHandle cell = copy(loader, lookup, sources.get(CELL.owner), CELL, MAP,
+            noTraversal, 1, null, null, -1, true);
+        MethodHandle nativeEntry = copyNative(loader, lookup, sources.get(NATIVE.owner), nativeSave);
+        MethodHandle[] stages = new MethodHandle[SaveStageFilter.COUNT];
+        for (int index = 0; index < stages.length; index++)
+            stages[index] = copy(loader, lookup, sources.get(WINDOW.owner), WINDOW, CELL,
+                cell, 1, timings, nativeEntry, index, true);
+        return new Phases(timings.chunk(chunk).asType(MethodType.methodType(void.class, Object.class, boolean.class)), stages);
+    }
+
     // One private helper in the game's unnamed module obtains a full lookup. No new members are added to GameWindow.
     private static MethodHandles.Lookup gameLookup(Class<?> anchor) throws Throwable {
         var cf = ClassFile.of();
@@ -65,6 +93,11 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
 
     private static MethodHandle copy(ClassLoader loader, MethodHandles.Lookup full, byte[] bytes, MethodRef source,
                                      MethodRef replacement, MethodHandle target, int expected, CaptureTimings timings, MethodHandle nativeEntry) throws Throwable {
+        return copy(loader, full, bytes, source, replacement, target, expected, timings, nativeEntry, -1, false);
+    }
+    private static MethodHandle copy(ClassLoader loader, MethodHandles.Lookup full, byte[] bytes, MethodRef source,
+                                     MethodRef replacement, MethodHandle target, int expected, CaptureTimings timings,
+                                     MethodHandle nativeEntry, int rootStage, boolean cooperative) throws Throwable {
         var cf = format(loader);
         MethodModel method = method(cf, bytes, source);
         MethodTypeDesc signature = effectiveType(method, source);
@@ -91,7 +124,7 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
                 }
             }
         }
-        byte[] generated = build(cf, method, source, replacement, expected, extraCalls);
+        byte[] generated = build(cf, method, source, replacement, expected, extraCalls, rootStage, cooperative);
         if (!cf.verify(generated).isEmpty()) throw new IllegalArgumentException("Private save body failed verification: " + source);
         MethodHandle linkedTarget = target;
         Class<?> redirectOwner = Class.forName(replacement.owner.replace('/', '.'), false, loader);
@@ -171,7 +204,7 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
         return e instanceof InvokeInstruction i && i.owner().asInternalName().equals(ref.owner)
             && i.name().equalsString(ref.name) && i.type().equalsString(ref.descriptor);
     }
-    private static byte[] build(ClassFile cf, MethodModel method, MethodRef source, MethodRef redirect, int expected, List<MethodRef> extraCalls) {
+    private static byte[] build(ClassFile cf, MethodModel method, MethodRef source, MethodRef redirect, int expected, List<MethodRef> extraCalls, int rootStage, boolean cooperative) {
         var body = method.code().orElseThrow();
         if (body.elementStream().filter(e -> call(e, redirect)).count() != expected
                 || source.equals(WINDOW) && body.elementStream().filter(e -> call(e, THUMB)).count() != 1)
@@ -179,7 +212,17 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
         return cf.build(ClassDesc.of(source.owner.replace('/', '.') + "$PzToolsPrivateSave"), b -> {
             b.withFlags(ClassFile.ACC_FINAL | ClassFile.ACC_SUPER);
             b.withMethod("run", effectiveType(method, source), ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
-                m -> m.transformCode(body, (c, e) -> {
+                m -> m.transformCode(body, (rootStage < 0 ? CodeTransform.ACCEPT_ALL : SaveStageFilter.stage(body, rootStage)).andThen((c, e) -> {
+                    if (cooperative && source.equals(CHUNK) && e instanceof InvokeInstruction invoke
+                            && invoke.owner().asInternalName().equals(CHUNK.owner) && invoke.name().equalsString("Save")
+                            && invoke.type().equalsString("(Ljava/nio/ByteBuffer;Ljava/util/zip/CRC32;Z)Ljava/nio/ByteBuffer;")) {
+                        // Use the game's hot-capture serializer. All vehicle flushes are done at final admission.
+                        c.pop().iconst_1().with(e); return;
+                    }
+                    if (cooperative && source.equals(CELL) && e instanceof InvokeInstruction invoke
+                            && invoke.owner().asInternalName().equals("zombie/savefile/PlayerDB") && invoke.name().equalsString("savePlayers")) {
+                        c.pop(); return; // Current players are captured only after chunk membership converges.
+                    }
                     // No ambient suppression flag: nested/mod-triggered GameWindow.save still renders normally.
                     if (source.equals(WINDOW) && call(e, THUMB)) return;
                     if (call(e, redirect)) {
@@ -198,7 +241,7 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
                         }
                         c.with(e);
                     }
-                }));
+                })));
         });
     }
 }

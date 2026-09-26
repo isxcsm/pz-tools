@@ -140,6 +140,17 @@ public final class ModuleHost implements SaveModules {
             Support checked = inspect(context);
             if (!checked.supported()) throw new IllegalStateException(checked.reason());
             PreparedSave prepared = delegate.capture(context, maximumBytes);
+            if (prepared instanceof CooperativeCapture plan) return new CooperativeCapture() {
+                public boolean advance(long budget) throws Exception { return plan.advance(budget); }
+                public void abort(Throwable failure) { plan.abort(failure); }
+                public long retainedBytes() { return plan.retainedBytes(); }
+                public void commit() throws Exception { plan.commit(); }
+                public Completion completion() { return plan.completion(); }
+                public String diagnostics() {
+                    return "moduleVersion=" + definition.version + "; moduleSha256=" + digest + "; " + plan.diagnostics();
+                }
+                public void close() throws Exception { plan.close(); }
+            };
             return new PreparedSave() {
                 public long retainedBytes() { return prepared.retainedBytes(); }
                 public void commit() throws Exception { prepared.commit(); }

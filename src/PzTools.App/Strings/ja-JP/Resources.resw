@@ -440,7 +440,7 @@
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>前回の要求：拡張保存が完了</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>前回の要求：標準保存を使用（{0}）</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>前回の要求：保存に失敗（{0}）</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>ゲームスレッドの準備 {0:N0} ms · 完了まで {1:N0} ms</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>ゲームスレッドの最長保存処理 {0:N0}ms · 完了まで {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>コーヒーで応援</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>お役に立ちましたか？</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支援リンクは準備中です。</value></data>

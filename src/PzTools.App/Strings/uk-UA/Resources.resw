@@ -440,7 +440,7 @@
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Останній запит: збереження розширенням завершено</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Останній запит: звичайне збереження ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Останній запит: помилка збереження ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Підготовка в потоці гри: {0:N0} мс · завершення: {1:N0} мс</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Найдовший етап збереження в потоці гри {0:N0}мс · завершення {1:N0}мс</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Пригостити кавою</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools став у пригоді?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Посилання для підтримки ще не доступне.</value></data>

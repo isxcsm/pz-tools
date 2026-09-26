@@ -1,6 +1,7 @@
 package pztools.extensions.seamless;
 
 import pztools.extensions.api.SaveProvider;
+import pztools.extensions.runtime.CooperativeCapture;
 import java.io.IOException;
 import java.nio.file.*;
 
@@ -19,6 +20,30 @@ public final class SeamlessSaveProvider implements SaveProvider {
         return false;
     }
     public PreparedSave capture(Context context, long maximumBytes) throws Exception {
+        context.requireGameThread();
+        if (!Files.exists(context.sourcePath().resolve("cooperative-fixture"))) return captureOnce(context);
+        return new CooperativeCapture() {
+            private PreparedSave prepared;
+            private int steps;
+            public boolean advance(long budget) throws Exception {
+                context.requireGameThread();
+                Path root = context.sourcePath();
+                if (Files.exists(root.resolve("block-cooperative"))) {
+                    if (!Files.exists(root.resolve("cooperative-waiting"))) Files.writeString(root.resolve("cooperative-waiting"), "waiting");
+                    return false;
+                }
+                if (++steps < 6) return false;
+                prepared = captureOnce(context);
+                return true;
+            }
+            public void abort(Throwable failure) { }
+            public long retainedBytes() { return 0; }
+            public String diagnostics() { return "cooperativeFixtureSteps=" + steps + "; " + (prepared == null ? "" : prepared.diagnostics()); }
+            public void commit() throws Exception { if (prepared == null) throw new IOException("Incomplete cooperative fixture"); prepared.commit(); }
+            public void close() throws Exception { if (prepared != null) prepared.close(); }
+        };
+    }
+    private PreparedSave captureOnce(Context context) throws Exception {
         context.requireGameThread();
         Path root = context.sourcePath();
         if (Files.exists(root.resolve("flush-game")))

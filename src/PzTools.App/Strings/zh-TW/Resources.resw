@@ -440,7 +440,7 @@
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>上次請求：擴充儲存完成</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>上次請求：使用標準儲存（{0}）</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>上次請求：儲存失敗（{0}）</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>遊戲執行緒準備 {0:N0} 毫秒 · 完成耗時 {1:N0} 毫秒</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>遊戲執行緒最長連續儲存耗時 {0:N0}ms · 總耗時 {1:N0}ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>請我喝杯咖啡</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>這個工具幫到您了嗎？</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支持連結準備中。</value></data>
