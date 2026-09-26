@@ -402,4 +402,15 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>等待遊戲狀態 · 剩餘{0}</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>多個遊戲正在執行 · 保留{0}</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>請確認上次遊戲儲存的結果，再重新開啟自動備份。</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>套用</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>清除篩選</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>全部清除</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · 點選篩選</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 點選切換最低層級</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 或 40-50。留空表示不限。</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>請輸入整數編號或由小到大的編號範圍。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss]，本地時間。留空表示不限，包含結束的整分鐘或秒。遇到重複時刻，請加上 +08:00 等UTC偏移。</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>請輸入有效日期和時間，且開始不得晚於結束。</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>開始</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>結束</value></data>
 </root>

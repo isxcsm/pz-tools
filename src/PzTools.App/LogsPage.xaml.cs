@@ -20,7 +20,6 @@ public sealed partial class LogsPage : UserControl
     private const int LogArrivalDurationMs = 420;
     private const int LogArrivalRisePx = 10;
     private IReadOnlyList<LogEntryView> source = [];
-    private bool updatingFilters = true;
     private bool levelChosenByUser;
     private readonly ObservableCollection<LogEntryUiItem> displayedItems = [];
     private int unreadIssues;
@@ -31,7 +30,6 @@ public sealed partial class LogsPage : UserControl
     private long pageSnapshot;
     private long liveLatestIndex;
     private long queryVersion;
-    private long filterVersion;
     private int renderedPagerPageIndex = -1;
     private int renderedPagerPages = -1;
     private CancellationTokenSource? pageQueryCancellation;
@@ -45,11 +43,9 @@ public sealed partial class LogsPage : UserControl
         LogList.ItemsSource = displayedItems;
         logSelectionBar = new AnimatedListSelectionBar(
             LogList, LogSelectionLayer, LogSelectionBar, 7);
-        LevelFilter.SelectedItem = LevelWarningItem;
         ApplyLocalizedText();
-        updatingFilters = false;
         Loaded += (_, _) => { LoadOptions(); _ = LoadPageAsync(resetSnapshot: true); };
-        Unloaded += (_, _) => ResetLogArrivalAnimations();
+        Unloaded += (_, _) => { ResetLogArrivalAnimations(); CloseFiltersAndQueries(); };
     }
 
     private App App => (App)Application.Current;
@@ -65,44 +61,21 @@ public sealed partial class LogsPage : UserControl
     {
         var settings = App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot;
         if (settings is null) return;
-        updatingFilters = true;
-        try
-        {
-            var recordMinimum = Enum.Parse<LogLevel>(settings.LogRecordMinimumLevel);
-            foreach (var item in LevelFilter.Items.OfType<ComboBoxItem>())
-                item.Visibility = Enum.Parse<LogLevel>(item.Tag!.ToString()!) >= recordMinimum
-                    ? Visibility.Visible : Visibility.Collapsed;
-            var desired = levelChosenByUser
-                && LevelFilter.SelectedItem is ComboBoxItem selected
-                && Enum.TryParse<LogLevel>(selected.Tag?.ToString(), out var chosen)
-                ? chosen : LogLevel.Warning;
-            desired = (LogLevel)Math.Max((int)desired, (int)recordMinimum);
-            LevelFilter.SelectedItem = LevelFilter.Items.OfType<ComboBoxItem>()
-                .First(item => item.Tag?.ToString() == desired.ToString());
-        }
-        finally { updatingFilters = false; }
+        recordMinimum = Enum.Parse<LogLevel>(settings.LogRecordMinimumLevel);
+        var desired = levelChosenByUser ? minimumLevel : LogLevel.Warning;
+        minimumLevel = (LogLevel)Math.Max((int)desired, (int)recordMinimum);
+        UpdateFilterChips();
         ApplyFilter();
     }
 
     private void LogsPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var stacked = e.NewSize.Width < 800;
-        LogDetailColumn.Width = new GridLength(stacked ? 0 : 1, GridUnitType.Star);
+        var stacked = e.NewSize.Width < 950;
+        LogListColumn.Width = new GridLength(stacked ? 1 : 3, GridUnitType.Star);
+        LogDetailColumn.Width = new GridLength(stacked ? 0 : 2, GridUnitType.Star);
         LogDetailRow.Height = new GridLength(stacked ? 1 : 0, GridUnitType.Star);
         Grid.SetColumn(LogDetailCard, stacked ? 0 : 1);
         Grid.SetRow(LogDetailCard, stacked ? 1 : 0);
-        var filtersBelowTitle = e.NewSize.Width < 500;
-        ToolbarSecondRow.Height = new GridLength(filtersBelowTitle ? 1 : 0,
-            filtersBelowTitle ? GridUnitType.Auto : GridUnitType.Pixel);
-        ToolbarLayout.RowSpacing = filtersBelowTitle ? 8 : 0;
-        Grid.SetColumn(FiltersLayout, filtersBelowTitle ? 0 : 1);
-        Grid.SetColumnSpan(FiltersLayout, filtersBelowTitle ? 2 : 1);
-        Grid.SetRow(FiltersLayout, filtersBelowTitle ? 1 : 0);
-        var filterColumns = e.NewSize.Width >= 1050 ? 3 : e.NewSize.Width >= 800 ? 2 : 1;
-        Grid.SetColumn(ComponentFilterGroup, filterColumns >= 2 ? 1 : 0);
-        Grid.SetRow(ComponentFilterGroup, filterColumns >= 2 ? 0 : 1);
-        Grid.SetColumn(RunIndexFilterGroup, filterColumns == 3 ? 2 : 0);
-        Grid.SetRow(RunIndexFilterGroup, filterColumns == 3 ? 0 : filterColumns == 2 ? 1 : 2);
     }
 
     public void Apply(LogsView view)
@@ -137,32 +110,10 @@ public sealed partial class LogsPage : UserControl
         Language = Localizer.Culture.Name;
         TitleText.Text = Localizer.Get("LogsTitle");
         SubtitleText.Text = Localizer.Get("LogsSubtitle");
-        LevelFilterLabel.Text = Localizer.Get("LogMinimumLevelLabel");
-        AppToolTip.SetTip(LevelFilter, Localizer.Get("LogLevelSetting.Description"));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(LevelFilter, LevelFilterLabel.Text);
         AppToolTip.SetTip(NewerPageButton, Localizer.Get("LogPreviousPage"));
         AppToolTip.SetTip(OlderPageButton, Localizer.Get("LogNextPage"));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(NewerPageButton,
-            Localizer.Get("LogPreviousPage"));
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(OlderPageButton,
-            Localizer.Get("LogNextPage"));
-        ComponentFilterLabel.Text = Localizer.Get("LogComponentFilter");
-        RunIndexFilterLabel.Text = Localizer.Get("LogRunIndexFilter");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ComponentFilter,
-            ComponentFilterLabel.Text);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(RunIndexFilter,
-            RunIndexFilterLabel.Text);
-        RunIndexFilter.PlaceholderText = Localizer.Get("LogRunIndexPlaceholder");
-        LevelTraceItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Trace"));
-        LevelInformationItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Information"));
-        LevelWarningItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Warning"));
-        LevelErrorItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Error"));
-        LevelCriticalItem.Content = Localizer.Format("LogLevelAtOrAboveFormat",
-            Localizer.Get("LogLevel.Critical"));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(NewerPageButton, Localizer.Get("LogPreviousPage"));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(OlderPageButton, Localizer.Get("LogNextPage"));
         LoadingLogsText.Text = Localizer.Get("LoadingLogs");
         EmptyLogsText.Text = Localizer.Get(loadFailed ? "LogsUnavailable" : "NoLogs");
         AcknowledgeAllButton.Content = Localizer.Format("AcknowledgeAllLogsFormat", unreadIssues);
@@ -170,15 +121,7 @@ public sealed partial class LogsPage : UserControl
         var copyLabel = Localizer.Get("CopyLogDetails");
         AppToolTip.SetTip(CopyLogDetailsButton, copyLabel);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CopyLogDetailsButton, copyLabel);
-        LogListTitle.Text = Localizer.Get("LogListTitle");
-        LogNumberHeader.Text = Localizer.Get("LogNumberHeader");
-        AppToolTip.SetTip(LogNumberHeader, Localizer.Get("LogNumberHint"));
-        LogLevelHeader.Text = Localizer.Get("LogLevelHeader");
-        LogTimeHeader.Text = Localizer.Format("LogTimeHeaderFormat", LogTimeFormatter.ShortZoneName);
-        AppToolTip.SetTip(LogTimeHeader, Localizer.Format("LogLocalTimeHint",
-            LogTimeFormatter.ZoneLabel(DateTimeOffset.Now)));
-        LogMessageHeader.Text = Localizer.Get("LogMessageHeader");
-        LogRunHeader.Text = Localizer.Get("LogRunHeader");
+        LocalizeFilterHeaders();
         RelatedLogsTitle.Text = Localizer.Get("RelatedLogsTitle");
         TechnicalDetailsExpander.Header = Localizer.Get("TechnicalDetails");
         SelectLogText.Text = Localizer.Get("SelectLog");
@@ -193,43 +136,7 @@ public sealed partial class LogsPage : UserControl
         DetailPayloadLabel.Text = Localizer.Get("RawLogPayload");
         NoPayloadText.Text = Localizer.Get("NoPayload");
         DiagnosticsTitle.Text = Localizer.Get("LogDiagnostics.Title");
-        UpdateComponents();
         ApplyFilter(refreshLocalizedText: true);
-    }
-
-    private void UpdateComponents()
-    {
-        var selected = (ComponentFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "All";
-        updatingFilters = true;
-        try
-        {
-            ComponentFilter.Items.Clear();
-            ComponentFilter.Items.Add(new ComboBoxItem
-            {
-                Content = Localizer.Get("All"),
-                Tag = "All",
-            });
-            foreach (var component in new[] { "Backup", "Restore", "Archive", "State",
-                         "Schedule", "Maintenance", "Other" })
-                ComponentFilter.Items.Add(new ComboBoxItem
-                {
-                    Content = Localizer.Get($"LogComponent.{component}"),
-                    Tag = component,
-                });
-            ComponentFilter.SelectedItem = ComponentFilter.Items.OfType<ComboBoxItem>()
-                .FirstOrDefault(item => StringComparer.OrdinalIgnoreCase.Equals(
-                    item.Tag?.ToString(), selected)) ?? ComponentFilter.Items[0];
-        }
-        finally { updatingFilters = false; }
-    }
-
-    private async void FilterChanged(object sender, object e)
-    {
-        if (updatingFilters || !IsLoaded) return;
-        if (ReferenceEquals(sender, LevelFilter)) levelChosenByUser = true;
-        var version = ++filterVersion;
-        await Task.Delay((App.Host?.RuntimeOptions ?? new PzTools.App.Core.AppRuntimeOptions()).LogFilterDebounceMs);
-        if (version == filterVersion) await LoadPageAsync(resetSnapshot: true);
     }
 
     private async Task LoadPageAsync(bool resetSnapshot, bool scrollToTop = true,
@@ -244,14 +151,11 @@ public sealed partial class LogsPage : UserControl
         var requestedPage = resetSnapshot ? 0 : pageIndex;
         var snapshot = resetSnapshot ? 0 : pageSnapshot;
         if (!hasLoadedLogs) ApplyFilter();
-        var level = Enum.TryParse<LogLevel>(
-            (LevelFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString(), out var selected)
-            ? selected : LogLevel.Information;
-        var category = (ComponentFilter.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "All";
         try
         {
-            var query = new LogPageQuery(level, category,
-                RunIndexFilter.Text.Trim(), requestedPage, 100, snapshot);
+            var query = new LogPageQuery(minimumLevel, componentCategory,
+                runRange?.ToString() ?? "", requestedPage, 100, snapshot,
+                logRange?.ToString() ?? "", timeRange?.FromUtc, timeRange?.ThroughUtc);
             var result = await Task.Run(() => inbox.ReadPageAsync(query, cancellation.Token),
                 cancellation.Token);
             if (version != queryVersion) return;
@@ -434,7 +338,6 @@ public sealed partial class LogsPage : UserControl
 
     private void ApplyFilter(bool refreshLocalizedText = false, bool animateNewRows = false)
     {
-        if (LevelFilter is null || ComponentFilter is null) return;
         var selectedId = (LogList?.SelectedItem as LogEntryUiItem)?.EntryId;
         var desired = LogDisplayGrouping.Group(source)
             .Select(group => new LogEntryUiItem(group))

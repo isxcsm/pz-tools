@@ -402,4 +402,15 @@ Viene modificato solo il salvataggio attuale per giocatore singolo. Salvataggi i
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>In attesa dello stato del gioco · mancano {0}</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Più giochi aperti · {0} in attesa</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verifica l’esito dell’ultimo salvataggio del gioco, poi riattiva i backup automatici.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Applica</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Rimuovi filtro</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Rimuovi tutti</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · fai clic per filtrare</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · fai clic per cambiare il livello minimo</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 o 40-50. Vuoto significa senza limiti.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Inserisci un numero intero o un intervallo crescente.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], ora locale. Vuoto significa senza limiti. L’ultimo minuto/secondo è incluso. Per un’ora ripetuta, aggiungi uno scostamento UTC come +01:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Inserisci date e ore valide; l’inizio non può essere successivo alla fine.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Da</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>A</value></data>
 </root>

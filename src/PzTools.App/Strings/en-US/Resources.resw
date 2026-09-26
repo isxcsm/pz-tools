@@ -409,4 +409,15 @@ Only the current single-player save is edited. Playing, unsupported or ambiguous
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Waiting for game state · {0} remaining</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Multiple games running · holding {0}</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verify the previous game-save outcome, then re-enable automatic backups.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Apply</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Clear filter</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Clear all</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · click to filter</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · click to cycle the minimum level</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 or 40-50. Leave blank for no limit.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Enter a whole number or an ascending range.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], local time. Blank means no limit. The final minute/second is included. For a repeated clock time, add a UTC offset such as +01:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Enter valid dates/times with the start not after the end.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>From</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Through</value></data>
 </root>

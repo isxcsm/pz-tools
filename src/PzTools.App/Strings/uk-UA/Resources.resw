@@ -402,4 +402,15 @@
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Очікування стану гри · залишилося {0}</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запущено кілька ігор · очікування {0}</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Перевірте результат останнього збереження гри та знову ввімкніть автоматичні копії.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Застосувати</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Зняти фільтр</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Зняти всі</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · натисніть для фільтрації</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · натисніть для зміни мінімального рівня</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 або 40-50. Порожнє поле — без обмежень.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Введіть цілий номер або діапазон за зростанням.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], місцевий час. Порожнє поле — без обмежень. Остання хвилина/секунда включається. Для повторюваного часу додайте зсув UTC, наприклад +02:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Введіть коректні дату й час; початок не може бути пізніше кінця.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Від</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>До</value></data>
 </root>

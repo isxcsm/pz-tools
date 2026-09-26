@@ -402,4 +402,15 @@ Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě pou�
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Čekání na stav hry · zbývá {0}</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Spuštěno více her · čeká {0}</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Ověřte výsledek posledního uložení hry a znovu zapněte automatické zálohování.</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Použít</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Zrušit filtr</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Zrušit všechny</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknutím filtrovat</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknutím změnit minimální úroveň</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 nebo 40-50. Prázdné pole znamená bez omezení.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Zadejte celé číslo nebo vzestupný rozsah.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], místní čas. Prázdné pole znamená bez omezení. Poslední minuta/sekunda je zahrnuta. U opakovaného času přidejte posun UTC, například +01:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Zadejte platné datum a čas; začátek nesmí být později než konec.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
 </root>
