@@ -15,24 +15,20 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <StackPanel Margin="24,24,24,20"
-                HorizontalAlignment="Stretch" Spacing="4">
-        <TextBlock x:Name="SettingsTitleText" Text="설정"
-                   AutomationProperties.HeadingLevel="Level1"
-                   Style="{ThemeResource TitleTextBlockStyle}" />
-        <TextBlock x:Name="SettingsSubtitleText"
-                   Text="앱 표시와 백업 동작을 설정합니다."
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                   TextWrapping="Wrap" />
-    </StackPanel>
+    <Grid Margin="{StaticResource CardPageHeaderMargin}" MinHeight="{StaticResource PageHeaderHeight}">
+      <TextBlock x:Name="SettingsTitleText" Text="설정"
+                 AutomationProperties.HeadingLevel="Level1"
+                 Style="{StaticResource PageTitleTextStyle}" />
+    </Grid>
 
-    <ScrollViewer Grid.Row="1" Padding="24,0,24,16"
+    <ScrollViewer Grid.Row="1"
                   VerticalScrollBarVisibility="Auto">
       <Border>
         <StackPanel HorizontalAlignment="Stretch"
                     Spacing="{StaticResource SettingsCardSpacing}">
           <StackPanel.ChildrenTransitions>
-            <EntranceThemeTransition FromVerticalOffset="50" />
+            <!-- Page entrance is animated once by MainWindowShell. Keep only
+                 in-page reflow for expanding or collapsing settings sections. -->
             <RepositionThemeTransition IsStaggeringEnabled="False" />
           </StackPanel.ChildrenTransitions>
 

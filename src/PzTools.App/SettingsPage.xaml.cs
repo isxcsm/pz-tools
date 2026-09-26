@@ -37,7 +37,7 @@ public sealed partial class SettingsPage : UserControl
     private void SettingsPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // 작은 창에서는 SettingsCard의 기본 세로 배치를 사용하되 입력 영역도 넘치지 않게 합니다.
-        var available = Math.Max(160, e.NewSize.Width - 120);
+        var available = Math.Max(160, e.NewSize.Width - 72);
         SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(420, available);
         IntervalEditor.Width = RetentionEditor.Width = Math.Min(340, available);
     }
@@ -51,7 +51,6 @@ public sealed partial class SettingsPage : UserControl
             toggle.OffContent = Localizer.Get("SettingDisabled");
         }
         SettingsTitleText.Text = Localizer.Get("SettingsTitle.Text");
-        SettingsSubtitleText.Text = Localizer.Get("SettingsSubtitle");
         DisplaySection.Header = Localizer.Get("DisplaySettings.Header");
         DisplaySection.Description = Localizer.Get("DisplaySettings.Description");
         LanguageSettingCard.Header = Localizer.Get("LanguageSetting.Header");

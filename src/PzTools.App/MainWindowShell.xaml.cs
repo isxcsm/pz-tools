@@ -1058,12 +1058,12 @@ public sealed partial class MainWindowShell : UserControl
         SavesItem.Margin = GameExtensionsItem.Margin = LogsItem.Margin = margin;
         if (AppBrand is not null && BrandImage is not null && BrandCopy is not null && BrandHeaderSpace is not null)
         {
-            AppBrand.Margin = expanded ? new Thickness(24, 8, 12, 0) : new Thickness(8, 8, 8, 0);
+            AppBrand.Margin = expanded ? new Thickness(24, 20, 12, 0) : new Thickness(8, 8, 8, 0);
             AppBrand.Width = Math.Max(32, (expanded ? Navigation.OpenPaneLength : Navigation.CompactPaneLength)
                 - AppBrand.Margin.Left - AppBrand.Margin.Right);
             BrandImage.Width = BrandImage.Height = expanded ? 56 : 32;
             BrandCopy.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
-            BrandHeaderSpace.Height = expanded ? 36 : 16;
+            BrandHeaderSpace.Height = expanded ? 48 : 16;
         }
         if (CoffeeSupportArea is not null && CoffeeSupportCopy is not null)
         {

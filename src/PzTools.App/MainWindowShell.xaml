@@ -17,15 +17,15 @@
          The top 32 DIPs remain the title-bar drag region; page controls are below it. -->
     <Grid x:Name="AppTitleBar" Background="Transparent" Margin="0,0,140,0" />
     <Grid x:Name="AppBrand" Grid.RowSpan="2" Canvas.ZIndex="1" Width="212"
-          HorizontalAlignment="Left" VerticalAlignment="Top" Margin="24,8,12,0"
+          HorizontalAlignment="Left" VerticalAlignment="Top" Margin="24,20,12,0"
           ColumnSpacing="14" IsHitTestVisible="False">
       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
       <Image x:Name="BrandImage" Width="56" Height="56" Source="ms-appx:///Assets/Brand/pztools.png"
              Stretch="Uniform" AutomationProperties.AccessibilityView="Raw" />
       <StackPanel x:Name="BrandCopy" Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-        <TextBlock x:Name="AppTitleText" Text="PZ Tools" FontSize="24" FontWeight="SemiBold"
+        <TextBlock x:Name="AppTitleText" Text="PZ Tools" Style="{ThemeResource TitleTextBlockStyle}"
                    TextTrimming="CharacterEllipsis" />
-        <TextBlock x:Name="AppSubtitleText" FontSize="13" TextTrimming="CharacterEllipsis"
+        <TextBlock x:Name="AppSubtitleText" Style="{ThemeResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis"
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
       </StackPanel>
     </Grid>
@@ -46,7 +46,7 @@
     </NavigationView.Resources>
     <NavigationView.PaneHeader>
       <StackPanel>
-      <Grid x:Name="BrandHeaderSpace" Height="36" />
+      <Grid x:Name="BrandHeaderSpace" Height="48" />
       <Grid x:Name="CoffeeSupportArea" Margin="12,0,12,4">
         <HyperlinkButton x:Name="CoffeeSupportButton" IsEnabled="False" Padding="10"
                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
@@ -146,8 +146,8 @@
         </Border>
       </StackPanel>
     </NavigationView.PaneFooter>
-    <Grid x:Name="PageContent" Background="Transparent">
-      <Grid x:Name="SavesRoot" Margin="24,24,24,16" ColumnSpacing="12" SizeChanged="SavesRoot_SizeChanged">
+    <Grid x:Name="PageContent" Background="Transparent" Padding="{StaticResource PageContentPadding}">
+      <Grid x:Name="SavesRoot" ColumnSpacing="12" SizeChanged="SavesRoot_SizeChanged">
         <Grid.ColumnDefinitions>
           <ColumnDefinition x:Name="ListColumn" Width="420" MinWidth="320" />
           <ColumnDefinition x:Name="DetailColumn" Width="*" />
@@ -157,20 +157,20 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
-          <Grid x:Name="SavesHeader" Margin="0,0,0,8" ColumnSpacing="12" MinHeight="40">
+          <Grid x:Name="SavesHeader" Margin="{StaticResource PageHeaderMargin}" ColumnSpacing="12" MinHeight="{StaticResource PageHeaderHeight}">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" MinHeight="{StaticResource PageHeaderHeight}" />
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <TextBlock x:Name="SavesPageTitle" Text="세이브 관리" Style="{ThemeResource SubtitleTextBlockStyle}"
-                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+            <TextBlock x:Name="SavesPageTitle" Text="세이브 관리" Style="{StaticResource PageTitleTextStyle}"
+                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                        AutomationProperties.HeadingLevel="Level1" />
             <StackPanel x:Name="SavesHeaderActions" Grid.Column="1" Orientation="Horizontal"
-                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,8,0,0" Spacing="6">
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Spacing="6">
               <Button x:Name="ImportButton" x:Uid="ImportArchive" VerticalAlignment="Center"
                       Style="{StaticResource SubtleButtonStyle}"
                       Content="압축 파일 가져오기" Click="ImportButton_Click" />
@@ -269,20 +269,20 @@
               <RowDefinition Height="Auto" />
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-              <Grid x:Name="BackupRevisionsHeader" Margin="0,0,0,8" MinHeight="40" ColumnSpacing="12">
+              <Grid x:Name="BackupRevisionsHeader" Margin="{StaticResource PageHeaderMargin}" MinHeight="{StaticResource PageHeaderHeight}" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" MinHeight="{StaticResource PageHeaderHeight}" />
                   <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <TextBlock x:Name="BackupRevisionsText" x:Uid="BackupRevisions" Text="현재 세이브 및 백업"
-                           Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center"
+                           Style="{StaticResource PageTitleTextStyle}" TextWrapping="NoWrap"
                            TextTrimming="CharacterEllipsis" AutomationProperties.HeadingLevel="Level2" />
                 <StackPanel x:Name="BackupRevisionsActions" Grid.Column="1" Orientation="Horizontal"
-                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,8,0,0" Spacing="6">
+                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Spacing="6">
                   <Button x:Name="DeleteAllBackupsButton" VerticalAlignment="Center"
                           Style="{StaticResource SubtleButtonStyle}"
                           Content="백업 모두 삭제" IsEnabled="False" Click="DeleteAllBackupsButton_Click" />

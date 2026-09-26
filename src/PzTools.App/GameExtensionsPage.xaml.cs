@@ -1,7 +1,6 @@
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
-using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PzTools.App.Core;
@@ -41,7 +40,6 @@ public sealed partial class GameExtensionsPage : UserControl
     {
         Language = Localizer.Culture.Name;
         PageTitle.Text = Localizer.Get("GameExtensions.Title");
-        PageDescription.Text = Localizer.Get("GameExtensions.Description");
         ErrorInfo.Title = Localizer.Get("GameExtensions.SettingsError");
         if (snapshot is not null) Render(snapshot);
     }
@@ -151,12 +149,6 @@ public sealed partial class GameExtensionsPage : UserControl
                 Content = Localizer.Get("GameExtensions.ForceVersion"), IsChecked = current.ForceVersion,
             };
             var version = new TextBlock { Text = VersionDescription(current), TextWrapping = TextWrapping.Wrap };
-            var status = new TextBlock
-            {
-                Text = Localizer.Get("SettingsAutoSaveHint"), TextWrapping = TextWrapping.Wrap,
-                Style = (Style)Application.Current.Resources["SecondaryTextStyle"],
-            };
-            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
             var error = new InfoBar
             {
                 IsClosable = false, Severity = InfoBarSeverity.Error,
@@ -169,32 +161,13 @@ public sealed partial class GameExtensionsPage : UserControl
             content.Children.Add(new TextBlock { Text = item.Definition.Id + " · " + item.Definition.Version });
             content.Children.Add(force);
             content.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.ForceWarning"), TextWrapping = TextWrapping.Wrap });
-            content.Children.Add(status);
             content.Children.Add(error);
-            var title = new Grid { ColumnSpacing = 12, HorizontalAlignment = HorizontalAlignment.Stretch };
-            title.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            title.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            title.Children.Add(new TextBlock
-            {
-                Text = Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)),
-                TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center,
-            });
-            var close = new Button
-            {
-                Content = new FontIcon { Glyph = "\uE711", FontSize = 12 },
-                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
-                Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Top,
-            };
-            AutomationProperties.SetName(close, Localizer.Get("Close"));
-            AppToolTip.SetTip(close, Localizer.Get("Close"));
-            Grid.SetColumn(close, 1);
-            title.Children.Add(close);
-            var dialog = new ContentDialog
+            var dialog = new LightDismissContentDialog
             {
                 XamlRoot = XamlRoot, RequestedTheme = ActualTheme,
-                Title = title, Content = content, DefaultButton = ContentDialogButton.None,
+                Title = Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)),
+                Content = content, DefaultButton = ContentDialogButton.None,
             };
-            close.Click += (_, _) => dialog.Hide();
             dialog.Closing += (_, args) => args.Cancel = applying;
             dialog.KeyDown += (_, args) =>
             {
@@ -206,8 +179,7 @@ public sealed partial class GameExtensionsPage : UserControl
             force.Click += async (_, _) =>
             {
                 if (applying) return;
-                force.IsEnabled = close.IsEnabled = false;
-                status.Text = Localizer.Get("SettingsSaving");
+                force.IsEnabled = false;
                 error.IsOpen = false;
                 try
                 {
@@ -218,10 +190,9 @@ public sealed partial class GameExtensionsPage : UserControl
                     current = snapshot?.Cards.FirstOrDefault(card => card.Definition.Id == item.Definition.Id) ?? current;
                     force.IsChecked = current.ForceVersion;
                     version.Text = VersionDescription(current);
-                    status.Text = Localizer.Get(saved ? "SettingsSaved" : "SettingsAutoSaveHint");
                     error.IsOpen = !saved;
                 }
-                finally { force.IsEnabled = close.IsEnabled = true; }
+                finally { force.IsEnabled = true; }
             };
             await dialog.ShowAsync();
         }

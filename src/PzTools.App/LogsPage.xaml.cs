@@ -70,7 +70,7 @@ public sealed partial class LogsPage : UserControl
 
     private void LogsPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var stacked = e.NewSize.Width < 950;
+        var stacked = e.NewSize.Width < 902;
         LogListColumn.Width = new GridLength(stacked ? 1 : 3, GridUnitType.Star);
         LogDetailColumn.Width = new GridLength(stacked ? 0 : 2, GridUnitType.Star);
         LogDetailRow.Height = new GridLength(stacked ? 1 : 0, GridUnitType.Star);
@@ -109,7 +109,6 @@ public sealed partial class LogsPage : UserControl
     {
         Language = Localizer.Culture.Name;
         TitleText.Text = Localizer.Get("LogsTitle");
-        SubtitleText.Text = Localizer.Get("LogsSubtitle");
         AppToolTip.SetTip(NewerPageButton, Localizer.Get("LogPreviousPage"));
         AppToolTip.SetTip(OlderPageButton, Localizer.Get("LogNextPage"));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(NewerPageButton, Localizer.Get("LogPreviousPage"));

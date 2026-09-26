@@ -36,24 +36,19 @@
       </Setter>
     </Style>
   </UserControl.Resources>
-  <Grid Padding="24,24,24,16" RowSpacing="0">
+  <Grid RowSpacing="0">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <Grid ColumnSpacing="12" Margin="0,0,0,16">
+    <Grid ColumnSpacing="12" Margin="{StaticResource PageHeaderMargin}" MinHeight="{StaticResource PageHeaderHeight}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <StackPanel Spacing="5">
-        <TextBlock x:Name="TitleText" Text="로그"
-                   Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" />
-        <TextBlock x:Name="SubtitleText"
-                   Text="백업과 게임 상태 확인 기록입니다."
-                   Style="{StaticResource SecondaryTextStyle}" />
-      </StackPanel>
+      <TextBlock x:Name="TitleText" Text="로그"
+                 Style="{StaticResource PageTitleTextStyle}" AutomationProperties.HeadingLevel="Level1" />
       <Button x:Name="AcknowledgeAllButton" Grid.Column="1" Visibility="Collapsed"
               VerticalAlignment="Center" Content="모두 확인"
               Click="AcknowledgeAllButton_Click" />
