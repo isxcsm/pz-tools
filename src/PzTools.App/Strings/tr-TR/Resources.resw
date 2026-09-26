@@ -396,4 +396,15 @@ Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtla
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Önceden yedeklenmiş aynı veriler yeniden kullanılıyor</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Açık</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Kapalı</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Uygula</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Filtreyi temizle</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Tümünü temizle</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · filtrelemek için tıklayın</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · en düşük düzeyi değiştirmek için tıklayın</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 veya 40-50. Boş bırakmak sınır olmadığı anlamına gelir.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Bir tam sayı veya artan sayı aralığı girin.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], yerel saat. Boş bırakılırsa sınır yoktur. Son dakika/saniye dahildir. Yinelenen saatler için +03:00 gibi bir UTC farkı ekleyin.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Geçerli tarih ve saat girin; başlangıç bitişten sonra olamaz.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Başlangıç</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Bitiş</value></data>
 </root>

@@ -396,4 +396,15 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Повторное использование совпадающих данных резервной копии</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Включено</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Выключено</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Применить</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Снять фильтр</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Снять все</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · нажмите для фильтрации</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · нажмите для смены минимального уровня</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 или 40-50. Пустое поле — без ограничений.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Введите целый номер или диапазон по возрастанию.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], местное время. Пустое поле — без ограничений. Последняя минута/секунда включается. Для повторяющегося времени добавьте смещение UTC, например +03:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Введите корректные дату и время; начало не должно быть позже конца.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>С</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>По</value></data>
 </root>

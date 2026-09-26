@@ -5,6 +5,14 @@
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     xmlns:local="using:PzTools.App" SizeChanged="LogsPage_SizeChanged">
   <UserControl.Resources>
+    <Style x:Key="LogHeaderButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Padding" Value="3,4" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
     <Style x:Key="LogPageButtonStyle" TargetType="Button"
            BasedOn="{StaticResource SubtleButtonStyle}">
       <Setter Property="MinWidth" Value="32" />
@@ -31,7 +39,6 @@
   <Grid Padding="24,24,24,16" RowSpacing="0">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
@@ -52,63 +59,10 @@
               Click="AcknowledgeAllButton_Click" />
     </Grid>
 
-    <Grid x:Name="ToolbarLayout" Grid.Row="1" ColumnSpacing="12">
+    <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="12">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto" />
-        <RowDefinition x:Name="ToolbarSecondRow" Height="0" />
-      </Grid.RowDefinitions>
-      <TextBlock x:Name="LogListTitle" Text="기록" FontWeight="SemiBold" FontSize="16"
-                 VerticalAlignment="Center"
-                 TextTrimming="CharacterEllipsis" />
-      <Grid x:Name="FiltersLayout" Grid.Column="1" ColumnSpacing="16" RowSpacing="8"
-            HorizontalAlignment="Right">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
-      </Grid.RowDefinitions>
-      <StackPanel x:Name="LevelFilterGroup" Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="LevelFilterLabel" Text="최소 로그 레벨" FontSize="12"
-                   VerticalAlignment="Center"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <ComboBox x:Name="LevelFilter" Width="168" SelectionChanged="FilterChanged">
-          <ComboBoxItem x:Name="LevelTraceItem" Content="추적" Tag="Trace" />
-          <ComboBoxItem x:Name="LevelInformationItem" Content="정보" Tag="Information" />
-          <ComboBoxItem x:Name="LevelWarningItem" Content="경고" Tag="Warning" />
-          <ComboBoxItem x:Name="LevelErrorItem" Content="오류" Tag="Error" />
-          <ComboBoxItem x:Name="LevelCriticalItem" Content="치명적" Tag="Critical" />
-        </ComboBox>
-      </StackPanel>
-      <StackPanel x:Name="ComponentFilterGroup" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="ComponentFilterLabel" Text="작업 종류" FontSize="12"
-                   VerticalAlignment="Center"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <ComboBox x:Name="ComponentFilter" Width="180"
-                  SelectionChanged="FilterChanged" />
-      </StackPanel>
-      <StackPanel x:Name="RunIndexFilterGroup" Grid.Column="2" Orientation="Horizontal" Spacing="8">
-        <TextBlock x:Name="RunIndexFilterLabel" Text="실행 번호" FontSize="12"
-                   VerticalAlignment="Center"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        <TextBox x:Name="RunIndexFilter" Width="160"
-                 PlaceholderText="예: 42" TextChanged="FilterChanged" />
-      </StackPanel>
-      </Grid>
-    </Grid>
-
-    <Grid Grid.Row="2" ColumnSpacing="12" RowSpacing="12">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition x:Name="LogListColumn" Width="*" />
-        <ColumnDefinition x:Name="LogDetailColumn" Width="*" />
+        <ColumnDefinition x:Name="LogListColumn" Width="3*" />
+        <ColumnDefinition x:Name="LogDetailColumn" Width="2*" />
       </Grid.ColumnDefinitions>
       <Grid.RowDefinitions>
         <RowDefinition Height="*" />
@@ -120,24 +74,55 @@
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <Grid Padding="20,10,20,4" ColumnSpacing="7" Opacity="0.62">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="63" />
-                <ColumnDefinition Width="48" />
-                <ColumnDefinition Width="62" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="108" />
-              </Grid.ColumnDefinitions>
-              <TextBlock x:Name="LogNumberHeader" Text="번호" FontSize="11" Margin="10,0,0,0" TextWrapping="Wrap" />
-              <TextBlock x:Name="LogLevelHeader" Grid.Column="1" Text="수준" FontSize="11" TextWrapping="Wrap" />
-              <TextBlock x:Name="LogTimeHeader" Grid.Column="2" Text="시간" FontSize="11" TextWrapping="Wrap" />
-              <TextBlock x:Name="LogMessageHeader" Grid.Column="3" Text="내용" FontSize="11" TextWrapping="Wrap" />
-              <TextBlock x:Name="LogRunHeader" Grid.Column="4" Text="실행" FontSize="11" TextWrapping="Wrap" />
+          <Grid Padding="20,4,20,2" ColumnSpacing="7">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="65" />
+              <ColumnDefinition Width="56" />
+              <ColumnDefinition Width="85" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="108" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="LogNumberButton" Style="{StaticResource LogHeaderButtonStyle}" Click="LogNumberButton_Click">
+              <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock x:Name="LogNumberHeader" Text="번호" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
+              </Grid>
+            </Button>
+            <Button x:Name="LogLevelButton" Grid.Column="1" Style="{StaticResource LogHeaderButtonStyle}" Click="LogLevelButton_Click">
+              <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock x:Name="LogLevelHeader" Text="수준" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <FontIcon Grid.Column="1" Glyph="&#xE72C;" FontSize="9" Opacity="0.6" />
+              </Grid>
+            </Button>
+            <Button x:Name="LogTimeButton" Grid.Column="2" Style="{StaticResource LogHeaderButtonStyle}" Click="LogTimeButton_Click">
+              <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock x:Name="LogTimeHeader" Text="시간" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
+              </Grid>
+            </Button>
+            <Button x:Name="LogMessageButton" Grid.Column="3" Style="{StaticResource LogHeaderButtonStyle}" Click="LogMessageButton_Click">
+              <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock x:Name="LogMessageHeader" Text="내용" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
+              </Grid>
+            </Button>
+            <Button x:Name="LogRunButton" Grid.Column="4" Style="{StaticResource LogHeaderButtonStyle}" Click="LogRunButton_Click">
+              <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock x:Name="LogRunHeader" Text="작업" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
+              </Grid>
+            </Button>
           </Grid>
-          <ListView x:Name="LogList" Grid.Row="1"
+          <ScrollViewer x:Name="ActiveFilters" Grid.Row="1" Margin="12,0,12,4" Visibility="Collapsed"
+                        HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="4" />
+          </ScrollViewer>
+          <ListView x:Name="LogList" Grid.Row="2"
                     Padding="4" ItemContainerStyle="{StaticResource ContentListItemStyle}"
                     SelectionChanged="LogList_SelectionChanged">
             <ListView.ItemContainerTransitions>
@@ -147,9 +132,9 @@
               <DataTemplate x:DataType="local:LogEntryUiItem">
                 <Grid Padding="8,5" ColumnSpacing="7">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="63" />
-                    <ColumnDefinition Width="48" />
-                    <ColumnDefinition Width="62" />
+                    <ColumnDefinition Width="65" />
+                    <ColumnDefinition Width="56" />
+                    <ColumnDefinition Width="85" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="108" />
                   </Grid.ColumnDefinitions>
@@ -174,24 +159,24 @@
               </DataTemplate>
             </ListView.ItemTemplate>
           </ListView>
-          <Canvas x:Name="LogSelectionLayer" Grid.Row="1" IsHitTestVisible="False">
+          <Canvas x:Name="LogSelectionLayer" Grid.Row="2" IsHitTestVisible="False">
             <Border x:Name="LogSelectionBar" Width="3" Height="16" Canvas.Left="10"
                     CornerRadius="2" Visibility="Collapsed"
                     Background="{ThemeResource AccentFillColorDefaultBrush}" />
           </Canvas>
-          <StackPanel x:Name="LoadingLogs" Grid.Row="1" HorizontalAlignment="Center"
+          <StackPanel x:Name="LoadingLogs" Grid.Row="2" HorizontalAlignment="Center"
                       VerticalAlignment="Center" Spacing="12" IsHitTestVisible="False">
             <ProgressBar Width="220" IsIndeterminate="True" />
             <TextBlock x:Name="LoadingLogsText" Text="로그를 불러오는 중입니다"
                        HorizontalAlignment="Center"
                        Style="{StaticResource SecondaryTextStyle}" />
           </StackPanel>
-          <StackPanel x:Name="EmptyLogs" Grid.Row="1" Visibility="Collapsed" HorizontalAlignment="Center"
+          <StackPanel x:Name="EmptyLogs" Grid.Row="2" Visibility="Collapsed" HorizontalAlignment="Center"
                       VerticalAlignment="Center" Spacing="8">
             <FontIcon Glyph="&#xE8A5;" FontSize="30" Opacity="0.5" />
             <TextBlock x:Name="EmptyLogsText" Text="표시할 로그가 없습니다." Opacity="0.68" />
           </StackPanel>
-          <Border x:Name="PagerFooter" Grid.Row="2" Padding="8,6,8,10"
+          <Border x:Name="PagerFooter" Grid.Row="3" Padding="8,6,8,10"
                   Visibility="Collapsed">
             <StackPanel Spacing="1" HorizontalAlignment="Center">
               <ScrollViewer HorizontalScrollBarVisibility="Hidden"

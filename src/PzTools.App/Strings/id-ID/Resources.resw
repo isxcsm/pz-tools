@@ -396,4 +396,15 @@ Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimaink
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Menggunakan kembali data identik yang sudah dicadangkan</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Aktif</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Nonaktif</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Terapkan</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Hapus filter</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Hapus semua</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · klik untuk memfilter</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · klik untuk mengganti tingkat minimum</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 atau 40-50. Kosong berarti tanpa batas.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Masukkan nomor bulat atau rentang menaik.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], waktu setempat. Kosong berarti tanpa batas. Menit/detik terakhir disertakan. Untuk waktu yang berulang, tambahkan selisih UTC seperti +07:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Masukkan tanggal dan waktu yang valid; awal tidak boleh setelah akhir.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Dari</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Sampai</value></data>
 </root>

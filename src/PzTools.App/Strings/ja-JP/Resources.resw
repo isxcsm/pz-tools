@@ -396,4 +396,15 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>バックアップ済みの同じデータを再利用中</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>オン</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>オフ</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>適用</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>フィルター解除</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>すべて解除</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · クリックで絞り込み</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · クリックで最小レベルを切り替え</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 または 40-50。空欄は制限なし。</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>整数の番号、または小さい番号からの範囲を入力してください。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss]、現地時間。空欄は制限なし。終了の分・秒も含みます。重複する時刻には +09:00 などのUTCオフセットを付けてください。</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>有効な日時を入力し、開始を終了以前にしてください。</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>開始</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>終了</value></data>
 </root>

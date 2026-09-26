@@ -396,4 +396,15 @@ Nur der aktuelle Einzelspieler-Spielstand wird bearbeitet. Aktive, nicht unterst
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Identische, bereits gesicherte Daten werden wiederverwendet</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Ein</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Aus</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Anwenden</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Filter löschen</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Alle löschen</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · zum Filtern klicken</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · klicken, um die Mindeststufe zu wechseln</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 oder 40-50. Leer bedeutet unbegrenzt.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Eine ganze Nummer oder einen aufsteigenden Bereich eingeben.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], Ortszeit. Leer bedeutet unbegrenzt. Die letzte Minute/Sekunde ist eingeschlossen. Bei doppelter Uhrzeit einen UTC-Versatz wie +01:00 angeben.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Gültige Datums- und Zeitwerte eingeben; der Beginn darf nicht nach dem Ende liegen.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Von</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Bis</value></data>
 </root>

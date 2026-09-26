@@ -396,4 +396,15 @@ Somente a partida atual de um jogador será alterada. Partidas em uso, formatos 
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reutilizando dados idênticos já salvos no backup</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Ativado</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Desativado</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Aplicar</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Limpar filtro</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Limpar todos</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · clique para filtrar</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · clique para alternar o nível mínimo</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 ou 40-50. Em branco significa sem limite.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Insira um número inteiro ou um intervalo crescente.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], horário local. Em branco significa sem limite. O último minuto/segundo é incluído. Se o horário se repetir, adicione um deslocamento UTC como -03:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Insira datas e horários válidos; o início não pode ser posterior ao fim.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>De</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Até</value></data>
 </root>

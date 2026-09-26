@@ -396,4 +396,15 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>เปิด</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>ปิด</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>ใช้</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>ล้างตัวกรอง</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>ล้างทั้งหมด</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · คลิกเพื่อกรอง</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · คลิกเพื่อเปลี่ยนระดับขั้นต่ำ</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 หรือ 40-50 เว้นว่างเพื่อไม่จำกัด</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>ป้อนเลขจำนวนเต็มหรือช่วงจากน้อยไปมาก</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss] เวลาท้องถิ่น เว้นว่างเพื่อไม่จำกัด รวมทั้งนาทีหรือวินาทีสุดท้าย หากเวลาซ้ำกันให้เพิ่มส่วนต่าง UTC เช่น +07:00</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>ป้อนวันที่และเวลาที่ถูกต้อง โดยเวลาเริ่มต้องไม่อยู่หลังเวลาสิ้นสุด</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>เริ่ม</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>สิ้นสุด</value></data>
 </root>

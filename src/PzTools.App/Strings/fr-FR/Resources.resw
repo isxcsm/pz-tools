@@ -396,4 +396,15 @@ Seule la partie solo actuelle est modifiée. Les parties en cours d’utilisatio
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Réutilisation des données identiques déjà sauvegardées</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Activé</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Désactivé</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Appliquer</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Effacer le filtre</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Tout effacer</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · cliquer pour filtrer</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · cliquer pour changer le niveau minimal</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 ou 40-50. Vide signifie sans limite.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Saisissez un numéro entier ou une plage croissante.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], heure locale. Vide signifie sans limite. La dernière minute/seconde est incluse. Pour une heure répétée, ajoutez un décalage UTC tel que +01:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Saisissez des dates/heures valides, avec le début au plus tard à la fin.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Début</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Fin</value></data>
 </root>

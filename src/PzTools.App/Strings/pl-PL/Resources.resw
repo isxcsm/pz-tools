@@ -396,4 +396,15 @@ Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, 
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Ponowne użycie identycznych danych z kopii zapasowej</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Włączone</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Wyłączone</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>Zastosuj</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>Usuń filtr</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>Usuń wszystkie</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknij, aby filtrować</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknij, aby zmienić minimalny poziom</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 lub 40-50. Puste pole oznacza brak limitu.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Wpisz liczbę całkowitą lub zakres rosnący.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], czas lokalny. Puste pole oznacza brak limitu. Ostatnia minuta/sekunda jest uwzględniona. Dla powtórzonej godziny dodaj przesunięcie UTC, np. +01:00.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Wpisz prawidłowe daty i godziny; początek nie może być późniejszy niż koniec.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
 </root>

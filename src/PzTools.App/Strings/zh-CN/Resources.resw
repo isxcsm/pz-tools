@@ -396,4 +396,15 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>正在复用已备份的相同数据</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>开启</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>关闭</value></data>
+  <data name="LogFilterApply" xml:space="preserve"><value>应用</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>清除筛选</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>全部清除</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · 点击筛选</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 点击切换最低级别</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>42 或 40-50。留空表示不限。</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>请输入整数编号或从小到大的编号范围。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss]，本地时间。留空表示不限，包含结束的整分钟或秒。遇到重复时刻，请添加 +08:00 等UTC偏移。</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>请输入有效日期和时间，且开始不得晚于结束。</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>开始</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>结束</value></data>
 </root>
