@@ -81,7 +81,7 @@
           <Grid Padding="20,4,20,2" ColumnSpacing="7">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="65" />
-              <ColumnDefinition Width="56" />
+              <ColumnDefinition Width="104" />
               <ColumnDefinition Width="85" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="108" />
@@ -133,7 +133,7 @@
                 <Grid Padding="8,5" ColumnSpacing="7">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="65" />
-                    <ColumnDefinition Width="56" />
+                    <ColumnDefinition Width="104" />
                     <ColumnDefinition Width="85" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="108" />

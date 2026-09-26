@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>时间（{0}）</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>本地</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>按操作系统本地时区（{0}）显示。</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>请按日志显示的时间（{0}）选择。</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>记录 · 最新优先</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>编号</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>用于识别此日志的固定编号。</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>应用设置并重启</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>验证编辑后的高级配置文件并重启应用？有操作正在运行时无法重启。</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>恢复默认设置</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>将高级配置文件夹中的 TOML 文件恢复为默认值并重启应用？现有文件将保留在应用数据文件夹的 config-backups 中。应用内选择的一般设置保持不变。</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>将高级设置恢复为默认值并重启应用？当前设置文件的副本会被保留。常规设置、存档及备份不会改变。</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>最低记录级别</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>仅适用于新日志。现有记录将保留。</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>日志条数上限</value></data>
@@ -359,8 +359,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>无法确认游戏保存结果，已停止备份。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>备份前保存游戏</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>游戏内保存倒计时</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>在角色头顶显示五秒倒计时及游戏保存结果。关闭后不再显示消息，也不再进行手动备份倒计时，但仍会保存游戏。自动备份仍按预定时间执行。更改从下次备份开始生效。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前将游戏更改写入磁盘。关闭后可能遗漏仅在内存中的数据。暂停检测连接单独设置。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>在角色头顶显示保存前的5秒倒计时及保存结果。关闭后不再显示提示，并跳过手动备份的等待，但仍会保存游戏。自动备份时间不变。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前保存游戏的最新进度。建议保持开启：关闭后，尚未保存的进度、车辆或物品可能不会包含在备份中。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次备份：等待开始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：等待当前任务</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢复</value></data>
@@ -381,7 +381,7 @@
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。请停止游玩后重试。原始文件未更改。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档有尚未完成的更改。请正常退出游戏后重试。原存档未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>仅支持包含一个本地角色的单人存档。未擅自选择角色，原始文件未更改。</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法安全验证角色存档格式。当前支持：Build 42，世界版本 249。原始文件未更改。</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法安全修改此存档。请确认PZ Tools版本支持您的游戏版本。原存档未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>读取失败，将重试</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>游戏或其他操作正在使用所需的文件。请等待保存或相关操作结束后重试。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>可用空间不足。请释放目标驱动器上的空间后重试。</value></data>
@@ -396,21 +396,26 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>正在复用已备份的相同数据</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>开启</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>关闭</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>游戏暂停时等待定时备份</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>暂停时保留剩余时间，继续游戏后接着计时。无法获取游戏状态时也会等待。JVM状态观测与备份前保存相互独立。</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>游戏已暂停 · 剩余{0}</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>等待游戏状态 · 剩余{0}</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>多个游戏正在运行 · 保留{0}</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>游戏暂停时等待备份</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>游戏暂停时，下一次定时备份的倒计时也会暂停，恢复游戏后继续。无法确认游戏状态时也会等待。</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>游戏已暂停</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>正在确认游戏状态</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>请只运行一个游戏</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>请确认上次游戏保存的结果，然后重新开启自动备份。</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>应用</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>清除筛选</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>全部清除</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · 点击筛选</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 点击切换最低级别</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 点击切换显示的记录</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 或 40-50。留空表示不限。</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>请输入整数编号或从小到大的编号范围。</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss]，本地时间。留空表示不限，包含结束的整分钟或秒。遇到重复时刻，请添加 +08:00 等UTC偏移。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>直接输入日期和时间，或使用日历按钮选择。留空表示不限制。</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>请输入有效日期和时间，且开始不得晚于结束。</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>开始</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>结束</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>剩余 {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>最近24小时</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>选择日期和时间</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>日期</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>使用此日期和时间</value></data>
 </root>

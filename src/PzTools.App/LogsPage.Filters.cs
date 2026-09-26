@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using PzTools.Projections;
+using PzTools.App.Core;
 
 namespace PzTools.App;
 
@@ -70,13 +71,14 @@ public sealed partial class LogsPage
 
     private void UpdateFilterChips()
     {
-        var level = Localizer.Format("LogLevelAtOrAboveFormat", Localizer.Get($"LogLevel.{minimumLevel}"));
+        LogLevelHeader.Text = Localizer.Get($"LogLevel.{minimumLevel}");
+        var level = Localizer.Format("LogLevelAtOrAboveFormat", LogLevelHeader.Text);
         var hint = Localizer.Format("LogLevelCycleHint", level);
         AppToolTip.SetTip(LogLevelButton, hint);
         AutomationProperties.SetName(LogLevelButton, hint);
         FilterChips.Children.Clear();
         AddChip(logRange is not null, LogNumberHeader.Text, logRange?.ToString() ?? "", () => logRange = null);
-        AddChip(minimumLevel > recordMinimum, LogLevelHeader.Text, level,
+        AddChip(minimumLevel > recordMinimum, Localizer.Get("LogLevelHeader"), level,
             () => { minimumLevel = recordMinimum; levelChosenByUser = true; });
         AddChip(timeRange is not null, LogTimeHeader.Text,
             $"{(timeFromText.Length == 0 ? "…" : timeFromText)} – {(timeThroughText.Length == 0 ? "…" : timeThroughText)}", ClearTime);
@@ -152,12 +154,23 @@ public sealed partial class LogsPage
 
     private void LogTimeButton_Click(object sender, RoutedEventArgs e)
     {
-        var placeholder = DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
-        var from = new TextBox { Header = Localizer.Get("LogTimeFrom"), Text = timeFromText, PlaceholderText = placeholder };
-        var through = new TextBox { Header = Localizer.Get("LogTimeThrough"), Text = timeThroughText, PlaceholderText = placeholder };
-        var content = new StackPanel { Width = 320, Spacing = 10 };
-        content.Children.Add(new TextBlock { Text = Localizer.Format("LogLocalTimeHint", LogTimeFormatter.ZoneLabel(DateTimeOffset.Now)), TextWrapping = TextWrapping.Wrap });
-        content.Children.Add(from); content.Children.Add(through); content.Children.Add(Hint("LogTimeRangeHint"));
+        var now = DateTimeOffset.Now;
+        var initial = timeRange is null ? LogTimeFilterDraft.RecentDay(now, TimeZoneInfo.Local)
+            : new LogTimeFilterDraft(timeFromText, timeThroughText);
+        var from = new TextBox { Text = initial.FromText, PlaceholderText = "yyyy-MM-dd HH:mm", MinWidth = 0 };
+        var through = new TextBox { Text = initial.ThroughText, PlaceholderText = "yyyy-MM-dd HH:mm", MinWidth = 0 };
+        var content = new StackPanel { Width = 340, Spacing = 12 };
+        content.Children.Add(new TextBlock { Text = Localizer.Format("LogLocalTimeHint", LogTimeFormatter.ShortZoneName), TextWrapping = TextWrapping.Wrap });
+        var recent = new Button { Content = Localizer.Get("LogTimeRecentDay"), Style = (Style)Resources["LogPageButtonStyle"] };
+        recent.Click += (_, _) =>
+        {
+            var draft = LogTimeFilterDraft.RecentDay(DateTimeOffset.Now, TimeZoneInfo.Local);
+            from.Text = draft.FromText; through.Text = draft.ThroughText;
+        };
+        content.Children.Add(recent);
+        content.Children.Add(CreateTimeInput(from, Localizer.Get("LogTimeFrom"), now.AddDays(-1)));
+        content.Children.Add(CreateTimeInput(through, Localizer.Get("LogTimeThrough"), now));
+        content.Children.Add(Hint("LogTimeRangeHint"));
         var error = ErrorText("LogTimeRangeInvalid"); content.Children.Add(error);
         ShowEditor(LogTimeButton, content, from, () =>
         {
@@ -212,7 +225,7 @@ public sealed partial class LogsPage
         applyButton.Click += async (_, _) => await CommitAsync(false);
         content.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(async (_, args) =>
         {
-            if (args.Key != Windows.System.VirtualKey.Enter) return;
+            if (args.Key != Windows.System.VirtualKey.Enter || args.OriginalSource is not TextBox) return;
             args.Handled = true;
             await CommitAsync(false);
         }), true);

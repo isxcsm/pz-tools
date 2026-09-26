@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Waktu ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>lokal</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Ditampilkan dalam zona waktu lokal sistem operasi ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Pilih waktu seperti yang ditampilkan di log ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Riwayat · Terbaru lebih dulu</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Nomor</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Nomor tetap untuk mengidentifikasi log ini.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Terapkan pengaturan dan mulai ulang</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Validasi berkas konfigurasi lanjutan yang disunting dan mulai ulang aplikasi? Aplikasi tidak dapat dimulai ulang selama operasi berjalan.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Pulihkan pengaturan bawaan</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Kembalikan berkas TOML konfigurasi lanjutan ke nilai bawaan dan mulai ulang aplikasi? Berkas saat ini disimpan di config-backups dalam folder data aplikasi. Pengaturan umum yang dipilih di aplikasi tetap dipertahankan.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Pulihkan pengaturan lanjutan bawaan dan mulai ulang aplikasi? Salinan berkas pengaturan saat ini akan disimpan. Pengaturan umum, penyimpanan game, dan cadangan tidak berubah.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Tingkat minimum yang dicatat</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Berlaku untuk log baru. Riwayat yang ada tetap disimpan.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Jumlah entri log maksimum</value></data>
@@ -359,8 +359,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Pencadangan dihentikan karena penyimpanan gim tidak dapat dikonfirmasi.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Simpan gim sebelum pencadangan</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Hitung mundur penyimpanan di dalam gim</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Menampilkan hitung mundur lima detik di atas karakter dan hasil penyimpanan gim. Menonaktifkannya menghilangkan pesan dan hitung mundur sebelum pencadangan manual, tetapi gim tetap disimpan. Pencadangan otomatis tetap mengikuti jadwalnya. Perubahan berlaku mulai pencadangan berikutnya.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Simpan perubahan permainan ke disk sebelum pencadangan. Menonaktifkannya dapat menghilangkan data yang hanya ada di memori. Deteksi jeda dikonfigurasi terpisah.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Menampilkan hitung mundur lima detik dan hasil penyimpanan di atas karakter. Mematikannya menyembunyikan pesan dan melewati waktu tunggu cadangan manual, tetapi game tetap disimpan. Waktu pencadangan otomatis tidak berubah.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Menyimpan progres terbaru di dalam game sebelum pencadangan. Disarankan tetap aktif: jika dimatikan, progres, kendaraan, atau barang yang belum disimpan mungkin tidak masuk cadangan.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Pencadangan berikutnya: menunggu dimulai</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Pencadangan berikutnya: menunggu tugas saat ini</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Pulihkan karakter</value></data>
@@ -381,7 +381,7 @@ Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimaink
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gim atau operasi lain sedang memakai simpanan ini. Berhenti bermain dan coba lagi. Berkas asli tidak diubah.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Simpanan ini memiliki perubahan yang belum selesai. Keluar dari gim secara normal, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Hanya simpanan pemain tunggal dengan satu karakter lokal yang didukung. Tidak ada karakter yang dipilih secara sembarang dan berkas asli tidak diubah.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Format simpanan karakter tidak dapat divalidasi dengan aman. Saat ini didukung: Build 42, versi dunia 249. Berkas asli tidak diubah.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Penyimpanan ini tidak dapat diedit dengan aman. Pastikan versi PZ Tools mendukung versi game Anda. Berkas asli tidak diubah.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Pembacaan gagal; akan dicoba lagi</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan berkas yang diperlukan. Tunggu hingga penyimpanan atau operasi itu selesai, lalu coba lagi.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Ruang kosong tidak cukup. Kosongkan ruang pada drive tujuan, lalu coba lagi.</value></data>
@@ -396,21 +396,26 @@ Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimaink
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Menggunakan kembali data identik yang sudah dicadangkan</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Aktif</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Nonaktif</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Tunggu saat permainan dijeda</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Simpan waktu tersisa untuk pencadangan berkala saat dijeda dan lanjutkan setelah bermain kembali. Juga menunggu jika status permainan tidak diketahui. Pengamatan JVM terpisah dari penyimpanan sebelum pencadangan.</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Permainan dijeda · tersisa {0}</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Menunggu status permainan · tersisa {0}</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Beberapa permainan berjalan · menahan {0}</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Tunggu saat game dijeda</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Menjeda game juga menghentikan hitung mundur pencadangan berkala berikutnya. Hitungan dilanjutkan saat bermain lagi. Juga menunggu jika status game tidak dapat diperiksa.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Game dijeda</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Memeriksa status game</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Jalankan satu game saja</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Periksa hasil penyimpanan permainan sebelumnya, lalu aktifkan kembali pencadangan otomatis.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Terapkan</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Hapus filter</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Hapus semua</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · klik untuk memfilter</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · klik untuk mengganti tingkat minimum</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · klik untuk mengubah log yang ditampilkan</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 atau 40-50. Kosong berarti tanpa batas.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Masukkan nomor bulat atau rentang menaik.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], waktu setempat. Kosong berarti tanpa batas. Menit/detik terakhir disertakan. Untuk waktu yang berulang, tambahkan selisih UTC seperti +07:00.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Ketik tanggal dan waktu atau gunakan tombol kalender. Kosongkan kolom untuk tanpa batas.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Masukkan tanggal dan waktu yang valid; awal tidak boleh setelah akhir.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Dari</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Sampai</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Tersisa {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>24 jam terakhir</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Pilih tanggal dan waktu</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Tanggal</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Gunakan tanggal dan waktu ini</value></data>
 </root>

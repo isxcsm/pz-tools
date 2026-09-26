@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Час ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>місцевий</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Показано в місцевому часовому поясі ОС ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Вибирайте час, як його показано в журналі ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Історія · Спочатку нові</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Номер</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Постійний номер для ідентифікації цього запису.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Застосувати налаштування й перезапустити</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Перевірити змінені файли розширеної конфігурації та перезапустити застосунок? Перезапуск неможливий під час операції.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Відновити типові налаштування</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Відновити типові TOML-файли розширених налаштувань і перезапустити застосунок? Поточні файли залишаться в config-backups у папці даних застосунку. Звичайні налаштування застосунку буде збережено.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Відновити стандартні розширені налаштування й перезапустити застосунок? Копію поточних файлів буде збережено. Звичайні налаштування, збереження гри та резервні копії не зміняться.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Мінімальний рівень записування</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Застосовується до нових журналів. Наявна історія зберігається.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Максимальна кількість записів</value></data>
@@ -359,8 +359,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Копіювання зупинено: збереження гри не вдалося підтвердити.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Зберігати гру перед копіюванням</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Зворотний відлік у грі</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Показує п’ятисекундний відлік над персонажем і результат збереження гри. Вимкнення прибирає повідомлення та відлік перед ручними копіями, але гра й далі зберігається. Автоматичні копії зберігають запланований час. Зміни діють із наступного копіювання.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Записує зміни гри на диск перед копіюванням. Вимкнення може пропустити дані, що є лише в пам’яті. Виявлення паузи налаштовується окремо.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Показує над персонажем п’ятисекундний відлік і результат збереження. Вимкнення приховує повідомлення та пропускає очікування ручних копій, але гра й далі зберігається. Час автоматичних копій не змінюється.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Зберігає найновіший прогрес у грі перед створенням копії. Рекомендовано залишити ввімкненим: інакше в копії може бракувати ще не збереженого прогресу, транспорту або речей.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Наступна копія: очікування запуску</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Наступна копія: очікування поточного завдання</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Зцілити персонажа</value></data>
@@ -381,7 +381,7 @@
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Це збереження використовується грою або іншою операцією. Припиніть гру й повторіть спробу. Оригінал не змінено.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>У цьому збереженні є незавершені зміни. Вийдіть із гри звичайним способом і повторіть спробу. Початкове збереження не змінено.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Підтримуються лише одиночні збереження з одним локальним персонажем. Персонажа не вибирали довільно, оригінал не змінено.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Не вдалося безпечно перевірити формат персонажа. Наразі підтримуються: Build 42, версія світу 249. Оригінал не змінено.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Це збереження неможливо безпечно змінити. Перевірте сумісність версій PZ Tools і гри. Оригінал не було змінено.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Помилка читання; буде повторна спроба</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Гра або інша операція використовує потрібний файл. Дочекайтеся завершення збереження чи операції та повторіть спробу.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Недостатньо вільного місця. Звільніть місце на цільовому диску та повторіть спробу.</value></data>
@@ -396,21 +396,26 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Повторне використання однакових даних резервної копії</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Увімкнено</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Вимкнено</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Очікувати під час паузи гри</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Зберігає час до періодичної копії на паузі та продовжує відлік після відновлення гри. Також очікує, якщо стан гри невідомий. Спостереження JVM не залежить від збереження перед копією.</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Гра на паузі · залишилося {0}</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Очікування стану гри · залишилося {0}</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запущено кілька ігор · очікування {0}</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Очікувати під час паузи в грі</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Пауза в грі зупиняє відлік до наступної періодичної копії. Відлік триває після відновлення гри. Також очікує, коли стан гри неможливо перевірити.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Гру призупинено</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Перевірка стану гри</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запустіть лише одну гру</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Перевірте результат останнього збереження гри та знову ввімкніть автоматичні копії.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Застосувати</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Зняти фільтр</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Зняти всі</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · натисніть для фільтрації</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · натисніть для зміни мінімального рівня</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · натисніть, щоб змінити показані записи</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 або 40-50. Порожнє поле — без обмежень.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Введіть цілий номер або діапазон за зростанням.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], місцевий час. Порожнє поле — без обмежень. Остання хвилина/секунда включається. Для повторюваного часу додайте зсув UTC, наприклад +02:00.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Введіть дату й час або скористайтеся кнопкою календаря. Порожнє поле означає відсутність обмеження.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Введіть коректні дату й час; початок не може бути пізніше кінця.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Від</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>До</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Залишилося {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Останні 24 години</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Вибрати дату й час</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Дата</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Використати цю дату й час</value></data>
 </root>

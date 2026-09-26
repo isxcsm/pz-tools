@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Hora ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>local</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Exibido no fuso horário local do sistema operacional ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Escolha os horários exibidos no registro ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Histórico · Mais recentes primeiro</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Número</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Número fixo que identifica este registro.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Aplicar configurações e reiniciar</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Validar os arquivos editados de configuração avançada e reiniciar o aplicativo? Não é possível reiniciar durante uma operação.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Restaurar configurações padrão</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restaurar os arquivos TOML da configuração avançada e reiniciar o aplicativo? Os arquivos atuais serão mantidos em config-backups na pasta de dados do aplicativo. As configurações gerais escolhidas no aplicativo serão preservadas.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restaurar as configurações avançadas padrão e reiniciar o aplicativo? Uma cópia dos arquivos atuais será mantida. As configurações comuns, os jogos salvos e os backups não mudarão.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Nível mínimo gravado</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Aplica-se aos novos registros. O histórico existente é mantido.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Máximo de entradas de registro</value></data>
@@ -359,8 +359,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>O backup foi interrompido porque não foi possível confirmar o salvamento do jogo.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Salvar o jogo antes do backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Contagem regressiva no jogo</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra uma contagem regressiva de cinco segundos acima do personagem e o resultado do salvamento do jogo. Desativar remove as mensagens e a contagem dos backups manuais, mas o jogo continua sendo salvo. Os backups automáticos mantêm o horário programado. As alterações valem a partir do próximo backup.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Grava as alterações do jogo no disco antes do backup. Desativar pode omitir dados que estejam apenas na memória. A detecção de pausas é configurada separadamente.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra uma contagem de cinco segundos e o resultado acima do personagem. Desativar oculta as mensagens e pula a espera dos backups manuais, mas o jogo continua sendo salvo. O horário dos backups automáticos não muda.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Salva o progresso mais recente no jogo antes do backup. Recomenda-se manter ativado: se desativado, progresso, veículos ou itens ainda não salvos podem faltar no backup.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próximo backup: aguardando início</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próximo backup: aguardando a tarefa atual</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Curar personagem</value></data>
@@ -381,7 +381,7 @@ Somente a partida atual de um jogador será alterada. Partidas em uso, formatos 
   <data name="RecoveryError.Busy" xml:space="preserve"><value>O jogo ou outra operação está usando essa partida. Pare de jogar e tente novamente. O original não foi alterado.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Este jogo salvo tem alterações pendentes. Saia do jogo normalmente e tente novamente. O original não foi alterado.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Apenas partidas de um jogador com um único personagem local são compatíveis. Nenhum personagem foi escolhido arbitrariamente e o original não foi alterado.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Não foi possível validar com segurança o formato do personagem. Compatibilidade atual: Build 42, versão do mundo 249. O original não foi alterado.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Este jogo salvo não pode ser editado com segurança. Verifique se a versão do PZ Tools é compatível com a do jogo. O original não foi alterado.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Falha de leitura; nova tentativa será feita</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>O jogo ou outra operação está usando um arquivo necessário. Aguarde o salvamento ou essa operação terminar e tente novamente.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Não há espaço livre suficiente. Libere espaço na unidade de destino e tente novamente.</value></data>
@@ -396,21 +396,26 @@ Somente a partida atual de um jogador será alterada. Partidas em uso, formatos 
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reutilizando dados idênticos já salvos no backup</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Ativado</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Desativado</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Esperar enquanto o jogo estiver pausado</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Preserva o tempo restante dos backups periódicos durante a pausa e continua ao retomar. Também espera se o estado do jogo não estiver disponível. A observação JVM é independente do salvamento prévio.</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Jogo pausado · restam {0}</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Aguardando estado do jogo · restam {0}</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Vários jogos abertos · {0} em espera</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Aguardar enquanto o jogo estiver pausado</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pausar o jogo também pausa a contagem até o próximo backup periódico. A contagem continua ao retomar o jogo. Também aguarda quando não é possível verificar o estado do jogo.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Jogo pausado</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Verificando o estado do jogo</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Execute apenas um jogo</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verifique o resultado do último salvamento do jogo e reative os backups automáticos.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Aplicar</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Limpar filtro</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Limpar todos</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · clique para filtrar</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · clique para alternar o nível mínimo</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · clique para mudar os registros exibidos</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 ou 40-50. Em branco significa sem limite.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Insira um número inteiro ou um intervalo crescente.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], horário local. Em branco significa sem limite. O último minuto/segundo é incluído. Se o horário se repetir, adicione um deslocamento UTC como -03:00.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Digite a data e a hora ou use o botão do calendário. Deixe um campo vazio para não limitar.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Insira datas e horários válidos; o início não pode ser posterior ao fim.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>De</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Até</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Restam {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Últimas 24 horas</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Escolher data e hora</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Usar esta data e hora</value></data>
 </root>

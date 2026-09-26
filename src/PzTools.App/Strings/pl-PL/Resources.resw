@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Czas ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>lokalny</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Wyświetlanie w lokalnej strefie czasowej systemu ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Wybierz godziny widoczne w dzienniku ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Historia · Od najnowszych</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Numer</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Stały numer identyfikujący ten wpis.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Zastosuj ustawienia i uruchom ponownie</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Sprawdzić zmienione pliki konfiguracji zaawansowanej i ponownie uruchomić aplikację? Nie jest to możliwe podczas trwającej operacji.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Przywróć ustawienia domyślne</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Przywrócić domyślne pliki TOML konfiguracji zaawansowanej i uruchomić aplikację ponownie? Obecne pliki zostaną zachowane w config-backups w folderze danych aplikacji. Ogólne ustawienia aplikacji pozostaną bez zmian.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Przywrócić domyślne ustawienia zaawansowane i uruchomić aplikację ponownie? Kopia obecnych plików zostanie zachowana. Zwykłe ustawienia, zapisy gry i kopie zapasowe pozostaną bez zmian.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Minimalny zapisywany poziom</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Dotyczy nowych wpisów. Istniejąca historia zostaje zachowana.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Maksymalna liczba wpisów</value></data>
@@ -359,8 +359,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Przerwano tworzenie kopii, ponieważ nie udało się potwierdzić zapisu gry.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odliczanie zapisu w grze</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Pokazuje pięciosekundowe odliczanie nad postacią i wynik zapisu gry. Wyłączenie usuwa komunikaty i odliczanie przed ręcznymi kopiami, ale gra nadal jest zapisywana. Automatyczne kopie zachowują zaplanowany czas. Zmiany obowiązują od następnej kopii.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje zmiany gry na dysku przed kopią. Wyłączenie może pominąć dane obecne tylko w pamięci. Wykrywanie pauzy ma osobne ustawienie.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Wyświetla nad postacią pięciosekundowe odliczanie i wynik zapisu. Wyłączenie ukrywa komunikaty i pomija oczekiwanie przy kopiach ręcznych, ale nadal zapisuje grę. Czas kopii automatycznych nie zmienia się.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje najnowszy postęp w grze przed utworzeniem kopii. Zalecamy pozostawienie tej opcji włączonej: po wyłączeniu w kopii może brakować niezapisanego postępu, pojazdów lub przedmiotów.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Następna kopia: oczekiwanie na start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Następna kopia: oczekiwanie na bieżące zadanie</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Ulecz postać</value></data>
@@ -381,7 +381,7 @@ Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, 
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gra lub inna operacja używa tego zapisu. Przestań grać i spróbuj ponownie. Oryginał nie został zmieniony.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Ten zapis gry zawiera niedokończone zmiany. Zamknij grę w zwykły sposób i spróbuj ponownie. Oryginalny zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Obsługiwane są tylko zapisy jednoosobowe z jedną lokalną postacią. Nie wybrano postaci arbitralnie i nie zmieniono oryginału.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie udało się bezpiecznie sprawdzić formatu postaci. Obecnie obsługiwane: Build 42, wersja świata 249. Oryginał nie został zmieniony.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie można bezpiecznie edytować tego zapisu. Sprawdź, czy wersja PZ Tools obsługuje wersję gry. Oryginał nie został zmieniony.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Odczyt nieudany; nastąpi ponowna próba</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gra lub inna operacja korzysta z wymaganego pliku. Poczekaj na zakończenie zapisywania lub tej operacji i spróbuj ponownie.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Za mało wolnego miejsca. Zwolnij miejsce na dysku docelowym i spróbuj ponownie.</value></data>
@@ -396,21 +396,26 @@ Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, 
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Ponowne użycie identycznych danych z kopii zapasowej</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Włączone</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Wyłączone</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Czekaj podczas pauzy gry</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Zachowuje pozostały czas do okresowej kopii podczas pauzy i kontynuuje po wznowieniu gry. Czeka też przy nieznanym stanie gry. Obserwacja JVM jest niezależna od zapisu przed kopią.</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gra wstrzymana · pozostało {0}</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Oczekiwanie na stan gry · pozostało {0}</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Uruchomiono wiele gier · wstrzymano {0}</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Wstrzymuj kopie podczas pauzy w grze</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pauza w grze zatrzymuje odliczanie do następnej okresowej kopii. Odliczanie jest kontynuowane po wznowieniu gry. Oczekuje także, gdy nie można sprawdzić stanu gry.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gra wstrzymana</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Sprawdzanie stanu gry</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Uruchom tylko jedną grę</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Sprawdź wynik ostatniego zapisu gry, a następnie ponownie włącz automatyczne kopie.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Zastosuj</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Usuń filtr</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Usuń wszystkie</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknij, aby filtrować</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknij, aby zmienić minimalny poziom</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknij, aby zmienić wyświetlane wpisy</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 lub 40-50. Puste pole oznacza brak limitu.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Wpisz liczbę całkowitą lub zakres rosnący.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], czas lokalny. Puste pole oznacza brak limitu. Ostatnia minuta/sekunda jest uwzględniona. Dla powtórzonej godziny dodaj przesunięcie UTC, np. +01:00.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Wpisz datę i godzinę lub użyj przycisku kalendarza. Puste pole oznacza brak ograniczenia.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Wpisz prawidłowe daty i godziny; początek nie może być późniejszy niż koniec.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Pozostało {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Ostatnie 24 godziny</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Wybierz datę i godzinę</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Użyj tej daty i godziny</value></data>
 </root>

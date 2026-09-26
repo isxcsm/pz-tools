@@ -86,11 +86,16 @@
           </StackPanel>
         </Border>
         <Border Padding="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <FontIcon Glyph="&#xE787;" FontSize="14" />
-            <TextBlock x:Name="NextBackupText" x:Uid="NextBackupWaiting" Text="다음 백업: 대기 중"
-                       MaxWidth="172" Style="{StaticResource SecondaryTextStyle}" FontSize="12" />
-          </StackPanel>
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <FontIcon Glyph="&#xE787;" FontSize="14" VerticalAlignment="Top" Margin="0,3,0,0" />
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock x:Name="NextBackupText" Text="다음 백업: 대기 중"
+                         TextWrapping="Wrap" Style="{StaticResource SecondaryTextStyle}" FontSize="12" />
+              <TextBlock x:Name="NextBackupRemainingText" Visibility="Collapsed"
+                         FontSize="16" FontWeight="SemiBold" TextWrapping="NoWrap" />
+            </StackPanel>
+          </Grid>
         </Border>
       </StackPanel>
     </NavigationView.PaneFooter>

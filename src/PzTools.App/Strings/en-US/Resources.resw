@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Time ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>local</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Times use your computer’s time zone ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Choose times as shown in the log ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>History · newest first</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Number</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>A stable number identifying this log.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Apply settings and restart</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Validate the edited advanced configuration files and restart the app? The app cannot restart while an operation is running.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Restore default settings</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restore the TOML files in the advanced configuration folder to their defaults and restart the app? Existing files will be kept under config-backups in the app data folder. Regular settings chosen in the app will be preserved.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restore the default advanced settings and restart the app? A copy of the current settings files will be kept. Regular settings, saves and backups will remain unchanged.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Logs to record</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Applies to new logs. Existing history is kept.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Maximum log entries</value></data>
@@ -366,8 +366,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Backup stopped because the game save could not be confirmed.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Save game before backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>In-game save countdown</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Show a five-second overhead countdown and the game-save result. Turning this off removes the messages and the manual-backup countdown, but still saves the game. Automatic backups keep their scheduled time. Changes apply to the next backup.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Flush game changes to disk before backup. Turning this off may omit memory-only data. Runtime pause detection is configured separately.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Show a five-second countdown and the save result above your character. Turning this off hides the messages and skips the wait for manual backups, but still saves the game. Automatic backup times stay the same.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Save your latest game progress before backing up. Keeping this on is recommended: unsaved progress, vehicles or items may be missing from backups when it is off.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Next backup: waiting to start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Next backup: waiting for the current job</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Heal character</value></data>
@@ -388,7 +388,7 @@ Only the current single-player save is edited. Playing, unsupported or ambiguous
   <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or another operation is using this save. Stop playing and try again. The original was not changed.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>This save has unfinished changes. Exit the game normally, then try again. The original save was not changed.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Only single-player saves containing one local character are supported. No character was selected arbitrarily and the original was not changed.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>The character's save format could not be validated safely. Currently supported: Build 42, world version 249. The original was not changed.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>This save cannot be edited safely. Check that your PZ Tools version supports your game version. The original save was not changed.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Survival time unavailable · checking again</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>The game or another operation is using a required file. Wait for saving or that operation to finish, then try again.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>There is not enough free space. Free up space on the destination drive, then try again.</value></data>
@@ -403,21 +403,26 @@ Only the current single-player save is edited. Playing, unsupported or ambiguous
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reusing matching backup data</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>On</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Off</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Wait while the game is paused</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Keep the remaining periodic-backup time while paused and continue after resume. Wait when runtime state is unavailable too. Uses JVM observation independently of pre-backup saving.</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Game paused · {0} remaining</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Waiting for game state · {0} remaining</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Multiple games running · holding {0}</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Wait for backups while the game is paused</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pause the countdown to the next scheduled backup when the game is paused, then continue when you resume. Also wait when the game status cannot be checked.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Game paused</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Checking game status</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Please run only one game</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verify the previous game-save outcome, then re-enable automatic backups.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Apply</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Clear filter</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Clear all</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · click to filter</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · click to cycle the minimum level</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · click to change which logs are shown</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 or 40-50. Leave blank for no limit.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Enter a whole number or an ascending range.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], local time. Blank means no limit. The final minute/second is included. For a repeated clock time, add a UTC offset such as +01:00.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Type a date and time, or use the calendar button. Leave a field blank for no limit.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Enter valid dates/times with the start not after the end.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>From</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Through</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>{0} remaining</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Last 24 hours</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Choose date and time</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Date</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Use this date and time</value></data>
 </root>

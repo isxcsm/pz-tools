@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>เวลา ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>ท้องถิ่น</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>แสดงตามเขตเวลาท้องถิ่นของระบบปฏิบัติการ ({0})</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>เลือกเวลาตามที่แสดงในบันทึก ({0})</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>ประวัติ · ล่าสุดก่อน</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>หมายเลข</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>หมายเลขคงที่ที่ใช้ระบุบันทึกนี้</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>ใช้การตั้งค่าและเริ่มใหม่</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>ตรวจสอบไฟล์การกำหนดค่าขั้นสูงที่แก้ไขแล้วเริ่มแอปใหม่หรือไม่? ไม่สามารถเริ่มใหม่ขณะมีการทำงานอยู่</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>คืนค่าการตั้งค่าเริ่มต้น</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>คืนค่าไฟล์ TOML ของการตั้งค่าขั้นสูงเป็นค่าเริ่มต้นและเริ่มแอปใหม่หรือไม่? ไฟล์เดิมจะเก็บไว้ใน config-backups ภายในโฟลเดอร์ข้อมูลแอป การตั้งค่าทั่วไปที่เลือกในแอปจะคงเดิม</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>คืนค่าการตั้งค่าขั้นสูงเป็นค่าเริ่มต้นและเริ่มแอปใหม่หรือไม่? จะเก็บสำเนาไฟล์การตั้งค่าปัจจุบันไว้ การตั้งค่าทั่วไป เซฟ และข้อมูลสำรองจะไม่เปลี่ยน</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>ระดับขั้นต่ำที่บันทึก</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>ใช้กับบันทึกใหม่ ประวัติเดิมจะยังคงอยู่</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>จำนวนบันทึกสูงสุด</value></data>
@@ -359,8 +359,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>หยุดการสำรองเนื่องจากยืนยันการบันทึกเกมไม่ได้</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>นับถอยหลังการบันทึกในเกม</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังห้าวินาทีเหนือตัวละครและผลการบันทึกเกม เมื่อปิด จะไม่แสดงข้อความและไม่นับถอยหลังก่อนสำรองด้วยตนเอง แต่ยังคงบันทึกเกม การสำรองอัตโนมัติยังเริ่มตามเวลาที่กำหนด การเปลี่ยนแปลงมีผลตั้งแต่การสำรองครั้งถัดไป</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกการเปลี่ยนแปลงในเกมลงดิสก์ก่อนสำรอง หากปิดอาจขาดข้อมูลที่อยู่ในหน่วยความจำเท่านั้น การตรวจการหยุดชั่วคราวตั้งค่าแยกกัน</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังห้าวินาทีและผลการบันทึกเหนือศีรษะตัวละคร เมื่อปิดจะไม่แสดงข้อความและข้ามการรอของการสำรองด้วยตนเอง แต่ยังบันทึกเกมตามเดิม เวลาสำรองอัตโนมัติไม่เปลี่ยน</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกความคืบหน้าล่าสุดในเกมก่อนสำรอง แนะนำให้เปิดไว้ เพราะหากปิด ความคืบหน้า ยานพาหนะ หรือสิ่งของที่ยังไม่ได้บันทึกอาจไม่อยู่ในข้อมูลสำรอง</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอเริ่ม</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: รองานปัจจุบัน</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>รักษาตัวละคร</value></data>
@@ -381,7 +381,7 @@
   <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรือการทำงานอื่นกำลังใช้เซฟนี้ โปรดหยุดเล่นแล้วลองใหม่ ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>เซฟนี้มีการเปลี่ยนแปลงที่ยังไม่เสร็จสมบูรณ์ กรุณาออกจากเกมตามปกติแล้วลองอีกครั้ง เซฟต้นฉบับยังไม่ถูกแก้ไข</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>รองรับเฉพาะเซฟผู้เล่นคนเดียวที่มีตัวละครในเครื่องเพียงตัวเดียว ไม่มีการสุ่มเลือกตัวละคร และไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>ตรวจสอบรูปแบบเซฟของตัวละครอย่างปลอดภัยไม่ได้ ปัจจุบันรองรับ Build 42 เวอร์ชันโลก 249 ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>ไม่สามารถแก้ไขเซฟนี้ได้อย่างปลอดภัย โปรดตรวจสอบว่า PZ Tools รุ่นที่ใช้รองรับเกมรุ่นนี้ เซฟต้นฉบับไม่ได้ถูกแก้ไข</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านไม่สำเร็จ จะลองใหม่</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ที่จำเป็น รอให้การบันทึกหรืองานนั้นเสร็จแล้วลองอีกครั้ง</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>พื้นที่ว่างไม่เพียงพอ กรุณาเพิ่มพื้นที่ว่างในไดรฟ์ปลายทางแล้วลองอีกครั้ง</value></data>
@@ -396,21 +396,26 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>เปิด</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>ปิด</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>รอเมื่อเกมหยุดชั่วคราว</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>เก็บเวลาที่เหลือของการสำรองตามช่วงเวลาไว้ระหว่างหยุดชั่วคราว แล้วนับต่อเมื่อเล่นต่อ หากไม่ทราบสถานะเกมก็จะรอเช่นกัน การตรวจสถานะ JVM แยกจากการบันทึกก่อนสำรอง</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>เกมหยุดชั่วคราว · เหลือ {0}</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>รอสถานะเกม · เหลือ {0}</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>มีหลายเกมทำงานอยู่ · พักเวลา {0}</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>รอสำรองขณะเกมหยุดชั่วคราว</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>เมื่อหยุดเกมชั่วคราว เวลานับถอยหลังถึงการสำรองตามรอบครั้งถัดไปจะหยุดด้วย และนับต่อเมื่อเล่นต่อ หากตรวจสอบสถานะเกมไม่ได้ก็จะรอเช่นกัน</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>เกมหยุดชั่วคราว</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>กำลังตรวจสอบสถานะเกม</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>โปรดเปิดเกมเพียงหนึ่งตัว</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>ตรวจสอบผลการบันทึกเกมครั้งก่อน แล้วเปิดการสำรองอัตโนมัติอีกครั้ง</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>ใช้</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>ล้างตัวกรอง</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>ล้างทั้งหมด</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · คลิกเพื่อกรอง</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · คลิกเพื่อเปลี่ยนระดับขั้นต่ำ</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · คลิกเพื่อเปลี่ยนรายการที่แสดง</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 หรือ 40-50 เว้นว่างเพื่อไม่จำกัด</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>ป้อนเลขจำนวนเต็มหรือช่วงจากน้อยไปมาก</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss] เวลาท้องถิ่น เว้นว่างเพื่อไม่จำกัด รวมทั้งนาทีหรือวินาทีสุดท้าย หากเวลาซ้ำกันให้เพิ่มส่วนต่าง UTC เช่น +07:00</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>พิมพ์วันที่และเวลาหรือใช้ปุ่มปฏิทิน เว้นว่างไว้หากไม่ต้องการจำกัด</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>ป้อนวันที่และเวลาที่ถูกต้อง โดยเวลาเริ่มต้องไม่อยู่หลังเวลาสิ้นสุด</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>เริ่ม</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>สิ้นสุด</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>เหลือ {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>24 ชั่วโมงล่าสุด</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>เลือกวันที่และเวลา</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>วันที่</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>ใช้วันที่และเวลานี้</value></data>
 </root>

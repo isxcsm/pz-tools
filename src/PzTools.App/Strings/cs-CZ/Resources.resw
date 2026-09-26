@@ -171,7 +171,7 @@
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Čas ({0})</value></data>
   <data name="LogLocalTimeZone" xml:space="preserve"><value>místní</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Zobrazeno v místním časovém pásmu operačního systému ({0}).</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Vyberte časy zobrazené v protokolu ({0}).</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Historie · Od nejnovějších</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Číslo</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Stálé číslo identifikující tento záznam.</value></data>
@@ -283,7 +283,7 @@
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Použít nastavení a restartovat</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Ověřit upravené soubory pokročilé konfigurace a restartovat aplikaci? Během operace není restart možný.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Obnovit výchozí nastavení</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Obnovit výchozí soubory TOML pokročilého nastavení a restartovat aplikaci? Stávající soubory zůstanou v config-backups ve složce dat aplikace. Běžné nastavení zvolené v aplikaci se zachová.</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Obnovit výchozí pokročilá nastavení a restartovat aplikaci? Kopie současných souborů bude zachována. Běžná nastavení, uložené hry a zálohy zůstanou beze změny.</value></data>
   <data name="LogRecordLevel.Header" xml:space="preserve"><value>Minimální zaznamenávaná úroveň</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Platí pro nové záznamy. Stávající historie zůstane zachována.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Maximální počet záznamů</value></data>
@@ -359,8 +359,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Zálohování bylo zastaveno, protože uložení hry se nepodařilo potvrdit.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odpočet uložení ve hře</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zobrazí pětisekundový odpočet nad postavou a výsledek uložení hry. Vypnutím zmizí zprávy i odpočet před ručními zálohami, hra se však stále ukládá. Automatické zálohy dodržují naplánovaný čas. Změny platí od příští zálohy.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Před zálohou uloží změny hry na disk. Vypnutí může vynechat data, která jsou pouze v paměti. Detekce pauzy se nastavuje zvlášť.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Nad postavou zobrazí pětisekundový odpočet a výsledek uložení. Vypnutí skryje zprávy a přeskočí čekání při ručních zálohách, ale hra se stále uloží. Čas automatických záloh se nemění.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Před zálohou uloží nejnovější postup ve hře. Doporučujeme ponechat zapnuté: při vypnutí mohou v záloze chybět dosud neuložený postup, vozidla nebo předměty.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Příští záloha: čeká na spuštění</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: čeká na aktuální úlohu</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Vyléčit postavu</value></data>
@@ -381,7 +381,7 @@ Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě pou�
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Tuto uloženou hru používá hra nebo jiná operace. Přestaňte hrát a zkuste to znovu. Originál nebyl změněn.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Tato uložená hra obsahuje nedokončené změny. Ukončete hru běžným způsobem a zkuste to znovu. Původní uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Podporovány jsou pouze hry pro jednoho hráče s jedinou místní postavou. Žádná postava nebyla vybrána svévolně a originál nebyl změněn.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Formát postavy se nepodařilo bezpečně ověřit. Aktuálně podporováno: Build 42, verze světa 249. Originál nebyl změněn.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Tuto uloženou hru nelze bezpečně upravit. Ověřte, že vaše verze PZ Tools podporuje verzi hry. Originál nebyl změněn.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Čtení selhalo; bude zopakováno</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Hra nebo jiná operace používá potřebný soubor. Počkejte na dokončení ukládání nebo dané operace a zkuste to znovu.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Není dostatek volného místa. Uvolněte místo na cílovém disku a zkuste to znovu.</value></data>
@@ -396,21 +396,26 @@ Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě pou�
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Opětovné použití shodných dat ze zálohy</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Zapnuto</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Vypnuto</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Čekat během pozastavení hry</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Při pozastavení zachová zbývající čas do pravidelné zálohy a po obnovení pokračuje. Čeká také při neznámém stavu hry. Pozorování JVM je nezávislé na uložení před zálohou.</value></data>
-  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Hra pozastavena · zbývá {0}</value></data>
-  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Čekání na stav hry · zbývá {0}</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Spuštěno více her · čeká {0}</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Počkat se zálohou během pauzy hry</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pozastavení hry zastaví odpočet do další pravidelné zálohy. Po obnovení hry odpočet pokračuje. Čeká také, pokud nelze ověřit stav hry.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Hra pozastavena</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Ověřování stavu hry</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Spusťte pouze jednu hru</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Ověřte výsledek posledního uložení hry a znovu zapněte automatické zálohování.</value></data>
   <data name="LogFilterApply" xml:space="preserve"><value>Použít</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Zrušit filtr</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Zrušit všechny</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknutím filtrovat</value></data>
-  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknutím změnit minimální úroveň</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · kliknutím změníte zobrazené záznamy</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42 nebo 40-50. Prázdné pole znamená bez omezení.</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>Zadejte celé číslo nebo vzestupný rozsah.</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>yyyy-MM-dd HH:mm[:ss], místní čas. Prázdné pole znamená bez omezení. Poslední minuta/sekunda je zahrnuta. U opakovaného času přidejte posun UTC, například +01:00.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>Zadejte datum a čas nebo použijte tlačítko kalendáře. Prázdné pole znamená bez omezení.</value></data>
   <data name="LogTimeRangeInvalid" xml:space="preserve"><value>Zadejte platné datum a čas; začátek nesmí být později než konec.</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>Od</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>Do</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>Zbývá {0}</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>Posledních 24 hodin</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>Vybrat datum a čas</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>Datum</value></data>
+  <data name="LogTimeUseSelection" xml:space="preserve"><value>Použít toto datum a čas</value></data>
 </root>
