@@ -394,8 +394,8 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>เปิด</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>ปิด</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>รอสำรองขณะเกมหยุดชั่วคราว</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>เมื่อหยุดเกมชั่วคราว เวลานับถอยหลังถึงการสำรองตามรอบครั้งถัดไปจะหยุดด้วย และนับต่อเมื่อเล่นต่อ หากตรวจสอบสถานะเกมไม่ได้ก็จะรอเช่นกัน</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>รอสำรองระหว่างหยุดชั่วคราวหรือนอนหลับ</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>หยุดนับถอยหลังการสำรองตามช่วงเวลาเมื่อเกมหยุดชั่วคราวหรือตัวละครหลับ และนับต่อจากเวลาที่เหลือเมื่อกลับมาเล่น รอเช่นกันหากไม่ทราบสถานะเกม โดยไม่กระทบการสำรองด้วยตนเองหรือเมื่อตัวละครเสียชีวิต</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>เกมหยุดชั่วคราว</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>กำลังตรวจสอบสถานะเกม</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>โปรดเปิดเกมเพียงหนึ่งตัว</value></data>
@@ -443,4 +443,6 @@
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>เลี้ยงกาแฟสักแก้ว</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools ช่วยคุณได้ไหม?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>ลิงก์สนับสนุนยังไม่พร้อมใช้งาน</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>เกมไม่ได้กำลังทำงาน</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>ตัวละครกำลังนอนหลับ</value></data>
 </root>

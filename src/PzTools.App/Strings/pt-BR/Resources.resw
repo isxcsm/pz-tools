@@ -394,8 +394,8 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reutilizando dados idênticos já salvos no backup</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Ativado</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Desativado</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Aguardar enquanto o jogo estiver pausado</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pausar o jogo também pausa a contagem até o próximo backup periódico. A contagem continua ao retomar o jogo. Também aguarda quando não é possível verificar o estado do jogo.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Aguardar durante pausas ou sono</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pausa a contagem regressiva dos backups periódicos enquanto o jogo estiver pausado ou o personagem dormir; continua pelo tempo restante ao retomar. Também aguarda se o estado do jogo for desconhecido. Não afeta backups manuais nem após a morte.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Jogo pausado</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Verificando o estado do jogo</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Execute apenas um jogo</value></data>
@@ -443,4 +443,6 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Me pague um café</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>O PZ Tools foi útil?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>O link de apoio ainda não está disponível.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>O jogo não está em execução</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>O personagem está dormindo</value></data>
 </root>

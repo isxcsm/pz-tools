@@ -9,6 +9,9 @@ public static class RuntimeScheduleProjection
     public static ScheduleStatusView Build(BackupSchedulerState control, RuntimeScheduleStorage storage,
         RuntimeObservation observation)
     {
+        // Presentation can immediately show a confirmed absent process, even while
+        // its scheduler transition is committing. This does not grant execution permission.
+        bool offline = observation.Quality == RuntimeQuality.Offline;
         if (storage.Facts is null || storage.Facts.AuthorityEpoch != observation.AuthorityEpoch
             || storage.Facts.StateRevision < observation.StateRevision || storage.Facts.SemanticKey != observation.SemanticKey)
             observation = RuntimeObservation.Unknown("state-transition-pending");
@@ -17,6 +20,7 @@ public static class RuntimeScheduleProjection
         var state = ActiveTimeSchedulePolicy.Advance(initial, observation, control.AutomaticEnabled,
             control.Generation, (long)control.Interval.TotalMilliseconds);
         var hold = control.CurrentTarget is null ? state.Hold | ScheduleHold.NoWorld : state.Hold;
+        if (offline) hold |= ScheduleHold.GameOffline | ScheduleHold.NoWorld;
         return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, null,
             control.LastRunIndex, control.LastOutcome, control.AutomaticEnabled, control.PendingRuns,
             PauseAware: true, RemainingMilliseconds: Math.Max(0, state.RemainingMilliseconds),

@@ -394,8 +394,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Önceden yedeklenmiş aynı veriler yeniden kullanılıyor</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Açık</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Kapalı</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Oyun duraklatıldığında yedeklemeyi beklet</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Oyun duraklatılınca sonraki düzenli yedeklemenin geri sayımı da durur ve oyuna dönünce devam eder. Oyun durumu doğrulanamadığında da bekler.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Duraklatmada veya uykuda yedeklemeyi beklet</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Oyun duraklatıldığında veya karakter uyurken düzenli yedekleme sayacını durdurur; oyuna dönüldüğünde kalan süreden devam eder. Oyun durumu bilinmiyorsa da bekler. Manuel ve ölüm sonrası yedeklemeleri etkilemez.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Oyun duraklatıldı</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Oyun durumu kontrol ediliyor</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Lütfen yalnızca bir oyun çalıştırın</value></data>
@@ -443,4 +443,6 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Bir kahve ısmarla</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools işinize yaradı mı?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Destek bağlantısı henüz hazır değil.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Karakter uyuyor</value></data>
 </root>

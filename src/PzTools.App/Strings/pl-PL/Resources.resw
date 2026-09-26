@@ -394,8 +394,8 @@ Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Ponowne użycie identycznych danych z kopii zapasowej</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Włączone</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Wyłączone</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Wstrzymuj kopie podczas pauzy w grze</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pauza w grze zatrzymuje odliczanie do następnej okresowej kopii. Odliczanie jest kontynuowane po wznowieniu gry. Oczekuje także, gdy nie można sprawdzić stanu gry.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Czekaj podczas pauzy lub snu</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Zatrzymuje odliczanie do okresowej kopii podczas pauzy lub snu postaci. Po wznowieniu gry odlicza pozostały czas. Czeka również, gdy stan gry jest nieznany. Nie wpływa na kopie ręczne ani po śmierci.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gra wstrzymana</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Sprawdzanie stanu gry</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Uruchom tylko jedną grę</value></data>
@@ -443,4 +443,6 @@ Dotyczy wybranego zapisu jednoosobowego po zakończeniu gry.</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Postaw mi kawę</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools się przydał?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Link do wsparcia nie jest jeszcze dostępny.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>Gra nie jest uruchomiona</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Postać śpi</value></data>
 </root>

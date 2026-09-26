@@ -394,8 +394,8 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Повторное использование совпадающих данных резервной копии</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Включено</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Выключено</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Ожидать во время паузы в игре</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Пауза в игре останавливает отсчёт до следующей периодической копии. Отсчёт продолжается после возобновления игры. Также ожидает, если состояние игры нельзя проверить.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Ожидать при паузе или сне</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Останавливает отсчёт до периодической копии при паузе или сне персонажа. После продолжения игры отсчёт идёт с оставшегося времени. При неизвестном состоянии игры также ожидает. Ручные копии и копии при смерти не затрагиваются.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Игра на паузе</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Проверка состояния игры</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запустите только одну игру</value></data>
@@ -443,4 +443,6 @@
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Угостить кофе</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools оказался полезным?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Ссылка для поддержки пока недоступна.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>Игра не запущена</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Персонаж спит</value></data>
 </root>

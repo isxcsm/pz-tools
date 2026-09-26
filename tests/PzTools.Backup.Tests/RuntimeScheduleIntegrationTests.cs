@@ -160,6 +160,25 @@ public sealed class RuntimeScheduleIntegrationTests
         Assert.Equal(0, (await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.Slot);
         Assert.NotNull((await f.TickAsync()).Admission);
     }
+    [Fact]
+    public async Task CommittedSleepPreservesRemainingAcrossSchedulerRestart_AndWakeContinuesTheSlot()
+    {
+        using var temp = new TempDirectory();
+        var f = await Fixture.CreateAsync(temp);
+        await f.PublishAsync(0); await f.TickAsync();
+        await f.PublishAsync(120_000, eligibility: 2, sleep: RuntimeSleep.Asleep);
+        Assert.Null((await f.TickAsync()).Admission);
+        Assert.Equal(180_000, (await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.RemainingMilliseconds);
+        f.RestartController();
+        f.Time.Advance(600_000);
+        await f.PublishAsync(120_000, eligibility: 2, sleep: RuntimeSleep.Asleep);
+        Assert.Null((await f.TickAsync()).Admission);
+        Assert.Equal(ScheduleHold.Sleeping, (await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.Hold);
+        await f.PublishAsync(120_000, eligibility: 2);
+        Assert.Null((await f.TickAsync()).Admission);
+        await f.PublishAsync(300_000, eligibility: 2);
+        Assert.NotNull((await f.TickAsync()).Admission);
+    }
     private sealed class Fixture(StateDatabase state, SchedulerDatabase scheduler, string root, string save)
     {
         private readonly string process = Guid.NewGuid().ToString("N"), world = Guid.NewGuid().ToString("N");
@@ -181,11 +200,11 @@ public sealed class RuntimeScheduleIntegrationTests
         }
         public void RestartController() => Controller = new(Database, Store, Time);
         public void Reconnect() { stream = Guid.NewGuid().ToString("N"); observer = Guid.NewGuid().ToString("N"); sequence = 0; }
-        public async Task PublishAsync(long active, GamePause pause = GamePause.Running, long eligibility = 1)
+        public async Task PublishAsync(long active, GamePause pause = GamePause.Running, long eligibility = 1, RuntimeSleep sleep = RuntimeSleep.Awake)
         {
             var value = new RuntimeObservation(stream,RuntimeQuality.Fresh,
                 new(process,observer,world,1,eligibility,++sequence,WorldPhase.Ready,pause,RuntimeMode.LocalSinglePlayer,
-                    pause == GamePause.Paused ? 0 : 1,active,0,save));
+                    pause == GamePause.Paused ? 0 : 1,active,0,save, Sleep: sleep));
             await PublishAsync(value);
         }
         public Task PublishUnknownAsync() => PublishAsync(RuntimeObservation.Unknown("fixture-disconnect"));

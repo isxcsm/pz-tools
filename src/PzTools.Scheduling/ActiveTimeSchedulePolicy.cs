@@ -17,7 +17,8 @@ public static class ActiveTimeSchedulePolicy
         if (state.Generation != generation || state.IntervalMilliseconds != intervalMilliseconds)
             state = new(generation, intervalMilliseconds, intervalMilliseconds);
         var hold = enabled ? ScheduleHold.None : ScheduleHold.Disabled;
-        if (observation.Quality == RuntimeQuality.Ambiguous) hold |= ScheduleHold.Ambiguous;
+        if (observation.Quality == RuntimeQuality.Offline) hold |= ScheduleHold.GameOffline | ScheduleHold.NoWorld;
+        else if (observation.Quality == RuntimeQuality.Ambiguous) hold |= ScheduleHold.Ambiguous;
         else if (observation.Quality == RuntimeQuality.Unsupported) hold |= ScheduleHold.Unsupported;
         else if (!observation.IsFresh) hold |= ScheduleHold.Unknown;
         var sample = observation.Snapshot;
@@ -33,18 +34,22 @@ public static class ActiveTimeSchedulePolicy
         }
         if (sample.Pause == GamePause.Paused) hold |= ScheduleHold.GamePaused;
         else if (sample.Pause != GamePause.Running) hold |= ScheduleHold.Unknown;
+        if (sample.Sleep == RuntimeSleep.Asleep) hold |= ScheduleHold.Sleeping;
+        else if (sample.Sleep != RuntimeSleep.Awake) hold |= ScheduleHold.Unknown;
         if (state.WorldSession is not null && state.WorldSession != sample.WorldSession)
             state = new(generation, intervalMilliseconds, intervalMilliseconds);
         string identity = $"{observation.StreamEpoch}/{sample.ProcessSession}/{sample.ObserverEpoch}/{sample.WorldSession}/{sample.ClockEpoch}";
         var remaining = state.RemainingMilliseconds;
         if (state.Anchored && state.ClockIdentity == identity && sample.ActiveMilliseconds < state.LastActiveMilliseconds)
             return state with { Anchored = false, Hold = hold | ScheduleHold.Unknown, AttemptId = null };
-        if (state.Anchored && state.ClockIdentity == identity && enabled && sample.ActiveMilliseconds >= state.LastActiveMilliseconds)
+        if (state.Anchored && state.ClockIdentity == identity && enabled
+            && sample.Pause != GamePause.Unknown && sample.Sleep != RuntimeSleep.Unknown
+            && sample.ActiveMilliseconds >= state.LastActiveMilliseconds)
             remaining -= sample.ActiveMilliseconds - state.LastActiveMilliseconds;
         if (state.CompletionUncertain) hold |= ScheduleHold.Unknown;
         return state with { RemainingMilliseconds = remaining, WorldSession = sample.WorldSession,
             ClockIdentity = identity, LastActiveMilliseconds = sample.ActiveMilliseconds,
-            Anchored = enabled && sample.Pause != GamePause.Unknown,
+            Anchored = enabled && sample.Pause != GamePause.Unknown && sample.Sleep != RuntimeSleep.Unknown,
             EligibilityEpoch = sample.EligibilityEpoch, Hold = hold,
             AttemptId = state.ClockIdentity != identity || state.EligibilityEpoch != sample.EligibilityEpoch || hold != ScheduleHold.None
                 ? null : state.AttemptId };

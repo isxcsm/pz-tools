@@ -55,6 +55,8 @@ public final class GameWindow {
             if (consumeSignal(Path.of(args[0], "ambiguous-players"))) zombie.characters.IsoPlayer.numPlayers = 2;
             if (consumeSignal(Path.of(args[0], "single-player"))) zombie.characters.IsoPlayer.numPlayers = 1;
             if (consumeSignal(Path.of(args[0], "fail-save"))) mode = "throw";
+            if (consumeSignal(Path.of(args[0], "sleep-player"))) zombie.characters.IsoPlayer.getInstance().asleep = true;
+            if (consumeSignal(Path.of(args[0], "wake-player"))) zombie.characters.IsoPlayer.getInstance().asleep = false;
             if (consumeSignal(Path.of(args[0], "pause-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(0);
             if (consumeSignal(Path.of(args[0], "resume-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1);
             if (consumeSignal(Path.of(args[0], "fast-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(4);

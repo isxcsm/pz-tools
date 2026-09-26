@@ -394,8 +394,8 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>バックアップ済みの同じデータを再利用中</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>オン</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>オフ</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>ゲームの一時停止中はバックアップを待機</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>ゲームを一時停止すると、次の定期バックアップまでのカウントも停止し、再開後に続きから数えます。ゲームの状態を確認できない間も待機します。</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>一時停止・睡眠中はバックアップを待機</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>ゲームの一時停止中やキャラクターの睡眠中は、次の定期バックアップまでの残り時間を止め、プレイ再開後に残り時間から続けます。状態を確認できない場合も待機します。手動・死亡時のバックアップには適用しません。</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>ゲームは一時停止中</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>ゲームの状態を確認中</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>ゲームは1つだけ起動してください</value></data>
@@ -443,4 +443,6 @@
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>コーヒーで応援</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>お役に立ちましたか？</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支援リンクは準備中です。</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>ゲームが起動していません</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>キャラクターが睡眠中</value></data>
 </root>

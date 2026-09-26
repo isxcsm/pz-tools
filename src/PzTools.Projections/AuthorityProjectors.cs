@@ -208,6 +208,8 @@ public sealed class SchedulerProjector(
             canCountDown = activity?.Game == GameState.Playing && active is { Length: 1 }
                 && StringComparer.OrdinalIgnoreCase.Equals(active[0].SourcePath, snapshot.CurrentTarget!.SourcePath);
         }
+        var offline = runtimeSnapshot?.Read().Quality == RuntimeQuality.Offline;
+        if (offline) canCountDown = false;
         var nextDue = canCountDown ? snapshot.NextDueUtc : (DateTimeOffset?)null;
         var periodicInProgress = false;
         // Scheduler authority keeps the admission due until completion for crash recovery
@@ -240,7 +242,8 @@ public sealed class SchedulerProjector(
             snapshot.LastOutcome,
             snapshot.AutomaticEnabled,
             snapshot.PendingRuns,
-            periodicInProgress);
+            periodicInProgress,
+            Hold: offline ? ScheduleHold.GameOffline | ScheduleHold.NoWorld : ScheduleHold.None);
         views.Publish(
             ViewKey.ScheduleStatus, model, cursor,
             EqualityComparer<ScheduleStatusView>.Default);

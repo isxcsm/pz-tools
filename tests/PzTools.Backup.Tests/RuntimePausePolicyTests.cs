@@ -17,7 +17,7 @@ public sealed class RuntimePausePolicyTests
         long eligibility = 1, long clock = 1) => new(Stream, RuntimeQuality.Fresh,
             new(Process, Observer, World, clock, eligibility, active + eligibility, WorldPhase.Ready,
                 pause, RuntimeMode.LocalSinglePlayer, pause == GamePause.Paused ? 0 : 1,
-                active, 0, @"C:\fixture\Saves\Sandbox\World"));
+                active, 0, @"C:\fixture\Saves\Sandbox\World", Sleep: RuntimeSleep.Awake));
     private static ActiveTimeScheduleState Step(ActiveTimeScheduleState state, RuntimeObservation sample,
         bool enabled = true, long generation = 1) => ActiveTimeSchedulePolicy.Advance(state, sample, enabled, generation, 300_000);
 

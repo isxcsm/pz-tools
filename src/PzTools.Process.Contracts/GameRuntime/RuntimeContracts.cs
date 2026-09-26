@@ -8,10 +8,11 @@ public enum WorldPhase { Unknown, Menu, Loading, Ready, Unloading }
 public enum GamePause { Unknown, Running, Paused }
 // Live JVM facts, deliberately separate from the persisted players.db CharacterState.
 public enum RuntimeCharacterLife { Unknown, Alive, Dead }
+public enum RuntimeSleep { Unknown, Awake, Asleep }
 public enum RuntimeMode { Unsupported, LocalSinglePlayer, Networked }
 public enum RuntimeQuality { Unknown, Fresh, Stale, Unsupported, Ambiguous, Offline }
 [Flags]
-public enum ScheduleHold { None = 0, Disabled = 1, NoWorld = 2, GamePaused = 4, Unknown = 8, Unsupported = 16, Ambiguous = 32 }
+public enum ScheduleHold { None = 0, Disabled = 1, NoWorld = 2, GamePaused = 4, Unknown = 8, Unsupported = 16, Ambiguous = 32, Sleeping = 64, GameOffline = 128 }
 public enum ScheduleDisposition { Default, Preserve, Consume, CompletionUnknown }
 
 /// <summary>Durations belong to one observer/clock epoch, never to the host's UTC clock.</summary>
@@ -19,10 +20,10 @@ public sealed record RuntimeSnapshot(
     string ProcessSession, string ObserverEpoch, string WorldSession, long ClockEpoch,
     long EligibilityEpoch, long Sequence, WorldPhase Phase, GamePause Pause,
     RuntimeMode Mode, int SpeedLevel, long ActiveMilliseconds, long SampleAgeMilliseconds,
-    string? SavePath, string? GameVersion = null, RuntimeCharacterLife CharacterLife = RuntimeCharacterLife.Unknown, string? CharacterSession = null, string? DeathId = null, RuntimeSaveExecution? LastSave = null)
+    string? SavePath, string? GameVersion = null, RuntimeCharacterLife CharacterLife = RuntimeCharacterLife.Unknown, string? CharacterSession = null, string? DeathId = null, RuntimeSaveExecution? LastSave = null, RuntimeSleep Sleep = RuntimeSleep.Unknown)
 {
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
-    public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}";
+    public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
     public bool IsWorldReady => Phase == WorldPhase.Ready && Mode == RuntimeMode.LocalSinglePlayer && SavePath is not null;
     public RuntimeSnapshot Validate()
     {
@@ -30,7 +31,7 @@ public sealed record RuntimeSnapshot(
             || ClockEpoch < 0 || EligibilityEpoch < 0 || Sequence < 0 || ActiveMilliseconds < 0
             || SampleAgeMilliseconds < 0 || !Enum.IsDefined(Phase) || !Enum.IsDefined(Pause)
             || !Enum.IsDefined(Mode) || SpeedLevel is < -1 or > 4
-            || !Enum.IsDefined(CharacterLife) || CharacterSession is not null && !Id(CharacterSession)
+            || !Enum.IsDefined(Sleep) || !Enum.IsDefined(CharacterLife) || CharacterSession is not null && !Id(CharacterSession)
             || DeathId is not null && (!Id(DeathId) || CharacterLife != RuntimeCharacterLife.Dead)
             || CharacterLife != RuntimeCharacterLife.Unknown && (!IsWorldReady || CharacterSession is null)
             || GameVersion is { Length: > 80 } || GameVersion?.IndexOf('\0') >= 0
@@ -48,7 +49,7 @@ public sealed record RuntimeSnapshot(
     public static RuntimeSnapshot ParseWire(string line)
     {
         var p = line.Split('\t');
-        if (!(p.Length == 15 && p[0] == "STATE1" || p.Length == 16 && p[0] == "STATE2" || p.Length == 20 && p[0] == "STATE3")) throw new InvalidDataException("Unsupported runtime frame.");
+        if (!(p.Length == 15 && p[0] == "STATE1" || p.Length == 16 && p[0] == "STATE2" || p.Length == 20 && p[0] == "STATE3" || p.Length == 21 && p[0] == "STATE4")) throw new InvalidDataException("Unsupported runtime frame.");
         static long Number(string value) => long.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
         static T Kind<T>(string value) where T : struct, Enum =>
             Enum.TryParse<T>(value, false, out var result) && Enum.IsDefined(result)
@@ -56,7 +57,7 @@ public sealed record RuntimeSnapshot(
         return new RuntimeSnapshot(p[1], p[2], p[3], Number(p[4]), Number(p[5]), Number(p[6]),
             Kind<WorldPhase>(p[7]), Kind<GamePause>(p[8]), Kind<RuntimeMode>(p[9]),
             int.Parse(p[10], CultureInfo.InvariantCulture), Number(p[11]), Number(p[12]),
-            p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length == 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null)
+            p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length >= 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null, p.Length == 21 ? Kind<RuntimeSleep>(p[20]) : RuntimeSleep.Unknown)
             .RequireCapabilities(p[14]).Validate();
     }
     private RuntimeSnapshot RequireCapabilities(string value)

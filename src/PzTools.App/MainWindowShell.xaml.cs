@@ -214,6 +214,7 @@ public sealed partial class MainWindowShell : UserControl
             DispatcherQueue.TryEnqueue(RefreshChangedViews));
         countdownTimer.Start();
         RefreshChangedViews();
+        UpdateCountdown();
     }
 
     private void UpdateTitleBar()
@@ -225,6 +226,7 @@ public sealed partial class MainWindowShell : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        StopCountdownPulse();
         FinishContentNavigation();
         LoadingSavesProgress.IsActive = false;
         CancelRevisionThumbnails();
@@ -1012,60 +1014,13 @@ public sealed partial class MainWindowShell : UserControl
 
     private void UpdateCountdown()
     {
-        // Status and remaining time are separate controls, not a split translated sentence.
-        NextBackupRemainingText.Text = "";
-        NextBackupRemainingText.Visibility = Visibility.Collapsed;
-        if (projectorHealth?.IsFaulted("scheduler") == true)
-        {
-            NextBackupText.Text = Localizer.Get("SchedulerStatusUnavailable");
-            return;
-        }
-        if (schedule is null || !schedule.AutomaticEnabled)
-        {
-            NextBackupText.Text = Localizer.Get(schedule is null ? "NextBackupWaitingDynamic" : "AutomaticBackupOff");
-            return;
-        }
-        if (schedule.PauseAware)
-        {
-            var seconds = (long)Math.Ceiling(Math.Max(0, schedule.RemainingMilliseconds ?? 0) / 1000d);
-            if (schedule.CompletionUncertain)
-                NextBackupText.Text = Localizer.Get("RuntimeBackupCompletionUnknown");
-            else if ((schedule.Hold & ScheduleHold.Ambiguous) != 0)
-                NextBackupText.Text = Localizer.Get("RuntimeBackupAmbiguous");
-            else if ((schedule.Hold & (ScheduleHold.Unknown | ScheduleHold.Unsupported)) != 0)
-                NextBackupText.Text = Localizer.Get("RuntimeBackupWaiting");
-            else if ((schedule.Hold & ScheduleHold.NoWorld) != 0)
-                NextBackupText.Text = Localizer.Get("NextBackupWaitingDynamic");
-            else if ((schedule.Hold & ScheduleHold.GamePaused) != 0)
-                NextBackupText.Text = Localizer.Get("RuntimeBackupPaused");
-            else if (seconds == 0)
-                NextBackupText.Text = Localizer.Get(schedule.PeriodicBackupInProgress
-                    ? "NextBackupWaitingForCurrent" : "NextBackupWaitingToStart");
-            else NextBackupText.Text = Localizer.Get("ProjectorArea.Schedule");
-            if (!schedule.CompletionUncertain && schedule.RemainingMilliseconds is not null)
-                ShowRemaining(seconds);
-            return;
-        }
-        if (schedule.NextDueUtc is not { } due)
-        {
-            NextBackupText.Text = Localizer.Get("NextBackupWaitingDynamic");
-            return;
-        }
-        var remaining = due - DateTimeOffset.UtcNow;
-        if (remaining <= TimeSpan.Zero)
-        {
-            NextBackupText.Text = Localizer.Get(schedule.PeriodicBackupInProgress
-                ? "NextBackupWaitingForCurrent" : "NextBackupWaitingToStart");
-            return;
-        }
-        NextBackupText.Text = Localizer.Get("ProjectorArea.Schedule");
-        ShowRemaining((long)Math.Ceiling(remaining.TotalSeconds));
-
-        void ShowRemaining(long seconds)
-        {
-            NextBackupRemainingText.Text = Localizer.Format("BackupTimeRemainingFormat", $"{seconds / 60:00}:{seconds % 60:00}");
-            NextBackupRemainingText.Visibility = Visibility.Visible;
-        }
+        var display = ScheduleCountdownPresentation.Resolve(schedule, DateTimeOffset.UtcNow,
+            projectorHealth?.IsFaulted("scheduler") == true);
+        NextBackupText.Text = Localizer.Get(display.MessageKey);
+        NextBackupRemainingText.Text = display.RemainingSeconds is { } seconds
+            ? Localizer.Format("BackupTimeRemainingFormat", $"{seconds / 60:00}:{seconds % 60:00}") : "";
+        NextBackupRemainingText.Visibility = display.RemainingSeconds is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdateCountdownPulse(display.Suspended, display.RemainingSeconds is not null);
     }
 
     private void Navigation_SelectionChanged(

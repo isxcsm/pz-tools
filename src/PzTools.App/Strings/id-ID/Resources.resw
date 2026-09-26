@@ -394,8 +394,8 @@ Diterapkan pada save pemain tunggal yang dipilih setelah berhenti bermain.</valu
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Menggunakan kembali data identik yang sudah dicadangkan</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Aktif</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Nonaktif</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Tunggu saat game dijeda</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Menjeda game juga menghentikan hitung mundur pencadangan berkala berikutnya. Hitungan dilanjutkan saat bermain lagi. Juga menunggu jika status game tidak dapat diperiksa.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Tunggu saat game dijeda atau karakter tidur</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Hentikan hitung mundur pencadangan berkala saat game dijeda atau karakter tidur; lanjutkan dari sisa waktu setelah bermain kembali. Tunggu juga jika status game tidak diketahui. Pencadangan manual dan saat kematian tidak terpengaruh.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Game dijeda</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Memeriksa status game</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Jalankan satu game saja</value></data>
@@ -443,4 +443,6 @@ Diterapkan pada save pemain tunggal yang dipilih setelah berhenti bermain.</valu
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Traktir saya kopi</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools membantu Anda?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Tautan dukungan belum tersedia.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>Game tidak berjalan</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Karakter sedang tidur</value></data>
 </root>

@@ -394,8 +394,8 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>正在复用已备份的相同数据</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>开启</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>关闭</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>游戏暂停时等待备份</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>游戏暂停时，下一次定时备份的倒计时也会暂停，恢复游戏后继续。无法确认游戏状态时也会等待。</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>暂停或睡眠时等待备份</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>游戏暂停或角色睡眠时暂停定时备份倒计时，恢复游玩后从剩余时间继续。无法确认游戏状态时也会等待。不影响手动备份和死亡时备份。</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>游戏已暂停</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>正在确认游戏状态</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>请只运行一个游戏</value></data>
@@ -443,4 +443,6 @@
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>请我喝杯咖啡</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>这个工具帮到您了吗？</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支持链接正在准备中。</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>游戏未运行</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>角色正在睡眠</value></data>
 </root>

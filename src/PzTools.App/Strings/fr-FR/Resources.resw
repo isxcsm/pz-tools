@@ -394,8 +394,8 @@ S’applique à la sauvegarde solo sélectionnée après avoir quitté la partie
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Réutilisation des données identiques déjà sauvegardées</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Activé</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Désactivé</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Attendre pendant la pause du jeu</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>La pause du jeu arrête le compte à rebours avant la prochaine sauvegarde périodique. Il reprend avec le jeu. L’attente est aussi maintenue si l’état du jeu ne peut pas être vérifié.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Attendre pendant la pause ou le sommeil</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Suspend le compte à rebours des sauvegardes périodiques pendant la pause ou le sommeil du personnage, puis reprend le temps restant au retour au jeu. Attend aussi si l’état du jeu est inconnu. Sans effet sur les sauvegardes manuelles ou déclenchées par la mort.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Jeu en pause</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Vérification de l’état du jeu</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Ne lancez qu’un seul jeu</value></data>
@@ -443,4 +443,6 @@ S’applique à la sauvegarde solo sélectionnée après avoir quitté la partie
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Offrir un café</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools vous a été utile ?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Le lien de soutien n’est pas encore disponible.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>Le jeu n’est pas lancé</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Le personnage dort</value></data>
 </root>

@@ -9,6 +9,8 @@ public final class IsoPlayer {
     private static IsoPlayer instance = new IsoPlayer();
     public static int numPlayers = 1;
     public boolean dead;
+    public boolean asleep;
+    public boolean isAsleep() { return asleep; }
     public static void die() { instance.dead = true; }
     public static void respawn() { instance = new IsoPlayer(); }
     public String haloText;

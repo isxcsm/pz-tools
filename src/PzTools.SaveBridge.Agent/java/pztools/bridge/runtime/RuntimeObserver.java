@@ -16,10 +16,10 @@ public final class RuntimeObserver {
         long sequence, String phase, String pause, String mode, int speed, long activeMillis, String path, String gameVersion, LiveCharacter.Facts character, SaveExecution.Report execution) {
         String wire(long age) {
             String encoded = path == null ? "-" : Base64.getEncoder().encodeToString(path.getBytes(StandardCharsets.UTF_8));
-            return String.join("\t", "STATE3", process, observer, world, Long.toString(clock),
+            return String.join("\t", "STATE4", process, observer, world, Long.toString(clock),
                 Long.toString(eligibility), Long.toString(sequence), phase, pause, mode,
                 Integer.toString(speed), Long.toString(activeMillis), Long.toString(age), encoded,
-                "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1,runtime.version.v1,runtime.character.v1,runtime.save-result.v1", gameVersion == null ? "-" : Base64.getEncoder().encodeToString(gameVersion.getBytes(StandardCharsets.UTF_8)), character.life(), character.character() == null ? "-" : character.character(), character.death() == null ? "-" : character.death(), execution == null ? "-" : execution.wire());
+                "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1,runtime.version.v1,runtime.character.v1,runtime.save-result.v1,runtime.sleep.v1", gameVersion == null ? "-" : Base64.getEncoder().encodeToString(gameVersion.getBytes(StandardCharsets.UTF_8)), character.life(), character.character() == null ? "-" : character.character(), character.death() == null ? "-" : character.death(), execution == null ? "-" : execution.wire(), character.sleep());
         }
     }
     /** A stopped generation is never mutated/reused by the next subscription. */
@@ -53,19 +53,20 @@ public final class RuntimeObserver {
             try {
                 adapter.read();
                 boolean ready = adapter.phase.equals("Ready") && adapter.mode.equals("LocalSinglePlayer");
-                boolean running = ready && adapter.pause.equals("Running");
                 boolean newWorld = ready && adapter.worldCell != lastCell;
+                if (newWorld) world = RuntimeIdentity.worldId(adapter.worldCell);
+                LiveCharacter.Facts nextCharacter = ready ? characterReader.read(world) : LiveCharacter.observe(null, null, "Unknown");
+                boolean running = ready && adapter.pause.equals("Running") && nextCharacter.sleep().equals("Awake");
                 boolean gap = lastTick != 0 && (now - lastTick < 0 || now - lastTick > 2_000_000_000L);
                 boolean changed = !adapter.phase.equals(phase) || !adapter.pause.equals(pause)
                     || !adapter.mode.equals(mode) || newWorld;
                 if (newWorld) {
-                    world = RuntimeIdentity.worldId(adapter.worldCell); clockEpoch++; activeNanos = 0;
+                    clockEpoch++; activeNanos = 0;
                 }
                 else if (gap) { clockEpoch++; activeNanos = 0; }
                 else if (lastTick != 0 && wasRunning && running) activeNanos += now - lastTick;
                 if (gap || newWorld || !running && wasRunning || !adapter.phase.equals(phase)) eligibility++;
                 lastTick = now; lastSample = now;
-                LiveCharacter.Facts nextCharacter = ready ? characterReader.read(world) : LiveCharacter.observe(null, null, "Unknown");
                 changed |= !nextCharacter.equals(character) || snapshot.execution() != SaveExecution.latest(); character = nextCharacter;
                 if (ready) lastCell = adapter.worldCell;
                 else if (adapter.phase.equals("Menu") || adapter.phase.equals("Unloading")) {
@@ -152,6 +153,8 @@ public final class RuntimeObserver {
                 return 0; // Death backups do not depend on the periodic active-time/pause clock.
             }
             if (!s.pause.equals("Running")) throw new Deferred("runtime-game-paused");
+            if (!s.character.sleep().equals("Awake"))
+                throw new Deferred(s.character.sleep().equals("Asleep") ? "runtime-character-asleep" : "runtime-sleep-unavailable");
             long remaining = due - s.activeMillis;
             if (remaining > 60_000) throw new Deferred("runtime-deadline-invalid");
             return Math.max(0, remaining);

@@ -394,8 +394,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Identische, bereits gesicherte Daten werden wiederverwendet</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Ein</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Aus</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Backups während einer Spielpause aussetzen</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Bei einer Spielpause hält der Countdown bis zum nächsten regelmäßigen Backup an und läuft danach weiter. Auch bei unbekanntem Spielstatus wird gewartet.</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Bei Pause oder Schlaf mit Sicherungen warten</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Hält den Countdown für regelmäßige Sicherungen bei Spielpause oder schlafendem Charakter an. Beim Weiterspielen läuft die Restzeit weiter. Bei unbekanntem Spielstatus wird ebenfalls gewartet. Manuelle Sicherungen und Sicherungen beim Tod bleiben unverändert.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Spiel pausiert</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Spielstatus wird geprüft</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Bitte nur ein Spiel starten</value></data>
@@ -443,4 +443,6 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Einen Kaffee spendieren</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>War PZ Tools hilfreich?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Der Unterstützungslink ist noch nicht verfügbar.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>Das Spiel läuft nicht</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Charakter schläft</value></data>
 </root>

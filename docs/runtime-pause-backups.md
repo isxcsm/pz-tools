@@ -119,3 +119,36 @@ observer's lifetime. Extension cards do not create additional game subscriptions
 Protocol 6 combines guarded saves with optional provider selection; overrides of a
 module's declared version range never override pause/epoch/cancellation checks.
 See [Game extensions](game-extensions.md) for version ranges and remaining save work.
+## Sleeping characters and countdown presentation
+
+The existing pause-aware option (enabled by default) now also suspends periodic
+backup time while the single local character is asleep. The game-thread observer
+uses the cached IsoPlayer.isAsleep getter; sleep is an independent Unknown/Awake/Asleep
+fact, not an inferred speed level, DB flag or change to the game's pause state.
+STATE4 adds this fact to the existing stream. Older frames decode sleep as Unknown,
+which holds periodic scheduling until an updated observer provides a known state.
+No second watcher, process, per-frame file read or new bootstrap API is introduced.
+
+Asleep/unknown intervals do not add to the active clock. Waking resumes the remaining
+interval without multiplying it by accelerated game time or resetting it to the full
+configured interval. A guarded periodic save rechecks sleep immediately before capture
+and during preparation. Manual and death-triggered saving retain their separate rules;
+an already executing save is not interrupted. Disabling the pause-aware option still
+selects the explicit wall-clock policy and also disables sleep-aware countdown holds.
+
+The sidebar presents a confirmed absent game process as "Game is not running" with
+no remaining time. This holds even while its scheduler transition is still committing
+and when the pause-aware option is disabled. Unknown/disconnected observation is not
+misreported as offline. A running game at its menu is also distinct from no process.
+Paused, sleeping or unknown-state countdowns retain their actual remaining value and
+use the disabled text brush with a gentle 2.6-second opacity cycle. The animation is
+not recreated on every state sample, respects Windows animation preferences, and is
+stopped on resume, hidden countdown or shell unload. UI presentation cannot reserve
+or execute work.
+
+Validation covers typed frame/JSON round trips, unknown state, scheduler restart during
+sleep, offline presentation before state commit, and a synthetic Java 25 game which
+sleeps at accelerated speed, rejects a pending periodic save, permits a manual save,
+and resumes its clock after waking. Actual WinUI interaction and a real game sleeping
+session are not implied by these automated checks. Existing user settings and saves
+are not reset or modified by the fixtures.
