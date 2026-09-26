@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odpočet uložení ve hře</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zobrazí pětisekundový odpočet nad postavou a výsledek uložení hry. Vypnutím zmizí zprávy i odpočet před ručními zálohami, hra se však stále ukládá. Automatické zálohy dodržují naplánovaný čas. Změny platí od příští zálohy.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Požádá hru o uložení před ručními i automatickými zálohami. Vypněte při používání samostatného ukládacího modu nebo při problémech s kompatibilitou po aktualizaci hry. Při vypnutí se zálohují pouze soubory na disku a nejnovější postup může chybět. Změny platí od příští zálohy.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Před zálohou uloží změny hry na disk. Vypnutí může vynechat data, která jsou pouze v paměti. Detekce pauzy se nastavuje zvlášť.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Příští záloha: čeká na spuštění</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: čeká na aktuální úlohu</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Vyléčit postavu</value></data>
@@ -396,4 +396,10 @@ Upravuje se pouze aktuální uložená hra pro jednoho hráče. Hry právě pou�
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Opětovné použití shodných dat ze zálohy</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Zapnuto</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Vypnuto</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Čekat během pozastavení hry</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Při pozastavení zachová zbývající čas do pravidelné zálohy a po obnovení pokračuje. Čeká také při neznámém stavu hry. Pozorování JVM je nezávislé na uložení před zálohou.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Hra pozastavena · zbývá {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Čekání na stav hry · zbývá {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Spuštěno více her · čeká {0}</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Ověřte výsledek posledního uložení hry a znovu zapněte automatické zálohování.</value></data>
 </root>

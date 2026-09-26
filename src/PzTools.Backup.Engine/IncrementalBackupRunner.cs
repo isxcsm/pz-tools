@@ -383,6 +383,14 @@ public sealed class IncrementalBackupRunner(
 
             throw;
         }
+        catch (BackupPreparationDeferredException) when (failurePhase == "source.prepare")
+        {
+            await repository.CompleteRunAsync(lease, run.RunIndex, RunStatus.Cancelled, "source-deferred", CancellationToken.None);
+            await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Run, "run.cancelled",
+                JsonSerializer.Serialize(new { code = "source-deferred", phase = "source.prepare" })), CancellationToken.None);
+            await telemetry.CompleteAsync(RunStatus.Cancelled, "source-deferred", CancellationToken.None);
+            throw;
+        }
         catch (OperationCanceledException exception)
         {
             packWriter?.Invalidate("backup run was cancelled");

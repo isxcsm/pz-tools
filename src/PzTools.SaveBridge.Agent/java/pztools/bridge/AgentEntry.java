@@ -18,6 +18,10 @@ public final class AgentEntry {
     public static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
     private static Object owner;
     private static volatile Runnable callback;
+    private static volatile Runnable observerCallback;
+    private static final AtomicBoolean watchSession = new AtomicBoolean();
+    private static Method payloadWatch;
+    private static final Object runtimeGate = new Object();
     private static Instrumentation instrumentation;
     private static Class<?> window;
     private static ClassFileTransformer hook;
@@ -48,7 +52,7 @@ public final class AgentEntry {
         try {
             control.start();
             // Published only after the listener is bound. Never print this credential.
-            System.setProperty(CONTROL_PROPERTY, "1:" + ProcessHandle.current().pid() + ":"
+            System.setProperty(CONTROL_PROPERTY, "2:" + ProcessHandle.current().pid() + ":"
                 + server.getLocalPort() + ":" + secret);
         } catch (Throwable failure) {
             server.close();
@@ -64,7 +68,7 @@ public final class AgentEntry {
                 var output = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 String line = readLimited(input);
                 String[] parts = line == null ? new String[0] : line.split("\\t", -1);
-                if (parts.length != 4 || !MessageDigest.isEqual(secret.getBytes(StandardCharsets.US_ASCII),
+                if ((parts.length != 4 && !(parts.length == 5 && parts[4].equals("WATCH"))) || !MessageDigest.isEqual(secret.getBytes(StandardCharsets.US_ASCII),
                         parts[0].getBytes(StandardCharsets.US_ASCII))) {
                     output.println("REJECTED");
                     continue;
@@ -76,14 +80,16 @@ public final class AgentEntry {
                     output.println("RESTART_REQUIRED");
                     continue;
                 }
-                if (!session.compareAndSet(false, true)) { output.println("BUSY"); continue; }
+                boolean watch = parts.length == 5;
+                AtomicBoolean slot = watch ? watchSession : session;
+                if (!slot.compareAndSet(false, true)) { output.println("BUSY"); continue; }
                 try {
-                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2]), "PzTools-save-bridge");
+                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2], watch), watch ? "PzTools-runtime-watch" : "PzTools-save-bridge");
                     worker.setDaemon(true);
                     worker.start();
                     output.println("ACCEPTED");
                 } catch (Throwable failure) {
-                    session.set(false);
+                    slot.set(false);
                     throw failure;
                 }
             } catch (Exception failure) {
@@ -93,10 +99,12 @@ public final class AgentEntry {
         }
     }
 
-    private static void runSession(String options) {
+    private static void runSession(String options, boolean watch) {
         try {
             // Read a closed snapshot, never JarFile/URL caches. One current payload loader is retained.
             // A changed payload replaces it only between sessions; old request state cannot overlap.
+            Method invokeEntry;
+            synchronized (runtimeGate) {
             byte[] archive;
             try (var stream = Files.newInputStream(payload)) {
                 archive = stream.readNBytes(16 * 1024 * 1024 + 1);
@@ -104,6 +112,8 @@ public final class AgentEntry {
             if (archive.length > 16 * 1024 * 1024) throw new IOException("Oversized bridge payload");
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(archive);
             if (payloadRun == null || !MessageDigest.isEqual(digest, payloadDigest)) {
+                if (payloadRun != null && (observerCallback != null || callback != null || (watch ? session.get() : watchSession.get())))
+                    throw new IOException("Runtime changed while observing; restart the game to replace it safely");
                 var classes = new HashMap<String, byte[]>();
                 int total = 0;
                 try (var zip = new ZipInputStream(new ByteArrayInputStream(archive))) {
@@ -135,15 +145,19 @@ public final class AgentEntry {
                 };
                 Method next = loader.loadClass("pztools.bridge.runtime.SaveBridge")
                     .getMethod("run", String.class, Instrumentation.class);
+                payloadWatch = loader.loadClass("pztools.bridge.runtime.RuntimeWatch")
+                    .getMethod("run", String.class, Instrumentation.class);
                 payloadRun = next;
                 payloadDigest = digest;
                 payloadLoads++;
             }
-            sessions++;
-            payloadRun.invoke(null, options, instrumentation);
+            invokeEntry = watch ? payloadWatch : payloadRun;
+            }
+            if (!watch) sessions++;
+            invokeEntry.invoke(null, options, instrumentation);
         } catch (Throwable failure) {
             System.err.println("[PzTools bridge session] " + failure);
-        } finally { session.set(false); }
+        } finally { (watch ? watchSession : session).set(false); }
     }
 
     /** Installs only the stable dispatch call, never a callback owned by a payload loader. */
@@ -216,14 +230,19 @@ public final class AgentEntry {
         callback = null;
         owner = null;
     }
+    public static void observe(Runnable observer) { observerCallback = observer; }
     public static void poll() {
+        Runnable observer = observerCallback;
+        if (observer != null) {
+            try { observer.run(); } catch (Throwable failure) { observerCallback = null; }
+        }
         Runnable current = callback;
         if (current != null) current.run();
     }
     // Test/diagnostic counters: never include credentials or payload paths.
     public static synchronized String diagnostics() {
         return "hookInstalls=" + hookInstalls + ";payloadLoads=" + payloadLoads + ";sessions=" + sessions
-            + ";callbackActive=" + (callback != null);
+            + ";callbackActive=" + (callback != null) + ";observerActive=" + (observerCallback != null);
     }
     private static String readLimited(Reader input) throws IOException {
         var line = new StringBuilder();

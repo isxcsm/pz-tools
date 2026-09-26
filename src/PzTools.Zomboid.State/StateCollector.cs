@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Data.Sqlite;
+using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.Zomboid.State;
 
@@ -95,10 +96,23 @@ public sealed class SaveDiscoveryLane
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)).ToUpperInvariant();
 }
 
-public sealed class GameActivityLane
+public sealed class GameActivityLane(Func<RuntimeObservation?>? runtime = null)
 {
     public (ActivityState State, LaneStatus Status, string? ErrorCode) Probe(string playersDatabasePath)
     {
+        var observation = runtime?.Invoke();
+        if (observation is not null)
+        {
+            if (observation.Quality == RuntimeQuality.Offline) return (ActivityState.Inactive, LaneStatus.Succeeded, null);
+            if (!observation.IsFresh || observation.Snapshot is not { } sample)
+                return (ActivityState.Unknown, LaneStatus.Unavailable, "runtime-unavailable");
+            if (sample.Phase is WorldPhase.Menu or WorldPhase.Unloading)
+                return (ActivityState.Inactive, LaneStatus.Succeeded, null);
+            if (!sample.IsWorldReady) return (ActivityState.Unknown, LaneStatus.Unsupported, "runtime-world-unavailable");
+            bool selected = StringComparer.OrdinalIgnoreCase.Equals(Path.TrimEndingDirectorySeparator(sample.SavePath!),
+                Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(Path.GetFullPath(playersDatabasePath))!));
+            return (selected ? ActivityState.Active : ActivityState.Inactive, LaneStatus.Succeeded, null);
+        }
         if (!File.Exists(playersDatabasePath))
         {
             return (ActivityState.Unknown, LaneStatus.Unavailable, "players-db-missing");

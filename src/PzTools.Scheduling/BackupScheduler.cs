@@ -1,5 +1,6 @@
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts;
+using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 
@@ -12,7 +13,9 @@ public sealed class BackupScheduler(
     Func<string, BackupTarget, long, long, CancellationToken, Task<WorkerInvocation>> maintenanceRunner,
     string? telemetryConfigurationPath = null,
     TimeSpan? preparationLead = null,
-    Func<BackupTarget, bool>? isTargetActive = null)
+    Func<BackupTarget, bool>? isTargetActive = null,
+    RuntimeScheduleController? runtimeSchedule = null,
+    Func<BackupTickAdmission, long, CancellationToken, Task<WorkerInvocation>>? guardedBackupRunner = null)
 {
     private readonly HashSet<string> recoveredRepositories = (
         new HashSet<string>(StringComparer.OrdinalIgnoreCase));
@@ -21,9 +24,11 @@ public sealed class BackupScheduler(
         DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
-        var admission = await schedulerDatabase.PrepareBackupTickAsync(
+        var selection = runtimeSchedule is null ? new RuntimeAdmissionSelection(false, null)
+            : await runtimeSchedule.PrepareAsync(now, preparationLead ?? TimeSpan.Zero, cancellationToken);
+        var admission = selection.Enabled ? selection.Admission : await schedulerDatabase.PrepareBackupTickAsync(
             now, cancellationToken, preparationLead);
-        if (admission is null || isTargetActive is not null && !isTargetActive(admission.Target))
+        if (admission is null || !selection.Enabled && isTargetActive is not null && !isTargetActive(admission.Target))
         {
             return new BackupTickResult(
                 false, null, null, null, null, ProcessOutcome.Skipped);
@@ -51,6 +56,11 @@ public sealed class BackupScheduler(
                 workflow.RunIndex, cancellationToken);
             var workerStarted = stages.Any(stage => stage.Producer == "backup-worker");
             var recoveredOutcome = ToOutcome(workflow.Status);
+            if (runtimeSchedule is not null && admission.RuntimeTicket is not null)
+                await runtimeSchedule.FinishAsync(admission, null,
+                    recoveredOutcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange ? ScheduleDisposition.Consume
+                    : recoveredOutcome is ProcessOutcome.Skipped or ProcessOutcome.Busy ? ScheduleDisposition.Preserve
+                    : ScheduleDisposition.CompletionUnknown, cancellationToken);
             await schedulerDatabase.FinishBackupTickAsync(
                 admission,
                 workerStarted,
@@ -83,15 +93,19 @@ public sealed class BackupScheduler(
                 // 신호 전달 실패만으로 예정된 백업 자체를 중단하지 않습니다.
             }
             // A stop/interval change can arrive while repository admission or yield is awaited.
-            var currentAdmission = await schedulerDatabase.PrepareBackupTickAsync(
-                now, cancellationToken, preparationLead);
-            backup = currentAdmission?.AdmissionId == admission.AdmissionId
-                && (isTargetActive is null || isTargetActive(admission.Target))
-                ? await backupRunner(
-                    admission.RepositoryPath, admission.Target, workflow.RunIndex,
-                    admission.Kind == BackupAdmissionKind.Periodic ? admission.ScheduledUtc : null,
-                    cancellationToken)
-                : new WorkerInvocation(false, ProcessOutcome.Skipped, "automatic-reservation-obsolete");
+            var currentSelection = runtimeSchedule is null ? new RuntimeAdmissionSelection(false, null)
+                : await runtimeSchedule.PrepareAsync(DateTimeOffset.UtcNow, preparationLead ?? TimeSpan.Zero, cancellationToken);
+            var currentAdmission = currentSelection.Enabled ? currentSelection.Admission
+                : await schedulerDatabase.PrepareBackupTickAsync(now, cancellationToken, preparationLead);
+            bool valid = currentAdmission?.AdmissionId == admission.AdmissionId
+                && (currentSelection.Enabled || isTargetActive is null || isTargetActive(admission.Target));
+            if (!valid) backup = new WorkerInvocation(false, ProcessOutcome.Skipped,
+                "automatic-reservation-obsolete", ScheduleDisposition.Preserve);
+            else if (admission.RuntimeTicket is not null)
+                backup = await (guardedBackupRunner ?? throw new InvalidOperationException("Guarded worker dispatch is unavailable."))(
+                    currentAdmission!, workflow.RunIndex, cancellationToken);
+            else backup = await backupRunner(admission.RepositoryPath, admission.Target, workflow.RunIndex,
+                admission.Kind == BackupAdmissionKind.Periodic ? admission.ScheduledUtc : null, cancellationToken);
             if (backup.Outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange)
             {
                 var bound = await repository.ReadWorkflowAsync(
@@ -193,6 +207,9 @@ public sealed class BackupScheduler(
         }
         finally
         {
+            if (runtimeSchedule is not null && admission.RuntimeTicket is not null)
+                await runtimeSchedule.FinishAsync(admission, backup,
+                    ScheduleDisposition.CompletionUnknown, CancellationToken.None);
             await schedulerDatabase.FinishBackupTickAsync(
                 admission,
                 backup?.Started == true,

@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odliczanie zapisu w grze</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Pokazuje pięciosekundowe odliczanie nad postacią i wynik zapisu gry. Wyłączenie usuwa komunikaty i odliczanie przed ręcznymi kopiami, ale gra nadal jest zapisywana. Automatyczne kopie zachowują zaplanowany czas. Zmiany obowiązują od następnej kopii.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Żąda zapisu gry przed kopiami ręcznymi i automatycznymi. Wyłącz, jeśli używasz osobnego moda do zapisu lub aktualizacja gry powoduje problemy ze zgodnością. Po wyłączeniu kopiowane są tylko pliki z dysku; może brakować najnowszych postępów. Zmiany obowiązują od następnej kopii.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje zmiany gry na dysku przed kopią. Wyłączenie może pominąć dane obecne tylko w pamięci. Wykrywanie pauzy ma osobne ustawienie.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Następna kopia: oczekiwanie na start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Następna kopia: oczekiwanie na bieżące zadanie</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Ulecz postać</value></data>
@@ -396,4 +396,10 @@ Zmieniany jest tylko bieżący zapis gry jednoosobowej. Zapisy używane w grze, 
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Ponowne użycie identycznych danych z kopii zapasowej</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Włączone</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Wyłączone</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Czekaj podczas pauzy gry</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Zachowuje pozostały czas do okresowej kopii podczas pauzy i kontynuuje po wznowieniu gry. Czeka też przy nieznanym stanie gry. Obserwacja JVM jest niezależna od zapisu przed kopią.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gra wstrzymana · pozostało {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Oczekiwanie na stan gry · pozostało {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Uruchomiono wiele gier · wstrzymano {0}</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Sprawdź wynik ostatniego zapisu gry, a następnie ponownie włącz automatyczne kopie.</value></data>
 </root>

@@ -45,7 +45,7 @@ public sealed partial class SettingsPage : UserControl
     internal void ApplyLocalizedText()
     {
         Language = Localizer.Culture.Name;
-        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, AutomaticBackupToggle, DeathBackupToggle })
+        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, AutomaticBackupToggle, DeathBackupToggle, PausePeriodicToggle })
         {
             toggle.OnContent = Localizer.Get("SettingEnabled");
             toggle.OffContent = Localizer.Get("SettingDisabled");
@@ -73,6 +73,9 @@ public sealed partial class SettingsPage : UserControl
         BackupSection.Description = Localizer.Get("AutomaticBackupSection.Description");
         AutomaticBackupSettingCard.Header = Localizer.Get("AutomaticBackupSetting.Header");
         AutomaticBackupSettingCard.Description = Localizer.Get("AutomaticBackupSetting.Description");
+        PausePeriodicSettingCard.Header = Localizer.Get("PausePeriodicSetting.Header");
+        PausePeriodicSettingCard.Description = Localizer.Get("PausePeriodicSetting.Description");
+        SetInputName(PausePeriodicToggle, PausePeriodicSettingCard.Header);
         IntervalSettingCard.Header = Localizer.Get("IntervalSetting.Header");
         IntervalSettingCard.Description =
             Localizer.Get("IntervalSetting.Description");
@@ -133,6 +136,7 @@ public sealed partial class SettingsPage : UserControl
             SavesPath.Text = value.SavesRoot;
             BackupPath.Text = value.BackupRoot;
             AutomaticBackupToggle.IsOn = value.AutomaticBackupEnabled;
+            PausePeriodicToggle.IsOn = value.PausePeriodicDuringGame;
             IntervalSlider.Value = IntervalNumber.Value = value.BackupIntervalMinutes;
             RetentionSlider.Value = RetentionNumber.Value = value.RetainedRevisions;
             DeathBackupToggle.IsOn = value.BackupOnDeath;
@@ -238,7 +242,8 @@ public sealed partial class SettingsPage : UserControl
         current.LogMaxEntries,
         GameSaveToggle.IsOn,
         GameSaveCountdownToggle.IsOn,
-        AutomaticBackupToggle.IsOn);
+        AutomaticBackupToggle.IsOn,
+        PausePeriodicToggle.IsOn);
     }
 
     private void IntervalSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)

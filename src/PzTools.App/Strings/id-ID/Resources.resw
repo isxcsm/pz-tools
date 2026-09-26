@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Simpan gim sebelum pencadangan</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Hitung mundur penyimpanan di dalam gim</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Menampilkan hitung mundur lima detik di atas karakter dan hasil penyimpanan gim. Menonaktifkannya menghilangkan pesan dan hitung mundur sebelum pencadangan manual, tetapi gim tetap disimpan. Pencadangan otomatis tetap mengikuti jadwalnya. Perubahan berlaku mulai pencadangan berikutnya.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Meminta gim menyimpan sebelum pencadangan manual dan otomatis. Nonaktifkan jika memakai mod penyimpanan lain atau jika pembaruan gim menyebabkan masalah kompatibilitas. Saat nonaktif, hanya berkas di disk yang dicadangkan; progres terbaru mungkin tidak tercakup. Perubahan berlaku mulai pencadangan berikutnya.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Simpan perubahan permainan ke disk sebelum pencadangan. Menonaktifkannya dapat menghilangkan data yang hanya ada di memori. Deteksi jeda dikonfigurasi terpisah.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Pencadangan berikutnya: menunggu dimulai</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Pencadangan berikutnya: menunggu tugas saat ini</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Pulihkan karakter</value></data>
@@ -396,4 +396,10 @@ Hanya simpanan pemain tunggal saat ini yang diubah. Simpanan yang sedang dimaink
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Menggunakan kembali data identik yang sudah dicadangkan</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Aktif</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Nonaktif</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Tunggu saat permainan dijeda</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Simpan waktu tersisa untuk pencadangan berkala saat dijeda dan lanjutkan setelah bermain kembali. Juga menunggu jika status permainan tidak diketahui. Pengamatan JVM terpisah dari penyimpanan sebelum pencadangan.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Permainan dijeda · tersisa {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Menunggu status permainan · tersisa {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Beberapa permainan berjalan · menahan {0}</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Periksa hasil penyimpanan permainan sebelumnya, lalu aktifkan kembali pencadangan otomatis.</value></data>
 </root>

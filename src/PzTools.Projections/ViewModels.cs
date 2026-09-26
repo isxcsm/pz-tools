@@ -1,5 +1,6 @@
 using PzTools.Backup.Core;
 using PzTools.Process.Contracts;
+using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 
@@ -68,7 +69,11 @@ public sealed record ScheduleStatusView(
     ProcessOutcome? LastOutcome,
     bool AutomaticEnabled,
     int PendingRuns,
-    bool PeriodicBackupInProgress = false);
+    bool PeriodicBackupInProgress = false,
+    bool PauseAware = false,
+    long? RemainingMilliseconds = null,
+    ScheduleHold Hold = ScheduleHold.None,
+    bool CompletionUncertain = false);
 
 public sealed record SettingsView(
     string Language,
@@ -86,7 +91,8 @@ public sealed record SettingsView(
     int LogMaxEntries = 100000,
     bool SaveGameBeforeBackup = true,
     bool GameSaveCountdown = true,
-    bool AutomaticBackupEnabled = true);
+    bool AutomaticBackupEnabled = true,
+    bool PausePeriodicDuringGame = true);
 
 public sealed record ProjectorHealthView(IReadOnlyList<ProjectorStatus> Projectors)
 {

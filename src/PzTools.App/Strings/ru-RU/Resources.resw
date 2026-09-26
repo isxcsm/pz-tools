@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Сохранять игру перед копированием</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Обратный отсчёт в игре</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Показывает пятисекундный отсчёт над персонажем и результат сохранения игры. При выключении исчезают сообщения и отсчёт перед ручными копиями, но игра по-прежнему сохраняется. Автоматические копии создаются в назначенное время. Изменения действуют со следующего копирования.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Запрашивает сохранение игры перед ручным и автоматическим копированием. Выключите при использовании отдельного мода сохранения или при проблемах совместимости после обновления игры. При выключении копируются только файлы на диске; последний прогресс может отсутствовать. Изменения действуют со следующего копирования.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Записывает изменения игры на диск перед копированием. При отключении данные, существующие только в памяти, могут не попасть в копию. Обнаружение паузы настраивается отдельно.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Следующая копия: ожидание запуска</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Следующая копия: ожидание текущей задачи</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Исцелить персонажа</value></data>
@@ -396,4 +396,10 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Повторное использование совпадающих данных резервной копии</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Включено</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Выключено</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Ожидать во время паузы игры</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Сохраняет оставшееся время до периодической копии на паузе и продолжает отсчёт после неё. Также ожидает при неизвестном состоянии игры. Наблюдение JVM не зависит от сохранения перед копией.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Игра на паузе · осталось {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Ожидание состояния игры · осталось {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запущено несколько игр · ожидание {0}</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Проверьте результат последнего сохранения игры, затем снова включите автоматические копии.</value></data>
 </root>

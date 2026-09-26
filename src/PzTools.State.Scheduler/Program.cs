@@ -3,6 +3,7 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
+using PzTools.State.Scheduler;
 
 if (args.FirstOrDefault() is "help" or "--help" or "-h")
 {
@@ -30,7 +31,9 @@ try
         options.GetValueOrDefault("--interval-seconds")
         ?? settings.IntervalSeconds.ToString(
             System.Globalization.CultureInfo.InvariantCulture)));
-    var stateChecks = new StateCheckPipeline();
+    var runtime = new RuntimeSnapshotStore();
+    bool useRuntime = false;
+    var stateChecks = new StateCheckPipeline(() => useRuntime ? runtime.Read() : null);
     var allocator = new RunIndexAllocator(options.GetValueOrDefault("--control-db"));
     var scheduler = new StateScheduler(
         schedulerDb, interval,
@@ -47,9 +50,17 @@ try
     var mutex = NamedMutexRunner.CreateName("StateScheduler", schedulerDb.DatabasePath + "|" + stateDb.DatabasePath);
     var result = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {
+        using var runtimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var runtimeFeed = RuntimeStateFeed.ServeAsync(schedulerPath, runtime, runtimeCancellation.Token);
+        var observation = new RuntimeObservationCoordinator(stateDb, schedulerDb, savesRoot,
+            Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "save-bridge"), runtime);
+        var runtimeObservation = observation.RunAsync(runtimeCancellation.Token);
+        try
+        {
         using var gameExitWatcher = new GameProcessExitWatcher();
         async Task RunAndRelayAsync(bool force)
         {
+            useRuntime = (await schedulerDb.ReadRuntimeScheduleAsync(token)).Enabled;
             var tick = await scheduler.TickAsync(DateTimeOffset.UtcNow, token, force);
             if (!tick.Due) return;
             await relay.RelayAsync(stateDb, schedulerDb, token);
@@ -81,6 +92,12 @@ try
             }
         } while (!token.IsCancellationRequested);
         return 0;
+        }
+        finally
+        {
+            await runtimeCancellation.CancelAsync();
+            try { await Task.WhenAll(runtimeFeed, runtimeObservation); } catch (OperationCanceledException) { }
+        }
     }, cancellation.Token);
     return result.Acquired ? 0 : 75;
 }

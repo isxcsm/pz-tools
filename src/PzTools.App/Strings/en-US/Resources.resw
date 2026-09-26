@@ -367,7 +367,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Save game before backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>In-game save countdown</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Show a five-second overhead countdown and the game-save result. Turning this off removes the messages and the manual-backup countdown, but still saves the game. Automatic backups keep their scheduled time. Changes apply to the next backup.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Ask the game to save before manual and automatic backups. Turn off when using a separate save mod or if a game update causes compatibility issues. When off, only on-disk files are backed up; recent progress may be missing. Changes apply to the next backup.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Flush game changes to disk before backup. Turning this off may omit memory-only data. Runtime pause detection is configured separately.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Next backup: waiting to start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Next backup: waiting for the current job</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Heal character</value></data>
@@ -403,4 +403,10 @@ Only the current single-player save is edited. Playing, unsupported or ambiguous
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reusing matching backup data</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>On</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Off</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Wait while the game is paused</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Keep the remaining periodic-backup time while paused and continue after resume. Wait when runtime state is unavailable too. Uses JVM observation independently of pre-backup saving.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Game paused · {0} remaining</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Waiting for game state · {0} remaining</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Multiple games running · holding {0}</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verify the previous game-save outcome, then re-enable automatic backups.</value></data>
 </root>

@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>นับถอยหลังการบันทึกในเกม</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังห้าวินาทีเหนือตัวละครและผลการบันทึกเกม เมื่อปิด จะไม่แสดงข้อความและไม่นับถอยหลังก่อนสำรองด้วยตนเอง แต่ยังคงบันทึกเกม การสำรองอัตโนมัติยังเริ่มตามเวลาที่กำหนด การเปลี่ยนแปลงมีผลตั้งแต่การสำรองครั้งถัดไป</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>ขอให้เกมบันทึกก่อนสำรองด้วยตนเองและอัตโนมัติ ปิดหากใช้ม็อดบันทึกเกมอื่น หรือหากการอัปเดตเกมทำให้เกิดปัญหาความเข้ากันได้ เมื่อปิด จะสำรองเฉพาะไฟล์บนดิสก์และอาจไม่มีความคืบหน้าล่าสุด การเปลี่ยนแปลงมีผลตั้งแต่การสำรองครั้งถัดไป</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกการเปลี่ยนแปลงในเกมลงดิสก์ก่อนสำรอง หากปิดอาจขาดข้อมูลที่อยู่ในหน่วยความจำเท่านั้น การตรวจการหยุดชั่วคราวตั้งค่าแยกกัน</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอเริ่ม</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: รองานปัจจุบัน</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>รักษาตัวละคร</value></data>
@@ -396,4 +396,10 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>เปิด</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>ปิด</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>รอเมื่อเกมหยุดชั่วคราว</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>เก็บเวลาที่เหลือของการสำรองตามช่วงเวลาไว้ระหว่างหยุดชั่วคราว แล้วนับต่อเมื่อเล่นต่อ หากไม่ทราบสถานะเกมก็จะรอเช่นกัน การตรวจสถานะ JVM แยกจากการบันทึกก่อนสำรอง</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>เกมหยุดชั่วคราว · เหลือ {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>รอสถานะเกม · เหลือ {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>มีหลายเกมทำงานอยู่ · พักเวลา {0}</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>ตรวจสอบผลการบันทึกเกมครั้งก่อน แล้วเปิดการสำรองอัตโนมัติอีกครั้ง</value></data>
 </root>

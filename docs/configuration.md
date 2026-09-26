@@ -174,3 +174,7 @@ Archive worker는 검사·가져오기 때 `[archive]`의 `maximum_entries`,
 `maximum_single_file_bytes`, `minimum_free_space_reserve_bytes`,
 `minimum_free_space_reserve_percent`를 읽습니다. 기본값과 의미는
 `deployment-layout.md`에 기록합니다.
+
+## 게임 일시정지와 정기백업
+
+`[backup].pause_periodic_during_game`의 기본값은 `true`입니다. 일시정지 동안 남은 시간을 보존하고 재개 후 이어서 셉니다. 상태를 확인하지 못해도 보수적으로 대기합니다. 자동 백업·백업 전 게임 저장·알림 설정과 별개이며, 끄면 기존 파일 잠김 기반 판정과 현실 시각 스케줄로 돌아갑니다. 자세한 책임과 복구 경계는 [런타임 관측 설계](runtime-pause-backups.md)를 참고하세요.

@@ -1,4 +1,5 @@
 using PzTools.Backup.Core.Configuration;
+using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.Backup.Cli;
 
@@ -10,7 +11,8 @@ internal sealed record OnceBackupArguments(
     bool SaveGame,
     ConfigurationArguments Configuration,
     DateTimeOffset? ScheduledUtc = null,
-    bool RequireActiveGame = false)
+    bool RequireActiveGame = false,
+    RuntimeSaveTicket? RuntimeTicket = null, string? RuntimeAuthority = null, long? RuntimeGeneration = null)
 {
     // Recover only an unambiguous caller identity for errors raised while
     // parsing other options. Full argument validation still happens in Parse.
@@ -32,9 +34,34 @@ internal sealed record OnceBackupArguments(
         var saveGame = false;
         var requireActiveGame = false;
         DateTimeOffset? scheduledUtc = null;
+        RuntimeSaveTicket? runtimeTicket = null;
+        string? runtimeAuthority = null;
+        long? runtimeGeneration = null;
         var configurationArguments = new List<string>();
         for (var index = 0; index < arguments.Length; index++)
         {
+            if (arguments[index] == "--runtime-authority")
+            {
+                if (runtimeAuthority is not null || ++index >= arguments.Length || !Path.IsPathFullyQualified(arguments[index]))
+                    throw new BackupConfigurationException("--runtime-authority requires one absolute scheduler path.");
+                runtimeAuthority = arguments[index]; continue;
+            }
+            if (arguments[index] == "--runtime-generation")
+            {
+                if (runtimeGeneration is not null || ++index >= arguments.Length || !long.TryParse(arguments[index],
+                    System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var value))
+                    throw new BackupConfigurationException("--runtime-generation requires one nonnegative generation.");
+                runtimeGeneration = value; continue;
+            }
+            if (arguments[index] == "--runtime-ticket")
+            {
+                if (runtimeTicket is not null || ++index >= arguments.Length)
+                    throw new BackupConfigurationException("--runtime-ticket requires one typed execution ticket.");
+                try { runtimeTicket = RuntimeSaveTicket.Parse(arguments[index]); }
+                catch (Exception error) when (error is InvalidDataException or FormatException or OverflowException)
+                { throw new BackupConfigurationException("Invalid runtime execution ticket."); }
+                continue;
+            }
             if (arguments[index] == "--require-active-game")
             {
                 if (requireActiveGame) throw new BackupConfigurationException("--require-active-game may be specified only once.");
@@ -122,12 +149,15 @@ internal sealed record OnceBackupArguments(
             throw new BackupConfigurationException("backup requires --source-id <id>.");
         }
 
+        if ((runtimeTicket is null) != (runtimeAuthority is null) || (runtimeTicket is null) != (runtimeGeneration is null)
+            || runtimeTicket is not null && (!saveGame || !requireActiveGame || scheduledUtc is not null))
+            throw new BackupConfigurationException("Guarded runtime backups require --save-game and --require-active-game, without a UTC deadline.");
         return new OnceBackupArguments(
             sourceId,
             runIndex,
             revision,
             controlDatabasePath,
             saveGame,
-            ConfigurationArguments.Parse(configurationArguments.ToArray()), scheduledUtc, requireActiveGame);
+            ConfigurationArguments.Parse(configurationArguments.ToArray()), scheduledUtc, requireActiveGame, runtimeTicket, runtimeAuthority, runtimeGeneration);
     }
 }

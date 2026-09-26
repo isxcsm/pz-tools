@@ -43,11 +43,15 @@ public final class SaveBridge {
             socket.setSoTimeout(5000);
             var input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
             var output = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
-            output.println("HELLO\t4\t" + ProcessHandle.current().pid() + "\t" + token);
+            output.println("HELLO\t5\t" + ProcessHandle.current().pid() + "\t" + token);
             try {
                 String line = readLimited(input);
                 if (line == null) return;
                 String[] command = line.split("\t", -1);
+                boolean active = (command[0].equals("SAVE_ACTIVE") || command[0].equals("PROBE_ACTIVE")) && command.length == 6;
+                RuntimeObserver.Ticket ticket = active ? RuntimeObserver.Ticket.parse(command[5]) : null;
+                if (active && !command[4].equals("off") && !NoticeLanguages.supports(command[4]))
+                    throw new BridgeFailure("protocol", "Invalid notice language");
                 boolean notice = command[0].equals("SAVE_COUNTDOWN");
                 boolean validPlain = (command.length == 2 || command.length == 4)
                     && (command[0].equals("SAVE") || command[0].equals("PROBE"));
@@ -55,7 +59,7 @@ public final class SaveBridge {
                     && NoticeLanguages.supports(command[4]);
                 boolean timed = command[0].equals("SAVE_AT") && command.length == 6
                     && (NoticeLanguages.supports(command[4]) || command[4].equals("off"));
-                if (!validPlain && !validNotice && !timed)
+                if (!validPlain && !validNotice && !timed && !active)
                     throw new BridgeFailure("protocol", "Invalid save/probe request");
                 long scheduledMillis = timed ? Long.parseLong(command[5]) : 0;
                 if (timed && (scheduledMillis <= 0 || scheduledMillis - System.currentTimeMillis() > 60000))
@@ -76,19 +80,20 @@ public final class SaveBridge {
                     legacyRetired = true;
                 }
                 install(instrumentation);
-                request = new Request(!command[0].equals("PROBE"), expected, queueSeconds,
-                    notice || timed && !command[4].equals("off") ? command[4] : null, scheduledMillis);
+                if (ticket != null) RuntimeObserver.reserve(ticket);
+                request = new Request(!command[0].startsWith("PROBE"), expected, queueSeconds,
+                    notice || (timed || active) && !command[4].equals("off") ? command[4] : null, scheduledMillis, ticket);
                 if (!pending.compareAndSet(null, request))
                     throw new BridgeFailure("busy", "Another bridge request is still pending or running");
                 awaitStarted(request, input, socket);
                 output.println("RUNNING");
                 // Reserve transport time before the client's overall response deadline.
                 int scheduledWait = (int)Math.max(0, Math.ceil((request.notBefore - System.nanoTime()) / 1_000_000_000.0));
-                String result = awaitResult(request, input, socket, completionSeconds - queueSeconds - 15 + scheduledWait);
+                String result = awaitResult(request, input, socket, completionSeconds - queueSeconds - 15 + scheduledWait, output);
                 if (request.result.isDone() || request.state.get() == 3) cleanup(instrumentation);
                 output.println(result);
             } catch (Throwable exception) {
-                output.println(error(exception instanceof BridgeFailure failure ? failure.code : "bridge-failed",
+                output.println(error(exception instanceof RuntimeObserver.Deferred ? "runtime-deferred" : exception instanceof BridgeFailure failure ? failure.code : "bridge-failed",
                     describe(exception)));
             }
         } catch (Throwable exception) {
@@ -104,6 +109,15 @@ public final class SaveBridge {
         }
     }
 
+    static void cancelObserver(String epoch) {
+        Request request = pending.get();
+        if (request != null && request.guard != null && request.guard.observer().equals(epoch) && request.cancelBeforeSave()) {
+            request.started.complete(null);
+            request.result.complete(error("runtime-deferred", "Runtime observer ended before saving"));
+            pending.compareAndSet(request, null);
+        }
+    }
+
     private static synchronized void cleanup(Instrumentation instrumentation) throws Exception {
         if (!acquired) return;
         // The game-thread monitor is held through save(true). A disconnected client
@@ -113,18 +127,19 @@ public final class SaveBridge {
         acquired = false;
     }
 
-    private static String awaitResult(Request request, Reader input, Socket socket, int seconds) throws Exception {
+    private static String awaitResult(Request request, Reader input, Socket socket, int seconds, PrintWriter output) throws Exception {
+        boolean saveStartedSent = false;
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
         socket.setSoTimeout(100);
         while (!request.result.isDone()) {
+            if (!saveStartedSent && request.state.get() == 2) { output.println("SAVING"); saveStartedSent = true; }
             if (System.nanoTime() >= deadline) {
                 if (request.cancelBeforeSave())
                     return error("queue-timeout", "Countdown expired; cancelled without saving");
                 return error("completion-unknown", "The game call is still running. Do not retry until it finishes");
             }
             try {
-                if (input.read() == -1) throw new EOFException("Client disconnected");
-                throw new BridgeFailure("protocol", "Unexpected data after request");
+                readControl(request, input);
             } catch (SocketTimeoutException ignored) { }
         }
         return request.result.get();
@@ -139,10 +154,24 @@ public final class SaveBridge {
                 return; // The game won the race and has begun processing.
             }
             try {
-                if (input.read() == -1) throw new EOFException("Client disconnected");
-                throw new BridgeFailure("protocol", "Unexpected data after request");
+                readControl(request, input);
             } catch (SocketTimeoutException ignored) { }
         }
+    }
+
+    private static void readControl(Request request, Reader input) throws Exception {
+        int ch = input.read();
+        if (ch == -1) throw new EOFException("Client disconnected");
+        if (ch != 10) {
+            if (ch != 13) request.control.append((char)ch);
+            if (request.control.length() > 256) throw new BridgeFailure("protocol", "Oversized request control");
+            return;
+        }
+        String line = request.control.toString(); request.control.setLength(0);
+        if (request.guard == null || !line.equals("CANCEL\t" + request.guard.request()))
+            throw new BridgeFailure("protocol", "Unexpected request control");
+        // This CAS is the linearization point: once state==saving, a late cancel loses.
+        if (request.cancelBeforeSave()) throw new RuntimeObserver.Deferred("runtime-reservation-cancelled");
     }
 
     private static synchronized void install(Instrumentation instrumentation) throws Exception {
@@ -175,6 +204,7 @@ public final class SaveBridge {
             if (Thread.currentThread() != gameThread.get(null))
                 throw new BridgeFailure("wrong-thread", "Refusing to save outside the game thread");
             long now = System.nanoTime();
+            if (request.guard != null) request.notBefore = now + TimeUnit.MILLISECONDS.toNanos(request.guard.check());
             if (starting || now >= request.nextValidation) {
                 validateWorld(request.expectedPath);
                 request.nextValidation = now + TimeUnit.SECONDS.toNanos(1);
@@ -190,6 +220,7 @@ public final class SaveBridge {
             if (System.nanoTime() < request.notBefore) return;
             // The player can leave or switch worlds during the countdown.
             String actual = validateWorld(request.expectedPath);
+            if (request.guard != null && request.guard.check() > 0) return;
             if (!request.state.compareAndSet(1, 2)) return;
             long start = System.nanoTime();
             String recoveryError = null;
@@ -210,7 +241,7 @@ public final class SaveBridge {
             Throwable cause = exception instanceof InvocationTargetException invocation ? invocation.getCause() : exception;
             // Do not touch the old player's UI after leaving or switching worlds.
             if (request.state.get() == 2) completeNotice(request, false);
-            request.result.complete(error(cause instanceof BridgeFailure failure ? failure.code : "save-failed", describe(cause)));
+            request.result.complete(error(cause instanceof RuntimeObserver.Deferred ? "runtime-deferred" : cause instanceof BridgeFailure failure ? failure.code : "save-failed", describe(cause)));
         } finally {
             if (request.result.isDone()) {
                 request.state.set(3);
@@ -273,14 +304,17 @@ public final class SaveBridge {
         final String expectedPath;
         final long expiresAt;
         final String language;
-        final long notBefore;
+        long notBefore;
+        final RuntimeObserver.Ticket guard;
         SaveNotice notice;
         String noticeError;
         long nextValidation;
+        final StringBuilder control = new StringBuilder();
         final AtomicInteger state = new AtomicInteger(); // queued, countdown, saving, finished/cancelled
         final CompletableFuture<Void> started = new CompletableFuture<>();
         final CompletableFuture<String> result = new CompletableFuture<>();
-        Request(boolean save, String expectedPath, int queueSeconds, String language, long scheduledMillis) {
+        Request(boolean save, String expectedPath, int queueSeconds, String language, long scheduledMillis, RuntimeObserver.Ticket guard) {
+            this.guard = guard;
             this.save = save; this.expectedPath = expectedPath;
             this.language = language;
             this.notBefore = scheduledMillis == 0 ? 0 : System.nanoTime()

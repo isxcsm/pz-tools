@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Salva il gioco prima del backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Conto alla rovescia nel gioco</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra un conto alla rovescia di cinque secondi sopra il personaggio e l’esito del salvataggio nel gioco. Disattivandolo scompaiono i messaggi e il conto alla rovescia dei backup manuali, ma il gioco viene comunque salvato. I backup automatici mantengono l’orario previsto. Le modifiche si applicano dal prossimo backup.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Chiede al gioco di salvare prima dei backup manuali e automatici. Disattiva questa opzione se usi una mod di salvataggio separata o se un aggiornamento del gioco causa problemi di compatibilità. Se disattivata, vengono copiati solo i file su disco e potrebbero mancare i progressi recenti. Le modifiche si applicano dal prossimo backup.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Scrive le modifiche del gioco su disco prima del backup. Disattivando l’opzione potrebbero mancare dati presenti solo in memoria. Il rilevamento delle pause si configura separatamente.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Prossimo backup: in attesa di avvio</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Prossimo backup: in attesa dell’attività attuale</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Cura personaggio</value></data>
@@ -396,4 +396,10 @@ Viene modificato solo il salvataggio attuale per giocatore singolo. Salvataggi i
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Riutilizzo di dati identici già presenti nel backup</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Attivo</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Disattivo</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Attendi quando il gioco è in pausa</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Conserva il tempo residuo dei backup periodici durante la pausa e continua alla ripresa. Attende anche quando lo stato del gioco è sconosciuto. L’osservazione JVM è indipendente dal salvataggio preliminare.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gioco in pausa · mancano {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>In attesa dello stato del gioco · mancano {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Più giochi aperti · {0} in attesa</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verifica l’esito dell’ultimo salvataggio del gioco, poi riattiva i backup automatici.</value></data>
 </root>

@@ -360,7 +360,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Yedeklemeden önce oyunu kaydet</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Oyun içi kayıt geri sayımı</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Karakterin başının üstünde beş saniyelik geri sayımı ve oyunun kayıt sonucunu gösterir. Kapatıldığında mesajlar ve manuel yedekleme geri sayımı kaldırılır ancak oyun yine kaydedilir. Otomatik yedeklerin planlanan saati değişmez. Değişiklikler sonraki yedekten itibaren uygulanır.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Manuel ve otomatik yedeklerden önce oyundan kayıt ister. Ayrı bir kayıt modu kullanıyorsanız veya oyun güncellemesi uyumluluk sorunu yaratırsa kapatın. Kapalıyken yalnızca diskteki dosyalar yedeklenir; son ilerlemeniz eksik kalabilir. Değişiklikler sonraki yedekten itibaren uygulanır.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Yedeklemeden önce oyun değişikliklerini diske yazar. Kapatılırsa yalnızca bellekteki veriler eksik kalabilir. Duraklatma algılama ayrı ayarlanır.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Sonraki yedek: başlamayı bekliyor</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Sonraki yedek: geçerli işi bekliyor</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Karakteri iyileştir</value></data>
@@ -396,4 +396,10 @@ Yalnızca mevcut tek oyunculu kayıt değiştirilir. Oyunda kullanılan kayıtla
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Önceden yedeklenmiş aynı veriler yeniden kullanılıyor</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Açık</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Kapalı</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Oyun duraklatıldığında bekle</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Duraklatmada düzenli yedeklemenin kalan süresini korur ve devam edince saymayı sürdürür. Oyun durumu bilinmiyorsa da bekler. JVM gözlemi, yedekleme öncesi kayıttan bağımsızdır.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>Oyun duraklatıldı · kalan {0}</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Oyun durumu bekleniyor · kalan {0}</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Birden fazla oyun açık · {0} bekliyor</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Son oyun kaydının sonucunu doğrulayın, ardından otomatik yedeklemeyi yeniden açın.</value></data>
 </root>

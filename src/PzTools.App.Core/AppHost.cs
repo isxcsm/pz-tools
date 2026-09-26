@@ -179,11 +179,15 @@ public sealed class AppHost : IAsyncDisposable
             repository, paths.WorkerDirectory, TelemetrySources, launcher,
             new RunIndexAllocator(paths.ControlDatabasePath),
             paths.OperationsRoot!, runtime, LogInbox);
-        var stateProjector = new StateProjector(state, Views, observationBoundary);
+        var runtimeSnapshot = new RuntimeSnapshotStore();
+        supervisors.Add(RuntimeStateFeed.FollowAsync(scheduler.DatabasePath, runtimeSnapshot, lifetime.Token));
+        var stateProjector = new StateProjector(state, Views, observationBoundary,
+            () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.PausePeriodicDuringGame == true
+                ? runtimeSnapshot.Read() : null);
         var backupProjector = new BackupProjector(repository, Views);
         var characterMetadata = new PzTools.Zomboid.Backup.RevisionCharacterMetadataCollector(
             runtime.CharacterMetadataBatchSize, runtime.CharacterMetadataRetrySeconds);
-        var schedulerProjector = new SchedulerProjector(scheduler, Views, repository, requireActiveState: true);
+        var schedulerProjector = new SchedulerProjector(scheduler, Views, repository, requireActiveState: true, runtimeSnapshot: runtimeSnapshot);
         var composer = new SaveDetailComposer(Views);
         RegisterTelemetrySources(settings, state, scheduler, repository);
         var projectionInterval = TimeSpan.FromMilliseconds(runtime.ProjectionIntervalMs);
