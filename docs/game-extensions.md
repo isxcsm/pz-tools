@@ -4,7 +4,7 @@
 
 ## Current scope
 
-Seamless Saving **0.8.0**, bootstrap API **7**, save protocol **6**.
+Seamless Saving **0.9.0**, bootstrap API **8**, save protocol **6**.
 Replace app/worker/JARs together and restart the entire game. In particular, an older
 bootstrap already containing the retired global hooks cannot be upgraded just by toggling
 the extension. No backup-repository reset is needed.
@@ -18,11 +18,11 @@ now uses an explicit private, versioned entry rather than intercepting ordinary 
 ```text
 Standard provider / game / other mod -> original GameWindow.save(true)
 Our selected extension             -> VersionedSaveEntry.saveForBackup()
-                                  -> private GameWindow / IsoCell / ChunkMap / Chunk bodies
+                                  -> private GameWindow / IsoCell / ChunkMap / Chunk / native-save bodies
                                   -> original serializers, native saving and guarded chunk I/O
 ```
 
-`PrivateSaveGraph` builds four hidden nestmate companions from the inspected game
+`PrivateSaveGraph` builds five hidden nestmate companions from the inspected game
 method bodies. Only their internal call sites use private handles. The game classes
 are not replaced and receive no added save methods or fields. Their original save,
 read, write, thumbnail and native-stop implementations remain installed unchanged.
@@ -73,8 +73,9 @@ Shutdown stops new ownership but keeps disk submission open for already-admitted
 Cancellation/world change never discards accepted data or interrupts an owned channel.
 
 The channel pins the selected existing file; renaming after handoff does not redirect
-its write. Native saving and completion waits remain original and synchronous. There
-is no new general-save/stop fence, read-through hook, parallel disk pool or path override.
+its write. The private native copy can also hand off its completion wait under the
+original snapshot lock, as described below. Public save/stop remain unchanged; no
+public read-through hook, extra native writer or path override is added.
 These immutable per-chunk inputs are NOT a coherent whole-world snapshot, and the
 backup engine still reads the live save directory after preparation.
 
@@ -87,8 +88,8 @@ longer active; no performance improvement over 0.6 is asserted without measureme
 
 The existing game-loop dispatch and WATCH session still supply pause, version, live
 character/death and execution status. Saved players.db state stays independent.
-Three narrow read-only observers remain: PlayerDB/VehicleDB drain enter/exit and
-ExceptionLogger errors. They do not replace serializers, swallow game exceptions,
+Four narrow read-only observers cover PlayerDB/VehicleDB drains, ExceptionLogger
+errors and the existing native worker's save entry/exit. They do not replace serializers, swallow game exceptions,
 suppress calls, start saves or perform file I/O. Observer failures cannot escape into
 the game caller; they are latched and invalidate/fail our operation instead.
 
@@ -125,18 +126,20 @@ actual private companions and initializes the production adapter in a separate t
 JVM, then checks that original save bodies have not changed. It does not call game
 saving or attach to the user's running game.
 
-Two product milestones remain:
+### Acceptance boundary
 
-1. **Coherent snapshot and bounded capture.** Chunk/animal/native input serialization
-   still uses the game thread. The backup engine still reads the live source after
-   preparation. Splitting mutable objects across frames without snapshot/mutation
-   tracking would mix different item/vehicle states. A genuinely nonblocking design
-   must isolate its input and output lifetime, not reintroduce global save hooks.
-2. **Disposable-world acceptance.** Reproduce dragging, compare frame times and
-   restore unoccupied discovered vehicles, transferred items and mod OnSave data.
-   Include normal/mod saves overlapping our request, failure and world exit.
-   Synthetic Java tests and installed-bytecode admission are not real-game acceptance.
+The candidate implements the selected low-interruption path: drag-safe admission,
+private full-save coverage, bounded chunk write handoff, private native completion,
+DB completion, normal-save isolation and the existing backup/restore integration.
+See [the disposable-world acceptance procedure](e2e-seamless-save.md).
 
+It is NOT a fully nonblocking serializer: large chunk/animal input capture, original
+locks, first-file creation and capacity fallback can still stall. The source remains
+the live save directory; an atomic whole-world snapshot is not provided. Neither is
+silently declared implemented. A whole-world transaction is not a prerequisite for
+testing this candidate, but safe multi-frame serialization needs additional design.
+Real-game dragging, frame times, other mods and restored vehicles/items are unverified
+until the acceptance run; synthetic tests do not establish those results.
 ### Verification
 
 The existing private-entry harness covers normal saving before/after the extension,
@@ -152,11 +155,66 @@ production-adapter/original-body audit are used; no extra CI job or harness was 
 Synthetic and offline checks do not substitute for real-game frame-time, dragging,
 vehicle/item restoration or coherent whole-world snapshot verification.
 
-The 0.8 local Windows verification completed: Release solution/WinUI/native/Java build
-with zero warnings/errors; `artifacts/game-extension-tests/private-batch.trx` reports
-20 passed, zero failed and zero skipped for the selected connected-pipeline regressions.
-All four existing Java harnesses passed. The installed-JAR production adapter admitted
-in a separate JVM, and the four original save bodies stayed unchanged after observation
-instrumentation. Four deployed worker JARs and the shared catalogue matched build hashes.
-No actual gameplay save, user-data mutation or real-frame-time measurement was performed.
-Bootstrap API 7 and wire protocol 6 did not change in this module-only update.
+
+## Private native completion (0.9)
+
+Only the private MapCollisionData.save companion changes its wait branch. Its original
+input preparation, flag publication, notification, two native save calls and verified
+no-op endSaveRealZombies are retained. The real MCDThread is the only native writer.
+
+A read-only worker observer identifies the precise n_save entry and the matching exit
+after BOTH native calls and flag reset. A bounded virtual owner waits for that entry
+BEFORE acquiring the original ZombiePopulationManager.saveLock. Acquiring this lock
+earlier could deadlock an older processPendingSaveCells phase; the fixture covers it.
+The private caller returns from its wait only after ownership is secured. Original
+beginSaveRealZombies/requestSaveCell calls then use their unchanged lock and cannot
+replace the captured native input. The owner releases on acknowledgement or confirmed
+worker termination, never on client cancellation or world invalidation alone.
+
+Errors belong to the observed native phase, are retained across game-internal retry,
+and cannot be turned into success by a later request. Unmodified stop still joins its
+worker. Native acknowledgement precedes the worker's later pending-cell lock, allowing
+our owner to release without a stop/lock cycle. Unavailable workers or subclassed
+population implementations retain original synchronous saving. Live method fingerprints
+also cover native begin/end/worker/stop contracts. Arbitrary third-party JNI patches
+or failures hidden inside C++ are not asserted safe/detected by these Java checks.
+
+## Interaction and per-request diagnostics (0.9)
+
+The optional provider waits before mutation while an inventory drag/drop is still pending. A held mouse button alone does not block
+normal play or combat. It reads the current Lua table on
+the game thread and never resets input, clears a drag or recreates item references.
+Mouse release alone is insufficient: the UI must also finish its drop handling.
+Existing request lifetime, pause/death checks and cancellation apply during this wait;
+a stuck interaction times out WITHOUT saving, rather than being force-cleared.
+
+Private-only timing wrappers aggregate chunk-body, handoff, animal/native-call and
+remaining capture durations. The bounded diagnostic string is carried by the existing
+save receipt to backup logs. It is not a new state collector or a frame-time monitor.
+Chunk-body time includes original locks/CRC and excludes the measured I/O handoff;
+native-call time describes submission/capture, not the off-thread completion interval.
+No counter history or per-frame logging is retained. The standard save path is not
+wrapped. Existing card/dialog descriptions in all 18 languages state the actual scope.
+### 0.9 local candidate verification
+
+The final Windows Release solution/WinUI/native/Java build completed with zero
+warnings and zero errors. The existing four Java harness programs passed, including
+the combined private-native lock/phase tests and read-only drag readiness cases.
+`interaction-candidate.trx` contains 58 passed, zero failed and zero skipped cases.
+
+A fresh publish-app output was produced at `artifacts/e2e-seamless-0.9.0/app`.
+`published-interaction-candidate.trx` contains six passed, zero failed and zero skipped
+cases using that published payload: two distribution checks plus initial/incremental
+backup/restore, provider ownership/diagnostic propagation, pause/version and live death.
+The two test selections overlap and are not summed as unique test coverage.
+
+The production adapter initialized against the installed game JAR in a separate JVM.
+Private companions and observers verified, and the five original save bodies remained
+unchanged after instrumentation. This did not execute game saving or native gameplay.
+The four published JARs, native bootstrap DLL and shared catalogue matched the current
+build outputs by SHA-256. No new CI job, workflow or harness process was added.
+
+This verifies the candidate's implementation and packaging, not real-game stutter,
+FPS, drag behavior or restoration of actual vehicles/items. Those acceptance results
+remain unmeasured. The running user app, game installation, real saves, backup databases
+and user configuration were not changed by the development or automated verification.

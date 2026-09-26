@@ -208,16 +208,20 @@ The B42.20 extension calls VersionedSaveEntry.saveForBackup using private genera
 companions; it does not rewrite GameWindow.save or the public chunk/native save
 and read/write paths. Nested saves from other mods remain normal saves.
 
-Bootstrap API 7 and matched app/worker/JARs require a full game restart. The wire
+Bootstrap API 8 and matched app/worker/JARs require a full game restart. The wire
 protocol remains 6. PREPARE_SAVE_ACTIVE combines provider selection, explicit version
 override and the same pause/death/permission guard used by the scheduling authority.
 STATE3 carries live facts and the actual provider result. It is not a second poller.
 
-Private chunk I/O uses the original counted file locks. Native saving is synchronous;
-the earlier global native-wait/read-through hooks have been removed. Three nonthrowing
-read-only DB/error observers preserve completion and failure accounting. A typed
-GAME_SAVE_AND_PENDING_WRITES_DRAINED receipt is emitted only after owned I/O and the
-required DB drains complete. It is not an atomic whole-world or hardware-flush receipt.
+Private chunk I/O uses the original counted file locks. The private native-save copy
+can defer its completion wait after the existing native worker starts and the original
+snapshot lock is secured. Public native save/stop bodies are not modified. Four
+nonthrowing read-only DB/error/native-phase observers support completion accounting.
+The retired global save/read-through rewrites are not reintroduced. A typed
+GAME_SAVE_AND_PENDING_WRITES_DRAINED receipt follows owned file/native work and required
+DB drains. It is not an atomic whole-world or hardware-flush receipt. Private readiness
+also waits for an inventory drag/drop to finish; it never clears or restores a drag.
+Bounded per-request stage timings travel in the existing result detail, not a new poller.
 
 Unsupported private sources fall back to standard saving before capture begins.
 After mutation starts, errors or unknown completion are never replayed as another

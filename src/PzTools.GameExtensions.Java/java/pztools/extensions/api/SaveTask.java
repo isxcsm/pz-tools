@@ -6,4 +6,5 @@ public interface SaveTask {
                   SaveProvider.Completion completion, Throwable failure, boolean cancelled) { }
     /** null means not finished, even if a worker has already dequeued its input. */
     Result completed();
+    default String diagnostics() { return ""; }
 }

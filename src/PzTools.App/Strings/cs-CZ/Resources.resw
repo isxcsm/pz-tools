@@ -417,7 +417,7 @@ Použije se na vybranou pozici pro jednoho hráče po ukončení hraní.</value>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Rozšíření hry</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Spravujte volitelná vylepšení hry.</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>Plynulé ukládání</value></data>
-<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Zachovává původní ukládání hry, vynechává vynucené vykreslení náhledu a zapisuje existující soubory chunků na pozadí. Serializace, nativní ukládání a některé operace se soubory mohou hru stále pozastavit. Nepodporované verze používají standardní ukládání.</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>Používá samostatnou cestu záložního ukládání beze změny běžného ukládání. Počká na dokončení přetahování předmětů, přeskočí vynucený náhled a vhodné části světa zapíše na pozadí. Serializace a nativní ukládání mohou hru stále krátce pozastavit.</value></data>
 <data name="GameExtensions.Disabled" xml:space="preserve"><value>Vypnuto · Standardní ukládání</value></data>
 <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Kompatibilita se ověř&#237; při př&#237;št&#237;m uložen&#237; &#183; Experiment&#225;ln&#237;</value></data>
 <data name="GameExtensions.Configure" xml:space="preserve"><value>Nastavit</value></data>
@@ -425,7 +425,7 @@ Použije se na vybranou pozici pro jednoho hráče po ukončení hraní.</value>
 <data name="GameExtensions.Apply" xml:space="preserve"><value>Použít</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Nastavení rozšíření není dostupné</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Změny se nepodařilo uložit. Znovu otevřete stránku a zkontrolujte soubor nastavení rozšíření.</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Zachovává původní ukládání hry, vynechává vynucené vykreslení náhledu a zapisuje existující soubory chunků na pozadí. Serializace, nativní ukládání a některé operace se soubory mohou hru stále pozastavit. Nepodporované verze používají standardní ukládání.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Používá samostatnou cestu záložního ukládání beze změny běžného ukládání. Počká na dokončení přetahování předmětů, přeskočí vynucený náhled a vhodné části světa zapíše na pozadí. Serializace a nativní ukládání mohou hru stále krátce pozastavit.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Všechny verze</value></data>
 <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Hlavní verze {0}</value></data>
 <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Vedlejší verze {0}</value></data>

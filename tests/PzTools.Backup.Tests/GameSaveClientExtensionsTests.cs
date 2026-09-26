@@ -58,6 +58,7 @@ public sealed partial class GameSaveClientTests
         finally { await File.WriteAllTextAsync(temp.GetPath("release-extension"), "release"); }
         var result = await first;
         Assert.Equal(GameSaveCompletion.DetachedWritesCommitted, result.Completion);
+        Assert.Contains("fixtureCapture=complete", result.Detail);
         Assert.True(File.Exists(temp.GetPath("extension-written")));
         Assert.True(File.Exists(temp.GetPath("extension-closed")));
         Assert.False(File.Exists(temp.GetPath("calls.txt"))); // Fixture provider, not a replayed standard save.

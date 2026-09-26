@@ -33,7 +33,10 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
     private Method allowPlayers, getPlayers, updatePlayers, updateVehicles;
     private Field vehicles;
     private CaptureReadiness readiness;
+    private InteractionReadiness interaction;
+    private final CaptureTimings timings = new CaptureTimings();
     private OwnedChunkWrites writes;
+    private OwnedNativeSave nativeSave;
     private pztools.extensions.seamless.VersionedSaveEntry entry;
     private volatile boolean initialized;
     private ClassFileTransformer transformer;
@@ -59,13 +62,20 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         Class<?> logger = Class.forName("zombie.core.logger.ExceptionLogger", false, loader);
         allowPlayers = playerDb.getMethod("isAllow"); getPlayers = playerDb.getMethod("getInstance");
         updatePlayers = playerDb.getMethod("updateMain"); updateVehicles = vehicleDb.getMethod("updateMain");
-        vehicles = vehicleDb.getField("instance"); readiness = new CaptureReadiness(loader);
+        vehicles = vehicleDb.getField("instance"); readiness = new CaptureReadiness(loader); interaction = new InteractionReadiness(loader);
         writes = new OwnedChunkWrites(new GameChunkAccess(loader));
+        nativeSave = new OwnedNativeSave(loader);
+        Class<?> nativeWorker = Class.forName("zombie.MapCollisionData$MCDThread", false, loader);
         Set<Class<?>> observers = Set.of(playerDb, vehicleDb, logger);
         var targets = new ArrayList<>(observers);
+        targets.add(nativeWorker);
         var guardMethods = new ArrayList<>(PrivateSaveGraph.SOURCES);
         guardMethods.add(PrivateSaveGraph.WRITE);
         guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/iso/IsoChunk", "SafeRead", "(IILjava/nio/ByteBuffer;)Ljava/nio/ByteBuffer;"));
+        guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/MapCollisionData", "stop", "()V"));
+        guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/MapCollisionData$MCDThread", "runInner", "()V"));
+        for (String name : List.of("beginSaveRealZombies", "endSaveRealZombies", "save", "processPendingSaveCells"))
+            guardMethods.add(new PrivateSaveGraph.MethodRef("zombie/popman/ZombiePopulationManager", name, "()V"));
         Map<PrivateSaveGraph.MethodRef, byte[]> fingerprints = new HashMap<>();
         for (var method : guardMethods) {
             Class<?> target = Class.forName(method.owner().replace('/', '.'), false, loader);
@@ -79,14 +89,19 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             @Override public byte[] transform(ClassLoader owner, String name, Class<?> type, ProtectionDomain domain, byte[] bytes) {
                 if (owner != loader || !targets.contains(type)) return null;
                 try {
+                    for (var method : guardMethods) if (method.owner().equals(name))
+                        if (!Arrays.equals(fingerprints.get(method), PrivateSaveGraph.methodFingerprint(loader, bytes, method)))
+                            throw new IllegalStateException("Another transformation changed the private save contract: " + method.name());
+                    if (type == nativeWorker) {
+                        byte[] result = NativeSaveObservation.transform(bytes, loader);
+                        observed.add(type); return result;
+                    }
                     if (observers.contains(type)) {
                         byte[] result = DatabaseObservationBytecode.transform(name, bytes, loader);
                         observed.add(type); return result;
                     }
-                    for (var method : guardMethods) if (method.owner().equals(name))
-                        if (!Arrays.equals(fingerprints.get(method), PrivateSaveGraph.methodFingerprint(loader, bytes, method)))
-                            throw new IllegalStateException("Another transformation changed the private save source: " + method.name());
-                    if (!initialized) captured.put(name, bytes.clone());
+
+                    if (!initialized && PrivateSaveGraph.SOURCES.stream().anyMatch(ref -> ref.owner().equals(name))) captured.put(name, bytes.clone());
                     return null; // Inspection only: NONE of the game's save/read/write bodies are replaced.
                 } catch (Throwable failure) {
                     transformationFailure.compareAndSet(null, failure); signals.failActive(failure); return null;
@@ -94,19 +109,21 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             }
         };
         signals.register();
+        try { nativeSave.register(); } catch (RuntimeException failure) { signals.unregister(); throw failure; }
         try {
             instrumentation.addTransformer(transformer, true);
             instrumentation.retransformClasses(targets.toArray(Class<?>[]::new));
-            if (observed.size() != observers.size() || transformationFailure.get() != null || captured.size() != 4)
+            if (observed.size() != observers.size() + 1 || transformationFailure.get() != null || captured.size() != PrivateSaveGraph.SOURCES.size())
                 throw new IllegalStateException("Private save source or observers unavailable", transformationFailure.get());
             MethodHandle sink = MethodHandles.lookup().findVirtual(OwnedChunkWrites.class, "write",
                 MethodType.methodType(void.class, int.class, int.class, java.nio.ByteBuffer.class)).bindTo(writes);
-            entry = PrivateSaveGraph.create(loader, captured, sink);
+            entry = PrivateSaveGraph.create(loader, captured, sink, timings, nativeSave);
             initialized = true; captured.clear(); return new SaveProvider.Support(true, null);
         } catch (Throwable failure) {
-            instrumentation.removeTransformer(transformer); signals.unregister(); writes.close();
+            instrumentation.removeTransformer(transformer); signals.unregister(); nativeSave.unregister(); writes.close();
             // Only observer instrumentation needs restoring; the copied source methods never changed.
-            instrumentation.retransformClasses(observers.toArray(Class<?>[]::new));
+            var restored = new ArrayList<>(observers); restored.add(nativeWorker);
+            instrumentation.retransformClasses(restored.toArray(Class<?>[]::new));
             return new SaveProvider.Support(false, "unsupported-private-save-layout");
         }
     }
@@ -116,7 +133,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
             initialized ? "game-code-changed" : "adapter-not-initialized");
     }
     @Override public boolean readyToCapture(SaveProvider.Context context) throws Exception {
-        context.requireGameThread(); return readiness.ready();
+        context.requireGameThread(); return interaction.ready() && readiness.ready();
     }
     @Override public SaveProvider.PreparedSave capture(SaveProvider.Context context, long maximumBytes) throws Exception {
         context.requireGameThread();
@@ -125,14 +142,20 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
         Object playerStore = includePlayers ? getPlayers.invoke(null) : null;
         Object vehicleStore = Objects.requireNonNull(vehicles.get(null), "Vehicle store unavailable");
         var batch = signals.begin(context, includePlayers, readiness.databaseWorker());
+        timings.start();
         try {
+            batch.nativeWork = nativeSave.begin(context, batch::fail);
             batch.chunks = writes.begin(context, maximumBytes, batch::fail);
             entry.saveForBackup(); // Explicit private entry, NOT GameWindow.save(true).
             if (includePlayers) updatePlayers.invoke(playerStore);
             updateVehicles.invoke(vehicleStore);
         } catch (Throwable failure) {
             batch.fail(failure instanceof InvocationTargetException invocation ? invocation.getCause() : failure);
-        } finally { batch.arm(); }
+        } finally {
+            try { batch.detail = timings.finish(); }
+            catch (Throwable unavailable) { batch.detail = "timing-unavailable"; }
+            finally { batch.arm(); }
+        }
         return batch;
     }
 }

@@ -158,7 +158,7 @@ public final class SaveBridge {
             if (!saveStartedSent && request.state.get() == 2) { output.println("SAVING"); saveStartedSent = true; }
             if (System.nanoTime() >= deadline) {
                 if (request.cancelBeforeSave())
-                    return error("queue-timeout", "Countdown expired; cancelled without saving");
+                    return error("queue-timeout", "Save preparation expired while waiting for countdown, interaction or workers; cancelled without saving");
                 return error("completion-unknown", "The game call is still running. Do not retry until it finishes");
             }
             try {
@@ -341,7 +341,7 @@ public final class SaveBridge {
         String detail = message + "; thread=" + Thread.currentThread().getName() + "; elapsedMs=" + elapsed
             + "; save=" + request.saveDirectory
             + (request.recoveryError == null ? "" : "; recovery-metadata-unavailable=" + request.recoveryError)
-            + (request.task == null ? "" : "; captureMs=" + request.captureMillis)
+            + (request.task == null ? "" : "; captureMs=" + request.captureMillis + "; " + request.task.diagnostics())
             + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError);
         publishExecution(request, "Succeeded", request.fallbackReason);
         if (request.requestedProvider == null) request.result.complete("OK\t" + encode(detail));

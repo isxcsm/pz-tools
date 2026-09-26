@@ -1,10 +1,12 @@
-# Native wait optimization — retired
+# Private native-save completion
 
-[Current private save design](game-extensions.md)
+The old public save/stop rewrites were removed in 0.7 and are NOT reintroduced.
+Module 0.9 uses a private save companion, read-only native phase observation and the
+game's existing snapshot lock. See [current ownership and limits](game-extensions.md#private-native-completion-09).
 
-The experimental 0.5/0.6 implementation rewrote MapCollisionData.save/stop and
-ordinary-save fences to permit an outstanding native write. That implementation
-is removed in 0.7: it does not meet the requirement to preserve normal/mod saving.
-The private save entry currently calls the original native save and waits normally.
-Future native optimization must own an isolated snapshot/completion boundary without
-rewriting ordinary saving or teardown. Restart the game to remove older loaded hooks.
+The original native writer performs both original save calls. The game thread only
+stops waiting early after the exact native phase starts and original-lock ownership
+is secured. Public native save/stop bodies remain unchanged. Tests cover a preceding
+pending-cell phase, a following normal save, stop, failed retry, world invalidation
+and a worker exiting without acknowledgement. Real native C++/gameplay acceptance is
+separate from these isolated Java tests.

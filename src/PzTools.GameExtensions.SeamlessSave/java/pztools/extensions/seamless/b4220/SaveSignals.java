@@ -61,7 +61,7 @@ final class SaveSignals {
         GameHooks.unregister(PLAYERS, players);
         GameHooks.unregister(VEHICLES, vehicles); GameHooks.unregister(ERRORS, errors);
     }
-    private static final String[] OBSERVATION_POINTS = { PLAYERS, VEHICLES, ERRORS };
+    private static final String[] OBSERVATION_POINTS = { PLAYERS, VEHICLES, ERRORS, OwnedNativeSave.POINT };
     Throwable observationFailure() {
         for (String point : OBSERVATION_POINTS) {
             Throwable failure = GameHooks.failure(point);
@@ -86,6 +86,9 @@ final class SaveSignals {
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
         private volatile boolean capturing = true, armed;
         OwnedChunkWrites.Batch chunks;
+        OwnedNativeSave.Batch nativeWork;
+        String detail = "";
+        public String diagnostics() { return detail; }
         Batch(SaveProvider.Context context, int expected, Thread databaseWorker) {
             this.context = context; this.databaseWorker = databaseWorker; pending = new AtomicInteger(expected);
         }
@@ -117,6 +120,7 @@ final class SaveSignals {
         public SaveProvider.Completion completion() { return chunks == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
         public void commit() throws Exception {
             if (chunks != null) chunks.await();
+            if (nativeWork != null) nativeWork.await();
             if (awaitDatabase()) throw new InterruptedException("Interrupted after draining owned database writes");
             if (!context.worldValid().get()) throw new IOException("World changed during save");
             Throwable observation = observationFailure();
@@ -129,8 +133,8 @@ final class SaveSignals {
             try { if (chunks != null) chunks.await(); }
             finally {
                 // World invalidation is an error, not proof that a database thread stopped writing.
-                awaitDatabase();
-                active.compareAndSet(this, null);
+                try { if (nativeWork != null) nativeWork.close(); }
+                finally { awaitDatabase(); active.compareAndSet(this, null); }
             }
         }
     }

@@ -24,6 +24,7 @@ public final class SeamlessSaveProvider implements SaveProvider {
         Files.writeString(root.resolve("extension-started"), context.requestId());
         return new PreparedSave() {
             public long retainedBytes() { return 0; }
+            public String diagnostics() { return "fixtureCapture=complete"; }
             public void commit() throws Exception {
                 if (Thread.currentThread() == context.gameThread()) throw new AssertionError("Writer blocked game thread");
                 while (!Files.exists(root.resolve("release-extension"))) {

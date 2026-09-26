@@ -1,2 +1,2 @@
 # id	module version	namespace	entry class	jar	support scope	minimum inclusive	maximum inclusive	title resource	description resource
-pztools.seamless-save	0.8.0	pztools.extensions.seamless	pztools.extensions.seamless.SeamlessSaveProvider	pztools-seamless-save.jar	All	-	-	Extension.SeamlessSave.Title	Extension.SeamlessSave.Description
+pztools.seamless-save	0.9.0	pztools.extensions.seamless	pztools.extensions.seamless.SeamlessSaveProvider	pztools-seamless-save.jar	All	-	-	Extension.SeamlessSave.Title	Extension.SeamlessSave.Description

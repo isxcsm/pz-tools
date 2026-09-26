@@ -49,6 +49,8 @@ public interface SaveProvider {
      */
     interface PreparedSave extends AutoCloseable {
         long retainedBytes();
+        /** Bounded, non-sensitive per-request diagnostics, not a completion signal. */
+        default String diagnostics() { return ""; }
         void commit() throws Exception;
         default Completion completion() { return Completion.DETACHED_WRITES_COMMITTED; }
         @Override void close() throws Exception;

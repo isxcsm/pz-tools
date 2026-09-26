@@ -17,7 +17,8 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
     public static final MethodRef MAP = new MethodRef("zombie/iso/IsoChunkMap", "Save", "()V");
     public static final MethodRef CHUNK = new MethodRef("zombie/iso/IsoChunk", "Save", "(Z)V");
     public static final MethodRef WRITE = new MethodRef("zombie/iso/IsoChunk", "SafeWrite", "(IILjava/nio/ByteBuffer;)V");
-    public static final List<MethodRef> SOURCES = List.of(WINDOW, CELL, MAP, CHUNK);
+    public static final MethodRef NATIVE = new MethodRef("zombie/MapCollisionData", "save", "()V");
+    public static final List<MethodRef> SOURCES = List.of(WINDOW, CELL, MAP, CHUNK, NATIVE);
     private static final MethodRef THUMB = new MethodRef("zombie/savefile/SavefileThumbnail", "create", "()V");
     private static final ClassDesc LOOKUP = ClassDesc.of("java.lang.invoke.MethodHandles$Lookup");
     private static final DirectMethodHandleDesc LINK = MethodHandleDesc.ofMethod(DirectMethodHandleDesc.Kind.STATIC,
@@ -28,11 +29,20 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
     @Override public void saveForBackup() throws Throwable { entry.invokeExact(true); }
 
     public static PrivateSaveGraph create(ClassLoader loader, Map<String, byte[]> sources, MethodHandle write) throws Throwable {
+        return create(loader, sources, write, null);
+    }
+    static PrivateSaveGraph create(ClassLoader loader, Map<String, byte[]> sources, MethodHandle write,
+                                   CaptureTimings timings) throws Throwable {
+        return create(loader, sources, write, timings, null);
+    }
+    static PrivateSaveGraph create(ClassLoader loader, Map<String, byte[]> sources, MethodHandle write,
+                                   CaptureTimings timings, OwnedNativeSave nativeSave) throws Throwable {
         MethodHandles.Lookup lookup = gameLookup(Class.forName(WINDOW.owner.replace('/', '.'), false, loader));
-        MethodHandle chunk = copy(loader, lookup, sources.get(CHUNK.owner), CHUNK, WRITE, write, 2);
-        MethodHandle map = copy(loader, lookup, sources.get(MAP.owner), MAP, CHUNK, chunk, 1);
-        MethodHandle cell = copy(loader, lookup, sources.get(CELL.owner), CELL, MAP, map, 1);
-        MethodHandle root = copy(loader, lookup, sources.get(WINDOW.owner), WINDOW, CELL, cell, 1);
+        MethodHandle chunk = copy(loader, lookup, sources.get(CHUNK.owner), CHUNK, WRITE, timings == null ? write : timings.write(write), 2, null, null);
+        MethodHandle map = copy(loader, lookup, sources.get(MAP.owner), MAP, CHUNK, timings == null ? chunk : timings.chunk(chunk), 1, null, null);
+        MethodHandle cell = copy(loader, lookup, sources.get(CELL.owner), CELL, MAP, map, 1, null, null);
+        MethodHandle nativeEntry = nativeSave == null ? null : copyNative(loader, lookup, sources.get(NATIVE.owner), nativeSave);
+        MethodHandle root = copy(loader, lookup, sources.get(WINDOW.owner), WINDOW, CELL, cell, 1, timings, nativeEntry);
         return new PrivateSaveGraph(root);
     }
 
@@ -50,13 +60,34 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
     }
 
     private static MethodHandle copy(ClassLoader loader, MethodHandles.Lookup full, byte[] bytes, MethodRef source,
-                                     MethodRef replacement, MethodHandle target, int expected) throws Throwable {
+                                     MethodRef replacement, MethodHandle target, int expected, CaptureTimings timings, MethodHandle nativeEntry) throws Throwable {
         var cf = format(loader);
         MethodModel method = method(cf, bytes, source);
         MethodTypeDesc signature = effectiveType(method, source);
         Class<?> owner = Class.forName(source.owner.replace('/', '.'), false, loader);
         var privateLookup = MethodHandles.privateLookupIn(owner, full);
-        byte[] generated = build(cf, method, source, replacement, expected);
+        var extraCalls = new ArrayList<MethodRef>();
+        var extraTargets = new ArrayList<MethodHandle>();
+        if (timings != null && source.equals(WINDOW)) {
+            for (String type : List.of("zombie/characters/animals/AnimalPopulationManager", "zombie/MapCollisionData")) {
+                var ref = new MethodRef(type, "save", "()V");
+                if (method.code().orElseThrow().elementStream().anyMatch(e -> call(e, ref))) {
+                    Class<?> targetClass = Class.forName(type.replace('/', '.'), false, loader);
+                    var original = MethodHandles.privateLookupIn(targetClass, full)
+                        .findVirtual(targetClass, "save", MethodType.methodType(void.class));
+                    extraCalls.add(ref);
+                    MethodHandle chosen = original;
+                    if (ref.equals(NATIVE) && nativeEntry != null) {
+                        var exact = MethodHandles.lookup().findStatic(PrivateSaveGraph.class, "exactReceiver",
+                            MethodType.methodType(boolean.class,Class.class,Object.class)).bindTo(targetClass)
+                            .asType(MethodType.methodType(boolean.class,targetClass));
+                        chosen = MethodHandles.guardWithTest(exact,nativeEntry,original);
+                    }
+                    extraTargets.add(timings.nativeCall(chosen, type.contains("animals")));
+                }
+            }
+        }
+        byte[] generated = build(cf, method, source, replacement, expected, extraCalls);
         if (!cf.verify(generated).isEmpty()) throw new IllegalArgumentException("Private save body failed verification: " + source);
         MethodHandle linkedTarget = target;
         Class<?> redirectOwner = Class.forName(replacement.owner.replace('/', '.'), false, loader);
@@ -67,8 +98,42 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
                 .bindTo(redirectOwner).asType(MethodType.methodType(boolean.class, redirectOwner));
             linkedTarget = MethodHandles.guardWithTest(test, target, originalVirtual);
         }
-        var hidden = privateLookup.defineHiddenClassWithClassData(generated, List.of(linkedTarget), false, MethodHandles.Lookup.ClassOption.NESTMATE);
+        var targets = new ArrayList<MethodHandle>(); targets.add(linkedTarget); targets.addAll(extraTargets);
+        var hidden = privateLookup.defineHiddenClassWithClassData(generated, List.copyOf(targets), false, MethodHandles.Lookup.ClassOption.NESTMATE);
         return hidden.findStatic(hidden.lookupClass(), "run", MethodType.fromMethodDescriptorString(signature.descriptorString(), loader));
+    }
+    private static MethodHandle copyNative(ClassLoader loader, MethodHandles.Lookup full, byte[] bytes,
+                                          OwnedNativeSave operation) throws Throwable {
+        var cf=format(loader); MethodModel source=method(cf,bytes,NATIVE);
+        Class<?> owner=Class.forName(NATIVE.owner.replace('/','.'),false,loader);
+        MethodType type=MethodType.methodType(void.class,owner), decision=MethodType.methodType(boolean.class,owner);
+        var before=MethodHandles.lookup().findVirtual(OwnedNativeSave.class,"before",MethodType.methodType(void.class,Object.class))
+            .bindTo(operation).asType(type);
+        var defer=MethodHandles.lookup().findVirtual(OwnedNativeSave.class,"defer",MethodType.methodType(boolean.class,Object.class))
+            .bindTo(operation).asType(decision);
+        byte[] generated=cf.build(ClassDesc.of("zombie.MapCollisionData$PzToolsPrivateSave"), b -> {
+            b.withFlags(ClassFile.ACC_FINAL|ClassFile.ACC_SUPER);
+            b.withMethod("run",MethodTypeDesc.ofDescriptor(type.descriptorString()),ClassFile.ACC_PUBLIC|ClassFile.ACC_STATIC,
+                m -> m.transformCode(source.code().orElseThrow(),CodeTransform.ofStateful(() -> new CodeTransform(){
+                    boolean flagRead; int redirects;
+                    public void atStart(CodeBuilder c){
+                        c.aload(0).invokedynamic(DynamicCallSiteDesc.of(LINK,"privateNativeStart",MethodTypeDesc.ofDescriptor(type.descriptorString()),0));
+                    }
+                    public void accept(CodeBuilder c,CodeElement e){
+                        c.with(e);
+                        if(flagRead && e instanceof BranchInstruction branch && branch.opcode()==Opcode.IFEQ){
+                            c.aload(0).invokedynamic(DynamicCallSiteDesc.of(LINK,"privateNativeWait",MethodTypeDesc.ofDescriptor(decision.descriptorString()),1))
+                                .ifne(branch.target()); redirects++;
+                        }
+                        if(e instanceof Instruction) flagRead=e instanceof FieldInstruction f && f.opcode()==Opcode.GETFIELD
+                            && f.owner().asInternalName().equals("zombie/MapCollisionData$MCDThread") && f.name().equalsString("save") && f.type().equalsString("Z");
+                    }
+                    public void atEnd(CodeBuilder c){if(redirects!=1) throw new IllegalArgumentException("Native wait boundary changed");}
+                })));
+        });
+        if(!cf.verify(generated).isEmpty()) throw new IllegalArgumentException("Private native body verification failed");
+        var hidden=MethodHandles.privateLookupIn(owner,full).defineHiddenClassWithClassData(generated,List.of(before,defer),false,MethodHandles.Lookup.ClassOption.NESTMATE);
+        return hidden.findStatic(hidden.lookupClass(),"run",type);
     }
     private static boolean exactReceiver(Class<?> type, Object receiver) { return receiver != null && receiver.getClass() == type; }
     public static byte[] methodFingerprint(ClassLoader loader, byte[] bytes, MethodRef source) {
@@ -102,7 +167,7 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
         return e instanceof InvokeInstruction i && i.owner().asInternalName().equals(ref.owner)
             && i.name().equalsString(ref.name) && i.type().equalsString(ref.descriptor);
     }
-    private static byte[] build(ClassFile cf, MethodModel method, MethodRef source, MethodRef redirect, int expected) {
+    private static byte[] build(ClassFile cf, MethodModel method, MethodRef source, MethodRef redirect, int expected, List<MethodRef> extraCalls) {
         var body = method.code().orElseThrow();
         if (body.elementStream().filter(e -> call(e, redirect)).count() != expected
                 || source.equals(WINDOW) && body.elementStream().filter(e -> call(e, THUMB)).count() != 1)
@@ -118,7 +183,17 @@ public final class PrivateSaveGraph implements VersionedSaveEntry {
                         var type = MethodTypeDesc.ofDescriptor(redirect.descriptor);
                         if (invoke.opcode() != Opcode.INVOKESTATIC) type = type.insertParameterTypes(0, ClassDesc.of(redirect.owner.replace('/', '.')));
                         c.invokedynamic(DynamicCallSiteDesc.of(LINK, "privateSave", type, 0));
-                    } else c.with(e);
+                    } else {
+                        for (int index = 0; index < extraCalls.size(); index++) {
+                            MethodRef extra = extraCalls.get(index);
+                            if (!call(e, extra)) continue;
+                            var type = MethodTypeDesc.ofDescriptor(extra.descriptor)
+                                .insertParameterTypes(0, ClassDesc.of(extra.owner.replace('/', '.')));
+                            c.invokedynamic(DynamicCallSiteDesc.of(LINK, "measuredSave", type, index + 1));
+                            return;
+                        }
+                        c.with(e);
+                    }
                 }));
         });
     }

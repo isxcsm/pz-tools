@@ -69,12 +69,58 @@ public final class PrivateSaveEntryTest {
                     check(Arrays.equals((int[])window.getMethod("stages").invoke(null), new int[]{6,6}), "Original pre/post-save coverage changed");
                 } finally { release.countDown(); }
             }
+            verifyInteractionAndTiming(loader, root, chunk, completion, Path.of(args[0]));
             verifyFailureAndOrdering(loader, root, chunk, completion, reader);
+            PrivateNativeOwnershipTest.run(Path.of(args[0]));
             verifyBoundedIndependentCaptures(loader, root, chunk, completion);
             verifyLockAdmissionFailure(loader, root, completion);
             System.out.println("PASS: private save isolation, bounded independent captures, single disk writer, fallback, failure and shutdown");
         } finally {
             try (var paths = Files.walk(root)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); }
+        }
+    }
+    private static void verifyInteractionAndTiming(ClassLoader loader, Path root, Class<?> chunk,
+            ExecutorService completion, Path classes) throws Throwable {
+        var probe = new InteractionReadiness(loader);
+        Class<?> mouse = loader.loadClass("zombie.input.Mouse");
+        Object environment = loader.loadClass("zombie.Lua.LuaManager").getField("env").get(null);
+        Class<?> table = environment.getClass();
+        Method put = table.getMethod("rawset", Object.class, Object.class), get = table.getMethod("rawget", Object.class);
+        Object drag = table.getConstructor().newInstance(), focus = new Object(), items = new Object();
+        put.invoke(environment, "ISMouseDrag", drag);
+        check(probe.ready(), "Idle input rejected");
+        mouse.getField("leftDown").setBoolean(null, true);
+        check(probe.ready(), "A held mouse button without an inventory drag must not starve backup during normal play");
+        put.invoke(drag, "dragging", items); put.invoke(drag, "draggingFocus", focus);
+        mouse.getField("leftDown").setBoolean(null, false);
+        check(!probe.ready(), "Mouse release before the UI consumes the drop is not idle");
+        check(get.invoke(drag, "dragging") == items && get.invoke(drag, "draggingFocus") == focus,
+            "Readiness mutated or completed the drag");
+        put.invoke(drag, "dragging", null); put.invoke(drag, "draggingFocus", null);
+        check(probe.ready(), "Normal UI drop did not release save readiness");
+        // Use the actual private graph and writer, not a timing stub. Values have no machine-speed threshold.
+        Object world = loader.loadClass("zombie.iso.IsoWorld").getField("instance").get(null);
+        Object cell = world.getClass().getField("currentCell").get(world);
+        Object map = cell.getClass().getMethod("map").invoke(cell);
+        map.getClass().getMethod("setChunk", chunk).invoke(map, chunk.getConstructor().newInstance());
+        Map<String, byte[]> sources = new HashMap<>();
+        for (var ref : PrivateSaveGraph.SOURCES) sources.put(ref.owner(), Files.readAllBytes(classes.resolve(ref.owner() + ".class")));
+        try (var io = new OwnedChunkWrites(new GameChunkAccess(loader))) {
+            var metrics = new CaptureTimings();
+            var target = MethodHandles.lookup().findVirtual(OwnedChunkWrites.class, "write",
+                MethodType.methodType(void.class, int.class, int.class, ByteBuffer.class)).bindTo(io);
+            var entry = PrivateSaveGraph.create(loader, sources, target, metrics);
+            var context = new SaveProvider.Context("metrics", "s", "w", root, Thread.currentThread(), loader);
+            var errors = new AtomicReference<Throwable>();
+            var batch = io.begin(context, 4096, errors::set);
+            metrics.start();
+            try { entry.saveForBackup(); } finally { batch.seal(); }
+            String report = metrics.finish();
+            check(report.startsWith("chunkCount=1;") && report.contains("collisionSaveUs="), "Actual private stages not reported");
+            completion.submit(() -> { batch.await(); return null; }).get(10, TimeUnit.SECONDS);
+            check(errors.get() == null, "Measured saving failed");
+            // A later request must not inherit counters from this one.
+            metrics.start(); check(metrics.finish().startsWith("chunkCount=0;"), "Diagnostics grew across requests");
         }
     }
     private static void verifyFailureAndOrdering(ClassLoader loader, Path root, Class<?> chunk,

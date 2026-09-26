@@ -20,7 +20,7 @@ public final class VerifyInstalledSaveBytecode {
             }
             MethodHandle unused = MethodHandles.empty(MethodType.methodType(void.class,int.class,int.class,java.nio.ByteBuffer.class));
             PrivateSaveGraph.create(loader,sources,unused);
-            System.out.println("VERIFIED (not executed): four private save companions; no original save class replaced");
+            System.out.println("VERIFIED (not executed): private save companions; no original save class replaced");
             for(String name : new String[]{"zombie/savefile/PlayerDB","zombie/vehicles/VehiclesDB2","zombie/core/logger/ExceptionLogger"}) {
                 byte[] original;
                 try(var in=jar.getInputStream(jar.getJarEntry(name+".class"))){original=in.readAllBytes();}
@@ -28,7 +28,7 @@ public final class VerifyInstalledSaveBytecode {
                 if(!cf.verify(observed).isEmpty()) throw new AssertionError("Observer verification failed: "+name);
                 System.out.println("VERIFIED (not executed): read-only observer "+name);
             }
-            for(String type : new String[]{"CaptureReadiness","GameChunkAccess"}) {
+            for(String type : new String[]{"CaptureReadiness","GameChunkAccess","InteractionReadiness","OwnedNativeSave"}) {
                 var constructor=Class.forName("pztools.extensions.seamless.b4220."+type).getDeclaredConstructor(ClassLoader.class);
                 constructor.setAccessible(true); constructor.newInstance(loader);
             }
@@ -60,7 +60,7 @@ public final class VerifyInstalledSaveBytecode {
                         catch (Exception failure) { throw new RuntimeException(failure); }
                     }).toArray(Class<?>[]::new);
                     instrumentation.retransformClasses(originals);
-                    if (verified.size() != 4) throw new AssertionError("Original-save audit incomplete");
+                    if (verified.size() != PrivateSaveGraph.SOURCES.size()) throw new AssertionError("Original-save audit incomplete");
                 } finally { instrumentation.removeTransformer(audit); }
                 System.out.println("VERIFIED (separate JVM, not saved): production adapter admission and unchanged original save bodies");
             }

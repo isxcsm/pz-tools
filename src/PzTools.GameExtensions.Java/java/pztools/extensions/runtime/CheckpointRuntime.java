@@ -37,6 +37,11 @@ public final class CheckpointRuntime implements AutoCloseable {
         }
         try {
             job.snapshot = Objects.requireNonNull(provider.capture(context, maximumBytes));
+            // Diagnostics are optional. Their failure must not abandon an already-owned save.
+            try {
+                String detail = job.snapshot.diagnostics();
+                job.diagnostics = detail == null ? "" : detail.substring(0, Math.min(detail.length(), 2048));
+            } catch (RuntimeException ignored) { job.diagnostics = "diagnostics-unavailable"; }
             long bytes = job.snapshot.retainedBytes();
             if (bytes < 0 || bytes > maximumBytes)
                 throw new IllegalStateException("Capture exceeds the configured memory budget");
@@ -88,6 +93,8 @@ public final class CheckpointRuntime implements AutoCloseable {
         private Throwable captureFailure;
         private volatile Phase phase = Phase.CAPTURING;
         private volatile CheckpointRuntime.Result result;
+        private volatile String diagnostics = "";
+        @Override public String diagnostics() { return diagnostics; }
         private volatile SaveProvider.Completion completion = SaveProvider.Completion.DETACHED_WRITES_COMMITTED;
         private boolean cancelled;
         private Job(SaveProvider.Context context) { this.context = context; }

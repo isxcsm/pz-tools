@@ -417,7 +417,7 @@
 <data name="GameExtensions.Title" xml:space="preserve"><value>遊戲擴充</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>管理選用的遊戲增強功能。</value></data>
 <data name="Extension.SeamlessSave.Title" xml:space="preserve"><value>無縫儲存</value></data>
-<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>保留遊戲原有儲存流程，略過強制預覽繪製，並在背景寫入既有的區塊檔案。序列化、原生儲存及部分檔案操作仍可能使遊戲短暫停頓。不支援的版本使用標準儲存。</value></data>
+<data name="Extension.SeamlessSave.Description" xml:space="preserve"><value>使用獨立的備份儲存流程，不變更一般儲存。等待物品拖曳結束，略過強制預覽繪製，並在背景執行符合條件的區塊寫入。序列化和原生儲存仍可能造成遊戲停頓。</value></data>
 <data name="GameExtensions.Disabled" xml:space="preserve"><value>已關閉 · 標準儲存</value></data>
 <data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>下次儲存時檢查相容性 &#183; 實驗階段</value></data>
 <data name="GameExtensions.Configure" xml:space="preserve"><value>設定</value></data>
@@ -425,7 +425,7 @@
 <data name="GameExtensions.Apply" xml:space="preserve"><value>套用</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>無法使用擴充設定</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>無法儲存變更。請重新開啟頁面並檢查擴充設定檔。</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>保留遊戲原有儲存流程，略過強制預覽繪製，並在背景寫入既有的區塊檔案。序列化、原生儲存及部分檔案操作仍可能使遊戲短暫停頓。不支援的版本使用標準儲存。</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>使用獨立的備份儲存流程，不變更一般儲存。等待物品拖曳結束，略過強制預覽繪製，並在背景執行符合條件的區塊寫入。序列化和原生儲存仍可能造成遊戲停頓。</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>所有版本</value></data>
 <data name="GameExtensions.VersionMajor" xml:space="preserve"><value>主要版本 {0}</value></data>
 <data name="GameExtensions.VersionMinor" xml:space="preserve"><value>次要版本 {0}</value></data>
