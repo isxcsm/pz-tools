@@ -207,7 +207,7 @@ public final class Build4220Adapter implements SeamlessSaveProvider.GameAdapter 
                     phases.stage(SaveStageFilter.VEHICLES);
                 }
             };
-            return new FrameSavePlan(context, worldCapture, saving, readiness::ready,
+            return new FrameSavePlan(context, worldCapture, saving, readiness,
                 writes, batch.cooperative, batch, timings, maximumBytes - maximumBytes / 2);
         } catch (Throwable failure) {
             batch.fail(failure instanceof InvocationTargetException invocation ? invocation.getCause() : failure);

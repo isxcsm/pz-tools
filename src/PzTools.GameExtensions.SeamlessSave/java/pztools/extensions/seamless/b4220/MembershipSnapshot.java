@@ -24,16 +24,18 @@ final class MembershipSnapshot {
         add(() -> read.get() == expected, 1);
         return expected;
     }
-    List<?> list(Read read) throws Exception {
+    Object[] list(Read read) throws Exception {
         Object value = read.get();
         if (!(value instanceof List<?> list)) throw new IOException("Unsupported serialized collection");
-        Object[] entries = list.toArray();
+        // PZArrayList supports size/get but deliberately rejects iterator(), including inherited toArray().
+        Object[] entries = new Object[list.size()];
+        for (int i = 0; i < entries.length; i++) entries[i] = list.get(i);
         add(() -> {
             if (read.get() != list || list.size() != entries.length) return false;
             for (int i = 0; i < entries.length; i++) if (list.get(i) != entries[i]) return false;
             return true;
         }, entries.length);
-        return list;
+        return entries;
     }
     Object[] array(Read read) throws Exception {
         Object value = read.get();

@@ -86,4 +86,19 @@ public sealed class ProcessContractsTests
     }
 
     private sealed record TestPayload(string Value);
+
+    [Fact]
+    public void FailureTelemetry_SeparatesRedactedBoundedProviderDiagnostics()
+    {
+        const string source = "C:\\private\\save";
+        var diagnostics = source + "\n" + new string('x', 7000);
+        var error = new PzTools.SaveBridge.GameSaveException("extension-save-failed", "short failure", diagnostics);
+        using var json = JsonDocument.Parse(FailureTelemetry.FromException("save-failed", error, redactPathPrefix: source));
+        var root = json.RootElement;
+        Assert.Equal("[extension-save-failed] short failure", root.GetProperty("message").GetString());
+        var detail = root.GetProperty("diagnostics").GetString()!;
+        Assert.StartsWith("<save> ", detail);
+        Assert.DoesNotContain(source, detail);
+        Assert.Equal(6145, detail.Length);
+    }
 }

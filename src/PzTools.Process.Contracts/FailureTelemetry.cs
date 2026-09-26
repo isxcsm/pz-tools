@@ -35,6 +35,8 @@ public static class FailureTelemetry
         Add(fields, "reason", reason, redactPathPrefix);
         Add(fields, "operation", operation, redactPathPrefix);
         Add(fields, "saveId", saveId, redactPathPrefix);
+        if (exception is IFailureDiagnostics { Diagnostics: { Length: > 0 } diagnostics })
+            fields["diagnostics"] = Limit(diagnostics, redactPathPrefix, 6144);
         if (exception.InnerException is { } inner)
         {
             fields["innerExceptionType"] = inner.GetType().Name;
@@ -51,12 +53,12 @@ public static class FailureTelemetry
         if (!string.IsNullOrWhiteSpace(value)) fields[key] = Limit(value, redactPathPrefix);
     }
 
-    private static string Limit(string value, string? redactPathPrefix)
+    private static string Limit(string value, string? redactPathPrefix, int maximumLength = MaximumTextLength)
     {
         var safeValue = string.IsNullOrWhiteSpace(redactPathPrefix) ? value
             : value.Replace(redactPathPrefix, "<save>", StringComparison.OrdinalIgnoreCase);
         var singleLine = safeValue.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return singleLine.Length <= MaximumTextLength
-            ? singleLine : singleLine[..MaximumTextLength] + "…";
+        return singleLine.Length <= maximumLength
+            ? singleLine : singleLine[..maximumLength] + "…";
     }
 }

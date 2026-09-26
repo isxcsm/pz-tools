@@ -38,20 +38,17 @@ public final class CheckpointRuntime implements AutoCloseable {
         }
         try {
             job.snapshot = Objects.requireNonNull(provider.capture(context, maximumBytes));
-            // Diagnostics are optional. Their failure must not abandon an already-owned save.
-            try {
-                String detail = job.snapshot.diagnostics();
-                job.diagnostics = detail == null ? "" : detail.substring(0, Math.min(detail.length(), 2048));
-            } catch (RuntimeException ignored) { job.diagnostics = "diagnostics-unavailable"; }
             long bytes = job.snapshot.retainedBytes();
             if (bytes < 0 || bytes > maximumBytes)
                 throw new IllegalStateException("Capture exceeds the configured memory budget");
         } catch (Throwable failure) { job.captureFailure = failure; }
         finally {
-            job.recordCapture(System.nanoTime() - started);
+            job.recordCapture(started);
             job.initialized = true;
             if (job.captureFailure != null) job.abortCapture(job.captureFailure);
-            else if (!(job.snapshot instanceof CooperativeCapture)) job.captureFinished();
+            else if (!(job.snapshot instanceof CooperativeCapture)) {
+                job.refreshDiagnostics(); job.captureFinished();
+            }
         }
         // Once capture begins, failure also has an owned asynchronous completion; no synchronous close/join.
         return job;
@@ -69,17 +66,23 @@ public final class CheckpointRuntime implements AutoCloseable {
         Phase terminal = job.captureFailure == null ? Phase.CANCELLED : Phase.FAILED;
         Throwable error = job.captureFailure;
         SaveProvider.PreparedSave snapshot = job.snapshot;
+        long completionStarted = System.nanoTime();
+        job.completionQueueNanos = Math.max(0, completionStarted - job.captureFinishedAt);
         try {
             if (error == null && job.beginWriting()) {
                 snapshot.commit(); job.completion = snapshot.completion(); terminal = Phase.COMMITTED;
             }
         } catch (Throwable failure) { terminal = Phase.FAILED; error = failure; }
         finally {
+            long cleanupStarted = System.nanoTime();
+            job.commitNanos = cleanupStarted - completionStarted;
             try { if (snapshot != null) snapshot.close(); }
             catch (Throwable failure) {
                 if (error == null) error = failure; else error.addSuppressed(failure);
                 terminal = Phase.FAILED;
             }
+            job.cleanupNanos = System.nanoTime() - cleanupStarted;
+            job.refreshDiagnostics();
             job.snapshot = null;
             finish(job, terminal, error);
             if (interrupted) Thread.currentThread().interrupt();
@@ -99,13 +102,15 @@ public final class CheckpointRuntime implements AutoCloseable {
     @Override public void close() { if (closed.compareAndSet(false, true)) writer.shutdown(); }
 
     public static final class Job implements CooperativeTask {
+        private static final int MAXIMUM_DIAGNOSTIC_CHARS = 4096;
         private final SaveProvider.Context context;
         private final CountDownLatch captured = new CountDownLatch(1);
         private volatile SaveProvider.PreparedSave snapshot;
         private final Object captureGate = new Object();
         private final long maximumBytes;
         private volatile boolean initialized;
-        private long captureNanos, maximumSliceNanos;
+        private long captureNanos, maximumSliceNanos, lastCaptureEnd, captureGapNanos, maximumGapNanos;
+        private long captureFinishedAt, completionQueueNanos, commitNanos, cleanupNanos;
         private int slices;
         private Throwable captureFailure;
         private volatile Phase phase = Phase.CAPTURING;
@@ -118,16 +123,43 @@ public final class CheckpointRuntime implements AutoCloseable {
             this.context = context; this.maximumBytes = maximumBytes;
         }
 
-        private void recordCapture(long nanos) {
+        private void recordCapture(long started) {
+            if (lastCaptureEnd != 0) {
+                long gap = Math.max(0, started - lastCaptureEnd);
+                captureGapNanos += gap; maximumGapNanos = Math.max(maximumGapNanos, gap);
+            }
+            lastCaptureEnd = System.nanoTime();
+            long nanos = lastCaptureEnd - started;
             captureNanos += nanos; maximumSliceNanos = Math.max(maximumSliceNanos, nanos); slices++;
         }
-        private void captureFinished() { phase = Phase.QUEUED; captured.countDown(); }
+        private void refreshDiagnostics() {
+            // Only capture/cleanup boundaries format strings. Never allocate a report on every frame.
+            try {
+                String text = snapshot == null ? "" : snapshot.diagnostics();
+                String prefix = "captureStatsV1=" + captureNanos / 1000 + "," + maximumSliceNanos / 1000 + "," + slices
+                    + "; captureGapStatsV1=" + captureGapNanos / 1000 + "," + maximumGapNanos / 1000
+                    + "; completionStatsV1=" + completionQueueNanos / 1000 + "," + commitNanos / 1000 + "," + cleanupNanos / 1000
+                    + "; ";
+                int available = MAXIMUM_DIAGNOSTIC_CHARS - prefix.length();
+                String truncated = "; diagnosticsTruncated=true";
+                if (text != null && text.length() > available) {
+                    int end = available - truncated.length();
+                    if (Character.isHighSurrogate(text.charAt(end - 1))) end--;
+                    text = text.substring(0, end) + truncated;
+                }
+                diagnostics = prefix + (text == null ? "" : text);
+            } catch (Throwable unavailable) { diagnostics = "diagnostics-unavailable"; }
+        }
+        private void captureFinished() {
+            captureFinishedAt = System.nanoTime(); phase = Phase.QUEUED; captured.countDown();
+        }
         private void abortCapture(Throwable failure) {
             synchronized (captureGate) {
                 if (captured.getCount() == 0) return;
                 captureFailure = failure;
                 try { if (snapshot instanceof CooperativeCapture plan) plan.abort(failure); }
                 catch (Throwable cleanup) { if (cleanup != failure) failure.addSuppressed(cleanup); }
+                refreshDiagnostics();
                 captureFinished();
             }
         }
@@ -151,14 +183,8 @@ public final class CheckpointRuntime implements AutoCloseable {
                     try { plan.abort(failure); }
                     catch (Throwable cleanup) { if (cleanup != failure) failure.addSuppressed(cleanup); }
                 } finally {
-                    recordCapture(System.nanoTime() - start);
-                    try {
-                        String text = plan.diagnostics();
-                        diagnostics = "captureStatsV1=" + captureNanos / 1000 + ","
-                            + maximumSliceNanos / 1000 + "," + slices + "; "
-                            + (text == null ? "" : text.substring(0, Math.min(text.length(), 1800)));
-                    } catch (Throwable unavailable) { diagnostics = "diagnostics-unavailable"; }
-                    if (done) captureFinished();
+                    recordCapture(start);
+                    if (done) { refreshDiagnostics(); captureFinished(); }
                 }
             }
         }

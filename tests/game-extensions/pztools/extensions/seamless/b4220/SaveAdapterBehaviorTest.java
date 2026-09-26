@@ -22,6 +22,8 @@ public final class SaveAdapterBehaviorTest {
             check(!result.isDone(), "Dequeued or running is not completed");
             GameHooks.exit(SaveSignals.PLAYERS, null);
             result.get(10, TimeUnit.SECONDS);
+            check(batch.diagnostics().contains("completionWaitUs=") && batch.diagnostics().contains("dbAckUs="),
+                "Completed database barriers did not retain wait diagnostics");
             var failed = signals.begin(context(), true);
             failed.arm();
             var failureResult = write(failed);

@@ -1,11 +1,9 @@
 using PzTools.Process.Contracts;
 using System.Diagnostics;
-using System.Buffers;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using System.Security.Cryptography;
 using PzTools.Backup.ChangeTracking.Windows;
 using PzTools.Backup.Core;
 using PzTools.Backup.Core.Capture;
@@ -498,65 +496,40 @@ public sealed class IncrementalBackupRunner(
             await progress.ReportAsync("hash", comparedFiles, comparedBytes, workload.Bytes, workload.Files);
             var changedPaths = pending.Select(item => item.RelativePath)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var comparer = new FullScanContentComparer(metadataReader);
+            var batch = new List<(FullScanEntry Entry, byte[]? PreviousHash)>(FullScanContentComparer.BatchSize);
             await foreach (var (entry, previousHash) in scan.EnumerateContentComparisonsAsync(cancellationToken))
             {
                 if (changedPaths.Contains(entry.RelativePath)) continue;
-                // A fingerprint must describe the stored object, never a later live read.
-                // Missing baselines are captured once; stable capture records the new hash.
-                var matches = previousHash is not null && await ContentMatchesAsync(
-                        source.RootPath, entry, previousHash, cancellationToken,
-                        bytes => progress.ReportAsync("hash", comparedFiles,
-                            comparedBytes + Math.Min(bytes, entry.Length), workload.Bytes, workload.Files));
-                comparedFiles++;
-                comparedBytes += entry.Length;
+                batch.Add((entry, previousHash));
+                if (batch.Count == FullScanContentComparer.BatchSize) await CompareBatchAsync();
+            }
+            if (batch.Count != 0) await CompareBatchAsync();
+
+            async Task CompareBatchAsync()
+            {
+                // Only file reads overlap. The SQLite reader, planning list and progress totals
+                // remain on this consumer. A small batch amortizes worker scheduling without
+                // retaining the whole catalog; at most two file readers run at any moment.
+                var matches = await comparer.CompareAsync(source.RootPath, batch, cancellationToken,
+                    bytes => progress.ReportAsync("hash", comparedFiles,
+                        comparedBytes + bytes, workload.Bytes, workload.Files));
+                for (var index = 0; index < batch.Count; index++)
+                {
+                    var entry = batch[index].Entry;
+                    comparedFiles++;
+                    comparedBytes += entry.Length;
+                    if (matches[index]) continue;
+                    pending.Add(new PendingEntry(entry.RelativePath, entry.Kind, false,
+                        entry.Length, entry.ModifiedUtc, entry.ChangedUtc, entry.Attributes,
+                        entry.FileId, entry.ParentFileId));
+                }
+                batch.Clear();
                 await progress.ReportAsync("hash", comparedFiles, comparedBytes, workload.Bytes, workload.Files);
-                if (matches) continue;
-                pending.Add(new PendingEntry(entry.RelativePath, entry.Kind, false,
-                    entry.Length, entry.ModifiedUtc, entry.ChangedUtc, entry.Attributes,
-                    entry.FileId, entry.ParentFileId));
             }
         }
 
         return pending;
-    }
-
-    private async Task<bool> ContentMatchesAsync(
-        string sourceRoot, FullScanEntry entry, byte[] previousHash,
-        CancellationToken cancellationToken,
-        Func<long, ValueTask> progress)
-    {
-        var path = ToAbsolutePath(sourceRoot, entry.RelativePath);
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete, 128 * 1024,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        var before = metadataReader.ReadHandle(stream.SafeFileHandle);
-        byte[] hash;
-        using (var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
-        {
-            var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
-            try
-            {
-                long bytes = 0;
-                int read;
-                await progress(0);
-                while ((read = await stream.ReadAsync(buffer.AsMemory(), cancellationToken)) > 0)
-                {
-                    hasher.AppendData(buffer, 0, read);
-                    bytes += read;
-                    await progress(bytes);
-                }
-                hash = hasher.GetHashAndReset();
-            }
-            finally { ArrayPool<byte>.Shared.Return(buffer); }
-        }
-        var after = metadataReader.ReadHandle(stream.SafeFileHandle);
-        var current = metadataReader.ReadPath(path);
-        return ContentFingerprint.MatchesSha256(previousHash, hash)
-            && before == after && after == current
-            && before.Length == entry.Length
-            && before.ModifiedUtc == entry.ModifiedUtc
-            && before.ChangedUtc == entry.ChangedUtc
-            && FileIdentityCodec.Encode(before.Identity).AsSpan().SequenceEqual(entry.FileId);
     }
 
     private IBackupFailureInjector FailureInjector =>

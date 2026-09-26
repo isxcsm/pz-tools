@@ -6,12 +6,17 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.jar.JarFile;
 
-/** Read-only installed-JAR validation. Defines private copies but NEVER invokes game saving/static initializers. */
+/** Read-only installed-JAR validation. Runs the collection utility only; never starts a world or invokes saving. */
 public final class VerifyInstalledSaveBytecode {
     public static void main(String[] args) throws Throwable {
         if (args.length != 1) throw new IllegalArgumentException("Expected installed game JAR path");
         Path path = Path.of(args[0]).toAbsolutePath();
         try (var jar = new JarFile(path.toFile()); var loader = new URLClassLoader(new java.net.URL[]{path.toUri().toURL()}, VerifyInstalledSaveBytecode.class.getClassLoader())) {
+            @SuppressWarnings("unchecked")
+            var indexed = (List<Object>)Class.forName("zombie.util.list.PZArrayList", true, loader)
+                .getConstructor(Class.class, int.class).newInstance(Object.class, 4);
+            CooperativeCaptureTest.verifyIndexedCollection(indexed);
+            System.out.println("VERIFIED (collection utility only): installed PZArrayList capture and membership checks");
             var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)));
             Map<String,byte[]> sources = new HashMap<>();
             for (var method : PrivateSaveGraph.SOURCES) {

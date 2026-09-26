@@ -9,9 +9,11 @@ using DiagnosticsProcess = System.Diagnostics.Process;
 
 namespace PzTools.SaveBridge;
 
-public sealed class GameSaveException(string code, string message) : Exception($"[{code}] {message}")
+public sealed class GameSaveException(string code, string message, string? diagnostics = null)
+    : Exception($"[{code}] {message}"), IFailureDiagnostics
 {
     public string Code { get; } = code;
+    public string? Diagnostics { get; } = diagnostics;
 }
 
 /// <summary>Authenticated, game-thread save requests through the JVM Attach bridge.</summary>
@@ -230,7 +232,16 @@ public sealed class GameSaveClient(string bridgeDirectory,
     public static GameSaveResponse ParseResponse(string? result, string? requestedProvider = null)
     {
         var parts = result?.Split('\t') ?? [];
-        if (parts is ["ERROR", var code, var message]) throw new GameSaveException(code, Decode(message));
+        if (parts is ["ERROR", var code, var message])
+        {
+            var decoded = Decode(message);
+            // Optional bounded diagnostics stay inside the original ERROR envelope. Older bridges
+            // send only a message. Java sanitizes exception newlines before appending this section.
+            const string marker = "\nSave diagnostics: ";
+            var boundary = decoded.IndexOf(marker, StringComparison.Ordinal);
+            throw boundary < 0 ? new GameSaveException(code, decoded)
+                : new GameSaveException(code, decoded[..boundary], decoded[(boundary + marker.Length)..]);
+        }
         if (parts is ["OK", var success] && requestedProvider is null)
             return new("pztools.standard-save", GameSaveCompletion.StandardCallReturned, Decode(success));
         if (parts is ["SAVED", var provider, var completion, var detail, var fallback]

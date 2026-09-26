@@ -120,3 +120,28 @@ current verification rather than treating the older measurements above as schema
 
 For active-only automatic backups and schema-5 bounded version inspection, see
 [the follow-up](active-backup-followup.md). Earlier measurements above are historical.
+
+## Bounded full-scan content reads (2026-09-27)
+
+When USN falls back to a full scan, content comparison now takes batches of 16
+catalog entries with at most two concurrent content readers. The SQLite reader and
+pending-change list remain on one consumer. Metadata calls and progress callbacks
+are serialized, and failure cancels and drains both readers before releasing the
+scan. Full SHA-256 calculation and before/after/current-path identity checks remain
+unchanged. A missing stored fingerprint still requires a capture, not a baseline
+manufactured from a later live read.
+
+An isolated fixture of 6,127 small files (56,839,428 bytes) on warm local NTFS was
+compared in alternating order over four rounds. Sequential times were 2948.6,
+1981.7, 1898.2 and 1948.4 ms; the production two-reader helper took 1563.6, 1519.3,
+1399.2 and 1202.3 ms. The medians were 1965.05 and 1459.25 ms (25.74% less time).
+This is file-comparison throughput, not game save, database planning or compression
+time. It does not reproduce the reported 19-second live fallback interval or
+predict performance on cold storage, under antivirus scans or while playing.
+
+The focused full-scan/fingerprint/runner suite passed 54 tests with no skips.
+Coverage includes same-length contents with frozen timestamps, missing/mismatched
+baselines, changed metadata, ordered results, serialized monotonic progress,
+bounded content readers, and reader disposal on failure/cancellation. The content
+reader bound is two; serialized path validation can open one additional temporary
+metadata handle. No live game or user save was used by these fixtures.

@@ -50,9 +50,11 @@ public final class SeamlessSaveProvider implements SaveProvider {
             Class.forName("zombie.GameWindow", false, context.gameClasses()).getMethod("save", boolean.class).invoke(null, true);
         Files.writeString(root.resolve("extension-identity"), context.sessionId() + "|" + context.worldId());
         Files.writeString(root.resolve("extension-started"), context.requestId());
+        String detail = "fixtureCapture=complete; fixtureGeneration=" + generation
+            + (Files.exists(root.resolve("long-diagnostics")) ? "; unicode=" + "추적😀".repeat(2500) : "");
         return new PreparedSave() {
             public long retainedBytes() { return 0; }
-            public String diagnostics() { return "fixtureCapture=complete; fixtureGeneration=" + generation; }
+            public String diagnostics() { return detail; }
             public void commit() throws Exception {
                 if (Thread.currentThread() == context.gameThread()) throw new AssertionError("Writer blocked game thread");
                 while (!Files.exists(root.resolve("release-extension"))) {
@@ -60,9 +62,11 @@ public final class SeamlessSaveProvider implements SaveProvider {
                     Thread.sleep(10);
                 }
                 if (Files.exists(root.resolve("fail-extension"))) throw new IOException("Fixture write failure");
+                if (Files.exists(root.resolve("unsupported-extension"))) failUnsupportedOperation();
                 Files.writeString(root.resolve("extension-written"), context.requestId());
             }
             public void close() throws Exception { Files.writeString(root.resolve("extension-closed"), "closed"); }
         };
     }
+    private static void failUnsupportedOperation() { throw new UnsupportedOperationException(); }
 }

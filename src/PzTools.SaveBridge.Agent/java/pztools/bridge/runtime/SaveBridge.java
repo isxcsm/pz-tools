@@ -123,7 +123,7 @@ public final class SaveBridge {
                 if (request.result.isDone() || request.state.get() == 3) cleanup(instrumentation);
                 output.println(result);
             } catch (Throwable exception) {
-                output.println(error(exception instanceof RuntimeObserver.Deferred ? "runtime-deferred" : exception instanceof BridgeFailure failure ? failure.code : "bridge-failed",
+                output.println(error(request, exception instanceof RuntimeObserver.Deferred ? "runtime-deferred" : exception instanceof BridgeFailure failure ? failure.code : "bridge-failed",
                     describe(exception)));
             }
         } catch (Throwable exception) {
@@ -143,7 +143,7 @@ public final class SaveBridge {
         Request request = pending.get();
         if (request != null && request.guard != null && request.guard.observer().equals(epoch) && request.cancelBeforeSave()) {
             request.started.complete(null);
-            request.result.complete(error("runtime-deferred", "Runtime observer ended before saving"));
+            request.result.complete(error(request, "runtime-deferred", "Runtime observer ended before saving"));
             pending.compareAndSet(request, null);
         }
     }
@@ -167,8 +167,8 @@ public final class SaveBridge {
             if (!saveStartedSent && request.state.get() == 2) { output.println("SAVING"); saveStartedSent = true; }
             if (System.nanoTime() >= deadline) {
                 if (request.cancelBeforeSave())
-                    return error("queue-timeout", "Save preparation expired while waiting for countdown, interaction or workers; cancelled without saving");
-                return error("completion-unknown", "The game call is still running. Do not retry until it finishes");
+                    return error(request, "queue-timeout", "Save preparation expired while waiting for countdown, interaction or workers; cancelled without saving");
+                return error(request, "completion-unknown", "The game call is still running. Do not retry until it finishes");
             }
             try {
                 readControl(request, input);
@@ -272,7 +272,11 @@ public final class SaveBridge {
                 }
                 var support = selected.inspect(request.context);
                 if (!support.supported()) { request.fallbackReason = support.reason(); selected = null; }
-                else if (!selected.readyToCapture(request.context)) return;
+                else if (!selected.readyToCapture(request.context)) {
+                    request.deferAdmission();
+                    return;
+                }
+                request.finishAdmissionWait();
                 actual = validateWorld(request.expectedPath);
                 request.saveDirectory = actual;
                 // A probe may race permission withdrawal. The guard and state CAS remain the admission boundary.
@@ -307,7 +311,7 @@ public final class SaveBridge {
             String failureCode = cause instanceof RuntimeObserver.Deferred ? "runtime-deferred" : cause instanceof BridgeFailure failure ? failure.code : "save-failed";
             if (request.task == null && request.saveStarted != 0) request.captureMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - request.saveStarted);
             publishExecution(request, "Failed", failureCode);
-            request.result.complete(error(failureCode, describe(cause)));
+            request.result.complete(error(request, failureCode, describe(cause)));
         } finally {
             if (request.result.isDone()) {
                 request.state.set(3); pending.compareAndSet(request, null);
@@ -350,7 +354,7 @@ public final class SaveBridge {
         if (!result.requestId().equals(request.id) || !result.sessionId().equals(JVM_SESSION)
                 || !result.worldId().equals(request.context.worldId()))
             throw new BridgeFailure("extension-result-mismatch", "Unexpected save completion identity");
-        if (result.failure() != null) throw new BridgeFailure("extension-save-failed", describe(result.failure()));
+        if (result.failure() != null) throw new BridgeFailure("extension-save-failed", result.failure());
         if (result.cancelled()) throw new BridgeFailure("extension-save-cancelled", "Extension save did not commit");
         completeSuccess(request, request.provider.id(), result.completion().name(), "Extension save completed");
     }
@@ -365,7 +369,8 @@ public final class SaveBridge {
             + "; save=" + request.saveDirectory
             + (request.recoveryError == null ? "" : "; recovery-metadata-unavailable=" + request.recoveryError)
             + (request.task == null ? "" : "; captureMs=" + request.captureMillis + "; maxCaptureSliceMs="
-                + TimeUnit.NANOSECONDS.toMillis(request.maximumSliceNanos) + "; " + request.task.diagnostics())
+                + TimeUnit.NANOSECONDS.toMillis(request.maximumSliceNanos))
+            + (request.requestedProvider == null ? "" : "; " + requestDiagnostics(request))
             + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError);
         publishExecution(request, "Succeeded", request.fallbackReason);
         if (request.requestedProvider == null) request.result.complete("OK\t" + encode(detail));
@@ -425,22 +430,74 @@ public final class SaveBridge {
     }
     private static String encode(String value) { return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }
     private static String error(String code, String message) { return "ERROR\t" + code + "\t" + encode(message); }
-    private static String describe(Throwable exception) { return exception.getClass().getSimpleName() + ": " + exception.getMessage(); }
+    private static String error(Request request, String code, String message) {
+        if (request != null && request.requestedProvider != null)
+            message += "\nSave diagnostics: " + requestDiagnostics(request);
+        return error(code, message);
+    }
+    private static String describe(Throwable exception) {
+        // Preserve the throw site even for exceptions without a message (for example PZArrayList).
+        // Keep the wire/telemetry diagnostic bounded; a full stack trace can dwarf the result.
+        if (exception instanceof BridgeFailure && exception.getCause() != null) exception = exception.getCause();
+        var detail = new StringBuilder();
+        for (int depth = 0; exception != null && depth < 4 && detail.length() < 512; depth++) {
+            if (depth != 0) detail.append("; caused by ");
+            detail.append(exception.getClass().getSimpleName());
+            String message = exception.getMessage();
+            if (message != null && !message.isBlank()) {
+                detail.append(": ").append(message.substring(0, Math.min(160, message.length()))
+                    .replace('\r', ' ').replace('\n', ' '));
+            }
+            StackTraceElement[] frames = exception.getStackTrace();
+            for (int frame = 0; frame < Math.min(3, frames.length) && detail.length() < 512; frame++)
+                detail.append(" at ").append(frames[frame]);
+            Throwable cause = exception.getCause();
+            if (cause == exception) break;
+            exception = cause;
+        }
+        return detail.length() <= 512 ? detail.toString() : detail.substring(0, 509) + "...";
+    }
+
+    private static String requestDiagnostics(Request request) {
+        String detail = request.admissionDiagnostics();
+        SaveTask currentTask = request.task;
+        if (currentTask == null) return detail;
+        try {
+            String task = currentTask.diagnostics();
+            // Diagnostics are optional; a broken provider report cannot change save completion.
+            // ASCII production counters fit with their module identity below this wire budget.
+            if (task != null) {
+                int end = Math.min(task.length(), 4608);
+                if (end < task.length() && Character.isHighSurrogate(task.charAt(end - 1))) end--;
+                detail += "; " + task.substring(0, end);
+            }
+        } catch (Throwable unavailable) { detail += "; diagnostics-unavailable"; }
+        // Keep even non-ASCII provider text below the 16 KiB Base64 wire-line limit.
+        byte[] bytes = detail.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length <= 8192) return detail;
+        String truncated = "; diagnosticsTruncated=true";
+        int end = 8192 - truncated.length();
+        while ((bytes[end] & 0xc0) == 0x80) end--;
+        return new String(bytes, 0, end, StandardCharsets.UTF_8) + truncated;
+    }
     private static final class BridgeFailure extends Exception {
         final String code;
         BridgeFailure(String code, String message) { super(message); this.code = code; }
+        BridgeFailure(String code, Throwable cause) { super(cause.getMessage(), cause); this.code = code; }
     }
     private static final class Request {
         final String id = UUID.randomUUID().toString();
         SaveModules modules;
         SaveProvider provider;
-        SaveTask task;
+        volatile SaveTask task;
         Class<?> cooperativeTask;
         Method advanceCapture;
         SaveProvider.Context context;
         Object cell;
         String requestedProvider, fallbackReason, saveDirectory, recoveryError, reportWorld, actualProvider;
         long saveStarted, captureMillis, captureNanos, maximumSliceNanos;
+        private long admissionBlockedAt, admissionWaitNanos;
+        private int admissionDeferrals;
         boolean forceVersion;
 
         final boolean save;
@@ -466,6 +523,20 @@ public final class SaveBridge {
         }
         boolean cancelBeforeSave() {
             return state.compareAndSet(0, 3) || state.compareAndSet(1, 3);
+        }
+        synchronized void deferAdmission() {
+            admissionDeferrals++;
+            if (admissionBlockedAt == 0) admissionBlockedAt = System.nanoTime();
+        }
+        synchronized void finishAdmissionWait() {
+            if (admissionBlockedAt == 0) return;
+            admissionWaitNanos += System.nanoTime() - admissionBlockedAt;
+            admissionBlockedAt = 0;
+        }
+        synchronized String admissionDiagnostics() {
+            long waiting = admissionWaitNanos + (admissionBlockedAt == 0 ? 0
+                : Math.max(0, System.nanoTime() - admissionBlockedAt));
+            return "bridgeAdmissionStatsV1=" + admissionDeferrals + "," + waiting / 1000;
         }
     }
 }

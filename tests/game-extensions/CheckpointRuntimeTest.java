@@ -75,6 +75,7 @@ public final class CheckpointRuntimeTest {
                     && oversized.poll().error() instanceof IllegalStateException, "Oversized snapshot cannot commit");
             }
             failedCaptureCleanupIsOwned(context);
+            diagnosticsAreFinalAndNotPerFrame(context);
             pztools.extensions.seamless.b4220.CooperativeCaptureTest.run();
             ModuleReloadTest.run();
             System.out.println("PASS: unsupported adapter, detached capture, writer ownership, failure and memory budget");
@@ -82,6 +83,58 @@ public final class CheckpointRuntimeTest {
             Files.deleteIfExists(directory.resolve("saved.bin"));
             Files.delete(directory);
         }
+    }
+    private static void diagnosticsAreFinalAndNotPerFrame(SaveProvider.Context context) throws Exception {
+        var reports = new AtomicInteger();
+        try (var runtime = new CheckpointRuntime(1024)) {
+            var provider = new SaveProvider() {
+                public String id() { return "fixture.diagnostics"; }
+                public Support inspect(Context ctx) { return new Support(true, null); }
+                public PreparedSave capture(Context ctx, long budget) {
+                    return new pztools.extensions.runtime.CooperativeCapture() {
+                        int frames;
+                        boolean closed;
+                        public boolean advance(long nanos) { return ++frames == 8; }
+                        public void abort(Throwable failure) { }
+                        public long retainedBytes() { return 0; }
+                        public void commit() { }
+                        public void close() { closed = true; }
+                        public String diagnostics() { reports.incrementAndGet(); return "closed=" + closed + "; " + "x".repeat(4096); }
+                    };
+                }
+            };
+            var job = runtime.begin(provider, context);
+            for (int frame = 0; frame < 7; frame++) {
+                job.advanceOnGameThread();
+                check(reports.get() == 0, "A running frame allocated a diagnostic report");
+            }
+            job.advanceOnGameThread(); await(job);
+            check(job.poll().error() == null && reports.get() == 2, "Only capture and cleanup boundaries report diagnostics");
+            String detail = job.diagnostics();
+            check(detail.contains("closed=true") && detail.contains("captureGapStatsV1=")
+                && detail.contains("completionStatsV1="), "Final completion timings were not published");
+            long[] capture = counters(detail, "captureStatsV1", 3);
+            long[] gaps = counters(detail, "captureGapStatsV1", 2);
+            counters(detail, "completionStatsV1", 3);
+            check(capture[2] == 9 && capture[0] >= capture[1], "Capture counters lost begin/advance steps");
+            check(gaps[0] >= gaps[1], "Maximum capture gap exceeds the total gap");
+            check(detail.length() == 4096, "Detailed diagnostic result lost capacity or exceeded its bound");
+        }
+    }
+    private static long[] counters(String detail, String name, int count) {
+        String marker = name + "=";
+        int start = detail.indexOf(marker);
+        check(start >= 0, "Missing diagnostic " + name);
+        start += marker.length();
+        int end = detail.indexOf(';', start);
+        String[] fields = detail.substring(start, end < 0 ? detail.length() : end).split(",");
+        check(fields.length == count, "Unexpected diagnostic shape for " + name);
+        long[] values = new long[count];
+        for (int i = 0; i < count; i++) {
+            values[i] = Long.parseLong(fields[i]);
+            check(values[i] >= 0, "Negative elapsed time/count in " + name);
+        }
+        return values;
     }
     private static void failedCaptureCleanupIsOwned(SaveProvider.Context context) throws Exception {
         var closing = new CountDownLatch(1); var release = new CountDownLatch(1);

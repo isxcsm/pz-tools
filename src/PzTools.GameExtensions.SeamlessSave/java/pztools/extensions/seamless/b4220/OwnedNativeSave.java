@@ -18,13 +18,15 @@ final class OwnedNativeSave {
         public void enter() {
             Batch batch = active.get();
             if (batch != null && batch.eligible && !batch.acknowledged && Thread.currentThread() == batch.worker) {
-                nativePhase.set(batch); batch.started = true;
+                nativePhase.set(batch); batch.startNanos = System.nanoTime() - batch.requestedAt; batch.started = true;
             }
         }
         public void exit(Throwable problem) {
             Batch batch = nativePhase.get(); nativePhase.remove();
             if (batch == null) return;
-            if (problem == null) batch.acknowledged = true;
+            if (problem == null) {
+                batch.receiptNanos = System.nanoTime() - batch.requestedAt; batch.acknowledged = true;
+            }
             else batch.fail(problem); // A retry may settle it; failure is never erased by that retry.
         }
     };
@@ -57,7 +59,7 @@ final class OwnedNativeSave {
         if (batch == null) throw new IllegalStateException("No private native capture");
         batch.context.requireGameThread();
         if (batch.entered) throw new IllegalStateException("Duplicate private native request");
-        batch.entered = true; batch.owner = owner;
+        batch.requestedAt = System.nanoTime(); batch.entered = true; batch.owner = owner;
         batch.worker = (Thread)workerField.get(owner);
         batch.eligible = population.get(null) != null && population.get(null).getClass() == population.getType() && batch.worker != null && batch.worker.isAlive() && !saveFlag.getBoolean(batch.worker);
     }
@@ -75,7 +77,9 @@ final class OwnedNativeSave {
         } catch (RuntimeException | Error failure) {
             batch.settled = null; batch.fail(failure); return false; // No owner: original wait remains.
         }
-        batch.waitFor(ready);
+        long handoffStarted = System.nanoTime();
+        try { batch.waitFor(ready); }
+        finally { batch.handoffNanos += System.nanoTime() - handoffStarted; }
         return true;
     }
     final class Batch {
@@ -85,8 +89,14 @@ final class OwnedNativeSave {
         Object owner;
         volatile Thread worker;
         volatile boolean entered, eligible, started, attempted, acknowledged;
+        long requestedAt, handoffNanos;
+        volatile long startNanos = -1, receiptNanos = -1;
         CompletableFuture<Void> settled;
         Batch(SaveProvider.Context context, Consumer<Throwable> report) { this.context = context; this.report = report; }
+        String diagnostics() {
+            return "nativeStatsV1=" + (startNanos < 0 ? -1 : startNanos / 1000) + ","
+                + (receiptNanos < 0 ? -1 : receiptNanos / 1000) + "," + handoffNanos / 1000;
+        }
         void fail(Throwable problem) {
             if (failure.compareAndSet(null, problem)) {
                 try { report.accept(problem); } catch (Throwable reporting) { if (reporting != problem) problem.addSuppressed(reporting); }

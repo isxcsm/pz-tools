@@ -124,6 +124,9 @@ public sealed class ContentFingerprintTests
         Directory.CreateDirectory(sourcePath);
         var file = Path.Combine(sourcePath, "file.bin");
         await File.WriteAllTextAsync(file, "before");
+        // Exercise both readers and let a reader process another file in the same batch.
+        await File.WriteAllTextAsync(Path.Combine(sourcePath, "stable-a.bin"), "stable one");
+        await File.WriteAllTextAsync(Path.Combine(sourcePath, "stable-b.bin"), "stable two");
         var repository = await RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repository"));
         var telemetry = await TelemetryStore.CreateOrOpenAsync(repository.RepositoryPath);
         var metadata = new FrozenTimesMetadataReader();
@@ -146,7 +149,7 @@ public sealed class ContentFingerprintTests
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = "SELECT COUNT(*) FROM stored_objects;";
-            Assert.Equal(1L, await command.ExecuteScalarAsync());
+            Assert.Equal(3L, await command.ExecuteScalarAsync());
             command.CommandText = "SELECT COUNT(*) FROM packs;";
             Assert.Equal(1L, await command.ExecuteScalarAsync());
         }
@@ -163,6 +166,8 @@ public sealed class ContentFingerprintTests
             var target = temp.GetPath($"restore-{revision}");
             await new RevisionRestorer().RestoreAsync(reopened, source.SourceId, revision, target);
             Assert.Equal(expected, await File.ReadAllTextAsync(Path.Combine(target, "file.bin")));
+            Assert.Equal("stable one", await File.ReadAllTextAsync(Path.Combine(target, "stable-a.bin")));
+            Assert.Equal("stable two", await File.ReadAllTextAsync(Path.Combine(target, "stable-b.bin")));
         }
         Assert.True((await new RepositoryVerifier().VerifyAsync(reopened)).IsValid);
     }

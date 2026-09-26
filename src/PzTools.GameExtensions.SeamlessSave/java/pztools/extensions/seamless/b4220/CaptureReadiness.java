@@ -4,7 +4,10 @@ import java.lang.reflect.*;
 import java.util.Queue;
 
 /** Advisory preflight, not a lock: vanilla checks still handle a worker starting after this observation. */
-final class CaptureReadiness {
+final class CaptureReadiness implements FrameSavePlan.Ready {
+    static final int DATABASE_UNAVAILABLE = 1, CHUNK_WORKER_UNAVAILABLE = 2, CHUNK_SAVING = 4,
+        QUEUED_CHUNKS = 8, NATIVE_UNAVAILABLE = 16, NATIVE_SAVING = 32, UNKNOWN = 64;
+    static final int REASON_COUNT = 7;
     private final Field chunks, saving, queue, collision, nativeThread, nativeSaving, streamer, databaseThread;
     CaptureReadiness(ClassLoader loader) throws ReflectiveOperationException {
         Class<?> type = Class.forName("zombie.iso.ChunkSaveWorker", false, loader);
@@ -24,14 +27,28 @@ final class CaptureReadiness {
         Object owner = streamer.get(null);
         return owner == null ? null : (Thread)databaseThread.get(owner);
     }
-    boolean ready() throws IllegalAccessException {
+    boolean ready() throws IllegalAccessException { return blockers() == 0; }
+    @Override public boolean get() throws IllegalAccessException { return ready(); }
+    @Override public int blockers(int stage) throws IllegalAccessException { return blockers(); }
+    int blockers() throws IllegalAccessException {
+        int reasons = 0;
         Thread database = databaseWorker();
-        if (database == null || !database.isAlive()) return false;
+        if (database == null || !database.isAlive()) reasons |= DATABASE_UNAVAILABLE;
         Object worker = chunks.get(null);
-        if (worker == null || saving.getBoolean(worker) || !((Queue<?>)queue.get(worker)).isEmpty()) return false;
+        if (worker == null) reasons |= CHUNK_WORKER_UNAVAILABLE;
+        else {
+            if (saving.getBoolean(worker)) reasons |= CHUNK_SAVING;
+            Queue<?> pending = (Queue<?>)queue.get(worker);
+            if (pending == null) reasons |= CHUNK_WORKER_UNAVAILABLE;
+            else if (!pending.isEmpty()) reasons |= QUEUED_CHUNKS;
+        }
         Object owner = collision.get(null);
-        if (owner == null) return false;
-        Object thread = nativeThread.get(owner);
-        return thread == null || !nativeSaving.getBoolean(thread);
+        if (owner == null) reasons |= NATIVE_UNAVAILABLE;
+        else {
+            Object thread = nativeThread.get(owner);
+            // Preserve the original advisory policy: an absent optional native thread is ready.
+            if (thread != null && nativeSaving.getBoolean(thread)) reasons |= NATIVE_SAVING;
+        }
+        return reasons;
     }
 }

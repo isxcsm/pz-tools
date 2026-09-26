@@ -26,6 +26,8 @@ final class PrivateNativeOwnershipTest {
             // The original public save must use its original lock; it must not replace the first native input.
             Future<?> vanilla = f.game.submit(() -> { f.window.getMethod("save",boolean.class).invoke(null,true); return null; });
             f.release("releaseNative"); complete.get(10,TimeUnit.SECONDS); vanilla.get(10,TimeUnit.SECONDS);
+            check(batch.diagnostics().contains("nativeStatsV1=") && !batch.diagnostics().contains("nativeStatsV1=-1"),
+                "Native request did not retain its own start and completion timings");
             check(f.population.getField("captures").getInt(f.pop)==2
                 && f.population.getField("writesAtLastCapture").getInt(f.pop)==1, "Normal save overtook the native snapshot");
         }

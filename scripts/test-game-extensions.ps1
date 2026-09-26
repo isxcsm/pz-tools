@@ -17,6 +17,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Extension checkpoint behavior test failed.' }
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.SaveAdapterBehaviorTest
 if ($LASTEXITCODE -ne 0) { throw 'Save adapter barrier behavior test failed.' }
 
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.seamless.b4220.CooperativeChunkWritesTest
+if ($LASTEXITCODE -ne 0) { throw 'Cooperative chunk I/O lane behavior test failed.' }
+
 # A deliberately independent provider exercises transport ownership, not game persistence.
 $fixtureClasses = Join-Path $output 'fixture-classes'
 $fixtureSource = Join-Path $root 'tests/game-extensions-fixture/pztools/extensions/seamless/SeamlessSaveProvider.java'

@@ -93,11 +93,18 @@ final class SaveSignals {
         private int inFlight;
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
         private volatile boolean capturing = true, armed;
+        private long armedAt, fileWaitNanos, nativeWaitNanos, databaseWaitNanos;
+        private volatile long playerAckNanos = -1, vehicleAckNanos = -1;
         OwnedChunkWrites.Batch chunks;
         CooperativeChunkWrites.Batch cooperative;
         OwnedNativeSave.Batch nativeWork;
         String detail = "";
-        public String diagnostics() { return detail; }
+        public String diagnostics() {
+            return detail + "; completionWaitUs=" + fileWaitNanos / 1000 + "," + nativeWaitNanos / 1000 + "," + databaseWaitNanos / 1000
+                + "; dbAckUs=" + (playerAckNanos < 0 ? -1 : playerAckNanos / 1000) + "," + (vehicleAckNanos < 0 ? -1 : vehicleAckNanos / 1000)
+                + (cooperative == null ? "" : "; " + cooperative.diagnostics())
+                + (nativeWork == null ? "" : "; " + nativeWork.diagnostics());
+        }
         Batch(SaveProvider.Context context, int expected, Thread databaseWorker) {
             this.context = context; this.databaseWorker = databaseWorker; pending = new AtomicInteger(expected);
         }
@@ -106,16 +113,21 @@ final class SaveSignals {
         void arm() {
             if (chunks != null) chunks.seal();
             if (cooperative != null) cooperative.seal();
-            capturing = false; armed = true;
+            capturing = false; armedAt = System.nanoTime(); armed = true;
         }
         void fail(Throwable error) { if (error != null) failure.compareAndSet(null, error); }
         void enterDrain() { synchronized (databaseGate) { inFlight++; } }
         void exitDrain() { synchronized (databaseGate) { inFlight--; databaseGate.notifyAll(); } }
         void acknowledge(int bit) {
-            pending.updateAndGet(value -> value & ~bit);
+            int previous = pending.getAndUpdate(value -> value & ~bit);
+            if ((previous & bit) != 0) {
+                long elapsed = System.nanoTime() - armedAt;
+                if (bit == 1) playerAckNanos = elapsed; else vehicleAckNanos = elapsed;
+            }
             synchronized (databaseGate) { databaseGate.notifyAll(); }
         }
         private boolean awaitDatabase() {
+            long started = System.nanoTime();
             boolean interrupted = Thread.interrupted();
             synchronized (databaseGate) {
                 while (pending.get() != 0 || inFlight != 0) {
@@ -129,14 +141,16 @@ final class SaveSignals {
                 }
             }
             if (interrupted) Thread.currentThread().interrupt();
+            databaseWaitNanos += System.nanoTime() - started;
             return interrupted;
         }
         public long retainedBytes() { return cooperative != null ? cooperative.retainedBytes() : chunks == null ? 0 : chunks.retainedBytes(); }
         public SaveProvider.Completion completion() { return chunks == null && cooperative == null ? SaveProvider.Completion.GAME_SAVE_AND_DATABASE_QUEUES_DRAINED : SaveProvider.Completion.GAME_SAVE_AND_PENDING_WRITES_DRAINED; }
         public void commit() throws Exception {
-            if (chunks != null) chunks.await();
-            if (cooperative != null) cooperative.await();
-            if (nativeWork != null) nativeWork.await();
+            awaitFiles();
+            long started = System.nanoTime();
+            try { if (nativeWork != null) nativeWork.await(); }
+            finally { nativeWaitNanos += System.nanoTime() - started; }
             if (awaitDatabase()) throw new InterruptedException("Interrupted after draining owned database writes");
             if (!context.worldValid().get()) throw new IOException("World changed during save");
             Throwable observation = observationFailure();
@@ -147,14 +161,24 @@ final class SaveSignals {
         public void close() throws Exception {
             // Even cancellation/world exit must not leave detached writes behind a released save owner.
             try {
-                if (chunks != null) chunks.await();
-                if (cooperative != null) cooperative.await();
+                awaitFiles();
             }
             finally {
                 // World invalidation is an error, not proof that a database thread stopped writing.
+                long started = System.nanoTime();
                 try { if (nativeWork != null) nativeWork.close(); }
-                finally { awaitDatabase(); active.compareAndSet(this, null); }
+                finally {
+                    nativeWaitNanos += System.nanoTime() - started;
+                    awaitDatabase(); active.compareAndSet(this, null);
+                }
             }
+        }
+        private void awaitFiles() throws Exception {
+            long started = System.nanoTime();
+            try {
+                if (chunks != null) chunks.await();
+                if (cooperative != null) cooperative.await();
+            } finally { fileWaitNanos += System.nanoTime() - started; }
         }
     }
 }

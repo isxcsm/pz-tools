@@ -4,7 +4,7 @@
 
 ## Current scope
 
-Seamless Saving **0.11.0**, bootstrap API **9**, extension API **2**, save protocol **6**.
+Seamless Saving **0.13.0**, bootstrap API **9**, extension API **2**, save protocol **6**.
 Install matching app/worker/JARs. The first move from bootstrap API 8 (or older) to 9
 requires one complete game restart: the old resident has no retirement protocol.
 After that, compatible module, extension-host and bridge-payload updates are applied
