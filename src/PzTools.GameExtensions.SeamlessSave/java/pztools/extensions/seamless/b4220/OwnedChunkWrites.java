@@ -11,8 +11,9 @@ import java.util.concurrent.atomic.*;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
 
-/** Private-call-only I/O. Vanilla readers/writers use the SAME game lock; no public read/write hooks are needed. */
+/** Private-call-only immutable bytes. Original readers/writers keep their own unchanged game locks. */
 final class OwnedChunkWrites implements AutoCloseable {
+    static final int MAXIMUM_PENDING = 128;
     interface Access {
         File destination(int x, int y) throws Exception;
         LockReference reserve(int x, int y) throws Exception;
@@ -26,11 +27,17 @@ final class OwnedChunkWrites implements AutoCloseable {
     private final Access access;
     private final Sink sink;
     private final AtomicReference<Batch> active = new AtomicReference<>();
-    // One writer overlaps current disk I/O with next-chunk serialization; never multiplies disk pressure.
+    private final Object lifecycle = new Object();
+    private boolean closed;
+    // Lock ownership and disk execution have different lifetimes. Bounded virtual owners park while
+    // ONE platform worker writes; the next independent chunk need not wait for the previous disk I/O.
+    private final ExecutorService owners = Executors.newThreadPerTaskExecutor(Thread.ofVirtual()
+        .name("PzTools-chunk-owner-", 0).inheritInheritableThreadLocals(false).factory());
     private final ThreadPoolExecutor writer = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS,
-        new ArrayBlockingQueue<>(1), runnable -> {
-            Thread thread = new Thread(runnable, "PzTools-owned-chunk-writer"); thread.setDaemon(true); return thread;
-        }, new ThreadPoolExecutor.AbortPolicy());
+        new ArrayBlockingQueue<>(MAXIMUM_PENDING), Thread.ofPlatform().daemon(true)
+            .name("PzTools-owned-chunk-writer").inheritInheritableThreadLocals(false).factory(),
+        new ThreadPoolExecutor.AbortPolicy());
+
     OwnedChunkWrites(Access access) { this(access, OwnedChunkWrites::writeBytes); }
     OwnedChunkWrites(Access access, Sink sink) {
         this.access = access; this.sink = sink; writer.allowCoreThreadTimeOut(true);
@@ -43,9 +50,12 @@ final class OwnedChunkWrites implements AutoCloseable {
     Batch begin(SaveProvider.Context context, long limit, Consumer<Throwable> failure) {
         context.requireGameThread();
         if (limit < 1) throw new IllegalArgumentException("Positive byte budget required");
-        Batch batch = new Batch(context, limit, failure);
-        if (!active.compareAndSet(null, batch)) throw new IllegalStateException("Private chunk writes are still owned");
-        return batch;
+        synchronized (lifecycle) {
+            if (closed) throw new IllegalStateException("Private writer is closed");
+            Batch batch = new Batch(context, limit, failure);
+            if (!active.compareAndSet(null, batch)) throw new IllegalStateException("Private chunk writes are still owned");
+            return batch;
+        }
     }
     public void write(int x, int y, ByteBuffer bytes) throws Exception {
         Batch batch = active.get();
@@ -53,15 +63,15 @@ final class OwnedChunkWrites implements AutoCloseable {
         batch.context.requireGameThread();
         File file = access.destination(x, y);
         Path path = file == null ? null : file.toPath().toAbsolutePath().normalize();
-        if (path != null && !path.startsWith(batch.context.sourcePath().toAbsolutePath().normalize()))
-            throw new IOException("Chunk destination left the selected world" );
+        if (path != null && !path.startsWith(batch.root)) throw new IOException("Chunk destination left the selected world");
         int size = bytes.position();
-        // First-file publication stays synchronous. No placeholders or hidden changes to vanilla existence checks.
-        if (path == null || !path.startsWith(batch.context.sourcePath().toAbsolutePath().normalize())
-                || !bytes.hasArray() || bytes.arrayOffset() != 0
-                || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) || !batch.reserve(size)) {
-            access.synchronous(x, y, bytes); return;
+        // First-file publication stays synchronous. No placeholders or changed vanilla existence checks.
+        boolean reserved = false;
+        if (path != null && bytes.hasArray() && bytes.arrayOffset() == 0
+                && Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+            synchronized (lifecycle) { reserved = !closed && batch.reserve(size); }
         }
+        if (!reserved) { access.synchronous(x, y, bytes); return; }
         LockReference reference = null;
         boolean submitted = false;
         var secured = new CompletableFuture<Void>();
@@ -69,10 +79,10 @@ final class OwnedChunkWrites implements AutoCloseable {
             byte[] copy = Arrays.copyOf(bytes.array(), size);
             reference = access.reserve(x, y);
             var ownedReference = reference;
-            writer.execute(() -> commit(batch, path, copy, ownedReference, secured));
+            owners.execute(() -> own(batch, path, copy, ownedReference, secured));
             submitted = true;
         } catch (RejectedExecutionException stopped) {
-            // Not accepted: no background write can occur. Ordered vanilla fallback is safe.
+            // Never started: safe to use the original synchronous writer exactly once.
         } finally {
             if (!submitted) {
                 try { if (reference != null) reference.close(); }
@@ -80,60 +90,99 @@ final class OwnedChunkWrites implements AutoCloseable {
             }
         }
         if (!submitted) { access.synchronous(x, y, bytes); return; }
-        // A task in a queue is NOT lock ownership. Do not let an unmodified vanilla writer overtake it.
-        // This short handoff can wait on contention/previous I/O; it is not advertised as zero-blocking.
+        // A queued task is NOT ownership. Return only after the original lock + channel are held
+        // and disk execution is admitted. Same-file dependencies still wait, as they must.
         boolean interrupted = false;
         try {
             while (true) {
                 try { secured.get(); break; }
                 catch (InterruptedException signal) { interrupted = true; }
-                catch (ExecutionException failed) { throw new IOException("Private chunk lock/open failed", failed.getCause()); }
+                catch (ExecutionException failed) { throw new IOException("Private chunk handoff failed", failed.getCause()); }
             }
             if (interrupted) throw new InterruptedIOException("Interrupted after securing private chunk write");
         } finally { if (interrupted) Thread.currentThread().interrupt(); }
     }
-    private void commit(Batch batch, Path path, byte[] bytes, LockReference reference, CompletableFuture<Void> secured) {
+    private void own(Batch batch, Path path, byte[] bytes, LockReference reference, CompletableFuture<Void> secured) {
         Lock lock = null;
-        boolean locked = false;
+        boolean locked = false, interrupted = false;
         try {
             lock = reference.writeLock(); lock.lock(); locked = true;
-            // Open without truncation before publishing the handoff; later renaming cannot redirect this write.
+            // Lock acquisition and release stay on this SAME owner. Disk code never takes a game lock.
             try (FileChannel file = FileChannel.open(path, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
+                var written = new CompletableFuture<Void>();
+                writer.execute(() -> {
+                    try { sink.write(file, bytes); written.complete(null); }
+                    catch (Throwable failure) { written.completeExceptionally(failure); }
+                });
                 secured.complete(null);
-                sink.write(file, bytes);
+                while (true) {
+                    try { written.get(); break; }
+                    catch (InterruptedException signal) { interrupted = true; }
+                    catch (ExecutionException failure) { throw failure.getCause(); }
+                }
+                // Close precedes unlock. A dequeued/completed disk task alone cannot finish the batch.
             }
         } catch (Throwable failure) {
-            batch.failure.accept(failure); secured.completeExceptionally(failure);
+            batch.fail(failure); secured.completeExceptionally(failure);
         } finally {
             try { if (locked) lock.unlock(); }
-            catch (Throwable failure) { batch.failure.accept(failure); secured.completeExceptionally(failure); }
+            catch (Throwable failure) { batch.fail(failure); secured.completeExceptionally(failure); }
             finally {
                 try { reference.close(); }
-                catch (Throwable failure) { batch.failure.accept(failure); secured.completeExceptionally(failure); }
+                catch (Throwable failure) { batch.fail(failure); secured.completeExceptionally(failure); }
                 finally { batch.release(bytes.length); }
             }
+            if (interrupted) Thread.currentThread().interrupt();
         }
     }
-    @Override public void close() { writer.shutdown(); }
+    /** Stops admission, not accepted writes. Do not close the disk queue while owners may still submit to it. */
+    @Override public void close() {
+        synchronized (lifecycle) {
+            if (closed) return;
+            closed = true; owners.shutdown();
+            Batch batch = active.get();
+            if (batch == null || batch.pendingCount() == 0) writer.shutdown();
+        }
+    }
+    private void released() {
+        synchronized (lifecycle) {
+            Batch batch = active.get();
+            if (closed && (batch == null || batch.pendingCount() == 0)) writer.shutdown();
+        }
+    }
     final class Batch {
         final SaveProvider.Context context;
+        final Path root;
         final long limit;
         final Consumer<Throwable> failure;
+        private final AtomicReference<Throwable> firstFailure = new AtomicReference<>();
         volatile boolean capturing = true;
         private long retained;
         private int pending;
         Batch(SaveProvider.Context context, long limit, Consumer<Throwable> failure) {
-            this.context = context; this.limit = limit; this.failure = failure;
+            this.context = context; this.root = context.sourcePath().toAbsolutePath().normalize();
+            this.limit = limit; this.failure = failure;
         }
         synchronized boolean reserve(int bytes) {
-            if (bytes < 0 || bytes > limit - retained || pending >= 2) return false;
+            if (bytes < 0 || bytes > limit - retained || pending >= MAXIMUM_PENDING) return false;
             retained += bytes; pending++; return true;
         }
-        synchronized void release(int bytes) { retained -= bytes; pending--; notifyAll(); }
+        void release(int bytes) {
+            synchronized (this) { retained -= bytes; pending--; notifyAll(); }
+            released();
+        }
+        void fail(Throwable problem) {
+            if (firstFailure.compareAndSet(null, problem)) {
+                try { failure.accept(problem); }
+                catch (Throwable reportingFailure) { if (reportingFailure != problem) problem.addSuppressed(reportingFailure); }
+            }
+        }
+        synchronized int pendingCount() { return pending; }
         synchronized long retainedBytes() { return retained; }
         void seal() { capturing = false; }
-        void await() throws InterruptedIOException {
+        void await() throws IOException {
             if (Thread.currentThread() == context.gameThread()) throw new IllegalStateException("Completion must not join on game thread");
+            if (capturing) throw new IllegalStateException("Capture must be sealed before completion" );
             boolean interrupted = Thread.interrupted();
             synchronized (this) {
                 while (pending != 0) {
@@ -144,6 +193,7 @@ final class OwnedChunkWrites implements AutoCloseable {
             if (interrupted) {
                 Thread.currentThread().interrupt(); throw new InterruptedIOException("Interrupted after draining owned chunks");
             }
+            if (firstFailure.get() != null) throw new IOException("Captured chunk write failed after cleanup", firstFailure.get());
         }
     }
 }

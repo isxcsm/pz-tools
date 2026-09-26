@@ -4,7 +4,7 @@
 
 ## Current scope
 
-Seamless Saving **0.7.0**, bootstrap API **7**, save protocol **6**.
+Seamless Saving **0.8.0**, bootstrap API **7**, save protocol **6**.
 Replace app/worker/JARs together and restart the entire game. In particular, an older
 bootstrap already containing the retired global hooks cannot be upgraded just by toggling
 the extension. No backup-repository reset is needed.
@@ -44,21 +44,39 @@ can still interfere with a shared JVM; this is not an arbitrary-mod compatibilit
 ## Ordered I/O without changing normal readers or writers
 
 The private chunk path copies serialized bytes and reserves the game's counted per-file
-lock. One worker acquires that original write lock, opens the existing file without
-truncation, then acknowledges the handoff. Only then may the game continue. The worker
-writes the detached bytes, closes the channel, unlocks on the SAME worker thread, and
-releases the counted reference. Normal unmodified reads/writes use this same game lock.
-They cannot read half a file or let a later write be overwritten by the older private write.
-The opened channel pins the file; renaming after handoff does not redirect the write.
+lock. A bounded virtual-thread owner acquires that original write lock, opens the
+existing file without truncation, and admits a write to ONE platform disk worker
+before acknowledging handoff to the game thread. The same owner holds the lock until
+writing AND channel close finish, then unlocks and releases the counted reference.
+The disk worker never acquires a game lock or reads mutable game objects. Task
+submission/completion establishes visibility of the immutable input and write result.
+Unmodified ordinary readers/writers still use the same original locks.
 
-There is one I/O worker, at most two retained operations, and a 64 MiB copy budget.
-New files, unsupported buffers and unavailable capacity use the original synchronous
-SafeWrite before any handoff is accepted. No chunk is omitted. World exit/cancellation
-does not discard accepted writes or report completion before resource release.
+Previously the single disk worker also had to acquire each following file lock, so a
+blocked write on chunk A delayed capture of independent chunk B. In 0.8 the bounded
+owners can secure B while A is writing. Physical writes remain serial and ordered by
+admission: the game cannot submit the next chunk until this one has entered the disk
+queue. Same-file dependencies and contended lock acquisition may still block.
 
-The handoff can wait for a competing lock or the previous I/O. Native saving, including
-its completion wait, is synchronous again. This is deliberate: returning early from
-shared native writes required modifying ordinary save/stop paths to remain safe.
+At most 128 accepted operations/virtual owners/channels and 64 MiB of copied data are
+retained. The limit includes operations acquiring a lock, queued writes and cleanup.
+Virtual owners do not each create an operating-system thread; inheritance of game
+thread-local state is disabled. They terminate when their own resource lease ends.
+The single disk worker times out while idle. No per-frame task or polling loop was
+added. Java's supported virtual-thread API is used, not JDK-internal access.
+
+Capacity/byte exhaustion, a new file or an unsuitable buffer uses original synchronous
+SafeWrite before submission, without skipping data. After admission, lock/open/write/
+close failures are errors, not a reason to replay the original write. Completion waits
+for every owned lock, channel and copied input; an error remains an error after cleanup.
+Shutdown stops new ownership but keeps disk submission open for already-admitted owners.
+Cancellation/world change never discards accepted data or interrupts an owned channel.
+
+The channel pins the selected existing file; renaming after handoff does not redirect
+its write. Native saving and completion waits remain original and synchronous. There
+is no new general-save/stop fence, read-through hook, parallel disk pool or path override.
+These immutable per-chunk inputs are NOT a coherent whole-world snapshot, and the
+backup engine still reads the live save directory after preparation.
 
 The previous FileWriteHooks/SaveWaitHooks, public SafeRead read-through, JDK-internal
 file-key adapter, auxiliary-output rewrites and native save/stop rewrites were removed.
@@ -119,20 +137,26 @@ Two product milestones remain:
    Include normal/mod saves overlapping our request, failure and world exit.
    Synthetic Java tests and installed-bytecode admission are not real-game acceptance.
 
-### Latest local verification
+### Verification
 
-Windows Release solution/WinUI/native/Java build: zero warnings and errors.
-`artifacts/game-extension-tests/private-save.trx`: 117 passed, zero failed,
-one explicitly skipped live-game probe. The four current Java harnesses pass.
-The private-entry harness executes normal saving before/after the extension, a nested
-mod save, a virtual subclass override, original-lock ordering, failed writes and
-ownership through world invalidation. Existing .NET coverage also connects readiness,
-pause and completion to initial/incremental backups and restored bytes.
+The existing private-entry harness covers normal saving before/after the extension,
+nested mod saves, virtual overrides, original-lock ordering, failed writes and world
+invalidation. It additionally holds the first disk write behind a latch while capturing
+128 independent chunks, checks one physical writer, scratch-buffer isolation, count
+and byte limits, shutdown drain, and lock-acquisition failure without replay.
+The gate is released only after capture has returned, so this checks the dependency
+rather than relying on a machine-specific millisecond performance threshold.
 
-Using the installed JAR read-only in a separate JVM, the production adapter initializes
-successfully and four original save bodies remain canonically identical after its
-installation/retransformation. Private companions and three observation transforms
-verify; original file-lock/worker field contracts resolve without game initialization.
-The four app-worker JARs and catalogue match the build outputs by SHA-256. Removed
-global-hook classes are absent from those JARs. These are local checks, not GitHub CI
-or real gameplay, drag, frame-time or vehicle-restoration acceptance results.
+The existing .NET preparation/initial/incremental/restore tests and installed-JAR
+production-adapter/original-body audit are used; no extra CI job or harness was added.
+Synthetic and offline checks do not substitute for real-game frame-time, dragging,
+vehicle/item restoration or coherent whole-world snapshot verification.
+
+The 0.8 local Windows verification completed: Release solution/WinUI/native/Java build
+with zero warnings/errors; `artifacts/game-extension-tests/private-batch.trx` reports
+20 passed, zero failed and zero skipped for the selected connected-pipeline regressions.
+All four existing Java harnesses passed. The installed-JAR production adapter admitted
+in a separate JVM, and the four original save bodies stayed unchanged after observation
+instrumentation. Four deployed worker JARs and the shared catalogue matched build hashes.
+No actual gameplay save, user-data mutation or real-frame-time measurement was performed.
+Bootstrap API 7 and wire protocol 6 did not change in this module-only update.

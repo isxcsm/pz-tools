@@ -70,7 +70,9 @@ public final class PrivateSaveEntryTest {
                 } finally { release.countDown(); }
             }
             verifyFailureAndOrdering(loader, root, chunk, completion, reader);
-            System.out.println("PASS: private save entry, original/nested/modded saves, pinned locks, I/O failure and ownership");
+            verifyBoundedIndependentCaptures(loader, root, chunk, completion);
+            verifyLockAdmissionFailure(loader, root, completion);
+            System.out.println("PASS: private save isolation, bounded independent captures, single disk writer, fallback, failure and shutdown");
         } finally {
             try (var paths = Files.walk(root)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); }
         }
@@ -99,9 +101,106 @@ public final class PrivateSaveEntryTest {
         var failContext = new SaveProvider.Context("failure2", "session", "world", root, Thread.currentThread(), loader);
         try (var io = new OwnedChunkWrites(new GameChunkAccess(loader), (file, bytes) -> { throw new IOException("disk failure"); })) {
             var batch = io.begin(failContext, 16, error::set); io.write(0,0,ByteBuffer.allocate(4).putInt(50)); batch.seal();
-            completion.submit(() -> { batch.await(); return null; }).get(10,TimeUnit.SECONDS);
+            expectWriteFailure(completion.submit(() -> { batch.await(); return null; }));
             check(error.get() instanceof IOException && batch.retainedBytes() == 0 && chunk.getMethod("references").invoke(null).equals(0), "Failed write leaked memory/lock or was unreported");
         }
+    }
+    private static void verifyBoundedIndependentCaptures(ClassLoader loader, Path root, Class<?> chunk,
+            ExecutorService completion) throws Exception {
+        // Many different chunks must hand off while the first physical write is stopped. This failed
+        // with a single thread owning both every lock and disk execution; no elapsed-time assertion.
+        for (int x = 1; x <= OwnedChunkWrites.MAXIMUM_PENDING + 2; x++)
+            invoke(chunk.getMethod("SafeWrite", int.class, int.class, ByteBuffer.class), null, x, 0, ByteBuffer.allocate(4).putInt(-1));
+        var writing = new CountDownLatch(1); var release = new CountDownLatch(1);
+        var maxIo = new AtomicInteger(); var activeIo = new AtomicInteger(); var writes = new AtomicInteger();
+        var failure = new AtomicReference<Throwable>();
+        try (var game = Executors.newSingleThreadExecutor();
+             var io = new OwnedChunkWrites(new GameChunkAccess(loader), (file, bytes) -> {
+                 int count = activeIo.incrementAndGet(); maxIo.accumulateAndGet(count, Math::max);
+                 try { writing.countDown(); waitFor(release); OwnedChunkWrites.writeBytes(file, bytes); writes.incrementAndGet(); }
+                 finally { activeIo.decrementAndGet(); }
+             })) {
+            try {
+                var capture = game.submit(() -> {
+                    var ctx = new SaveProvider.Context("many", "session", "world", root, Thread.currentThread(), loader);
+                    var batch = io.begin(ctx, (OwnedChunkWrites.MAXIMUM_PENDING + 1L) * 4, failure::set);
+                    ByteBuffer shared = ByteBuffer.allocate(4);
+                    for (int x = 1; x <= OwnedChunkWrites.MAXIMUM_PENDING + 1; x++) {
+                        shared.clear().putInt(x); io.write(x, 0, shared); shared.putInt(0, -99);
+                    }
+                    batch.seal(); return batch;
+                });
+                waitFor(writing);
+                var batch = capture.get(10, TimeUnit.SECONDS); // Disk gate is still CLOSED here.
+                check(writes.get() == 0, "Capture secretly waited for disk completion");
+                check(batch.pendingCount() == OwnedChunkWrites.MAXIMUM_PENDING,
+                    "Operation bound was not enforced before allocating another owner/channel");
+                check(batch.retainedBytes() == 4L * OwnedChunkWrites.MAXIMUM_PENDING, "Retained immutable bytes differ from admitted work");
+                check(readAt(chunk, OwnedChunkWrites.MAXIMUM_PENDING + 1) == OwnedChunkWrites.MAXIMUM_PENDING + 1,
+                    "Capacity fallback lost the final chunk instead of using the original writer");
+                Future<?> done = completion.submit(() -> { batch.await(); return null; });
+                check(!done.isDone(), "Snapshot copies were mistaken for written files");
+                // Stop future submissions while all of these already-admitted owners remain valid.
+                io.close(); check(!done.isDone(), "Shutdown abandoned captured data");
+                release.countDown(); done.get(10, TimeUnit.SECONDS);
+                check(maxIo.get() == 1 && writes.get() == OwnedChunkWrites.MAXIMUM_PENDING,
+                    "Parallel lock ownership must not multiply disk writers");
+                check(batch.pendingCount() == 0 && batch.retainedBytes() == 0 && failure.get() == null,
+                    "Batch did not release all data/locks after closing");
+                for (int x = 1; x <= OwnedChunkWrites.MAXIMUM_PENDING; x++)
+                    check(readAt(chunk, x) == x, "Reused scratch buffer leaked into captured chunk " + x);
+                check(chunk.getMethod("references").invoke(null).equals(0), "A counted vanilla lock leaked");
+            } finally { release.countDown(); }
+        }
+        // Byte pressure uses the same policy, independently of the operation-count bound.
+        var byteRelease = new CountDownLatch(1); var byteStarted = new CountDownLatch(1);
+        try (var game = Executors.newSingleThreadExecutor();
+             var io = new OwnedChunkWrites(new GameChunkAccess(loader), (file, bytes) -> {
+                 byteStarted.countDown(); waitFor(byteRelease); OwnedChunkWrites.writeBytes(file, bytes);
+             })) {
+            try {
+                var capture = game.submit(() -> {
+                    var ctx = new SaveProvider.Context("bytes", "session", "world", root, Thread.currentThread(), loader);
+                    var batch = io.begin(ctx, 4, failure::set);
+                    io.write(1,0,ByteBuffer.allocate(4).putInt(81));
+                    io.write(2,0,ByteBuffer.allocate(4).putInt(82)); batch.seal(); return batch;
+                });
+                waitFor(byteStarted); var batch = capture.get(10, TimeUnit.SECONDS);
+                check(batch.retainedBytes() == 4 && batch.pendingCount() == 1 && readAt(chunk,2) == 82,
+                    "Byte-limit fallback was not synchronous/complete");
+                byteRelease.countDown(); completion.submit(() -> { batch.await(); return null; }).get(10,TimeUnit.SECONDS);
+                check(readAt(chunk,1) == 81 && batch.retainedBytes() == 0, "Byte-limited batch failed to settle");
+            } finally { byteRelease.countDown(); }
+        }
+    }
+    private static void verifyLockAdmissionFailure(ClassLoader loader, Path root, ExecutorService completion) throws Exception {
+        var base = new GameChunkAccess(loader); var closed = new AtomicInteger(); var failure = new AtomicReference<Throwable>();
+        OwnedChunkWrites.Access access = new OwnedChunkWrites.Access() {
+            public File destination(int x,int y) throws Exception { return base.destination(x,y); }
+            public OwnedChunkWrites.LockReference reserve(int x,int y) {
+                return new OwnedChunkWrites.LockReference() {
+                    public java.util.concurrent.locks.Lock writeLock() { throw new IllegalStateException("fixture lock failure"); }
+                    public void close() { closed.incrementAndGet(); }
+                };
+            }
+            public void synchronous(int x,int y,ByteBuffer bytes) { throw new AssertionError("An admitted failure must not replay vanilla writing"); }
+        };
+        try (var io = new OwnedChunkWrites(access)) {
+            var ctx = new SaveProvider.Context("lock-failure", "session", "world", root, Thread.currentThread(), loader);
+            var batch = io.begin(ctx,4,failure::set);
+            try { io.write(1,0,ByteBuffer.allocate(4).putInt(83)); throw new AssertionError("Unowned lock accepted"); }
+            catch (IOException expected) { }
+            batch.seal(); expectWriteFailure(completion.submit(() -> { batch.await(); return null; }));
+            check(closed.get() == 1 && batch.pendingCount() == 0 && batch.retainedBytes() == 0 && failure.get() != null,
+                "Failed lock admission did not release its sole reference/input");
+        }
+    }
+    private static void expectWriteFailure(Future<?> result) throws Exception {
+        try { result.get(10,TimeUnit.SECONDS); throw new AssertionError("Failed capture reported success"); }
+        catch (ExecutionException expected) { check(expected.getCause() instanceof IOException, "Expected owned I/O failure"); }
+    }
+    private static int readAt(Class<?> chunk, int x) throws Exception {
+        return ((ByteBuffer)invoke(chunk.getMethod("SafeRead",int.class,int.class,ByteBuffer.class), null,x,0,ByteBuffer.allocate(4))).getInt();
     }
     private static int read(Class<?> chunk) throws Exception { return ((ByteBuffer)invoke(chunk.getMethod("SafeRead",int.class,int.class,ByteBuffer.class), null,0,0,ByteBuffer.allocate(4))).getInt(); }
     private static Object invoke(Method method, Object receiver, Object... args) throws Exception {
