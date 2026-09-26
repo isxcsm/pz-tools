@@ -33,7 +33,9 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
         if (recovering && observation.IsFresh && observation.Snapshot is { } recovered)
         {
             string identity = $"{observation.StreamEpoch}/{recovered.ProcessSession}/{recovered.ObserverEpoch}/{recovered.WorldSession}/{recovered.ClockEpoch}";
-            if (state.Generation == control.Generation && state.ClockIdentity != identity && state.AttemptId is not null)
+            if (state.Generation == control.Generation && state.AttemptId is not null
+                && (state.ClockIdentity != identity || state.EligibilityEpoch != recovered.EligibilityEpoch
+                    || !recovered.IsWorldReady || recovered.Pause != GamePause.Running))
                 state = state with { CompletionUncertain = true };
             recovering = false;
         }
@@ -88,7 +90,16 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
         state = ActiveTimeSchedulePolicy.Advance(state, CommittedObservation(storage), control.AutomaticEnabled,
             control.Generation, (long)control.Interval.TotalMilliseconds);
         var disposition = worker?.ScheduleDisposition ?? recoveredDisposition;
-        if (worker is { Started: false, Outcome: PzTools.Process.Contracts.ProcessOutcome.Busy }) disposition = ScheduleDisposition.Preserve;
+        // No valid worker result is not evidence of a completed or unstarted save.
+        // Busy is explicitly pre-work; a failed/cancelled/malformed result must hold.
+        if (disposition == ScheduleDisposition.Default)
+            disposition = worker?.Outcome switch
+            {
+                PzTools.Process.Contracts.ProcessOutcome.Succeeded or PzTools.Process.Contracts.ProcessOutcome.NoChange
+                    => ScheduleDisposition.Consume,
+                PzTools.Process.Contracts.ProcessOutcome.Busy => ScheduleDisposition.Preserve,
+                _ => ScheduleDisposition.CompletionUnknown,
+            };
         state = ActiveTimeSchedulePolicy.Complete(state, disposition);
         await database.WriteRuntimeCheckpointAsync(state, token);
         lastPersist = time.GetTimestamp(); lastBoundary = null;

@@ -58,38 +58,37 @@ try
         try
         {
         using var gameExitWatcher = new GameProcessExitWatcher();
-        async Task RunAndRelayAsync(bool force)
+        async Task<bool> RunAndRelayAsync(bool force)
         {
             useRuntime = (await schedulerDb.ReadRuntimeScheduleAsync(token)).Enabled;
             var tick = await scheduler.TickAsync(DateTimeOffset.UtcNow, token, force);
-            if (!tick.Due) return;
+            if (!tick.Due) return false;
             await relay.RelayAsync(stateDb, schedulerDb, token);
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(tick));
+            return tick.Runner is { Started: true, Outcome: ProcessOutcome.Succeeded };
         }
 
-        var starting = true;
+        var confirmationsRemaining = 2;
         do
         {
+            // Failed background observation/feed tasks must reach the existing host supervisor.
+            if (runtimeObservation.IsCompleted) { await runtimeObservation; throw new IOException("Runtime observation stopped."); }
+            if (runtimeFeed.IsCompleted) { await runtimeFeed; throw new IOException("Runtime state feed stopped."); }
             gameExitWatcher.Refresh();
             // Persisted due times must not delay the first probe after launching the app.
-            await RunAndRelayAsync(force: starting);
+            var confirmed = await RunAndRelayAsync(force: confirmationsRemaining > 0);
+            if (confirmed && confirmationsRemaining > 0) confirmationsRemaining--;
             if (orphanCleanup is not null) await orphanCleanup.TickAsync(DateTimeOffset.UtcNow, token);
             if (options.ContainsKey("--once")) break;
-            if (starting)
+            if (confirmationsRemaining > 0)
             {
-                // Confirm with a second independent sample, not a second copy of one result.
+                // Busy/failed acquisition is not an observation. Keep confirming instead of
+                // sleeping until a previously persisted (possibly very distant) due time.
                 await Task.Delay(confirmationDelay, token);
-                await RunAndRelayAsync(force: true);
-                starting = false;
+                continue;
             }
             if (await gameExitWatcher.WaitAsync(wakeInterval, token))
-            {
-                // Keep the two-observation debounce while confirming exit without
-                // waiting for the periodic poll interval.
-                await RunAndRelayAsync(force: true);
-                await Task.Delay(confirmationDelay, token);
-                await RunAndRelayAsync(force: true);
-            }
+                confirmationsRemaining = 2;
         } while (!token.IsCancellationRequested);
         return 0;
         }

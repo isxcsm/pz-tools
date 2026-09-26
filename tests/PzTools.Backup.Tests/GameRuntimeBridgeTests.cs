@@ -150,6 +150,32 @@ public sealed partial class GameSaveClientTests
             Assert.Equal(revision, (await File.ReadAllLinesAsync(Path.Combine(restored,"calls.txt"))).Length);
         }
     }
+    [BridgeFact]
+    public async Task GuardedSave_DoesNotSubmitWhileInitialPermissionIsUnresolvedOrRevoked()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        await using var watch = new RuntimeWatchCapture(game.Pid);
+        var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
+        var checking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var permission = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new GameSaveClient(RuntimeBridgeDirectory(), runtimeTicket: Ticket(ready, 1),
+            preparationAllowed: token => { checking.TrySetResult(); return permission.Task.WaitAsync(token); })
+            .RequestAsync(game.Pid, temp.Path, true);
+        try
+        {
+            await checking.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            // The live game loop advances, but zero-delay saving must not start without permission.
+            await watch.WaitAsync(s => s.ActiveMilliseconds >= ready.ActiveMilliseconds + 1000);
+            Assert.False(File.Exists(temp.GetPath("calls.txt")));
+        }
+        finally { permission.TrySetResult(false); }
+        var error = await Assert.ThrowsAsync<GameSaveException>(() => request);
+        Assert.Equal("runtime-deferred", error.Code);
+        Assert.False(File.Exists(temp.GetPath("calls.txt")));
+        await Client().RequestAsync(game.Pid, temp.Path, true);
+        Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));
+    }
     private static string RuntimeBridgeDirectory() => Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")
         ?? throw new InvalidOperationException("Synthetic bridge fixture was not prepared.");
 

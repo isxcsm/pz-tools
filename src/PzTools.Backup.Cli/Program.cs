@@ -262,7 +262,7 @@ internal static class BackupCli
             await CompleteOwnedWorkflowAsync(ProcessOutcome.Cancelled, "cancelled");
             return WriteBackupFailure(
                 runIndex, ProcessOutcome.Cancelled, started,
-                "cancelled", "Operation cancelled.");
+                "cancelled", "Operation cancelled.", guardedRequest ? ScheduleDisposition.CompletionUnknown : ScheduleDisposition.Default);
         }
         catch (RepositoryBusyException exception)
         {

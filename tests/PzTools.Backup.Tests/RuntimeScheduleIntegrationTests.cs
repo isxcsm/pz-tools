@@ -114,6 +114,52 @@ public sealed class RuntimeScheduleIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task RestartAfterUnfinishedReservationAndPause_DoesNotCreateANewSaveAttempt()
+    {
+        using var temp = new TempDirectory();
+        var f = await Fixture.CreateAsync(temp);
+        await f.PublishAsync(0); await f.TickAsync();
+        await f.PublishAsync(300_000);
+        Assert.NotNull((await f.TickAsync()).Admission);
+        // The same observer survives. A pause/resume is not proof the old save never started.
+        f.RestartController();
+        await f.PublishAsync(300_000, GamePause.Paused, 2);
+        Assert.Null((await f.TickAsync()).Admission);
+        await f.PublishAsync(300_000, GamePause.Running, 2);
+        Assert.Null((await f.TickAsync()).Admission);
+        Assert.True((await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.CompletionUncertain);
+    }
+
+    [Theory]
+    [InlineData(ProcessOutcome.Failed)]
+    [InlineData(ProcessOutcome.Cancelled)]
+    public async Task MissingWorkerDispositionCannotAuthorizeImplicitRetry(ProcessOutcome outcome)
+    {
+        using var temp = new TempDirectory();
+        var f = await Fixture.CreateAsync(temp);
+        await f.PublishAsync(0); await f.TickAsync();
+        await f.PublishAsync(300_000);
+        var admission = (await f.TickAsync()).Admission!;
+        // Covers a lost/malformed worker envelope and cancellation without a typed outcome.
+        await f.Controller.FinishAsync(admission, new(false, outcome, "missing-result"));
+        Assert.True((await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.CompletionUncertain);
+        await f.PublishAsync(600_000);
+        Assert.Null((await f.TickAsync()).Admission);
+    }
+
+    [Fact]
+    public async Task BusyWorkerPreservesPeriodicSlotEvenWhenProcessStarted()
+    {
+        using var temp = new TempDirectory();
+        var f = await Fixture.CreateAsync(temp);
+        await f.PublishAsync(0); await f.TickAsync();
+        await f.PublishAsync(300_000);
+        var admission = (await f.TickAsync()).Admission!;
+        await f.Controller.FinishAsync(admission, new(true, ProcessOutcome.Busy));
+        Assert.Equal(0, (await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.Slot);
+        Assert.NotNull((await f.TickAsync()).Admission);
+    }
     private sealed class Fixture(StateDatabase state, SchedulerDatabase scheduler, string root, string save)
     {
         private readonly string process = Guid.NewGuid().ToString("N"), world = Guid.NewGuid().ToString("N");

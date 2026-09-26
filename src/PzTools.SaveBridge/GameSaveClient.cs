@@ -121,6 +121,11 @@ public sealed class GameSaveClient(string bridgeDirectory,
             completionDeadline.CancelAfter(TimeSpan.FromSeconds(completionTimeoutSeconds) + scheduledWait);
             var showCountdown = save && notificationLanguage is not null && supportsCountdown;
             var timedSave = save && scheduledSaveUtc is not null;
+            // Do not enqueue a zero-delay save before its first authority check completes.
+            // Subsequent changes still use the acknowledged CANCEL/save-start race protocol.
+            if (runtimeTicket is not null && preparationAllowed is not null
+                && !await PreparationAllowedAsync(completionDeadline.Token))
+                throw new GameSaveException("runtime-deferred", "Scheduling permission was withdrawn before submission.");
             await writer.WriteLineAsync(($"{(runtimeTicket is not null ? save ? "SAVE_ACTIVE" : "PROBE_ACTIVE" : timedSave ? "SAVE_AT" : showCountdown ? "SAVE_COUNTDOWN" : save ? "SAVE" : "PROBE")}\t"
                 + Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedSavePath))
                 + (extendedTimeouts ? $"\t{queueTimeoutSeconds}\t{completionTimeoutSeconds}" : "")
@@ -167,6 +172,13 @@ public sealed class GameSaveClient(string bridgeDirectory,
             }
             RequestGate.Release();
         }
+    }
+
+    private async Task<bool> PreparationAllowedAsync(CancellationToken token)
+    {
+        try { return await preparationAllowed!(token); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception) { return false; }
     }
 
     private async Task MonitorPermissionAsync(StreamWriter writer, string requestId, Func<bool> hasStarted, CancellationToken token)
