@@ -1,6 +1,7 @@
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PzTools.App.Core;
@@ -143,37 +144,93 @@ public sealed partial class GameExtensionsPage : UserControl
         dialogOpen = true;
         try
         {
-            var enabled = new ToggleSwitch
+            // The outer card owns activation. This dialog edits only extension options.
+            var current = snapshot?.Cards.FirstOrDefault(card => card.Definition.Id == item.Definition.Id) ?? item;
+            var force = new CheckBox
             {
-                Header = Localizer.Get(item.Definition.TitleKey), IsOn = item.Enabled, IsEnabled = item.CanEnable,
-                OnContent = Localizer.Get("SettingEnabled"), OffContent = Localizer.Get("SettingDisabled"),
+                Content = Localizer.Get("GameExtensions.ForceVersion"), IsChecked = current.ForceVersion,
             };
-            var force = new CheckBox { Content = Localizer.Get("GameExtensions.ForceVersion"), IsChecked = item.ForceVersion };
-            force.Checked += (_, _) => enabled.IsEnabled = true;
-            force.Unchecked += (_, _) => { enabled.IsEnabled = item.VersionMatches; if (!item.VersionMatches) enabled.IsOn = false; };
+            var version = new TextBlock { Text = VersionDescription(current), TextWrapping = TextWrapping.Wrap };
+            var status = new TextBlock
+            {
+                Text = Localizer.Get("SettingsAutoSaveHint"), TextWrapping = TextWrapping.Wrap,
+                Style = (Style)Application.Current.Resources["SecondaryTextStyle"],
+            };
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+            var error = new InfoBar
+            {
+                IsClosable = false, Severity = InfoBarSeverity.Error,
+                Title = Localizer.Get("GameExtensions.SettingsError"),
+                Message = Localizer.Get("GameExtensions.SettingsErrorBody"),
+            };
             var content = new StackPanel { Spacing = 16, MaxWidth = 460 };
-            content.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.ValidationNotice"), TextWrapping = TextWrapping.Wrap });
-            content.Children.Add(new TextBlock { Text = VersionDescription(item), TextWrapping = TextWrapping.Wrap });
+            content.Children.Add(new TextBlock { Text = Localizer.Get(item.Definition.DescriptionKey), TextWrapping = TextWrapping.Wrap });
+            content.Children.Add(version);
             content.Children.Add(new TextBlock { Text = item.Definition.Id + " · " + item.Definition.Version });
-            content.Children.Add(enabled);
             content.Children.Add(force);
             content.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.ForceWarning"), TextWrapping = TextWrapping.Wrap });
+            content.Children.Add(status);
+            content.Children.Add(error);
+            var title = new Grid { ColumnSpacing = 12, HorizontalAlignment = HorizontalAlignment.Stretch };
+            title.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            title.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            title.Children.Add(new TextBlock
+            {
+                Text = Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)),
+                TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center,
+            });
+            var close = new Button
+            {
+                Content = new FontIcon { Glyph = "\uE711", FontSize = 12 },
+                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                Width = 32, Height = 32, VerticalAlignment = VerticalAlignment.Top,
+            };
+            AutomationProperties.SetName(close, Localizer.Get("Close"));
+            AppToolTip.SetTip(close, Localizer.Get("Close"));
+            Grid.SetColumn(close, 1);
+            title.Children.Add(close);
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot, RequestedTheme = ActualTheme,
-                Title = Localizer.Format("GameExtensions.ConfigureTitle", Localizer.Get(item.Definition.TitleKey)),
-                Content = content, PrimaryButtonText = Localizer.Get("GameExtensions.Apply"),
-                CloseButtonText = Localizer.Get("Cancel"), DefaultButton = ContentDialogButton.Close,
+                Title = title, Content = content, DefaultButton = ContentDialogButton.None,
             };
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary
-                && (enabled.IsOn != item.Enabled || (force.IsChecked == true) != item.ForceVersion))
-                await SetEnabledAsync(item, enabled.IsOn, force.IsChecked == true);
+            close.Click += (_, _) => dialog.Hide();
+            dialog.Closing += (_, args) => args.Cancel = applying;
+            dialog.KeyDown += (_, args) =>
+            {
+                if (args.Key != Windows.System.VirtualKey.Escape) return;
+                args.Handled = true;
+                if (!applying) dialog.Hide();
+            };
+            // Click is user-only: reflecting a committed value does not trigger another write.
+            force.Click += async (_, _) =>
+            {
+                if (applying) return;
+                force.IsEnabled = close.IsEnabled = false;
+                status.Text = Localizer.Get("SettingsSaving");
+                error.IsOpen = false;
+                try
+                {
+                    current = snapshot?.Cards.FirstOrDefault(card => card.Definition.Id == item.Definition.Id) ?? current;
+                    var requestedForce = force.IsChecked == true;
+                    var enabled = current.Enabled && (current.VersionMatches || requestedForce);
+                    var saved = await SetEnabledAsync(current, enabled, requestedForce);
+                    current = snapshot?.Cards.FirstOrDefault(card => card.Definition.Id == item.Definition.Id) ?? current;
+                    force.IsChecked = current.ForceVersion;
+                    version.Text = VersionDescription(current);
+                    status.Text = Localizer.Get(saved ? "SettingsSaved" : "SettingsAutoSaveHint");
+                    error.IsOpen = !saved;
+                }
+                finally { force.IsEnabled = close.IsEnabled = true; }
+            };
+            await dialog.ShowAsync();
         }
         finally { dialogOpen = false; ApplyLatestView(); }
     }
-    private async Task SetEnabledAsync(ExtensionCardView item, bool enabled, bool? forceVersion = null)
+    private async Task<bool> SetEnabledAsync(ExtensionCardView item, bool enabled, bool? forceVersion = null)
     {
-        if (applying || App.Host is not { } host) return;
+        if (applying || App.Host is not { } host) return false;
+        var saved = false;
         applying = true;
         foreach (var toggle in toggles.Values) toggle.IsEnabled = false;
         try
@@ -181,6 +238,7 @@ public sealed partial class GameExtensionsPage : UserControl
             var view = await host.GameExtensions.SetPreferenceAsync(item.Definition.Id, enabled, forceVersion ?? item.ForceVersion, item.SettingsRevision);
             ErrorInfo.IsOpen = false;
             snapshot = view;
+            saved = true;
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
         {
@@ -194,6 +252,7 @@ public sealed partial class GameExtensionsPage : UserControl
             applying = false;
             if (snapshot is not null) Render(snapshot);
         }
+        return saved;
     }
 
     private void ShowSettingsError()

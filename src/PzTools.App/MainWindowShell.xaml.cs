@@ -1050,15 +1050,24 @@ public sealed partial class MainWindowShell : UserControl
 
     private void ApplyNavigationSpacing()
     {
-        if (Navigation is null || SavesItem is null || LogsItem is null) return;
+        if (Navigation is null || SavesItem is null || LogsItem is null || GameExtensionsItem is null) return;
         // 선택 표시줄을 창 가장자리에서 띄웁니다. 축소 모드에서는 아이콘 공간을 보존합니다.
         var expanded = Navigation.IsPaneOpen;
         // 기본 템플릿이 세로 2px 여백을 이미 제공하므로 중복해서 더하지 않습니다.
         var margin = expanded ? new Thickness(12, 0, 12, 0) : new Thickness(0);
-        SavesItem.Margin = LogsItem.Margin = margin;
+        SavesItem.Margin = GameExtensionsItem.Margin = LogsItem.Margin = margin;
+        if (AppBrand is not null && BrandImage is not null && BrandCopy is not null && BrandHeaderSpace is not null)
+        {
+            AppBrand.Margin = expanded ? new Thickness(24, 8, 12, 0) : new Thickness(8, 8, 8, 0);
+            AppBrand.Width = Math.Max(32, (expanded ? Navigation.OpenPaneLength : Navigation.CompactPaneLength)
+                - AppBrand.Margin.Left - AppBrand.Margin.Right);
+            BrandImage.Width = BrandImage.Height = expanded ? 56 : 32;
+            BrandCopy.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+            BrandHeaderSpace.Height = expanded ? 36 : 16;
+        }
         if (CoffeeSupportArea is not null && CoffeeSupportCopy is not null)
         {
-            CoffeeSupportArea.Margin = expanded ? new Thickness(12) : new Thickness(4, 12, 4, 12);
+            CoffeeSupportArea.Margin = expanded ? new Thickness(12, 0, 12, 4) : new Thickness(4, 0, 4, 4);
             CoffeeSupportCopy.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
             CoffeeSupportButton.Padding = expanded ? new Thickness(10) : new Thickness(8);
         }
