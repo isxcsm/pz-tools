@@ -76,6 +76,7 @@ public sealed class PublishedDistributionTests
         var vehicle = Assert.Single(ExtensionCatalog.ReadFile(cataloguePath));
         Assert.Equal(ExtensionIds.VehicleDrivetrain, vehicle.Id);
         Assert.Equal("vehicle.drivetrain.v1", Assert.Single(vehicle.Capabilities));
+        Assert.Equal(new GameVersionSupport(VersionSupportScope.Major, "42", "42"), vehicle.SupportedVersions);
         var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(ExtensionIds.VehicleDrivetrain + "\t", StringComparison.Ordinal)).Split('\t');
         Assert.Equal(11, row.Length);
         Assert.Equal("pztools-vehicle-drivetrain.jar", row[4]);

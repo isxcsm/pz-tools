@@ -19,7 +19,32 @@ public sealed class ExtensionVersionTests
         Assert.Throws<InvalidDataException>(() => new GameVersionSupport(VersionSupportScope.Minor, "42.21", "42.20").Validate());
         Assert.Throws<InvalidDataException>(() => new GameVersionSupport(VersionSupportScope.Major, "42.20").Validate());
         Assert.Throws<InvalidDataException>(() => new GameVersionSupport(VersionSupportScope.All, "42").Validate());
-        Assert.Equal(VersionSupportScope.Minor, Assert.Single(ExtensionCatalog.BuiltIn).SupportedVersions!.Scope);
+    }
+
+    [Theory]
+    [InlineData("42.0", true)]
+    [InlineData("42.19.9", true)]
+    [InlineData("42.20.4", true)]
+    [InlineData("42.21-unstable", true)]
+    [InlineData("42.9999", true)]
+    [InlineData("41.78", false)]
+    [InlineData("43.0", false)]
+    [InlineData(null, false)]
+    public void VehicleCatalogueAdmitsOnlyMajor42WithoutAForcedVersionOverride(string? version, bool admitted)
+    {
+        var vehicle = Assert.Single(ExtensionCatalog.BuiltIn);
+        Assert.Equal(ExtensionIds.VehicleDrivetrain, vehicle.Id);
+        var support = Assert.IsType<GameVersionSupport>(vehicle.SupportedVersions);
+        Assert.Equal(new GameVersionSupport(VersionSupportScope.Major, "42", "42"), support);
+        Assert.Equal("42", support.RangeText);
+        Assert.Equal(admitted, support.Matches(version));
+
+        using var temp = new TempDirectory();
+        var service = new GameExtensionService(new ExtensionSettingsStore(temp.Path), () => version);
+        var initial = Assert.Single(service.ReadCards());
+        var enabled = Assert.Single(service.SetEnabled(vehicle.Id, true, initial.SettingsRevision));
+        Assert.Equal(admitted, enabled.EffectiveEnabled);
+        Assert.False(enabled.ForceVersion);
     }
     [Fact]
     public void VersionAdmissionIsSeparateFromSavedPreferencesAndStillRequiresOverrideOnMismatch()

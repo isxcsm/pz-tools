@@ -23,7 +23,7 @@ the selected world is active, the bridge calls the original
 preferences, localized notices, recovery stamp and pause/death/permission checks
 remain available. See [game-save behavior and limits](save-bridge.md).
 
-Vehicle Drivetrain is a continuous provider for the inspected 42.20 code family.
+Vehicle Drivetrain is a continuous provider with a declared Build 42 version range.
 It uses the selected WATCH process/world through a leased control session and
 settings revisions. It does not occupy the save-provider slot or wait for a backup
 to apply a settings change.
@@ -43,8 +43,12 @@ the bridge owns authentication and admission. The vehicle module owns the drivin
 model, inspected-build adapter and transforms. The general backup engine has no
 module-specific branch.
 
-The shared catalogue contains Vehicle Drivetrain with Minor **42.20–42.20** scope,
-plus structural and bytecode admission checks. Explicit version override bypasses
+The shared catalogue contains Vehicle Drivetrain with Major **42–42** scope
+(all 42.x versions, not 41.x or 43.x). Structural and bytecode admission checks
+remain independent: only the inspected 42.20 binary contracts have been verified,
+so other 42.x binaries can still be rejected by those safety checks. A declared
+version range is not a claim that every 42.x build has passed driving tests.
+Explicit version override bypasses
 only the declared range, never structural, identity, admission or cleanup checks.
 An override does not establish compatibility with unexamined game binaries.
 

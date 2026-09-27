@@ -19,7 +19,8 @@ public final class VehicleAdapterBehaviorTest {
         originalIntervalsResetHighGear(); enginePowerAndMass(); noDriverAndPausedRetirement(); repeatedCallbackGenerations();
         scriptReverseLimitAndOverrides(); invalidReverseLimitIsolation(); reverseNativeEnvelope(); forwardTraitNativeLimits();
         resolvedInputSentinels(); cellReplacement(); nativeObservationIsolation();
-        independentToggleMatrix(); steeringBehavior(); steeringGuardsAndResets(); steeringPhaseFailure();
+        independentToggleMatrix(); steeringBehavior(); steeringCurrentKeyboardRelease(); steeringDuplicateFrames(); steeringDuplicateInvalidation();
+        steeringGuardsAndResets(); steeringPhaseFailure();
         System.out.println("PASS vehicle adapter: "+groups+" groups (synthetic classes only)");
     }
     private static void inert() throws Throwable {
@@ -472,7 +473,7 @@ public final class VehicleAdapterBehaviorTest {
             for(int i=0;i<20;i++) e.tick();
             control.reconfigure(new VehicleControl.Settings(toggles(false,false,true))); e.set(e.controller,"vehicleSteering",0f); e.tick();
             near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"configuration replacement resets held-key ramp");
-            e.update(); check(control.diagnostics().contains("steering_reason=duplicate-frame"),"steering has an independent duplicate-frame guard");
+            e.update(); check(control.diagnostics().contains("steering_reason=duplicate-frame-applied;"),"steering has an independent duplicate-frame guard");
             e.set(e.time,"dt",0f); e.tick(); check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-dt"),"paused dt uses original steering");
             e.set(e.time,"dt",1f/60); e.set(e.controller,"vehicleSteering",0f); e.set(e.controller,"drunkDelay",true); e.set(input,"steering",1f); e.tick();
             near(e.staticNumber("zombie.core.physics.Bullet","steer"),0,"drunk input delay is not bypassed");
@@ -485,6 +486,133 @@ public final class VehicleAdapterBehaviorTest {
             e.set(e.get(e.controller,"clientControls"),"steering",1f); e.tick();
             near(e.staticNumber("zombie.core.physics.Bullet","steer"),-.06,"steering probe is non-mutating");
             check(control.diagnostics().contains("steering_reason=probe-steering-prediction"),"steering prediction is separate from actual native data");
+            e.update();
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),-.1164,"duplicate probe still uses original interpolation");
+            near(e.number(e.controller,"originalSteeringCalls"),2,"uncommitted prediction is never reused as applied steering");
+            check(control.diagnostics().contains("steering_applied=false"),"duplicate probe cannot report an applied prediction");
+        }
+        groups++;
+    }
+    private static void steeringCurrentKeyboardRelease() throws Throwable {
+        for(float cached:new float[]{-1f,1f}) for(float tireFactor:new float[]{1f,.5f}) for(int changed:new int[]{0,-1,2}) try(var e=new Env()) {
+            VehicleControl control=e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
+            e.set(e.controller,"steeringTireFactor",tireFactor); e.set(input,"steering",cached);
+            for(int i=0;i<12;i++) e.tick();
+            double held=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
+            e.setStatic("zombie.input.GameKeyboard","steering",changed==-1?-cached:0f);
+            e.setStatic("zombie.input.GameKeyboard","both",changed==2);
+            e.update();
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),held,"current key release cannot advance an already applied frame");
+            e.tick();
+            double released=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
+            check(Math.abs(released)<Math.abs(held),"first new physics frame returns toward center despite stale held controls");
+            check(released*held>=0,"opposite current key only releases stale input without synthesizing reversal");
+            near(diagnostic(control,"steering_input"),0,"released, opposite, or conflicting current keys veto the stale direction");
+            near(e.number(input,"steering"),cached,"release sampling leaves cached game controls untouched");
+            near(e.number(e.controller,"originalSteeringCalls"),0,"stale-key release stays within the steering model");
+        }
+        try(var e=new Env()) {
+            VehicleControl control=e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
+            e.setStatic("zombie.input.GameKeyboard","steering",1f); e.tick();
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),0,"current press cannot create input before game controls accept it");
+            near(e.number(input,"steering"),0,"current press leaves neutral cached input untouched");
+            near(e.staticNumber("zombie.input.GameKeyboard","reads"),0,"neutral cached input does not sample new keys");
+            e.set(input,"steering",1f); e.set(e.controller,"drunkDelay",true); e.tick();
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),0,"current held key cannot restore drunk-gated input");
+            near(diagnostic(control,"steering_input"),0,"drunk-gated neutral remains authoritative");
+            near(e.number(e.controller,"delaySelections"),1,"original drunk gate still runs once");
+            near(e.staticNumber("zombie.input.GameKeyboard","reads"),0,"drunk-gated neutral cannot sample a new press");
+        }
+        try(var e=new Env()) {
+            VehicleControl control=e.adapter(toggles(false,false,true)); e.set(e.get(e.controller,"clientControls"),"steering",1f);
+            e.setStatic("zombie.input.GameKeyboard","steering",0f); e.set(e.vehicle,"joypad",0); e.tick();
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),-.06,"gamepad retains original steering despite keyboard state");
+            near(e.staticNumber("zombie.input.GameKeyboard","reads"),0,"gamepad never reads keyboard steering keys");
+            e.set(e.vehicle,"joypad",-1); e.set(e.vehicle,"keyboardControlled",false); e.set(e.controller,"vehicleSteering",0f); e.tick();
+            near(diagnostic(control,"steering_input"),1,"non-keyboard controls cannot be vetoed by released keyboard keys");
+            near(e.staticNumber("zombie.input.GameKeyboard","reads"),0,"non-keyboard controls never sample keyboard steering keys");
+        }
+        groups++;
+    }
+    private static void steeringDuplicateFrames() throws Throwable {
+        for(float tireFactor:new float[]{1f,.5f}) {
+            double[] singlePass=new double[30];
+            for(int duplicates:new int[]{0,3}) try(var e=new Env()) {
+                VehicleControl control=e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
+                e.set(e.controller,"steeringTireFactor",tireFactor);
+                for(int i=0;i<singlePass.length;i++) {
+                    e.set(input,"steering",i<12?1f:i<20?0f:-1f); e.tick();
+                    double angle=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
+                    if(duplicates==0) singlePass[i]=angle;
+                    else near(angle,singlePass[i],"extra callbacks cannot change subsequent physics frames");
+                    for(int repeat=0;repeat<duplicates;repeat++) {
+                        e.update();
+                        check(e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue()==angle,
+                            "duplicate frame preserves exact steering with tire factor "+tireFactor);
+                        near(e.number(e.vehicle,"currentSteering"),angle,"duplicate wheel and native steering stay aligned");
+                        near(diagnostic(control,"steering_requested")*tireFactor,angle,"duplicate restores the pre-tire angle");
+                        check(control.diagnostics().contains("steering_reason=duplicate-frame-applied"),"applied duplicate is diagnosed");
+                    }
+                }
+                near(e.number(e.controller,"originalSteeringCalls"),0,"duplicate callbacks never add original interpolation");
+            }
+        }
+        for(float changedInput:new float[]{0f,-1f}) try(var e=new Env()) {
+            e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
+            e.set(e.controller,"steeringTireFactor",.5f); e.set(input,"steering",1f);
+            for(int i=0;i<12;i++) e.tick();
+            double held=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
+            e.set(input,"steering",changedInput);
+            for(int repeat=0;repeat<3;repeat++) {
+                e.update();
+                near(e.staticNumber("zombie.core.physics.Bullet","steer"),held,"same-frame release or reversal adds no outward travel");
+            }
+            e.tick();
+            check(e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue()>held,
+                "next physics frame consumes the latest release or reversal");
+            near(e.number(e.controller,"originalSteeringCalls"),0,"same-frame input change cannot insert original interpolation");
+        }
+        groups++;
+    }
+    private static void steeringDuplicateInvalidation() throws Throwable {
+        for(float invalidDt:new float[]{0f,-1f,Float.NaN,Float.POSITIVE_INFINITY,1f}) try(var e=new Env()) {
+            VehicleControl control=e.adapter(toggles(false,false,true)); e.set(e.get(e.controller,"clientControls"),"steering",1f); e.tick();
+            e.set(e.time,"dt",invalidDt); e.update();
+            near(e.number(e.controller,"originalSteeringCalls"),1,"invalid duplicate dt falls back to original steering");
+            check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-dt"),"duplicate validates dt before replay");
+            e.set(e.time,"dt",1f/60); e.update();
+            near(e.number(e.controller,"originalSteeringCalls"),2,"original interval invalidates the previously applied cache");
+            check(control.diagnostics().contains("steering_applied=false"),"invalidated duplicate cannot report applied steering");
+            e.tick(); near(e.number(e.controller,"originalSteeringCalls"),2,"valid next frame resumes the model");
+        }
+        for(boolean gamepad:new boolean[]{false,true}) try(var e=new Env()) {
+            e.adapter(toggles(false,false,true)); e.set(e.get(e.controller,"clientControls"),"steering",1f); e.tick();
+            if(gamepad) e.set(e.vehicle,"joypad",0); else e.context.worldValid().set(false);
+            e.update(); near(e.number(e.controller,"originalSteeringCalls"),1,"duplicate still validates steering context");
+            if(gamepad) e.set(e.vehicle,"joypad",-1); else e.context.worldValid().set(true);
+            e.update(); near(e.number(e.controller,"originalSteeringCalls"),2,"context fallback prevents cached reapplication");
+        }
+        for(float invalidInput:new float[]{Float.NaN,Float.POSITIVE_INFINITY,2f}) try(var e=new Env()) {
+            VehicleControl control=e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
+            e.set(input,"steering",1f); e.tick(); e.set(input,"steering",invalidInput); e.update();
+            near(e.number(e.controller,"originalSteeringCalls"),1,"invalid duplicate input cannot reuse applied steering");
+            check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-dt"),"duplicate validates input before replay");
+        }
+        try(var e=new Env()) {
+            VehicleControl control=e.adapter(toggles(false,false,true)); e.set(e.get(e.controller,"clientControls"),"steering",1f); e.tick();
+            double first=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
+            for(int i=0;i<20;i++) e.tick();
+            Object nextDriver=e.type("zombie.characters.IsoPlayer").getConstructor().newInstance();
+            e.set(nextDriver,"vehicle",e.vehicle); e.set(e.vehicle,"driver",nextDriver); e.set(e.controller,"vehicleSteering",0f);
+            e.update(); near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"same-frame new driver cannot reuse old driver's angle");
+            for(int i=0;i<20;i++) e.tick();
+            control.reconfigure(new VehicleControl.Settings(toggles(false,false,true))); e.set(e.controller,"vehicleSteering",0f);
+            e.update(); near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"same-frame reconfiguration discards applied cache");
+            control.reconfigure(new VehicleControl.Settings(toggles(false,false,false))); e.update();
+            near(e.number(e.controller,"originalSteeringCalls"),1,"same-frame disabling restores original steering");
+            control.reconfigure(new VehicleControl.Settings(Map.of("torque_enabled","false","reverse_enabled","false",
+                "steering_enabled","true","probe_only","true","diagnostics_enabled","true"))); e.update(); e.update();
+            near(e.number(e.controller,"originalSteeringCalls"),3,"same-frame switch to probe cannot reuse a committed angle");
         }
         groups++;
     }

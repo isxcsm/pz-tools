@@ -1065,11 +1065,11 @@ public sealed partial class MainWindowShell : UserControl
             BrandCopy.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
             BrandHeaderSpace.Height = expanded ? 48 : 16;
         }
-        if (CoffeeSupportArea is not null && CoffeeSupportTitle is not null)
+        if (CoffeeSupportArea is not null && CoffeeSupportCopy is not null)
         {
-            CoffeeSupportArea.Margin = expanded ? new Thickness(12, 0, 12, 4) : new Thickness(4, 0, 4, 4);
-            CoffeeSupportTitle.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
-            CoffeeSupportButton.Padding = expanded ? new Thickness(10, 8, 10, 8) : new Thickness(8);
+            CoffeeSupportArea.Margin = expanded ? new Thickness(12, 8, 12, 4) : new Thickness(4, 8, 4, 4);
+            CoffeeSupportCopy.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+            CoffeeSupportButton.Padding = expanded ? new Thickness(10) : new Thickness(8);
         }
         if (Navigation.SettingsItem is NavigationViewItem settings)
             settings.Margin = expanded ? new Thickness(12, 0, 12, 8) : new Thickness(0, 0, 0, 8);
