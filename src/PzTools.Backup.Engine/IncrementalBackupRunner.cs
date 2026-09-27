@@ -482,13 +482,13 @@ public sealed class IncrementalBackupRunner(
             await progress.ReportAsync("hash", comparedFiles, comparedBytes, workload.Bytes, workload.Files);
             var changedPaths = pending.Select(item => item.RelativePath)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var comparer = new FullScanContentComparer(metadataReader);
-            var batch = new List<(FullScanEntry Entry, byte[]? PreviousHash)>(FullScanContentComparer.BatchSize);
+            var comparer = new FullScanContentComparer(metadataReader, tuning);
+            var batch = new List<(FullScanEntry Entry, byte[]? PreviousHash)>(tuning.FullScanHashBatchSize);
             await foreach (var (entry, previousHash) in scan.EnumerateContentComparisonsAsync(cancellationToken))
             {
                 if (changedPaths.Contains(entry.RelativePath)) continue;
                 batch.Add((entry, previousHash));
-                if (batch.Count == FullScanContentComparer.BatchSize) await CompareBatchAsync();
+                if (batch.Count == tuning.FullScanHashBatchSize) await CompareBatchAsync();
             }
             if (batch.Count != 0) await CompareBatchAsync();
 
@@ -496,7 +496,7 @@ public sealed class IncrementalBackupRunner(
             {
                 // Only file reads overlap. The SQLite reader, planning list and progress totals
                 // remain on this consumer. A small batch amortizes worker scheduling without
-                // retaining the whole catalog; at most two file readers run at any moment.
+                // retaining the whole catalog; configured limits bound readers and batch size.
                 var matches = await comparer.CompareAsync(source.RootPath, batch, cancellationToken,
                     bytes => progress.ReportAsync("hash", comparedFiles,
                         comparedBytes + bytes, workload.Bytes, workload.Files));

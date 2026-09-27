@@ -2,27 +2,39 @@ using System.Buffers;
 using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using PzTools.Backup.Core.Capture;
+using PzTools.Backup.Core.Configuration;
 
 namespace PzTools.Backup.Engine;
 
 // Bound small-file open/read latency without buffering the full catalog or weakening stability checks.
-internal sealed class FullScanContentComparer(IFileMetadataReader metadataReader)
+internal sealed class FullScanContentComparer
 {
-    internal const int BatchSize = 16;
-    internal const int MaximumConcurrentReads = 2;
+    private readonly IFileMetadataReader metadataReader;
+    private readonly BackupTuningOptions tuning;
+    private readonly int copyBufferBytes;
     private readonly object metadataGate = new();
+
+    internal FullScanContentComparer(IFileMetadataReader metadataReader, BackupTuningOptions? tuning = null)
+    {
+        ArgumentNullException.ThrowIfNull(metadataReader);
+        this.metadataReader = metadataReader;
+        this.tuning = tuning ?? new();
+        this.tuning.Validate();
+        copyBufferBytes = checked(this.tuning.CopyBufferKib * 1024);
+    }
 
     internal async Task<bool[]> CompareAsync(
         string sourceRoot, IReadOnlyList<(FullScanEntry Entry, byte[]? PreviousHash)> entries,
         CancellationToken cancellationToken, Func<long, ValueTask> progress)
     {
-        if (entries.Count is < 1 or > BatchSize) throw new ArgumentOutOfRangeException(nameof(entries));
+        if (entries.Count < 1 || entries.Count > tuning.FullScanHashBatchSize)
+            throw new ArgumentOutOfRangeException(nameof(entries));
         cancellationToken.ThrowIfCancellationRequested();
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var progressGate = new SemaphoreSlim(1, 1);
         var bytes = new long[entries.Count];
         var matches = new bool[entries.Count];
-        var tasks = new Task[Math.Min(MaximumConcurrentReads, entries.Count)];
+        var tasks = new Task[Math.Min(tuning.FullScanHashReadConcurrency, entries.Count)];
         var next = -1;
         long completedBytes = 0;
         ExceptionDispatchInfo? failure = null;
@@ -72,7 +84,7 @@ internal sealed class FullScanContentComparer(IFileMetadataReader metadataReader
         }
         catch
         {
-            // WhenAll drains both readers before the scan/lease is released. Prefer the original
+            // WhenAll drains all readers before the scan/lease is released. Prefer the original
             // failure over the cancellation it caused in the other reader.
             failure?.Throw();
             throw;
@@ -85,7 +97,7 @@ internal sealed class FullScanContentComparer(IFileMetadataReader metadataReader
     {
         var path = Path.Combine(sourceRoot, entry.RelativePath.Replace('/', Path.DirectorySeparatorChar));
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete, 128 * 1024,
+            FileShare.ReadWrite | FileShare.Delete, copyBufferBytes,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         FileCaptureMetadata before;
         // The metadata-reader interface does not require thread safety, even though the Windows
@@ -101,13 +113,13 @@ internal sealed class FullScanContentComparer(IFileMetadataReader metadataReader
         byte[] hash;
         using (var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
+            var buffer = ArrayPool<byte>.Shared.Rent(copyBufferBytes);
             try
             {
                 long bytes = 0;
                 int read;
                 await progress(0);
-                while ((read = await stream.ReadAsync(buffer.AsMemory(), cancellationToken)) > 0)
+                while ((read = await stream.ReadAsync(buffer.AsMemory(0, copyBufferBytes), cancellationToken)) > 0)
                 {
                     hasher.AppendData(buffer, 0, read);
                     bytes += read;
@@ -122,7 +134,7 @@ internal sealed class FullScanContentComparer(IFileMetadataReader metadataReader
         {
             after = metadataReader.ReadHandle(stream.SafeFileHandle);
             // Windows briefly opens one additional metadata handle to verify that the path
-            // still identifies this file. The two-reader bound applies to content streams.
+            // still identifies this file. The configured reader bound applies to content streams.
             current = metadataReader.ReadPath(path);
         }
         return ContentFingerprint.MatchesSha256(previousHash, hash)

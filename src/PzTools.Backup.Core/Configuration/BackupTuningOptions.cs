@@ -17,7 +17,9 @@ public sealed record BackupTuningOptions(
     int SmallFileStagingKib = 256,
     int StagingMemoryMib = 16,
     int CaptureReadConcurrency = 2,
-    int CaptureQueueCapacity = 16)
+    int CaptureQueueCapacity = 16,
+    int FullScanHashBatchSize = 16,
+    int FullScanHashReadConcurrency = 2)
 {
     public static BackupTuningOptions Read(ComponentConfiguration configuration) => new(
         configuration.GetInt32("runtime", "capture_attempts", 5, 1, 20),
@@ -33,7 +35,9 @@ public sealed record BackupTuningOptions(
         configuration.GetInt32("runtime", "small_file_staging_kib", 256, 0, 1024),
         configuration.GetInt32("runtime", "staging_memory_mib", 16, 1, 256),
         configuration.GetInt32("runtime", "capture_read_concurrency", 2, 1, 8),
-        configuration.GetInt32("runtime", "capture_queue_capacity", 16, 1, 128));
+        configuration.GetInt32("runtime", "capture_queue_capacity", 16, 1, 128),
+        configuration.GetInt32("runtime", "full_scan_hash_batch_size", 16, 1, 128),
+        configuration.GetInt32("runtime", "full_scan_hash_read_concurrency", 2, 1, 8));
 
     public TomlTable ToTable() => new()
     {
@@ -51,6 +55,8 @@ public sealed record BackupTuningOptions(
         ["staging_memory_mib"] = StagingMemoryMib,
         ["capture_read_concurrency"] = CaptureReadConcurrency,
         ["capture_queue_capacity"] = CaptureQueueCapacity,
+        ["full_scan_hash_batch_size"] = FullScanHashBatchSize,
+        ["full_scan_hash_read_concurrency"] = FullScanHashReadConcurrency,
     };
 
     public void Validate()
@@ -61,7 +67,8 @@ public sealed record BackupTuningOptions(
             || HeartbeatIntervalMs is < 250 or > 4000 || GameConnectionTimeoutSeconds is < 5 or > 120
             || GameCompletionTimeoutSeconds is < 30 or > 600 || GameQueueTimeoutSeconds is < 1 or > 60
             || SmallFileStagingKib is < 0 or > 1024 || StagingMemoryMib is < 1 or > 256
-            || CaptureReadConcurrency is < 1 or > 8 || CaptureQueueCapacity is < 1 or > 128)
+            || CaptureReadConcurrency is < 1 or > 8 || CaptureQueueCapacity is < 1 or > 128
+            || FullScanHashBatchSize is < 1 or > 128 || FullScanHashReadConcurrency is < 1 or > 8)
             throw new InvalidDataException("Backup runtime settings are outside the documented ranges.");
         if (GameCompletionTimeoutSeconds < GameQueueTimeoutSeconds + 20)
             throw new InvalidDataException("runtime.game_completion_timeout_seconds must exceed game_queue_timeout_seconds by at least 20 seconds.");

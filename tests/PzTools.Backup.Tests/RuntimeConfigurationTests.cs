@@ -27,6 +27,10 @@ public sealed class RuntimeConfigurationTests
     [InlineData("capture_read_concurrency", "9")]
     [InlineData("capture_queue_capacity", "0")]
     [InlineData("capture_queue_capacity", "129")]
+    [InlineData("full_scan_hash_batch_size", "0")]
+    [InlineData("full_scan_hash_batch_size", "129")]
+    [InlineData("full_scan_hash_read_concurrency", "0")]
+    [InlineData("full_scan_hash_read_concurrency", "9")]
     [InlineData("capture_attempts", "'five'")]
     [InlineData("capture_attempt_typo", "5")]
     public void BackupRuntime_RejectsInvalidValues(string key, string value)
@@ -73,7 +77,7 @@ public sealed class RuntimeConfigurationTests
     }
 
     [Fact]
-    public void BackupRuntime_StagingLimitsRoundTrip()
+    public void BackupRuntime_CaptureAndHashLimitsRoundTrip()
     {
         using var temp = new TempDirectory();
         var options = BackupConfiguration.Parse("""
@@ -83,12 +87,40 @@ public sealed class RuntimeConfigurationTests
             staging_memory_mib = 1
             capture_read_concurrency = 3
             capture_queue_capacity = 7
+            full_scan_hash_batch_size = 3
+            full_scan_hash_read_concurrency = 1
             """, temp.GetPath("repo"), temp.GetPath("config.toml"),
             new BackupOptionOverrides { Sources = [new("test", temp.GetPath("source"))] });
         Assert.Equal(new BackupTuningOptions(SmallFileStagingKib: 0, StagingMemoryMib: 1,
-            CaptureReadConcurrency: 3, CaptureQueueCapacity: 7), options.EffectiveTuning);
+            CaptureReadConcurrency: 3, CaptureQueueCapacity: 7,
+            FullScanHashBatchSize: 3, FullScanHashReadConcurrency: 1), options.EffectiveTuning);
         Assert.Equal(options.EffectiveTuning, BackupConfiguration.Parse(BackupConfiguration.Serialize(options),
             options.RepositoryPath, temp.GetPath("config.toml")).EffectiveTuning);
+    }
+
+    [Theory]
+    [InlineData(1, 3)]
+    [InlineData(32, 1)]
+    public async Task BackupRuntime_CustomHashLimitsWorkDuringUsnFallback(int batchSize, int readers)
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(source);
+        for (var index = 0; index < 35; index++)
+            await File.WriteAllTextAsync(Path.Combine(source, $"file-{index}.bin"), $"content-{index}");
+        var options = BackupConfiguration.Parse($"""
+            format_version = 1
+            [runtime]
+            full_scan_hash_batch_size = {batchSize}
+            full_scan_hash_read_concurrency = {readers}
+            copy_buffer_kib = 16
+            """, temp.GetPath("repo"), temp.GetPath("config.toml"),
+            new BackupOptionOverrides { Sources = [new("test", source)] });
+        var service = new OneShotBackupService(new NoJournal());
+        Assert.Equal(1, (await service.RunAsync(options, "test")).Revision);
+        var unchanged = await service.RunAsync(options, "test");
+        Assert.Equal("FullScan", unchanged.Mode);
+        Assert.Null(unchanged.Revision);
     }
 
     [Fact]
