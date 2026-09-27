@@ -61,6 +61,7 @@ final class VehicleControl implements VehicleHooks.Controller {
             if(slot.profile==null) return vanilla(slot,mode,"unsupported-profile");
             var in=slot.input;
             in.dtSeconds=frame.dt; in.speedMps=frame.speed/3.6; in.enginePower=frame.power; in.engineRpm=frame.rpm;
+            in.reverseMaxSpeedKph=frame.reverseMaxSpeed;
             in.throttle=1; // The resolved mode already includes cruise and input safety decisions.
             in.direction=mode==VehicleHooks.FORWARD?1:-1; in.currentGear=frame.gear; in.profile=slot.profile;
             in.offroad=frame.offroad; in.offroadEfficiency=frame.efficiency; in.towing=frame.towing;

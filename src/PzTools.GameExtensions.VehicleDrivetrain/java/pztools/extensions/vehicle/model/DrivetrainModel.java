@@ -13,6 +13,8 @@ public final class DrivetrainModel {
         public double enginePower;
         public double engineRpm;
         public double throttle;
+        /** Actual km/h limit after the original controller's script-speed conversion. */
+        public double reverseMaxSpeedKph;
         public double offroadEfficiency = 1.0;
         public int direction = 1;
         public int currentGear = 1;
@@ -117,7 +119,7 @@ public final class DrivetrainModel {
         double ramp = direction < 0 ? config.reverseRampSeconds : config.forwardRampSeconds;
         double beforeThrottle = throttle;
         throttle = approach(throttle, in.throttle, dt / ramp);
-        double reverseLimit = config.reverseMaxSpeedKph * (in.sundayDriver ? 0.75 : 1.0);
+        double reverseLimit = config.reverseMaxSpeedKph > 0 ? config.reverseMaxSpeedKph : in.reverseMaxSpeedKph;
         double coupledRpm = direction < 0 ? profile.reverseCoupledRpm(speed, reverseLimit)
             : profile.coupledRpm(couplingSpeed(in, speed), gear);
         double targetRpm = Math.max(coupledRpm, profile.idleRpm + throttle * (profile.launchRpm - profile.idleRpm));
@@ -133,28 +135,32 @@ public final class DrivetrainModel {
         double curve;
         double governor;
         if (direction < 0) {
-            // Reverse launch force and slew remain independent from forward calibration.
-            cap = forceBase * config.reverseForceRatio * trait * roadFactor;
-            curve = profile.torqueShape(rpm);
-            governor = speedGovernor(speed * 3.6, reverseLimit * config.reverseGovernorStartFraction, reverseLimit);
+            // Smooth the launch, not the settled propulsion. Preserve the inspected reverse
+            // force envelope and vehicle-specific limit instead of imposing a global slow gear.
+            double originalEnvelope = in.enginePower * (0.75 + rpm / 24000.0)
+                * clamp((7000.0 - rpm) / 1000.0, 0.0, 1.0);
+            cap = originalEnvelope * config.forceScale * config.reverseForceRatio * trait * roadFactor;
+            curve = 1.0;
+            governor = reverseGovernor(in, speed * 3.6, reverseLimit);
         } else {
-            // Anchor to the inspected control_ForwardNew force envelope. The first prototype's
+            // Anchor to the inspected control_ForwardNew base force envelope. The first prototype's
             // ratio/first multiplier reduced every higher gear before its torque curve/governor.
             // This is game-force calibration, not horsepower-to-SI or measured wheel torque.
-            double firstGear = gear == 1 ? 1.5 * config.lowGearBoost : 1.0;
+            // Our RPM is a proxy: the original >6000 RPM fade is not compounded with it.
+            // The 1..1.10 modulation bounds the base formula, not the complete vanilla controller.
+            // The model may upshift earlier than the original equal-speed gear bands. Do not
+            // drop the original first-gear leverage merely because our RPM proxy changed gear.
+            boolean firstGearRange = gear == 1 || speed * 3.6 < profile.maxSpeedKph / profile.gearCount;
+            double firstGear = firstGearRange ? 1.5 * config.lowGearBoost : 1.0;
             double originalEnvelope = in.enginePower * firstGear * (0.30 + rpm / 30000.0)
                 * clamp(1.0 - speed * 3.6 / 200.0, 0.0, 1.0);
             cap = originalEnvelope * config.forceScale * trait * roadFactor;
             curve = profile.forwardTorqueModulation(rpm);
-            double limit = in.sundayDriver ? profile.maxSpeedKph * 0.75
-                : (profile.maxSpeedKph + 20.0) * (in.speedDemon ? 1.15 : 1.0);
-            double start = in.sundayDriver ? Math.min(profile.maxSpeedKph * 0.60, limit * config.forwardGovernorStartFraction)
-                : profile.maxSpeedKph * (in.speedDemon ? 1.15 : 1.0) * config.forwardGovernorStartFraction;
-            governor = speedGovernor(speed * 3.6, start, limit);
+            governor = forwardGovernor(in, speed * 3.6);
         }
         double requested = cap * curve * throttle * governor;
         // Rise and release slew operate on delivered force, so inherited RPM cannot bypass the pedal ramp.
-        double forceRate = forceBase * (direction < 0 ? config.reverseForceRatio : config.lowGearBoost) * trait / ramp;
+        double forceRate = direction < 0 ? cap / ramp : forceBase * config.lowGearBoost * trait / ramp;
         deliveredMagnitude = approach(deliveredMagnitude, requested, forceRate * dt);
         // A speed/trait/surface cap must take effect immediately even if the ordinary release is smoothed.
         deliveredMagnitude = Math.min(deliveredMagnitude, cap * (direction < 0 ? 1.0 : 1.10) * governor);
@@ -230,6 +236,8 @@ public final class DrivetrainModel {
             && finiteBetween(in.enginePower, Double.MIN_VALUE, 1.0e7)
             && finiteBetween(in.engineRpm, 0.0, 20000.0)
             && finiteBetween(in.throttle, 0.0, 1.0)
+            && (in.direction > 0 || config.reverseMaxSpeedKph > 0
+                || finiteBetween(in.reverseMaxSpeedKph, Double.MIN_VALUE, 300.0))
             && (!in.offroad || finiteBetween(in.offroadEfficiency, 0.05, 2.0));
     }
 
@@ -237,6 +245,30 @@ public final class DrivetrainModel {
         // The existing Speed Demon speed benefit must not be silently erased by the RPM proxy's redline.
         // This is a game-trait mapping, not a claim that the trait physically changes the gearbox.
         return direction > 0 && in.speedDemon && !in.sundayDriver ? speed / 1.15 : speed;
+    }
+
+    private double forwardGovernor(Input in, double speedKph) {
+        double reference = profile.maxSpeedKph * (in.speedDemon ? 1.15 : 1.0);
+        double start = reference * config.forwardGovernorStartFraction;
+        double limit = reference + 20.0;
+        double factor = clamp((limit - speedKph) / (limit - start), 0.0, 1.0);
+        if (in.sundayDriver && speedKph > profile.maxSpeedKph * 0.60) {
+            // This original trait factor can exceed one just above its threshold. Keep that
+            // compatibility quirk and the independent general limiter; only forbid sign reversal.
+            factor *= Math.max(0.0, (profile.maxSpeedKph * 0.75 + 20.0 - speedKph) / 20.0);
+        }
+        return factor;
+    }
+
+    private double reverseGovernor(Input in, double speedKph, double limit) {
+        double factor = config.reverseGovernorStartFraction == 1.0
+            ? (speedKph >= limit ? 0.0 : 1.0)
+            : speedGovernor(speedKph, limit * config.reverseGovernorStartFraction, limit);
+        // control_Reverse scales speed by 1.5 BEFORE applying the Sunday Driver fade.
+        double originalSpeed = speedKph * 1.5;
+        if (in.sundayDriver && originalSpeed > 5.0)
+            factor *= Math.max(0.0, (15.0 - originalSpeed) / 10.0);
+        return factor;
     }
 
     public static double speedGovernor(double speedKph, double startKph, double limitKph) {

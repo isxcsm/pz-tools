@@ -63,9 +63,9 @@ public final class VehicleProfile {
         return Math.min(1.0, absoluteSpeedMps * 3.6 / reverseLimitKph) * redlineRpm * 0.90;
     }
 
-    /** Preserve the original forward-force envelope; use torque shape only as a bounded modulation. */
+    /** Add at most ten percent to the base force envelope; do not turn proxy redline into another speed cap. */
     public double forwardTorqueModulation(double rpm) {
-        return 0.90 + 0.20 * torqueShape(rpm);
+        return 1.0 + 0.10 * torqueShape(rpm);
     }
 
     /** Bounded curve with useful idle torque, an engine-family peak and a redline fade. */

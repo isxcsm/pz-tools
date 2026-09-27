@@ -15,7 +15,7 @@ public static class VehicleDrivetrainConfiguration
         new Dictionary<string, (double, double, double)>(StringComparer.Ordinal)
         {
             ["force_scale"] = (1, 0.25, 1.5), ["low_gear_boost"] = (1, 1, 1.6),
-            ["reverse_force_ratio"] = (0.85, 0.4, 1), ["reverse_max_speed_kph"] = (22, 4, 35),
+            ["reverse_force_ratio"] = (1, 0.4, 1), ["reverse_max_speed_kph"] = (0, 0, 35),
             ["reverse_ramp_seconds"] = (0.8, 0.3, 2), ["forward_ramp_seconds"] = (0.3, 0.1, 2),
             ["direction_hold_seconds"] = (0.15, 0.05, 0.75), ["max_dt_seconds"] = (0.1, 0.02, 0.25),
             ["shift_hold_seconds"] = (0.35, 0.1, 2), ["upshift_rpm_fraction"] = (0.82, 0.65, 0.95),
@@ -26,11 +26,11 @@ public static class VehicleDrivetrainConfiguration
             ["generic_torque_peak_fraction"] = (0.5, 0.25, 0.8), ["utility_torque_peak_fraction"] = (0.4, 0.25, 0.8),
             ["sport_torque_peak_fraction"] = (0.65, 0.25, 0.8), ["idle_torque_fraction"] = (0.6, 0.3, 0.8),
             ["rpm_response_seconds"] = (0.12, 0.04, 0.5), ["direction_speed_mps"] = (0.15, 0.05, 0.3),
-            ["forward_governor_start_fraction"] = (1, 0.75, 1), ["reverse_governor_start_fraction"] = (0.75, 0.5, 0.9),
+            ["forward_governor_start_fraction"] = (1, 0.75, 1), ["reverse_governor_start_fraction"] = (1, 0.5, 1),
             ["shift_hysteresis_fraction"] = (0.08, 0.04, 0.15), ["demand_downshift_fraction"] = (0.48, 0.25, 0.6),
             ["steering_initial_rate"] = (1.8, 0.1, 3), ["steering_full_rate"] = (7.5, 0.5, 8),
-            ["steering_ramp_seconds"] = (0.1, 0.05, 1), ["steering_return_rate"] = (3, 0.5, 10),
-            ["steering_countersteer_rate"] = (4, 0.5, 12),
+            ["steering_ramp_seconds"] = (0.1, 0.05, 1), ["steering_return_rate"] = (8, 0.5, 10),
+            ["steering_countersteer_rate"] = (8, 0.5, 12),
             ["steering_high_speed_rate_factor"] = (0.6, 0.2, 1),
         };
     private static readonly IReadOnlyDictionary<string, bool> Booleans = new Dictionary<string, bool>(StringComparer.Ordinal)
@@ -124,6 +124,9 @@ public static class VehicleDrivetrainConfiguration
         var down = double.Parse(values["downshift_rpm_fraction"], CultureInfo.InvariantCulture);
         if (up - down + 1e-12 < 0.15) throw new InvalidDataException("The shift thresholds must differ by at least 0.15.");
         double Number(string key) => double.Parse(values[key], CultureInfo.InvariantCulture);
+        // Zero delegates to the vehicle's vanilla reverse reference; explicit limits remain 4..35.
+        if (Number("reverse_max_speed_kph") is > 0 and < 4)
+            throw new InvalidDataException("reverse_max_speed_kph must be 0 (vanilla vehicle limit) or between 4 and 35.");
         var idle = Number("idle_rpm");
         var launch = Number("launch_rpm");
         var minimumRedline = Math.Min(Number("generic_redline_rpm"), Math.Min(Number("utility_redline_rpm"), Number("sport_redline_rpm")));

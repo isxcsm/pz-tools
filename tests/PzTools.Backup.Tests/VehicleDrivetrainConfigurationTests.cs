@@ -14,8 +14,9 @@ public sealed class VehicleDrivetrainConfigurationTests
         var values = VehicleDrivetrainConfiguration.Parse("schema_version = 1\nreverse_max_speed_kph = 10.5\n");
         Assert.Equal("1", values["force_scale"]);
         Assert.Equal("1", values["low_gear_boost"]);
-        Assert.Equal("0.85", values["reverse_force_ratio"]);
+        Assert.Equal("1", values["reverse_force_ratio"]);
         Assert.Equal("10.5", values["reverse_max_speed_kph"]);
+        Assert.Equal("0.8", values["reverse_ramp_seconds"]);
         Assert.Equal("false", values["probe_only"]);
         Assert.Equal("true", values["torque_enabled"]);
         Assert.Equal("true", values["reverse_enabled"]);
@@ -23,11 +24,12 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal("1.8", values["steering_initial_rate"]);
         Assert.Equal("7.5", values["steering_full_rate"]);
         Assert.Equal("0.1", values["steering_ramp_seconds"]);
-        Assert.Equal("3", values["steering_return_rate"]);
-        Assert.Equal("4", values["steering_countersteer_rate"]);
+        Assert.Equal("8", values["steering_return_rate"]);
+        Assert.Equal("8", values["steering_countersteer_rate"]);
         Assert.Equal("0.6", values["steering_high_speed_rate_factor"]);
         Assert.Equal("1", values["forward_governor_start_fraction"]);
-        Assert.Equal("22", VehicleDrivetrainConfiguration.Parse("")["reverse_max_speed_kph"]);
+        Assert.Equal("1", values["reverse_governor_start_fraction"]);
+        Assert.Equal("0", VehicleDrivetrainConfiguration.Parse("")["reverse_max_speed_kph"]);
         var previous = CultureInfo.CurrentCulture;
         try
         {
@@ -46,6 +48,7 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("force_scale = 1\n'force_scale' = 0.8")]
     [InlineData("force_scale = 1\n\"force_\\u0073cale\" = 0.8")]
     [InlineData("reverse_force_ratio = 0.3")]
+    [InlineData("reverse_force_ratio = 1.01")]
     [InlineData("low_mode = 'true'")]
     [InlineData("probe_only = 1")]
     [InlineData("schema_version = 1.0")]
@@ -66,7 +69,8 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("rpm_response_seconds = 0")]
     [InlineData("direction_speed_mps = 0")]
     [InlineData("forward_governor_start_fraction = 1.01")]
-    [InlineData("reverse_governor_start_fraction = 1")]
+    [InlineData("reverse_governor_start_fraction = 0.49")]
+    [InlineData("reverse_governor_start_fraction = 1.01")]
     [InlineData("shift_hysteresis_fraction = 0")]
     [InlineData("demand_downshift_fraction = 0.9")]
     [InlineData("idle_rpm = 1200\nlaunch_rpm = 1000")]
@@ -74,7 +78,14 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("torque_enabled = 1")]
     [InlineData("reverse_enabled = 'true'")]
     [InlineData("steering_enabled = 0")]
+    [InlineData("reverse_max_speed_kph = -0.1")]
+    [InlineData("reverse_max_speed_kph = 1e-300")]
+    [InlineData("reverse_max_speed_kph = 0.1")]
+    [InlineData("reverse_max_speed_kph = 1")]
+    [InlineData("reverse_max_speed_kph = 3.999")]
     [InlineData("reverse_max_speed_kph = 36")]
+    [InlineData("reverse_max_speed_kph = nan")]
+    [InlineData("reverse_max_speed_kph = inf")]
     [InlineData("steering_initial_rate = 0")]
     [InlineData("steering_full_rate = inf")]
     [InlineData("steering_ramp_seconds = 0")]
@@ -85,6 +96,51 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("steering_initial_rate = 3\nsteering_full_rate = 2")]
     public void InvalidOrAmbiguousConfigurationIsRejected(string text) =>
         Assert.Throws<InvalidDataException>(() => VehicleDrivetrainConfiguration.Parse(text));
+
+    [Theory]
+    [InlineData("reverse_max_speed_kph", "0", "0")]
+    [InlineData("reverse_max_speed_kph", "0.0", "0")]
+    [InlineData("reverse_max_speed_kph", "4", "4")]
+    [InlineData("reverse_max_speed_kph", "35", "35")]
+    [InlineData("reverse_governor_start_fraction", "0.5", "0.5")]
+    [InlineData("reverse_governor_start_fraction", "1.0", "1")]
+    [InlineData("reverse_force_ratio", "0.4", "0.4")]
+    [InlineData("reverse_force_ratio", "1.0", "1")]
+    [InlineData("steering_return_rate", "0.5", "0.5")]
+    [InlineData("steering_return_rate", "10.0", "10")]
+    [InlineData("steering_countersteer_rate", "0.5", "0.5")]
+    [InlineData("steering_countersteer_rate", "12.0", "12")]
+    public void VehicleRelativeReverseSentinelAndExplicitBoundaryValuesAreAccepted(string key, string value, string canonical)
+    {
+        var parsed = VehicleDrivetrainConfiguration.Parse($"{key} = {value}");
+        Assert.Equal(canonical, parsed[key]);
+    }
+
+    [Fact]
+    public void VehicleRelativeReverseSentinelIsPreservedAcrossLayersAndInvalidGapIsRejected()
+    {
+        using var temp = new TempDirectory();
+        var bridge = temp.GetPath("bridge");
+        var runtime = temp.GetPath("runtime");
+        Directory.CreateDirectory(Path.Combine(bridge, "extensions"));
+        Directory.CreateDirectory(Path.Combine(runtime, "extensions"));
+        var package = Path.Combine(bridge, "extensions", "vehicle-drivetrain.toml");
+        var overrides = Path.Combine(runtime, "extensions", "vehicle-drivetrain.toml");
+        const string packaged = "schema_version = 1\nreverse_max_speed_kph = 0\n";
+        File.WriteAllText(package, packaged);
+        Assert.Equal("0", VehicleDrivetrainConfiguration.Load(bridge, runtime)["reverse_max_speed_kph"]);
+        File.WriteAllText(overrides, "reverse_max_speed_kph = 22");
+        Assert.Equal("22", VehicleDrivetrainConfiguration.Load(bridge, runtime)["reverse_max_speed_kph"]);
+        File.WriteAllText(overrides, "reverse_max_speed_kph = 0.0");
+        Assert.Equal("0", VehicleDrivetrainConfiguration.Load(bridge, runtime)["reverse_max_speed_kph"]);
+        File.WriteAllText(overrides, "reverse_max_speed_kph = 3.99");
+        Assert.Throws<InvalidDataException>(() => VehicleDrivetrainConfiguration.Load(bridge, runtime));
+        Assert.Equal(packaged, File.ReadAllText(package));
+        Assert.Equal("reverse_max_speed_kph = 3.99", File.ReadAllText(overrides));
+        File.WriteAllText(package, "reverse_max_speed_kph = 1");
+        File.WriteAllText(overrides, "reverse_max_speed_kph = 0");
+        Assert.Throws<InvalidDataException>(() => VehicleDrivetrainConfiguration.Load(bridge, runtime));
+    }
 
     [Fact]
     public void BoundedProfileTuningIsIncludedInTheFlatWireContract()

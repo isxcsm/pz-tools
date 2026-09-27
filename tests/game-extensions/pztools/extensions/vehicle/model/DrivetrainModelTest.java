@@ -12,11 +12,14 @@ public final class DrivetrainModelTest {
         boundedProfileTuning();
         finiteInputsAndRecovery();
         reverseRampAndGovernor();
+        reverseVehicleLimitsAndTraitFade();
+        reverseLimitValidationIsDirectional();
         directionTransitionAndReset();
         automaticGearsAndLowMode();
         allGearSpacingsAvoidHunting();
         equalCouplingForceAndOffroadRecovery();
-        forwardBaselineEnvelope();
+        forwardBaseEnvelopeAtProxyRpm();
+        forwardTraitAndLimitParity();
         rollingReentryAndReverseOverrev();
         commonCurveAndSurfaceOwnership();
         traitsAndIndependentVehicles();
@@ -27,8 +30,9 @@ public final class DrivetrainModelTest {
     private static void configurationAndProfiles() {
         DrivetrainConfig c = DrivetrainConfig.defaults();
         near(c.lowGearBoost, 1.0, 0.0, "no default extra launch boost");
-        near(c.reverseForceRatio, 0.85, 0.0, "reverse retains low-speed torque");
-        near(c.reverseMaxSpeedKph, 22.0, 0.0, "reverse range is independent from its retained launch ramp");
+        near(c.reverseForceRatio, 1.0, 0.0, "reverse retains the baseline force envelope");
+        near(c.reverseMaxSpeedKph, 0.0, 0.0, "zero selects the vehicle-derived reverse limit");
+        near(c.reverseGovernorStartFraction, 1.0, 0.0, "default reverse governor does not reduce force before the limit");
         near(c.forwardGovernorStartFraction, 1.0, 0.0, "forward governor does not preempt the reference speed");
         check(c.torqueEnabled && c.reverseEnabled && c.steeringEnabled, "independent options default on within the disabled module");
         near(c.steeringHighSpeedRateFactor, 0.6, 0.0, "high-speed steering rate defaults to moderate independent reduction");
@@ -39,6 +43,11 @@ public final class DrivetrainModelTest {
         reject(Map.of("force_scale", "0"));
         reject(Map.of("reverse_force_ratio", "0.3"));
         reject(Map.of("reverse_max_speed_kph", "36"));
+        for (String invalid : new String[]{"-1", "0.01", "3.99", "NaN", "Infinity"})
+            reject(Map.of("reverse_max_speed_kph", invalid));
+        for (String valid : new String[]{"0", "4", "20", "35"})
+            near(DrivetrainConfig.parse(Map.of("reverse_max_speed_kph", valid)).reverseMaxSpeedKph,
+                Double.parseDouble(valid), 0, "reverse sentinel and explicit override boundaries");
         reject(Map.of("torque_enabled", "yes"));
         reject(Map.of("reverse_enabled", "1"));
         reject(Map.of("steering_enabled", "TRUE"));
@@ -120,7 +129,8 @@ public final class DrivetrainModelTest {
                 {"generic_redline_rpm", "6501"}, {"utility_redline_rpm", "NaN"}, {"sport_redline_rpm", "2999"},
                 {"generic_torque_peak_fraction", "0.9"}, {"utility_torque_peak_fraction", "0.1"}, {"sport_torque_peak_fraction", "Infinity"},
                 {"idle_torque_fraction", "1.0"}, {"rpm_response_seconds", "0"}, {"direction_speed_mps", "0"},
-                {"forward_governor_start_fraction", "1.01"}, {"reverse_governor_start_fraction", "1"},
+                {"forward_governor_start_fraction", "1.01"}, {"reverse_governor_start_fraction", "1.01"},
+                {"reverse_governor_start_fraction", "0.49"},
                 {"shift_hysteresis_fraction", "0"}, {"demand_downshift_fraction", "0.9"}})
             reject(Map.of(setting[0], setting[1]));
         reject(Map.of("idle_rpm", "1200", "launch_rpm", "1000"));
@@ -154,7 +164,7 @@ public final class DrivetrainModelTest {
         in.profile = VehicleProfile.resolve("generic", 4, 120, early);
         step(new DrivetrainModel(early), in, out, 3);
         near(out.engineForce / standard.engineForce,
-            DrivetrainModel.speedGovernor(17.6, 11, 22) / DrivetrainModel.speedGovernor(17.6, 16.5, 22), 1e-9,
+            DrivetrainModel.speedGovernor(17.6, in.reverseMaxSpeedKph * 0.5, in.reverseMaxSpeedKph), 1e-9,
             "configured reverse governor onset is used exactly once");
     }
 
@@ -164,13 +174,14 @@ public final class DrivetrainModelTest {
         DrivetrainModel.Output out = new DrivetrainModel.Output();
         in.direction = in.currentGear = -1;
         in.engineRpm = 6500;
-        double cap = in.enginePower * 0.65 * 0.85;
+        double cap = in.enginePower;
         double previous = 0;
         for (int i = 0; i < 100; i++) {
             m.step(in, out);
             check(out.decision == DrivetrainModel.Decision.APPLIED && out.gear == -1, "reverse applies consistent gear");
             check(out.engineForce <= 0 && -out.engineForce <= cap + 1e-9, "reverse bounded and signed");
-            check(-out.engineForce - previous <= cap / 0.8 * in.dtSeconds + 1e-8, "delivered reverse rise is limited");
+            check(-out.engineForce - previous <= reverseEnvelope(in, out.engineRpm) / 0.8 * in.dtSeconds + 1e-8,
+                "delivered reverse rise uses the current baseline force envelope");
             check(out.throttle <= Math.min(1.0, (i + 1) * in.dtSeconds / 0.8) + 1e-9, "pedal independently ramps");
             previous = -out.engineForce;
         }
@@ -183,7 +194,7 @@ public final class DrivetrainModelTest {
         }
         near(DrivetrainModel.speedGovernor(12, 9, 12), 0, 0, "governor shuts down positive propulsion");
         near(DrivetrainModel.speedGovernor(9, 9, 12), 1, 0, "governor starts continuously");
-        for (double speed : new double[]{22, 35, 100, 500}) {
+        for (double speed : new double[]{in.reverseMaxSpeedKph, 35, 100, 500}) {
             in.speedMps = -speed / 3.6;
             m.step(in, out);
             near(out.engineForce, 0, 0, "overspeed never creates negative-throttle braking or thrust");
@@ -210,7 +221,8 @@ public final class DrivetrainModelTest {
         }
         m.step(in, out);
         check(out.decision == DrivetrainModel.Decision.APPLIED && out.engineForce < 0, "reverse starts after dwell");
-        check(-out.engineForce <= in.enginePower * 0.65 * 0.85 / 0.8 * in.dtSeconds, "old forward RPM cannot bypass reverse ramp");
+        check(-out.engineForce <= reverseEnvelope(in, out.engineRpm) / 0.8 * in.dtSeconds + 1e-8,
+            "old forward RPM cannot bypass reverse ramp");
         step(m, in, out, 2);
         m.reset();
         in.currentGear = -1;
@@ -229,6 +241,88 @@ public final class DrivetrainModelTest {
         in.speedMps = 0;
         m.step(in, out);
         check(out.decision == DrivetrainModel.Decision.DIRECTION_HOLD, "residual-motion hold retains near-stop dwell");
+    }
+
+    private static void reverseVehicleLimitsAndTraitFade() {
+        for (double configured : new double[]{0, 20, 35}) {
+            DrivetrainConfig c = DrivetrainConfig.parse(Map.of("reverse_max_speed_kph", Double.toString(configured)));
+            for (double vehicleLimit : new double[]{20, 40.0 / 1.5, 40}) {
+                double limit = configured == 0 ? vehicleLimit : configured;
+                for (int traits = 0; traits < 4; traits++) {
+                    for (double speed : new double[]{0, 3.333 - 0.01, 10.0 / 3.0, 10.0 / 3.0 + 0.01,
+                            5, 9.99, 10, 10.01, limit * 0.75, limit - 0.01, limit, limit + 0.01}) {
+                        DrivetrainModel.Input in = input(); in.direction = in.currentGear = -1;
+                        in.reverseMaxSpeedKph = vehicleLimit; in.speedMps = -speed / 3.6;
+                        in.sundayDriver = (traits & 1) != 0; in.speedDemon = (traits & 2) != 0;
+                        DrivetrainModel.Output out = new DrivetrainModel.Output();
+                        step(new DrivetrainModel(c), in, out, 3);
+                        check(out.decision == DrivetrainModel.Decision.APPLIED && out.engineForce <= 0,
+                            "valid reverse limits always retain reverse force polarity");
+                        double actualSpeed = Math.abs(in.speedMps) * 3.6;
+                        double expected = actualSpeed >= limit ? 0 : reverseEnvelope(in, out.engineRpm);
+                        near(-out.engineForce, expected, 1e-7,
+                            "reverse script/override cutoff and independent Sunday fade: " + configured + "/" + vehicleLimit + "/" + traits + "/" + speed);
+                    }
+                }
+            }
+        }
+        // Compare force divided by the changing RPM envelope, not force alone: RPM itself adds force.
+        for (double onset : new double[]{0.5, 0.75, 1.0}) {
+            DrivetrainConfig c = DrivetrainConfig.parse(Map.of("reverse_max_speed_kph", "20",
+                "reverse_governor_start_fraction", Double.toString(onset), "reverse_force_ratio", "0.4"));
+            double previous = 1;
+            for (double speed = 0; speed <= 24; speed += 0.25) {
+                DrivetrainModel.Input in = input(); in.direction = in.currentGear = -1; in.speedMps = -speed / 3.6;
+                DrivetrainModel.Output out = new DrivetrainModel.Output(); step(new DrivetrainModel(c), in, out, 3);
+                double governor = -out.engineForce / (reverseEnvelope(in, out.engineRpm) * 0.4);
+                double expected = speed >= 20 ? 0 : onset == 1 ? 1 : DrivetrainModel.speedGovernor(speed, 20 * onset, 20);
+                near(governor, expected, 1e-9, "explicit early reverse fade is applied once");
+                check(governor >= -1e-12 && governor <= previous + 1e-12, "reverse governor remains nonnegative and monotonic");
+                previous = governor;
+            }
+        }
+        for (boolean towing : new boolean[]{false, true}) {
+            DrivetrainModel.Input in = input(); in.direction = in.currentGear = -1; in.speedMps = -8 / 3.6;
+            in.offroad = true; in.offroadEfficiency = 0.8; in.towing = towing;
+            DrivetrainModel.Output out = new DrivetrainModel.Output(); step(model(), in, out, 3);
+            near(-out.engineForce, reverseEnvelope(in, out.engineRpm), 1e-7, "reverse road factor belongs to the model exactly once");
+            check(out.ownOffroad, "applied reverse owns its road factor");
+        }
+    }
+
+    private static void reverseLimitValidationIsDirectional() {
+        for (double invalid : new double[]{0, -1, Double.NaN, Double.POSITIVE_INFINITY}) {
+            DrivetrainModel.Input in = input(); in.reverseMaxSpeedKph = invalid;
+            DrivetrainModel.Output out = new DrivetrainModel.Output(); step(model(), in, out, 1);
+            check(out.decision == DrivetrainModel.Decision.APPLIED && out.engineForce > 0,
+                "invalid vehicle reverse limit cannot disable forward control");
+            in.direction = in.currentGear = -1; model().step(in, out);
+            check(out.decision == DrivetrainModel.Decision.VANILLA && out.engineForce == 0 && !out.ownOffroad,
+                "default reverse requires a valid vehicle-derived limit");
+            DrivetrainConfig override = DrivetrainConfig.parse(Map.of("reverse_max_speed_kph", "20"));
+            step(new DrivetrainModel(override), in, out, 1);
+            check(out.decision == DrivetrainModel.Decision.APPLIED && out.engineForce < 0,
+                "explicit reverse override does not depend on the invalid script limit");
+        }
+        DrivetrainModel m = model(); DrivetrainModel.Input in = input(); in.direction = in.currentGear = -1;
+        DrivetrainModel.Output out = new DrivetrainModel.Output(); step(m, in, out, 2);
+        in.reverseMaxSpeedKph = Double.NaN; m.step(in, out);
+        check(out.decision == DrivetrainModel.Decision.VANILLA, "invalid script interval falls through after live reverse");
+        in.reverseMaxSpeedKph = 40.0 / 1.5; m.step(in, out);
+        DrivetrainModel.Output fresh = new DrivetrainModel.Output(); model().step(in, fresh);
+        near(out.engineForce, fresh.engineForce, 0, "reverse script recovery cannot resurrect prior force");
+    }
+
+    private static double reverseEnvelope(DrivetrainModel.Input in, double rpm) {
+        double magnitude = in.enginePower * (0.75 + rpm / 24000.0);
+        if (rpm > 6000) magnitude *= Math.max(0, (7000 - rpm) / 1000.0);
+        if (in.sundayDriver) {
+            magnitude *= 0.7;
+            double scaledSpeed = Math.abs(in.speedMps) * 3.6 * 1.5;
+            if (scaledSpeed > 5) magnitude *= Math.max(0, (15 - scaledSpeed) / 10.0);
+        }
+        if (in.offroad) magnitude *= in.offroadEfficiency * (in.towing ? 0.8 : 0.6);
+        return magnitude;
     }
 
     private static void automaticGearsAndLowMode() {
@@ -414,9 +508,10 @@ public final class DrivetrainModelTest {
         check(oa.throttle == 1, "other vehicle reset cannot reset first vehicle");
     }
 
-    private static void forwardBaselineEnvelope() {
-        // These are candidate force-unit comparisons against the inspected B42 control_ForwardNew
-        // formula at the SAME output RPM/gear/speed. They do not establish native acceleration.
+    private static void forwardBaseEnvelopeAtProxyRpm() {
+        // These compare the inspected B42 base force formula, not its separate >6000 RPM fade,
+        // at the SAME output RPM/speed, retaining the original first-speed force floor.
+        // They do not establish native acceleration or equality of the two gear/RPM trajectories.
         for (String family : new String[]{"generic", "van", "jeep", "firebird"}) {
             for (int count = 3; count <= 5; count++) {
                 for (double maximum : new double[]{40, 120, 300}) {
@@ -427,10 +522,10 @@ public final class DrivetrainModelTest {
                         DrivetrainModel.Output out = new DrivetrainModel.Output();
                         step(model(), in, out, 3);
                         check(out.decision == DrivetrainModel.Decision.APPLIED, "supported baseline profile applies");
-                        double original = in.enginePower * (out.gear == 1 ? 1.5 : 1.0)
+                        double original = in.enginePower * (out.gear == 1 || maximum * fraction < maximum / count ? 1.5 : 1.0)
                             * (0.30 + out.engineRpm / 30000.0) * Math.max(0.0, 1.0 - maximum * fraction / 200.0);
-                        check(out.engineForce >= original * 0.90 - 1e-8 && out.engineForce <= original * 1.10 + 1e-8,
-                            "settled road force stays within +/-10% of same-state baseline: " + family + "/" + count + "/" + fraction);
+                        check(out.engineForce >= original - 1e-8 && out.engineForce <= original * 1.10 + 1e-8,
+                            "settled road force retains the proxy-RPM base formula through +10% modulation: " + family + "/" + count + "/" + fraction);
                     }
                 }
             }
@@ -450,6 +545,67 @@ public final class DrivetrainModelTest {
         in.profile = VehicleProfile.resolve("generic", 4, 120, forwardOnly);
         step(new DrivetrainModel(forwardOnly), in, out, 3);
         near(out.engineForce, reverse.engineForce, 1e-9, "forward-only tuning does not scale reverse force");
+    }
+
+    private static void forwardTraitAndLimitParity() {
+        // Independent base-envelope checks, excluding the original >6000 RPM fade and gear/RPM loop.
+        // Sunday Driver has an intentional >1 multiplier and composes with the ordinary limiter.
+        for (double maximum : new double[]{40, 65, 120}) {
+            for (int count = 3; count <= 5; count++) {
+                for (int traits = 0; traits < 4; traits++) {
+                    double sundayCut = maximum * 0.75 + 20, fastStart = maximum * 1.15;
+                    for (double speed : new double[]{0, maximum * 0.27, maximum * 0.6 - 0.01,
+                            maximum * 0.6, maximum * 0.6 + 0.01, maximum * 0.75 - 0.01, maximum * 0.75,
+                            maximum - 0.01, maximum, maximum + 0.01, sundayCut - 0.01, sundayCut, sundayCut + 0.01,
+                            maximum + 19.99, maximum + 20, maximum + 20.01,
+                            fastStart - 0.01, fastStart, fastStart + 0.01, fastStart + 19.99, fastStart + 20, fastStart + 20.01}) {
+                        DrivetrainModel.Input in = input(); in.profile = VehicleProfile.resolve("generic", count, maximum);
+                        in.currentGear = 0; in.speedMps = speed / 3.6;
+                        in.sundayDriver = (traits & 1) != 0; in.speedDemon = (traits & 2) != 0;
+                        DrivetrainModel.Output out = new DrivetrainModel.Output(); step(model(), in, out, 3);
+                        double baseline = forwardBaseEnvelope(in, out.engineRpm, out.gear);
+                        check(out.decision == DrivetrainModel.Decision.APPLIED && Double.isFinite(out.engineForce) && out.engineForce >= 0,
+                            "forward threshold/trait matrix never reverses force");
+                        check(out.engineForce >= baseline - 1e-7 && out.engineForce <= baseline * 1.10 + 1e-7,
+                            "forward linear limit and independent trait factors: " + maximum + "/" + count + "/" + traits + "/" + speed);
+                    }
+                }
+            }
+        }
+        DrivetrainModel.Input in = input(); in.profile = VehicleProfile.resolve("generic", 3, 120);
+        in.speedMps = 36 / 3.6;
+        DrivetrainModel.Output out = new DrivetrainModel.Output(); step(model(), in, out, 3);
+        check(out.gear == 2 && out.engineForce >= forwardBaseEnvelope(in, out.engineRpm, 1) - 1e-7,
+            "earlier model upshift cannot erase the original first-speed force range");
+
+        // Isolate the limiter from the RPM curve so its linear shape is checked without conflation.
+        for (boolean fast : new boolean[]{false, true}) {
+            double start = CAR.maxSpeedKph * (fast ? 1.15 : 1.0), previous = 1;
+            for (int offset = 0; offset <= 21; offset++) {
+                in = input(); in.speedDemon = fast; in.speedMps = (start + offset) / 3.6;
+                step(model(), in, out, 3);
+                double noGovernor = in.enginePower * (0.30 + out.engineRpm / 30000.0)
+                    * Math.max(0, 1 - Math.abs(in.speedMps) * 3.6 / 200.0) * CAR.forwardTorqueModulation(out.engineRpm);
+                double factor = out.engineForce / noGovernor;
+                near(factor, Math.max(0, (20.0 - offset) / 20.0), 1e-8, "normal/Speed Demon high-speed fade is linear");
+                check(factor >= -1e-12 && factor <= previous + 1e-12, "forward high-speed fade never adds thrust as speed increases");
+                previous = factor;
+            }
+        }
+    }
+
+    private static double forwardBaseEnvelope(DrivetrainModel.Input in, double rpm, int outputGear) {
+        double speed = Math.abs(in.speedMps) * 3.6, maximum = in.profile.maxSpeedKph;
+        boolean firstRange = outputGear == 1 || speed < maximum / in.profile.gearCount;
+        double force = in.enginePower * (firstRange ? 1.5 : 1.0) * (0.30 + rpm / 30000.0)
+            * Math.max(0, 1 - speed / 200.0);
+        if (in.sundayDriver) {
+            force *= 0.75;
+            if (speed > maximum * 0.6) force *= Math.max(0, (maximum * 0.75 + 20 - speed) / 20);
+        }
+        double reference = maximum * (in.speedDemon ? 1.15 : 1);
+        if (speed > reference) force *= Math.max(0, (reference + 20 - speed) / 20);
+        return force;
     }
 
     private static void rollingReentryAndReverseOverrev() {
@@ -513,7 +669,7 @@ public final class DrivetrainModelTest {
         for (int i = 0; i < 50000; i++) {
             m.step(in, out);
             check(Double.isFinite(out.engineForce) && Double.isFinite(out.engineRpm), "long blocked throttle does not accumulate infinite energy");
-            check(-out.engineForce <= in.enginePower * 0.65 * 0.85, "long blocked throttle preserves force bound");
+            check(-out.engineForce <= in.enginePower, "long blocked throttle preserves baseline force bound");
         }
     }
 
@@ -535,6 +691,7 @@ public final class DrivetrainModelTest {
         in.dtSeconds = 0.02;
         in.enginePower = 4000;
         in.engineRpm = 800;
+        in.reverseMaxSpeedKph = 40.0 / 1.5;
         in.throttle = 1;
         return in;
     }

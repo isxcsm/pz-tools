@@ -17,6 +17,7 @@ public final class VehicleAdapterBehaviorTest {
         fixture=Path.of(args[0]);
         inert(); appliedBoundary(); holdBoundary(); adapterAndReset(); directionChange(); rejects(); probeAndReadiness(); invalidation();
         originalIntervalsResetHighGear(); enginePowerAndMass(); noDriverAndPausedRetirement(); repeatedCallbackGenerations();
+        scriptReverseLimitAndOverrides(); invalidReverseLimitIsolation(); reverseNativeEnvelope(); forwardTraitNativeLimits();
         resolvedInputSentinels(); cellReplacement(); nativeObservationIsolation();
         independentToggleMatrix(); steeringBehavior(); steeringGuardsAndResets(); steeringPhaseFailure();
         System.out.println("PASS vehicle adapter: "+groups+" groups (synthetic classes only)");
@@ -191,6 +192,100 @@ public final class VehicleAdapterBehaviorTest {
         }
         groups++;
     }
+    private static void scriptReverseLimitAndOverrides() throws Throwable {
+        for(float raw:new float[]{15f,40f,52.5f}) for(int override:new int[]{0,20,35}) try(var e=new Env()) {
+            Object script=e.get(e.vehicle,"script"); e.set(script,"maxSpeedReverse",raw);
+            VehicleAccess access=new VehicleAccess(e.loader); VehicleAccess.Frame frame=new VehicleAccess.Frame();
+            check(access.read(e.controller,e.context,frame)==null,"script reverse limit is readable");
+            near(frame.reverseMaxSpeed,raw/1.5,"adapter converts raw script reverse limit to actual km/h exactly once");
+            frame.clear(); near(frame.reverseMaxSpeed,0,"reusable frame clears prior reverse limit");
+            e.adapter(Map.of("reverse_max_speed_kph",Integer.toString(override)));
+            e.set(e.controller,"request",2);
+            double limit=override==0?raw/1.5:override;
+            e.set(e.vehicle,"speed",(float)-(limit-.02)); settle(e);
+            check(e.nativeForce()<0,"default/override reverse retains propulsion just below its cutoff");
+            near(e.number(e.controller,"reverseCalls"),0,"valid reverse limit owns the original callsite");
+            e.set(e.vehicle,"speed",(float)-(limit+.02)); e.tick();
+            near(e.nativeForce(),0,"crossing reverse cutoff cuts force immediately, without reverse-sign braking");
+            near(e.number(script,"maxSpeedReverse"),raw,"adapter never rewrites the vehicle script limit");
+            near(e.staticNumber("zombie.core.physics.Bullet","brake"),0,"reverse governor does not add braking");
+        }
+        groups++;
+    }
+    private static void invalidReverseLimitIsolation() throws Throwable {
+        for(float invalid:new float[]{0f,-1f,Float.NaN,Float.POSITIVE_INFINITY}) try(var e=new Env()) {
+            Object script=e.get(e.vehicle,"script"); e.set(script,"maxSpeedReverse",invalid);
+            VehicleControl control=e.adapter(Map.of("diagnostics_enabled","true"));
+            e.set(e.controller,"request",1); e.tick(); check(e.nativeForce()>0,"invalid reverse script cannot disable forward");
+            near(e.number(e.controller,"forwardCalls"),0,"forward remains model-owned despite invalid reverse limit");
+            e.set(e.controller,"request",2); e.tick(); near(e.nativeForce(),-13,"invalid derived reverse limit returns to original");
+            near(e.number(e.controller,"reverseCalls"),1,"invalid derived limit invokes original reverse once");
+            // The sentinel original body does not model transmission writes; supply the actual
+            // reverse branch's resulting R state before checking recovery, not a direction change.
+            e.set(e.vehicle,"transmissionNumber",e.type("zombie.vehicles.TransmissionNumber").getField("R").get(null));
+            e.set(script,"maxSpeedReverse",40f); e.tick();
+            check(e.nativeForce()<0 && Math.abs(e.nativeForce())<50,"repaired reverse limit restarts a bounded fresh launch");
+            control.reconfigure(new VehicleControl.Settings(Map.of("reverse_max_speed_kph","20")));
+            e.set(script,"maxSpeedReverse",invalid); e.set(e.vehicle,"speed",-19f); settle(e);
+            check(e.nativeForce()<0,"explicit valid override takes precedence over invalid script reverse value");
+            near(e.number(e.controller,"reverseCalls"),1,"explicit override does not repeatedly fall through");
+            e.set(e.vehicle,"speed",-20f); e.tick(); near(e.nativeForce(),0,"explicit override retains its own exact cutoff");
+        }
+        groups++;
+    }
+    private static void reverseNativeEnvelope() throws Throwable {
+        for(int traits=0;traits<4;traits++) try(var e=new Env()) {
+            Object player=e.get(e.vehicle,"driver"); e.set(player,"sunday",(traits&1)!=0); e.set(player,"fast",(traits&2)!=0);
+            e.set(e.vehicle,"offroad",true); e.set(e.get(e.vehicle,"script"),"efficiency",.8f);
+            e.set(e.controller,"tireFactor",.5f);
+            e.adapter(Map.of()); e.set(e.controller,"request",2);
+            for(float speed:new float[]{0,3.32f,3.35f,5,9.99f,10,10.01f,22,26.6f,26.7f}) {
+                e.set(e.vehicle,"speed",-speed); settle(e);
+                double rpm=((Number)e.invoke(e.vehicle,"getEngineSpeed")).doubleValue();
+                double magnitude=e.number(e.vehicle,"enginePower").doubleValue()*(.75+rpm/24000);
+                if(rpm>6000) magnitude*=Math.max(0,(7000-rpm)/1000);
+                if((traits&1)!=0) {
+                    magnitude*=.7;
+                    if(speed*1.5>5) magnitude*=Math.max(0,(15-speed*1.5)/10);
+                }
+                if(speed>=40.0/1.5) magnitude=0;
+                // Existing tire attenuation remains downstream; the model alone owns offroad.
+                magnitude*=.8f*.6*.5;
+                near(e.nativeForce(),-magnitude,"final native reverse force retains baseline envelope and each penalty once");
+                near(e.number(e.controller,"reverseCalls"),0,"reverse trait/governor never reruns original propulsion");
+                check(e.nativeForce()<=0,"native reverse force cannot change sign above trait/script cutoff");
+            }
+        }
+        groups++;
+    }
+    private static void forwardTraitNativeLimits() throws Throwable {
+        // Bound the base formula and trait/speed limiters, not vanilla's separate high-RPM fade.
+        for(float maximum:new float[]{40,65,120}) for(int traits=0;traits<4;traits++) try(var e=new Env()) {
+            e.set(e.vehicle,"maxSpeed",maximum); Object player=e.get(e.vehicle,"driver");
+            e.set(player,"sunday",(traits&1)!=0); e.set(player,"fast",(traits&2)!=0);
+            e.adapter(Map.of()); e.set(e.controller,"request",1);
+            for(float speed:new float[]{maximum*.6f-.02f,maximum*.6f+.02f,maximum-.02f,maximum+.02f,
+                    maximum*.75f+20.02f,maximum*1.15f+20.02f}) {
+                e.set(e.vehicle,"speed",speed); settle(e);
+                double rpm=((Number)e.invoke(e.vehicle,"getEngineSpeed")).doubleValue();
+                int gear=((Number)e.invoke(e.vehicle,"getTransmissionNumber")).intValue();
+                double expected=e.number(e.vehicle,"enginePower").doubleValue()*(gear==1||speed<maximum/4.0?1.5:1)
+                    *(.3+rpm/30000)*Math.max(0,1-speed/200.0);
+                if((traits&1)!=0) {
+                    expected*=.75;
+                    if(speed>maximum*.6) expected*=Math.max(0,(maximum*.75+20-speed)/20);
+                }
+                double reference=maximum*((traits&2)!=0?1.15:1);
+                if(speed>reference) expected*=Math.max(0,(reference+20-speed)/20);
+                double tolerance=1e-4*Math.max(1,expected);
+                check(e.nativeForce()>=expected-tolerance && e.nativeForce()<=expected*1.10+tolerance,
+                    "native forward trait limits compose and preserve nonnegative baseline: "+maximum+"/"+traits+"/"+speed);
+                near(e.number(e.controller,"forwardCalls"),0,"forward trait handling owns the original callsite once");
+            }
+        }
+        groups++;
+    }
+    private static void settle(Env e) throws Exception { for(int i=0;i<180;i++) e.tick(); }
     private static void noDriverAndPausedRetirement() throws Throwable {
         try(var e=new Env()) {
             VehicleControl control=e.adapter(Map.of("diagnostics_enabled","true")); e.set(e.controller,"request",1); e.tick();

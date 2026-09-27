@@ -8,7 +8,7 @@ import pztools.extensions.api.ContinuousProvider;
 final class VehicleAccess {
     private final Class<?> controllerType, vehicleType, playerType, engineType, transmissionType;
     private final VarHandle vehicle, force, brake, controls, parking, throttle, transmission, rpm, steering, steeringInput;
-    private final VarHandle client, server, world, worldCell, players, time, slowTrait, fastTrait, gearCount, radius;
+    private final VarHandle client, server, world, worldCell, players, time, slowTrait, fastTrait, gearCount, radius, reverseSpeedLimit;
     private final MethodHandle driver, script, running, getEngine, getVehicleEngine, getTowedBy, getTowing, burnt;
     private final MethodHandle localPlayer, hasTrait, speed, power, mass, engineRpm, gear, maxSpeed, offroad, offroadEfficiency;
     private final MethodHandle rpmType, wheelCount, getWheel, physicsSeconds, frameNo, getVehicle, gas, gasReverse, regulator, joypad, steeringClamp;
@@ -32,6 +32,7 @@ final class VehicleAccess {
         world=field(worldType,"instance"); worldCell=field(worldType,"currentCell"); players=field(playerType,"players"); time=field(gameTime,"instance");
         slowTrait=field(trait,"SUNDAY_DRIVER"); fastTrait=field(trait,"SPEED_DEMON");
         gearCount=field(scriptType,"gearRatioCount"); radius=field(wheel,"radius");
+        reverseSpeedLimit=field(scriptType,"maxSpeedReverse");
         driver=method(vehicleType,"getDriver",Object.class); script=method(vehicleType,"getScript",Object.class);
         running=method(vehicleType,"isEngineRunning",boolean.class); getEngine=method(vehicleType,"getEngine",Object.class);
         getVehicleEngine=method(vehicleType,"getVehicleEngine",Object.class);
@@ -109,6 +110,8 @@ final class VehicleAccess {
         f.script=s; f.engineType=(String)(Object)rpmType.invokeExact(s); f.gears=(int)gearCount.get(s);
         f.frame=(int)frameNo.invokeExact(currentWorld); f.dt=(float)physicsSeconds.invokeExact((Object)time.get());
         f.speed=(float)speed.invokeExact(v); f.maxSpeed=(float)maxSpeed.invokeExact(v); f.mass=(float)mass.invokeExact(v);
+        // control_Reverse compares 1.5 * actual speed with this script field.
+        f.reverseMaxSpeed=(float)reverseSpeedLimit.get(s)/1.5;
         f.power=(int)power.invokeExact(v); f.rpm=(double)engineRpm.invokeExact(v); f.gear=(int)gear.invokeExact(v);
         f.offroad=(boolean)offroad.invokeExact(v); f.efficiency=(float)offroadEfficiency.invokeExact(s); f.towing=towing!=null;
         f.slow=(boolean)hasTrait.invokeExact(p,(Object)slowTrait.get()); f.fast=(boolean)hasTrait.invokeExact(p,(Object)fastTrait.get());
@@ -149,11 +152,11 @@ final class VehicleAccess {
     }
     static final class Frame {
         Object vehicle,engine,driver,controls,script; String engineType;
-        int gears,frame,power,gear; double rpm; float dt,speed,maxSpeed,mass,efficiency,radiusMin,radiusMax;
+        int gears,frame,power,gear; double rpm,reverseMaxSpeed; float dt,speed,maxSpeed,mass,efficiency,radiusMin,radiusMax;
         boolean offroad,towing,slow,fast,gas,reverseGas;
         void clear() {
             vehicle=null; engine=null; driver=null; controls=null; script=null; engineType=null;
-            gears=frame=power=gear=0; rpm=0; dt=speed=maxSpeed=mass=efficiency=radiusMin=radiusMax=0;
+            gears=frame=power=gear=0; rpm=reverseMaxSpeed=0; dt=speed=maxSpeed=mass=efficiency=radiusMin=radiusMax=0;
             offroad=towing=slow=fast=gas=reverseGas=false;
         }
     }

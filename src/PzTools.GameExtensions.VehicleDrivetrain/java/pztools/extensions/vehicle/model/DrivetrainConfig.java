@@ -63,8 +63,10 @@ public final class DrivetrainConfig {
         if (!"1".equals(schema)) throw new IllegalArgumentException("schema_version must be 1");
         forceScale = number(values, "force_scale", 1.0, 0.25, 1.5);
         lowGearBoost = number(values, "low_gear_boost", 1.0, 1.0, 1.6);
-        reverseForceRatio = number(values, "reverse_force_ratio", 0.85, 0.4, 1.0);
-        reverseMaxSpeedKph = number(values, "reverse_max_speed_kph", 22.0, 4.0, 35.0);
+        reverseForceRatio = number(values, "reverse_force_ratio", 1.0, 0.4, 1.0);
+        reverseMaxSpeedKph = number(values, "reverse_max_speed_kph", 0.0, 0.0, 35.0);
+        if (reverseMaxSpeedKph > 0.0 && reverseMaxSpeedKph < 4.0)
+            throw new IllegalArgumentException("reverse_max_speed_kph must be 0 (vehicle default) or 4..35");
         reverseRampSeconds = number(values, "reverse_ramp_seconds", 0.8, 0.3, 2.0);
         forwardRampSeconds = number(values, "forward_ramp_seconds", 0.3, 0.1, 2.0);
         directionHoldSeconds = number(values, "direction_hold_seconds", 0.15, 0.05, 0.75);
@@ -85,14 +87,14 @@ public final class DrivetrainConfig {
         rpmResponseSeconds = number(values, "rpm_response_seconds", 0.12, 0.04, 0.50);
         directionSpeedMps = number(values, "direction_speed_mps", 0.15, 0.05, 0.30);
         forwardGovernorStartFraction = number(values, "forward_governor_start_fraction", 1.0, 0.75, 1.0);
-        reverseGovernorStartFraction = number(values, "reverse_governor_start_fraction", 0.75, 0.50, 0.90);
+        reverseGovernorStartFraction = number(values, "reverse_governor_start_fraction", 1.0, 0.50, 1.0);
         shiftHysteresisFraction = number(values, "shift_hysteresis_fraction", 0.08, 0.04, 0.15);
         demandDownshiftFraction = number(values, "demand_downshift_fraction", 0.48, 0.25, 0.60);
         steeringInitialRate = number(values, "steering_initial_rate", 1.8, 0.1, 3.0);
         steeringFullRate = number(values, "steering_full_rate", 7.5, 0.5, 8.0);
         steeringRampSeconds = number(values, "steering_ramp_seconds", 0.1, 0.05, 1.0);
-        steeringReturnRate = number(values, "steering_return_rate", 3.0, 0.5, 10.0);
-        steeringCountersteerRate = number(values, "steering_countersteer_rate", 4.0, 0.5, 12.0);
+        steeringReturnRate = number(values, "steering_return_rate", 8.0, 0.5, 10.0);
+        steeringCountersteerRate = number(values, "steering_countersteer_rate", 8.0, 0.5, 12.0);
         steeringHighSpeedRateFactor = number(values, "steering_high_speed_rate_factor", 0.6, 0.2, 1.0);
         if (steeringInitialRate > steeringFullRate)
             throw new IllegalArgumentException("steering_initial_rate must not exceed steering_full_rate");

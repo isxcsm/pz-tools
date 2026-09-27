@@ -106,13 +106,20 @@ public sealed class PublishedDistributionTests
         Assert.Equal(40, configuration.Count);
         Assert.Equal("1", configuration["schema_version"]);
         Assert.Equal("1", configuration["low_gear_boost"]);
-        Assert.Equal("0.85", configuration["reverse_force_ratio"]);
+        Assert.Equal("1", configuration["reverse_force_ratio"]);
         Assert.Equal("3.6", configuration["gear_ratio_span"]);
         Assert.Equal("false", configuration["probe_only"]);
         Assert.Equal("true", configuration["torque_enabled"]);
         Assert.Equal("true", configuration["reverse_enabled"]);
         Assert.Equal("true", configuration["steering_enabled"]);
-        Assert.Equal("22", configuration["reverse_max_speed_kph"]);
+        Assert.Equal("0", configuration["reverse_max_speed_kph"]);
+        Assert.Equal("1", configuration["reverse_governor_start_fraction"]);
+        Assert.Equal("0.8", configuration["reverse_ramp_seconds"]);
+        Assert.Equal("1.8", configuration["steering_initial_rate"]);
+        Assert.Equal("7.5", configuration["steering_full_rate"]);
+        Assert.Equal("0.1", configuration["steering_ramp_seconds"]);
+        Assert.Equal("8", configuration["steering_return_rate"]);
+        Assert.Equal("8", configuration["steering_countersteer_rate"]);
         Assert.False(Directory.Exists(Path.Combine(temporaryRuntime.Path, "extensions")));
     }
 
