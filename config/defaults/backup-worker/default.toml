@@ -79,9 +79,29 @@ capture_attempts = 5
 # Base wait between unstable-file attempts, in milliseconds (10-5000). The wait grows with the
 # attempt number. Increase for a busy disk; the backup may take longer.
 capture_retry_delay_ms = 200
-# Buffer used while copying and checking a file, in KiB (16-4096). Larger buffers use more
+# Buffer used while copying, checking a file and hashing during full scans, in KiB (16-4096). Larger buffers use more
 # memory. This is NOT a file-size or save-size limit.
 copy_buffer_kib = 128
+# Keep stable copies up to this size in memory instead of creating a temporary file (0-1024 KiB).
+# 0 always stages to disk. A file that grows beyond the limit spills to disk.
+small_file_staging_kib = 256
+# Maximum memory retained by the staging buffer pool, including buffers being read, queued,
+# written or held for reuse (1-256 MiB). This is NOT a limit on total app memory or save size.
+# Readers wait when full. Large files still use temporary files, not this memory pool.
+# With the default queue of 8 and 256 KiB slots, effective staging capacity is 2 MiB.
+staging_memory_mib = 4
+# Maximum simultaneous file readers (1-8). Compression, pack writes and catalog updates stay
+# on one consumer. Each reader also uses copy buffers controlled by copy_buffer_kib.
+capture_read_concurrency = 4
+# Maximum files in flight, including queued/active readers and completed staged copies (1-128).
+# Both this count and the memory limit apply, regardless of the total number of save files.
+capture_queue_capacity = 8
+# Maximum file comparisons held in one full-scan hash batch (1-128). This applies when USN is
+# unavailable and capture.full_scan_hash_comparison is on; it is not the metadata scan batch.
+full_scan_hash_batch_size = 16
+# Maximum simultaneous content readers in that comparison phase (1-8), also limited by the
+# batch size. The copy_buffer_kib setting above controls their buffers. No file content is cached.
+full_scan_hash_read_concurrency = 4
 # Minimum time between intermediate progress reports, in milliseconds (50-2000). Higher values
 # reduce diagnostic writes but make progress appear less smooth.
 progress_interval_ms = 250

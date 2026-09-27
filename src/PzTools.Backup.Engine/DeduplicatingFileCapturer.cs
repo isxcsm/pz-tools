@@ -45,15 +45,33 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer) : IAs
         CancellationToken cancellationToken = default,
         Func<FileCopyProgress, ValueTask>? progress = null)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        ArgumentNullException.ThrowIfNull(repository);
-        ArgumentNullException.ThrowIfNull(writer);
-        if (contentDeduplication && checksum != ChecksumAlgorithm.Sha256)
-            throw new InvalidOperationException("Content deduplication requires SHA-256.");
-        if (checksum is not (ChecksumAlgorithm.None or ChecksumAlgorithm.XxHash64 or ChecksumAlgorithm.Sha256)
-            || compression is not (CompressionAlgorithm.None or CompressionAlgorithm.Brotli))
-            throw new ArgumentException("Resolve storage algorithms before capturing files.");
+        ValidateCapture(repository, writer, checksum, compression, contentDeduplication);
+        try
+        {
+            await using var staged = await capturer.StageAsync(path, writer, cancellationToken, progress,
+                requireFullHash: contentDeduplication);
+            return await CaptureStagedAsync(repository, staged, writer, checksum, compression,
+                contentDeduplication, cancellationToken, progress);
+        }
+        catch
+        {
+            writer.Invalidate("deduplication capture failed");
+            await EndRunAsync();
+            throw;
+        }
+    }
 
+    internal async Task<StoredFileCapture> CaptureStagedAsync(
+        RepositoryDatabase repository,
+        StagedFileCapture staged,
+        PackWriter writer,
+        ChecksumAlgorithm checksum,
+        CompressionAlgorithm compression,
+        bool contentDeduplication,
+        CancellationToken cancellationToken = default,
+        Func<FileCopyProgress, ValueTask>? progress = null)
+    {
+        ValidateCapture(repository, writer, checksum, compression, contentDeduplication);
         if (activePackId != writer.PackId)
         {
             await EndRunAsync();
@@ -62,9 +80,6 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer) : IAs
 
         try
         {
-            await using var staged = await capturer.StageAsync(path, writer, cancellationToken, progress,
-                requireFullHash: contentDeduplication);
-
             async Task<StoredFileCapture> ReuseAsync(PackObjectDescriptor descriptor, Guid packId)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -118,6 +133,19 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer) : IAs
             throw;
         }
 
+    }
+
+    private void ValidateCapture(RepositoryDatabase repository, PackWriter writer,
+        ChecksumAlgorithm checksum, CompressionAlgorithm compression, bool contentDeduplication)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(writer);
+        if (contentDeduplication && checksum != ChecksumAlgorithm.Sha256)
+            throw new InvalidOperationException("Content deduplication requires SHA-256.");
+        if (checksum is not (ChecksumAlgorithm.None or ChecksumAlgorithm.XxHash64 or ChecksumAlgorithm.Sha256)
+            || compression is not (CompressionAlgorithm.None or CompressionAlgorithm.Brotli))
+            throw new ArgumentException("Resolve storage algorithms before capturing files.");
     }
 
     private async Task<bool> ContentEqualsAsync(

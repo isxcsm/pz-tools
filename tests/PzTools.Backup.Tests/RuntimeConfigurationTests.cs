@@ -9,6 +9,22 @@ namespace PzTools.Backup.Tests;
 
 public sealed class RuntimeConfigurationTests
 {
+    [Fact]
+    public async Task BackupRuntime_DefaultsMatchFreshTemplateAndSerialization()
+    {
+        using var temp = new TempDirectory();
+        var settings = new AppSettingsService(temp.GetPath("runtime"));
+        await settings.EnsureComponentConfigurationAsync(temp.Path, "backup-worker");
+        var path = ComponentRuntimePaths.GetIdentityDefaultPath(temp.Path, "backup-worker", settings.ConfigurationRoot);
+        var template = BackupConfiguration.Parse(await File.ReadAllTextAsync(path), temp.GetPath("repo"), path,
+            new BackupOptionOverrides { Sources = [new("test", temp.GetPath("source"))] });
+        var defaults = new BackupTuningOptions();
+        Assert.Equal(defaults, template.EffectiveTuning);
+        Assert.Equal(defaults, BackupTuningOptions.Read(ComponentConfiguration.Parse("[runtime]")));
+        Assert.Equal(defaults, BackupConfiguration.Parse(BackupConfiguration.Serialize(template),
+            template.RepositoryPath, path).EffectiveTuning);
+    }
+
     [Theory]
     [InlineData("capture_attempts", "0")]
     [InlineData("capture_retry_delay_ms", "-1")]
@@ -19,6 +35,18 @@ public sealed class RuntimeConfigurationTests
     [InlineData("game_connection_timeout_seconds", "0")]
     [InlineData("game_completion_timeout_seconds", "601")]
     [InlineData("game_queue_timeout_seconds", "61")]
+    [InlineData("small_file_staging_kib", "-1")]
+    [InlineData("small_file_staging_kib", "1025")]
+    [InlineData("staging_memory_mib", "0")]
+    [InlineData("staging_memory_mib", "257")]
+    [InlineData("capture_read_concurrency", "0")]
+    [InlineData("capture_read_concurrency", "9")]
+    [InlineData("capture_queue_capacity", "0")]
+    [InlineData("capture_queue_capacity", "129")]
+    [InlineData("full_scan_hash_batch_size", "0")]
+    [InlineData("full_scan_hash_batch_size", "129")]
+    [InlineData("full_scan_hash_read_concurrency", "0")]
+    [InlineData("full_scan_hash_read_concurrency", "9")]
     [InlineData("capture_attempts", "'five'")]
     [InlineData("capture_attempt_typo", "5")]
     public void BackupRuntime_RejectsInvalidValues(string key, string value)
@@ -62,6 +90,53 @@ public sealed class RuntimeConfigurationTests
         await new RevisionRestorer().RestoreAsync(repository, saved.SourceId, 1, temp.GetPath("restore"));
         foreach (var name in new[] { "one", "two", "three" })
             Assert.Equal(name, await File.ReadAllTextAsync(temp.GetPath("restore/" + name)));
+    }
+
+    [Fact]
+    public void BackupRuntime_CaptureAndHashLimitsRoundTrip()
+    {
+        using var temp = new TempDirectory();
+        var options = BackupConfiguration.Parse("""
+            format_version = 1
+            [runtime]
+            small_file_staging_kib = 0
+            staging_memory_mib = 1
+            capture_read_concurrency = 3
+            capture_queue_capacity = 7
+            full_scan_hash_batch_size = 3
+            full_scan_hash_read_concurrency = 1
+            """, temp.GetPath("repo"), temp.GetPath("config.toml"),
+            new BackupOptionOverrides { Sources = [new("test", temp.GetPath("source"))] });
+        Assert.Equal(new BackupTuningOptions(SmallFileStagingKib: 0, StagingMemoryMib: 1,
+            CaptureReadConcurrency: 3, CaptureQueueCapacity: 7,
+            FullScanHashBatchSize: 3, FullScanHashReadConcurrency: 1), options.EffectiveTuning);
+        Assert.Equal(options.EffectiveTuning, BackupConfiguration.Parse(BackupConfiguration.Serialize(options),
+            options.RepositoryPath, temp.GetPath("config.toml")).EffectiveTuning);
+    }
+
+    [Theory]
+    [InlineData(1, 3)]
+    [InlineData(32, 1)]
+    public async Task BackupRuntime_CustomHashLimitsWorkDuringUsnFallback(int batchSize, int readers)
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(source);
+        for (var index = 0; index < 35; index++)
+            await File.WriteAllTextAsync(Path.Combine(source, $"file-{index}.bin"), $"content-{index}");
+        var options = BackupConfiguration.Parse($"""
+            format_version = 1
+            [runtime]
+            full_scan_hash_batch_size = {batchSize}
+            full_scan_hash_read_concurrency = {readers}
+            copy_buffer_kib = 16
+            """, temp.GetPath("repo"), temp.GetPath("config.toml"),
+            new BackupOptionOverrides { Sources = [new("test", source)] });
+        var service = new OneShotBackupService(new NoJournal());
+        Assert.Equal(1, (await service.RunAsync(options, "test")).Revision);
+        var unchanged = await service.RunAsync(options, "test");
+        Assert.Equal("FullScan", unchanged.Mode);
+        Assert.Null(unchanged.Revision);
     }
 
     [Fact]

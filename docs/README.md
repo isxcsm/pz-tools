@@ -88,6 +88,7 @@ for the commit you plan to run; do not follow an old reset or migration plan bli
 | --- | --- | --- |
 | [Verification report / 검증 보고서](verification-report.md) | 한국어 | Dated local checks and remaining manual checks / 시점별 검증 기록 |
 | [Performance profile / 성능 프로파일](performance-profile.md) | 한국어 | Profiling method and measurements / 프로파일링 조건과 수치 |
+| [Backup tuning / 백업 튜닝](backup-tuning.md) | 한국어 | Bounded capture and full-scan hash settings / 메모리 제한·동시 읽기 설정 비교 |
 | [Storage performance follow-up / 저장소 성능 개선](storage-performance.md) | English | Implementation notes with commit-specific benchmarks / 구현과 당시 측정 |
 | [Gameplay background load / 플레이 중 백그라운드 부하](gameplay-background-load.md) | English | Save preservation, resident bootstrap, idle maintenance and state polling / 저장 보존·에이전트·점검 |
 | [Storage hotpaths / 저장소 주요 경로](storage-hotpaths.md) | English | Request lookup, reader reuse and bounded collection / 조회·리더·정리 |
