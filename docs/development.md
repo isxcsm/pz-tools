@@ -1,10 +1,10 @@
 # Development and validation
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
 These instructions are for building the application, not installing a release.
-Use a Windows x64 development machine. The user guide in each supported language
-contains the basic commands; this page keeps the detailed procedure in one place.
+Use a Windows x64 development machine. The [user guide](../README.md) has the
+quick-start commands; this page covers the development workflow.
 
 ## Prerequisites
 
@@ -112,7 +112,7 @@ python scripts/check-localization.py
 ```
 
 The PowerShell entry point delegates to the same documentation checker. It checks
-all authored Markdown, section targets, language navigation, required guide topics,
+all authored Markdown, section targets, required guide topics,
 and index coverage. External URLs are listed but are **not fetched** by this offline
 check. See the [documentation maintenance guide](documentation-maintenance.md) for
 what these tests do and do not establish.
@@ -136,10 +136,9 @@ Old performance and verification results remain tied to their stated data, machi
 and commits; the [documentation index](README.md#measurements-and-history) separates
 those records from the current user instructions.
 
-## Lean CI and proportional validation
+## CI
 
-One workflow replaces the former Windows, storage, crash, localization and dual-OS
-Documentation workflows. PRs target dev/main; pushes to those branches do not repeat
+PRs target dev/main; pushes to those branches do not repeat
 the same PR validation. Release tags `v*` run full validation. Direct branch pushes
 without a PR therefore require a manual run before release.
 
@@ -151,12 +150,8 @@ changes prepare the synthetic JVM fixture using the existing Release bridge and 
 those tests in the same invocation. There is no extra Debug build or repeated full suite.
 
 Use **CI / Run workflow / full=true** for publication and synthetic JVM validation
-regardless of changed paths. Release tags do the same. All ordinary crash-recovery
-boundaries are retained; the wrapper that repeated the identical tests five times is
-removed, not replaced with a retry. There is no assembly-wide SQLite diagnostic hook.
+regardless of changed paths. Release tags do the same.
 Benchmarks run only with `benchmarks=true`; a benchmark-only manual run uses Linux.
-The historical SQL extraction scripts remain available for manual investigations but
-are not default CI gates duplicating the C# repository tests.
 
 Dependencies, not compiled outputs or user data, are cached. Superseded PR runs are
 cancelled. TRX artifacts are kept seven days for failures or publication runs; normal
@@ -175,17 +170,7 @@ covered. UI hover/layout behavior needs an actual UI check, not a source-substri
 Keep generous bounded waits to detect hangs; sub-two-second process speed is diagnostic,
 not a correctness assertion on a shared runner. Product deadlines remain unchanged.
 
-The mixed-history storage test restores one multilingual history rather than repeating
-identical storage scenarios per language. The 600-event projection test prepares its
-input in one SQL statement while retaining page-boundary and terminal-state assertions.
-The old unpublished zombie sample with a hard-coded seven-item inventory was removed;
-synthetic inventory transfer and generic opt-in recovery-in-copies tests remain.
-
 Workflow check names are `checks` and `windows`. Required-check rules must match them;
 protection is not changed automatically. A skipped Windows job on a docs-only PR is
 intentional. Workflow dispatch requires the workflow on the default branch; until then,
-packaging PRs already exercise publication. No blanket claim of zero flaky tests is made.
-
-For routine changes, batch edits into one push and inspect one CI result. Fetch logs on
-failure. Do not build temporary workflows or a chain of fallback tools to delete branches;
-use a supported direct Git operation or report the unavailable operation promptly.
+packaging PRs already exercise publication.

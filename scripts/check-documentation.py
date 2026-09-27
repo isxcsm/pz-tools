@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Offline checks for authored documentation and localized guide coverage.
+"""Offline checks for English documentation and the single root user guide.
 
 Standard library only. Supported Markdown syntax and limitations are documented in
-`docs/documentation-maintenance.md`. This checks structure, not translation quality.
+`docs/documentation-maintenance.md`. This checks structure, not prose quality.
 """
 from __future__ import annotations
 
@@ -24,16 +24,10 @@ GUIDE_SECTIONS = (
 )
 GUIDE_REFERENCES = (
     'docs/README.md', 'docs/development.md', 'docs/configuration.md',
-    'docs/deployment-layout.md', 'docs/repository-housekeeping.md',
-    'docs/save-bridge.md', 'docs/character-recovery.md', 'docs/cli.md',
-    'docs/repository-format.md', 'docs/runtime-configuration.md',
-    'docs/localization.md', 'docs/verification-report.md', 'THIRD_PARTY_NOTICES.md',
+    'docs/repository-housekeeping.md', 'docs/save-bridge.md', 'docs/character-recovery.md',
 )
 GUIDE_FACT_TOKENS = (
-    'PzTools.App.exe', '.NET 10', 'Windows x64', 'Java 25',
-    '%LOCALAPPDATA%\\PzTools', 'repository-reset-required', 'Zomboid/Saves',
-    'repository.db', 'global.json', '42.20.4', '249', 'ID 1', 'Brotli', 'USN',
-    'GameWindow.save(true)',
+    'PzTools.App.exe', '.NET 10', 'Windows x64', 'Java 25', 'global.json',
 )
 BUILD_COMMANDS = (
     "dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath=\"$jdk\"",
@@ -287,58 +281,46 @@ def validate_link(root: Path, source: Path, link: Link,
     return target
 
 
-def guides_from_catalog(root: Path) -> dict[str, Path]:
-    catalog = root / 'src/PzTools.Process.Contracts/Localization/languages.tsv'
-    rows = [line.split('\t') for line in catalog.read_text(encoding='utf-8').splitlines() if line.strip()]
-    if not rows or any(len(row) != 10 for row in rows):
-        raise DocumentationError('Language catalog must contain ten fields per row')
-    tags = [row[1] for row in rows]
-    if 'en-US' not in tags or len(tags) != len(set(tags)):
-        raise DocumentationError('Language catalog is missing English or has duplicate tags')
-    return {tag: root / ('README.md' if tag == 'en-US' else f'docs/{tag}/README.md') for tag in tags}
-
-
-def check_guides(root: Path, guides: dict[str, Path], documents: dict[Path, Document],
-                 local_targets: dict[Path, set[Path]]) -> None:
-    for tag, path in guides.items():
-        if path not in documents:
-            raise DocumentationError(f'Missing language guide: {tag}')
-        doc = documents[path]
-        missing = set(GUIDE_SECTIONS) - doc.explicit
-        if missing:
-            raise DocumentationError(f'{tag}: missing guide topics: {sorted(missing)}')
-        # Require a heading plus authored explanation, not a section containing only a link.
-        blocks = re.split(r'<a\s+id="[^"]+"\s*></a>', doc.text)
-        headings = [b for b in blocks if re.search(r'(?m)^## ', b)]
-        if len(headings) != len(GUIDE_SECTIONS):
-            raise DocumentationError(f'{tag}: expected {len(GUIDE_SECTIONS)} explained guide sections')
-        for block in headings:
-            body = re.sub(r'(?m)^##[^\n]*\n', '', block).strip()
-            if not body or not re.search(r'\w', re.sub(r'\[[^\]]*\]\([^)]*\)', '', body)):
-                raise DocumentationError(f'{tag}: guide section has no explanation')
-        required = {root / p for p in GUIDE_REFERENCES} | (set(guides.values()) - {path})
-        absent = required - local_targets[path]
-        if absent:
-            raise DocumentationError(f'{tag}: missing direct reference or language link: '
-                                     + ', '.join(str(p.relative_to(root)) for p in sorted(absent)))
-        # Natural compounds (e.g. German .NET-10-Runtime) retain the same terms.
-        prose = re.sub(r'[-‐‑–]', ' ', doc.text)
-        for token in GUIDE_FACT_TOKENS:
-            if re.sub(r'[-‐‑–]', ' ', token) not in prose:
-                raise DocumentationError(f'{tag}: missing shared technical instruction: {token}')
-        for token in BUILD_COMMANDS:
-            if token not in doc.text:
-                raise DocumentationError(f'{tag}: missing shared technical instruction: {token}')
-        for url in ('https://github.com/isxcsm/pz-tools/releases',
-                    'https://github.com/isxcsm/pz-tools/issues',
-                    'https://dotnet.microsoft.com/en-us/download/dotnet/10.0'):
-            if url not in {link.target for link in doc.links}:
-                raise DocumentationError(f'{tag}: missing runtime, download or support link: {url}')
+def check_guide(root: Path, documents: dict[Path, Document],
+                local_targets: dict[Path, set[Path]]) -> None:
+    path = root / 'README.md'
+    doc = documents[path]
+    missing = set(GUIDE_SECTIONS) - doc.explicit
+    if missing:
+        raise DocumentationError(f'README.md: missing guide topics: {sorted(missing)}')
+    # Require a heading plus authored explanation, not a section containing only a link.
+    blocks = re.split(r'<a\s+id="[^"]+"\s*></a>', doc.text)
+    headings = [b for b in blocks if re.search(r'(?m)^## ', b)]
+    if len(headings) != len(GUIDE_SECTIONS):
+        raise DocumentationError(f'README.md: expected {len(GUIDE_SECTIONS)} explained guide sections')
+    for block in headings:
+        body = re.sub(r'(?m)^##[^\n]*\n', '', block).strip()
+        if not body or not re.search(r'\w', re.sub(r'\[[^\]]*\]\([^)]*\)', '', body)):
+            raise DocumentationError('README.md: guide section has no explanation')
+    absent = {root / p for p in GUIDE_REFERENCES} - local_targets[path]
+    if absent:
+        raise DocumentationError('README.md: missing direct reference: '
+                                 + ', '.join(str(p.relative_to(root)) for p in sorted(absent)))
+    prose = re.sub(r'[-‐‑–]', ' ', doc.text)
+    for token in GUIDE_FACT_TOKENS:
+        if re.sub(r'[-‐‑–]', ' ', token) not in prose:
+            raise DocumentationError(f'README.md: missing technical instruction: {token}')
+    for token in BUILD_COMMANDS:
+        if token not in doc.text:
+            raise DocumentationError(f'README.md: missing technical instruction: {token}')
+    for url in ('https://github.com/isxcsm/pz-tools/releases',
+                'https://github.com/isxcsm/pz-tools/issues',
+                'https://dotnet.microsoft.com/en-us/download/dotnet/10.0'):
+        if url not in {link.target for link in doc.links}:
+            raise DocumentationError(f'README.md: missing runtime, download or support link: {url}')
 
 
 def check(root: Path) -> dict[str, int]:
     root = root.resolve()
-    guides = guides_from_catalog(root)
+    parallel_guides = sorted(root.glob('docs/*/README.md'))
+    if parallel_guides:
+        raise DocumentationError('Localized README guides are not supported; use the English root README: '
+                                 + ', '.join(str(p.relative_to(root)) for p in parallel_guides))
     paths = sorted({root/'README.md', root/'THIRD_PARTY_NOTICES.md', *root.glob('docs/**/*.md')})
     docs: dict[Path, Document] = {}
     targets: dict[Path, set[Path]] = {}
@@ -360,21 +342,18 @@ def check(root: Path) -> dict[str, int]:
             else:
                 targets[path].add(target)
                 local_count += 1
-    check_guides(root, guides, docs, targets)
+    check_guide(root, docs, targets)
     index = root/'docs/README.md'
     if index not in docs:
         raise DocumentationError('Missing documentation index')
     references = set(root.glob('docs/*.md')) - {index}
-    missing = (references | set(guides.values()) | {root/'THIRD_PARTY_NOTICES.md'}) - targets[index]
+    missing = (references | {root/'README.md', root/'THIRD_PARTY_NOTICES.md'}) - targets[index]
     if missing:
         raise DocumentationError('Documents missing from index: ' + ', '.join(str(p.relative_to(root)) for p in sorted(missing)))
     for path in references:
         if index not in targets[path]:
             raise DocumentationError(f'{path.relative_to(root)}: missing index backlink')
-    unexpected = set(root.glob('docs/*/README.md')) - set(guides.values())
-    if unexpected:
-        raise DocumentationError('Guide not in language catalog: ' + ', '.join(str(p) for p in sorted(unexpected)))
-    return {'documents': len(paths), 'guides': len(guides), 'topics_per_guide': len(GUIDE_SECTIONS),
+    return {'documents': len(paths), 'guides': 1, 'topics_per_guide': len(GUIDE_SECTIONS),
             'local_links': local_count, 'external_urls_not_fetched': len(externals),
             'indexed_reference_documents': len(references)}
 

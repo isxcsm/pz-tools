@@ -1,38 +1,41 @@
-# 팩 형식
+# Pack format
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-팩 형식 버전 1은 불변 바이너리 컨테이너입니다. writer는 `staging/` 아래에 파일
-하나를 만들고 객체 레코드를 이어 쓰며, 체크섬이 있는 footer 인덱스를 기록한 뒤
-파일을 디스크에 flush합니다. 그다음 파일을 다시 열어 모든 payload를 검증하고
-나서야 `packs/` 아래로 원자적으로 이동합니다. 취소되거나 실패한 writer는 임시
-파일을 제거하며 커밋된 파일 이름을 노출하지 않습니다.
+Pack format version 1 is an immutable binary container. A writer appends object
+records to a file under `staging/`, writes a checksummed footer index, flushes to
+disk, then reopens and verifies every payload before atomically moving the file
+into `packs/`. Failure or cancellation removes temporary output without exposing
+a committed filename.
 
-인덱스 항목은 닫힐 때 삭제되는 staging sidecar에 누적한 다음 최종 팩으로
-스트리밍합니다. 팩 봉인과 payload 검증은 bounded memory로 인덱스를 순회합니다.
-일반 복원과 압축 읽기는 권위 있는 저장소 메타데이터의 객체 offset을 사용하고,
-활성 팩마다 핸들 하나를 유지하며, 팩 전체 객체 맵을 메모리에 올리지 않습니다.
+Index entries accumulate in a delete-on-close staging sidecar and stream into the
+finished pack. Sealing and payload validation traverse the index with bounded
+memory. Restore and compressed reads use authoritative repository offsets and one
+handle per active pack, without loading the whole object map.
 
-고정 팩 header에는 magic, 형식 버전, 팩 UUID, 생성한 `run_index`가 들어갑니다.
-각 객체 header에는 불투명 객체 UUID, 체크섬과 압축 식별자, flag, 원본 및 저장
-길이, 최대 32바이트의 체크섬이 들어갑니다. 인덱스는 객체 UUID를 레코드 offset에
-대응시키며 자체 SHA-256 체크섬을 가집니다. 마지막 고정 trailer는 파일 끝을
-기준으로 인덱스 위치를 가리킵니다.
+## Layout
 
-버전 1 지원 항목:
+| Region | Contents |
+|---|---|
+| Fixed header | Magic, format version, pack UUID, creating `run_index` |
+| Object header | Opaque object UUID, algorithm IDs, flags, original/stored lengths, checksum up to 32 bytes |
+| Object payload | Original or compressed bytes |
+| Footer index | Object UUID-to-record-offset mapping with its own SHA-256 checksum |
+| Fixed trailer | Index location relative to the end of the file |
 
-- 무결성: `none`, `xxhash64`, `sha256`
-- 압축: `none`, `brotli`
+Version 1 supports integrity algorithms `none`, `xxhash64`, and `sha256`,
+and compression algorithms `none` and `brotli`. `auto` is resolved before
+opening the writer and is never stored as an algorithm. Each object records its
+actual algorithms, allowing packs made with different defaults to coexist.
 
-`auto`는 설정 선택이며 팩 writer를 열기 전에 구체적인 알고리즘으로 해석해야
-합니다. 알고리즘 값으로 그대로 저장하지 않습니다. 각 객체에는 실제 사용한
-알고리즘을 기록하므로 서로 다른 기본값으로 만든 팩도 공존할 수 있습니다. 객체
-UUID는 locator이며 콘텐츠 해시가 아닙니다. 콘텐츠 중복 제거를 활성화하면
-SHA-256과 원본 길이로 커밋된 후보를 찾은 뒤, decode한 후보 바이트와 안정적으로
-읽은 소스 바이트를 비교하고 나서 기존 객체 UUID를 재사용합니다. 같은 run에서
-앞서 기록하고 검증한 중복 객체도 재사용합니다.
+## Reuse and validation
 
-reader는 모든 범위, magic 값, 버전, 알고리즘 식별자, 체크섬 길이, 인덱스 식별자
-대응, 원본 길이, 압축 해제, 설정된 객체 체크섬을 검증합니다. 체크섬이 `none`이면
-구조 손상과 길이 변화는 탐지하지만, 길이가 같은 payload 변조까지 탐지한다고
-보장하지는 않습니다.
+An object UUID is a locator, not a content hash. With deduplication enabled, full
+SHA-256 and original length locate candidates. Their decoded bytes must match the
+stable private source copy before the worker reuses an object UUID. Verified
+duplicates written earlier in the same run can also be reused.
+
+Readers validate ranges, magic, versions, algorithm IDs, checksum lengths,
+index-to-object identity, decoded lengths, decompression, and the selected object
+checksum. With `none`, structural damage and length changes remain detectable,
+but same-length payload modification is not guaranteed to be detected.

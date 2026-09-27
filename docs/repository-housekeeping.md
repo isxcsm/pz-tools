@@ -1,11 +1,20 @@
 # Repository housekeeping
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-Housekeeping was introduced at commit `6f2023c` without changing the storage layout.
-The subsequent pre-release [compact format 2](compact-repository-format.md) deliberately
-breaks format-1 compatibility. The policies below apply to new format-2 repositories;
-orphan-backup deletion and administrator requirements remain unchanged.
+Housekeeping removes deleted history and reclaims unreferenced storage. Logical
+deletion and physical space recovery are separate steps.
+
+## Retention and orphan backups
+
+The automatic count limit applies only to automatic backups. Manual backups remain
+until explicit deletion or source cleanup; they are not permanently pinned.
+
+The orphan lane removes a save's backup history when its original folder is confirmed
+missing under the configured saves root. It defers inaccessible roots, uncertain paths,
+reparse points and pending restore/edit operations instead of interpreting them as deletion.
+It also yields during gameplay or competing work, so cleanup is not immediate.
+Export important history before deleting or moving the original save.
 
 ## Revision reclamation
 
@@ -67,16 +76,11 @@ Options are in `config/defaults/maintenance-worker/default.toml`. Typed prefligh
 worker entry points read the same values. Rebuild/publish app and workers together.
 Do not mix new configuration keys with an older worker.
 
-The isolated Python production-SQL checks pass all 14 cases:
+For an isolated SQL check:
 
 ```text
 python scripts/check-housekeeping-sql.py
 ```
 
-These cover retained/deleted revision combinations, hidden baselines, inactive-source
-admission, bounded batches, uncertain timestamps, reference protection, rollback,
-VACUUM preservation and deferred WAL truncation. Their reduced fixtures are not a
-replacement for C# integration tests using the production schema.
-Eight `RepositoryHousekeepingTests` cases are included in the 123 Windows storage
-tests passing at `142b3af60a080de6f20ebf06c3bb4d43a7317833`.
-See the compact-format document for evidence and remaining full-application CI scope.
+Use `RepositoryHousekeepingTests` and the orphan-cleanup integration tests for the
+production code path. SQL fixtures alone do not establish app-level behavior.

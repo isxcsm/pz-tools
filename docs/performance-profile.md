@@ -1,76 +1,72 @@
-# 성능 프로파일
+# Performance profile
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-Release 빌드 프로파일러는 결정론적 파일 트리를 생성하고 초기 백업을 수행한 뒤,
-정해진 덮어쓰기, 추가, 절단, 이름 변경, 삭제, 생성 작업을 적용합니다. 이어서
-저널 기반 증분 백업을 실행하고 최신 리비전을 복원하며 커밋된 모든 팩을
-검증합니다. 경과 시간, 관리 메모리 할당량, 저장소 크기, 프로세스 peak working
-set을 JSON으로 기록합니다. 각 전략은 새 자식 프로세스에서 실행하므로 peak
-working set 값이 이전 시나리오의 영향을 받지 않고 해당 전략에 귀속됩니다.
+The Release profiler creates a deterministic file tree, takes an initial backup,
+applies overwrite/append/truncate/rename/delete/create operations, then runs a
+journal-based incremental backup, restores the latest revision, and verifies every
+committed pack. JSON output records elapsed time, managed allocation, repository
+size, and process peak working set. Each strategy runs in a fresh child process.
 
-아래 값은 `LOCAL-MAIN`에서 seed `1729`로 측정했습니다. 서로 비교하기 위한
-엔지니어링 측정값이며 다른 하드웨어에서도 동일하다는 보장은 없습니다. 해당
-장비에는 `C:` 파일시스템만 있어 소스와 저장소가 같은 볼륨인 경우만 측정했습니다.
-다른 볼륨이 있는 장비에서는 프로파일러의 출력 위치를 그 볼륨으로 지정할 수 있습니다.
+## Historical results
 
-## 대표 결과
+The measurements below predate the current bounded capture pipeline. They used
+seed 1729 on `LOCAL-MAIN`, with source and repository on the same `C:` volume.
+They are engineering observations, not hardware-independent targets or CI failure
+thresholds. See [backup tuning](backup-tuning.md) for the 2026-09-27 comparison that
+selected today's capture and full-scan hash defaults.
 
-2026-09-22 최종 회귀 프로파일은 seed `1729`, 4 KiB 무작위 파일 500개와 변경
-10개로 다시 실행했습니다. 초기 백업은 0.65~0.76초, 증분 백업은 0.14~0.19초,
-복원은 1.90~2.00초였고 peak working set은 60.7~63.3 MiB 범위였습니다. 네 전략
-모두 복원과 팩 검증까지 완료됐습니다. 이 값은 회귀 관찰용이며 CI 실패 기준으로
-고정하지 않습니다. 원본 결과는 실행 시 생성되는
-`artifacts/profile-final/profile-results.json`에 있습니다.
+The 2026-09-22 regression profile used 500 random 4 KiB files and 10 mutations.
+Across four strategies, initial backup took 0.65–0.76 s, incremental backup
+0.14–0.19 s, restore 1.90–2.00 s, and peak working set 60.7–63.3 MiB. All strategies
+completed restore and pack verification. The generated output was
+`artifacts/profile-final/profile-results.json`.
 
-버퍼 풀링을 적용한 4 KiB 무작위 파일 2,000개의 결과:
+An earlier 2,000-file random 4 KiB workload, after buffer pooling, recorded:
 
-| 전략 | 초기 백업 | 증분 백업 | 복원 | 복원 중 관리 메모리 할당 | 저장소 크기 |
+| Checksum / compression / telemetry | Initial | Incremental | Restore | Restore allocation | Repository size |
 |---|---:|---:|---:|---:|---:|
-| none / none / telemetry off | 1.74초 | 199ms | 6.84초 | 12.6MB | 9.69MB |
-| xxHash64 / Brotli / off | 1.51초 | 159ms | 6.88초 | 13.5MB | 9.73MB |
-| xxHash64 / Brotli / raw | 1.40초 | 213ms | 6.82초 | 13.5MB | 10.28MB |
-| SHA-256 / Brotli / off | 1.39초 | 144ms | 6.82초 | 13.6MB | 9.79MB |
+| none / none / off | 1.74 s | 199 ms | 6.84 s | 12.6 MB | 9.69 MB |
+| XxHash64 / Brotli / off | 1.51 s | 159 ms | 6.88 s | 13.5 MB | 9.73 MB |
+| XxHash64 / Brotli / raw | 1.40 s | 213 ms | 6.82 s | 13.5 MB | 10.28 MB |
+| SHA-256 / Brotli / off | 1.39 s | 144 ms | 6.82 s | 13.6 MB | 9.79 MB |
 
-이 조건에서 버퍼 풀링은 복원 시 할당량을 약 800MB에서 약 13MB로 줄였습니다.
-남은 복원 시간은 관리 메모리 할당이 아니라 다수의 작은 파일을 생성하고 닫는 데
-주로 사용됩니다.
+Pooling reduced restore allocation from roughly 800 MB to 13 MB under these
+conditions. Creating and closing many small files remained the main restore cost.
 
-동일 장비에서 Release CLI help 명령을 warm 상태로 12회 실행한 시간은
-71.49~84.93ms였습니다. 의도한 외부 스케줄 간격이 1~5분이므로, 프로세스 시작과
-일회성 프로세스 경계 비용은 증분 백업 시간과 비교해도 유의미하지 않습니다.
+Other observations from the same historical profiling:
 
-8 MiB 무작위 파일 16개에서는 압축을 사용하지 않았을 때 저장소가 약 176.3MB였고
-초기 백업은 0.67초에 끝났습니다. Brotli는 무작위 데이터를 줄이지 못하면서 CPU
-비용을 추가했습니다. SHA-256과 Brotli 조합은 초기 백업 1.32초로 가장 느렸습니다.
+| Workload | Observation |
+|---|---|
+| 12 warm Release CLI help launches | 71.49–84.93 ms per launch |
+| Sixteen random 8 MiB files | Without compression: about 176.3 MB repository and 0.67 s initial backup. Brotli added CPU without useful size reduction; SHA-256/Brotli took 1.32 s. |
+| Sixteen compressible 8 MiB files | Brotli reduced about 176.3 MB to 0.16 MB. XxHash64/Brotli took 0.58 s; SHA-256/Brotli took 1.05 s. Raw telemetry added about 8 KiB. |
 
-압축률이 높은 8 MiB 파일 16개에서는 Brotli가 저장소를 약 176.3MB에서 0.16MB로
-줄였습니다. xxHash64와 Brotli 조합의 초기 백업은 0.58초, SHA-256과 Brotli
-조합은 1.05초였습니다. 이처럼 파일 수가 적은 조건에서 raw telemetry는 저장소에
-약 8 KiB를 추가했으며 리비전 성공 조건에는 관여하지 않았습니다.
+## Current strategy
 
-## 프로파일 결과로 정한 기본값
+`checksum = "auto"` resolves to `xxhash64`; `compression = "auto"` resolves
+to `brotli`. Use `none` compression for data that is already compressed or
+incompressible when measurements justify it. Content deduplication is opt-in and
+requires SHA-256 plus byte comparison.
 
-- `checksum = "auto"`는 `xxhash64`로 해석합니다. 대용량 입력에서 SHA-256보다
-  훨씬 적은 CPU 비용으로 우발적인 손상을 탐지합니다.
-- `compression = "auto"`는 `brotli`로 해석합니다. 압축 가능한 저장 데이터에는
-  큰 이점이 있으며, 이미 압축됐거나 무작위인 데이터에는 `none`을 선택할 수 있습니다.
-- 콘텐츠 중복 제거는 opt-in이며 SHA-256과 바이트 단위 충돌 검증이 필요합니다.
-- v1에서 백업 run 하나는 불변 팩 하나를 기록합니다. run 경계를 팩 경계로 사용하고
-  작은 팩은 이후 명시적 압축으로 합쳐, 백업 hot path에서 추측성 크기 임계값을
-  사용하지 않습니다.
-- v1 팩 및 파일 I/O는 순차 worker 하나를 사용합니다. 전략을 별도 프로세스로
-  격리한 측정에서 peak working set은 72 MiB 미만이었습니다. 동시성은 디스크별
-  측정으로 live buffer 증가보다 이점이 크다는 것을 확인할 때까지 보류합니다.
-- Telemetry는 raw 모드를 제공하며 배치 크기 256, flush 간격 250ms를 사용합니다.
-  측정된 비용은 관측 가능하고 제한적이며 telemetry 실패는 백업 리비전을
-  실패시키지 않습니다.
+A backup run that writes new objects seals one immutable version 1 pack.
+Compression, pack writing, and catalog updates use one consumer; source reads
+overlap through the bounded capture pipeline. The old sequential-I/O measurements
+above must not be read as a description of current concurrency.
+[Stable capture](stable-capture.md) documents the limits.
 
-배포할 장비에서 프로파일을 다시 실행하는 명령:
+The generated worker template uses phase telemetry, batches of 256 events, and
+a 250 ms flush interval. Raw mode is available for detailed diagnostics. Telemetry
+errors do not invalidate a successful revision.
+
+## Reproduction
+
+Run on the deployment hardware:
 
 ```powershell
 dotnet run --project src/PzTools.Backup.Benchmarks -c Release -- --output artifacts/profile --files 2000 --bytes 4096 --operations 20 --seed 1729 --compressible false
 ```
 
-출력 디렉터리에는 `profile-results.json`과 각 시나리오별로 격리된 source,
-repository, restore 트리가 생성됩니다.
+The output contains `profile-results.json` and separate source, repository, and
+restore trees for each scenario. To measure cross-volume behavior, choose an
+output volume appropriate to that experiment.

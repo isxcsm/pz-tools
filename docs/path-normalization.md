@@ -1,13 +1,11 @@
-# Normalized path identities (format 2 / schema 3)
+# Normalized path identities
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-Current schema is **5**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
-
-This is a pre-release breaking layout change. Schema 1/2 and format 1 repositories
-are rejected with `repository-reset-required`; there is no migration, dual reader,
-or automatic reset. Start with a new empty backup directory and matching app/workers.
-Never reset `Zomboid/Saves` to apply a backup repository change.
+The path dictionaries introduced in schema 3 remain part of current format 2 /
+schema 5. They share path identities while preserving the exact spelling of each
+revision. See [repository format](repository-format.md) for compatibility; the
+measurements below describe the original schema-3 implementation.
 
 ## Layout and historical spelling
 

@@ -1,57 +1,54 @@
-# 설정
+# Configuration
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-## 앱 설정
+## App settings
 
-앱 화면의 설정은 `%LOCALAPPDATA%/PzTools/settings.toml`에 저장됩니다. 앱이
-소유하는 파일이며 고급 설정에서 편집하는 TOML과는 구분됩니다. 편집 가능한 TOML은
-`%LOCALAPPDATA%/PzTools/config` 아래에 모입니다. 설정 화면의 **폴더 열기**로
-찾아갈 수 있고, 직접 수정한 뒤 **설정 적용·앱 다시 시작**으로 적용합니다.
-**기본 설정으로 복원**은 현재 `config` 폴더를 `config-backups`에 보관하고 기본
-TOML을 다시 만듭니다. 앱 화면에서 선택한 일반 설정은 유지됩니다.
-`config/app/default.toml`의 `[logs].record_minimum_level`은 새로 기록할 로그의
-최소 수준이고 `max_entries`는 보관할 최대 건수입니다. 로그 화면의 최소 수준
-필터는 보이는 목록만 바꾸며 이 기록 정책을 변경하지 않습니다.
-앱은 처음 실행할 때 지원하는 구성요소별 TOML 11개를 만듭니다. 설정 키와 주석은
-앱 화면 언어와 무관하게 영어로 유지합니다. 앱 언어를 바꿔도 사용자가 편집한 TOML을
-다시 쓰지 않습니다. 기존 파일의 주석이나 누락된 키도 자동으로 수정하지 않습니다.
-새 기본 파일이 필요하면 설정 화면의 **기본 설정으로 복원**을 사용합니다.
-이는 **지원되는 편집 옵션**의 목록이지 실행 중 생성되는 모든 상태값의 목록은
-아닙니다. 작업 상태·스케줄 예약·로그 기록 자체는 각 DB에서 관리합니다.
+The app saves UI choices in `%LOCALAPPDATA%/PzTools/settings.toml`.
+Advanced component settings live separately under `%LOCALAPPDATA%/PzTools/config`.
+Use **Open folder** in Settings to find them, then **Apply settings and restart**
+after editing. **Restore defaults** archives the current `config` directory
+under `config-backups` and recreates the templates while preserving UI choices.
 
-`settings.toml`의 `[ui]`의
-`system_tray = true`를 켜면 창의 닫기 버튼이 앱을 종료하는 대신 시스템 트레이로
-숨깁니다. 트레이 아이콘을 더블클릭하거나 우클릭 메뉴에서 `창 복원`을 선택하면
-다시 표시됩니다. 트레이 메뉴의 `종료`는 종료 확인 후 앱과 백업 스케줄러를
-종료합니다. 기본값은 `false`이며, 이 경우 창 닫기 버튼도 종료 확인을 띄웁니다.
+The app creates 13 component TOML files with English keys and comments. Changing
+the UI language does not rewrite them, update comments, or insert missing keys.
+Workflows, schedules, and recorded logs are stored in databases, not these files.
 
-`[backup].automatic_enabled`는 자동 백업 토글이며 기본값은 `true`입니다.
-`interval_minutes`는 이 토글과 독립적인 1~60분 정수(기본 5)입니다. 토글을 꺼도
-간격·사망 시 백업 선택을 저장하며, 간격을 편집하는 것만으로 자동 백업이 켜지지 않습니다.
-다시 켜면 현재 플레이 상태를 확인하고 새 간격부터 시작합니다. 수동 백업과 이미
-시작된 백업은 중단하지 않으며 `save_game_before_backup`도 변경하지 않습니다.
-토글이 없던 이전 설정에서 `interval_minutes = 0`은 명시적인 비활성 선택이므로
-꺼짐을 유지하고 잃어버린 간격 대신 기본값 5분을 표시합니다. 읽기만으로 파일을
-변경하지 않으며 다음 설정 저장부터 두 필드를 기록합니다. 별도 토글이 있는 새
-설정에서 간격 0이나 잘못된 자료형은 오류로 처리합니다. 백업 저장소 변환은 없습니다.
+Key app settings:
 
-## 백업 worker 설정
+| Setting | Default | Behavior |
+|---|---|---|
+| `[ui].system_tray` | `false` | When enabled, closing the window hides it in the tray. Restore or exit through the tray menu. Exit requires confirmation and stops the scheduler. |
+| `[backup].automatic_enabled` | `true` | Enables automatic backups independently of interval, death-backup, and pre-backup-save preferences. |
+| `[backup].interval_minutes` | `5` | Integer from 1 through 60. Editing it does not enable automatic backups. |
+| `[backup].pause_periodic_during_game` | `true` | Preserves the remaining interval while the game is paused, the player is asleep, or runtime state is unknown. Resumes counting afterward. |
 
-백업 worker는 `--config`로 다른 파일을 지정하지 않으면 중앙 설정 폴더의
-`backup-worker/default.toml`을 읽습니다.
-코드 기본값, TOML, 앱 화면에서 선택한 값, 직접 지정한 CLI 옵션 순으로 적용합니다.
-앱 화면에 없는 `verify_staged_copies`는 TOML 값이 적용됩니다. TOML 안의 상대
-소스 경로는 해당 TOML 파일이 있는 디렉터리를 기준으로 해석합니다.
+Disabling automatic backups preserves the selected interval and does not stop
+manual or already-started backups. Re-enabling checks current play state and starts
+a new interval. Older settings without the toggle interpret `interval_minutes = 0`
+as disabled, with five minutes as the retained interval. Reading does not rewrite
+the file; the next settings save writes both fields. With an explicit toggle, zero
+or an invalid interval type is an error. See
+[runtime pause observation](runtime-pause-backups.md) for pause behavior.
+
+In `config/app/default.toml`, `[logs].record_minimum_level` and `max_entries`
+control stored logs. The Logs screen's level and count filters affect display only.
+
+## Backup worker
+
+The worker reads `config/backup-worker/default.toml` unless `--config`
+selects another file. Precedence is code defaults, TOML, overlapping app choices,
+then explicit CLI options. Relative source paths in TOML resolve against that
+file's directory.
+
+The current generated template includes:
 
 ```toml
 format_version = 1
 
-[[sources]]
-id = "zomboid-main"
-path = "C:/Users/example/Zomboid/Saves/Survivor/MySave"
-
 [capture]
+save_game_before_backup = true
+game_save_countdown = true
 always_include = ["players.db", "vehicles.db", "thumb.png"]
 full_scan_hash_comparison = true
 
@@ -66,121 +63,96 @@ enabled = true
 mode = "phase"
 batch_size = 256
 flush_interval_ms = 250
-retain_runs = 1000
-max_database_mib = 256
+retain_runs = 100
+max_database_mib = 64
 ```
 
-`capture.always_include`는 USN 또는 전수 비교 결과에서 변경되지 않은 파일도 해당
-리비전에 다시 캡처할 상대 경로 목록입니다. 목록에 있는 파일이 없어졌다면 일반
-파일과 동일하게 tombstone으로 기록합니다. 앱이 생성하는 backup worker 설정은
-`players.db`, `vehicles.db`, `thumb.png`를 기본값으로 둡니다. 이전 파일에 이 키가 없으면
-같은 기본 목록을 적용하되 파일에는 써넣지 않습니다. 빈 목록 `[]`을 명시하면
-특별 처리를 끕니다. 이 설정은 게임 메모리의 데이터를 디스크에 쓰도록 강제하지는
-못합니다.
+These are template values. A custom TOML that omits telemetry fields uses the
+engine fallbacks: raw mode, 1,000 runs, and 256 MiB. Use `config show` to check the
+effective configuration.
 
-`capture.full_scan_hash_comparison`은 기본 `true`입니다. USN을 사용할 수 없어
-전수조사로 전환하면 메타데이터가 같은 파일도 SHA-256으로 비교합니다. 기준 해시가
-없는 파일은 수집하여 기준을 만듭니다. `false`는 전수조사의 내용 읽기를 생략해
-빠르지만 크기·시각이 같은 내용 변경을 놓칠 수 있습니다. `always_include`에는
-영향을 주지 않습니다. 비교 해시는 저장 객체별 nullable 메타데이터로 관리하며,
-옵션을 꺼도 기존 값과 무결성 검증용 체크섬은 보존합니다. 새로 계산하지 않은
-비교 해시는 null입니다. 기존 SHA-256 체크섬은 호환되는 비교 기준으로 재사용합니다.
+`always_include` recaptures the listed source-relative paths even when USN or
+a full comparison reports no change. Missing previously stored files become
+tombstones after absence is confirmed. Omitting the key uses the same default list;
+an explicit `[]` disables extra capture. This setting cannot flush game memory.
 
-내용 비교는 16개 항목 단위로 읽어 최대 두 파일의 콘텐츠 읽기를 겹칩니다. DB 열거와
-변경 목록 갱신은 한 곳에서 처리하고, 메타데이터 조회와 진행률 콜백도 직렬화합니다.
-각 파일의 전체 SHA-256 계산 및 읽기 전후·현재 경로의 동일성 검사는 생략하지 않습니다.
-실패·취소 시 나머지 읽기와 파일 정리가 끝난 뒤 반환합니다. 이 상한은 콘텐츠 읽기
-개수이며, 경로 동일성 검증용 임시 파일 핸들이 하나 더 열릴 수 있습니다.
+`full_scan_hash_comparison` reads content with SHA-256 when USN is unavailable,
+including files whose metadata matches. A missing comparison fingerprint causes
+capture to establish a baseline. Turning it off can miss content changes that
+preserve size and times; it does not affect `always_include`, existing
+fingerprints, or integrity checksums. Format 2 stores nullable comparison
+fingerprints as the first 16 bytes of SHA-256. Full SHA-256 integrity checksums can
+also supply a comparison baseline.
 
-새 백업 이름의 언어는 앱 설정이 결정합니다. 수동·자동 백업에 따라 한국어에서는
-`수동 백업 N`·`자동 백업 N`, 영어에서는 `Manual backup N`·`Automatic backup N`을
-사용하며, 나머지 지원 언어도 해당 언어의 이름을 사용합니다. 이름을 편집하거나
-이후 앱 언어를 바꿔도 이미 저장된 이름은 자동으로 변경하지 않습니다.
-앱의 `[ui].language`, 작업자의 `[naming].language`, CLI의 `--name-language`는
-`ko-KR`, `en-US`, `ja-JP` 같은 [지원 로케일 코드](localization.md)를 사용합니다.
-기존 `Korean`·`English` 값도 계속 읽을 수 있습니다.
+`save_game_before_backup` requests a save before game-aware file capture.
+Disabling it captures only data already on disk. Turning off
+`game_save_countdown` skips the messages and the manual backup's five-second delay
+while keeping the save request. Periodic backups keep their scheduled deadline.
+Changes apply to the next backup. See
+[save bridge](save-bridge.md).
 
-지원하는 체크섬 값은 `auto`, `none`, `xxhash64`, `sha256`입니다. 콘텐츠 중복
-제거에는 `sha256`이 필요합니다. 지원하는 압축 값은 `auto`, `none`,
-`brotli`입니다. 현재 `auto`는 프로파일 결과에 따라 체크섬은 `xxhash64`,
-압축은 `brotli`로 해석됩니다.
+`verify_staged_copies` verifies private copies with SHA-256 and retries unstable
+reads. Disabling it preserves staging and metadata checks but reduces content
+consistency checks; keep it enabled for live saves. Capture defaults to four
+readers, eight files in flight, and a 4 MiB pool budget. With 256 KiB slots, effective
+staging capacity is 2 MiB. Full-scan hashing uses batches of 16 and at most four
+readers. See [stable capture](stable-capture.md) and
+[runtime configuration](runtime-configuration.md) for bounds and controls.
 
-`storage.verify_staged_copies`는 기본적으로 `true`입니다. 원본을 복사하면서
-SHA-256 해시를 비교하고, 일치하지 않으면 다시 시도합니다. `false`여도
-복사본에서 압축·중복 확인을 진행하며 기존 메타데이터 검사는 유지됩니다.
-진행 중 갱신되는 게임 파일을 백업할 때는 `false`로 낮추지 않는 것이 안전합니다.
+Checksums support `auto`, `none`, `xxhash64`, and `sha256`;
+compression supports `auto`, `none`, and `brotli`. Currently
+`auto` resolves to XxHash64 and Brotli. Deduplication requires SHA-256.
 
-`telemetry.enabled = false`는 해당 worker의 모든 telemetry 기록을 끕니다.
-Telemetry 모드는 `off`, `run`, `phase`, `raw`입니다. 보존 한도나 데이터베이스
-크기 한도가 0이면 무제한입니다. 배치 크기와 flush 간격은 0보다 커야 합니다.
+New backup names follow the selected app language; English uses
+`Manual backup N` and `Automatic backup N`. Existing names do not change
+when language changes. App `[ui].language`, worker `[naming].language`,
+and CLI `--name-language` accept [supported locale codes](localization.md),
+including `en-US`, `ko-KR`, and `ja-JP`. Legacy `Korean`
+and `English` values remain readable.
 
-유효 설정을 검증하거나 출력하는 명령:
+## Validation and overrides
 
 ```powershell
 dotnet run --project src/PzTools.Backup.Cli -- config validate --repository C:\Backups\pz
 dotnet run --project src/PzTools.Backup.Cli -- config show --repository C:\Backups\pz
 ```
 
-사용 가능한 재정의 옵션:
+For direct CLI use, define sources in TOML or pass repeated `--source <id>=<path>`
+options. Explicit source options replace the TOML source list. Repeated
+`--always-include <relative-path>` options likewise replace its entire list.
 
-```text
---repository <path>
---config <path>
---source <id>=<path>                 (반복 가능, TOML 소스 목록을 대체)
---always-include <relative-path>     (반복 가능, TOML 목록을 대체)
---checksum <auto|none|xxhash64|sha256>
---compression <auto|none|brotli>
---content-deduplication <true|false>
---verify-staged-copies <true|false>
---full-scan-hash-comparison <true|false>
---telemetry-enabled <true|false>
---telemetry-mode <off|run|phase|raw>
---telemetry-batch-size <integer>
---telemetry-flush-ms <integer>
---telemetry-retain-runs <integer>
---telemetry-max-database-mib <integer>
-```
+Other overrides cover `--checksum`, `--compression`,
+`--content-deduplication`, `--verify-staged-copies`,
+`--full-scan-hash-comparison`, `--save-game-before-backup`,
+`--name-language`, and `--telemetry-{enabled,mode,batch-size,flush-ms,retain-runs,max-database-mib}`.
+Boolean options take `true` or `false`; telemetry modes are
+`off`, `run`, `phase`, and `raw`.
+See the [CLI contract](cli.md) for commands.
 
-알 수 없는 키와 옵션은 오류입니다. 소스 ID는 대소문자를 구분하지 않고
-고유해야 하며, 소스 루트끼리 겹칠 수 없고 어떤 소스도 저장소와 겹칠 수 없습니다.
+Unknown keys/options are errors. Source IDs are unique without regard to case.
+Source roots cannot overlap each other or the repository. Always-include paths
+must be relative and cannot contain `..`.
 
-## 프로세스별 설정
+## Process ownership and retention
 
-Runner, Scheduler, Maintenance와 상태 프로세스는 각자 `default.toml`을 가집니다.
-배포물의 `defaults/<component>/default.toml`, 중앙 설정 폴더의
-`<component>/default.toml`, 중복되는 앱 설정,
-해당 프로세스에 직접 지정한 `--config` 순으로 적용합니다. 같은 앱 설치 안에서는
-구성요소별 설정을 공유하고 저장소별로 달리 지정할 때는 `--config`를 사용합니다.
-telemetry DB 등 실행 데이터는 기존 위치에 남습니다.
+Other components merge packaged `defaults/<component>/default.toml`, central
+`config/<component>/default.toml`, overlapping app settings, and an explicit
+`--config`, in that order. Central settings are shared by that component
+across an installation. Parent settings are not implicitly passed to children:
+BackupRunner and MaintenanceRunner use `--worker-config` for an explicit
+child override.
 
-부모는 자신의 설정을 자식에게 자동 전달하지 않습니다. Backup/Maintenance
-Runner의 `--worker-config`만 의도적인 자식 설정 재정의입니다. Scheduler는 Runner나
-worker의 TOML을 전달하지 않으므로 각 프로세스 설정의 소유권이 유지됩니다.
+The app chooses how many automatic backups to keep. Manual and unknown-origin
+backups are excluded from count-based retention, but remain subject to explicit
+deletion and the separate policy for confirmed missing source folders.
+Automatic pack recompression is disabled. Maintenance TOML contains diagnostics
+and bounded maintenance controls; see [repository housekeeping](repository-housekeeping.md).
 
-Maintenance worker의 편집 가능한 기본 설정은 진단 기록만 포함합니다.
-보관할 자동 백업 수는 앱에서 설정합니다. 수동 백업은 이 개수에 포함되지 않으며
-사용자가 직접 삭제할 때까지 보존합니다. 생성 경로를 알 수 없는 기존 백업도
-자동 정리에서 제외합니다. 자동 팩 재압축 옵션은 제거했습니다.
+Telemetry retention is separate from backup retention. A zero run or size limit
+disables that limit; the size threshold measures used database pages, not the
+physical file size. `enabled = false` disables recording. See
+[telemetry](telemetry.md) for modes and failure behavior.
 
-```toml
-[telemetry]
-enabled = true
-retain_runs = 100
-max_database_mib = 64
-```
-
-모든 프로세스의 원시 경계 telemetry는 `[telemetry]`의 `enabled`, `retain_runs`,
-`max_database_mib`를 사용합니다. `retain_runs` 또는 `max_database_mib`가 0이면 해당
-한도는 적용하지 않습니다. `max_database_mib`는 DB 파일 자체의 엄격한 크기
-상한이 아니라 사용 중인 페이지를 기준으로 오래된 진단 기록을 정리하는 기준입니다.
-백업 주기는 앱에서 설정합니다. StateScheduler의
-`[scheduler].interval_seconds`는 `--interval-seconds`가 없을 때만 사용합니다.
-
-Archive worker는 검사·가져오기 때 `[archive]`의 `maximum_entries`,
-`maximum_single_file_bytes`, `minimum_free_space_reserve_bytes`,
-`minimum_free_space_reserve_percent`를 읽습니다. 기본값과 의미는
-`deployment-layout.md`에 기록합니다.
-
-## 게임 일시정지와 정기백업
-
-`[backup].pause_periodic_during_game`의 기본값은 `true`입니다. 일시정지 동안 남은 시간을 보존하고 재개 후 이어서 셉니다. 상태를 확인하지 못해도 보수적으로 대기합니다. 자동 백업·백업 전 게임 저장·알림 설정과 별개이며, 끄면 기존 파일 잠김 기반 판정과 현실 시각 스케줄로 돌아갑니다. 자세한 책임과 복구 경계는 [런타임 관측 설계](runtime-pause-backups.md)를 참고하세요.
+The app owns backup cadence. StateScheduler's `[scheduler].interval_seconds`
+applies only without `--interval-seconds`. Archive resource limits are
+documented in [deployment layout](deployment-layout.md).

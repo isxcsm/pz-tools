@@ -1,227 +1,69 @@
-# Pre-backup game save bridge
+# Saving the game before a backup
 
-> Current integration uses **bootstrap API 10 / extension host ABI 3 / save protocol 6**.
-> Backups use the original game save call; Vehicle Drivetrain is the shipped optional
-> [game extension](game-extensions.md). Earlier numbered API notes below describe
-> individual changes, not the current deployment version.
+[Documentation index](README.md) · [User guide](../README.md)
 
-> Pause-aware periodic scheduling is implemented separately from the legacy UTC commands described below. It uses runtime observation and guarded SAVE_ACTIVE/PROBE_ACTIVE. Turning off pre-backup saving does not turn off this observation. See [runtime pause architecture](runtime-pause-backups.md). A loaded older bootstrap requires a full game restart.
+The bridge requests the original `GameWindow.save(true)` on the game thread before file capture. It uses Java Attach and a runtime hook; no Workshop mod, `-debug` launch option or game installation edit is required. Saving remains synchronous and can briefly pause gameplay. No seamless-save replacement is shipped.
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+## Settings and timing
 
-Manual and scheduled game backups request `GameWindow.save(true)` on the game
-thread before scanning or capturing files when the selected world is active.
-The debug save button has been removed.
+**Save game before backup** is on by default. Turning it off captures on-disk data only; recent changes still in game memory may be missing. This does not disable independent runtime observation or vehicle controls.
 
-For an active world, preparation displays a five-second overhead countdown before
-the game save: `Game saving in 5 s` through `Game saving in 1 s`, then a saving
-message at actual save admission and `Game save complete` after completion (or
-`Game save failed` on failure). Reaching zero alone does not announce admission.
-The app language selects equivalent messages from the shared 18-locale catalog
-(`src/PzTools.Process.Contracts/Localization/languages.tsv`). Both the worker and
-the Java agent package this catalog; the protocol accepts only its locale tags
-(plus the legacy `ko` / `en` aliases), never arbitrary message text. Game font
-coverage is controlled by the game, not by the app's Windows UI resources.
-Manual backups count down from the request. Periodic backups prepare their worker
-and connection ahead of time, carry the original scheduled UTC time to the game,
-and display only the final five seconds before that time. A late connection skips
-already elapsed numbers instead of adding another five seconds. The save starts
-at the due game-loop boundary, without an extra frame delay for a start message.
-This is not a real-time guarantee during stalled frames, slow attach or disk contention.
-`[scheduler].preparation_lead_seconds` defaults to 8 (range 5-30) to allow connection
-startup before the five-second notice. The app countdown keeps the original due
-time during preparation and advances to the next interval at that due time.
-Each app launch resets the periodic due time to the current time plus the configured
-interval, before starting projections or scheduler workers. An overdue reservation
-from the previous session is not executed on launch. Worker restarts and unrelated
-settings changes do not reset the countdown; pending final/one-shot jobs retain
-their separate recovery semantics.
-`Game save complete` means the original game save call returned, not that backup
-capture or compression has completed; backup completion remains in the app's
-progress card.
-Settings > Backup > In-game save countdown defaults to on. Turning it off skips
-the messages (and the manual five-second delay), without disabling pre-backup saving.
-Periodic backups still wait until their scheduled time, even with saving disabled
-or the selected game inactive; preparation never captures files early.
-It applies to the next worker, including when changed during a running backup.
-The app preference `[backup].game_save_countdown` overrides the worker default
-`[capture].game_save_countdown`. Disabling pre-backup saving skips the backup's
-bridge request and makes this subordinate toggle unavailable without erasing its
-preference. Runtime observation and vehicle control retain their separate lifecycles.
+**In-game save countdown** controls the overhead notices. For manual backups, it adds a five-second countdown. For periodic backups, preparation starts ahead of the deadline and shows only its final five seconds; a late connection skips elapsed numbers rather than adding another delay. The saving message appears at admission, followed by completion or failure. Other game notifications can replace the shared halo-note text.
 
-The agent uses `IsoPlayer.getInstance().setHaloNote(...)`, which replaces the same
-overhead text object instead of queuing speech. It updates once per second using
-monotonic elapsed time at game-loop boundaries, without sleeping on the game
-thread. Actual save admission replaces the countdown with the saving message;
-saving is not delayed by an extra frame to render it.
-The completion message fades using the game's normal halo timer. This shares the
-game's halo-note slot: another game or mod notification can replace the message.
-The game world is revalidated during countdown and immediately before saving.
-A disconnected client cancels a queued/counting-down request, not a save already
-in progress. The read-only probe never displays messages or waits for countdown.
+The scheduler preparation lead defaults to eight seconds. Paused frames, attach latency and disk contention can delay execution: the deadline is not a hard real-time guarantee. Disabling notices removes the manual delay, but does not make a periodic backup run early.
 
-Notification API failures do not abort a valid save: the response reports
-`notice-unavailable`. One current payload class loader is reused while the payload's
-SHA-256 stays unchanged. A changed payload at the same path replaces that loader
-between requests. Compatible relocation can adopt a changed installation path;
-an incompatible resident bootstrap requires a game restart. See the
-[reload lifecycle](module-reload.md). Previously resident legacy hooks are retired before the first request;
-an in-progress old request is rejected as busy rather than forcibly interrupted.
-The app and scheduler pass `--save-game` through the backup runner to the worker;
-the generic CLI and backup engine remain usable for non-game directories without
-attaching to a game. Direct CLI game backups should also pass `--save-game`.
-Neither `-debug` nor a Workshop mod is required.
+**Game-save completion means the game call returned.** Capture and compression happen afterward; the app's progress card reports backup completion. Neither that return nor per-file verification guarantees an atomic world snapshot or hardware flush.
 
-Settings > Backup > Save game before backup is on by default. Turning it off
-skips the pre-backup JVM connection and save request in both manual and automatic
-backups. Runtime observation and vehicle control remain independent. This is useful
-with a separate save mod or when a game update breaks
-bridge compatibility. Only on-disk state is then backed up; recent in-memory
-changes can be absent after restore. File-copy verification and hashing are
-unchanged. The preference is persisted in app settings and read afresh by each
-worker. It affects the next backup without restarting the app, not a running job.
-Priority: built-in true < `[capture].save_game_before_backup` in the worker TOML
-< `[backup].save_game_before_backup` in app settings
-< CLI `--save-game-before-backup true|false`. The `--save-game` switch selects
-game-backup integration; it does not override this preference.
+Settings apply to the next backup, not an in-flight request. Precedence is built-in defaults, worker TOML, app preferences, then explicit CLI overrides. Direct CLI game backups use `--save-game`; the generic engine remains usable without JVM integration.
 
-The preparation runs once per attempt, while holding the repository writer lease,
-after recovery and before the USN boundary / full scan. Its returned result is
-recorded in `source.prepare.completed`. No running game, no loaded world, or an
-explicit current-save mismatch skips the call and proceeds with file backup.
-All other errors (including unsupported games, multiple processes, missing bridge,
-attach failure and unknown completion) abort that backup without advancing its
-revision or checkpoint. The failed run records the `source.prepare` phase. There
-is no automatic immediate retry of the save command.
+## Admission and failures
 
-Before attaching, preparation probes the selected world's `players.db` using the
-same activity lane as save discovery. It reads fresh file sharing state, not a
-cached/debounced activity snapshot. An inactive world skips the entire JVM
-connection even if the game is open at its menu or playing another save. Unknown
-activity (missing database or access failure) does not count as inactive: the
-bridge still validates the world and path on the game thread immediately before
-calling save. The UI labels preparation as a check and distinguishes a returned
-save call from a skipped save; entering preparation alone does not mean a save
-command was sent.
+Preparation holds the repository writer lease and runs before the scan/USN capture boundary.
 
-## Design and limits
+- Manual preparation checks the selected save's current activity. A confirmed inactive save skips attachment; unknown activity still requires game-side validation. Explicit no-game, no-world and save-mismatch responses allow disk-only capture when active play is not required.
+- Automatic wall-clock backups require active play. Those same inactive or mismatched-world responses skip the backup instead of authorizing disk-only capture.
+- Pause-aware periodic work instead uses a runtime ticket and rechecks world identity, pause/sleep state, scheduling generation and the active-time deadline on the game thread. With saving disabled, a guarded probe still enforces admission without saving.
+- A pre-save deferral preserves the periodic slot and creates no revision. Unsupported interfaces, ambiguous targets and failed or unknown save completion do not authorize capture or automatic replay.
 
-- A bundled Java Attach helper discovers a JVM-scoped bootstrap through an authenticated
-  loopback endpoint. It loads the bootstrap only when absent, not once per save.
-  A per-user OS file lock serializes bootstrap initialization across worker processes.
-  The game installation and its launch options are not modified.
-- A tiny Windows JVMTI bootstrap first loads the running JVM's own `jli.dll`.
-  The native game launcher does not preload it, so directly loading the Java
-  instrumentation agent otherwise fails with a missing dependency. This uses
-  the regular Attach API, not remote-thread injection or changes to DLL search
-  paths. No DLL from our bundled runtime is loaded into the game.
-- The agent installs one minimal callback at `zombie.GameWindow.logic()V` using the
-  Java class-file API. The bootstrap owns one transformer for the JVM lifetime;
-  request completion releases only its owner/callback/pending state. There is no
-  install/uninstall retransformation for each save. An idle frame reads a volatile
-  callback and returns immediately. Other agents' transformations are preserved.
-  A disconnect cancels queued/countdown work, but cannot release ownership during
-  `save(true)`. The game call must return before the next request can run.
-- One daemon control listener remains bound to IPv4 loopback. Its random 256-bit
-  credential is discoverable only through the target's Attach system properties.
-  It accepts a bounded session handoff, not arbitrary Lua or Java code. The payload
-  path is pinned at bootstrap initialization. Each request retains the separate
-  temporary callback authenticated by PID and a fresh random 256-bit token. An
-  ambiguous endpoint/dispatch failure never triggers another load or save retry.
-- `SAVE`, `SAVE_COUNTDOWN`, `SAVE_AT` and diagnostic-only `PROBE` remain supported.
-  Protocol 6 retains `PREPARE_SAVE` and guarded `PREPARE_SAVE_ACTIVE` contracts;
-  no optional save provider is shipped, so backups use the standard game save.
-  They are handled on `GameWindow.gameThread`; PROBE validates the world but never
-  invokes save. Protocol 3 introduced `SAVE_COUNTDOWN`. Protocol 4 adds a fixed
-  epoch-millisecond due time and an `off` notice mode to `SAVE_AT`. Language
-  selectors now accept the shared catalog's 18 tags and legacy `ko`/`en` aliases;
-  they cannot execute arbitrary text or code. Catalog rows are compiled into a
-  payload class because the unchanged stable bootstrap snapshots classes only.
-- The exact current save directory is checked against the selected directory.
-  Main menu/loading states, multiplayer, no-save modes, concurrent bridge
-  requests, and unsupported signatures are rejected.
-- A queued request expires after 15 seconds so resuming a stalled game cannot
-  unexpectedly execute an expired request. A running save is never forcibly
-  interrupted. Missing completion responses are reported as unknown, not success.
-- The actual call is `GameWindow.save(true)`, the same target used by the Lua
-  global `save(true)`. Calling it directly lets the bridge report propagated
-  exceptions instead of the Lua wrapper swallowing them. The game also catches
-  some errors internally, so a returned call is not a disk-integrity guarantee.
-- This experimental adapter targets the inspected Java 25 / Build 42 method
-  layout. Game updates, attach restrictions, permissions, and other agents may
-  affect compatibility. No memory-injection fallback is attempted.
-- It does not pause the game for the entire subsequent backup. Cross-file
-  snapshot consistency is not guaranteed. Existing stable-copy checks, retries,
-  always-included databases, and fallback content hashing remain enabled.
+A queued request has a configurable deadline (15 seconds by default). Cancellation or disconnect can cancel queued/countdown work, not a save that already started. The game call must return before ownership is released. Notice or recovery-stamp failures can be reported separately without skipping an otherwise valid save.
 
-## Component ownership
+See [runtime scheduling](runtime-pause-backups.md) for active-time and recovery rules, and [character recovery](character-recovery.md) for the optional identity stamp written before saving.
 
-- `PzTools.SaveBridge` is the C# connection client: process discovery, authenticated
-  requests, deadlines and result decoding. It does not decide backup policy.
-- `PzTools.Zomboid.Backup` owns the pre-backup policy, including which explicit
-  no-save responses may proceed with a disk-only backup. The generic backup engine
-  still accepts a preparation callback and has no JVM dependency.
-- `PzTools.SaveBridge.Agent` owns the Java Attach entry point and the agent that
-  runs inside the game. The wire protocol and game-version-dependent reflection
-  live here. Its MSBuild `.proj` also produces the small Attach runtime.
-- `PzTools.SaveBridge.Native` owns the Windows JVMTI bootstrap and its native build.
-- `build/SaveBridgePayload.targets` connects these build projects to the backup
-  worker and copies their output into its `save-bridge` deployment directory.
+## Compatibility and lifecycle
 
-The solution exposes the Java/native sources and `.proj` files as solution folders
-under **src / Save bridge**. They are real MSBuild build units, not dummy C#
-assemblies. The backup worker's build invokes them automatically. The C# client
-and backup policy are normal, separate C# projects.
+The adapter targets the inspected Build 42 / Java 25 single-player structure. Multiplayer, no-save modes, unsupported signatures and mismatched worlds are rejected. Game updates, manually modified binaries and other agents can affect compatibility.
 
-Runtime process boundaries are unchanged: the backup worker uses the client,
-a short-lived Java helper discovers the bootstrap, and the save itself executes on
-the game thread. The bootstrap retains an idle dispatch hook and control listener.
-See [gameplay load work](gameplay-background-load.md) for measured scope and remaining costs.
+Current integration uses **bootstrap API 10, extension host ABI 3 and save protocol 6**. An incompatible resident bootstrap requires a complete game restart. Compatible payload/module updates reload at an idle boundary, including when the app moves to another installation folder. App and worker files must come from one build. See [component reload](module-reload.md).
+
+The bootstrap keeps one authenticated loopback listener and a minimal game-loop dispatcher for the JVM lifetime. It is reused, not reinstalled for every backup. Runtime observation, saving and extension control share that infrastructure while retaining separate ownership. The endpoint accepts bounded protocol commands, not arbitrary Lua or Java code.
+
+The Windows native bootstrap loads the target JVM's own `jli.dll` before Java instrumentation. The bundled helper runtime is not loaded into the game. There is no remote-thread injection or fallback that edits game files.
+
+## Code ownership
+
+| Component | Responsibility |
+| --- | --- |
+| `PzTools.SaveBridge` | Discovery, authenticated requests, deadlines and result decoding |
+| `PzTools.Zomboid.Backup` | Backup admission and preparation policy |
+| `PzTools.SaveBridge.Agent` | Attach entry point, game adapter and in-JVM execution |
+| `PzTools.SaveBridge.Native` | Windows JVMTI bootstrap |
+| `build/SaveBridgePayload.targets` | Build and deployment integration |
+
+The general backup engine receives a preparation callback; it has no JVM dependency. [Vehicle Drivetrain](game-extensions.md) uses a separate continuous control session and does not replace the save call.
 
 ## Building and publishing
 
-Use a Windows x64 Java 25 JDK (not the game's trimmed JRE) and Visual Studio's
-x64 C++ build tools:
+Use a Windows x64 Java 25 JDK and Visual Studio x64 C++ tools. The game's trimmed Java runtime is not a build JDK.
 
 ```powershell
-dotnet build src/PzTools.Backup.Cli/PzTools.Backup.Cli.csproj -p:JdkPath=C:\path\to\jdk-25
-./scripts/build-save-bridge.ps1 -JdkPath C:\path\to\jdk-25
-./scripts/test-save-bridge.ps1 -JdkPath C:\path\to\jdk-25
-./scripts/publish-app.ps1 -Configuration Debug -JdkPath C:\path\to\jdk-25
+$jdk = 'C:\path\to\jdk-25'
+dotnet build src/PzTools.Backup.Cli/PzTools.Backup.Cli.csproj -p:JdkPath="$jdk"
+pwsh scripts/test-save-bridge.ps1 -JdkPath $jdk
+pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
-`JdkPath` takes precedence over `JAVA_HOME`. If neither is set, exactly one bundled
-Java 25 JDK under `artifacts/toolchains` is selected; multiple candidates require
-an explicit choice. Output defaults to `artifacts/save-bridge/<Configuration>`.
-Use `-p:SaveBridgeDirectory=...` for MSBuild or `-SaveBridgeOutput ...` in publishing
-scripts to choose a separate build-output directory, especially while an earlier
-native DLL is still loaded by a running game. Do not use the installed app's
-directory as a build-output directory. Build metadata stays in the build output
-and is not deployed. Unchanged Java/native components are not recompiled.
+`JdkPath` takes precedence over `JAVA_HOME`; otherwise exactly one Java 25 JDK under `artifacts/toolchains` is selected. The regular worker build produces the Java/native payload and reduced Attach runtime. Game JARs are neither build dependencies nor distributed assets.
 
-The build packages only our classes and a small `jlink` Attach runtime. The game
-JAR is inspected locally but is not a compile-time or distributed dependency.
-Both Debug and Release backup workers include the Java payload. The publishing
-scripts use the same dependency graph as a normal worker build; no game JAR is redistributed.
+Bridge build output defaults to `artifacts/save-bridge/<Configuration>`. Use `SaveBridgeDirectory` in MSBuild, or `SaveBridgeOutput` in publishing scripts, when a running game still holds an older native DLL. Keep build output separate from an installed app.
 
-For diagnostics, `GameSaveClient.RequestAsync(pid, savePath, save: false)`
-performs the same connection and game-thread checks without saving. Keep live-game
-save tests manual; synthetic JVM integration tests use isolated temporary data.
-
-## Optional game extensions
-
-[Vehicle Drivetrain](game-extensions.md) runs through a separate continuous control
-session using the selected WATCH process/world. Its settings do not select a save
-provider or replace the pre-backup `GameWindow.save(true)` call. Game-save options,
-localized notices, RecoveryStamp, cancellation admission, game-thread/world identity
-and the backup-preparation boundary remain in force.
-
-Bootstrap API 10 and matched app/worker/JARs are required for current extension
-control. Older residents need one game restart; compatible updates then use the
-[idle reload lifecycle](module-reload.md). Save protocol 6 and the common
-save-provider/checkpoint API remain available for compatibility and synthetic tests.
-The deployment catalogue contains no optional save provider.
-
-Saving remains synchronous on the game thread and may pause gameplay for the
-duration of the original call. Errors or unknown completion are never replayed as
-another save. A returned call is not an atomic whole-world or hardware-flush receipt.
+The bridge test script uses a synthetic JVM. `GameSaveClient.RequestAsync(pid, savePath, save: false)` performs connection/world checks without saving. Real-game save tests require a disposable world and remain separate from automated fixtures.

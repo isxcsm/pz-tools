@@ -12,7 +12,7 @@ plan = module.plan
 
 class PlanTests(unittest.TestCase):
     def test_docs_skip_windows(self):
-        self.assertFalse(plan(["docs/ko-KR/README.md", "README.md"])["windows"])
+        self.assertFalse(plan(["docs/configuration.md", "README.md"])["windows"])
 
     def test_ui_runs_managed_tests_without_bridge_or_publish(self):
         result = plan(["src/PzTools.App/SettingsPage.xaml.cs"])

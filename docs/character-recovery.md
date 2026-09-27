@@ -1,6 +1,6 @@
 # Offline character recovery
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
 Recovery edits only the current single-player save after confirmation. Backup revisions
 are not edited. The UI requires a fresh inactive save; the worker also takes the save
@@ -99,18 +99,9 @@ chunk+player publication. Tests exercise behavior and bytes, not source-code spe
 The synthetic Java game verifies a stable stamp is written by two required saves;
 existing save/backup/restore, cancellation and failure tests remain.
 
-Local research parsed all 572 chunks from a dead-character save and all 5,095 chunks
-from another save with zero parser failures. Copy-only acceptance recovered the dead
-save as-is (7 ordinary items, 5 worn slots) and with its ID card removed (6 ordinary
-items, 5 worn slots). A third fixture transplanted that copied no-card inventory into
-a corpse within a **copy of a real surrounding chunk** and recovered the same 6 items.
-Opaque item bytes remained exact; other chunk bytes matched the expected single-record
-removal. All 743 original dead-save files passed before/after SHA-256 comparison.
-
-That third case is an adapted fixture, not an observed real player-corpse gameplay
-session. No edited save was loaded in the actual game, no real player was revived in
-place, and no user files are checked into Git. Actual-game visual equipment behavior,
-future formats and unsupported mod serialization are not claimed verified.
+Copy-only checks also exercised real-save samples and an adapted corpse fixture.
+They did not load an edited save in the actual game. Visual equipment behavior,
+future formats and unsupported mod serialization still need separate acceptance.
 
 Reference schemas: [pzdataspec world 249](https://github.com/cff29546/pzdataspec/tree/main/data_spec/spec/249).
 See [third-party notices](../THIRD_PARTY_NOTICES.md) for attribution.

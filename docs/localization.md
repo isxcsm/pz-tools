@@ -1,11 +1,11 @@
 # Localization
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
 PZ Tools bundles 18 locales. Changing the app language does not call an online
 translation service or download a language pack. The supported tags and native names
 come from the [shared language catalog](../src/PzTools.Process.Contracts/Localization/languages.tsv).
-The [documentation index](README.md#user-guides--언어별-사용-안내) links to the guide for each language.
+Repository documentation is English-only; interface localization is independent.
 
 ## Translation scope
 
@@ -29,16 +29,9 @@ of changes; it is not independent native-speaker certification.
 
 ## Repository documentation
 
-The root [README](../README.md) is the English guide. `docs/<locale>/README.md` provides
-the other 17 entry points. Each has the same user topics, build commands, safety
-information and direct references, with an explicit language selector. GitHub does not
-choose a README by browser language; there is no Pages redirect or automatic selection.
-
-Technical documents retain their original English or Korean. Link labels identify that
-language, and the [index](README.md) separates references from dated measurements and
-plans. Follow the [documentation maintenance rules](documentation-maintenance.md) when
-adding or editing a guide. The translated guides have not received independent review
-from native speakers of all supported languages.
+Maintain the [README](../README.md) and [reference documents](README.md) in English.
+Do not add per-language copies or tie documentation coverage to the app's locale catalog.
+See [documentation maintenance](documentation-maintenance.md) for the checks.
 
 ## Sources of truth
 
@@ -87,8 +80,6 @@ Get-Content -LiteralPath $result
 Its tests cover the shared notices as well as timing, game-thread execution, failure and
 payload replacement. They are not a substitute for real-game opt-in tests.
 
-When adding a language, update the enum and catalog, add all UI resources and the
-README entry point, update the documentation index and language navigation, and run
-all relevant checks. Preserve placeholder arguments, numeric formats, conditions and
-paragraph boundaries. Report automated results separately from native-speaker and
-rendered-layout review.
+When adding a language, update the enum and catalog, add all UI resources, and run
+the relevant checks. Do not add another README edition. Preserve placeholder arguments, numeric formats, conditions and
+paragraph boundaries. Review wording and rendered layout separately from structural checks.

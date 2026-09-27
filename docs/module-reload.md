@@ -1,19 +1,15 @@
 # Compatible JVM component updates
 
-[Documentation index](README.md) · [Game extensions](game-extensions.md) · [Save bridge](save-bridge.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
 ## User-visible policy
 
-Bootstrap API **10**, extension host ABI **3**, save wire protocol **6**.
-A resident API 9 or older cannot gain the continuous vehicle dispatcher retroactively:
-migrate with one game restart. With API10 resident, compatible component updates
-are detected at a request or extension-control boundary. The app executable may
-still need restarting for its own files. This is module replacement under a
-resident agent, not forced JVM class unloading.
-
-Vehicle Drivetrain is the shipped extension. No optional save provider is deployed;
-active-world backups use the original game-thread `GameWindow.save(true)` call.
-Common save-provider/checkpoint contracts remain for host compatibility and tests.
+Compatible component updates are detected at a request or extension-control
+boundary. The resident bootstrap stays in the JVM while payloads, hosts and
+modules are replaced. An incompatible bootstrap requires a game restart; see the
+[save-bridge compatibility policy](save-bridge.md#compatibility-and-lifecycle)
+for current runtime requirements. The app may also need restarting to use its own
+updated files.
 
 | Change | Behavior |
 | --- | --- |
@@ -26,10 +22,10 @@ Common save-provider/checkpoint contracts remain for host compatibility and test
 | Invalid new archive | Reject before retiring the current module |
 | Uncertain retirement / incompatible resident API | Do not force cleanup or replay saving; restart required |
 
-Continuous vehicle modules use a leased control session and settings revisions;
-they do not wait for a backup. Validated settings apply at the vehicle's safe
-boundary. Desired and applied revisions distinguish a saved preference from an
-installed configuration. See [vehicle lifecycle and acceptance](e2e-vehicle-drivetrain.md).
+Continuous vehicle modules use a leased control session independently of backup
+requests. Configuration changes apply at the vehicle's safe boundary without
+replacing its classes. Desired and applied revisions distinguish a saved preference
+from the configuration currently in use.
 
 ## Lifecycle and ownership
 
@@ -50,23 +46,17 @@ briefly retires the old subscription; the existing state coordinator reconnects 
 Process/world/character/death identities live in the stable parent. Observer epochs
 change and old scheduling tickets become invalid. No past death is synthesized again.
 
-A disconnected request cannot cancel an admitted synchronous game save. The call
-must return before its ownership can be released. Component replacement adds no
-automatic replay of a save and does not turn a returned game call into an atomic
-whole-world snapshot guarantee.
+A disconnected request retains ownership of an admitted synchronous game save
+until that call returns. Replacement never replays the save. Queued cancellation
+and completion rules are defined in [save admission and failures](save-bridge.md#admission-and-failures).
 
 ## Verification boundary
 
-The common module-reload harness uses synthetic save providers to verify in-flight
-ownership, changed module bytes, directory relocation, bridge payload replacement
-and extension-host replacement. It checks WATCH epochs, process/world/character/
-death identity, stale scheduling tickets and a single game-loop hook. Host tests
-also reject corrupt archives, stale resolutions and failed retirement without
-overlapping generations.
+The reload harness uses synthetic providers to test in-flight ownership, changed
+archives, relocation, host/payload replacement and retirement failures. It also
+checks WATCH epochs, stable identities, ticket invalidation and a single game-loop
+hook. Vehicle tests add control-session ownership, settings revisions and cleanup.
 
-Vehicle tests cover control-session ownership, settings revisions and cleanup.
-Installed-class checks use a local game JAR read-only in an isolated JVM; they do
-not attach to a running game. Refer to current harness/TRX and published-package
-checks for results from a particular build. These checks are not live-game
-performance or restoration acceptance, nor a promise that GC immediately unloads
-retired classes.
+Refer to harness/TRX and package checks for the build being used, and the
+[vehicle test guide](e2e-vehicle-drivetrain.md) for live-game acceptance. Retirement
+releases effects and references; it does not force the JVM to unload classes.

@@ -1,98 +1,89 @@
-# 차량 주행 개선: 사용자 테스트
+# Testing Vehicle Driving Improvements
 
-[문서 목차](README.md) · [구현 설계와 제한](vehicle-drivetrain-design.md) · [JVM 교체](module-reload.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-## 인라인 설정 핵심 확인
+Vehicle Driving Improvements 0.2.0 is experimental and off by default. This is a test procedure, not a completed driving report. The [design document](vehicle-drivetrain-design.md) describes the supported build, model, and remaining calibration work.
 
-1. **인라인 옵션:** 확장 전체 활성화는 접힘 여부와 관계없이 헤더 오른쪽에 있어야 합니다. 펼친 하위 행에는 차량 세 기능과 공통 강제 활성화가 모달 없이 설명 왼쪽·스위치 오른쪽으로 표시되어야 합니다.
-2. **오프라인·대기 중 수정:** 접속 전이나 적용 대기 중에도 저장된 켜짐/꺼짐을 바꿀 수 있어야 합니다. 대기는 잠금이나 계속 도는 로딩 표시가 아닌 안내 문구로 표시합니다.
-3. **상태 갱신:** 확장을 펼치거나 접고 스크롤한 뒤 상태가 갱신되어도 접힘 상태·스크롤 위치·키보드 포커스가 유지되어야 합니다.
-4. **토글 저장:** 스위치를 연속해서 바꿔도 페이지 전체가 사라졌다 다시 생기거나 위치·포커스가 초기화되면 안 됩니다. 게임 재개·정차·가속 및 크루즈 해제 후 마지막으로 저장한 설정이 적용되어야 합니다.
+## Prepare
 
-## 후보와 준비
+Use a disposable single-player world with an existing backup. Start with a standard vehicle and disable other Java vehicle-physics patches. Check the app's save and backup paths before testing; settings and logs are shared under `%LOCALAPPDATA%/PzTools`.
 
-차량 주행 개선 0.2.0은 실험 기능이며 기본 OFF입니다. 이번 응답 속도 후보는 `6258158` 기반 `feature/vehicle-drivetrain`에서 작업하며, 선택형 끊김 없는 저장 확장이 제거된 상태를 유지합니다. 이 문서는 실제 주행을 통과했다는 결과표가 아니라 **사용자가 수행할 절차**입니다.
+Run a complete Windows x64 distribution containing the app, workers, bridge, extension runtime, and vehicle module. Close any earlier app, including its tray instance, and ensure a developer `PZTOOLS_TOOLS_DIR` override does not point elsewhere. Do not update a test installation by copying only one JAR.
 
-- 실행 후보: 저장소의 `artifacts/e2e-vehicle-0.2.0-response-speed/app/PzTools.App.exe`. 후진의 일괄 22km/h 제한과 추가 출력 감산을 없애고, 전진 저속 출력과 조향 복귀·반대 입력 반응을 보정합니다. 기존 인라인 UI와 세 옵션은 유지하며 새 옵션은 추가하지 않습니다. 빌드·자동 검증 결과는 같은 후보 상위 폴더의 `VERIFICATION.md`로 확인하십시오. 이전 후보 폴더는 유지합니다.
-- Windows x64 / .NET 10, Java 25 기반 번들 bridge입니다. 앱과 worker·bridge·extension runtime·차량 모듈 JAR를 함께 사용합니다. 선택형 저장 모듈은 배포하지 않으며 JAR 하나만 기존 설치에 덮어쓰지 않습니다.
-- 검사한 게임 JAR: `80E405A4BFC42F6072E75B3735F458A6514143DA011D3226007DED305A442F44`. 선언 범위는 42.20이며 문자열만 맞아도 활성화되는 것은 아닙니다.
-- 기존 앱을 완전히 종료하고 후보를 실행합니다. 트레이에 남은 이전 앱은 중복 실행 차단으로 후보 실행을 막을 수 있습니다. 개발용 `PZTOOLS_TOOLS_DIR` 환경 변수가 다른 설치를 가리키지 않아야 합니다.
-- 앱 설정·로그는 기존 `%LOCALAPPDATA%/PzTools`를 공유합니다. 테스트 세이브/백업 경로는 앱에서 확인하십시오. 먼저 버려도 되는 월드와 기존 백업을 사용하십시오. 새 도구가 자동으로 테스트 월드를 생성하지 않습니다.
-- 다른 Java 차량 물리 패치를 끄고 먼저 기본 차량을 사용합니다. 물리 모드와의 임의 공존은 보장하지 않습니다.
-- 이미 API9 이하 bridge가 올라간 게임은 최초 한 번 완전히 종료 후 실행해야 합니다. 기존 agent가 없는 게임을 먼저 켠 후 앱을 늦게 켜는 것은 지원 경로입니다. API10 이후 호환 앱 재시작은 매번 게임 재시작을 요구하지 않습니다.
+A game that already loaded bootstrap API9 or earlier needs one full restart. Starting the game before the app is supported when no older agent is resident; compatible API10 app restarts do not require restarting the game each time.
 
-실제 게임 실행·attach·주행·컴퓨터 유즈·실제 세이브 변경은 하지 않았습니다. 이번 후보는 .NET 회귀 1,230개 통과·29개 선택형 검사 건너뜀, 배포 검사 3개 통과와 함께 순수 모델·합성 어댑터·설치 JAR 기반 별도 검증 JVM 테스트를 새로 통과했습니다. 빌드한 모듈·설정과 배포본의 해시도 일치합니다. 이는 실제 주행 검증이 아니며, 주행 E2E는 사용자가 수행합니다.
+The catalog declares B42.20, with additional structural checks. Propulsion candidates are four-wheel vehicles with `generic`, `van`, `jeep`, or `firebird` engine types and 3–5 gears. Unknown profiles, stopped engines, towed/burnt vehicles, and burnt-vehicle towing use original propulsion. Keyboard steering is checked independently and can apply with the engine off or an unsupported propulsion profile. Gamepad, towed, and burnt-vehicle steering remains original.
 
-## 먼저 이것만 확인하세요
+## First comparison
 
-먼저 위의 인라인 설정 네 항목을 확인한 뒤 주행을 비교해 주십시오.
+Open **Game extensions → Vehicle Driving Improvements**. The extension-wide switch is on the right of the header; expand it to see:
 
-설정은 세 스위치입니다. **자연스러운 가속·변속 / 부드러운 후진 / 섬세한 스티어링**을 각각 켜고 끌 수 있으며, 꺼진 부분은 바닐라를 사용합니다. 세 개 모두 끄면 원래 주행입니다. 새 설정의 초기값은 세 개 모두 켜짐이지만 카드 자체는 기본 OFF입니다. 예전에 관측 모드를 사용했다면 의도하지 않은 제어를 막기 위해 세 개 모두 꺼짐으로 읽습니다.
+- **Natural acceleration and shifting**
+- **Smooth reversing**
+- **Fine steering control**
 
-처음에는 **스티어링만 켜고 나머지 두 개는 끈 상태**로 비교하면 차이가 구분됩니다. 설정은 미리 바꿀 수 있으며, 실제 적용은 게임을 재개하고 정차한 뒤 가속 입력과 크루즈를 해제하면 이루어집니다.
+New feature preferences start on, but the extension itself starts off. All three off means original driving. Older observation-only preferences are read as all three off.
 
-1. **스티어링:** 키를 짧게/길게 누른 뒤 놓거나 곧바로 반대 방향을 누릅니다. 첫 조향은 기존과 같고, 복귀가 빨라지며 중앙을 지난 뒤 다시 느려지지 않아야 합니다. 기본 이론 모델은 중심→최대각 약 171~260ms, 최대각→중립 125ms, 좌끝→우끝 250ms입니다. 고정된 각도 상한 기준의 계산값이며 게임 실측 시간이 아닙니다. 앞바퀴 표시와 실제 회전을 함께 확인하고, 패드 조향은 원래 제어를 유지해야 합니다.
-2. **후진:** 처음에는 0.8초 출발 완충을 유지하면서, 계속 누를 때 기존 차량보다 불필요하게 약하거나 일률적으로 22km/h에서 막히지 않는지 비교합니다. 기본 제한은 차종의 원래 기준입니다. 예를 들어 스크립트 원시값 40은 원래 속도 변환을 거쳐 약 26.667km/h 기준이 됩니다. 전진 중 후진 입력의 기존 제동·저속 방향 전환 대기도 확인합니다.
-3. **가속·변속:** 출발·1→2단 부근·코너 감속 후 재가속을 비교합니다. 변조 범위 1.0~1.1은 바닐라의 기본 출력식에만 해당합니다. 원래 6,000 RPM 초과 추가 감쇠와 기어·RPM 궤적은 같지 않으므로 실제 가속·최고속도의 완전 동등이나 전체 출력 대비 +10% 이내를 보장하지 않습니다. 기어 왕복·재입력 후 긴 힘 공백이 없어야 하며 Sunday Driver / Speed Demon은 각각 같은 특성을 가진 바닐라와 비교합니다.
+Begin with only Fine steering control enabled. Resume the game, stop on level ground, and release acceleration and cruise so the saved settings can apply. Compare **off → on → off** with the same vehicle, load, tires, engine condition, road, and character traits.
 
-같은 차량·적재·타이어·엔진·노면으로 해당 옵션을 **끔 → 켬 → 끔**으로 비교합니다. 첫 피드백은 `차량 이름 / 켠 옵션 / 좋아진 점 또는 불편한 점`이면 충분합니다. 진단이나 설정 수치를 먼저 만질 필요는 없습니다.
+| Feature | What to compare |
+| --- | --- |
+| Steering | Tap and hold a direction, release it, then hold the opposite direction. Check return to center and repeated reversals, including a second reversal before reaching center. Watch both the wheels and actual turn. |
+| Reverse | Compare launch and sustained reverse. The default 0.8-second launch ramp remains, but there should be no unnecessary universal 22 km/h cap or extra settled-force reduction. |
+| Acceleration/shifting | Compare launch, first-to-second gear, and acceleration after a corner. Watch for gear hunting, early loss of low-speed force, or a long force gap after reapplying input. |
 
-## 적용 상태 확인 (필요할 때)
+A useful first report is simply `vehicle / enabled option / improvement or problem`. Developer diagnostics are not required for initial feedback.
 
-1. 설정은 게임 접속 전에도 저장할 수 있습니다. 실제 주행 비교를 시작할 때는 로컬 싱글플레이 월드에서 게임을 재개하고, 평평한 도로에 정차한 뒤 가속 입력과 크루즈를 해제합니다.
-2. 게임 확장 → 차량 주행 개선의 헤더 오른쪽에서 확장 전체를 켭니다. 펼친 하위 설정에서 비교할 기능의 스위치를 선택합니다. 일반 UI에는 저단 유지·관측·진단 옵션이 없습니다.
-3. 차량 카드와 세 기능의 토글은 **저장된 설정**을 표시하며 실제 적용 완료를 뜻하지 않습니다. 오프라인·일시정지·주행 중의 적용 대기에도 최신 원하는 값으로 수정할 수 있어야 합니다. 대기 사유는 안내 문구로 표시하며 대기 자체로 전체 옵션을 잠그거나 로딩 표시를 계속 돌리지 않습니다. 확정된 적용 실패는 해당 요청의 저장값을 안전하게 OFF로 되돌리되, 그 뒤 사용자가 저장한 새 요청을 덮어쓰면 안 됩니다. 연결이나 적용 실패를 같은 요청으로 계속 재시도하지 않습니다. `RestartRequired`는 별도로 잠금을 유지합니다.
-4. 확장 전체 활성화는 헤더 오른쪽에 항상 표시하고, 차량의 세 기능과 강제 활성화는 펼친 하위 설정에 인라인으로 표시합니다. 기술정보는 넣지 않습니다. 적용/실패 전환의 요청·적용 revision, 세션, 실제 모듈 버전·해시·실행 세대는 앱 로그에 기록합니다. 정상 전환을 찾을 때는 로그 수준 필터를 정보 이상으로 바꾸십시오. heartbeat마다 같은 내용을 기록하지 않습니다.
-5. 세 기능을 모두 끈 설정이 적용되거나 확장 전체를 해제하면 원래 제어를 사용합니다. **지원 범위와 관계없이 강제 활성화**는 모든 확장에서 펼쳐진 하위 설정의 별도 행으로 제공합니다. 버전 제한만 해제하고 필수 코드 검사를 우회하지 않으며 확장 자체를 자동으로 켜지도 않습니다. 모든 설정 행은 설명 왼쪽·스위치 오른쪽으로 정렬되고, 휠·스크롤바·Tab으로 끝까지 접근할 수 있어야 합니다.
-6. 백업 전 게임 저장과 게임 내 저장 카운트다운은 백업 설정에서 별도로 변경할 수 있어야 합니다. 차량 확장을 켜거나 꺼도 활성 월드 백업은 기본 `GameWindow.save(true)`를 사용하며, 게임 저장 완료 알림과 백업 완료 표시는 구분되어야 합니다.
+## Check settings and application
 
-개발용 `probe_only=true`를 TOML에 설정한 경우에는 차량 제어를 쓰지 않고 원래 제어를 유지합니다. 일반 비교 때는 사용하지 않습니다. `requested_force`는 매번 초기화한 **한 단계 예측**이며 연속 구동 모델의 미래 가속 성능이나 실측 토크가 아닙니다. `native_force/brake/steering`는 실제 기존 호출에 넘기기 직전의 인자입니다. native 내부 반영 성공을 증명하지 않습니다.
+The switches display saved intent. Pending application has an explanation; it must not lock all options or spin indefinitely. You should be able to edit settings offline, paused, or while driving, and the last saved request should apply after resuming, stopping, and releasing acceleration/cruise.
 
-차량 카드의 토글이 켜져 있어도 모든 차량의 모든 제어를 바꾸는 뜻은 아닙니다. 구동계 후보는 `generic`, `van`, `jeep`, `firebird`, 3~5단·4륜입니다. 다른 엔진 유형, 잘못된 반경/속도, 엔진 비가동, 피견인/불탄 차량 견인 등은 원래 구동계를 사용합니다. 조향은 별도 조건이며 로컬 4륜·키보드 차량에서는 엔진 비가동 또는 구동계 프로필 미지원 상태에도 적용될 수 있습니다. 패드·피견인·불탄 차량의 조향은 원본입니다. 진단도 추진 사유와 `steering_reason`을 나눠 확인하십시오.
+Expand/collapse the card, scroll, and focus a control. Status refresh and rapid switch changes must preserve those states without rebuilding the page. The main switch stays visible when collapsed; all expanded rows remain reachable by wheel, scrollbar, and Tab.
 
-## 주행 비교표
+Force-enable is a separate inline row. It bypasses the declared version range, preserves mandatory code checks, and does not enable the extension by itself. Low mode, observation, and diagnostics are not normal UI options.
 
-동일 차량·타이어·엔진 상태·적재·노면으로 OFF → ON → OFF를 비교하십시오. 캐릭터 특성은 삭제하지 않습니다. 최종 합격 수치는 원래 주행 측정 후 정합니다.
+Confirmed failures may turn off the matching request. They must not overwrite a newer saved choice or repeatedly retry a failed request without a new change. `RestartRequired` remains locked until the game restarts. Application revisions, module versions/hashes, and transition reasons are in the logs; choose Information or above to inspect normal transitions.
 
-| 항목 | 확인할 것 | 중단할 증상 |
+Backup's game-save and countdown preferences are separate. When enabled, backup uses `GameWindow.save(true)`; vehicle settings do not select a different save provider. The in-game save-completed notice and the app's backup-completed state must remain distinct.
+
+## Broader driving checks
+
+Keep the comparison conditions fixed and test each trait against vanilla with the same trait.
+
+| Area | Check | Stop for |
 | --- | --- | --- |
-| 정지 후진, 전진→후진 | 첫 0.2/0.5/1초 이동거리, 0.8초 출발 완충, 차종별 원래 제한 부근과 특성 비교 | 급발진, 불필요한 22km/h 제한, 반대방향 추진, 신호 불일치 |
-| 키보드 조향 | 첫 입력·해제·연속 반대 입력, 중앙 통과, 저속/고속/후진, 앞바퀴 표시 | 중앙 통과 뒤 재차 느려짐, 과도한 복귀 지연, 패드 조향 변경, 시각·물리 불일치 |
-| 도로 자동변속 | 출발·1→2단·재가속, 3/4/5단 변속, RPM·계기판·소리 연결 | 너무 이른 출력 감소, 기어 왕복, 정지 중 최고단, 비정상 고RPM |
-| 비포장 탈출 | 고단에서 감속 후 페달을 유지해도 하향 변속, 원래 탈출력 보존 | 무한 boost, 기존보다 탈출력이 현저히 저하됨 |
-| 적재·견인 | 빈 차와 적재 차, 일반 견인, 불탄/피견인 fallback | 적재가 늘수록 출력도 증가, 트레일러 자체 추진 |
-| 입력 안전 | 무입력, 일반/주차 제동, 시동, 크루즈, 취중 지연, 미로딩 구역 | 원래 안전 제동 무시, 해제 후 순간 ×8 출력 |
-| 특성과 노면 | Sunday Driver / Speed Demon 각각, 도로/비포장/비 | 특성 소실, 힘 음수 반전, 접지 이중 보정 |
-| 파급 효과 | 연료 소비, 엔진음, 좀비 유인, 하차/재탑승 | 과도한 연료/RPM 변화 또는 상태 잔류 |
-| 성능·시간 | 30/60/높은 FPS, pause/재개, 지연 프레임 | 밀린 dt 누적 가속, 콜백 비용 급증 |
+| Reverse/direction changes | Distance after 0.2, 0.5, and 1 second; launch ramp; vehicle limit; braking before reversing | Sudden launch, opposite-direction propulsion, inconsistent brake/reverse signals |
+| Steering | Low/high speed, reverse, release, repeated opposite input, gamepad comparison | Delayed restart at center, changed gamepad behavior, visual/physical disagreement |
+| Transmission | 3/4/5 gears, reacceleration, RPM/display/sound | Stationary upshifts to top gear, gear hunting, abnormal RPM |
+| Offroad | Slow from a high gear with the pedal held; compare downshift and escape ability | Unlimited boost or substantially worse escape ability |
+| Load/towing | Empty/loaded car, normal towing, unsupported towing fallback | Power rising with added cargo or self-propelled trailers |
+| Input safety | Coast, normal/parking brake, starting, cruise, intoxication delay, unloaded chunks | Lost safety braking or a delayed parking-release ×8 force spike |
+| Side effects | Fuel, sound, zombie attraction, exit/re-entry | Excessive changes or retained driver/vehicle state |
+| Timing | 30/60/high FPS, pause/resume, delayed frames | Catch-up acceleration or sharply increased callback cost |
 
-진단은 최신 샘플과 1초 집계만 제공합니다. `callback_mean_us/max_us`는 tryControl 계산·기록 비용이며 native 실행이나 observeNative 비용까지 포함한 전체 프레임 비용이 아닙니다. `sample_age_ms`가 오래되면 마지막 주행 값이 남은 것입니다.
+## Lifecycle and rollback
 
-## 수명과 저장 공존
+While the extension is confirmed active, exercise manual/automatic backup and WATCH together, checking that backup is not duplicated. Repeat app exit/restart three times in one game JVM, then leave/open worlds. Old model state and generations must not leak into later sessions.
 
-- 실제 적용이 확인된 상태에서 수동/자동 백업과 WATCH가 함께 동작하고 백업이 중복 실행되지 않는지 확인합니다.
-- 오프라인·적용 대기 중에도 세 기능 스위치를 각각 바꾸고 저장값이 유지되는지 확인합니다. 게임 재개·정차·가속 및 크루즈 해제 후에는 마지막으로 저장한 설정이 적용되어야 합니다.
-- pause 상태에서 OFF 및 앱 종료를 확인합니다. 연결 종료는 게임 tick 없이 새 callback 입장을 막고 정리를 진행합니다. 강제 종료 시 lease 만료까지 최대 약 5초가 있을 수 있습니다.
-- OFF는 안전 해제를 우선해 주행 중에도 해제할 수 있습니다. 시험 중에는 정차 후 끄십시오. 모듈이 빠진 다음 틱부터 원래 가속 특성이 돌아오므로 ON/OFF가 같은 힘을 보장하지 않습니다.
-- 같은 JVM에서 앱 종료/재실행을 3회 반복합니다. 새 generation을 사용하고 이전 상태가 복원되거나 force가 중복 적용되지 않아야 합니다.
-- 월드 나가기, 다른 월드 열기, pause 중 월드 종료를 확인합니다. 다른 월드에 이전 캐릭터/차량 sidecar가 넘어가면 실패입니다.
-- JVM은 archive/config 사전 검증 거절 자체로 기존 정상 세대를 교체하지 않습니다. 앱은 확정 거절을 확인하면 해당 요청의 저장값이 아직 같은 경우에만 OFF로 되돌려 안전하게 해제합니다. 이후에 저장한 새 요청을 늦게 도착한 실패로 끄면 안 됩니다. 실제 설치 단계 실패 또는 새 transformer 충돌은 안전 원본 복귀/오류 표시가 가능하며 무조건 old 세대 복원을 보장하지 않습니다. 불확실한 retire/drain은 `RestartRequired`이며 같은 게임 프로세스에서는 앱 재연결·설정 변경·월드 변경으로 잠금이 풀리면 안 됩니다.
+Test off and app exit while paused. Disconnect closes new callback admission without a game tick; abrupt termination can take up to the five-second lease to be detected. Explicit off can release control while moving, but stop before changing it during a test: returning to vanilla need not preserve the same force.
 
-## 튜닝과 롤백
+Archive/configuration preflight rejection does not itself replace a healthy JVM generation. The app can turn off the matching rejected request. Installation-stage failure or transformer conflicts may instead return to original control; uncertain retirement/drain requires a game restart.
 
-기본 수치는 [배포 TOML](../config/game-extensions/vehicle-drivetrain.toml)에 있습니다. 사용자 override는 `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`이며 필요한 평면 키만 작성할 수 있습니다. 범위·중복키·알 수 없는 키·교차 조건을 .NET과 JVM 모두 검사합니다. 세 기능의 UI 값만 `extensions/settings.json`의 typed preference가 우선합니다. 저단 유지·관측·진단은 개발용 TOML 키 `low_mode`, `probe_only`, `diagnostics_enabled`로만 제공합니다. 기존 override에 `probe_only=true`가 남아 있으면 일반 주행 비교 전에 해제하십시오.
+If behavior is abnormal, stop and turn the extension off. If the state is unclear or `RestartRequired` appears, end the test and fully close the game. Disabling does not rewind movement, collisions, or fuel; use your backup to restore the earlier test state.
 
-세 기능의 켜짐/꺼짐은 아직 JSON을 저장하지 않은 초기값도 UI와 동일하게 처리합니다. TOML의 `torque_enabled`, `reverse_enabled`, `steering_enabled`만 바꿔 UI와 다른 상태를 만들 수는 없습니다. 개발용 관측·진단과 수치 설정은 TOML을 사용합니다.
+## Developer tuning and diagnostics
 
-후진 기본 `reverse_max_speed_kph=0`은 차종의 `Script.maxSpeedReverse/1.5`를 사용합니다. 명시적인 `4~35`km/h override는 유지하며 `0`과 `4` 사이는 거절합니다. `reverse_force_ratio=1`은 원래 후진 RPM 출력식의 배율이고, `reverse_governor_start_fraction=1`은 제한 전에 별도 감쇠를 넣지 않습니다. 이전 override의 `22`, `0.85`, `0.75`는 자동 삭제되지 않으므로 새 기본값을 비교할 때 남아 있는지 확인하십시오. 조향도 기존 복귀·반대 입력 속도 override가 있으면 새 기본값 8보다 우선합니다. 실제 최고속도는 캐릭터 특성·노면·경사 등에도 영향을 받습니다.
+Defaults and ranges are in [vehicle-drivetrain.toml](../config/game-extensions/vehicle-drivetrain.toml). Overrides belong in `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`; only needed flat keys are required. Both .NET and Java validate keys, ranges, duplicates, and cross-field constraints.
 
-TOML을 매 프레임 읽지 않습니다. 수정 후 정차 상태에서 OFF→ON 하여 새 revision으로 적용합니다. 일반적인 적용 대기는 편집 잠금이 아닙니다. 확정 실패로 OFF가 되었다면 먼저 로그의 원인을 해결한 뒤 새 요청을 저장하십시오. `RestartRequired` 잠금은 앱 재실행만으로 풀리지 않으며 게임을 재시작해야 합니다. `force_scale`은 게임 단위 보정이지 실제 마력 변환이 아닙니다. `reverse_max_speed_kph`는 추진 감쇠이므로 경사나 외력으로 그 속도를 넘는 것을 강제 차단하지 않습니다.
+The three UI preferences take precedence over TOML feature defaults, even before the first JSON save. `low_mode`, `probe_only`, `diagnostics_enabled`, and numeric values remain TOML-only. After editing, stop and toggle off/on to apply a new revision.
 
-이상하면 정차 후 차량 확장을 끄십시오. `RestartRequired` 또는 상태 불명확이면 테스트를 중단하고 게임을 완전히 종료합니다. 게임 설치 파일·질량·타이어 script·특성을 변경하지 않지만, 이미 주행하며 변한 위치·충돌·연료를 되감지는 않습니다. 기존 백업 도구로 테스트 이전 상태를 복원할 수 있습니다.
+Existing overrides are not deleted automatically. In particular, old reverse values `22`, `0.85`, and `0.75`, or older steering return/countersteer rates, can mask current defaults. Current defaults are `reverse_max_speed_kph=0`, `reverse_force_ratio=1`, `reverse_governor_start_fraction=1`, and steering return/countersteer rates of 8. Explicit reverse limits accept 4–35 km/h.
 
-## 개발자 재현
+`probe_only=true` keeps original control and reports a reset one-step prediction, not continuous driving performance. Disable it before ordinary driving comparisons. Diagnostics retain a latest sample and one-second aggregates. `native_force/brake/steering` are pre-call arguments, not evidence of native success; `callback_mean_us/max_us` exclude native execution and observation cost. An old `sample_age_ms` means the last sample is stale.
 
-아래 명령은 저장소 루트에서 실행하는 전체 재현용 예시이며, 이번 후보에서 모두 다시 실행했다는 기록은 아닙니다. 실제 실행 내역은 후보 옆 `VERIFICATION.md`에서 확인하십시오. `$jdk`는 Java 25 JDK, `$gameJar`는 사용자가 가진 설치 JAR 경로입니다. 설치 JAR 테스트는 실행 중 게임을 찾거나 attach하지 않습니다.
+## Automated reproduction
+
+Run from the repository root with a Java 25 JDK in `$jdk` and your installation JAR in `$gameJar`. Installed-JAR validation uses a separate JVM and does not attach to a running game. Choose a fresh output directory when publishing.
 
 ```powershell
 dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath="$jdk"
@@ -102,9 +93,9 @@ $env:PZTOOLS_LIVE_PROBE_PID = $null
 $env:PZTOOLS_LIVE_PROBE_SAVE = $null
 $env:PZTOOLS_REAL_SAVES_ROOT = $null
 dotnet test tests/PzTools.Backup.Tests -c Release --no-build --logger 'trx;LogFileName=vehicle-regression.trx'
-./scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/e2e-vehicle-0.2.0-response-speed/app
-$env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/e2e-vehicle-0.2.0-response-speed/app).Path
+./scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/vehicle-validation/app
+$env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/vehicle-validation/app).Path
 dotnet test tests/PzTools.Backup.Tests -c Release --no-build --filter FullyQualifiedName~PublishedDistributionTests
 ```
 
-기존 출력이 있는 폴더를 publisher가 자동 삭제하지 않습니다. 재게시할 때 새 빈 출력 경로를 선택하십시오. 자동 검증과 실제 주행 E2E는 구별하며, 실행 후보 옆 `VERIFICATION.md`에 자동 검증 결과를 기록합니다.
+Record the commit, commands, results, and distribution hashes beside the candidate. Automated checks do not replace the driving and lifecycle checks above.

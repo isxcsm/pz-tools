@@ -1,41 +1,42 @@
 # Game extensions
 
-[Documentation index](README.md) · [Save bridge](save-bridge.md) · [Live character state](runtime-character-death.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-## Current scope
+## Available extension
 
-Vehicle Drivetrain **0.2.0** is the shipped game extension. It is experimental and
-defaults to OFF. The runtime uses bootstrap API **10**, extension host ABI **3**,
-save protocol **6** and extension-control wire **1**.
+**Vehicle Driving Improvements** is the currently shipped extension. It is
+experimental and off by default. In Game extensions, its main switch enables the
+extension; expanding the card exposes three independent controls:
 
-Install matching app, worker and JARs. A resident bootstrap API 9 or older requires
-one complete game restart to adopt the continuous vehicle dispatcher. Compatible
-module, extension-host and bridge-payload updates then use the
-[idle reload lifecycle](module-reload.md), including deployments in another folder.
-Accepted work retains its owner until completion; updates do not interrupt saving
-or extension cleanup. Repository data and game-save formats do not change.
+- Natural acceleration and shifting
+- Smooth reversing
+- Fine steering control for keyboard input
 
-## Game saving and vehicle control
+Disabled features retain the game's original control. The extension adjusts
+driving response while preserving native tires, suspension and collisions. Probe,
+diagnostics and low-gear tuning remain developer-only TOML options.
 
-No optional save provider is shipped. When pre-backup game saving is enabled and
-the selected world is active, the bridge calls the original
-`GameWindow.save(true)` on the game thread. The separate game-save and countdown
-preferences, localized notices, recovery stamp and pause/death/permission checks
-remain available. See [game-save behavior and limits](save-bridge.md).
+Switches show saved preferences. They remain editable while offline or waiting for
+application; the latest settings apply after the game resumes and the vehicle is
+stopped with acceleration and cruise released. Changes do not wait for a backup.
+See the [vehicle test guide](e2e-vehicle-drivetrain.md) for comparisons and status
+checks, or the [design](vehicle-drivetrain-design.md) for the model and adapter.
 
-Vehicle Drivetrain is a continuous provider for the inspected 42.20 code family.
-It uses the selected WATCH process/world through a leased control session and
-settings revisions. It does not occupy the save-provider slot or wait for a backup
-to apply a settings change.
+Pre-backup saving and in-game notices have separate settings. Vehicle controls do
+not change those choices; see [game-save behavior](save-bridge.md).
 
-Driving settings expose three independent switches: acceleration/transmission,
-smooth reverse and fine keyboard steering. Disabled paths retain original control.
-Probe, diagnostics and low-gear tuning remain developer-only TOML options. This is
-not a native tire/collision overhaul or a claim of real horsepower simulation.
-See the [design](vehicle-drivetrain-design.md) and
-[user E2E procedure](e2e-vehicle-drivetrain.md).
+## Compatibility
 
-## Layers and version policy
+The [catalogue](../config/game-extensions/catalog.tsv) declares the inspected
+42.20 code family. Activation also requires structural and bytecode checks.
+Force-enable bypasses only the declared version range, never identity, structural,
+admission or cleanup checks, and does not turn on the extension itself.
+
+Use matching app, worker and JAR files. The [save-bridge compatibility policy](save-bridge.md#compatibility-and-lifecycle)
+defines the runtime requirements; [component replacement](module-reload.md)
+explains compatible updates without changing repository or save formats.
+
+## Implementation boundaries
 
 WinUI presents inline expandable settings rows. App.Core projects preferences and
 actual application results. GameExtensions owns configuration and version rules;
@@ -43,24 +44,12 @@ the bridge owns authentication and admission. The vehicle module owns the drivin
 model, inspected-build adapter and transforms. The general backup engine has no
 module-specific branch.
 
-The shared catalogue contains Vehicle Drivetrain with Minor **42.20–42.20** scope,
-plus structural and bytecode admission checks. Explicit version override bypasses
-only the declared range, never structural, identity, admission or cleanup checks.
-An override does not establish compatibility with unexamined game binaries.
-
-The common `SaveProvider` and checkpoint contracts remain part of the host API for
-compatibility and synthetic transport/reload tests. Their presence does not select
-an optional save implementation for backups. Catalogue entries, deployed archives
-and actual module results define which extension is available.
+Vehicle control shares the selected WATCH process/world, but has its own leased
+session and settings revisions. It does not occupy the save-provider slot.
 
 ## Validation and acceptance
 
-Use current harness/TRX output for automated results. Generic host tests cover
-archive validation, unchanged bytes, relocation, stale resolutions, in-flight
-ownership and retirement with synthetic providers. Vehicle tests cover the model,
-configuration, control-session lifecycle and inspected bytecode boundaries.
-
-Installed-class checks read a local game JAR in an isolated JVM. They do not attach
-to a running game or establish live driving behavior. Real frame time, driving
-feel, mod interactions and world-restoration acceptance require the
-[disposable-world vehicle procedure](e2e-vehicle-drivetrain.md).
+Vehicle tests cover the model, configuration, control-session lifecycle and
+inspected bytecode boundaries. Installed-class checks read a local game JAR in an
+isolated JVM. Use the [vehicle test guide](e2e-vehicle-drivetrain.md) for automated
+reproduction and the separate driving, performance and lifecycle acceptance steps.

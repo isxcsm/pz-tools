@@ -1,89 +1,97 @@
-# 저장소 형식
+# Repository format
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-현재 저장소 형식은 **2**, 스키마 버전은 **5**입니다. 배포 전 변경이므로
-형식 1 및 형식 2/스키마 1·2·3·4의 마이그레이션이나 호환 읽기를 제공하지 않습니다.
-기존 DB는 변경하지 않고 `repository-reset-required` 오류로 거부합니다.
-새 빈 백업 디렉터리를 선택하거나, 필요한 자료를 별도 보관한 뒤 백업 저장소를
-명시적으로 초기화하십시오. 게임 원본인 `Zomboid/Saves`는 초기화 대상이 아닙니다.
-앱과 작업 프로그램은 반드시 함께 빌드·게시해야 합니다.
+The current repository format is **2**, schema **5**. Older formats and schemas
+have no migration or compatibility reader. They are rejected without modification
+with `repository-reset-required`. Use a new empty backup directory or explicitly
+reset the backup repository after preserving needed data. The original
+`Zomboid/Saves` directory is never a reset target. Build and publish the app and
+workers together.
 
 ```text
 repository/
   repository.db
   telemetry.db
-  .pztools/
-    <component>/telemetry.db
+  .pztools/<component>/telemetry.db
   packs/
   staging/
   .writer.lock
 ```
 
-편집 가능한 `default.toml`은 저장소 내부가 아닌
-`%LOCALAPPDATA%/PzTools/config/<구성요소>/default.toml`에 둡니다.
-`repository.db`는 소스, 리비전, 체크포인트, 객체 위치와 카탈로그의 권위 있는 상태입니다.
-나머지 telemetry DB는 진단용이며, 그 손실 자체가 리비전의 존재 여부를 바꾸지는 않습니다.
+`repository.db` is authoritative for sources, revisions, checkpoints, object
+locations, and the catalog. Telemetry databases are diagnostic; losing them does
+not remove revisions. Editable settings live in the central
+`%LOCALAPPDATA%/PzTools/config/<component>/default.toml`.
 
-## 스키마와 저장 표현
+## Stored representation
 
-새 DB는 단일 초기 스키마를 생성하고 `schema_migrations`에 버전 5를 기록합니다.
-이미 존재하는 DB는 저장소 형식과 스키마가 일치하는지 확인하며, 업그레이드하지 않습니다.
-저장소 연결은 foreign key를 활성화합니다.
+New databases create the current schema and record version 5 in
+`schema_migrations`. Existing databases must match the supported format and
+schema. Repository connections enable foreign keys.
 
-- 객체·팩·저장소 UUID는 16바이트 BLOB으로 저장합니다.
-- 파일·부모 식별자는 볼륨 8바이트와 파일 참조 16바이트를 합친 24바이트 BLOB입니다.
-- 파일 버전의 수정·변경 시각은 UTC .NET ticks 정수로 저장하며 100ns 정밀도를 보존합니다.
-- 변경 비교 지문은 SHA-256의 앞 16바이트입니다. 반복되던 `content_hash_algorithm` 컬럼은 없습니다.
-- 저장 객체의 체크섬·압축 알고리즘은 검증된 정수 코드입니다. 체크섬 본체는 줄이지 않습니다.
-- 리비전의 `file_count`와 `logical_size`는 카탈로그와 같은 트랜잭션에서 갱신하는 요약값입니다.
+| Data | Representation |
+|---|---|
+| Object, pack, and repository UUIDs | 16-byte BLOB |
+| File and parent identities | 24-byte BLOB: 8-byte volume identity plus 16-byte file reference |
+| File modification/change times | UTC .NET ticks, preserving 100 ns precision |
+| Comparison fingerprint | First 16 bytes of SHA-256; nullable |
+| Checksum/compression algorithms | Validated integer codes; integrity checksums retain their full length |
+| Revision totals | `file_count` and `logical_size`, updated with the catalog transaction |
 
-경로는 `paths`와 `path_spellings`에 한 번씩 보관하고, 파일 버전은 `path_id`와
-`spelling_id`로 당시 표기를 참조합니다. 대소문자만 바뀌어도 과거 표기는 보존합니다.
-구조와 반복 이력별 크기 비교는 [경로 정규화](path-normalization.md)에 있습니다.
-정규화 충돌을 조용히 합치지 않고 실패시킵니다. 객체 ID는 불투명 locator이며 체크섬이 아닙니다.
-중복 제거는 전체 SHA-256과 실제 바이트 검증을 사용하며, 중복이면 압축·기록하지 않습니다.
-저장 표현과 크기 비교는 [경량 저장 형식](compact-repository-format.md),
-최신 구현과 검증은 [성능 개선](storage-performance.md)에 있습니다.
+Paths are interned in `paths` and `path_spellings`; file versions reference
+`path_id` and `spelling_id` to preserve historical spelling, including case-only
+renames. Normalization collisions fail rather than silently merge.
 
-## 실행과 커밋
+Object IDs are opaque locators. Deduplication uses full SHA-256 and byte comparison,
+then reuses an existing object without recompression. See
+[path normalization](path-normalization.md), [compact storage](compact-repository-format.md),
+and [storage performance](storage-performance.md) for implementation details.
 
-`.writer.lock`의 배타적 핸들을 가진 프로세스만 해당 저장소 쓰기 작업을 수행합니다.
-파일은 계속 존재하지만 소유권은 열린 핸들에 있으므로 프로세스 종료 후 논리적 락 파일이
-남는 것만으로 작업을 막지 않습니다. dispose된 lease는 거부합니다.
+## Commit boundaries
 
-`run_index`는 실패·취소된 시도도 소비하며 영속적으로 증가합니다. 이력 정리 후에도
-번호 카운터를 되돌리지 않습니다. 리비전은 팩·객체 등록, 카탈로그 버전, 파일 수·총용량,
-체크포인트와 실행 완료를 함께 커밋하는 트랜잭션에서 생성합니다.
-초기 백업은 캡처한 파일을 한 번 집계하고, 증분 백업은 직전 기준의 합계에 변경분만 반영합니다.
-체크포인트에는 볼륨 식별자, 저널 ID, next USN이 모두 필요합니다.
-USN 조회는 현재 전체 카탈로그가 아니라 변경 레코드에서 필요한 파일 참조만 읽습니다.
+An exclusive handle to `.writer.lock` permits repository writes. The file may
+remain after exit; ownership belongs to the handle, so a leftover filename does
+not block future work. Disposed leases are rejected.
 
-리비전에는 표시 이름, 캐릭터 요약과 `backup_kind`를 저장합니다. 자동 백업의 개수 제한은
-활성 `Automatic`에만 적용합니다. `Manual`·`Unknown`은 이 개수 제한에서 제외되지만,
-명시적 삭제와 원본 부재 확인에 따른 기존 고아 백업 자동 정리 정책은 그대로 적용됩니다.
+The installation's `control.db` allocates `run_index`, including failed and
+cancelled attempts. History cleanup does not reuse numbers.
 
-## 삭제와 정리
+A revision commits pack/object registration, catalog versions, totals, checkpoint,
+and run completion together. Initial backups aggregate captured files once;
+incremental backups apply deltas to previous totals. USN checkpoints require volume
+identity, journal ID, and next USN. Delta planning queries only file references
+needed by the changed records.
 
-사용자 삭제는 우선 `Deleted`로 표시하여 조회·복원·내보내기에서 제외합니다.
-현재 리비전과 체크포인트는 즉시 되돌리지 않습니다. 삭제된 최신 리비전도 다음 증분
-백업의 숨겨진 기준으로 유지하므로, 그 기준의 합계와 참조 객체를 보존합니다.
-원본이 사라져 고아 백업을 정리한 경우에는 비워진 기준의 파일 수·총용량을 0으로 바꿉니다.
+## Retention and deletion
 
-기본 20개 배치가 모이거나 소수의 삭제 항목이 60분 이상 경과하면 다음 가능한 점검에서
-삭제 리비전을 정리합니다. 주기 점검은 플레이하지 않는 세이브도 확인합니다.
-보존 리비전과 현재 기준에 필요 없는 닫힌 파일 버전은 별도의 제한된 배치로 제거합니다.
-열린 현재 버전과 현재 tombstone은 보존합니다. 객체 GC는 남은 버전이 참조하지 않는
-객체와 팩만 제거합니다. 조건부 VACUUM은 DB 내부 빈 페이지를 회수하며 팩을 재압축하지 않습니다.
+Revisions store their display name, character summary, and `backup_kind`.
+Count-based retention applies only to active `Automatic` revisions. `Manual`
+and `Unknown` revisions are exempt from this count, but explicit deletion and
+confirmed-missing-source cleanup still apply.
 
-팩 compaction은 별도 동작입니다. 대체 팩을 기록·검증한 뒤 객체 위치를 트랜잭션으로 전환하고,
-기존 팩은 superseded 상태로 두었다가 GC가 제거합니다.
-자세한 정리 조건과 실행 이력 보존은 [저장소 점검](repository-housekeeping.md)을 참고하십시오.
+User deletion first marks a revision `Deleted`, excluding it from browsing,
+restore, and export. The current revision/checkpoint do not roll back. Even a
+deleted latest revision remains a hidden incremental baseline, retaining required
+totals and objects. Orphan-source cleanup empties that baseline and sets its file
+count and logical size to zero.
 
-## 조회와 유지보수 개선
+Reclamation runs when deleted revisions reach the default batch of 20 or the oldest
+has waited 60 minutes, at the next eligible maintenance opportunity. It also covers
+saves that are no longer being played. Separate bounded batches remove closed file
+versions no retained revision or current baseline needs; open current versions and
+current tombstones remain. Object GC removes only unreferenced objects and packs.
+Conditional SQLite VACUUM reclaims database pages without recompressing packs.
 
-스키마 4에는 팩·리비전 정리용 인덱스, 현재 항목 전용 조회 view와 경로 정리의 검사 위치를 보관하는 `path_gc_cursor`가 추가되었습니다. [설계와 검증 범위](storage-hotpaths.md)를 참조하십시오.
+Explicit pack compaction writes and verifies replacements, switches object
+locations transactionally, then leaves superseded packs for GC. Automatic pack
+recompression is disabled. See [repository housekeeping](repository-housekeeping.md)
+for maintenance eligibility and history retention.
 
-스키마 5는 `entry_gc_cursors`에 파일 버전 검사 위치를 보관합니다. 경로 사전과
-파일 버전 정리 모두 검사량을 제한하고, 검사 위치와 삭제는 함께 커밋합니다.
-자세한 동작은 [추가 최적화 기록](active-backup-followup.md)을 참고하세요.
+## Bounded maintenance
+
+Schema 4 introduced cleanup indexes, current-entry views, and `path_gc_cursor`.
+Schema 5 adds `entry_gc_cursors` for file-version inspection. Both path and version
+cleanup bound inspection work and commit cursor movement with deletions. Design
+details are in [storage hot paths](storage-hotpaths.md) and
+[follow-up optimizations](active-backup-followup.md).

@@ -1,342 +1,141 @@
-# 차량 주행 개선 확장 설계
+# Vehicle drivetrain design
 
-[문서 목차](README.md) · [게임 확장](game-extensions.md) · [JVM 모듈 교체](module-reload.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-상태: **실험 구현 / 사용자 E2E 후보** (2026-09-27). 차량 모듈·상시 제어·설정·UI와 오프라인 검증을 구현했습니다. 게임 파일 교체, 실행 중 실제 게임 연결, 세이브 변경, 주행 E2E는 하지 않았습니다. 아래 수락 조건 중 실제 시간·native 단위·주행감은 아직 미검증입니다. [실행 및 검증 절차](e2e-vehicle-drivetrain.md)를 따르며, 기능은 기본 OFF입니다.
+The `pztools.vehicle-drivetrain` module is an experimental, default-off extension. Version 0.2.0 implements independent forward acceleration/transmission, reverse, and keyboard-steering controls. Pure-model, synthetic-adapter, and separate-JVM checks exist; real driving, native force/time calibration, fuel/noise effects, and in-game reload acceptance remain open. Use the [vehicle test guide](e2e-vehicle-drivetrain.md) for hands-on validation.
 
-## 1. 목표와 제외 범위
+## Scope and compatibility
 
-0.2.0의 목표는 실차 제원을 복제하는 것이 아니라, 기존 차량별 성능 차이를 유지하면서 재가속·변속·후진 출발·키보드 조향을 다듬는 것입니다. B42 바닐라에서도 충분한 비포장 탈출력을 더 키우는 것을 주된 개선점으로 삼지 않습니다.
+The goal is smoother reacceleration, shifting, reverse launch, and keyboard steering while retaining differences between vehicles. The module does not replace mass, cargo, tire friction, suspension, collision, ordinary braking, character traits, or gamepad steering.
 
-- 포함: 독립된 가속·변속 / 후진 / 키보드 스티어링 토글, 부하 대응 자동변속, 후진 구동력 상승 제한, 차종·특성별 속도 제한, 감속 후 안전한 기어 재선택.
-- 보존: 차량 질량, 적재물, 타이어 마찰, 서스펜션, 충돌, 일반 제동, 패드 조향·차종별 조향각 상한, 엔진 시동·고장·연료 고갈, 캐릭터 특성 자체.
-- 첫 지원: 검증한 B42 바이너리의 로컬 싱글플레이·일반 구동 차량. 일반 견인은 수락시험 대상이며 피견인 차량의 자체 구동은 제외합니다. 불탄 차량 견인은 기존 특수 보정 때문에 v1에서 원래 제어를 사용합니다.
-- 제외: 멀티플레이, 휠별 AWD/차동장치, 정밀 슬립 기반 트랙션 컨트롤, 드리프트 보정, 충돌력 변경, 실차 중량 강제 적용, 실제 마력 정확도 보장, 완전한 수동 클러치.
-- 기존 차량 물리 오버홀과 동시 활성화하지 않습니다. 외형·아이템·차량 추가 모드는 개별 구조·프로필 검증 결과로 지원합니다.
-
-설치 파일은 변경하지 않습니다. 실행 중 Java 호출 경로를 메모리에서 제한적으로 변환하는 방식이며, 게임에 전혀 개입하지 않는 방식은 아닙니다. 실행 중 이동·충돌·연료 소비를 비활성화 시 되감는 기능도 아닙니다.
-
-## 2. 조사 기준과 확인된 사실
-
-### 조사 기준
-
-- 최초 조사 기준은 `801bf21919ba91535d6facf960aaeb2c34a18bb8`의 작업 트리이며, 현재 응답 속도 후보는 dev `6258158`과 동기화한 작업 트리입니다. 선택형 끊김 없는 저장 제거를 유지하며 기존 미커밋 변경은 보존합니다.
-- 조사한 설치 JAR SHA-256: `80E405A4BFC42F6072E75B3735F458A6514143DA011D3226007DED305A442F44`.
-- 실행 설정의 classpath는 `.` 다음 `projectzomboid.jar`입니다. 조사 당시 게임 루트의 `zombie` 디렉터리나 loose `.class`는 발견되지 않았습니다. Steam 원본과의 해시 대조는 하지 않았습니다.
-- 로컬 바이트코드·역컴파일 산출물은 무시되는 `artifacts/vehicle-physics-research/`에만 있습니다. 배포물이나 저장소에 게임 클래스·역컴파일 본문을 넣지 않습니다.
-- 아래 메서드와 Java/Lua 동작은 해당 설치본 기준입니다. 다른 B42 패치나 B41에 그대로 일반화하지 않습니다.
-
-### 게임 경로
-
-| 확인한 지점 | 확인 결과 | 설계 영향 |
-| --- | --- | --- |
-| `CarController.update → control_ForwardNew` | 남아 있는 옛 `control_Forward`가 아니라 새 함수가 실제 경로입니다. | 사용되지 않는 메서드를 패치하지 않습니다. |
-| `control_ForwardNew` | 실제 기어비 배열은 힘 계산에 쓰이지 않고 1단만 별도 배율을 받습니다. 가속 중 하향 변속 분기가 없습니다. | 토크 모델과 자동 하향 변속을 함께 도입합니다. |
-| `control_Reverse` | 전진과 별도 힘 계산·RPM 처리·급격한 출력 차단을 사용합니다. | 공통 구동계에 후진 기어와 전용 출발 제한을 적용합니다. |
-| `control_NoControl`, `control_Braking` | 페달을 놓거나 제동하면 기어·RPM을 바꿉니다. 주차 제동에는 별도 강한 제동이 있습니다. | 전진·후진 두 함수만 고치면 상태가 불일치합니다. |
-| `CarController.update` 후단 | 타이어 결손 → 비포장 힘 감산 → `Bullet.controlVehicle` → 시동 요청 → 비가동 출력 차단 순서입니다. | 기존 시동·제동·안전 분기를 보존합니다. |
-| `BaseVehicle.updateBulletStats` | 노면·비·타이어/서스펜션 효과는 구동력 감산과 별도입니다. | 토크 보정 위에 접지 보정을 중복 적용하지 않습니다. |
-| `BaseVehicle.updateTotalMass`, `getFudgedMass` | 부품·적재가 질량에 포함되며 연결 중 트레일러·불탄 피견인 차량에는 예외 보정이 있습니다. | 적재 질량 재합산·출력 적재 페널티를 더하지 않습니다. |
-| `Vehicles.lua`, `ISVehicleMechanics.lua` | 내부 엔진 힘 값에 품질을 반영하고 UI에서 `/10`을 hp로 표시합니다. | 표시 hp를 실제 출력 단위로 간주하지 않습니다. |
-| `Vehicles.Update.GasTank`, `VehicleEngine.updateWorldSounds` | RPM·기어가 연료, 소리, 좀비 유인·동물 도주에 영향을 줍니다. | 물리뿐 아니라 게임플레이 부작용도 시험합니다. |
-
-### 시간과 native 경계
-
-`WorldSimulation.updatePhysic`은 물리 경과시간을 누적하여 0.01초 단위로 네이티브를 진행하지만, `CarController.update`는 이 모든 서브스텝마다 실행되지 않습니다. 조사한 호출 경로는 게임 MainThread의 월드/플레이어 갱신이며, 플레이어는 `updatePhysics()` 다음에 `updateControls()`를 호출합니다. 따라서 현재 입력 수집과 다음 물리 계산 준비 사이의 순서를 보존해야 합니다.
-
-새 타이머나 Lua OnTick에서 힘을 다시 적용하지 않습니다. 상태 적분의 단위는 초이며 `GameTime.getMultiplier()`를 초로 취급하지 않습니다. 물리 dt와 컨트롤러 호출 빈도의 실제 관계는 계측으로 확인할 항목입니다.
-
-`Bullet.controlVehicle(id, engineForce, brakingForce, steering)` 다음의 힘 분배와 제약은 네이티브 영역입니다. Java의 휠 정보에는 회전값·`skidInfo`·서스펜션 길이 등이 있지만, 직접적인 각속도·접촉 여부·휠별 수직하중·종방향 슬립률 계약은 확인하지 못했습니다. v1에서는 이를 관측에만 사용하며 정밀 접지 제어의 입력으로 가정하지 않습니다.
-
-## 3. 참고 구현과 채택 기준
-
-외부 구현은 동작 비교와 결함 예방에 참고합니다. 코드 복사는 이번 설계에 포함하지 않습니다.
-
-| 자료 | 고정 기준 / 확인 수준 | 참고하되 그대로 가져오지 않을 부분 |
-| --- | --- | --- |
-| [Better Car Physics](https://steamcommunity.com/sharedfiles/filedetails/?id=2909035179) | 제작자 설명. 공식 공개 소스·재사용 허가 미확인 | 토크 곡선·저단 힘·엔진 브레이크·변속 사용성을 참고하되 내부 정확도를 검증했다고 표현하지 않습니다. |
-| [BVD Java 패치](https://github.com/grphx/better-vehicle-dynamics/blob/d96dea603c1c1665c486e3a0ed5bad16e2d23366/mods/better-vehicle-dynamics-42/patches/zombie/core/physics/CarController.java.patch) | `d96dea603c1c1665c486e3a0ed5bad16e2d23366`. 공개 트리의 재사용 라이선스 미확인 | 저속 결합·스로틀 완화는 참고합니다. 후진 속도 감쇠의 음수 가능성, 접지 설정 중복 곱셈, 공유 차량 스크립트 수정은 피합니다. |
-| [TVP 전달계](https://github.com/pocket120/True_Vehicle_Physics_B42_Project_Zomboid/blob/a3c28b24c90beaf74cf3e589027e19c7f56c36ae/TrueVehiclePhysics/Contents/mods/truevehiclephysics/42/media/lua/shared/TrueVehiclePhysicsTransmission.lua) | `a3c28b24c90beaf74cf3e589027e19c7f56c36ae`. [MIT 확인](https://github.com/pocket120/True_Vehicle_Physics_B42_Project_Zomboid/blob/a3c28b24c90beaf74cf3e589027e19c7f56c36ae/LICENSE) | 기어비 기반 구성을 참고합니다. 초/ms 혼용, 제어 경로별 후진 제한 누락, 질량 중복 합산 가능성을 그대로 이식하지 않습니다. |
-
-참고 모드의 공개 코드를 읽었다는 사실과 우리 게임 어댑터에서 재현 검증했다는 사실을 구분합니다. 발견한 조건부 코드 문제를 해당 모드 전체가 항상 고장 난다는 주장으로 확대하지 않습니다.
-
-## 4. 구동계 수치 모델
-
-### 단위와 단일 변환 경계
-
-모델 입력의 시간은 초, 종방향 속도는 부호 있는 m/s, 회전수는 RPM, 스로틀은 `[0,1]`입니다. 출력의 최종 힘은 게임 엔진 입력 단위입니다. 기어비·최종감속비·효율은 무차원입니다.
+The catalog declares B42.20, but activation also requires matching bytecode structure, signatures, fields, and canonical fingerprints. The inspected installation JAR had SHA-256:
 
 ```text
-torqueShape = curve(engineRPM) × effectiveThrottle
-driveShape  = torqueShape × abs(gearRatio) × finalDrive × coupling / effectiveRadius
-gameForce   = direction × forceScale × driveShape
+80E405A4BFC42F6072E75B3735F458A6514143DA011D3226007DED305A442F44
 ```
 
-`forceScale`은 기존 엔진 성능과 게임 힘 단위를 잇는 유일한 스케일입니다. `effectiveRadius` 역시 스크립트 값의 길이 단위·모델 스케일을 검증한 뒤 정합니다. 이 값을 검증하기 전에는 Nm/Newton/실차 hp 정확도를 주장하지 않습니다.
+That is a research baseline, not a Steam-original authenticity check or a promise of support for every B42 patch. Research artifacts remain local under the ignored `artifacts/vehicle-physics-research/`; game classes and decompiled sources are not distributed.
 
-**현재 후보의 보정 경계:** 위 식은 물리 단위 검증 후의 목표식입니다. v0.2.0도 반경을 임의의 미터로 해석하지 않습니다. 전진 기준은 검사한 `control_ForwardNew`의 **기본 출력식** `enginePower × firstGearFactor × (0.3 + RPM/30000) × clamp(1 - speedKph/200)`입니다. 기본 `firstGearFactor=1.5`는 모델이 1단이거나 차속이 `maxSpeed/gearCount`보다 낮을 때 유지하여, RPM 프록시의 빠른 상향 변속만으로 원래 저속 출력까지 일찍 잃지 않게 합니다. 그 밖에서는 1이며 개발용 `low_gear_boost` 기본값도 1입니다. 전진 토크 곡선 배율 **1.0~1.1**은 이 기본 출력식에 대한 변조 범위일 뿐, 바닐라 전체 출력 대비 +10% 이내 보장이 아닙니다. 원래 6,000 RPM 초과 추가 감쇠는 현재 재현하지 않으며, RPM 프록시와 기어·RPM 궤적도 다르므로 실제 가속·최고속도의 동등성을 보장하지 않습니다.
+Propulsion requires a local single-player driver, a running engine, four wheels, valid script values, and a supported engine family: `generic`, `van`, `jeep`, or `firebird`, with 3–5 gears. Being towed, burnt vehicles, and towing a burnt vehicle use original propulsion. Ordinary towing remains a driving-test case. Unknown profiles fall back rather than guessing a physical model.
 
-후진 기준 힘은 `enginePower × (0.75 + RPM/24000) × clamp((7000 - RPM)/1000)`의 원래 RPM 출력식을 사용합니다. 이전 `0.65 × 0.85` 기준과 별도 토크 곡선 감산은 사용하지 않으며 `reverse_force_ratio` 기본값은 1입니다. 0.8초 스로틀·전달 힘 상승 제한은 유지합니다. 각 경로에 `force_scale`, 스로틀·단일 비포장 계수·특성을 한 번 적용합니다. 동일 입력에서의 계산식 보존을 목표로 하지만 모델의 RPM·변속·출발 과도응답은 달라질 수 있으므로, 실제 가속·최고속도의 완전 동등이나 실차 Nm/hp 정확도를 주장하지 않습니다.
+Keyboard steering has a separate eligibility check. It can operate with the engine off or an unsupported propulsion profile, but gamepad, multiplayer, towed, and burnt-vehicle steering remains original.
 
-기본 전진 제한은 기준 속도 `M=maxSpeed × (SpeedDemon이면 1.15, 그 외 1)`부터 **`M+20`**까지 원래 선형 감쇠를 사용합니다. `(maxSpeed+20)×1.15`로 바꾸지 않습니다. Sunday Driver는 전진 출력 ×0.75와 원래 속도 조건·추가 감쇠식을 그대로 매핑합니다. 임계점 직후 그 계수가 1을 넘을 수 있는 기존 동작은 유지하고 음수 추진만 차단합니다. 후진은 출력 ×0.70 및 `1.5×실제속도`가 5를 넘을 때 `(15-1.5×실제속도)/10`을 적용하므로 특성상 실제 10km/h에서 추진이 0이 됩니다. 차종 제한에 임의로 ×0.75를 적용하지 않습니다.
+The extension transforms selected Java call sites in memory; installation files are unchanged. It does not promise coexistence with arbitrary vehicle-physics patches. Force-enable bypasses the declared version range only, never structural or ownership checks. Disabling returns control to the game but does not undo movement, collisions, or fuel already consumed.
 
-엔진 성능 기준은 생성 시 품질 보정이 반영된 저장 `enginePower`에서 얻으며 품질을 다시 곱하지 않습니다. 이 getter가 현재 부품 손상이나 시동 상태까지 매번 출력에 반영한다고 가정하지 않습니다. 현재 엔진 작동 여부는 별도 가드입니다. 기준 힘은 차종 프로필의 기준 상태로 보정하고, 매 프레임 현재 질량에 비례하여 키우지 않습니다. 그렇게 하면 적재로 무거워진 만큼 출력이 늘어나는 오류가 생깁니다.
+## Why the adapter uses these call sites
 
-`P/v` 형태로 정지 토크를 만들지 않습니다. 0속도에서도 유한한 힘이어야 하며, 임의의 구동륜 수로 총힘을 나누지 않습니다. 차량 전체 입력인지 바퀴별 입력인지의 native 계약을 확인하지 못했기 때문입니다.
+Inspection of the target build found that `CarController.update` calls `control_ForwardNew`, not the older `control_Forward`. Forward, reverse, coasting, and braking have distinct RPM/gear behavior. Tire-loss and offroad adjustments occur later, before the original `Bullet.controlVehicle`, engine-start, and non-running-engine handling.
 
-### RPM, 출발 결합, 변속
+The adapter therefore guards the resolved control calls inside `update`. It does not replace the full class, intercept every caller of a private control method, or add a second native force call. Existing cruise, intoxication delay, unloaded-chunk braking, signals, and engine-start decisions stay in their original order.
 
-- 내부 상태는 방향, 현재/요청 단수, 엔진 RPM, 스로틀, 이전 구동력, 변속 유지시간, 설정 세대로 한정합니다.
-- 결합 상태 RPM은 후보에서 속도·기준 최고속도·정규화 기어비를 사용합니다. 반경 단위가 확인된 뒤 물리식으로 보정할 경계는 위와 같습니다. 출발 상태에서는 유한한 idle/launch RPM으로 부드럽게 연결합니다. 바퀴 각속도를 측정한 완전한 토크컨버터 모델이라고 부르지 않습니다.
-- 기본 저속 힘은 원래 1단 출력 구간을 보존합니다. 후보 기어비는 RPM·변속 판단에 사용하며, 기본 힘에 `ratio(gear)/ratio(1)` 감산을 다시 곱하지 않습니다. 별도의 무제한 탈출 배율이나 적분식 토크 누적은 없습니다.
-- 상향 변속은 RPM뿐 아니라 차속과 변속 후 예상 RPM을 확인합니다. 정지한 채 엔진만 회전한다고 최고단까지 올라가면 안 됩니다.
-- 하향 변속은 차속 하락·요구 입력·현재 단수의 사용 가능 토크를 보고 결정하며, 낮춘 뒤 과회전할 단수는 거절합니다.
-- 상향/하향 경계와 최소 유지시간을 분리하여 기어 왕복을 방지합니다. 저단 유지 모드는 허용 단수를 제한하되 과회전 보호보다 우선하지 않습니다.
-- 주차·무입력·일반 제동에서의 결합 해제/재결합을 명시적으로 처리합니다. 일반 제동 중에는 원래 기어/RPM을 보존하고, 모듈 제어 재진입 시 실제 속도·기어/RPM과 직전 적용 여부로 상태를 다시 맞춥니다. 이 구간을 건너뛴 누적 dt나 오래된 고RPM/고단 상태를 재가속/후진에 재사용하지 않습니다.
+The inspected game also uses gear/RPM for fuel and sound. The module writes one shared gear/RPM state for control and display; it does not maintain fake display-only RPM. Fuel consumption, engine sound, zombie attraction, and animal reactions consequently belong in acceptance testing.
 
-모듈 적용 중 모델 계산과 게임에 보이는 RPM·단수는 한 상태를 사용합니다. 원래 제어 구간에서는 게임 상태가 기준이며 다음 적용 시 재동기화합니다. 별도 표시용 가짜 RPM으로 연료·소리와 구동력을 분리하지 않습니다. 따라서 연료 소비·소음이 기존과 달라질 수 있으며, 이는 검증하고 고지할 동작 변화입니다. 연료나 소음 수식 자체를 v1에서 추가 패치하지 않습니다. 기본 프로필 RPM 범위도 현재 계기판/음향의 7,000 RPM 상한과 맞춰 검증합니다.
+## Current numerical model
 
-### 후진과 방향 전환
+Inputs use seconds, signed longitudinal m/s, RPM, and throttle in `[0,1]`. Output is in the game's force-input units. Script wheel radius is validated, but is not assumed to be meters. There is no claim of measured wheel torque, Newtons, or real-world horsepower.
 
-- 전진과 후진은 공통 모델을 사용하되 후진 기어비·출발 상승률·속도 제한은 독립 항목입니다.
-- 기존 게임이 결정한 전진/후진/제동 모드를 입력으로 받습니다. raw 키를 다시 해석하여 크루즈·취중 지연·미로딩 청크 제동을 무시하지 않습니다.
-- 방향이 바뀌면 출발 램프를 새로 시작합니다. 스로틀뿐 아니라 전달 구동력의 상승률도 제한하여 이전 RPM의 힘이 첫 틱에 튀지 않게 합니다.
-- 반대 방향으로 움직이는 중에는 새 방향 추진력을 넣지 않습니다. 기존 제동 판정이 저속 dead zone 때문에 추진 모드를 선택한 경우의 처리는 별도 `DirectionHold` 결과로 처리합니다. 원래 제동 함수를 사용하고 제동등/후진 신호 상태도 함께 맞추는 어댑터 시험을 통과해야 합니다.
-- 방향 전환 승인에는 작은 속도 구간과 유지 조건을 사용합니다. 스로틀 상승은 그 승인 이후 시작합니다.
-- 후진 기본 제한값 `reverse_max_speed_kph=0`은 어댑터가 읽은 차종의 `Script.maxSpeedReverse/1.5`를 사용합니다. 원래 `control_Reverse`가 속도에 1.5를 곱한 뒤 스크립트 값과 비교하기 때문입니다. 원시값 40의 실제 기준은 약 26.667km/h이며 일괄 22km/h 상한은 폐지합니다. 명시적인 `4~35`km/h override는 유지하고 `0<값<4`는 거절합니다.
-- `reverse_governor_start_fraction=1`이 기본이며 차종 제한 전에 추가 감쇠하지 않고 한계에서 추진을 0으로 만듭니다. 개발용 `0.5~1 미만` 값에는 기존 연속 감쇠를 유지합니다. 특성 보정과 합쳐도 음수 추진을 만들지 않으며, 차량 속도를 강제로 덮어쓰거나 경사·외력에 의한 초과 속도를 차단하는 기능은 아닙니다.
+### Forward and reverse force
 
-### 비포장·접지·엔진 브레이크
-
-v1은 네이티브 마찰·서스펜션·충돌과 기존 타이어 결손 보정을 보존합니다. 공유 `VehicleScript`에 차량별 마찰/질량을 기록하거나, native 접지 위에 임의의 `μmg` 한계를 다시 적용하지 않습니다.
-
-첫 후보는 기존 비포장 힘 감산의 **기어 번호 의존 부분만 제거**하고, 검증한 차종별 비포장 효율·기본 감쇠를 모델의 단일 항목으로 유지하는 것입니다. 새 토크 모델이 실제 기어비를 담당하므로 구식 단수 페널티까지 겹치지 않게 합니다. 값은 유한한 허용 범위로 검증하고, 공유 스크립트는 읽기만 합니다. native 타이어 마찰의 비포장/비 보정은 그대로 남습니다.
-
-`OwnOffroad`가 성공한 같은 update에서만 기존 오프로드 힘 감산을 건너뜁니다. 모듈이 거절되거나 원래 제어를 사용한 경우는 기본 감산도 그대로 실행합니다. 설정 토글이나 전역 enabled만 보고 감산을 없애면 안 됩니다.
-
-엔진 브레이크는 기존 `NoControl`의 제동과 native 감속을 먼저 측정합니다. 활성 경로에서는 기존 감속과 새 감속의 소유자를 하나로 정하며 양쪽 값을 무작정 더하지 않습니다. 추가 감속은 이동 방향과 반대이고 정지 근처에서 사라져야 합니다. 브레이크 필드로 전달할지 signed force로 전달할지는 native 의미 확인 후 결정하는 구현 gate입니다. 미확인 상태에서는 원래 무입력 감속을 사용하고 기능을 완성으로 표시하지 않습니다.
-
-### 프로필·설정
-
-- 프로필 우선순위: 명시적으로 검증한 차종 → 검증 가능한 스크립트/엔진 유형 기반 기본 프로필 → 원래 제어.
-- 스크립트 기어비는 존재만으로 신뢰하지 않습니다. 기어 수·부호·단조성·반경·RPM 범위를 검증하며, 없는 값은 검증한 기본 프로필로만 보완합니다.
-- 0 반경, NaN, 무엔진, 특수 차체, 지원 밖 단수, 알 수 없는 물리 패치는 보정값을 추측하지 않고 거절합니다.
-- 튜닝값은 `config/game-extensions/vehicle-drivetrain.toml`에 단위·범위와 함께 둡니다. 곡선의 peak/idle 값, 기어비 간격, RPM, 힘 스케일, 변속 유지시간, 후진 상승률, 속도 감쇠 구간, dt 상한이 대상입니다. 실행 시 사용자 override는 `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`입니다.
-- 기존 .NET TOML 파서에서 활성화/명시적 재적용 시 읽고 검증한 불변 설정을 JVM에 전달합니다. Java hot path는 TOML·파일·네트워크를 읽지 않습니다. 클래스 구조·호환성 검사·인증·출력 유한값 검사는 편집 가능한 우회 옵션이 아닙니다.
-- 켜기/끄기는 기존 확장 preference 저장소를 사용합니다. 가속·변속 / 후진 / 스티어링을 모듈별 typed 설정으로 저장하고 `desiredRevision`과 `appliedRevision`을 구분합니다.
-- UI는 기존 설정 페이지처럼 확장별 `SettingsExpander` 헤더 오른쪽에 전체 활성화 토글을 항상 표시하고, 하위 `SettingsCard`에 독립 기능 세 스위치·강제 활성화를 인라인으로 배치합니다. 별도 모달과 임의의 게임 단축키는 추가하지 않습니다. 설정 변경도 정차 경계에서 적용하며, 저단 유지·관측·진단과 세밀한 수치 조정은 개발용 TOML에 둡니다.
-- 수치 초기값은 기준 주행 전 임의로 확정하지 않습니다. 공개 모드의 후진 25나 저속 배율 2.5를 검증 없이 기본값으로 채택하지 않습니다.
-
-## 5. 게임 어댑터: 좁은 호출 지점 교체
-
-권장안은 `CarController` 전체 클래스 교체나 update 반환 후 보정이 아니라, **update 내부의 확인된 제어 호출 지점**에 가드를 넣는 것입니다. 다른 호출자까지 바꾸는 private 메서드 진입부 전체 패치보다 범위를 줄입니다.
+Forward force starts from the inspected game's base envelope:
 
 ```text
-기존 입력/크루즈/청크 안전 판정 → controlState 결정
-  → guarded 제어 호출 1회 (Braking도 전달)
-      → Forward/Reverse/NoControl 반영 성공: 새 값 + 지역 flags, 원래 해당 호출 생략
-      → Braking/반영 전 거절: sidecar 무효화, 기존 private 메서드 호출
-      → DirectionHold: 원래 제동 경로로 분기
-  → 기존 일반 제동과 신호 처리
-  → 기존 조향·타이어 결손 처리
-  → 이 update의 OwnOffroad 여부로 감산 경로 선택
-  → 기존 Bullet 전달·시동 요청·엔진 비가동 처리
+enginePower × firstGearFactor × (0.3 + RPM / 30000)
+            × clamp(1 - speedKph / 200, 0, 1)
 ```
 
-우리 모듈은 `Bullet.controlVehicle`을 추가 호출하지 않습니다. 특히 엔진 비가동 시 게임이 마지막에 보내는 0-force/park 호출을 없애거나 전역 후킹하여 덮어쓰지 않습니다.
+`firstGearFactor` is `1.5 × low_gear_boost` in first gear or below `maxSpeed / gearCount`; otherwise it is 1. This preserves the original low-speed force range when the RPM proxy shifts early. The default `low_gear_boost` is 1.
 
-### 제어 결과와 반영 계약
+The torque-curve modulation is 1.0–1.1 times that base envelope. This does **not** bound the change in total vehicle performance to 10%: the RPM/gear trajectory differs, and the original additional forward fade above 6,000 RPM is not reproduced. Candidate gear ratios guide RPM and shifting; they do not apply another `ratio(current)/ratio(first)` force penalty.
 
-`VehicleHooks.tryControl(controller, mode, speed)`는 추진 판정 직후 한 번, 기존 조향 보간 블록 직전에 독립된 조향 phase로 한 번 호출합니다. 각 호출 안에서 세대 획득 → 입력 읽기 → 순수 계산 → 출력 검증 → 반영 → 세대 반환을 마칩니다. 추진 phase의 `Braking`은 원래 제어를 대체하지 않습니다. 조향 phase는 추진 flags와 분리하며 실패 시 기존 조향 블록만 실행합니다. bootstrap API10의 기존 dispatcher 계약을 유지하므로 이번 기능 추가 때문에 새 resident API를 요구하지 않습니다.
-
-- 결과는 `VANILLA=0`, `APPLIED`, `DIRECTION_HOLD`를 구별하는 primitive outcome과 부가 flags입니다. `OwnOffroad`는 `APPLIED`에서만 유효합니다. 값은 매 `update` 지역변수에서 초기화합니다. 전역 last-success나 차량 ID별 과거 성공값으로 다음 틱을 판단하지 않습니다.
-- `DIRECTION_HOLD`는 추진 필드를 반영하지 않고 반환합니다. 호출 지점 stub가 처리된 모드를 `Braking`, `isBreak=true`, `isGas/isGasR=false`, throttle 0으로 맞춘 뒤 기존 후진 신호/제동/제동등 순서로 진행합니다. 이 경우 원래 Forward/Reverse를 실행하지 않고 `control_Braking`은 원래 위치에서 한 번만 실행합니다. 오프로드 우회 flags는 설정하지 않습니다. 원본 입력 키 자체는 바꾸지 않습니다.
-- flags를 반환하기 전에 필요한 핸들·대상 객체·결과를 모두 검증합니다. 반영은 예열된 단순 필드 접근으로 제한하고 I/O, Lua 호출, 새 객체 할당, 게임 메서드 탐색을 수행하지 않습니다.
-- 일부 필드를 바꾼 뒤 false를 반환하여 원래 계산을 재실행하는 경로는 금지합니다. 반영의 비예외성을 증명할 수 없는 API는 이 방식에 사용하지 않고 입력/반영 어댑터를 재설계합니다. JVM 치명 오류까지 원상 복귀를 보장하지는 않습니다.
-- 계산 중 모듈 예외나 비정상 출력은 반영 전에 차단하고 해당 모듈을 fault 상태로 전환합니다. 경고는 한 번 집계하며 게임 호출자에게 모듈 예외가 새어나가지 않게 합니다.
-- 원래 Braking/NoControl, 임시 거절, 지원 제외, 중복 호출 거절 등 `VANILLA`로 빠지는 경로는 반환 전에 해당 sidecar를 무효화합니다. 다음 성공 후보는 실제 기어/RPM/속도로 초기화하고 이전 힘·스로틀·시간 누적을 버립니다. fault는 admission을 닫고 재활성화 시 새 상태로 시작합니다. 원래 제어를 거친 뒤 오래된 모델 상태를 부활시키는 경로는 허용하지 않습니다.
-- callback 종료 뒤의 `update`는 이미 반영된 값과 지역 flags만 사용합니다. 이 사이 retire가 실행되더라도 cleanup이 게임 필드를 되돌리거나 다음 세대가 현재 update의 값을 덮어쓰면 안 됩니다.
-
-### 반드시 별도로 처리할 동작
-
-| 동작 | v1 정책 |
-| --- | --- |
-| 엔진 Idle/Starting/꺼짐/고장 | 모듈은 거절하고 원래 제어를 실행합니다. 시동 신호 역할의 양의 힘을 앞에서 지우지 않습니다. |
-| 일반/주차 제동 | 원래 `control_Braking`의 힘·RPM·기어를 그대로 사용합니다. v1에는 제동 후 투영 hook을 추가하지 않습니다. 다음 모듈 제어 진입 때 실제 상태로 재동기화하고 스로틀/결합을 다시 연결합니다. 따라서 제동 중 원래 중립 표시도 유지되는 제한이 있습니다. |
-| 방향 전환 저속 hold | 기존 제동 함수를 이용하는 분기로 연결합니다. `isBreak/isGas/isGasR`와 등화·후진 신호의 일관성이 fixture 및 주행 gate입니다. |
-| 크루즈 | 이미 처리된 제어 모드와 regulator 목표를 사용합니다. 키가 안 눌렸다는 이유로 스로틀을 0으로 덮지 않습니다. |
-| Sunday Driver / Speed Demon | 특성을 제거하지 않습니다. 기존 출력 계수·속도 변환·선형 제한식을 보존합니다. Sunday Driver 전진 계수의 1 초과 구간을 임의로 잘라내지 않고 음수 추진만 차단합니다. 후진 특성 보정도 별도로 검증합니다. |
-| 주차브레이크 해제 순간 힘 ×8 | 새 모델에서는 사용하지 않습니다. 성공 경로에서 `wasUsingParkingBrakes` 이벤트는 소비하여 나중에 fallback할 때 폭발적으로 적용되지 않게 합니다. |
-| 고RPM 감쇠·최고속도 | 기본 힘·속도 제한은 모델에서 한 번 계산합니다. 전진의 원래 6,000 RPM 초과 추가 감쇠는 현재 재현하지 않으며, RPM 프록시 차이와 함께 실제 가속·최고속도에 미치는 영향은 미검증입니다. 원래 보정을 임의로 중복 적용하지 않습니다. |
-| 불탄 차량 견인 | 기존 질량/출력 예외를 v1에서 재해석하지 않고 원래 제어를 사용합니다. |
-| 피견인 차량·트레일러 update | 새로운 힘을 계산하지 않으며 `updateTrailer`는 그대로 둡니다. |
-| 타이어 결손·미로딩 청크·취중 지연 | 기존 경로를 유지합니다. 엔진 힘을 계산하는 모듈이 안전 판정을 무효화하지 않습니다. |
-
-DirectionHold는 입력 키를 바꾸지 않지만 처리된 제어 모드를 조정하므로 별도 위험 변경입니다. 한꺼번에 다른 계산과 묶어서 “같이 동작할 것”으로 처리하지 않고, 상태·등화·시동 회귀시험을 먼저 통과시킵니다. 제동 중 기어 유지까지 확장하는 작업은 이 기본 경로가 검증된 뒤 별도로 판단합니다.
-
-### 키보드 조향의 독립 경계
-
-조향은 토크·후진 옵션과 무관하게 가속·제동·무입력 구간에서 동작합니다. 기존 키보드 입력과 음주 지연을 처리한 뒤의 값을 사용하며, 패드·지원 제외·잘못된 dt는 원래 조향을 사용합니다. 기존 보간 앞에 새 필터를 덧씌우지 않고 해당 보간 블록만 대체합니다. 후단의 차종별 조향각 제한·타이어 처리·`setCurrentSteering`·기존 `Bullet.controlVehicle` 호출은 유지합니다.
-
-순수 `SteeringModel`의 첫 입력은 초기 각속도 1.8, 지속 각속도 7.5, 상승시간 0.1초를 유지합니다. 기본값에서 중심→최대각은 속도별 반응 계수 1~0.6에 따라 약 **171~260ms**입니다. 복귀와 반대 입력 속도는 모두 현재 최대각의 8배/초로 바꾸어 최대각→중립은 **125ms**, 좌끝→우끝은 **250ms**입니다. 반대 입력의 속도 하한을 중앙 통과 후에도 유지하므로 중앙에서 출발 램프가 재시작되는 지연을 없앱니다. 이 수치는 각도 상한이 고정된 기본 이론 모델 기준이며 게임 실측 시간이 아닙니다.
-
-시간 적분은 초 단위이며 속력은 절댓값입니다. 차종별 각도 상한과 첫 입력의 고속 반응 계수는 유지하고, 복귀·반대 입력에는 위 속도 하한을 적용합니다. 실제 바퀴 표시는 Bullet이 돌려주는 `wheelInfo.steering` 경로를 유지하며 별도 가짜 애니메이션을 넣지 않습니다. 실제 주행감·화면 지연과 연속 반대 입력은 사용자 E2E 대상이며 새 UI 옵션은 추가하지 않습니다.
-
-확장 전체 활성화는 접힘 여부와 관계없이 헤더 오른쪽에, 세 기능(가속·변속 / 후진 / 스티어링)과 강제 활성화는 펼친 하위 설정 행에 배치하고 저장된 설정을 표시합니다. 오프라인·적용 대기 중에도 편집할 수 있으며 대기는 안내 문구로 표현합니다. 확정 실패는 동일 요청에 한해 CAS로 OFF 처리하고 `RestartRequired` 잠금은 유지합니다. 상태 갱신과 토글 저장에는 기존 컨트롤을 갱신하여 접힘 상태·스크롤·포커스를 보존하며 페이지 전체를 지우고 다시 생성하지 않습니다. 저단 유지·관측·진단은 개발용 TOML에 남기고 기술정보는 로그로 기록합니다. 이전 `probeOnly=true` JSON은 세 기능 OFF로 안전하게 해석하며 읽기만으로 설정 파일을 다시 쓰지 않습니다.
-
-## 6. 확장 호스트와 수명 관리
-
-### 확장한 기반
-
-[SaveProvider](../src/PzTools.GameExtensions.Java/java/pztools/extensions/api/SaveProvider.java)의 저장 계약과 [GameHooks](../src/PzTools.GameExtensions.Java/java/pztools/extensions/api/GameHooks.java)의 관측 계약을 보존하고, 상시 차량 제어를 별도 capability와 슬롯으로 추가했습니다. [카탈로그](../src/PzTools.GameExtensions/ExtensionCatalog.cs)는 저장과 차량 capability를 구별합니다. [UI controller](../src/PzTools.App.Core/GameExtensionController.cs)는 원하는 설정을 저장하고 실제 실행 상태는 scheduler가 투영합니다.
-
-따라서 저장 callback 또는 WATCH observer 슬롯을 차량 모듈이 점유하는 방식은 사용하지 않습니다.
-
-| 위치 | 구현 |
-| --- | --- |
-| 기존 `PzTools.GameExtensions.Java` | 저장 계약과 병렬인 `ContinuousProvider/ContinuousModules`, 상시 모듈 host, 안정된 `VehicleHooks` 계약 추가 |
-| 기존 bridge / AgentEntry | 인증된 확장 제어 세션, 활성화·설정 적용·해제·상태 조회, lifecycle 처리. 물리 계산 자체는 game callback에서 실행 |
-| 새 `PzTools.GameExtensions.VehicleDrivetrain` 프로젝트 | `pztools-vehicle-drivetrain.jar` 하나. 모듈 ID `pztools.vehicle-drivetrain`. 순수 모델, 프로필, 대상 빌드 어댑터, 지문/패치 검증. 불필요한 .NET DLL이나 별도 프로세스는 추가하지 않음 |
-| 기존 GameExtensions / App.Core | `vehicle.drivetrain.v1` capability, 실제 applied 상태, revision/epoch, 오류 이유의 공통 projection |
-| 기존 State.Scheduler | `RuntimeExtensionCoordinator`가 단일 확장 제어 연결·heartbeat·설정 전달·재연결을 소유. 기존 게임 선택 결과와 WATCH를 공유 |
-| 빌드·배포·검증 | Agent의 BuildExtensions 대상, JAR manifest, Java test classpath, publish/distribution 검사에 모듈 추가 |
-
-카탈로그에 버전이 명시된 capability 열을 도입하고 .NET/Java가 같은 fixture를 읽도록 합니다. 기존 10열 저장 행을 허용하는 호환 경로는 저장 capability로만 제한하며 새 차량 행을 SaveProvider로 캐스팅하지 않습니다. 알 수 없는 capability·manifest 조합은 활성화 전에 거절합니다.
-
-현재 버전은 bootstrap API10, 공용 extension host ABI3, extension-control wire1입니다. 기존 save wire6·WATCH STATE4와 SaveProvider의 저장 메서드 의미는 유지합니다. 공용 ABI 상수를 `ExtensionApi`로 분리했고 host/agent/모듈 manifest 검사를 함께 변경했습니다. 기존 API2 모듈의 자동 호환을 가정하지 않으며, 현재 배포하는 확장은 ABI3 차량 모듈 하나입니다. 공통 저장 계약은 호스트 호환성과 합성 테스트에 남지만 선택형 저장 모듈은 배포하지 않습니다. 활성 월드의 백업 전 저장은 기본 `GameWindow.save(true)`를 호출합니다.
-
-bootstrap에 새 dispatcher/lifecycle 계약을 넣는 권장안은 resident API 변경이므로 **API9가 이미 적재된 게임에는 최초 도입 시 한 번 재시작이 필요합니다**. 에이전트가 없는 실행 중 게임에는 새 버전으로 동적 연결하는 것을 지원 목표로 합니다. 이는 매번 앱을 켤 때 재시작해야 한다는 뜻이 아니며, API9에 없는 계약을 호환 JAR 교체만으로 소급 제공한다고 약속하지 않습니다.
-
-App.Core는 원하는 설정을 저장하고 scheduler에 갱신을 알립니다. State.Scheduler는 명시적으로 전달받은 runtime 설정 root에서 이를 검증하여 보내고, 실제 JVM 응답을 기존 상태 feed로 게시합니다. UI와 backup worker가 별도 차량 controller를 만들지 않습니다. 현재 [관측 coordinator](../src/PzTools.State.Scheduler/RuntimeObservationCoordinator.cs)의 PID+시작시간 선택을 공유하고, 게임이 없거나 여러 개면 활성화를 보류합니다.
-
-제어 요청은 command ID, controller epoch, process/world identity, expected revision을 포함합니다. 같은 command 재전송은 같은 결과를 반환하며 중복 활성화하지 않습니다. 새 controller는 이전 owner의 정상 종료 또는 lease 만료가 확인되기 전 강제로 슬롯을 빼앗지 않습니다. 설정 검증은 연결 thread에서 수행하고 실제 activation 게시와 게임 상태 읽기는 적절한 game-thread 경계에서 수행합니다.
-
-| 제안 명령 | 계약 |
-| --- | --- |
-| `activate` | 모듈/설정 schema·identity·지원 조건을 검증하고 accepted 또는 rejected를 반환합니다. accepted와 실제 Active는 다르며 pending 사유를 별도로 제공합니다. |
-| `updateConfig` | owner와 expected revision이 일치할 때만 불변 설정 후보를 받습니다. 각 제어 호출은 한 revision만 사용하며 설정 변경마다 클래스를 재변환하지 않습니다. |
-| `deactivate` | 정상 해제 대기와 admission revoke/drain을 구분합니다. 연결 손실·fault·lease 만료에는 정차를 기다리지 않고 새 진입을 차단합니다. |
-| `status` | 읽기 전용. desired/applied 상태, 이유, epoch/generation, 실제 모듈 version/hash, 적용된 설정 revision을 반환합니다. |
-
-명령/설정 크기와 대기열은 유한하게 제한하고 재전송 결과도 무한 보관하지 않습니다. 인증 정보나 임의 Java 실행 문자열을 받는 범용 원격 호출 기능으로 확장하지 않습니다.
-
-### 상태와 소유권
+Reverse uses the inspected reverse envelope:
 
 ```text
-Disabled → Validating → PendingSafeBoundary → Active
-Active   → PendingSafeBoundary → Active(new configuration)
-Active   → Revoking → Draining → Disabled
-실패     → Unsupported / FaultedPassThrough / RestartRequired
+enginePower × (0.75 + RPM / 24000) × clamp((7000 - RPM) / 1000, 0, 1)
 ```
 
-- 사용자 의도인 enabled, 실행 상태, pending 사유, 실제 설정 revision/모듈 hash를 구분합니다. 설정 파일 쓰기 성공을 적용 완료로 표시하지 않습니다.
-- 컨트롤러 소유권은 프로세스 세션 + 월드 epoch + 모듈 generation + 실제 차량 수명으로 구분합니다. 재사용되는 숫자 vehicle ID만으로 상태를 유지하지 않습니다.
-- 적용 중인 차량이 있으면 활성화·큰 프로필 변경·정상 해제는 정차/무가속 등 안전 조건을 확인한 update 경계에서 처리합니다. 대기 중에는 기존 모드를 유지하고 UI에 정차 대기를 표시합니다. 메뉴·하차·월드 종료 등으로 적용 차량/callback이 없으면 다음 차량 update를 기다리지 않고 즉시 revoke/drain합니다.
-- 앱 뒤늦은 실행 시 resident를 확인하고 해당 월드에 연결합니다. 같은 설정/hash 재연결은 중복 등록하지 않습니다. 새 세대는 이전 admission 폐쇄·drain 이후에만 설치합니다.
-- 앱 정상 종료는 제어 소켓을 닫아 해제합니다. 게임이 정차할 때까지 앱 종료를 무한 대기시키지 않습니다. 연결 종료/소유 lease 만료 시 새 callback 진입을 닫고 이후 원래 제어로 돌아갑니다.
-- 통신 단절의 즉시 감지는 보장할 수 없으므로 인증된 제어 세션의 bounded lease/heartbeat로 stale 소유권을 검출합니다. 물리 제어에 네트워크 응답을 기다리게 하지 않습니다.
-- 비정상 종료·fault로 주행 중 원래 제어로 돌아갈 때까지 무조건 무충격이라고 보장하지 않습니다. 다음 호출부터 안전한 원래 경로를 사용하며 이미 일어난 물리 효과는 남습니다.
-- 하차·운전자 교체·월드 종료·차량 제거 시 sidecar 상태를 해제합니다. game 객체를 static map에 강하게 영구 보관하지 않습니다. 반복 입장/퇴장에도 등록 수가 늘지 않아야 합니다.
-- pause 중에는 물리 상태 적분을 멈추고, 길어진 시간을 재개 순간 한꺼번에 따라잡지 않습니다. 제어 세션의 해제는 다음 game tick이 없어도 admission을 닫을 수 있어야 합니다.
-- `FaultedPassThrough`는 admission이 닫혀 원래 제어를 사용하는 상태입니다. 같은 결함을 매 프레임 재시도하지 않고 명시적 재활성화·수정된 설정·새 모듈 digest에서만 다시 검증합니다.
+The default `reverse_force_ratio=1` adds no further settled-force reduction. Throttle and delivered force both rise over the default 0.8-second reverse ramp; forward uses 0.3 seconds. Direction changes reset the ramp so inherited RPM cannot create a first-tick force spike.
 
-### 교착과 hot reload
+Each path applies `force_scale`, throttle, trait effects, and its single offroad factor once. Stored `enginePower` already includes generation-time quality adjustment; quality is not multiplied again. Force is not increased with current cargo mass, and mass is not re-added.
 
-기존 `AgentEntry.preparePayload`는 dispatch를 멈춘 뒤 drain을 기다립니다. 새 cleanup이 “다음 game tick 처리”를 기다리면 서로 대기할 수 있습니다. 따라서 admission 폐쇄는 즉시 가능해야 하며, game-thread 정리가 필요한 작업은 pause 전에 끝내거나 drain 이후 안전한 tick으로 분리합니다. host monitor/runtimeGate를 잡고 그 lock이 필요한 callback 완료를 기다리지 않습니다.
+### Speed limits and traits
 
-제거는 우리 transformer만 대상으로 하고 관련 클래스만 재변환합니다. 디스크의 원본 bytes를 강제로 덮어 다른 모드 변환을 지우지 않습니다. 제거 이후 늦은 transformer 호출과 이전 bytecode frame이 남을 수 있으므로 세대별 retire/drain이 필요합니다. [Java Instrumentation 계약](https://docs.oracle.com/en/java/javase/25/docs/api/java.instrument/java/lang/instrument/Instrumentation.html)
+The forward governor fades from `M` to `M+20` km/h, where `M=maxSpeed`, or `maxSpeed×1.15` for Speed Demon. It does not use `(maxSpeed+20)×1.15`. Sunday Driver preserves the inspected output factors and additional speed fade, including a factor that can briefly exceed one just above its original threshold; negative propulsion is prevented.
 
-모듈 효과와 참조를 해제하는 것이며 JVM agent의 강제 unload를 약속하지 않습니다. 교체 후보의 archive/ABI/지문 검증은 현재 세대를 retire하기 전에 수행합니다. 이 단계의 실패는 기존 세대를 유지하고 `update-rejected`로 표시합니다. drain timeout이나 retire/재변환 정리가 불확실한 실패만 새 세대 설치를 금지하고 `RestartRequired`로 표시합니다. 기존 세대가 안전하게 종료된 뒤 신규 초기화만 거절되었다면 원래 제어를 유지하며 오류 원인을 표시합니다.
+Default `reverse_max_speed_kph=0` uses `Script.maxSpeedReverse / 1.5`, matching the original reverse speed conversion. A raw value of 40 therefore corresponds to about 26.667 km/h. Explicit overrides accept 4–35 km/h; values strictly between 0 and 4 are rejected. Default `reverse_governor_start_fraction=1` adds no fade before the limit and sets propulsion to zero at it; lower developer values retain a soft fade.
 
-차량 교체 preflight는 기존 transformer의 훅 이전 입력과 같은 재변환 pass의 예상 출력을 짝지어 검사합니다. 임시 관측자는 그 시점에 이미 등록된 Java 재변환 transformer들 뒤에서 입력을 비교하므로 후행 Java 변경도 교체 전에 거절합니다. 그 뒤에 실행될 수 있는 native/JVMTI transformer, 새 등록, JNI 변경까지 봉인하는 것은 아닙니다. 사전 검사 후 실제 설치에서 다시 검사하며, 그 사이 코드가 달라지면 원본 복귀할 수 있습니다. 검사 중 기존 모듈 자신이 외부 충돌로 fault가 되었다면 ‘정상 기존 세대 유지’ 조건도 더 이상 성립하지 않습니다.
+Sunday Driver applies reverse output ×0.70 and the original additional speed factor, reaching zero propulsion at 10 km/h. These are propulsion limits, not forced velocity clamps: slopes or external forces can still carry a vehicle faster.
 
-## 7. 버전·성능·진단 계약
+### RPM, shifting, and direction changes
 
-### 호환성
+Profiles use geometrically spaced candidate ratios and a speed-based RPM proxy, not measured wheel angular velocity. Upshifts require speed, RPM, and acceptable destination RPM. Downshifts consider reduced speed or high demand and reject over-revving destinations. Separate thresholds, hysteresis, and a minimum hold time reduce gear hunting; developer low mode cannot override over-rev protection.
 
-- 게임 버전 문자열뿐 아니라 제어 호출 지점 수·메서드 descriptor·분기 순서·관련 field 계약·canonical bytecode 지문을 검사합니다.
-- 교체 후보 검사는 활성 transformer가 새 재변환에서 받은 **우리 삽입 전 입력 snapshot**과 자체 삽입 후 결과를 구분합니다. 이미 설치된 우리 hook을 타 모드 충돌로 오인하거나, 오래된 디스크 bytes를 live 검증 대신 쓰지 않습니다. 삽입 위치/횟수 검증과 반복 교체 fixture로 이 구분을 확인하며, 외부 변환과 구별할 수 없으면 추측해서 코드를 제거하지 않고 거절합니다.
-- raw byte offset이나 `All` 선언만으로 지원 여부를 결정하지 않습니다. 첫 어댑터는 조사/오프라인 검증한 정확한 코드 계열만 허용합니다.
-- 게임 클래스에 새 필드/메서드를 추가하지 않고 본문과 호출 지점만 변환합니다. 같은 클래스의 관련 변경은 한 번의 검증된 변환으로 설치합니다.
-- force-version 옵션도 구조·서명·출력·소유권 검사를 우회하지 못합니다. 미지원은 바닐라 유지와 구체적 이유로 표시합니다.
-- 현재 live bytes에서 감지 가능한 차량 물리 충돌은 거절합니다. 나중에 들어온 임의 transformer/JNI 패치까지 완전히 검출·공존한다고 보장하지 않습니다.
+Original `NoControl` and `Braking` remain responsible for coasting and braking, including their gear/RPM changes. On every return to original control, temporary decline, driver change, or missed frame, the model invalidates its dynamic state. Re-entry reconstructs a safe gear from current speed and starts with fresh force/throttle state instead of reviving a stale high gear or accumulating elapsed time.
 
-### hot path
+The game resolves forward/reverse/braking intent before the module runs. Opposite residual motion produces `DIRECTION_HOLD`: the adapter sets the resolved braking mode and associated gas/brake flags, then uses the original braking and signal path exactly once. Approval requires a near-stop dwell, defaults to 0.15 seconds, and itself remains a zero-force sample. Raw keys are unchanged.
 
-- 한 controller update에서 모델 상태를 한 번만 진행합니다. 같은 프레임 중복 진입·다른 스레드 진입·재진입을 관측/검증하고 애매한 경우 원래 경로를 사용합니다.
-- 업데이트 dt는 검증된 물리 시간 기준이며 유한값·범위 검사를 합니다. 큰 지연 뒤 무제한 substep/catch-up 루프를 돌리지 않습니다.
-- 메서드/필드 핸들과 설정은 활성화 전에 준비합니다. 차량별 프로필·기어비·scratch 결과는 해당 차량 첫 관측/구성 변경 때 한 번 만들고 캐시합니다. 안정 상태에서 매 틱 할당·리플렉션 검색·문자열 로그·설정 파싱·IPC·대기를 하지 않는 것이 목표입니다.
-- 일반적인 로컬 운전자 차량만 처리합니다. 모든 월드 차량을 매 틱 순회하거나 저장 DB를 읽지 않습니다.
-- 진단은 latest-only snapshot과 1초 시간창 집계입니다. 프레임별 이벤트를 앱 큐에 전부 쌓지 않습니다. 비용은 `tryControl` 계산/기록 경로의 mean/max이며 `observeNative`·원본/native 실행 비용은 포함하지 않습니다. native 값은 호출 직전 인자이며 native 반영 성공 증거는 아닙니다. 원본 세이브/캐릭터 개인정보는 수집하지 않습니다.
-- 진단 로그에는 적용 상태·모듈/설정 세대·오류 이유를 기록합니다. opt-in 주행 진단에는 dt, 단수, RPM, 입력/완화 스로틀, 요청 힘, 속도, 질량, 노면, 최종 분기, 호출 횟수·비용을 제한된 양으로 기록합니다. 인라인 설정에는 이 기술 정보를 표시하지 않습니다.
+Successful propulsion consumes the original parking-brake-release boost event so a later fallback cannot replay its ×8 force boost.
 
-성능 수락값은 기준 측정 후 정합니다. 설계만으로 p99 비용이나 FPS 향상을 이미 달성했다고 기록하지 않습니다.
+### Offroad and steering
 
-## 8. 구현 전에 통과해야 할 gate
+On a successful offroad propulsion step, the model replaces only the old gear-number-dependent force penalty. Its single factor uses validated script efficiency and the existing 0.6 baseline, or 0.8 when towing. The per-update `OWN_OFFROAD` flag skips the original penalty only for that successful step. Declined steps keep the original penalty. Native tire/rain friction, suspension, and collision remain intact; shared `VehicleScript` objects are read-only.
 
-| Gate | 확인/실험 | 통과하지 못했을 때 |
-| --- | --- | --- |
-| G1: 대상 구조 | 설치 JAR를 읽는 별도 JVM에서 호출 지점·지문·접근 핸들·변환 검증 | 해당 빌드 지원 거절. 실행 중 사용자 게임으로 시험하지 않음 |
-| G2: 분기 보존 | 게임 없는 fixture에서 시동, 일반/주차 제동, 크루즈, 청크 안전, 취중 지연, 신호등/후진 신호, 피견인 경로 | 어댑터 연결 방식 수정. 순수 모델 성공으로 대체하지 않음 |
-| G3: 힘/시간 단위 | opt-in 계측으로 native 전달값 의미, 반경 스케일, dt/호출 간격, 전후진 부호 확인 | 힘 스케일·엔진 브레이크 전달 방식 확정 금지 |
-| G4: native 감속/접지 | 원래 도로/비포장 감속과 타이어 효과를 측정하고 중복 적용 검증 | 새 접지·저속 보조·추가 감속은 켜지 않음 |
-| G5: 종료/재연결 | 계산 중 해제, dispatch pause 중 reload, 소켓 단절, 앱 재시작, 월드 전환, late callback | 새 세대 활성화 금지. timeout은 성공으로 취급하지 않음 |
-| G6: 실제 주행 | 아래 사용자 E2E 기준으로 차종별 보정 | 실험 상태 유지. 미등록 차량 전체 지원으로 확대하지 않음 |
+Extra engine braking is not implemented. Original coasting remains in use until native deceleration and force semantics are measured.
 
-G1/G2/G5의 자동 검증을 먼저 구현할 수 있습니다. G3/G4/G6는 실제 주행 관측이 필요하며 이번 설계 작업에서 완료했다고 주장하지 않습니다. G3에 필요한 관측 전용 어댑터는 힘·RPM·기어를 변경하지 않아야 합니다.
+Keyboard steering is an independent phase immediately before the original interpolation block. It uses the already-processed input, replaces that interpolation when eligible, and preserves downstream angle clamps, tire processing, wheel display, and native calls.
 
-## 9. 검증 계획과 구현 순서
+The defaults are an initial rate of 1.8, sustained rate of 7.5, and a 0.1-second ramp, expressed as fractions of maximum steering angle per second. First-input response scales from 1.0 to 0.6 with speed. Return and countersteer rates are both 8; the countersteer floor follows the latest held intent through center, including rapid repeated reversals.
 
-### 자동 검증
+With a fixed angle cap, the theoretical default timings are approximately 171–260 ms center-to-lock, 125 ms lock-to-center, and 250 ms lock-to-opposite-lock. These are model calculations, not measured game latency.
 
-순수 모델은 게임 JAR 없이 실행합니다.
+## Adapter and hot-path contract
 
-- 같은 엔진 RPM·결합 조건에서 저단의 사용 가능 힘이 고단보다 커야 합니다. 임의 차속에서 항상 저단이 더 빠르다는 잘못된 조건은 쓰지 않습니다.
-- 정지·고RPM·과속·0 dt·지연 dt·NaN 입력에서 유한값과 방향/출력 한계를 검증합니다.
-- 후진 속도 감쇠는 `[0,1]`, 엔진 감속의 일은 0 이하, 정지 근처 부호 왕복은 없어야 합니다.
-- 방향 전환 직후 이전 스로틀·고RPM·기어 상태가 후진 첫 힘으로 새어나오지 않아야 합니다.
-- 정지 rev만으로 연속 상향 변속하지 않고, 속도 경계 왕복·과회전 downshift를 거절해야 합니다.
-- 서로 다른 timestep 분할에서도 정한 수치 오차 안에서 결과가 일치해야 합니다. 시간 기준은 30/60/144 FPS 입력 사례와 pause/긴 프레임을 포함합니다.
-- 적재로 엔진 기준 출력이 커지거나, 컨테이너 질량이 다시 더해지면 실패입니다.
+`VehicleHooks.tryControl` runs once for resolved propulsion and separately for steering. Each callback acquires one generation/configuration, reads inputs, computes and validates output, commits, and releases the generation.
 
-어댑터 fixture는 단순 boolean/호출 횟수뿐 아니라 최종 필드와 native에 전달될 인자를 검증합니다.
+| Outcome | Behavior |
+| --- | --- |
+| `VANILLA` | Invalidate applicable model state and execute original control |
+| `APPLIED` | Commit validated fields and skip that original calculation |
+| `DIRECTION_HOLD` | Commit no propulsion fields; continue through original braking with adjusted resolved flags |
+| `OWN_OFFROAD` | Additional flag valid only on the same successful propulsion step |
 
-- 비활성/거절/반영 전 fault: 동일한 진입 상태를 전제로 원래 경로와 결과·부수효과가 같아야 합니다.
-- 활성 성공: 원래 구동력 함수가 중복 실행되지 않고 native 호출이 추가되지 않아야 합니다.
-- 엔진 비가동: 시동 요청, 0-force/park 처리 순서를 보존해야 합니다.
-- offroad 우회는 같은 update 성공에만 적용하고 다음 차량·다음 틱으로 누출되지 않아야 합니다.
-- 일반/주차 제동력, 취중 지연, 미로딩 청크 제동, 크루즈, 후진 신호와 등화를 보존해야 합니다.
-- 성공 step에서 이미 소비한 같은 주차 해제 boost 이벤트가 이후 fault/fallback에서 재발하면 안 됩니다. 성공 전에 원래 제어로 거절된 새 이벤트는 원본의 boost/소비 동작을 그대로 허용합니다.
-- `성공 → 원래 NoControl/Braking 또는 임시 거절 → 성공`에서 이전 고단/RPM/스로틀/힘이 재등장하지 않고, 초기화 뒤 예상한 출발/재결합을 해야 합니다.
-- 같은 차종 두 대의 설정/접지/질량이 서로 간섭하지 않아야 합니다.
-- 모듈 retire가 이미 반영된 step을 다시 쓰지 않고, 새 세대와 이전 callback이 겹치지 않아야 합니다.
-- 같은 JVM에서 두 번째·세 번째 교체 시 자체 hook을 충돌로 오인하지 않고, 실제 외부 변환은 원본 디스크 bytes로 가리지 않아야 합니다.
-- 저장·WATCH·차량 확장이 같이 실행되어도 슬롯 점유/교착/게임 저장 자동 재실행이 없어야 합니다.
+All handles, receiver types, gear objects, and output values are validated before the first field write. Commit uses prepared field access and does no I/O, Lua calls, reflective discovery, or allocation. A partial write followed by fallback is not a permitted recovery strategy. Module exceptions or invalid outputs close admission before subsequent callbacks rather than retrying each frame.
 
-기존 Java/bridge 검증 진입점을 확장하며 차량 기능 하나 때문에 별도 상주 서비스나 중복 CI 작업을 만들지 않습니다. 설치 클래스 검사에는 게임 배포 코드를 테스트 fixture로 복사하지 않고 사용자 로컬 JAR를 읽는 opt-in 검증을 사용합니다.
+Per-update flags are local; previous vehicle/tick success cannot grant a bypass. Retirement cannot undo fields already committed into an in-flight game update, and the next generation cannot overwrite that update.
 
-### 사용자 E2E
+Time comes from the game's physics-time interface and is validated in seconds. Invalid, zero, or excessive dt falls back; default maximum dt is 0.1 seconds. Duplicate-frame and wrong-thread entry are declined. Pause/resume does not trigger an unbounded catch-up loop. The relationship between controller calls and native 0.01-second physics substeps still requires live measurement.
 
-동일 차량·타이어·엔진 상태·적재·노면으로 원래 제어와 비교합니다. 일반 승용차/밴/스포츠카, 검증 후보 모드 차량, 빈 차/적재/일반 견인, 도로/비포장/젖은 노면을 나누어 기록합니다.
+Vehicle profiles and scratch state are cached, with weak references for vehicle/driver ownership. The steady-state target is no per-tick allocation, configuration parsing, reflection lookup, IPC, or waiting. The module processes the local driver rather than scanning all world vehicles.
 
-- 후진 첫 0.2/0.5/1초 이동거리, 가속도, 구동력 상승과 방향 전환 제동을 기록합니다. 합격 상한은 기준 주행 뒤 확정합니다.
-- 고단으로 달리다 비포장에서 느려졌을 때 페달을 계속 누른 상태로 하향 변속하고 탈출하는지 확인합니다.
-- 고정 조건의 저속 출발 시간/성공 여부, 헛돎, 반복 변속, 경사·공중·전복 시 비정상 추진을 확인합니다. 공중/접촉을 확정할 수 없는 상태에 추가 탈출 boost를 넣지 않습니다.
-- RPM·계기판·소리의 일관성, 연료 소비, 주변 좀비 유인 변화와 특성 차이를 확인합니다.
-- 키보드 시동, 주차브레이크, 크루즈, 하차/재탑승, 앱 뒤늦은 실행/종료/재시작, pause/재개, 게임 월드 전환을 확인합니다.
-- 확장 OFF 뒤 질량·타이어·차량 스크립트 값이 원래와 같고, 모듈 전용 데이터를 세이브에 만들지 않았는지 확인합니다. 실제 주행으로 바뀐 위치·연료가 되돌아올 것을 기대하지 않습니다.
+## Configuration and runtime ownership
 
-### 구현 순서
+Defaults and ranges live in [vehicle-drivetrain.toml](../config/game-extensions/vehicle-drivetrain.toml). User overrides use `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`. .NET and Java validate an immutable configuration before application; the game callback never reads TOML.
 
-1. **호환성·관측 기반:** G1/G2 fixture와 read-only probe를 먼저 만듭니다. 지원 빌드와 단위/시간 측정 항목을 고정합니다.
-2. **순수 모델:** 토크/변속/방향 상태/후진 제한을 게임 독립 테스트로 완성합니다. 프로필 값은 측정 전 후보입니다.
-3. **상시 확장 수명:** capability, control session, 실제 applied projection, revoke/drain, 저장/WATCH 공존을 구현·검증합니다.
-4. **좁은 어댑터:** 호출 지점 guard, 단일 commit, offroad 소유권, 제동/등화 경로를 연결합니다. 범위 밖은 원래 제어입니다.
-5. **측정·보정:** 사용자가 G3/G4/G6 주행을 수행한 뒤 힘 스케일·후진 상승률·변속 경계를 확정합니다. 승인 전 기본 활성화하지 않습니다.
-6. **배포 검증:** JAR/카탈로그/설정의 동일 snapshot, 누락·구버전 manifest 거절, 실제 모듈 hash 표시, OFF·재연결 회귀시험을 통과한 빌드만 후보로 제공합니다.
+The three typed UI preferences override their TOML transport defaults, including before the first JSON save. The extension is initially off, while new feature preferences are all on. Legacy `probeOnly=true` preferences are read as all three features off without rewriting the file merely on read. Low mode, observation, diagnostics, and numerical tuning remain developer-only TOML options.
 
-## 10. 구현과 수락의 경계
+Saved intent and JVM application are separate. The UI keeps controls editable offline or while waiting for a safe boundary; detailed revisions, hashes, and transition reasons go to logs. Confirmed failure turns off only the matching request through compare-and-swap, without overwriting a newer user choice.
 
-설치본 Java/Lua 조사와 참고 소스 검토에 더해 순수 모델, guarded 어댑터, 상시 제어 세션, 세대/lease/revision 관리, 설정/UI, 빌드 배선을 구현했습니다. 자동 검증은 synthetic fixture와 별도 inert JVM에서 수행합니다. 설치 JAR는 read-only 입력이며 게임 클래스를 배포하지 않습니다.
+[RuntimeExtensionCoordinator](../src/PzTools.State.Scheduler/RuntimeExtensionCoordinator.cs) owns the authenticated control connection, heartbeat, configuration delivery, and reconnection, sharing the existing game-process selection. No or multiple eligible games postpone activation. Save, WATCH, and continuous vehicle control use separate capabilities/slots.
 
-실제 native 단위/물리 dt의 관계, 차량별 출력·후진 체감·FPS, 연료/소음, 실게임 hot reload는 사용자 E2E 수락 대상입니다. 추가 엔진 브레이크, 실측 기반 radius/final-drive 보정, 임의 물리 모드 공존을 완료로 표시하지 않습니다. [E2E 절차](e2e-vehicle-drivetrain.md)에 재현 명령과 제한을 정리합니다.
+The delivered module is `pztools-vehicle-drivetrain.jar`, capability `vehicle.drivetrain.v1`. Current contracts are bootstrap API10, extension host ABI3, extension-control wire1, save wire6, and WATCH STATE4. The optional save extension is not distributed; when backup requests a game save, the normal path calls `GameWindow.save(true)`. Existing API9-or-earlier resident agents require one full game restart to obtain the new bootstrap contract.
+
+Control requests carry command identity, controller epoch, process/world identity, and expected revision. Retries are idempotent, queues/caches are bounded, and a new controller cannot take over a live owner. Activation/configuration waits for a game-thread safe boundary: vehicles stopped, throttle released, and cruise disabled. Explicit deactivation, disconnect, fault, and lease expiry can close callback admission without waiting for a game tick. The control lease is five seconds.
+
+State is scoped by process, world, module generation, vehicle, and driver; reused numeric vehicle IDs cannot revive it. Exit, world changes, retirement, and fault release references. A fault returns to original control and requires an explicit new activation/configuration or module candidate before revalidation.
+
+## Replacement and failure handling
+
+Archive, ABI, configuration, and bytecode preflight occur before retiring a healthy generation. A preflight rejection leaves it installed and reports `update-rejected`; app policy can then safely turn off the matching failed request. An installation-stage failure may leave original control rather than restore the old generation. Uncertain retirement or drain timeout sets `RestartRequired`, which reconnecting or changing worlds must not clear.
+
+Admission closes before drain. Cleanup must not wait for a game tick that dispatch has already paused, or hold a lock needed by an in-flight callback. Only this module's transformer is removed; retransformation must not overwrite other agents with bytes reread from disk.
+
+Replacement preflight distinguishes live pre-hook input from this module's output and checks later Java transformers present in that pass. Installation validates again. It cannot seal the JVM against future registration, native/JVMTI transformers, or JNI changes. Repeated reload tests must distinguish the module's own prior hooks from actual external conflicts.
+
+## Validation and remaining acceptance
+
+Automated checks cover finite/bounded model outputs, direction transitions, timestep variation, shift hysteresis, steering reversals, adapter field/native-argument results, fallback equivalence, lifecycle drain, configuration revisions, and repeated replacement. Installed-JAR checks read the user's JAR in a separate inert JVM; game code is not copied into fixtures or distributed.
+
+Diagnostics are opt-in, latest-sample plus one-second aggregates. `requested_force` in observation mode is a reset, one-step prediction. `native_force/brake/steering` are arguments immediately before the original native call, not proof of native success. Callback timings exclude original/native execution and must not be presented as total frame cost.
+
+Remaining live acceptance includes native force/radius/time meaning, road and offroad behavior, loaded and towing vehicles, reverse launch, steering feel, fuel/noise effects, frame-rate variation, and save/WATCH/reload coexistence. Numeric performance targets require a vanilla baseline; neither FPS gains nor universal mod support follow from synthetic tests.
+
+Design references: [Better Car Physics](https://steamcommunity.com/sharedfiles/filedetails/?id=2909035179), [BVD at d96dea6](https://github.com/grphx/better-vehicle-dynamics/blob/d96dea603c1c1665c486e3a0ed5bad16e2d23366/mods/better-vehicle-dynamics-42/patches/zombie/core/physics/CarController.java.patch), and [TVP at a3c28b2](https://github.com/pocket120/True_Vehicle_Physics_B42_Project_Zomboid/blob/a3c28b24c90beaf74cf3e589027e19c7f56c36ae/TrueVehiclePhysics/Contents/mods/truevehiclephysics/42/media/lua/shared/TrueVehiclePhysicsTransmission.lua).

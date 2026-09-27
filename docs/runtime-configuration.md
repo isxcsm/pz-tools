@@ -1,6 +1,6 @@
 # Advanced runtime configuration
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
 Operational tuning is read at the owning process boundary and passed to the
 implementation. Libraries do not repeatedly read TOML during a scan or copy.
@@ -28,9 +28,9 @@ already in progress. Use **Apply settings and restart** for a consistent reload.
 Save queue timeout is distinct from completion timeout: only a still-queued call
 can be cancelled safely. An already-running game save is not interrupted and an
 unknown completion does not permit capture or automatic retry. The extended bridge
-protocol transports configured deadlines to the JVM. An already-loaded older
-bridge can still use default deadlines; custom deadlines require restarting the
-game, otherwise the client refuses before sending a save request.
+protocol transports configured deadlines to the JVM. Compatible payload updates
+reload at an idle boundary; an incompatible resident bootstrap requires a game
+restart. See [component reload](module-reload.md) for that distinction.
 
 ## Intentionally not editable
 
@@ -64,11 +64,11 @@ their dedicated schemas; no runtime code rewrites existing TOML files.
 `app/runtime.character_metadata_batch_size` bounds background attempts to fill
 missing backup character summaries, including failed reads. The retry interval is
 `character_metadata_retry_seconds`. New backups collect the summary from their
-captured `players.db`; schema 10 stores survival duration and an explicit completion
+captured `players.db`; the current schema stores survival duration and an explicit completion
 flag, so an unavailable duration is not confused with pending work. The collector
 also handles interrupted metadata collection. It reads packs outside the writer
 lease, retains completed reads across writer contention, and advances past failures.
-Schema 11 additionally stores the last character-summary read error. A failed read
+It also stores the last character-summary read error. A failed read
 is displayed as unavailable with a retry notice, not as an indefinitely running
 progress indicator. Successful retries clear the error. Display projectors never
 modify the repository or extract revision files.

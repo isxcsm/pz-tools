@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import re
 import shutil
 import sys
 import tempfile
@@ -204,37 +205,40 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn(old, text)
         path.write_text(text.replace(old, new), encoding='utf-8')
 
+    def remove_link(self, name, target):
+        path = self.root/name
+        text = path.read_text(encoding='utf-8')
+        text, count = re.subn(r'\[([^\]\n]+)\]\(' + re.escape(target) + r'\)', r'\1', text)
+        self.assertGreater(count, 0, f'No Markdown link to {target} in {name}')
+        path.write_text(text, encoding='utf-8')
+
     def test_real_documentation_passes(self):
         result = C.check(self.root)
-        self.assertEqual(18, result['guides'])
+        self.assertEqual(1, result['guides'])
         self.assertEqual(10, result['topics_per_guide'])
-        self.assertGreater(result['local_links'], 500)
+        self.assertGreater(result['local_links'], len(C.GUIDE_REFERENCES))
 
-    def test_deleted_language_page_is_rejected(self):
-        (self.root/'docs/ja-JP/README.md').unlink()
+    def test_deleted_root_guide_is_rejected(self):
+        (self.root/'README.md').unlink()
         with self.assertRaises(C.DocumentationError):
             C.check(self.root)
 
     def test_missing_guide_topic_is_rejected(self):
-        self.replace('docs/ko-KR/README.md', '<a id="game-saving"></a>', '<a id="removed"></a>')
+        self.replace('README.md', '<a id="game-saving"></a>', '<a id="removed"></a>')
         with self.assertRaisesRegex(C.DocumentationError, 'missing guide topics'):
             C.check(self.root)
 
-    def test_missing_language_navigation_is_rejected(self):
-        self.replace('README.md', '<a href="docs/ja-JP/README.md">日本語</a>', '日本語')
-        with self.assertRaisesRegex(C.DocumentationError, 'missing direct reference or language link'):
-            C.check(self.root)
-
     def test_missing_direct_reference_is_rejected(self):
-        self.replace('README.md', '[cleanup policy (English)](docs/repository-housekeeping.md)', 'cleanup policy')
+        self.remove_link('README.md', 'docs/repository-housekeeping.md')
         with self.assertRaisesRegex(C.DocumentationError, 'missing direct reference'):
             C.check(self.root)
 
     def test_guide_section_containing_only_a_link_is_rejected(self):
         text = (self.root/'README.md').read_text(encoding='utf-8')
-        start = text.index('## Troubleshooting and reporting problems')
-        end = text.index('<a id="building">', start)
-        (self.root/'README.md').write_text(text[:start]+'## Troubleshooting\n\n[Read English](docs/README.md)\n\n'+text[end:], encoding='utf-8')
+        anchor = '<a id="troubleshooting"></a>'
+        start = text.index(anchor) + len(anchor)
+        end = text.index('<a id="building"></a>', start)
+        (self.root/'README.md').write_text(text[:start]+'\n## Troubleshooting\n\n[Documentation](docs/README.md)\n\n'+text[end:], encoding='utf-8')
         with self.assertRaisesRegex(C.DocumentationError, 'has no explanation'):
             C.check(self.root)
 
@@ -244,38 +248,75 @@ class RepositoryContractTests(unittest.TestCase):
             C.check(self.root)
 
     def test_reference_without_backlink_is_rejected(self):
-        self.replace('docs/cli.md', '[Documentation index / 문서 목차](README.md)', 'Documentation index')
+        self.remove_link('docs/cli.md', 'README.md')
         with self.assertRaisesRegex(C.DocumentationError, 'missing index backlink'):
             C.check(self.root)
 
     def test_broken_build_command_is_rejected(self):
         self.replace('README.md', 'dotnet build PzTools.sln -c Release', 'dotnet build missing.sln -c Release')
-        with self.assertRaisesRegex(C.DocumentationError, 'missing shared technical instruction'):
+        with self.assertRaisesRegex(C.DocumentationError, 'missing technical instruction'):
             C.check(self.root)
 
     def test_missing_runtime_link_is_rejected(self):
-        self.replace('README.md', '[.NET 10 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)', '.NET 10 runtime')
+        self.remove_link('README.md', 'https://dotnet.microsoft.com/en-us/download/dotnet/10.0')
         with self.assertRaisesRegex(C.DocumentationError, 'missing runtime, download or support'):
             C.check(self.root)
 
     def test_unclosed_document_code_block_is_rejected(self):
-        self.replace('docs/cli.md', '# 명령줄 계약', '# 명령줄 계약\n\n~~~md')
+        path = self.root/'docs/cli.md'
+        path.write_text(path.read_text(encoding='utf-8')+'\n~~~md\n', encoding='utf-8')
         with self.assertRaisesRegex(C.DocumentationError, 'Unclosed fenced'):
             C.check(self.root)
 
-    def test_duplicate_language_catalog_entry_is_rejected(self):
+    def test_ui_language_catalog_contents_do_not_control_documentation(self):
         path = self.root/'src/PzTools.Process.Contracts/Localization/languages.tsv'
-        text = path.read_text(encoding='utf-8')
-        path.write_text(text.rstrip()+'\n'+text.splitlines()[0]+'\n', encoding='utf-8')
-        with self.assertRaisesRegex(C.DocumentationError, 'duplicate tags'):
-            C.check(self.root)
+        path.write_text('The UI catalog has its own validation.\n', encoding='utf-8')
+        self.assertEqual(1, C.check(self.root)['guides'])
 
-    def test_unlisted_language_guide_is_rejected(self):
-        page = self.root/'docs/xx-XX/README.md'
-        page.parent.mkdir()
-        page.write_text('# Extra\n', encoding='utf-8')
-        with self.assertRaisesRegex(C.DocumentationError, 'Guide not in language catalog'):
-            C.check(self.root)
+    def test_localized_readme_guides_are_rejected(self):
+        for tag in ('ko-KR', 'en-US', 'xx-XX'):
+            with self.subTest(tag=tag):
+                page = self.root/f'docs/{tag}/README.md'
+                page.parent.mkdir(exist_ok=True)
+                page.write_text('# Parallel user guide\n', encoding='utf-8')
+                with self.assertRaisesRegex(C.DocumentationError, 'Localized README guides are not supported'):
+                    C.check(self.root)
+                page.unlink()
+
+
+class IndependentEnglishDocumentationTests(unittest.TestCase):
+    def test_single_english_guide_passes_without_any_ui_catalog_or_resources(self):
+        with tempfile.TemporaryDirectory(prefix='pz-english-docs-') as folder:
+            root = Path(folder).resolve()
+            (root/'docs').mkdir()
+            reference_paths = [path for path in C.GUIDE_REFERENCES if path.startswith('docs/') and path != 'docs/README.md']
+            for path in reference_paths:
+                (root/path).write_text('# Reference\n\n[Documentation index](README.md)\n', encoding='utf-8')
+            (root/'THIRD_PARTY_NOTICES.md').write_text('# Third-party notices\n', encoding='utf-8')
+            index_links = ['[User guide](../README.md)', '[Notices](../THIRD_PARTY_NOTICES.md)']
+            index_links.extend(f'[Reference]({Path(path).name})' for path in reference_paths)
+            (root/'docs/README.md').write_text('# Documentation\n\n'+'\n'.join(index_links)+'\n', encoding='utf-8')
+            sections = [f'<a id="{anchor}"></a>\n## Topic {number}\n\nEnglish operating instructions.\n'
+                        for number, anchor in enumerate(C.GUIDE_SECTIONS, start=1)]
+            guide = '# PZ Tools\n\n'+'\n'.join(sections)
+            guide += '\n'+'\n'.join(f'[Reference]({path})' for path in C.GUIDE_REFERENCES)+'\n'
+            guide += '\n'+'\n'.join(C.GUIDE_FACT_TOKENS)+'\n'
+            guide += '\n```powershell\n'+'\n'.join(C.BUILD_COMMANDS)+'\n```\n'
+            guide += '\n[Releases](https://github.com/isxcsm/pz-tools/releases)\n'
+            guide += '[Support](https://github.com/isxcsm/pz-tools/issues)\n'
+            guide += '[Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)\n'
+            (root/'README.md').write_text(guide, encoding='utf-8')
+
+            self.assertFalse((root/'src').exists())
+            result = C.check(root)
+            self.assertEqual(1, result['guides'])
+            self.assertEqual(10, result['topics_per_guide'])
+
+            # Independence from UI configuration does not exempt authored links from validation.
+            guide += '\n[UI catalog](src/PzTools.Process.Contracts/Localization/languages.tsv)\n'
+            (root/'README.md').write_text(guide, encoding='utf-8')
+            with self.assertRaisesRegex(C.DocumentationError, 'Missing target'):
+                C.check(root)
 
 
 if __name__ == '__main__':

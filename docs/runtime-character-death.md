@@ -23,7 +23,7 @@ journal: a character removed before observation cannot be reconstructed from a D
 
 ## From observation to backup
 
-`STATE3` carries life, character identity, death ID and an optional last save execution
+`STATE4` carries life, character identity, death ID, sleep and an optional last save execution
 report through the existing authenticated runtime feed. The state reactor commits a
 semantic transition and its outbox; scheduling consumes it transactionally.
 
@@ -39,13 +39,13 @@ backup; the automatic-backup master switch and death option still apply. Missing
 state never falls back to a DB-derived death decision. Explicit pre-save deferral can
 retry the same pending episode; started failures/unknown completion are not replayed.
 
-Both standard and extension saves keep this admission rule. Once actual saving begins,
+Standard saving keeps this admission rule. Once actual saving begins,
 a later pause/disconnect does not abandon outstanding writes. Save-before-backup and the
 existing configuration policy retain their meaning; this feature never fakes a flush.
 
-## Extension execution feedback (completed unit)
+## Save execution feedback
 
-The JVM retains one immutable report for its last admitted extension-saving request:
+The shared protocol can retain one immutable report for its last admitted provider request:
 requested provider, actual provider, Running/Succeeded/Failed, fallback/error code,
 game-thread preparation milliseconds and total elapsed milliseconds. It holds no world
 objects, growing history, credentials or arbitrary exception text.
@@ -56,10 +56,9 @@ actual outcome remain distinct. A disabled toggle is not switched on by an old s
 Fallback is shown as standard saving, not extension success. Stale/disconnected or
 other-world reports are not displayed as current execution.
 
-Timing covers the existing game-thread preparation/capture and total request completion.
-It is not a frame-time profiler or separate measurement of each serializer/native call.
-Normal game updates can delay observation of completion. These values enable a meaningful
-real-game comparison; they do not establish a performance gain on their own.
+The provider contract remains for compatibility and synthetic tests; no optional save
+provider is shipped. Backups use the original game save. Report timing is request
+timing, not a frame-time profiler or proof of faster gameplay.
 
 ## Validation boundary
 
@@ -72,15 +71,5 @@ The installed B42.20 GameWindow, PlayerDB, VehiclesDB2, ExceptionLogger and IsoC
 classes were read and transformed in memory; all five passed ClassFile structural
 verification. This does not execute game code, perform a live attach or establish save
 consistency/performance with actual vehicles and mods.
-## Recorded local verification
-
-- Release solution, WinUI/XAML, Java and native build succeeded with zero warnings/errors.
-- `live-death.trx`: 214 passed, 0 failed, 5 explicitly skipped (external samples or published packages).
-- After removing obsolete DB-reactor options and extending pre-save retry coverage,
-  `live-death-final.trx`: 65 passed, 0 failed, 3 explicitly skipped. The suites overlap.
-- Existing five Java harnesses passed. No new workflow or duplicate full-suite job was added.
-- The two new live-character tests ran in the synthetic JVM (not skipped), including
-  stored isDead=0 versus live Dead, pause, replaced-character rejection and observed
-  standard-fallback/saving-failure reports.
-- Actual game play, visual WinUI interaction and end-to-end vehicle/item restoration
-  remain outside this verification. The five installed-class checks are structural only.
+Actual gameplay, rendered UI and end-to-end vehicle/item restoration require separate
+acceptance. Use test output for the commit being evaluated, not historical suite counts.

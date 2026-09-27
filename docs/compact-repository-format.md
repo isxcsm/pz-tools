@@ -1,15 +1,11 @@
-# Compact repository format 2 (pre-release breaking change)
+# Compact storage representation
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-Current schema is **5**. This document records the earlier implementation; see [storage hotpaths](storage-hotpaths.md) for the current layout, compatibility boundary and later verification.
-
-The earlier path-normalized layout is **format 2 / schema 3**. See the [performance follow-up](storage-performance.md)
-for revision summaries and pre-compression deduplication, and [path normalization](path-normalization.md)
-for the current path dictionaries and verification. There is no migration or dual-format
-reader for format 1 or schemas 1/2. Old data is rejected with `repository-reset-required`,
-never automatically deleted. Use a new empty backup directory. Do not reset the game's
-`Zomboid/Saves` directory. Rebuild/publish the application and workers together.
+Current repositories use format 2 / schema 5. This page explains their compact
+field representations and retains the original layout experiment below.
+See [repository format](repository-format.md) for compatibility and
+[path normalization](path-normalization.md) for path dictionaries.
 
 ## Compact representations
 

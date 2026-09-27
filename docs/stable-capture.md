@@ -1,94 +1,77 @@
-# 안정적 파일 캡처
+# Stable file capture
 
-[Documentation index / 문서 목차](README.md) · [User guide / 사용 안내](../README.md)
+[Documentation index](README.md) · [User guide](../README.md)
 
-안정적 캡처는 게임의 쓰기를 잠그거나 일시 정지하지 않습니다. 원본을
-read/write/delete 공유 모드로 열고, 해시로 검증한 임시 복사본만 압축 및
-중복 확인에 사용합니다. `storage.verify_staged_copies`는 기본적으로 켜져 있습니다.
+Stable capture reads without locking or pausing game writes. It opens sources with
+read/write/delete sharing and uses private staged copies for compression and
+deduplication. `storage.verify_staged_copies` is enabled by default.
 
-캡처 순서:
+## Copy validation
 
-1. 원본 파일의 식별 정보와 메타데이터를 읽고 SHA-256 해시 `H전`을 계산합니다.
-2. 원본을 전용 메모리 버퍼 또는 임시 파일로 복사하면서 복사된 바이트의 SHA-256 `H복사`를 계산합니다.
-3. `H복사 = H전`이면 복사본을 사용합니다. 다르면 원본을 다시 해시해 `H후`와
-   비교합니다. `H복사 = H후`여도 복사본을 사용합니다.
-4. 어느 쪽과도 일치하지 않으면 복사본을 폐기하고 `runtime.capture_attempts`만큼 시도합니다(기본 총 5회).
-5. 검증된 임시 복사본만 압축 팩과 중복 확인에 사용합니다.
+1. Read source identity and metadata, then calculate SHA-256 `H_before`.
+2. Copy into a private memory buffer or temporary file while calculating `H_copy`.
+3. Accept when `H_copy = H_before`. Otherwise hash the source again and accept
+   when `H_copy = H_after`.
+4. If neither matches, discard the copy and retry, up to
+   `runtime.capture_attempts` (five attempts by default).
+5. Only an accepted copy reaches compression or deduplication.
 
-재시도 사이에는 짧게 점증 대기합니다. 시도를 소진하면 팩을 무효화하고
-`UnstableFileException`으로 해당 백업 실행을 실패 처리합니다. 실패한 임시
-복사본은 팩에 기록되지 않습니다. 해시 검증 옵션을 끄면 복사는 유지하되 기존
-메타데이터 전후 검사만 적용합니다. 이 검사는 게임이 저장 도중 만든 내용의
-의미상 유효성까지 판별하지는 않습니다.
+Identity checks also verify that the open handle still corresponds to the current
+path. Retry delays grow with the attempt count. Exhausting attempts raises
+`UnstableFileException` and invalidates the backup's pack; rejected copies never
+enter it. Turning verification off preserves staging and before/after metadata
+checks but omits the content-consistency check.
 
-## 메모리 상한과 선행 읽기
+This validates individual copies, not the game's semantic save consistency or an
+atomic snapshot across multiple files.
 
-초기·증분 백업은 같은 제한형 캡처 파이프라인을 사용합니다. 기본값은
-동시 읽기 4개, 처리 중·대기 중 파일 최대 8개입니다. 파일 목록 열거,
-진행률 전달, 중복 확인, 팩 쓰기, DB 반영은 소비자 하나에서만 실행됩니다.
-생산자는 전용 복사본만 만들며 팩을 수정하거나 무효화하지 않습니다.
+## Bounded reads and memory
 
-기본 256KiB 이하 파일은 크기가 고정된 전용 버퍼 풀을 사용합니다. 풀은
-사용 중·큐 대기·팩 쓰기 중·반환 후 재사용 대기 버퍼를 모두 합쳐 최대
-4MiB를 보유합니다. 기본 큐 8개와 256KiB 슬롯을 함께 적용하면 실효 상한은
-2MiB입니다. 원본 바이트 수가 아닌 실제 버퍼 용량을 계산하고,
-가득 차면 읽기 작업이 취소 가능한 대기에 들어갑니다. 완료된 복사본부터
-소비해 먼저 시작한 느린 파일이 메모리 반환을 막지 않도록 합니다.
+Initial and incremental backups use the same pipeline. The defaults are four
+concurrent readers and eight files in flight. One consumer owns enumeration,
+progress delivery, deduplication, pack writing, and catalog updates. Producers
+only prepare private copies.
 
-큰 파일은 기존 디스크 스테이징을 사용합니다. 작은 파일도 읽는 동안 임계값을
-넘어 커지면 임시 파일로 전환한 뒤 버퍼를 반환합니다. 팩에 추가한 복사본은
-즉시 해제하며, 취소·예외·열거 중단 때에는 남은 읽기를 취소하고 모든 복사본을
-정리한 뒤 팩을 닫습니다. 최종 팩 검증과 커밋 순서는 바꾸지 않았습니다.
+Files up to 256 KiB use fixed-size buffers. The 4 MiB pool budget includes active,
+queued, writing, and reusable buffers; the queue of eight limits effective capacity
+to 2 MiB. Accounting uses allocated capacity, not source length. Readers wait
+cancellably when capacity is exhausted, and ready copies are consumed in completion
+order so a slow earlier file cannot block buffer return.
 
-설정은 `backup-worker/default.toml`의 `small_file_staging_kib`,
-`staging_memory_mib`, `capture_read_concurrency`, `capture_queue_capacity`입니다.
-`small_file_staging_kib = 0`이면 모든 파일을 디스크로 스테이징합니다.
-4MiB는 백업 작업의 **복사본 보관 풀 상한**이지 전체 앱 메모리 상한이 아닙니다.
-읽기 scratch/FileStream 버퍼와 압축·메타데이터 메모리는 별도이며, 읽기 버퍼
-수는 동시 읽기 수로 제한됩니다. 세이브가 GB 단위여도 복사본 전체를 메모리에
-누적하지 않습니다. 여러 파일을 동일 시점의 원자적 스냅샷으로 만드는 기능은 아닙니다.
+Larger files stage to disk. A small file that grows beyond the threshold spills to
+disk and releases its buffer. Copies are disposed after pack insertion. Failure,
+cancellation, or early enumeration exit cancels outstanding reads and cleans all
+copies before closing the pack. Final pack validation and commit boundaries remain
+unchanged.
 
-USN 폴백의 내용 해시 비교는 별도 설정인 `full_scan_hash_batch_size`(기본 16개)와
-`full_scan_hash_read_concurrency`(기본 4개)를 따릅니다. 실제 동시 읽기 수는 묶음
-크기 이하이며, 원본을 순차 해시할 뿐 파일 전체를 메모리에 보관하지 않습니다.
-이 경로의 읽기 버퍼도 기존 `copy_buffer_kib`(기본 128KiB)를 사용합니다.
+These controls are under `[runtime]` in the backup worker TOML:
 
-현재 기본값을 선정한 합성 데이터 비교와 재현 방법은 [백업 튜닝 측정](backup-tuning.md)을 참고하세요.
+| Setting | Default |
+|---|---:|
+| `small_file_staging_kib` | 256 |
+| `staging_memory_mib` | 4 |
+| `capture_read_concurrency` | 4 |
+| `capture_queue_capacity` | 8 |
+| `copy_buffer_kib` | 128 |
+| `full_scan_hash_batch_size` | 16 |
+| `full_scan_hash_read_concurrency` | 4 |
 
-### 로컬 성능 확인 (2026-09-27)
+`small_file_staging_kib = 0` stages all files to disk. The pool limit is not a
+total process-memory limit: read buffers, compression, and metadata are additional.
 
-수정 전 `6258158`과 제한형 파이프라인을 Windows Release 빌드로 각각 3회
-측정했습니다. 매번 별도 프로세스·새 저장소에서 seed 1729의 합성 파일
-6,000개 × 9,216바이트(총 55,296,000바이트)를 생성한 뒤 초기 백업만 측정했습니다.
-검증·변경 해시는 켜고 XxHash64/Brotli, 중복 제거 끔, phase telemetry를 사용했습니다.
-데이터 생성 및 사후 팩 검증 시간은 백업 시간에 포함하지 않았습니다.
+Full-scan hash comparison uses its own batch and reader limits and does not retain
+whole file contents. Actual concurrency cannot exceed batch size. Each reader
+uses `copy_buffer_kib`, hashes the complete file, and preserves identity checks.
+See [runtime configuration](runtime-configuration.md) for allowed ranges and
+[backup tuning](backup-tuning.md) for the measurements behind the defaults.
 
-| 중앙값 | 수정 전 | 수정 후 |
-| --- | ---: | ---: |
-| 초기 백업 전체 | 12.431초 | 4.631초 |
-| 스캔 | 0.586초 | 0.615초 |
-| 파일 캡처 | 10.848초 | 2.569초 |
-| 팩 마감·검증·커밋 | 0.740초 | 0.901초 |
-| 백업 구간 누적 관리 메모리 할당 | 849.8MiB | 91.9MiB |
-| 프로세스 최대 작업 집합 | 67.5MiB | 72.1MiB |
+## Missing files and access failures
 
-누적 할당량은 동시 메모리 사용량이 아닙니다. 최대 작업 집합은 데이터 생성·사후
-검증까지 포함한 프로세스 전체 값이며 소폭 증가했습니다. 모든 실행에서 파일과
-변경 해시 6,000개, 전체 바이트 수, 팩 무결성을 확인했습니다. 이는 합성 데이터의
-로컬 측정이며 실제 세이브·장치에서 같은 비율의 개선을 보장하지 않습니다.
+Incremental planning and always-include handling do not treat
+`File.Exists`/`Directory.Exists` returning false as proof of deletion.
+A missing-file/path error becomes a tombstone only after enumerating parents from
+an accessible source root and confirming the entry is absent.
 
-검증: 관련 캡처·스캔·설정·정리 회귀 테스트와 Debug x64 앱 빌드가 통과했습니다.
-전체 .NET 실행은 1,203개 통과·68개 환경 조건부 생략·1개 실패였으며,
-뒤에 추가한 정리 예외 테스트 2개도 별도 통과했습니다. 실패한
-`RealMappedWalIndex_ReleasesThenOpensWithoutChangingRepository`는 수정 전
-`6258158`의 단독 실행에서도 동일 SQLite Error 10으로 재현됐습니다.
-캡처를 호출하지 않는 기존 DB 매핑 테스트로, 이번 최적화에서 수정하지 않았습니다.
-
-## 삭제 확인과 접근 실패
-
-증분 계획과 강제 수집 목록은 `File.Exists`/`Directory.Exists`의 `false`를
-삭제 증거로 사용하지 않습니다. 메타데이터 읽기 오류는 기본적으로 실행 실패로
-전파합니다. 파일·경로 없음 오류도 접근 가능한 소스 루트부터 부모 디렉터리를
-열거하여 실제 항목 부재를 확인해야 삭제 기록으로 바꿉니다. 루트 연결 해제,
-접근 거부, I/O 오류, 링크 때문에 판단이 불확실하면 리비전과 USN 체크포인트를
-커밋하지 않습니다. 처음부터 없는 강제 수집 파일은 확인 후 조용히 건너뜁니다.
+Disconnected roots, access denial, I/O errors, and ambiguous links prevent revision
+and USN checkpoint commit. An always-include file that has never existed is quietly
+skipped after absence is confirmed.
