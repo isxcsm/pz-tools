@@ -467,4 +467,5 @@
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>无法应用扩展功能。请查看日志了解详情。</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>进入单人游戏后，将应用已保存的设置。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>恢复游戏并停车，松开油门并关闭定速巡航后即可应用设置。</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>游戏处于主菜单</value></data>
 </root>

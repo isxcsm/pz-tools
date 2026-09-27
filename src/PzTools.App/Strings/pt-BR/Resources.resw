@@ -467,4 +467,5 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Não foi possível aplicar a extensão. Consulte os registros para obter detalhes.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>As configurações salvas serão aplicadas ao entrar em uma partida de um jogador.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Para aplicá-las, retome o jogo, pare o veículo, solte o acelerador e desligue o controle de cruzeiro.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Jogo no menu principal</value></data>
 </root>

@@ -73,7 +73,9 @@ public sealed record ScheduleStatusView(
     bool PauseAware = false,
     long? RemainingMilliseconds = null,
     ScheduleHold Hold = ScheduleHold.None,
-    bool CompletionUncertain = false);
+    bool CompletionUncertain = false,
+    // Live presentation only; committed scheduler facts still control admission.
+    WorldPhase GamePhase = WorldPhase.Unknown);
 
 public sealed record SettingsView(
     string Language,

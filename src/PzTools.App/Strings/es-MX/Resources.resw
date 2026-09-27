@@ -467,4 +467,5 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>No se pudo aplicar la extensión. Consulta los registros para ver los detalles.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>La configuración guardada se aplicará cuando entres a una partida de un jugador.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Para aplicarla, reanuda la partida, detén el vehículo, suelta el acelerador y desactiva el control de crucero.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Juego en el menú principal</value></data>
 </root>

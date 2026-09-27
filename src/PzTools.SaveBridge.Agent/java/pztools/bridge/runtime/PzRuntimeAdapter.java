@@ -46,13 +46,22 @@ final class PzRuntimeAdapter {
         if (!versionRead) { gameVersion = readVersion(window.getClassLoader()); versionRead = true; }
         Object machine = states.get(null), world = worldInstance.get(null);
         Object nextCell = world == null ? null : cell.get(world);
-        boolean loaded = machine != null && ingame.isInstance(current.get(machine));
+        Object state = machine == null ? null : current.get(machine);
+        boolean loaded = ingame.isInstance(state);
         mode = client.getBoolean(null) || clientSave.getBoolean(null) || server.getBoolean(null)
             ? "Networked" : "LocalSinglePlayer";
         Object core = coreInstance.invoke(null, none);
         String currentMode = (String)gameMode.invoke(core, none);
         if ((boolean)noSave.invoke(core, none) || "LastStand".equals(currentMode) || "Tutorial".equals(currentMode)) mode = "Unsupported";
-        phase = exiting.getBoolean(null) ? "Unloading" : loaded ? nextCell == null ? "Loading" : "Ready" : "Menu";
+        // A non-playing state is not necessarily the main menu: loading, startup and
+        // unknown states must not be presented as an observed main screen. These final
+        // game classes are identified without loading or initializing additional types.
+        phase = exiting.getBoolean(null) ? "Unloading" : loaded ? nextCell == null ? "Loading" : "Ready"
+            : state == null ? "Unknown" : switch (state.getClass().getName()) {
+                case "zombie.gameStates.MainScreenState" -> "Menu";
+                case "zombie.gameStates.GameLoadingState" -> "Loading";
+                default -> "Unknown";
+            };
         if (!phase.equals("Ready")) { path = null; worldCell = null; pause = "Unknown"; speedLevel = -1; return; }
         // The path may allocate and is looked up once per world, not on every frame.
         if (nextCell != worldCell || path == null) path = (String)currentSave.invoke(fsInstance.get(null), none);

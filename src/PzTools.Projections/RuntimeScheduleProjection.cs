@@ -9,9 +9,10 @@ public static class RuntimeScheduleProjection
     public static ScheduleStatusView Build(BackupSchedulerState control, RuntimeScheduleStorage storage,
         RuntimeObservation observation)
     {
-        // Presentation can immediately show a confirmed absent process, even while
+        // Presentation can immediately show a confirmed process/world state, even while
         // its scheduler transition is committing. This does not grant execution permission.
         bool offline = observation.Quality == RuntimeQuality.Offline;
+        var gamePhase = ObservedGamePhase(observation);
         if (storage.Facts is null || storage.Facts.AuthorityEpoch != observation.AuthorityEpoch
             || storage.Facts.StateRevision < observation.StateRevision || storage.Facts.SemanticKey != observation.SemanticKey)
             observation = RuntimeObservation.Unknown("state-transition-pending");
@@ -24,6 +25,9 @@ public static class RuntimeScheduleProjection
         return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, null,
             control.LastRunIndex, control.LastOutcome, control.AutomaticEnabled, control.PendingRuns,
             PauseAware: true, RemainingMilliseconds: Math.Max(0, state.RemainingMilliseconds),
-            Hold: hold, CompletionUncertain: state.CompletionUncertain);
+            Hold: hold, CompletionUncertain: state.CompletionUncertain, GamePhase: gamePhase);
     }
+
+    internal static WorldPhase ObservedGamePhase(RuntimeObservation observation) =>
+        observation.IsFresh ? observation.Snapshot!.Phase : WorldPhase.Unknown;
 }

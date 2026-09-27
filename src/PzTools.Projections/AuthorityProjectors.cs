@@ -180,10 +180,10 @@ public sealed class SchedulerProjector(
         else return;
 
         var runtimeSchedule = await database.ReadRuntimeScheduleAsync(cancellationToken);
+        var observation = runtimeSnapshot?.Read() ?? RuntimeObservation.Unknown("runtime-feed-disconnected");
         if (runtimeSchedule.Enabled)
         {
-            var runtimeView = RuntimeScheduleProjection.Build(snapshot, runtimeSchedule,
-                runtimeSnapshot?.Read() ?? RuntimeObservation.Unknown("runtime-feed-disconnected"));
+            var runtimeView = RuntimeScheduleProjection.Build(snapshot, runtimeSchedule, observation);
             if (repository is not null && runtimeView.RemainingMilliseconds == 0
                 && runtimeSchedule.Checkpoint is { AttemptId: { } attempt } checkpoint)
             {
@@ -208,7 +208,7 @@ public sealed class SchedulerProjector(
             canCountDown = activity?.Game == GameState.Playing && active is { Length: 1 }
                 && StringComparer.OrdinalIgnoreCase.Equals(active[0].SourcePath, snapshot.CurrentTarget!.SourcePath);
         }
-        var offline = runtimeSnapshot?.Read().Quality == RuntimeQuality.Offline;
+        var offline = observation.Quality == RuntimeQuality.Offline;
         if (offline) canCountDown = false;
         var nextDue = canCountDown ? snapshot.NextDueUtc : (DateTimeOffset?)null;
         var periodicInProgress = false;
@@ -243,7 +243,8 @@ public sealed class SchedulerProjector(
             snapshot.AutomaticEnabled,
             snapshot.PendingRuns,
             periodicInProgress,
-            Hold: offline ? ScheduleHold.GameOffline | ScheduleHold.NoWorld : ScheduleHold.None);
+            Hold: offline ? ScheduleHold.GameOffline | ScheduleHold.NoWorld : ScheduleHold.None,
+            GamePhase: RuntimeScheduleProjection.ObservedGamePhase(observation));
         views.Publish(
             ViewKey.ScheduleStatus, model, cursor,
             EqualityComparer<ScheduleStatusView>.Default);

@@ -467,4 +467,5 @@ S’applique à la sauvegarde solo sélectionnée après avoir quitté la partie
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>L’extension n’a pas pu être appliquée. Consultez les journaux pour en savoir plus.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Les paramètres enregistrés seront appliqués lorsque vous rejoindrez une partie solo.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pour les appliquer, reprenez le jeu, arrêtez le véhicule, relâchez l’accélérateur et désactivez le régulateur de vitesse.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Jeu dans le menu principal</value></data>
 </root>

@@ -14,9 +14,10 @@ public static class ScheduleCountdownPresentation
         if (schedule is null) return new("NextBackupWaitingDynamic");
         if ((schedule.Hold & ScheduleHold.GameOffline) != 0) return new("RuntimeBackupOffline");
         if (!schedule.AutomaticEnabled) return new("AutomaticBackupOff");
+        if (schedule.PauseAware && schedule.CompletionUncertain) return new("RuntimeBackupCompletionUnknown");
+        if (schedule.GamePhase == WorldPhase.Menu) return new("RuntimeBackupMainMenu");
         if (schedule.PauseAware)
         {
-            if (schedule.CompletionUncertain) return new("RuntimeBackupCompletionUnknown");
             long? seconds = schedule.RemainingMilliseconds is { } ms ? (long)Math.Ceiling(Math.Max(0, ms) / 1000d) : null;
             if ((schedule.Hold & ScheduleHold.Ambiguous) != 0) return new("RuntimeBackupAmbiguous", seconds, true);
             if ((schedule.Hold & (ScheduleHold.Unknown | ScheduleHold.Unsupported)) != 0) return new("RuntimeBackupWaiting", seconds, true);

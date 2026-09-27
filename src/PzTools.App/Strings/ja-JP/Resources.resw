@@ -467,4 +467,5 @@
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>拡張機能を適用できませんでした。詳細はログを確認してください。</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>保存した設定はシングルプレイのゲームに入ると適用されます。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>ゲームを再開して車を止め、アクセルを離してクルーズコントロールを解除すると適用されます。</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>ゲームのメインメニュー</value></data>
 </root>

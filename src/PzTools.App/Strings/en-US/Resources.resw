@@ -474,4 +474,5 @@ Applies to the selected single-player save after you stop playing.</value></data
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>The extension could not be applied. Check the logs for details.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Saved settings will be applied when you enter a single-player game.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Game at main menu</value></data>
 </root>

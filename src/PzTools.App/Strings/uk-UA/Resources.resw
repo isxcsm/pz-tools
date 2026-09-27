@@ -467,4 +467,5 @@
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Не вдалося застосувати розширення. Докладніше — у журналі.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Збережені налаштування буде застосовано після входу в одиночну гру.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Щоб застосувати їх, відновіть гру, зупиніть автомобіль, відпустіть газ і вимкніть круїз-контроль.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Гра в головному меню</value></data>
 </root>

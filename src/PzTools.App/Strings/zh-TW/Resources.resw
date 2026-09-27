@@ -467,4 +467,5 @@
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>無法套用擴充功能。請查看記錄瞭解詳情。</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>進入單人遊戲後，將套用已儲存的設定。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>繼續遊戲並停車，放開油門並關閉定速巡航後即可套用設定。</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>遊戲處於主選單</value></data>
 </root>

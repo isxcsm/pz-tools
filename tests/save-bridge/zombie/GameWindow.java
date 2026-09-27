@@ -39,7 +39,7 @@ public final class GameWindow {
     public static void main(String[] args) throws Exception {
         ZomboidFileSystem.path = args[0];
         mode = args.length > 1 ? args[1] : "normal";
-        if (mode.equals("menu")) states.current = new Object();
+        if (mode.equals("menu")) states.current = new zombie.gameStates.MainScreenState();
         if (mode.equals("dead-at-start")) zombie.characters.IsoPlayer.die();
         if (mode.equals("multiplayer")) zombie.network.GameClient.client = true;
         gameThread = Thread.currentThread();
@@ -50,6 +50,29 @@ public final class GameWindow {
         System.out.println("READY");
         System.out.flush();
         while (true) {
+            if (consumeSignal(Path.of(args[0], "unknown-state"))) states.current = new Object();
+            if (consumeSignal(Path.of(args[0], "empty-state"))) states.current = null;
+            if (consumeSignal(Path.of(args[0], "begin-load"))) {
+                states.current = new zombie.gameStates.GameLoadingState();
+                zombie.iso.IsoWorld.instance.currentCell = null;
+            }
+            if (consumeSignal(Path.of(args[0], "ingame-without-cell"))) {
+                states.current = new zombie.gameStates.IngameState();
+                zombie.iso.IsoWorld.instance.currentCell = null;
+            }
+            if (consumeSignal(Path.of(args[0], "enter-world"))) {
+                zombie.core.Core.exiting = false;
+                zombie.iso.IsoWorld.instance.currentCell = new Object();
+                states.current = new zombie.gameStates.IngameState();
+            }
+            if (consumeSignal(Path.of(args[0], "enter-menu"))) {
+                zombie.core.Core.exiting = false;
+                states.current = new zombie.gameStates.MainScreenState();
+            }
+            if (consumeSignal(Path.of(args[0], "unload-menu"))) {
+                states.current = new zombie.gameStates.MainScreenState();
+                zombie.core.Core.exiting = true;
+            }
             if (consumeSignal(Path.of(args[0], "die-player"))) zombie.characters.IsoPlayer.die();
             if (consumeSignal(Path.of(args[0], "respawn-player"))) zombie.characters.IsoPlayer.respawn();
             if (consumeSignal(Path.of(args[0], "ambiguous-players"))) zombie.characters.IsoPlayer.numPlayers = 2;
@@ -73,7 +96,7 @@ public final class GameWindow {
                 Files.writeString(staged, endpoint);
                 Files.move(staged, Path.of(args[0], "control-state.txt"), StandardCopyOption.REPLACE_EXISTING);
             }
-            if (Files.exists(Path.of(args[0], "leave-world"))) states.current = new Object();
+            if (Files.exists(Path.of(args[0], "leave-world"))) states.current = new zombie.gameStates.MainScreenState();
             if (!mode.equals("stalled") || Files.exists(Path.of(args[0], "resume"))) logic();
             Thread.sleep(20);
         }

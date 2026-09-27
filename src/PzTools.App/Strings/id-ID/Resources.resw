@@ -467,4 +467,5 @@ Diterapkan pada save pemain tunggal yang dipilih setelah berhenti bermain.</valu
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Ekstensi tidak dapat diterapkan. Periksa log untuk detailnya.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Pengaturan tersimpan akan diterapkan saat Anda masuk ke game pemain tunggal.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Untuk menerapkannya, lanjutkan game, hentikan kendaraan, lepas pedal gas, dan matikan kontrol jelajah.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Game berada di menu utama</value></data>
 </root>

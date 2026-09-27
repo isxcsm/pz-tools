@@ -15,6 +15,13 @@ continues those three minutes. Faster game speeds do not accelerate this real-ti
 interval. Menu/exit clears the world target. Loading, unsupported modes, stale samples,
 multiple games and disconnected observation hold rather than assume Running.
 
+The footer shows `Game at main menu` only while a fresh JVM sample identifies
+`MainScreenState`. `GameLoadingState` and an in-game state without a world cell are
+loading, not the main menu; unrecognized states remain unknown. The label uses the
+existing observation feed in either scheduling mode, without another poller or
+changes to backup admission. Stale or disconnected samples remove the menu label.
+Automatic-backup-off and uncertain-save-result notices retain their priority.
+
 This option affects periodic backups. Explicit manual and death-triggered backups keep
 their separate policies. Disabling automatic backups still takes precedence; resume
 cannot enable them. An interval/policy change starts a new interval, frozen if paused.

@@ -474,4 +474,5 @@
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>확장을 적용할 수 없습니다. 자세한 내용은 로그를 확인해 주세요.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>싱글플레이 게임에 접속하면 저장된 설정을 적용합니다.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>게임을 재개하고 차량을 멈춘 뒤 가속·크루즈 입력을 놓으면 적용됩니다.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>게임 메인 화면</value></data>
 </root>
