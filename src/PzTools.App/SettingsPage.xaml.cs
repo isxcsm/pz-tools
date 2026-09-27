@@ -3,6 +3,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using PzTools.App.Core;
 using PzTools.Projections;
 using Microsoft.Windows.Storage.Pickers;
@@ -14,6 +16,8 @@ public sealed partial class SettingsPage : UserControl
     private readonly DispatcherQueueTimer applyTimer;
     private bool loading = true;
     private bool applying;
+    private bool settingsLoaded;
+    private bool initialLayoutCompleted;
     private long requestedApply;
     private long completedApply;
 
@@ -27,6 +31,7 @@ public sealed partial class SettingsPage : UserControl
         applyTimer.IsRepeating = false;
         applyTimer.Tick += ApplyTimer_Tick;
         ApplyLocalizedText();
+        PrepareForNavigation();
         loading = false;
         Loaded += OnLoaded;
         Unloaded += (_, _) => applyTimer.Stop();
@@ -121,17 +126,55 @@ public sealed partial class SettingsPage : UserControl
     private static void SetInputName(DependencyObject control, object header) =>
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(control, header.ToString() ?? "");
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => LoadSettings();
+    private void OnLoaded(object sender, RoutedEventArgs e) => PrepareForNavigation();
+
+    internal void PrepareForNavigation()
+    {
+        // Populate controls before their templates enter the visual tree. Keep local
+        // edits intact on later visits, including changes still waiting for debounce.
+        // Startup may publish a newer snapshot after the constructor. Refresh up
+        // to the first presentation, but never replace subsequent pending edits.
+        if (!settingsLoaded || !initialLayoutCompleted) LoadSettings();
+    }
+
+    internal void CompleteInitialLayout()
+    {
+        if (initialLayoutCompleted) return;
+        UpdateLayout();
+        foreach (var section in new[] { DisplaySection, PathSection, BackupSection, AdvancedSection })
+        {
+            // SettingsExpander wraps a native Expander whose initial expanded state
+            // includes a storyboard. Finish only that initial state, while the page
+            // is hidden, so it does not compete with the shell's entrance animation.
+            if (VisualTreeHelper.GetChildrenCount(section) == 0
+                || VisualTreeHelper.GetChild(section, 0) is not Expander expander
+                || VisualTreeHelper.GetChildrenCount(expander) == 0
+                || VisualTreeHelper.GetChild(expander, 0) is not FrameworkElement root)
+                continue;
+            foreach (var group in VisualStateManager.GetVisualStateGroups(root))
+                if (group.Name == "ExpandStates" && group.CurrentState?.Storyboard is { } storyboard
+                    && storyboard.GetCurrentState() == ClockState.Active)
+                    storyboard.SkipToFill();
+        }
+        UpdateLayout();
+        SettingsSections.ChildrenTransitions = new TransitionCollection
+        {
+            new RepositionThemeTransition { IsStaggeringEnabled = false },
+        };
+        initialLayoutCompleted = true;
+    }
 
     private void LoadSettings()
     {
         if (App.Host is null) return;
+        var wasLoading = loading;
         loading = true;
         try
         {
             var value = App.Host.Views.ReadIfChanged<SettingsView>(
                 ViewKey.Settings, 0).Snapshot;
             if (value is null) return;
+            settingsLoaded = true;
             SelectTag(LanguageCombo, value.Language);
             SelectTag(ThemeCombo, value.Theme);
             SystemTrayToggle.IsOn = value.UseSystemTray;
@@ -149,7 +192,7 @@ public sealed partial class SettingsPage : UserControl
         }
         finally
         {
-            loading = false;
+            loading = wasLoading;
         }
     }
 

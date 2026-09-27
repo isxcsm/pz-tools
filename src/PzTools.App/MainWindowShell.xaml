@@ -331,6 +331,7 @@
                           </Grid.ColumnDefinitions>
                           <TextBlock Text="{x:Bind RevisionText, Mode=OneWay}"
                                      Visibility="{x:Bind NameDisplayVisibility, Mode=OneWay}"
+                                     FontFamily="{ThemeResource ContentControlThemeFontFamily}"
                                      FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"
                                      TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                           <TextBox Style="{StaticResource InlineRevisionNameTextBoxStyle}"

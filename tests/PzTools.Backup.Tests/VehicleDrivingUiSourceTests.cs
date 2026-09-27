@@ -17,6 +17,7 @@ public sealed class VehicleDrivingUiSourceTests
                 Assert.DoesNotContain(removed, source);
         Assert.False(File.Exists(Path.Combine(Root(), "src", "PzTools.App", "LightDismissContentDialog.cs")));
         Assert.Contains("new SettingsExpander", section);
+        Assert.Contains("IsExpanded = false", section);
         Assert.Contains("new SettingsCard", section);
         Assert.Contains("Control.Items.Add(row.Card)", section);
         Assert.Contains("Content = enabled.Control", section);

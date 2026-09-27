@@ -46,15 +46,20 @@
               <Grid Background="Transparent">
                 <Border x:Name="BorderElement" Background="Transparent" BorderThickness="0"
                         Control.IsTemplateFocusTarget="True" />
-                <ScrollViewer x:Name="ContentElement" HorizontalScrollMode="Auto"
-                              HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
-                              VerticalScrollBarVisibility="Hidden" Padding="0" Foreground="{TemplateBinding Foreground}"
-                              IsTabStop="False" />
-                <TextBlock x:Name="PlaceholderTextContentPresenter"
-                           Text="{TemplateBinding PlaceholderText}" FontSize="{TemplateBinding FontSize}"
-                           FontWeight="{TemplateBinding FontWeight}" FontFamily="{TemplateBinding FontFamily}"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                           VerticalAlignment="Center" IsHitTestVisible="False" />
+                <!-- Center one natural-height text host, not the placeholder independently
+                     of the editor's top-aligned TextBoxView. Both share the same text origin. -->
+                <Grid VerticalAlignment="Center">
+                  <ScrollViewer x:Name="ContentElement" HorizontalScrollMode="Auto"
+                                HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
+                                VerticalScrollBarVisibility="Hidden" Padding="{TemplateBinding Padding}"
+                                VerticalContentAlignment="Top" Foreground="{TemplateBinding Foreground}"
+                                IsTabStop="False" ZoomMode="Disabled" AutomationProperties.AccessibilityView="Raw" />
+                  <TextBlock x:Name="PlaceholderTextContentPresenter"
+                             Text="{TemplateBinding PlaceholderText}" FontSize="{TemplateBinding FontSize}"
+                             FontWeight="{TemplateBinding FontWeight}" FontFamily="{TemplateBinding FontFamily}"
+                             Padding="{TemplateBinding Padding}" TextAlignment="{TemplateBinding TextAlignment}"
+                             Foreground="{ThemeResource TextFillColorTertiaryBrush}" IsHitTestVisible="False" />
+                </Grid>
               </Grid>
             </ControlTemplate>
           </Setter.Value>

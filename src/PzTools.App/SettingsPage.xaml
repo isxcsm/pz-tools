@@ -24,13 +24,10 @@
     <ScrollViewer Grid.Row="1"
                   VerticalScrollBarVisibility="Auto">
       <Border>
-        <StackPanel HorizontalAlignment="Stretch"
+        <StackPanel x:Name="SettingsSections" HorizontalAlignment="Stretch"
                     Spacing="{StaticResource SettingsCardSpacing}">
-          <StackPanel.ChildrenTransitions>
-            <!-- Page entrance is animated once by MainWindowShell. Keep only
-                 in-page reflow for expanding or collapsing settings sections. -->
-            <RepositionThemeTransition IsStaggeringEnabled="False" />
-          </StackPanel.ChildrenTransitions>
+          <!-- Reflow transitions are attached after the initial expanded layout.
+               MainWindowShell owns the page entrance animation. -->
 
           <toolkit:SettingsExpander x:Name="DisplaySection" IsExpanded="True"
                                     Header="화면" Description="언어, 테마와 창 닫기 동작을 설정합니다.">

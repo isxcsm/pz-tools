@@ -38,11 +38,14 @@ public sealed partial class MainWindowShell
             PresentContent(requestedContent!);
             if (IsLoaded && navigationUiSettings.AnimationsEnabled)
                 AnimateContent(entering: true, () => { });
+            else
+                ResetContentTransition();
         });
     }
 
     private void PresentContent(FrameworkElement page, bool refresh = true)
     {
+        if (refresh && page == SettingsRoot) SettingsRoot.PrepareForNavigation();
         displayedContent = page;
         GameExtensionsRoot.Visibility = page == GameExtensionsRoot ? Visibility.Visible : Visibility.Collapsed;
         SettingsRoot.Visibility = page == SettingsRoot ? Visibility.Visible : Visibility.Collapsed;
@@ -52,6 +55,7 @@ public sealed partial class MainWindowShell
         var saves = page == SavesRoot;
         SavesRoot.Opacity = saves ? 1 : 0;
         SavesRoot.IsHitTestVisible = saves;
+        if (refresh && page == SettingsRoot) SettingsRoot.CompleteInitialLayout();
         if (refresh && page == GameExtensionsRoot) _ = GameExtensionsRoot.RefreshForNavigationAsync();
         if (refresh && page == LogsRoot) LogsRoot.RefreshForNavigation();
     }
@@ -65,8 +69,10 @@ public sealed partial class MainWindowShell
         // Animate only the content host, not the navigation rail, footer or title bar.
         // There is no layout animation, per-frame callback, timer or page reconstruction.
         PageContent.IsHitTestVisible = false;
-        PageContent.Opacity = entering ? 0 : 1;
-        PageContent.Translation = entering ? new Vector3(0, 20, 0) : Vector3.Zero;
+        // Keep the base values at the animation's destination, so completion cannot
+        // reveal the old page while its dispatcher callback is still queued.
+        PageContent.Opacity = entering ? 1 : 0;
+        PageContent.Translation = Vector3.Zero;
         contentFade = compositor.CreateScalarKeyFrameAnimation();
         contentFade.Target = "Opacity";
         contentFade.InsertKeyFrame(0, entering ? 0 : 1);
@@ -94,12 +100,14 @@ public sealed partial class MainWindowShell
         {
             if (!ReferenceEquals(sender, contentTransitionBatch)) return;
             var completed = contentTransitionCompleted;
-            ResetContentTransition();
+            // The outgoing page stays hidden while the incoming page creates its
+            // templates, loads settings and completes its first layout.
+            ResetContentTransition(restorePresentation: !contentExiting);
             completed?.Invoke();
         });
     }
 
-    private void ResetContentTransition()
+    private void ResetContentTransition(bool restorePresentation = true)
     {
         if (contentTransitionBatch is { } batch)
         {
@@ -111,9 +119,12 @@ public sealed partial class MainWindowShell
         contentExiting = false;
         if (contentFade is not null) { PageContent.StopAnimation(contentFade); contentFade.Dispose(); contentFade = null; }
         if (contentRise is not null) { PageContent.StopAnimation(contentRise); contentRise.Dispose(); contentRise = null; }
-        PageContent.Opacity = 1;
-        PageContent.Translation = Vector3.Zero;
-        PageContent.IsHitTestVisible = true;
+        if (restorePresentation)
+        {
+            PageContent.Opacity = 1;
+            PageContent.Translation = Vector3.Zero;
+            PageContent.IsHitTestVisible = true;
+        }
     }
 
     private void FinishContentNavigation()

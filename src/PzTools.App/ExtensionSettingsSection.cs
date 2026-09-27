@@ -29,7 +29,7 @@ internal sealed class ExtensionSettingsSection
         foreach (var text in new[] { description, version, status, lastSave, hint }) details.Children.Add(text);
         Control = new SettingsExpander
         {
-            Header = title, Description = details, Content = enabled.Control, IsExpanded = true,
+            Header = title, Description = details, Content = enabled.Control, IsExpanded = false,
             HeaderIcon = new ImageIcon
             {
                 Width = 20, Height = 20,
