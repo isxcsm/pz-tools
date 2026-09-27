@@ -27,8 +27,9 @@ not change those choices; see [game-save behavior](save-bridge.md).
 
 ## Compatibility
 
-The [catalogue](../config/game-extensions/catalog.tsv) declares the inspected
-42.20 code family. Activation also requires structural and bytecode checks.
+The [catalogue](../config/game-extensions/catalog.tsv) declares major version 42.
+Activation still requires the inspected 42.20 bytecode and
+structural checks; the range declaration does not guarantee every 42.x patch.
 Force-enable bypasses only the declared version range, never identity, structural,
 admission or cleanup checks, and does not turn on the extension itself.
 

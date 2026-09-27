@@ -13,5 +13,16 @@ public final class VersionSupportTest {
             count++;
         }
         System.out.println("PASS: " + count + " shared version-range cases");
+        String[] vehicle = Files.readAllLines(Path.of(args[1])).stream()
+            .filter(line -> line.startsWith("pztools.vehicle-drivetrain\t"))
+            .findFirst().orElseThrow().split("\t", -1);
+        var support = new VersionSupport(vehicle[5], vehicle[6], vehicle[7]);
+        if (!support.equals(new VersionSupport("Major", "42", "42")))
+            throw new AssertionError("Vehicle catalogue must declare only major 42");
+        for (String version : new String[] { "42.0", "42.19.9", "42.20.4", "42.21-unstable", "42.9999" })
+            if (!support.matches(version)) throw new AssertionError("Rejected vehicle version " + version);
+        for (String version : new String[] { "41.78", "43.0", null })
+            if (support.matches(version)) throw new AssertionError("Admitted vehicle version " + version);
+        System.out.println("PASS: shared vehicle catalogue declares and admits only major 42");
     }
 }

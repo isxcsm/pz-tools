@@ -8,7 +8,7 @@ The `pztools.vehicle-drivetrain` module is an experimental, default-off extensio
 
 The goal is smoother reacceleration, shifting, reverse launch, and keyboard steering while retaining differences between vehicles. The module does not replace mass, cargo, tire friction, suspension, collision, ordinary braking, character traits, or gamepad steering.
 
-The catalog declares B42.20, but activation also requires matching bytecode structure, signatures, fields, and canonical fingerprints. The inspected installation JAR had SHA-256:
+The catalog declares major version 42, but activation still requires the inspected 42.20 bytecode structure, signatures, fields, and canonical fingerprints. The inspected installation JAR had SHA-256:
 
 ```text
 80E405A4BFC42F6072E75B3735F458A6514143DA011D3226007DED305A442F44
@@ -83,6 +83,10 @@ Extra engine braking is not implemented. Original coasting remains in use until 
 
 Keyboard steering is an independent phase immediately before the original interpolation block. It uses the already-processed input, replaces that interpolation when eligible, and preserves downstream angle clamps, tire processing, wheel display, and native calls.
 
+The game runs physics before refreshing `ClientControls`, so the previous steering direction can remain for one update. For keyboard-controlled vehicles only, the adapter checks the game's mapped `GameKeyboard.isKeyDown("Left"/"Right")` input and suppresses an already-released direction to neutral. It never creates a new press or reversal, modifies `ClientControls`, or restores input suppressed by the game's intoxication, aiming, loading, or text-input gates. New input remains subject to the original game path.
+
+A repeated callback in the same frame reuses an already-applied pre-tire steering value without another model integration or vanilla interpolation. This avoids cumulative downstream tire correction. Observation-only predictions and declined steps never create an applied cache; invalid input, driver changes, and reconfiguration invalidate it.
+
 The defaults are an initial rate of 1.8, sustained rate of 7.5, and a 0.1-second ramp, expressed as fractions of maximum steering angle per second. First-input response scales from 1.0 to 0.6 with speed. Return and countersteer rates are both 8; the countersteer floor follows the latest held intent through center, including rapid repeated reversals.
 
 With a fixed angle cap, the theoretical default timings are approximately 171–260 ms center-to-lock, 125 ms lock-to-center, and 250 ms lock-to-opposite-lock. These are model calculations, not measured game latency.
@@ -102,7 +106,7 @@ All handles, receiver types, gear objects, and output values are validated befor
 
 Per-update flags are local; previous vehicle/tick success cannot grant a bypass. Retirement cannot undo fields already committed into an in-flight game update, and the next generation cannot overwrite that update.
 
-Time comes from the game's physics-time interface and is validated in seconds. Invalid, zero, or excessive dt falls back; default maximum dt is 0.1 seconds. Duplicate-frame and wrong-thread entry are declined. Pause/resume does not trigger an unbounded catch-up loop. The relationship between controller calls and native 0.01-second physics substeps still requires live measurement.
+Time comes from the game's physics-time interface and is validated in seconds. Invalid, zero, or excessive dt falls back; default maximum dt is 0.1 seconds. Duplicate propulsion and wrong-thread entry are declined. Same-frame steering reuses a validated, already-applied value for the same driver; all other duplicate steering cases retain the original-control fallback. Pause/resume does not trigger an unbounded catch-up loop. The relationship between controller calls and native 0.01-second physics substeps still requires live measurement.
 
 Vehicle profiles and scratch state are cached, with weak references for vehicle/driver ownership. The steady-state target is no per-tick allocation, configuration parsing, reflection lookup, IPC, or waiting. The module processes the local driver rather than scanning all world vehicles.
 

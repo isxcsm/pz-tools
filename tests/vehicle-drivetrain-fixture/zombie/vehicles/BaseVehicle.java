@@ -10,6 +10,7 @@ public final class BaseVehicle {
     public VehicleScript script=new VehicleScript();
     public IsoPlayer driver;
     public boolean running=true,burnt,offroad,regulator;
+    public boolean keyboardControlled=true;
     public BaseVehicle towedBy,towing;
     public Object getDriver() { return driver; }
     public VehicleScript getScript() { return script; }
@@ -28,5 +29,6 @@ public final class BaseVehicle {
     public boolean isDoingOffroad() { return offroad; }
     public boolean isRegulator() { return regulator; }
     public int getJoypad() { return joypad; }
+    public boolean isKeyboardControlled() { return keyboardControlled; }
     public void setCurrentSteering(float value) { currentSteering=value; }
 }

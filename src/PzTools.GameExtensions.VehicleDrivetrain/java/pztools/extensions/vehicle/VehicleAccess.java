@@ -12,6 +12,7 @@ final class VehicleAccess {
     private final MethodHandle driver, script, running, getEngine, getVehicleEngine, getTowedBy, getTowing, burnt;
     private final MethodHandle localPlayer, hasTrait, speed, power, mass, engineRpm, gear, maxSpeed, offroad, offroadEfficiency;
     private final MethodHandle rpmType, wheelCount, getWheel, physicsSeconds, frameNo, getVehicle, gas, gasReverse, regulator, joypad, steeringClamp;
+    private final MethodHandle keyboardControlled, steeringKeyDown;
     private final VarHandle[] gears=new VarHandle[9];
     private final VarHandle reverse;
     private final ClassLoader loader;
@@ -49,6 +50,9 @@ final class VehicleAccess {
         gas=method(controllerType,"isGas",boolean.class); gasReverse=method(controllerType,"isGasR",boolean.class);
         regulator=method(vehicleType,"isRegulator",boolean.class);
         joypad=method(vehicleType,"getJoypad",int.class); steeringClamp=method(scriptType,"getSteeringClamp",float.class,float.class);
+        keyboardControlled=method(vehicleType,"isKeyboardControlled",boolean.class);
+        steeringKeyDown=MethodHandles.publicLookup().findStatic(type("zombie.input.GameKeyboard"),"isKeyDown",
+            MethodType.methodType(boolean.class,String.class));
         reverse=field(transmissionType,"R");
         for(int i=1;i<=8;i++) gears[i]=field(transmissionType,"Speed"+i);
     }
@@ -134,6 +138,17 @@ final class VehicleAccess {
         Object input=controls.get(c);
         if(input==null) return "missing-controls";
         f.driver=p; f.input=(float)steeringInput.get(input); f.actual=(float)steering.get(c);
+        // The game updates physics before refreshing ClientControls. Only veto
+        // a stale held direction when that mapped key is no longer held. Never
+        // synthesize a new press/reversal or write ClientControls: the game's
+        // aiming/loading/drunk input gates remain authoritative for new input.
+        if(Float.isFinite(f.input) && Math.abs(f.input)>0.1f && Math.abs(f.input)<=1.0001f
+                && (boolean)keyboardControlled.invokeExact(v)) {
+            boolean left=(boolean)steeringKeyDown.invokeExact("Left");
+            boolean right=(boolean)steeringKeyDown.invokeExact("Right");
+            int heldDirection=(right?1:0)-(left?1:0);
+            if(f.input*heldDirection<=0) f.input=0;
+        }
         f.speed=(float)speed.invokeExact(v); f.maximumSpeed=(float)maxSpeed.invokeExact(v);
         f.maximum=(float)steeringClamp.invokeExact(s,Math.abs(f.speed));
         f.frame=(int)frameNo.invokeExact(currentWorld); f.dt=(float)physicsSeconds.invokeExact((Object)time.get());

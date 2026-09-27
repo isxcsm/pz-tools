@@ -104,10 +104,22 @@ final class VehicleControl implements VehicleHooks.Controller {
             String rejected=access.readSteering(controller,context,steeringFrame);
             if(rejected!=null) return originalSteering(slot,rejected);
             if(slot==null) { slot=new SteeringSlot(settings.model); steeringStates.put(controller,slot); }
-            if(slot.lastFrame==steeringFrame.frame) return originalSteering(slot,"duplicate-frame");
-            if(slot.lastFrame+1!=steeringFrame.frame || slot.driver.get()!=steeringFrame.driver) slot.model.reset();
+            boolean sameDriver=slot.driver.get()==steeringFrame.driver;
+            if(slot.lastFrame==steeringFrame.frame && sameDriver) {
+                if(!slot.model.accepts(steeringFrame.input,steeringFrame.actual,steeringFrame.maximum,
+                        steeringFrame.speed,steeringFrame.maximumSpeed,steeringFrame.dt))
+                    return originalSteering(slot,"invalid-steering-input-or-dt");
+                if(!slot.applied) return originalSteering(slot,"duplicate-frame");
+                // A completed physics frame owns one integration, even if input changes before a repeated callback.
+                // Restore the pre-tire value: replaying the already adjusted field would compound tire correction.
+                recordSteering(true,"duplicate-frame-applied",slot.appliedAngle);
+                access.commitSteering(controller,slot.appliedAngle);
+                return VehicleHooks.APPLIED;
+            }
+            if(slot.lastFrame+1!=steeringFrame.frame || !sameDriver) slot.model.reset();
+            slot.applied=false;
             slot.lastFrame=steeringFrame.frame;
-            if(slot.driver.get()!=steeringFrame.driver) slot.driver=new WeakReference<>(steeringFrame.driver);
+            if(!sameDriver) slot.driver=new WeakReference<>(steeringFrame.driver);
             double angle=slot.model.step(steeringFrame.input,steeringFrame.actual,steeringFrame.maximum,
                 steeringFrame.speed,steeringFrame.maximumSpeed,steeringFrame.dt);
             if(!Double.isFinite(angle)) return originalSteering(slot,"invalid-steering-input-or-dt");
@@ -116,9 +128,10 @@ final class VehicleControl implements VehicleHooks.Controller {
             }
             recordSteering(true,"applied",angle);
             access.commitSteering(controller,(float)angle);
+            slot.appliedAngle=(float)angle; slot.applied=true;
             return VehicleHooks.APPLIED;
         } catch(Throwable failure) {
-            if(slot!=null) slot.model.reset();
+            if(slot!=null) { slot.model.reset(); slot.applied=false; }
             if(failure instanceof Exception exception) throw exception;
             if(failure instanceof Error error) throw error;
             throw new IllegalStateException(failure);
@@ -128,7 +141,8 @@ final class VehicleControl implements VehicleHooks.Controller {
         }
     }
     private int originalSteering(SteeringSlot slot,String reason) {
-        if(slot!=null) slot.model.reset(); recordSteering(false,reason,Double.NaN); return VehicleHooks.VANILLA;
+        if(slot!=null) { slot.model.reset(); slot.applied=false; }
+        recordSteering(false,reason,Double.NaN); return VehicleHooks.VANILLA;
     }
     private void recordSteering(boolean applied,String reason,double angle) {
         if(!settings.diagnostics) return;
@@ -234,6 +248,7 @@ final class VehicleControl implements VehicleHooks.Controller {
     }
     private static final class SteeringSlot {
         final SteeringModel model; WeakReference<Object> driver=new WeakReference<>(null); int lastFrame=Integer.MIN_VALUE;
+        float appliedAngle; boolean applied;
         SteeringSlot(DrivetrainConfig config) { model=new SteeringModel(config); }
     }
 }

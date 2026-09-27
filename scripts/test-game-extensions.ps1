@@ -31,7 +31,7 @@ $env:PZTOOLS_EXTENSION_FIXTURE_JAR = Join-Path $output 'fixture-module.jar'
 & (Join-Path $JdkPath 'bin/jar.exe') --create --manifest (Join-Path $output 'fixture-module.mf') --file $env:PZTOOLS_EXTENSION_FIXTURE_JAR -C $fixtureClasses pztools/extensions/fixture
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture packaging failed.' }
 
-& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) VersionSupportTest (Join-Path $root 'tests/game-extensions/version-support.tsv')
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) VersionSupportTest (Join-Path $root 'tests/game-extensions/version-support.tsv') (Join-Path $root 'config/game-extensions/catalog.tsv')
 if ($LASTEXITCODE -ne 0) { throw 'Shared extension version rules failed.' }
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.vehicle.model.DrivetrainModelTest
 if ($LASTEXITCODE -ne 0) { throw 'Vehicle drivetrain model behavior failed.' }

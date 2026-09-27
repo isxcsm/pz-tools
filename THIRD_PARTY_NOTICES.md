@@ -40,7 +40,8 @@ The support button uses the cup geometry from Buy Me a Coffee's official
 [button logo SVG](https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg),
 linked through its [brand assets](https://buymeacoffee.com/brand).
 The original paths are combined into a native monochrome icon; hover uses
-the brand yellow (`#FFDD00`), with a system-color override in high contrast.
+a muted coffee/biscuit tone adapted to the app theme, with a system-color
+override in high contrast.
 The mark identifies the external support service and remains the property
 of its respective owner. No remote widget or runtime asset download is used.
 

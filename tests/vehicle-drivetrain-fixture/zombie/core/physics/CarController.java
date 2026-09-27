@@ -15,7 +15,10 @@ public final class CarController {
     public int vehicleId=1;
     public boolean backSignal,brakeLights;
     public boolean drunkDelay,unsafeChunk,cruiseInput,parkingInput;
-    public CarController(BaseVehicle vehicle) { vehicleObject=vehicle; }
+    public CarController(BaseVehicle vehicle) {
+        vehicleObject=vehicle;
+        zombie.input.GameKeyboard.controls=clientControls;
+    }
     public enum ControlState { NoControl,Braking,Forward,Reverse }
     public static final class ClientControls { public boolean wasUsingParkingBrakes; public float steering; }
     public boolean isGas() { return isGas; }

@@ -4,6 +4,13 @@ Major|42|-|42.20|true
 Major|42|-|41.78|false
 Major|42|-|43.0|true
 Major|42|42|43.0|false
+Major|42|42|42.0|true
+Major|42|42|42.19.9|true
+Major|42|42|42.20.4|true
+Major|42|42|42.21-unstable|true
+Major|42|42|42.9999|true
+Major|42|42|41.78|false
+Major|42|42|-|false
 Major|42|-|-|false
 Minor|42.20|42.20|42.20.7|true
 Minor|42.20|42.20|42.21|false

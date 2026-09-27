@@ -12,7 +12,7 @@ Run a complete Windows x64 distribution containing the app, workers, bridge, ext
 
 A game that already loaded bootstrap API9 or earlier needs one full restart. Starting the game before the app is supported when no older agent is resident; compatible API10 app restarts do not require restarting the game each time.
 
-The catalog declares B42.20, with additional structural checks. Propulsion candidates are four-wheel vehicles with `generic`, `van`, `jeep`, or `firebird` engine types and 3–5 gears. Unknown profiles, stopped engines, towed/burnt vehicles, and burnt-vehicle towing use original propulsion. Keyboard steering is checked independently and can apply with the engine off or an unsupported propulsion profile. Gamepad, towed, and burnt-vehicle steering remains original.
+The catalog declares major version 42. Mandatory bytecode and structural checks still target the inspected 42.20 build; the declaration does not guarantee every 42.x patch. Propulsion candidates are four-wheel vehicles with `generic`, `van`, `jeep`, or `firebird` engine types and 3–5 gears. Unknown profiles, stopped engines, towed/burnt vehicles, and burnt-vehicle towing use original propulsion. Keyboard steering is checked independently and can apply with the engine off or an unsupported propulsion profile. Gamepad, towed, and burnt-vehicle steering remains original.
 
 ## First comparison
 
@@ -33,6 +33,8 @@ Begin with only Fine steering control enabled. Resume the game, stop on level gr
 | Acceleration/shifting | Compare launch, first-to-second gear, and acceleration after a corner. Watch for gear hunting, early loss of low-speed force, or a long force gap after reapplying input. |
 
 A useful first report is simply `vehicle / enabled option / improvement or problem`. Developer diagnostics are not required for initial feedback.
+
+For the release-input fix, tap and hold each direction, then release it or alternate directions quickly. The front wheels should start returning without an extra outward steering step from the old input. Return-rate settings and native body rotation/sliding are unchanged: immediate straight-line travel is not the acceptance condition. Check that gamepad behavior and the game's aiming/text-input restrictions remain intact.
 
 ## Check settings and application
 

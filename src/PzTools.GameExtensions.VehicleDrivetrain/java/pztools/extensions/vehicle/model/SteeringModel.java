@@ -8,12 +8,16 @@ public final class SteeringModel {
     private int direction;
     public SteeringModel(DrivetrainConfig config) { this.config=config; }
     public void reset() { initialized=countersteering=false; angle=held=0; direction=0; }
+    /** Shared, non-mutating guards for new steps and same-frame replay. */
+    public boolean accepts(double input,double actualAngle,double maximumAngle,double speedKph,double maximumSpeedKph,double dtSeconds) {
+        return Double.isFinite(input) && Math.abs(input)<=1.0001 && Double.isFinite(actualAngle)
+            && Double.isFinite(maximumAngle) && maximumAngle>0 && maximumAngle<=Math.PI
+            && Double.isFinite(speedKph) && Double.isFinite(maximumSpeedKph) && maximumSpeedKph>0
+            && Double.isFinite(dtSeconds) && dtSeconds>0 && dtSeconds<=config.maxDtSeconds;
+    }
     /** NaN means decline without a game write. Input sign follows the game's keyboard convention. */
     public double step(double input,double actualAngle,double maximumAngle,double speedKph,double maximumSpeedKph,double dtSeconds) {
-        if(!Double.isFinite(input) || Math.abs(input)>1.0001 || !Double.isFinite(actualAngle)
-                || !Double.isFinite(maximumAngle) || maximumAngle<=0 || maximumAngle>Math.PI
-                || !Double.isFinite(speedKph) || !Double.isFinite(maximumSpeedKph) || maximumSpeedKph<=0
-                || !Double.isFinite(dtSeconds) || dtSeconds<=0 || dtSeconds>config.maxDtSeconds) {
+        if(!accepts(input,actualAngle,maximumAngle,speedKph,maximumSpeedKph,dtSeconds)) {
             reset(); return Double.NaN;
         }
         if(!initialized) { angle=clamp(actualAngle,-maximumAngle,maximumAngle); initialized=true; }
