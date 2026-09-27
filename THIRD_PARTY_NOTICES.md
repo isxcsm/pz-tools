@@ -34,6 +34,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+## Buy Me a Coffee cup mark
+
+The support button uses the cup geometry from Buy Me a Coffee's official
+[button logo SVG](https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg),
+linked through its [brand assets](https://buymeacoffee.com/brand).
+The original paths are combined into a native monochrome icon; hover uses
+the brand yellow (`#FFDD00`), with a system-color override in high contrast.
+The mark identifies the external support service and remains the property
+of its respective owner. No remote widget or runtime asset download is used.
+
 ## Project Zomboid world-249 chunk layout
 
 The structural map/corpse reader was adapted from the MIT-licensed pzdataspec
