@@ -1,5 +1,6 @@
 using PzTools.Process.Contracts;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text;
@@ -221,71 +222,56 @@ public sealed class IncrementalBackupRunner(
             long completedFiles = 0;
             long completedFileBytes = 0;
             long lastCopyProgress = 0;
-            foreach (var item in pending)
+            async IAsyncEnumerable<PendingEntry> CaptureEntries(
+                [EnumeratorCancellation] CancellationToken token)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (item.Tombstone || item.Kind == CatalogEntryKind.Directory)
+                foreach (var item in pending)
                 {
-                    entries.Add(item.ToRegistration(ObjectId: null));
-                    continue;
+                    token.ThrowIfCancellationRequested();
+                    if (item.Tombstone || item.Kind == CatalogEntryKind.Directory)
+                    {
+                        entries.Add(item.ToRegistration(ObjectId: null));
+                        continue;
+                    }
+                    packWriter ??= await PackWriter.CreateAsync(repository.RepositoryPath, run.RunIndex, token);
+                    yield return item;
                 }
-
-                currentFile = item.RelativePath;
-                packWriter ??= await PackWriter.CreateAsync(
-                    repository.RepositoryPath,
-                    run.RunIndex,
-                    cancellationToken);
+            }
+            async ValueTask CopyProgress(FileCopyProgress copy)
+            {
+                var now = Stopwatch.GetTimestamp();
+                if (Stopwatch.GetElapsedTime(lastCopyProgress, now)
+                        < TimeSpan.FromMilliseconds(tuning.ProgressIntervalMs)
+                    && !(copy.Attempt > 1 && copy.CopiedBytes == 0))
+                    return;
+                lastCopyProgress = now;
                 await telemetry.EmitAsync(
                     new TelemetryEvent(
-                        TelemetryEventScope.Raw,
-                        "file.capture.started",
-                        JsonSerializer.Serialize(new { path = item.RelativePath })),
-                    cancellationToken);
-                Func<FileCopyProgress, ValueTask> copyProgress = async copy =>
-                {
-                    var now = Stopwatch.GetTimestamp();
-                    if (Stopwatch.GetElapsedTime(lastCopyProgress, now)
-                            < TimeSpan.FromMilliseconds(tuning.ProgressIntervalMs)
-                        && !(copy.Attempt > 1 && copy.CopiedBytes == 0))
-                        return;
-                    lastCopyProgress = now;
-                    await telemetry.EmitAsync(
-                        new TelemetryEvent(
-                            TelemetryEventScope.Phase,
-                            "progress.snapshot",
-                            JsonSerializer.Serialize(new
-                            {
-                                phase = copy.Attempt > 1 ? "copy.retry" : copy.Phase,
-                                completedItems = completedFiles,
-                                totalItems = workloadItems,
-                                completedBytes = completedFileBytes + copy.CopiedBytes,
-                                totalBytes = workloadBytes,
-                                attempt = copy.Attempt,
-                            })), cancellationToken);
-                };
-                var stored = storageOptions.ContentDeduplication
-                    ? await (deduplicatingCapturer
-                        ?? throw new InvalidOperationException(
-                            "A deduplicating capturer is required when deduplication is enabled."))
-                        .CaptureAsync(
-                            repository,
-                            ToAbsolutePath(source.RootPath, item.RelativePath),
-                            packWriter,
-                            checksum,
-                            compression,
-                            contentDeduplication: true,
-                            cancellationToken: cancellationToken,
-                            progress: copyProgress)
-                    : new StoredFileCapture(
-                        await fileCapturer.CaptureAsync(
-                            ToAbsolutePath(source.RootPath, item.RelativePath),
-                            packWriter,
-                            checksum,
-                            compression,
-                            cancellationToken,
-                            copyProgress),
-                        packWriter.PackId,
-                        Reused: false);
+                        TelemetryEventScope.Phase,
+                        "progress.snapshot",
+                        JsonSerializer.Serialize(new
+                        {
+                            phase = copy.Attempt > 1 ? "copy.retry" : copy.Phase,
+                            completedItems = completedFiles,
+                            totalItems = workloadItems,
+                            completedBytes = completedFileBytes + copy.CopiedBytes,
+                            totalBytes = workloadBytes,
+                            attempt = copy.Attempt,
+                        })), cancellationToken);
+            }
+            await foreach (var prepared in FileCapturePipeline.PrepareAsync(
+                CaptureEntries(cancellationToken), fileCapturer as StableFileCapturer,
+                item => ToAbsolutePath(source.RootPath, item.RelativePath),
+                () => packWriter!.CreateCaptureStagingStream(), tuning, storageOptions.ContentDeduplication,
+                item => currentFile = item.RelativePath, CopyProgress, cancellationToken))
+            {
+                var item = prepared.Entry;
+                currentFile = item.RelativePath;
+                await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Raw, "file.capture.started",
+                    JsonSerializer.Serialize(new { path = item.RelativePath })), cancellationToken);
+                var stored = await prepared.CaptureAsync(repository, fileCapturer, deduplicatingCapturer,
+                    packWriter!, checksum, compression, storageOptions.ContentDeduplication,
+                    cancellationToken, CopyProgress);
                 var captured = stored.Capture;
                 if (!stored.Reused)
                 {

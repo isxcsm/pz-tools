@@ -231,6 +231,7 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
 public sealed class FullScanSession : IAsyncDisposable
 {
     private readonly SqliteConnection connection;
+    private SqliteCommand? stageCapturedFileCommand;
 
     internal FullScanSession(
         SqliteConnection connection,
@@ -274,7 +275,32 @@ public sealed class FullScanSession : IAsyncDisposable
     {
         var normalizedPath = BackupPath.NormalizeRelative(relativePath);
         var metadata = captured.SourceMetadata;
-        await using var command = connection.CreateCommand();
+        var command = stageCapturedFileCommand ??= CreateStageCapturedFileCommand();
+        command.Parameters["$byteLength"].Value = metadata.Length;
+        command.Parameters["$modifiedUtc"].Value = metadata.ModifiedUtc.UtcTicks;
+        command.Parameters["$changedUtc"].Value = metadata.ChangedUtc.UtcTicks;
+        command.Parameters["$attributes"].Value = (long)metadata.Attributes;
+        command.Parameters["$fileId"].Value = FileIdentityCodec.Encode(metadata.Identity);
+        command.Parameters["$objectId"].Value = captured.Object.ObjectId.ToByteArray();
+        command.Parameters["$packId"].Value = packId.ToByteArray();
+        command.Parameters["$recordOffset"].Value = captured.Object.RecordOffset;
+        command.Parameters["$storedLength"].Value = captured.Object.StoredLength;
+        command.Parameters["$checksumAlgorithm"].Value = (int)captured.Object.ChecksumAlgorithm;
+        command.Parameters["$checksum"].Value = captured.Object.Checksum;
+        command.Parameters["$compressionAlgorithm"].Value = (int)captured.Object.CompressionAlgorithm;
+        command.Parameters["$objectFlags"].Value = captured.Object.Flags;
+        command.Parameters["$contentHash"].Value = (object?)captured.ContentHash ?? DBNull.Value;
+        command.Parameters["$pathKey"].Value = normalizedPath.ToUpperInvariant();
+        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        {
+            throw new InvalidOperationException(
+                $"Scanned file '{normalizedPath}' is missing from staging.");
+        }
+    }
+
+    private SqliteCommand CreateStageCapturedFileCommand()
+    {
+        var command = connection.CreateCommand();
         command.CommandText =
             """
             UPDATE full_scan_entries
@@ -294,32 +320,21 @@ public sealed class FullScanSession : IAsyncDisposable
                 content_hash = $contentHash
             WHERE path_key = $pathKey AND entry_kind = 'File';
             """;
-        command.Parameters.AddWithValue("$byteLength", metadata.Length);
-        command.Parameters.AddWithValue("$modifiedUtc", metadata.ModifiedUtc.UtcTicks);
-        command.Parameters.AddWithValue("$changedUtc", metadata.ChangedUtc.UtcTicks);
-        command.Parameters.AddWithValue("$attributes", (long)metadata.Attributes);
-        command.Parameters.AddWithValue(
-            "$fileId",
-            FileIdentityCodec.Encode(metadata.Identity));
-        command.Parameters.AddWithValue("$objectId", captured.Object.ObjectId.ToByteArray());
-        command.Parameters.AddWithValue("$packId", packId.ToByteArray());
-        command.Parameters.AddWithValue("$recordOffset", captured.Object.RecordOffset);
-        command.Parameters.AddWithValue("$storedLength", captured.Object.StoredLength);
-        command.Parameters.AddWithValue(
-            "$checksumAlgorithm",
-            (int)captured.Object.ChecksumAlgorithm);
-        command.Parameters.AddWithValue("$checksum", captured.Object.Checksum);
-        command.Parameters.AddWithValue(
-            "$compressionAlgorithm",
-            (int)captured.Object.CompressionAlgorithm);
-        command.Parameters.AddWithValue("$objectFlags", captured.Object.Flags);
-        command.Parameters.AddWithValue("$contentHash",
-            (object?)captured.ContentHash ?? DBNull.Value);
-        command.Parameters.AddWithValue("$pathKey", normalizedPath.ToUpperInvariant());
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        foreach (var name in new[] { "$byteLength", "$modifiedUtc", "$changedUtc", "$attributes",
+                     "$recordOffset", "$storedLength", "$checksumAlgorithm", "$compressionAlgorithm", "$objectFlags" })
+            command.Parameters.Add(name, SqliteType.Integer);
+        foreach (var name in new[] { "$fileId", "$objectId", "$packId", "$checksum", "$contentHash" })
+            command.Parameters.Add(name, SqliteType.Blob);
+        command.Parameters.Add("$pathKey", SqliteType.Text);
+        try
         {
-            throw new InvalidOperationException(
-                $"Scanned file '{normalizedPath}' is missing from staging.");
+            command.Prepare();
+            return command;
+        }
+        catch
+        {
+            command.Dispose();
+            throw;
         }
     }
 
@@ -435,7 +450,18 @@ public sealed class FullScanSession : IAsyncDisposable
             yield return (ReadEntry(reader, 0), reader.IsDBNull(9) ? null : (byte[])reader.GetValue(9));
     }
 
-    public ValueTask DisposeAsync() => connection.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (stageCapturedFileCommand is not null)
+                await stageCapturedFileCommand.DisposeAsync();
+        }
+        finally
+        {
+            await connection.DisposeAsync();
+        }
+    }
 
     private static FullScanEntry ReadEntry(SqliteDataReader reader, int columnOffset)
     {

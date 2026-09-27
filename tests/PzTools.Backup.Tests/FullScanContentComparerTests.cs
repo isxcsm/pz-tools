@@ -95,6 +95,54 @@ public sealed class FullScanContentComparerTests
         Assert.Equal(new[] { false, true }, matches);
     }
 
+    [Theory]
+    [InlineData("length")]
+    [InlineData("modified")]
+    [InlineData("changed")]
+    [InlineData("identity")]
+    public async Task Comparison_SkipsContentReadWhenScanMetadataAlreadyChanged(string field)
+    {
+        using var temp = new TempDirectory();
+        var candidate = (await CreateEntriesAsync(temp))[0];
+        var stale = field switch
+        {
+            "length" => candidate.Entry with { Length = candidate.Entry.Length + 1 },
+            "modified" => candidate.Entry with { ModifiedUtc = candidate.Entry.ModifiedUtc.AddSeconds(-1) },
+            "changed" => candidate.Entry with { ChangedUtc = candidate.Entry.ChangedUtc.AddSeconds(-1) },
+            "identity" => candidate.Entry with { FileId = new byte[FileIdentityCodec.EncodedLength] },
+            _ => throw new ArgumentException(field),
+        };
+        var metadata = new TrackingMetadataReader();
+        var matches = await new FullScanContentComparer(metadata).CompareAsync(temp.Path,
+            [(stale, candidate.PreviousHash)], CancellationToken.None,
+            _ => throw new InvalidOperationException("An already changed file must not enter the content-read loop."));
+
+        Assert.False(Assert.Single(matches));
+        Assert.Equal(1, metadata.HandleReads);
+        Assert.Equal(0, metadata.PathReads);
+        Assert.True(Assert.Single(metadata.Handles).IsClosed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Comparison_StillRejectsMetadataChangesAfterContentRead(bool pathChanged)
+    {
+        using var temp = new TempDirectory();
+        var candidate = (await CreateEntriesAsync(temp))[0];
+        var metadata = new ChangedAfterReadMetadataReader(pathChanged);
+        long readBytes = 0;
+        var matches = await new FullScanContentComparer(metadata).CompareAsync(temp.Path,
+            [candidate], CancellationToken.None, bytes =>
+            {
+                readBytes = bytes;
+                return ValueTask.CompletedTask;
+            });
+
+        Assert.Equal(candidate.Entry.Length, readBytes);
+        Assert.False(Assert.Single(matches));
+    }
+
     private static async Task<(FullScanEntry Entry, byte[]? PreviousHash)[]> CreateEntriesAsync(TempDirectory temp)
     {
         var metadata = new WindowsFileMetadataReader();
@@ -124,10 +172,17 @@ public sealed class FullScanContentComparerTests
         public TaskCompletionSource BothOpened { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int MaximumOpenHandles { get; private set; }
         public int MaximumMetadataCalls { get; private set; }
+        public int HandleReads { get; private set; }
+        public int PathReads { get; private set; }
 
-        public FileCaptureMetadata ReadPath(string path) => Read(() => inner.ReadPath(path));
+        public FileCaptureMetadata ReadPath(string path) => Read(() =>
+        {
+            PathReads++;
+            return inner.ReadPath(path);
+        });
         public FileCaptureMetadata ReadHandle(SafeFileHandle handle) => Read(() =>
         {
+            HandleReads++;
             Handles.Add(handle);
             var open = Handles.Count(item => !item.IsClosed);
             MaximumOpenHandles = Math.Max(MaximumOpenHandles, open);
@@ -144,6 +199,26 @@ public sealed class FullScanContentComparerTests
                 return read();
             }
             finally { Interlocked.Decrement(ref activeMetadataCalls); }
+        }
+    }
+
+    private sealed class ChangedAfterReadMetadataReader(bool pathChanged) : IFileMetadataReader
+    {
+        private readonly WindowsFileMetadataReader inner = new();
+        private int handleReads;
+
+        public FileCaptureMetadata ReadHandle(SafeFileHandle handle)
+        {
+            var metadata = inner.ReadHandle(handle);
+            return ++handleReads == 2 && !pathChanged
+                ? metadata with { ChangedUtc = metadata.ChangedUtc.AddSeconds(1) }
+                : metadata;
+        }
+
+        public FileCaptureMetadata ReadPath(string path)
+        {
+            var metadata = inner.ReadPath(path);
+            return pathChanged ? metadata with { ChangedUtc = metadata.ChangedUtc.AddSeconds(1) } : metadata;
         }
     }
 }

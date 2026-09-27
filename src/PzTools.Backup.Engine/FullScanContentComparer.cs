@@ -91,6 +91,13 @@ internal sealed class FullScanContentComparer(IFileMetadataReader metadataReader
         // The metadata-reader interface does not require thread safety, even though the Windows
         // implementation is stateless. Keep injected readers serialized too.
         lock (metadataGate) before = metadataReader.ReadHandle(stream.SafeFileHandle);
+        // A file that changed after enumeration already requires capture. Do not read
+        // its complete contents here when the comparison cannot possibly match.
+        if (before.Length != entry.Length
+            || before.ModifiedUtc != entry.ModifiedUtc
+            || before.ChangedUtc != entry.ChangedUtc
+            || !FileIdentityCodec.Encode(before.Identity).AsSpan().SequenceEqual(entry.FileId))
+            return false;
         byte[] hash;
         using (var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
         {

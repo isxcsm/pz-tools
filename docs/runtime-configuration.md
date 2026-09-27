@@ -11,7 +11,7 @@ explicit CLI flags keep their existing precedence over TOML defaults.
 | Editable file | Operational settings |
 | --- | --- |
 | `app/default.toml` | Projection frequency, telemetry catch-up/read grace/stale threshold, card lifetime, thumbnail budget/parallelism, explicit refresh retries/timeouts, scheduler restart/backoff, shutdown grace, settings/filter debounce, active-operation progress frequency (legacy key: `export_progress_interval_ms`) |
-| `backup-worker/default.toml` | Unstable-file attempts/backoff, copy buffer, progress frequency, scan/USN batches, backup heartbeat, JVM connection/queue/completion timeouts |
+| `backup-worker/default.toml` | Unstable-file attempts/backoff, copy buffer, bounded small-file staging pool, capture reader/queue limits, progress frequency, scan/USN batches, backup heartbeat, JVM connection/queue/completion timeouts |
 | `backup-scheduler/default.toml` | Due-work polling frequency (not the user's backup interval) |
 | `state-scheduler/default.toml` | State collection, wake polling, independent confirmation delay, interrupted/orphan cleanup interval |
 | `maintenance-worker/default.toml` | Deleted-revision reclamation batch and writer-contention retry delay (not retention policy) |

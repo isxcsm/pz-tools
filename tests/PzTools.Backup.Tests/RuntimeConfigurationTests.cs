@@ -19,6 +19,14 @@ public sealed class RuntimeConfigurationTests
     [InlineData("game_connection_timeout_seconds", "0")]
     [InlineData("game_completion_timeout_seconds", "601")]
     [InlineData("game_queue_timeout_seconds", "61")]
+    [InlineData("small_file_staging_kib", "-1")]
+    [InlineData("small_file_staging_kib", "1025")]
+    [InlineData("staging_memory_mib", "0")]
+    [InlineData("staging_memory_mib", "257")]
+    [InlineData("capture_read_concurrency", "0")]
+    [InlineData("capture_read_concurrency", "9")]
+    [InlineData("capture_queue_capacity", "0")]
+    [InlineData("capture_queue_capacity", "129")]
     [InlineData("capture_attempts", "'five'")]
     [InlineData("capture_attempt_typo", "5")]
     public void BackupRuntime_RejectsInvalidValues(string key, string value)
@@ -62,6 +70,25 @@ public sealed class RuntimeConfigurationTests
         await new RevisionRestorer().RestoreAsync(repository, saved.SourceId, 1, temp.GetPath("restore"));
         foreach (var name in new[] { "one", "two", "three" })
             Assert.Equal(name, await File.ReadAllTextAsync(temp.GetPath("restore/" + name)));
+    }
+
+    [Fact]
+    public void BackupRuntime_StagingLimitsRoundTrip()
+    {
+        using var temp = new TempDirectory();
+        var options = BackupConfiguration.Parse("""
+            format_version = 1
+            [runtime]
+            small_file_staging_kib = 0
+            staging_memory_mib = 1
+            capture_read_concurrency = 3
+            capture_queue_capacity = 7
+            """, temp.GetPath("repo"), temp.GetPath("config.toml"),
+            new BackupOptionOverrides { Sources = [new("test", temp.GetPath("source"))] });
+        Assert.Equal(new BackupTuningOptions(SmallFileStagingKib: 0, StagingMemoryMib: 1,
+            CaptureReadConcurrency: 3, CaptureQueueCapacity: 7), options.EffectiveTuning);
+        Assert.Equal(options.EffectiveTuning, BackupConfiguration.Parse(BackupConfiguration.Serialize(options),
+            options.RepositoryPath, temp.GetPath("config.toml")).EffectiveTuning);
     }
 
     [Fact]

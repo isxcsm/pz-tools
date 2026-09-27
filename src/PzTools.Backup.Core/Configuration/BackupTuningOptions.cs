@@ -13,7 +13,11 @@ public sealed record BackupTuningOptions(
     int HeartbeatIntervalMs = 2000,
     int GameConnectionTimeoutSeconds = 30,
     int GameCompletionTimeoutSeconds = 150,
-    int GameQueueTimeoutSeconds = 15)
+    int GameQueueTimeoutSeconds = 15,
+    int SmallFileStagingKib = 256,
+    int StagingMemoryMib = 16,
+    int CaptureReadConcurrency = 2,
+    int CaptureQueueCapacity = 16)
 {
     public static BackupTuningOptions Read(ComponentConfiguration configuration) => new(
         configuration.GetInt32("runtime", "capture_attempts", 5, 1, 20),
@@ -25,7 +29,11 @@ public sealed record BackupTuningOptions(
         configuration.GetInt32("runtime", "heartbeat_interval_ms", 2000, 250, 4000),
         configuration.GetInt32("runtime", "game_connection_timeout_seconds", 30, 5, 120),
         configuration.GetInt32("runtime", "game_completion_timeout_seconds", 150, 30, 600),
-        configuration.GetInt32("runtime", "game_queue_timeout_seconds", 15, 1, 60));
+        configuration.GetInt32("runtime", "game_queue_timeout_seconds", 15, 1, 60),
+        configuration.GetInt32("runtime", "small_file_staging_kib", 256, 0, 1024),
+        configuration.GetInt32("runtime", "staging_memory_mib", 16, 1, 256),
+        configuration.GetInt32("runtime", "capture_read_concurrency", 2, 1, 8),
+        configuration.GetInt32("runtime", "capture_queue_capacity", 16, 1, 128));
 
     public TomlTable ToTable() => new()
     {
@@ -39,6 +47,10 @@ public sealed record BackupTuningOptions(
         ["game_connection_timeout_seconds"] = GameConnectionTimeoutSeconds,
         ["game_completion_timeout_seconds"] = GameCompletionTimeoutSeconds,
         ["game_queue_timeout_seconds"] = GameQueueTimeoutSeconds,
+        ["small_file_staging_kib"] = SmallFileStagingKib,
+        ["staging_memory_mib"] = StagingMemoryMib,
+        ["capture_read_concurrency"] = CaptureReadConcurrency,
+        ["capture_queue_capacity"] = CaptureQueueCapacity,
     };
 
     public void Validate()
@@ -47,7 +59,9 @@ public sealed record BackupTuningOptions(
             || CopyBufferKib is < 16 or > 4096 || ProgressIntervalMs is < 50 or > 2000
             || ScanBatchSize is < 1 or > 16384 || JournalBatchSize is < 1 or > 65536
             || HeartbeatIntervalMs is < 250 or > 4000 || GameConnectionTimeoutSeconds is < 5 or > 120
-            || GameCompletionTimeoutSeconds is < 30 or > 600 || GameQueueTimeoutSeconds is < 1 or > 60)
+            || GameCompletionTimeoutSeconds is < 30 or > 600 || GameQueueTimeoutSeconds is < 1 or > 60
+            || SmallFileStagingKib is < 0 or > 1024 || StagingMemoryMib is < 1 or > 256
+            || CaptureReadConcurrency is < 1 or > 8 || CaptureQueueCapacity is < 1 or > 128)
             throw new InvalidDataException("Backup runtime settings are outside the documented ranges.");
         if (GameCompletionTimeoutSeconds < GameQueueTimeoutSeconds + 20)
             throw new InvalidDataException("runtime.game_completion_timeout_seconds must exceed game_queue_timeout_seconds by at least 20 seconds.");
