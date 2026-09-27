@@ -70,9 +70,10 @@ can become slightly larger. These are synthetic metadata measurements, not user 
 measurements or backup throughput claims. The script also reports fixture construction
 time, which is not a C# commit throughput benchmark.
 
-The existing catalog benchmark now evaluates the older aggregation through
-`entry_catalog` on the same normalized DB; it compares query algorithms, not the old
-physical layout. The compact-format size script also seeds normalized path dictionaries.
+The catalog benchmark was updated to evaluate the older aggregation through
+`entry_catalog` on the same normalized DB, comparing query algorithms rather than the
+old physical layout. The compact-format size script was also updated to seed normalized
+path dictionaries.
 
 ## Verification scope
 
@@ -93,11 +94,11 @@ Coverage includes real capture/case rename/move and per-revision byte/spelling r
 cross-source sharing, hidden baselines, compaction/GC, rollback, Unicode keys, literal
 prefix handling and old-schema rejection. The same 181 cases passed in the preceding
 validation run; its publication step failed on a workflow-write permission restriction,
-not a test failure. Product publishing and connector-authorized CI updates were then
-separated without changing product code or weakening tests.
+not a test failure. Publishing and CI updates were then handled separately without
+changing product code or weakening tests.
 
-Temporary transport workflows and payloads are removed from the final branch tree.
-The regular PR workflow includes the new SQL checks, layout experiment and path suite.
-Selected storage results are not whole-product validation: check the new PR's full
-Windows build, lifecycle, JVM and published-distribution jobs before merging. No live
-game, user saves or user repository was accessed or reset by this work.
+Temporary transport workflows and payloads were removed from the final branch tree.
+The PR workflow at that time included the new SQL checks, layout experiment and path suite.
+Selected storage results did not cover the whole product. Check the exact commit's
+full validation before merging; [development](development.md) describes the current
+workflow. No live game, user saves or user repository was accessed or reset by this work.

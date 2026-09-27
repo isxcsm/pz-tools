@@ -29,20 +29,20 @@ Begin with only Fine steering control enabled. Resume the game, stop on level gr
 | Feature | What to compare |
 | --- | --- |
 | Steering | Tap and hold a direction, release it, then hold the opposite direction. Check return to center and repeated reversals, including a second reversal before reaching center. Watch both the wheels and actual turn. |
-| Reverse | Compare launch and sustained reverse. The default 0.8-second launch ramp remains, but there should be no unnecessary universal 22 km/h cap or extra settled-force reduction. |
+| Reverse | Compare launch and sustained reverse. Check the default 0.8-second launch ramp, the vehicle-specific speed limit, and the absence of the old 22 km/h cap and additional force reduction after the ramp. |
 | Acceleration/shifting | Compare launch, first-to-second gear, and acceleration after a corner. Watch for gear hunting, early loss of low-speed force, or a long force gap after reapplying input. |
 
-A useful first report is simply `vehicle / enabled option / improvement or problem`. Developer diagnostics are not required for initial feedback.
+For initial feedback, report `vehicle / enabled option / observed behavior`. Developer diagnostics are optional.
 
 For the release-input fix, tap and hold each direction, then release it or alternate directions quickly. The front wheels should start returning without an extra outward steering step from the old input. Return-rate settings and native body rotation/sliding are unchanged: immediate straight-line travel is not the acceptance condition. Check that gamepad behavior and the game's aiming/text-input restrictions remain intact.
 
 ## Check settings and application
 
-The switches display saved intent. Pending application has an explanation; it must not lock all options or spin indefinitely. You should be able to edit settings offline, paused, or while driving, and the last saved request should apply after resuming, stopping, and releasing acceleration/cruise.
+The switches display saved preferences. When changes are waiting to apply, the UI should explain why and keep the controls available, without an indefinite progress indicator. You should be able to edit settings offline, paused, or while driving, and the last saved request should apply after resuming, stopping, releasing acceleration and turning off cruise control.
 
 Expand/collapse the card, scroll, and focus a control. Status refresh and rapid switch changes must preserve those states without rebuilding the page. The main switch stays visible when collapsed; all expanded rows remain reachable by wheel, scrollbar, and Tab.
 
-Force-enable is a separate inline row. It bypasses the declared version range, preserves mandatory code checks, and does not enable the extension by itself. Low mode, observation, and diagnostics are not normal UI options.
+**Ignore supported version range** is a separate inline row. It bypasses the declared version range, preserves mandatory code checks, and does not enable the extension by itself. Low mode, observation, and diagnostics are developer-only TOML options.
 
 Confirmed failures may turn off the matching request. They must not overwrite a newer saved choice or repeatedly retry a failed request without a new change. `RestartRequired` remains locked until the game restarts. Application revisions, module versions/hashes, and transition reasons are in the logs; choose Information or above to inspect normal transitions.
 

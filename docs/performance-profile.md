@@ -14,7 +14,7 @@ The measurements below predate the current bounded capture pipeline. They used
 seed 1729 on `LOCAL-MAIN`, with source and repository on the same `C:` volume.
 They are engineering observations, not hardware-independent targets or CI failure
 thresholds. See [backup tuning](backup-tuning.md) for the 2026-09-27 comparison that
-selected today's capture and full-scan hash defaults.
+selected the capture and full-scan hash defaults documented in [stable capture](stable-capture.md).
 
 The 2026-09-22 regression profile used 500 random 4 KiB files and 10 mutations.
 Across four strategies, initial backup took 0.65–0.76 s, incremental backup

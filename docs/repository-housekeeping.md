@@ -2,15 +2,15 @@
 
 [Documentation index](README.md) · [User guide](../README.md)
 
-Housekeeping removes deleted history and reclaims unreferenced storage. Logical
-deletion and physical space recovery are separate steps.
+Housekeeping removes obsolete history records and reclaims unreferenced storage.
+Removing a backup from the list and freeing its disk space are separate steps.
 
 ## Retention and orphan backups
 
 The automatic count limit applies only to automatic backups. Manual backups remain
-until explicit deletion or source cleanup; they are not permanently pinned.
+until explicitly deleted or removed by cleanup after the original save folder disappears.
 
-The orphan lane removes a save's backup history when its original folder is confirmed
+Orphan-backup cleanup removes a save's backup history when its original folder is confirmed
 missing under the configured saves root. It defers inaccessible roots, uncertain paths,
 reparse points and pending restore/edit operations instead of interpreting them as deletion.
 It also yields during gameplay or competing work, so cleanup is not immediate.
@@ -21,8 +21,8 @@ Export important history before deleting or moving the original save.
 `revision_batch_size` limits revisions compacted per source in a pass. A full batch
 is eligible immediately; a smaller batch becomes eligible after
 `revision_compaction_max_delay_minutes` (default 60). The next available maintenance
-pass performs the work. This is not a wall-clock deadline while the app is stopped,
-other work is busy, or maintenance is yielding.
+pass performs the work. Cleanup can take longer when the app is stopped, other work
+is running, or maintenance has yielded to higher-priority work.
 
 The periodic orphan-maintenance worker also checks up to four eligible sources per
 pass, oldest deletion first. Inactive saves therefore need neither another backup

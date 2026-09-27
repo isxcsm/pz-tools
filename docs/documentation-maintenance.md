@@ -36,7 +36,7 @@ Use relative links to files inside this repository so forks, branches and local 
 keep working. The [index](README.md) lists the root guide, every technical document and
 third-party notices; technical pages link back to it. Keep explicit section IDs stable
 and update heading links when renaming sections. Historical plans, verification reports
-and benchmarks retain their original values and scope. Translate their explanatory prose
+and benchmarks retain their original values and scope. Edit their explanatory prose
 without changing measurements, identifiers, commands or source paths, and label dated
 results rather than presenting them as current claims.
 
@@ -72,7 +72,7 @@ The checker uses the standard library, reads repository files only, and does not
 network requests. It covers the Markdown used here: inline and reference links, HTML
 `href`/`src`, explicit anchors and ATX/Setext heading anchors, including duplicate headings
 and escaped/nested parentheses in link destinations. Fenced and inline code examples are
-not treated as live links. External URLs are reported but not fetched. The parser is not
+not treated as live links. External URLs are counted but not fetched. The parser is not
 a complete implementation of every GitHub-Flavored Markdown extension.
 
 Review English explanations and warnings manually: structural checks cannot establish

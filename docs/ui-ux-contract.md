@@ -104,9 +104,9 @@ Deleting a revision uses `MarkRevisionDeletedAsync` under the writer lease and o
 
 ## Game extensions
 
-The extension-wide switch stays at the right of each expander header. Expanded rows place descriptions on the left and independent feature switches on the right. Vehicle controls and force-enable are inline; developer tuning stays in TOML.
+The extension-wide switch stays at the right of each expander header. Expanded rows place descriptions on the left and independent feature switches on the right. Vehicle controls and the version-range override are inline; developer tuning stays in TOML.
 
-Switches show saved intent, not confirmed JVM application. Offline and pending settings remain editable; the UI explains why application is pending. Refresh and saving preserve expansion, scroll, and focus. Confirmed failures revert only the matching saved request through compare-and-swap, while `RestartRequired` stays locked until the game restarts. Detailed revisions, hashes, and transition reasons belong in logs. See the [vehicle test guide](e2e-vehicle-drivetrain.md).
+Switches show saved preferences; a separate status reports whether the JVM has applied them. Settings remain editable while offline or waiting to apply, and the UI explains the reason for a delay. Refresh and saving preserve expansion, scroll, and focus. Confirmed failures revert only the matching saved request through compare-and-swap, while `RestartRequired` stays locked until the game restarts. Detailed revisions, hashes, and transition reasons belong in logs. See the [vehicle test guide](e2e-vehicle-drivetrain.md).
 
 ## View boundaries
 

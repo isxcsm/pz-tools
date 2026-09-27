@@ -20,7 +20,7 @@ Propulsion requires a local single-player driver, a running engine, four wheels,
 
 Keyboard steering has a separate eligibility check. It can operate with the engine off or an unsupported propulsion profile, but gamepad, multiplayer, towed, and burnt-vehicle steering remains original.
 
-The extension transforms selected Java call sites in memory; installation files are unchanged. It does not promise coexistence with arbitrary vehicle-physics patches. Force-enable bypasses the declared version range only, never structural or ownership checks. Disabling returns control to the game but does not undo movement, collisions, or fuel already consumed.
+The extension transforms selected Java call sites in memory; installation files are unchanged. Compatibility with other vehicle-physics patches is not guaranteed. The version-range override bypasses only the declared range; structural and ownership checks still apply. Disabling returns control to the game but does not undo movement, collisions, or fuel already consumed.
 
 ## Why the adapter uses these call sites
 
@@ -28,7 +28,7 @@ Inspection of the target build found that `CarController.update` calls `control_
 
 The adapter therefore guards the resolved control calls inside `update`. It does not replace the full class, intercept every caller of a private control method, or add a second native force call. Existing cruise, intoxication delay, unloaded-chunk braking, signals, and engine-start decisions stay in their original order.
 
-The inspected game also uses gear/RPM for fuel and sound. The module writes one shared gear/RPM state for control and display; it does not maintain fake display-only RPM. Fuel consumption, engine sound, zombie attraction, and animal reactions consequently belong in acceptance testing.
+The inspected game also uses gear/RPM for fuel and sound. The module writes one shared gear/RPM state for control and display; it does not maintain a separate display-only RPM. Fuel consumption, engine sound, zombie attraction, and animal reactions consequently belong in acceptance testing.
 
 ## Current numerical model
 
@@ -71,7 +71,7 @@ Profiles use geometrically spaced candidate ratios and a speed-based RPM proxy, 
 
 Original `NoControl` and `Braking` remain responsible for coasting and braking, including their gear/RPM changes. On every return to original control, temporary decline, driver change, or missed frame, the model invalidates its dynamic state. Re-entry reconstructs a safe gear from current speed and starts with fresh force/throttle state instead of reviving a stale high gear or accumulating elapsed time.
 
-The game resolves forward/reverse/braking intent before the module runs. Opposite residual motion produces `DIRECTION_HOLD`: the adapter sets the resolved braking mode and associated gas/brake flags, then uses the original braking and signal path exactly once. Approval requires a near-stop dwell, defaults to 0.15 seconds, and itself remains a zero-force sample. Raw keys are unchanged.
+The game resolves forward/reverse/braking intent before the module runs. Opposite residual motion produces `DIRECTION_HOLD`: the adapter sets the resolved braking mode and associated gas/brake flags, then uses the original braking and signal path exactly once. Changing direction requires remaining near a stop for 0.15 seconds by default. The sample that completes this wait still applies zero force. Raw keys are unchanged.
 
 Successful propulsion consumes the original parking-brake-release boost event so a later fallback cannot replay its ×8 force boost.
 
@@ -132,7 +132,7 @@ Archive, ABI, configuration, and bytecode preflight occur before retiring a heal
 
 Admission closes before drain. Cleanup must not wait for a game tick that dispatch has already paused, or hold a lock needed by an in-flight callback. Only this module's transformer is removed; retransformation must not overwrite other agents with bytes reread from disk.
 
-Replacement preflight distinguishes live pre-hook input from this module's output and checks later Java transformers present in that pass. Installation validates again. It cannot seal the JVM against future registration, native/JVMTI transformers, or JNI changes. Repeated reload tests must distinguish the module's own prior hooks from actual external conflicts.
+Replacement preflight distinguishes live pre-hook input from this module's output and checks later Java transformers present in that pass. Installation validates again. These checks cannot prevent later transformer registration or changes made through native/JVMTI transformers or JNI. Repeated reload tests must distinguish the module's own prior hooks from actual external conflicts.
 
 ## Validation and remaining acceptance
 

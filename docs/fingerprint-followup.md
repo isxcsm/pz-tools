@@ -6,7 +6,7 @@ Historical branch-reconciliation record. Schemas and test counts below apply to 
 named commits. See [repository format](repository-format.md) for the current contract.
 
 The original fingerprint-only follow-up `9894bddbab50d5be6d75f5f37482f85e5a10bd7d`
-starts from dev merge `6ab613238081946b9d9fccd67d01c0719b11340f`.
+started from dev merge `6ab613238081946b9d9fccd67d01c0719b11340f`.
 The superseded `optimize/content-fingerprint128` head was
 `668df5c966d183db5c387ef698f58ae329ae1be8` (closed PR #2).
 

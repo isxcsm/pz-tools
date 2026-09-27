@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [User guide](../README.md)
 
-Historical review of `i18n/user-friendly-messages`, based on dev
+The original review below covers `i18n/user-friendly-messages`, based on dev
 `6ab613238081946b9d9fccd67d01c0719b11340f`. It changed UI wording and presentation,
 without changing storage, deletion policy, persisted language IDs or worker protocols.
 See [localization](localization.md) for the maintained UI language contract.
@@ -22,7 +22,7 @@ The review covered app resources, settings/errors, progress and game notificatio
 - File/settings errors distinguished actionable causes. Incompatible-repository
   messages requested a new backup folder without suggesting deletion of game saves.
 - Deduplication received localized byte progress, and copy/hash/archive labels retained
-  their event codes. All four switches and Page Language followed the app setting.
+  their event codes. All four switches and the page language followed the app setting.
 
 `UserFacingErrorCatalog` classified Windows I/O codes without parsing translated OS
 messages. It preserved pending-edit warnings and aggregate failures, matched worker
@@ -36,5 +36,24 @@ Coverage combined `python scripts/check-localization.py` for resource consistenc
 C# formatting/settings and `UserFacingMessageTests` for error and language-switch
 behavior, and synthetic JVM notice/hot-reload tests using the shared UTF-8 catalog.
 
-This record contains no final Windows/JVM result counts or rendered-layout/native-
-speaker review evidence. Operating-system file pickers remained outside app translation.
+This record contains no final Windows/JVM result counts or evidence of rendered-layout
+checks or native-speaker review. Operating-system file pickers remained outside app translation.
+
+## 2026-09-27 — full wording review
+
+This review covered all 18 app resource files, the shared backup-name and game-notice
+catalog, the root README, all Markdown under `docs/`, and the tooltip smoke-test README.
+Third-party notices were read without changing license text. Repository documentation
+remained English-only.
+
+The revisions clarified game saving versus backup completion, manual-backup retention
+and deletion, progress lost during restore, and the absence of an automatic extra backup
+before character recovery. They also clarified that a saved death marker alone does not
+trigger a death backup, and that ignoring a supported version range neither enables an
+extension nor bypasses its mandatory checks. User instructions use direct actions;
+technical references retain required identifiers and historical measurements.
+
+Resource keys, placeholders, locale IDs and command contracts were preserved. This was
+a wording and consistency review, without app execution, rendered-layout checks,
+real-game acceptance or independent native-speaker certification. Automated checks
+cannot establish those outcomes.

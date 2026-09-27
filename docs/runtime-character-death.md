@@ -41,7 +41,8 @@ retry the same pending episode; started failures/unknown completion are not repl
 
 Standard saving keeps this admission rule. Once actual saving begins,
 a later pause/disconnect does not abandon outstanding writes. Save-before-backup and the
-existing configuration policy retain their meaning; this feature never fakes a flush.
+existing configuration policy retain their meaning; an observation alone does not
+confirm that game data was saved to disk.
 
 ## Save execution feedback
 

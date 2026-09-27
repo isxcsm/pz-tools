@@ -36,7 +36,7 @@ cached for that exact definition/digest; a corrected package invalidates the cac
 
 Providers explicitly opt into retirement. Module cleanup stops new admissions,
 drains callbacks and releases owned resources before another generation can use
-them. Cleanup timeouts poison the host instead of admitting another version.
+them. A cleanup timeout marks the host unusable and blocks another version from loading.
 The vehicle lifecycle also handles lease expiry, world/process identity changes
 and revocation while the game is paused. Its restoration and failure boundaries
 are described in the [vehicle design](vehicle-drivetrain-design.md).

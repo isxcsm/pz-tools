@@ -1,7 +1,7 @@
 # WinUI tooltip smoke test
 
-This standalone Windows test links the production `AppToolTip.cs` and opens it
-on a real, loaded WinUI tree. It does not start the application host, schedulers,
+This standalone Windows test links the production `AppToolTip.cs` and opens a
+tooltip in a loaded WinUI visual tree. It does not start the application host, schedulers,
 game bridge, or access user saves/settings. The test window is hidden after load.
 
 ```powershell

@@ -3,8 +3,9 @@
 [Documentation index](README.md) · [User guide](../README.md)
 
 This records 78 synthetic-workload runs on 2026-09-27, starting from the bounded
-capture implementation at `6ae3519`. The selected settings are the current
-defaults. Results describe this machine and workload, not an optimum for every disk.
+capture implementation at `6ae3519`. The selected settings became the defaults;
+see [stable capture](stable-capture.md) for current values. Results describe this
+machine and workload and do not identify optimal settings for every disk.
 
 ## Conditions and measurement scope
 
@@ -46,7 +47,7 @@ benchmarks that used different data.
 
 Run from the repository root with PowerShell 7 and .NET 10 SDK. Use fresh output
 directories. This minimal `capture-plan.json` intentionally retains the
-**historical baseline**, not today's defaults:
+**historical baseline**, not the defaults selected by this experiment:
 
 ```json
 {

@@ -77,18 +77,25 @@ checks remain the fallback. Manual refresh and direct StateRunner calls use
 separate workers. Runtime pause and activity observations have their own
 [admission rules](runtime-pause-backups.md).
 
-Two consecutive matching activity observations confirm a transition; unknown does
-not advance the count. The resulting commands are:
+Two consecutive matching file-activity observations confirm a transition; unknown
+does not advance the count. That pipeline produces these commands:
 
 | Confirmed condition | Scheduler action |
 |---|---|
 | Inactive → active | `ActivateTarget` |
 | Active → inactive, or save disappears | `ClearTarget` |
 | Multiple active saves | `SuspendAmbiguous` until a single target is confirmed |
-| Character death with death backups enabled and current play active | `RunOnceNow` |
 
 The outbox relay preserves idempotency keys and acknowledges only after inbox
-commit. Character alive/dead changes also remain separate recorded transitions.
+commit. When runtime observation controls scheduling, these file-derived commands
+cannot replace its target. Saved alive/dead changes remain metadata transitions;
+they do not request death backups.
+
+Death backups use a fresh live death identity from the JVM observer and queue at
+most one `RunOnceNow` per observed death while both automatic and death backups are
+enabled. The game rechecks process, world, character and death identity before saving.
+Pause and the periodic countdown do not suppress this work. Old database-derived
+death commands are discarded. See [live character death](runtime-character-death.md).
 
 Activation schedules the first periodic backup one interval later. Interval
 changes start a new interval without reactivating suspended or ambiguous state.

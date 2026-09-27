@@ -37,9 +37,9 @@ control stored logs. The Logs screen's level and count filters affect display on
 ## Backup worker
 
 The worker reads `config/backup-worker/default.toml` unless `--config`
-selects another file. Precedence is code defaults, TOML, overlapping app choices,
-then explicit CLI options. Relative source paths in TOML resolve against that
-file's directory.
+selects another file. Precedence, from lowest to highest, is code defaults, TOML,
+overlapping app choices, then explicit CLI options. Relative source paths in TOML
+resolve against that file's directory.
 
 The current generated template includes:
 
@@ -68,13 +68,14 @@ max_database_mib = 64
 ```
 
 These are template values. A custom TOML that omits telemetry fields uses the
-engine fallbacks: raw mode, 1,000 runs, and 256 MiB. Use `config show` to check the
+engine's fallback values: raw mode, 1,000 runs, and 256 MiB. Use `config show` to check the
 effective configuration.
 
 `always_include` recaptures the listed source-relative paths even when USN or
 a full comparison reports no change. Missing previously stored files become
 tombstones after absence is confirmed. Omitting the key uses the same default list;
-an explicit `[]` disables extra capture. This setting cannot flush game memory.
+an explicit `[]` disables extra capture. This setting does not ask the game to write
+unsaved changes to disk.
 
 `full_scan_hash_comparison` reads content with SHA-256 when USN is unavailable,
 including files whose metadata matches. A missing comparison fingerprint causes
@@ -84,7 +85,8 @@ fingerprints, or integrity checksums. Format 2 stores nullable comparison
 fingerprints as the first 16 bytes of SHA-256. Full SHA-256 integrity checksums can
 also supply a comparison baseline.
 
-`save_game_before_backup` requests a save before game-aware file capture.
+`save_game_before_backup` requests a game save before file capture when using
+the game integration.
 Disabling it captures only data already on disk. Turning off
 `game_save_countdown` skips the messages and the manual backup's five-second delay
 while keeping the save request. Periodic backups keep their scheduled deadline.
@@ -138,7 +140,7 @@ must be relative and cannot contain `..`.
 Other components merge packaged `defaults/<component>/default.toml`, central
 `config/<component>/default.toml`, overlapping app settings, and an explicit
 `--config`, in that order. Central settings are shared by that component
-across an installation. Parent settings are not implicitly passed to children:
+across an installation. Parent processes do not automatically pass their settings to children:
 BackupRunner and MaintenanceRunner use `--worker-config` for an explicit
 child override.
 

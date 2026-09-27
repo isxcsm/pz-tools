@@ -74,11 +74,12 @@ are not a claim that every future schema or the user's database has identical si
 The schema-1 code `142b3af60a080de6f20ebf06c3bb4d43a7317833` passed 123/123 selected
 Windows storage tests (run `36089423483`, job `107928542649`). The follow-up schema-2
 code passed 141/141 including 18 new performance/safety cases; see its document for
-exact commit and TRX evidence. Isolated housekeeping SQL checks pass 14/14.
+exact commit and TRX evidence. Isolated housekeeping SQL checks passed 14/14 at that stage.
 
-Selected suites are not the full application/published-distribution gate. Earlier
-full CI had crash reopen and shutdown sharing failures that are not dismissed or
-silenced by this optimization. Consult final-head CI before merging or publishing.
+Those selected suites did not cover full application or published-distribution validation.
+Earlier full CI had crash-reopen and shutdown-sharing failures outside this optimization's
+scope. The [merge review](connection-startup-and-merge-review.md) records later fixes.
+Check CI for the exact commit before merging or publishing.
 The subsequently implemented path dictionary, its historical-spelling safeguards,
 layout tradeoffs and newer verification are described in [path normalization](path-normalization.md).
 

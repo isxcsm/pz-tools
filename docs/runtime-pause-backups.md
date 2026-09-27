@@ -27,7 +27,7 @@ The UI displays the countdown; it does not authorize a backup. The scheduler iss
 
 If a setting changes while preparation is queued, cancellation competes with admission through the same state transition. Cancellation that wins defers the backup without consuming its periodic slot or creating a revision. A save that has already started completes normally. Capture follows only successful preparation.
 
-A failed or missing completion is not replayed automatically. The scheduler preserves the uncertain result across recovery and blocks implicit retry for that generation. Check the result before rearming through the automatic-backup setting. See [save-bridge behavior](save-bridge.md).
+A failed or missing completion is not replayed automatically. The scheduler preserves the uncertain result across recovery and blocks implicit retry for that generation. Check the result before turning automatic backups off and on to start a new interval. See [save-bridge behavior](save-bridge.md).
 
 ## Observation and ownership
 

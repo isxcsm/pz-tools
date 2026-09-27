@@ -2,19 +2,19 @@
 
 [Documentation index](README.md) · [User guide](../README.md)
 
-The bridge requests the original `GameWindow.save(true)` on the game thread before file capture. It uses Java Attach and a runtime hook; no Workshop mod, `-debug` launch option or game installation edit is required. Saving remains synchronous and can briefly pause gameplay. No seamless-save replacement is shipped.
+The bridge requests the original `GameWindow.save(true)` on the game thread before file capture. It uses Java Attach and a runtime hook; no Workshop mod, `-debug` launch option or game installation edit is required. Saving remains synchronous and can briefly pause gameplay.
 
 ## Settings and timing
 
 **Save game before backup** is on by default. Turning it off captures on-disk data only; recent changes still in game memory may be missing. This does not disable independent runtime observation or vehicle controls.
 
-**In-game save countdown** controls the overhead notices. For manual backups, it adds a five-second countdown. For periodic backups, preparation starts ahead of the deadline and shows only its final five seconds; a late connection skips elapsed numbers rather than adding another delay. The saving message appears at admission, followed by completion or failure. Other game notifications can replace the shared halo-note text.
+**In-game save countdown** controls the notices above the character. For manual backups, it adds a five-second countdown. For periodic backups, preparation starts ahead of the deadline and shows only its final five seconds; a late connection skips elapsed numbers rather than adding another delay. The saving message appears when the save request is accepted, followed by completion or failure. Other game notifications can replace the shared halo-note text.
 
 The scheduler preparation lead defaults to eight seconds. Paused frames, attach latency and disk contention can delay execution: the deadline is not a hard real-time guarantee. Disabling notices removes the manual delay, but does not make a periodic backup run early.
 
 **Game-save completion means the game call returned.** Capture and compression happen afterward; the app's progress card reports backup completion. Neither that return nor per-file verification guarantees an atomic world snapshot or hardware flush.
 
-Settings apply to the next backup, not an in-flight request. Precedence is built-in defaults, worker TOML, app preferences, then explicit CLI overrides. Direct CLI game backups use `--save-game`; the generic engine remains usable without JVM integration.
+Settings apply to the next backup; a request already in progress keeps its settings. Precedence, from lowest to highest, is built-in defaults, worker TOML, app preferences, then explicit CLI overrides. Direct CLI game backups use `--save-game`; the generic engine remains usable without JVM integration.
 
 ## Admission and failures
 

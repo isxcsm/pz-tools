@@ -2,10 +2,14 @@
 
 [Documentation index](README.md) · [User guide](../README.md)
 
-Recovery edits only the current single-player save after confirmation. Backup revisions
-are not edited. The UI requires a fresh inactive save; the worker also takes the save
-operation mutex and an exclusive, delete-sharing players.db handle. The game must not
-be using the save. Repository/save mutexes serialize recovery with backup and restore.
+Stop playing the selected single-player save before using recovery, and create a backup
+first. Recovery edits the current save after confirmation. It does not edit existing
+backups or create an extra backup automatically.
+
+The UI requires an up-to-date observation that the save is inactive. The worker also
+takes the save-operation mutex and an exclusive, delete-sharing `players.db` handle.
+Repository/save mutexes prevent recovery, backup and restore from modifying the same
+data at the same time.
 
 ## Health and saved progress
 
@@ -15,19 +19,19 @@ multiple local characters, network players, malformed records, linked paths and 
 SQLite journals are rejected before editing. Parsing covers complete record boundaries.
 No game classes, private save data or third-party runtime parser are distributed.
 
-Existing healing restores health, food, thirst, fatigue, endurance, mental condition
+Healing restores health, food, thirst, fatigue, endurance, mental condition
 and all 17 body parts, including injuries, infection and embedded glass/bullets. It
 clears temporary illness, poisoning, withdrawal, pending exercise soreness, burning,
 forced sleep and the death-drag-down flag. Core temperature and metabolic defaults are
 restored. All positive/negative traits, XP, skills, recipes, nutrition/weight, position,
 survival time and exercise history remain. Unrelated mod data is copied unchanged.
-Traits/environment/mod-specific illnesses can cause symptoms again; this is not immunity.
+Symptoms can return because of traits, the environment or mod-specific illnesses.
 
 ## Belongings from a zombie or corpse — no ID-card dependency
 
-When a dead player's saved inventory is empty, inspect both `reanimated.bin` and the
-world's `map/<chunk-x>/<chunk-y>.bin` corpse lists. The authoritative WorldDictionary.bin
-resolves item types. An ID card is treated as an ordinary item, never as an identity key.
+When a dead player's saved inventory is empty, recovery checks both `reanimated.bin`
+and the world's `map/<chunk-x>/<chunk-y>.bin` corpse lists. `WorldDictionary.bin`
+resolves item types. An ID card is treated as an ordinary item, not an identity key.
 
 Identification uses these explicit evidence levels:
 
@@ -39,11 +43,12 @@ Identification uses these explicit evidence levels:
 3. Older reanimated records lose their names. These require distinctive inherited full
    visual data (ignoring only zombie rot stage), sex and the exact saved death position.
    An already-wandered legacy zombie with no UUID may still be unidentifiable. The tool
-   refuses to select the nearest zombie or invent evidence in that case.
+   does not select a zombie based on proximity alone.
 
-Map files are not byte-carved. A cheap negative name/position/UUID filter may skip a
-chunk with no possible match; positive hits must pass the structural chunk parser,
-length and CRC32 checks. It traverses tiles, erosion, length-delimited object data,
+Map files are parsed structurally rather than searched for isolated byte patterns.
+An initial name/position/UUID filter may skip a chunk with no possible match;
+positive hits must pass the structural chunk parser, length and CRC32 checks.
+The parser traverses tiles, erosion, length-delimited object data,
 corpse lists and the chunk tail. A corpse-looking byte sequence inside a bag or ground
 item is not a corpse. Removal changes only the selected record, its list count and
 chunk length/checksum. Other chunks, objects and zombies are left unchanged.
@@ -51,8 +56,8 @@ chunk length/checksum. Other chunks, objects and zombies are left unchanged.
 Opaque item groups, instance IDs, stack multiplicity, condition, nested bag contents and modded
 item fields are copied byte-for-byte. Vanilla wound-overlay items are omitted and worn
 indices are remapped. Attached-slot item metadata and the original hotbar data remain.
-Saved hand-item IDs restore the exact recovered items when available; an item that is
-missing, dropped elsewhere, looted or destroyed is not guessed or generated. Old saves
+Saved hand-item IDs restore the exact recovered items when available. Recovery does not
+recreate items that are missing, dropped elsewhere, looted or destroyed. Old saves
 without those hand IDs still need manual re-equipping. A populated player inventory is
 not merged/overwritten. Living characters with an empty inventory can still be healed.
 The offline operation does not regenerate thumb.png.
@@ -78,8 +83,8 @@ Preparation and SQL integrity/idempotence checks occur on a staging copy. Health
 recovery replaces players.db; inventory recovery also replaces one reanimated file or
 one map chunk. All replacement bytes and before/after hashes are made durable before
 a commit manifest is published. Cancellation is honored before that decision; after
-it, interrupted publication leaves a roll-forward journal, not a half-deleted inventory.
-Startup recovery verifies every current file against the journal hashes and refuses to
+it, interrupted publication leaves a roll-forward journal for startup recovery.
+Startup recovery checks every current file against the journal hashes and refuses to
 overwrite subsequent game edits. Do not load the save while such a journal is pending.
 
 Journal version 2 adds canonical nested map targets while keeping payload files flat.
@@ -87,8 +92,7 @@ Version 1 root-only pending journals remain readable. Traversal, alternate data 
 noncanonical chunk paths, reparse parents and colliding payload names are rejected.
 Original-file guards remain held through publication. Successful completion removes
 staging/journal files; it does not retain an extra permanent backup. Existing backup
-history is untouched, and keeping a known-good backup before destructive recovery is
-still appropriate.
+history is untouched.
 
 ## Verification scope
 

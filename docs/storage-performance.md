@@ -69,7 +69,7 @@ separately; timings were not CI pass/fail thresholds.
 
 Product commit `a4e2b04451dd6c1153539eee6b1c3a28da47c6e6` passed **141/141** Windows
 storage regression cases with **zero failures or skips**. New `StoragePerformanceTests`
-contribute 18 cases. Evidence: Actions run `36119666063`, verify job `108021962587`,
+contributed 18 cases. Evidence: Actions run `36119666063`, verify job `108021962587`,
 TRX artifact `storage-performance-tests-a4e2b04451dd6c1153539eee6b1c3a28da47c6e6`.
 Coverage included verified reuse and cancellation, buffer lifetime, snapshot totals
 across history/cleanup, overflow, query plans and prior-schema rejection.

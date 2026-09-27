@@ -18,8 +18,8 @@ build requirements and how `JdkPath`, `JAVA_HOME` and bundled toolchains are sel
 The published app is framework-dependent: end users need the
 [.NET 10 runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
 The [app manifest](../src/PzTools.App/app.manifest) currently requires administrator
-permission for USN tracking. This guide does not introduce an installer, code signing,
-a self-contained .NET package, or a lower-privilege mode.
+permission for USN tracking. The publish workflow produces a runnable folder;
+installation, code signing and a lower-privilege mode are outside this workflow.
 
 ## Build and test
 
@@ -112,9 +112,9 @@ python scripts/check-localization.py
 ```
 
 The PowerShell entry point delegates to the same documentation checker. It checks
-all authored Markdown, section targets, required guide topics,
-and index coverage. External URLs are listed but are **not fetched** by this offline
-check. See the [documentation maintenance guide](documentation-maintenance.md) for
+the root guide, third-party notices and Markdown under `docs/`, including section
+targets, required guide topics and index coverage. External URLs are counted but
+are **not fetched** by this offline check. See the [documentation maintenance guide](documentation-maintenance.md) for
 what these tests do and do not establish.
 
 ## CLI and advanced settings
@@ -138,7 +138,7 @@ those records from the current user instructions.
 
 ## CI
 
-PRs target dev/main; pushes to those branches do not repeat
+CI runs for PRs targeting `dev` or `main`; pushes to those branches do not repeat
 the same PR validation. Release tags `v*` run full validation. Direct branch pushes
 without a PR therefore require a manual run before release.
 
@@ -168,7 +168,7 @@ translation prose, line-break counts or the current number of supported language
 Resource keys, formatting arguments, .NET formatting and configuration round trips remain
 covered. UI hover/layout behavior needs an actual UI check, not a source-substring proxy.
 Keep generous bounded waits to detect hangs; sub-two-second process speed is diagnostic,
-not a correctness assertion on a shared runner. Product deadlines remain unchanged.
+not a reliable correctness assertion on a shared runner. Product deadlines remain unchanged.
 
 Workflow check names are `checks` and `windows`. Required-check rules must match them;
 protection is not changed automatically. A skipped Windows job on a docs-only PR is
