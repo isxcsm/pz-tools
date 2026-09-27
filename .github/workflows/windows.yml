@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 'Fresh distribution and synthetic JVM regardless of changed paths'
+        type: boolean
+        default: false
+      benchmarks:
+        description: 'Also run offline storage benchmarks (not needed for routine PRs)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      windows: ${{ steps.plan.outputs.windows }}
+      publish: ${{ steps.plan.outputs.publish }}
+      bridge: ${{ steps.plan.outputs.bridge }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Select checks from the actual PR changes
+        id: plan
+        env:
+          CI_FULL: ${{ inputs.full }}
+          CI_BENCHMARKS: ${{ inputs.benchmarks }}
+        run: python scripts/ci-plan.py
+      - name: Offline checks (once, no SDK setup)
+        run: |
+          python scripts/test-ci-plan.py
+          python scripts/test-documentation-checker.py
+          python scripts/check-documentation.py
+          python scripts/check-localization.py
+      - name: Optional benchmarks
+        if: steps.plan.outputs.benchmarks == 'true'
+        run: |
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+            git fetch --unshallow --no-tags origin
+          fi
+          mkdir -p artifacts/benchmarks
+          python scripts/measure-path-normalization.py > artifacts/benchmarks/paths.json
+          python scripts/measure-catalog-performance.py --baseline-ref 2f3ce6f > artifacts/benchmarks/catalog.json
+          python scripts/measure-storage-hotpaths.py > artifacts/benchmarks/hotpaths.json
+      - uses: actions/upload-artifact@v4
+        if: steps.plan.outputs.benchmarks == 'true' && !cancelled()
+        with:
+          name: benchmarks-${{ github.sha }}
+          path: artifacts/benchmarks/*.json
+          retention-days: 7
+
+  windows:
+    needs: checks
+    if: needs.checks.outputs.windows == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - name: Build solution once (including WinUI and matching workers)
+        run: dotnet build PzTools.sln -c Release -p:Platform=x64 -warnaserror
+      - name: Publish only for packaging changes or full verification
+        if: needs.checks.outputs.publish == 'true'
+        run: |
+          ./scripts/publish-app.ps1 -Configuration Release -JdkPath $env:JAVA_HOME -Output artifacts/ci-app
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PZTOOLS_DISTRIBUTION_DIR=$((Resolve-Path artifacts/ci-app).Path)" >> $env:GITHUB_ENV
+          "PZTOOLS_TOOLS_DIR=$((Resolve-Path artifacts/ci-app).Path)" >> $env:GITHUB_ENV
+      - name: Prepare JVM fixture using this Release build
+        if: needs.checks.outputs.bridge == 'true'
+        run: |
+          ./scripts/test-save-bridge.ps1 -JdkPath $env:JAVA_HOME -Configuration Release -ReuseBuild -PrepareOnly
+          foreach ($name in @('PZTOOLS_SAVE_BRIDGE_DIR', 'PZTOOLS_BRIDGE_TEST_JAVA', 'PZTOOLS_BRIDGE_TEST_CLASSES', 'PZTOOLS_EXTENSION_FIXTURE_JAR')) {
+            "$name=$([Environment]::GetEnvironmentVariable($name))" >> $env:GITHUB_ENV
+          }
+      - name: Run applicable tests once, without rebuilding
+        env:
+          RUN_BRIDGE: ${{ needs.checks.outputs.bridge }}
+        run: |
+          $arguments = @('test', 'tests/PzTools.Backup.Tests', '-c', 'Release', '--no-build', '--no-restore',
+            '--logger', 'trx;LogFileName=tests.trx', '--results-directory', 'artifacts/test-results')
+          if ($env:RUN_BRIDGE -ne 'true') { $arguments += @('--filter', 'FullyQualifiedName!~GameSaveClientTests') }
+          dotnet @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Keep diagnostics for failures and distribution verification
+        if: failure() || needs.checks.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.sha }}
+          path: artifacts/test-results/*.trx
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,129 @@
+# How individual save backups are copied and stored. The app chooses the save
+# folder at run time, so no folder path is needed here. Where the app offers
+# the same setting, the choice made in the app takes precedence over this file.
+# Use Advanced settings > Apply settings and restart after editing.
+format_version = 1
+
+[capture]
+# Ask the running single-player game to save before a manual or automatic backup.
+# true (recommended) requests save(true) and waits for its return before reading
+# files. It does not freeze the game throughout the backup.
+# false never connects to the game JVM: only files already written to disk are
+# backed up. Recent world changes still in game memory may be missing on restore.
+# Turn off if another save mod handles this, or if a game update breaks the bridge.
+# The app's "Save game before backup" switch takes priority over this default
+# once app settings have been saved. Changes apply to the next backup, not one
+# already running. CLI --save-game-before-backup overrides both settings.
+save_game_before_backup = true
+
+# With pre-backup game saving enabled, show a five-second overhead countdown before
+# saving, then a game-save completion message. Off skips both the messages and the
+# five-second delay, but still saves the game. Applies to the next backup; the app
+# setting takes precedence. Does not announce completion of backup file collection.
+game_save_countdown = true
+
+# Always check these files during every backup, even if their timestamps look
+# unchanged. This helps capture important live-save files. An empty list turns
+# off that extra check. It cannot save changes the game has NOT written to disk.
+always_include = ["players.db", "vehicles.db", "thumb.png"]
+# When Windows change tracking is unavailable, read file contents and compare
+# them with the previous backup. Keep true to detect edits even when file sizes
+# and timestamps stay the same. This reads more data and can make backups slower.
+# false checks only names, sizes, timestamps and other file information; it can
+# miss content changes. Files in always_include are still copied either way.
+# A file with no previous comparison hash is copied once to establish a baseline.
+# Existing hashes are kept when this is off. This does not control backup-file
+# integrity checks (storage.checksum) or checks made while copying a live file.
+full_scan_hash_comparison = true
+
+[storage]
+# A checksum helps detect a damaged backup file. "auto" uses a fast checksum;
+# "sha256" spends more time checking; "none" removes this per-file check.
+# Compression reduces storage space; "auto" chooses the usual compression.
+checksum = "auto"
+compression = "auto"
+# Reuse stored content when different revisions contain identical files. This
+# saves disk space but requires checksum = "sha256" and extra processing time.
+content_deduplication = false
+# Check that a file did not change while being copied from the live save.
+# Keep this on: the game may be writing at the same time. Turning it off can
+# accept a partial or inconsistent copy, which may not restore correctly.
+verify_staged_copies = true
+
+[telemetry]
+# Technical records about backup operations, separate from the app's Log screen
+# and separate from backup data. Leave on to investigate failed backups.
+enabled = true
+# Amount of technical detail: off = none, run = one result per backup,
+# phase = major steps, raw = individual file activity. Use raw only briefly
+# while investigating a problem; it creates many records and more disk writes.
+mode = "phase"
+# Write records after this many events (1-4096) or this many milliseconds
+# (10-10000), whichever comes first. Larger values mean fewer disk writes but
+# more recent diagnostic records can be lost if the app stops unexpectedly.
+batch_size = 256
+flush_interval_ms = 250
+# Keep technical records for this many backups. 0 never deletes by run count;
+# this may let the diagnostics database grow without bound.
+retain_runs = 100
+# Approximate limit for technical records, in MiB (1 MiB = 1,048,576 bytes).
+# Old records are removed when exceeded, but the database file may remain
+# larger on disk. This does NOT limit backup size. 0 is unlimited.
+max_database_mib = 64
+
+
+[runtime]
+# Maximum attempts to copy a file that keeps changing (1-20). Exhausting these attempts fails
+# the backup instead of accepting an inconsistent file.
+capture_attempts = 5
+# Base wait between unstable-file attempts, in milliseconds (10-5000). The wait grows with the
+# attempt number. Increase for a busy disk; the backup may take longer.
+capture_retry_delay_ms = 200
+# Buffer used while copying, checking a file and hashing during full scans, in KiB (16-4096). Larger buffers use more
+# memory. This is NOT a file-size or save-size limit.
+copy_buffer_kib = 128
+# Keep stable copies up to this size in memory instead of creating a temporary file (0-1024 KiB).
+# 0 always stages to disk. A file that grows beyond the limit spills to disk.
+small_file_staging_kib = 256
+# Maximum memory retained by the staging buffer pool, including buffers being read, queued,
+# written or held for reuse (1-256 MiB). This is NOT a limit on total app memory or save size.
+# Readers wait when full. Large files still use temporary files, not this memory pool.
+# With the default queue of 8 and 256 KiB slots, effective staging capacity is 2 MiB.
+staging_memory_mib = 4
+# Maximum simultaneous file readers (1-8). Compression, pack writes and catalog updates stay
+# on one consumer. Each reader also uses copy buffers controlled by copy_buffer_kib.
+capture_read_concurrency = 4
+# Maximum files in flight, including queued/active readers and completed staged copies (1-128).
+# Both this count and the memory limit apply, regardless of the total number of save files.
+capture_queue_capacity = 8
+# Maximum file comparisons held in one full-scan hash batch (1-128). This applies when USN is
+# unavailable and capture.full_scan_hash_comparison is on; it is not the metadata scan batch.
+full_scan_hash_batch_size = 16
+# Maximum simultaneous content readers in that comparison phase (1-8), also limited by the
+# batch size. The copy_buffer_kib setting above controls their buffers. No file content is cached.
+full_scan_hash_read_concurrency = 4
+# Minimum time between intermediate progress reports, in milliseconds (50-2000). Higher values
+# reduce diagnostic writes but make progress appear less smooth.
+progress_interval_ms = 250
+# Number of file descriptions written per scan transaction (1-16384). Larger batches reduce
+# database overhead but hold the write transaction longer. All files are still scanned.
+scan_batch_size = 512
+# Number of Windows change records processed together (1-65536). Larger batches use more memory.
+# This does NOT cap the number of changes a backup can capture.
+journal_batch_size = 4096
+# Send a backup activity signal every this many milliseconds (250-4000). Lower values produce
+# more diagnostic writes; the upper bound stays below the app's default stale-worker timeout.
+heartbeat_interval_ms = 2000
+# Wait this long to connect to the running game's save bridge (5-120 seconds). If connection
+# fails, no save command is sent and the backup fails.
+game_connection_timeout_seconds = 30
+# Wait this long for the game's save response after sending the command (30-600 seconds).
+# Timeout means completion is UNKNOWN, not cancelled: the game may still be saving. The backup
+# does not proceed or retry the save automatically.
+game_completion_timeout_seconds = 150
+# Maximum time a request may wait for the game's main thread before it starts
+# saving (1-60 seconds). Once expired, a queued request is cancelled without
+# saving. This cannot cancel a save that has already started. The completion
+# timeout above must be at least this value + 20 seconds. After updating the
+# app, a running game with an older bridge must be restarted for custom timeouts.
+game_queue_timeout_seconds = 15

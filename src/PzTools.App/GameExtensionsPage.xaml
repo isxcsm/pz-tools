@@ -1,0 +1,33 @@
+<UserControl
+    x:Class="PzTools.App.GameExtensionsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+  </UserControl.Resources>
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <Grid Margin="{StaticResource CardPageHeaderMargin}" MinHeight="{StaticResource PageHeaderHeight}">
+      <TextBlock x:Name="PageTitle" Style="{StaticResource PageTitleTextStyle}"
+                 AutomationProperties.HeadingLevel="Level1" />
+    </Grid>
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="8">
+        <InfoBar x:Name="ErrorInfo" IsClosable="True" Severity="Error"
+                 Visibility="{x:Bind ErrorInfo.IsOpen, Mode=OneWay}" />
+        <ProgressRing x:Name="LoadingIndicator" IsActive="False" Visibility="Collapsed"
+                      HorizontalAlignment="Center" />
+        <ItemsControl ItemsSource="{x:Bind Sections}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="{StaticResource SettingsCardSpacing}" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

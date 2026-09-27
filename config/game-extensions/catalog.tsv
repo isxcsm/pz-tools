@@ -1,0 +1,2 @@
+# id	module version	namespace	entry class	jar	support scope	minimum inclusive	maximum inclusive	title resource	description resource	capability
+pztools.vehicle-drivetrain	0.2.0	pztools.extensions.vehicle	pztools.extensions.vehicle.VehicleDrivetrainProvider	pztools-vehicle-drivetrain.jar	Major	42	42	Extension.VehicleDrivetrain.Title	Extension.VehicleDrivetrain.Description	vehicle.drivetrain.v1

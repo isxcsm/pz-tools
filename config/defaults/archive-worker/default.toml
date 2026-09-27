@@ -1,0 +1,43 @@
+# Safety limits for opening or importing a compressed save file. They do not
+# affect creating an archive. Only raise a limit if a trusted archive is being
+# refused; an unknown archive may require excessive disk space or memory.
+[telemetry]
+# Save technical records that help explain archive import failures. These are
+# not the saved game or the app's Log screen. Keep this on for troubleshooting.
+enabled = true
+# Keep technical records for this many archive operations. 0 never deletes
+# them by run count, so the diagnostics database can keep growing.
+retain_runs = 100
+# Approximate limit for diagnostic data, in MiB (1 MiB = 1,048,576 bytes).
+# Older records are removed when exceeded. The database file may still be
+# larger on disk; this does not limit the size of save archives. 0 is unlimited.
+max_database_mib = 64
+# Write the latest progress this often (25-2000 ms). Larger intervals reduce
+# diagnostic writes but make progress less smooth. No game data is affected.
+progress_flush_interval_ms = 100
+# Send an activity signal this often (250-5000 ms). The upper bound stays below
+# the app's default stale-worker timeout. Lower values produce more writes.
+heartbeat_interval_ms = 5000
+
+
+[preview]
+# Maximum players.db size extracted for the import preview, in MiB (1-1024). Above this limit
+# the character preview is omitted; importing the save is still allowed. Larger values need more
+# temporary disk space and time.
+players_database_mib = 64
+# Maximum thumbnail size displayed in the import preview, in MiB (1-64). Larger images are
+# omitted from the preview, not from the imported save.
+thumbnail_mib = 16
+
+[archive]
+# Refuse an archive containing more than this many files and folders in total.
+# A large late-game save can contain many files; this is not a byte-size limit.
+maximum_entries = 1000000
+# Refuse any ONE file larger than this many bytes after decompression.
+# The default is 64 GiB per file; the whole save may be much larger.
+maximum_single_file_bytes = 68719476736
+# Do not import unless enough disk space will remain afterwards. The required
+# free space is the larger of the next two values: 5 GiB, or 10% of the
+# archive's uncompressed contents. It is NOT 10% of the whole drive.
+minimum_free_space_reserve_bytes = 5368709120
+minimum_free_space_reserve_percent = 10

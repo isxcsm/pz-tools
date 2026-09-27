@@ -1,0 +1,13 @@
+# Technical records for the helper that reads the current game/save state,
+# such as whether the game is running. This file does not change save contents.
+[telemetry]
+# Keep records of state checks and failures. Turning this off makes failed
+# checks harder to diagnose; it does not stop checking the game.
+enabled = true
+# Keep records for this many checks. 0 means no run-count limit and may allow
+# the diagnostics database to grow indefinitely.
+retain_runs = 100
+# Approximate limit for these records, in MiB (1 MiB = 1,048,576 bytes).
+# Old records are removed when exceeded; the database file may remain larger.
+# This does not limit backup size. 0 means no size limit.
+max_database_mib = 64

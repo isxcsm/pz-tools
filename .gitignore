@@ -1,0 +1,12 @@
+[Bb]in/
+[Oo]bj/
+.vs/
+TestResults/
+artifacts/
+*.user
+*.suo
+*.nupkg
+*.snupkg
+__pycache__/
+*.py[cod]
+

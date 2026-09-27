@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <linearGradient id="gear" x1="0" y1="0" x2="0.8" y2="1">
+      <stop stop-color="#B4C7D9"/><stop offset="1" stop-color="#586F87"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#gear)" d="m10 2 4 0 .6 2.5 1.7 1 2.5-.8 2 3.5-1.9 1.7v2.2l1.9 1.7-2 3.5-2.5-.8-1.7 1L14 20h-4l-.6-2.5-1.7-1-2.5.8-2-3.5 1.9-1.7V9.9L3.2 8.2l2-3.5 2.5.8 1.7-1Z" transform="translate(0 1)"/>
+  <circle cx="12" cy="12" r="4.5" fill="#D8F2FF"/>
+  <circle cx="12" cy="12" r="3" fill="#168DD7"/>
+</svg>

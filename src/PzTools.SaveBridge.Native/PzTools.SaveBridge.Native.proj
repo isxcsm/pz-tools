@@ -1,0 +1,12 @@
+<Project DefaultTargets="Build">
+  <Import Project="..\..\build\SaveBridge.props" />
+  <Target Name="PrepareNative" DependsOnTargets="ValidateBridgeToolchain">
+    <MakeDir Directories="$(BridgeOutputPath)" />
+    <WriteLinesToFile File="$(BridgeOutputPath)\native-toolchain.txt" Lines="$(BridgeJdkPath)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+  <Target Name="Build" DependsOnTargets="PrepareNative"
+          Inputs="$(MSBuildProjectFullPath);$(MSBuildProjectDirectory)\bootstrap.cpp;$(SaveBridgeRepositoryRoot)\scripts\build-save-bridge-native.ps1;$(SaveBridgeRepositoryRoot)\scripts\build-save-bridge-native.cmd;$(BridgeOutputPath)\native-toolchain.txt;$(BridgeJdkPath)\include\jni.h;$(BridgeJdkPath)\include\win32\jni_md.h"
+          Outputs="$(BridgeOutputPath)\pztools-attach-bootstrap.dll">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SaveBridgeRepositoryRoot)\scripts\build-save-bridge-native.ps1&quot; -JdkPath &quot;$(BridgeJdkPath)&quot; -Output &quot;$(BridgeOutputPath)&quot;" />
+  </Target>
+</Project>

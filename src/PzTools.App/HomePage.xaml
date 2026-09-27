@@ -1,0 +1,141 @@
+<UserControl
+    x:Class="PzTools.App.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    SizeChanged="HomePage_SizeChanged">
+  <UserControl.Resources>
+    <Style x:Key="HomeFeatureCardStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+      <Setter Property="Padding" Value="20" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+      <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style x:Key="HomeFeatureTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="HomeFeatureActionStyle" TargetType="TextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+  </UserControl.Resources>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+    <StackPanel x:Name="HomeContent" MaxWidth="1040" HorizontalAlignment="Left"
+                Spacing="20" Padding="0,0,4,16">
+      <Grid x:Name="IntroductionGrid" RowSpacing="16">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="0" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel x:Name="IntroductionCopy" Grid.Row="1" Spacing="12" VerticalAlignment="Top">
+          <Grid MinHeight="{StaticResource PageHeaderHeight}">
+            <TextBlock Text="PZ Tools" Style="{StaticResource PageTitleTextStyle}"
+                       AutomationProperties.HeadingLevel="Level1" />
+          </Grid>
+          <TextBlock x:Name="HomeDescription" TextWrapping="Wrap" />
+          <Button x:Name="OpenSavesButton" Click="OpenSaves_Click" HorizontalAlignment="Left"
+                  Style="{StaticResource AccentButtonStyle}" Margin="0,4,0,0"
+                  AutomationProperties.AutomationId="OpenSavesButton">
+            <TextBlock x:Name="HomeOpenSaves" TextWrapping="Wrap" />
+          </Button>
+        </StackPanel>
+        <Image x:Name="HomeArtwork" Source="ms-appx:///Assets/Brand/pztools-home.png"
+               Height="128" MaxWidth="192" Stretch="Uniform" HorizontalAlignment="Left"
+               AutomationProperties.AccessibilityView="Raw" IsHitTestVisible="False" />
+      </Grid>
+
+      <StackPanel Spacing="12">
+        <TextBlock x:Name="HomeFeaturesHeading" Style="{StaticResource HomeFeatureTitleStyle}"
+                   AutomationProperties.HeadingLevel="Level2" />
+        <Grid x:Name="FeatureGrid">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="0" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Button x:Name="AutomaticBackupButton" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSettings_Click"
+                  AutomationProperties.AutomationId="AutomaticBackupButton">
+            <Grid ColumnSpacing="16">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <SymbolIcon Symbol="Sync" VerticalAlignment="Top" Margin="0,2,0,0"
+                          AutomationProperties.AccessibilityView="Raw" />
+              <StackPanel Grid.Column="1" Spacing="8">
+                <TextBlock x:Name="HomeBackupTitle" Style="{StaticResource HomeFeatureTitleStyle}" />
+                <TextBlock x:Name="HomeBackupDescription" Style="{StaticResource SecondaryTextStyle}" />
+                <TextBlock x:Name="HomeBackupAction" Style="{StaticResource HomeFeatureActionStyle}" />
+              </StackPanel>
+            </Grid>
+          </Button>
+          <Button x:Name="RestoreButton" Grid.Row="1" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSaves_Click"
+                  AutomationProperties.AutomationId="RestoreButton">
+            <Grid ColumnSpacing="16">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <SymbolIcon Symbol="Undo" VerticalAlignment="Top" Margin="0,2,0,0"
+                          AutomationProperties.AccessibilityView="Raw" />
+              <StackPanel Grid.Column="1" Spacing="8">
+                <TextBlock x:Name="HomeRestoreTitle" Style="{StaticResource HomeFeatureTitleStyle}" />
+                <TextBlock x:Name="HomeRestoreDescription" Style="{StaticResource SecondaryTextStyle}" />
+                <TextBlock x:Name="HomeRestoreAction" Style="{StaticResource HomeFeatureActionStyle}" />
+              </StackPanel>
+            </Grid>
+          </Button>
+          <Button x:Name="CharacterRecoveryButton" Grid.Row="2" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSaves_Click"
+                  AutomationProperties.AutomationId="CharacterRecoveryButton">
+            <Grid ColumnSpacing="16">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <SymbolIcon Symbol="Contact" VerticalAlignment="Top" Margin="0,2,0,0"
+                          AutomationProperties.AccessibilityView="Raw" />
+              <StackPanel Grid.Column="1" Spacing="8">
+                <TextBlock x:Name="HomeRecoveryTitle" Style="{StaticResource HomeFeatureTitleStyle}" />
+                <TextBlock x:Name="HomeRecoveryDescription" Style="{StaticResource SecondaryTextStyle}" />
+                <TextBlock x:Name="HomeRecoveryAction" Style="{StaticResource HomeFeatureActionStyle}" />
+              </StackPanel>
+            </Grid>
+          </Button>
+          <Button x:Name="GameExtensionsButton" Grid.Row="3" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenExtensions_Click"
+                  AutomationProperties.AutomationId="GameExtensionsButton">
+            <Grid ColumnSpacing="16">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <SymbolIcon Symbol="Setting" VerticalAlignment="Top" Margin="0,2,0,0"
+                          AutomationProperties.AccessibilityView="Raw" />
+              <StackPanel Grid.Column="1" Spacing="8">
+                <TextBlock x:Name="HomeExtensionsTitle" Style="{StaticResource HomeFeatureTitleStyle}" />
+                <TextBlock x:Name="HomeExtensionsDescription" Style="{StaticResource SecondaryTextStyle}" />
+                <TextBlock x:Name="HomeExtensionsAction" Style="{StaticResource HomeFeatureActionStyle}" />
+              </StackPanel>
+            </Grid>
+          </Button>
+        </Grid>
+      </StackPanel>
+
+      <StackPanel Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <HyperlinkButton Content="GitHub" Padding="0,4"
+                           NavigateUri="https://github.com/isxcsm/pz-tools" />
+          <HyperlinkButton x:Name="ReportIssueButton" Padding="0,4"
+                           NavigateUri="https://github.com/isxcsm/pz-tools/issues" />
+          <TextBlock x:Name="HomeVersion" Text="v0.1.0" IsTextSelectionEnabled="True"
+                     VerticalAlignment="Center" Style="{StaticResource SecondaryTextStyle}" />
+        </StackPanel>
+        <TextBlock x:Name="HomeUnofficialNotice" Style="{StaticResource SecondaryTextStyle}" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

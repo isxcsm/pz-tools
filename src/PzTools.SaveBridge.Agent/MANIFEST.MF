@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Main-Class: pztools.bridge.AttachMain
+Agent-Class: pztools.bridge.AgentEntry
+Can-Retransform-Classes: true
+PzTools-Bootstrap-Api: 10

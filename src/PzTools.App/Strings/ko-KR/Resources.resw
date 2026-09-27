@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AppTitle" xml:space="preserve"><value>PZ Tools · 프로젝트 좀보이드</value></data>
+  <data name="AppSubtitle" xml:space="preserve"><value>프로젝트 좀보이드</value></data>
+  <data name="SavesNavigation.Content" xml:space="preserve"><value>세이브 관리</value></data>
+  <data name="Exporting.Text" xml:space="preserve"><value>내보내는 중</value></data>
+  <data name="BackingUp.Text" xml:space="preserve"><value>백업하는 중</value></data>
+  <data name="ImportArchive.Content" xml:space="preserve"><value>압축 파일 가져오기</value></data>
+  <data name="NoSaves.Text" xml:space="preserve"><value>세이브가 없습니다</value></data>
+  <data name="LoadingSaves.Text" xml:space="preserve"><value>세이브를 불러오는 중입니다</value></data>
+  <data name="LoadingBackups.Text" xml:space="preserve"><value>세이브 정보를 불러오는 중입니다</value></data>
+  <data name="SelectSave.Text" xml:space="preserve"><value>세이브를 선택하세요</value></data>
+  <data name="BackToList.Content" xml:space="preserve"><value>목록으로</value></data>
+  <data name="BackupRevisions.Text" xml:space="preserve"><value>현재 세이브 및 백업</value></data>
+  <data name="CurrentSave" xml:space="preserve"><value>현재 세이브</value></data>
+  <data name="CurrentSaveLocation" xml:space="preserve"><value>세이브 폴더</value></data>
+  <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>현재 세이브 복사 중</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>게임 플레이 중에는 현재 세이브를 내보낼 수 없습니다. 플레이를 종료한 뒤 다시 시도해 주세요.</value></data>
+  <data name="StopPlayingToRestore" xml:space="preserve"><value>게임 플레이 중에는 백업을 복원할 수 없습니다. 플레이를 종료한 뒤 다시 시도해 주세요.</value></data>
+  <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>게임 플레이 중에는 세이브를 삭제할 수 없습니다. 플레이를 종료한 뒤 다시 시도해 주세요.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>게임 플레이 중에는 캐릭터를 회복할 수 없습니다. 플레이를 종료한 뒤 다시 시도해 주세요.</value></data>
+  <data name="NoBackups.Text" xml:space="preserve"><value>아직 백업이 없습니다</value></data>
+  <data name="ManualBackup.Content" xml:space="preserve"><value>지금 백업</value></data>
+  <data name="Restore.Content" xml:space="preserve"><value>복원</value></data>
+  <data name="ExportArchive.Content" xml:space="preserve"><value>압축 파일로 내보내기</value></data>
+  <data name="SettingsTitle.Text" xml:space="preserve"><value>설정</value></data>
+  <data name="SettingsSubtitle" xml:space="preserve"><value>앱 화면과 백업 방법을 설정합니다.</value></data>
+  <data name="SettingsAutoSaveHint" xml:space="preserve"><value>변경 사항은 자동으로 저장됩니다.</value></data>
+  <data name="SettingsSaving" xml:space="preserve"><value>저장 중…</value></data>
+  <data name="SettingsSaved" xml:space="preserve"><value>저장됨</value></data>
+  <data name="DisplaySettings.Header" xml:space="preserve"><value>화면 및 동작</value></data>
+  <data name="DisplaySettings.Description" xml:space="preserve"><value>언어, 테마와 창 닫기 동작을 설정합니다.</value></data>
+  <data name="LanguageSetting.Header" xml:space="preserve"><value>언어</value></data>
+  <data name="LanguageSetting.Description" xml:space="preserve"><value>앱 언어를 선택합니다. 번역되지 않은 항목은 영어로 표시됩니다.</value></data>
+  <data name="ThemeSetting.Header" xml:space="preserve"><value>테마</value></data>
+  <data name="ThemeSetting.Description" xml:space="preserve"><value>시스템 설정을 따르거나 직접 선택합니다.</value></data>
+  <data name="SystemTraySetting.Header" xml:space="preserve"><value>시스템 트레이</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>창을 닫아도 PZ Tools를 계속 실행합니다. 완전히 종료하려면 작업 표시줄 시계 옆의 PZ Tools 아이콘 메뉴에서 종료를 선택하세요.</value></data>
+  <data name="TrayRestore" xml:space="preserve"><value>PZ Tools 열기</value></data>
+  <data name="TrayExit" xml:space="preserve"><value>종료</value></data>
+  <data name="ConfirmExitTitle" xml:space="preserve"><value>PZ Tools를 종료할까요?</value></data>
+  <data name="ConfirmExitBody" xml:space="preserve"><value>자동 백업이 중지되고 진행 중인 작업이 중단될 수 있습니다.</value></data>
+  <data name="PathSettings.Header" xml:space="preserve"><value>폴더 위치</value></data>
+  <data name="PathSettings.Description" xml:space="preserve"><value>세이브와 백업 파일의 위치를 설정합니다.</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>세이브 폴더</value></data>
+  <data name="BackupPathSetting.Header" xml:space="preserve"><value>백업 폴더</value></data>
+  <data name="Browse.Content" xml:space="preserve"><value>찾아보기</value></data>
+  <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>백업</value></data>
+  <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>자동 백업</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>정기 백업과 사망 시 백업을 켜거나 끕니다. 꺼도 설정한 간격은 유지되며, 수동 백업과 진행 중인 백업에는 영향을 주지 않습니다.</value></data>
+  <data name="IntervalSetting.Header" xml:space="preserve"><value>백업 간격</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>1~60분. 자동 백업을 꺼도 간격은 유지됩니다. 다시 켜면 설정한 시간만큼 기다린 뒤 백업합니다.</value></data>
+  <data name="RetentionSetting.Header" xml:space="preserve"><value>자동 백업 보관 개수</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>최근 자동 백업을 1~100개 보관합니다. 이 개수 제한은 수동 백업에 적용되지 않습니다.</value></data>
+  <data name="DeathBackupSetting.Header" xml:space="preserve"><value>캐릭터 사망 시 백업</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>플레이 중 캐릭터의 사망이 감지되면 백업합니다. 자동 백업이 켜져 있어야 하며, 게임이 일시정지 중이어도 실행합니다. 기존 세이브의 사망 표시만으로는 실행하지 않습니다.</value></data>
+  <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>복사한 파일 확인</value></data>
+  <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>복사본의 내용이 원본과 같은지 확인합니다. 복사 중 원본이 바뀌면 다시 복사합니다.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>백업 중 세이브 파일이 계속 변경되었습니다. 게임 저장이 끝난 뒤 다시 백업해 주세요.</value></data>
+  <data name="NextBackupWaiting.Text" xml:space="preserve"><value>다음 백업: 대기 중</value></data>
+  <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
+  <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
+  <data name="ThemeSystem.Content" xml:space="preserve"><value>시스템</value></data>
+  <data name="ThemeLight.Content" xml:space="preserve"><value>밝음</value></data>
+  <data name="ThemeDark.Content" xml:space="preserve"><value>어두움</value></data>
+  <data name="HostNotReady" xml:space="preserve"><value>앱이 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools를 시작하는 중입니다. 잠시 후 다시 시도해 주세요.</value></data>
+  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>자동 백업을 시작하지 못했습니다.</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>현재 세이브를 찾을 수 없습니다</value></data>
+  <data name="GameModeFormat" xml:space="preserve"><value>게임 모드: {0}</value></data>
+  <data name="DetailGameModeLabel" xml:space="preserve"><value>게임 모드</value></data>
+  <data name="VersionCharacterFormat" xml:space="preserve"><value>캐릭터: {0}</value></data>
+  <data name="VersionSurvivalFormat" xml:space="preserve"><value>생존 기간: {0}</value></data>
+  <data name="VersionSurvivalLabel" xml:space="preserve"><value>생존 기간:</value></data>
+  <data name="SurvivalDaysHoursFormat" xml:space="preserve"><value>{0}일 {1}시간</value></data>
+  <data name="SurvivalHoursMinutesFormat" xml:space="preserve"><value>{0}시간 {1}분</value></data>
+  <data name="CharacterNameUnknown" xml:space="preserve"><value>이름 확인 불가</value></data>
+  <data name="SurvivalTimeUnknown" xml:space="preserve"><value>확인 불가</value></data>
+  <data name="InspectingArchive" xml:space="preserve"><value>압축 파일 정보를 확인하는 중입니다</value></data>
+  <data name="CharacterAlive" xml:space="preserve"><value>생존</value></data>
+  <data name="CharacterUnknown" xml:space="preserve"><value>캐릭터 상태 확인 불가</value></data>
+  <data name="PlayStateUnknown" xml:space="preserve"><value>플레이 상태 확인 불가</value></data>
+  <data name="DetailCombinedStatusFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="LastPlayedFormat" xml:space="preserve"><value>마지막 플레이: {0}</value></data>
+  <data name="LastPlayedUnknown" xml:space="preserve"><value>마지막 플레이: 알 수 없음</value></data>
+  <data name="BackupOnly" xml:space="preserve"><value>백업에만 존재</value></data>
+  <data name="CurrentlyPlaying" xml:space="preserve"><value>현재 플레이 중</value></data>
+  <data name="CharacterDead" xml:space="preserve"><value>사망</value></data>
+  <data name="NotPlaying" xml:space="preserve"><value>플레이 중 아님</value></data>
+  <data name="Importing" xml:space="preserve"><value>가져오는 중</value></data>
+  <data name="Restoring" xml:space="preserve"><value>복원 중</value></data>
+  <data name="ExportingDynamic" xml:space="preserve"><value>내보내는 중</value></data>
+  <data name="TelemetryProgressUnavailable" xml:space="preserve"><value>진행 상황을 확인할 수 없습니다.</value></data>
+  <data name="OperationProgressFormat" xml:space="preserve"><value>{0} · {3:N0}% · {1:N0}/{2:N0}</value></data>
+  <data name="OperationCopyProgressFormat" xml:space="preserve"><value>{0} · {3:N0}% · {1:N1}/{2:N1} MB</value></data>
+  <data name="BackupScanPhase" xml:space="preserve"><value>세이브 파일 확인 중</value></data>
+  <data name="BackupHashPhase" xml:space="preserve"><value>파일 내용 변경 확인 중</value></data>
+  <data name="LogPhase.hash" xml:space="preserve"><value>파일 내용 비교</value></data>
+  <data name="BackupCopyPhase" xml:space="preserve"><value>세이브 파일 복사 중</value></data>
+  <data name="BackupCopyRetryPhase" xml:space="preserve"><value>파일 변경 감지 · 다시 복사 중</value></data>
+  <data name="BackupCapturePhase" xml:space="preserve"><value>세이브 파일 백업 중</value></data>
+  <data name="ArchiveRestorePhase" xml:space="preserve"><value>임시 폴더로 복원 중</value></data>
+  <data name="ArchiveCompressPhase" xml:space="preserve"><value>압축 중</value></data>
+  <data name="ArchiveFinalizePhase" xml:space="preserve"><value>마무리 중</value></data>
+  <data name="Processing" xml:space="preserve"><value>처리 중</value></data>
+  <data name="ProcessingNow" xml:space="preserve"><value>처리 중</value></data>
+  <data name="AutomaticBackupOff" xml:space="preserve"><value>자동 백업 꺼짐</value></data>
+  <data name="NextBackupWaitingDynamic" xml:space="preserve"><value>다음 백업: 대기 중</value></data>
+  <data name="NextBackupFormat" xml:space="preserve"><value>다음 백업: {0}&#xA;남은 시간: {1}</value></data>
+  <data name="ArchiveInspectionFormat" xml:space="preserve"><value>게임 모드: {0}&#xA;세이브명: {1}&#xA;마지막 플레이: {2}</value></data>
+  <data name="Unknown" xml:space="preserve"><value>알 수 없음</value></data>
+  <data name="ConfirmImportTitle" xml:space="preserve"><value>이 세이브를 가져올까요?</value></data>
+  <data name="Import" xml:space="preserve"><value>가져오기</value></data>
+  <data name="Cancel" xml:space="preserve"><value>취소</value></data>
+  <data name="ImportArchiveTitle" xml:space="preserve"><value>압축 파일 가져오기</value></data>
+  <data name="InvalidArchiveFormat" xml:space="preserve"><value>가져올 수 없는 백업 압축 파일입니다. 파일이 손상되지 않았는지 확인해 주세요.</value></data>
+  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>압축 비율이 비정상적으로 높아 안전하게 가져올 수 없습니다.</value></data>
+  <data name="ManualBackupTitle" xml:space="preserve"><value>수동 백업</value></data>
+  <data name="ConfirmRestoreTitle" xml:space="preserve"><value>선택한 백업으로 복원할까요?</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>‘{0}’의 현재 파일을 ‘{1}’ 백업으로 교체합니다. 백업 이후의 진행 내용은 사라집니다. 복원이 중단되면 게임에서 세이브를 불러오기 전에 PZ Tools를 다시 실행해 주세요.</value></data>
+  <data name="RestoreAction" xml:space="preserve"><value>복원</value></data>
+  <data name="RestoreTitle" xml:space="preserve"><value>백업 복원</value></data>
+  <data name="ArchiveFileType" xml:space="preserve"><value>PZ Tools 세이브 백업</value></data>
+  <data name="ExportArchiveTitle" xml:space="preserve"><value>압축 파일 내보내기</value></data>
+  <data name="OperationSucceeded" xml:space="preserve"><value>완료했습니다.</value></data>
+  <data name="OperationNoChange" xml:space="preserve"><value>변경된 파일이 없습니다.</value></data>
+  <data name="OperationBusy" xml:space="preserve"><value>다른 작업이 실행 중이어서 건너뛰었습니다.</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>작업에 실패했습니다.</value></data>
+  <data name="NoPlayHistory" xml:space="preserve"><value>플레이 기록 없음</value></data>
+  <data name="RevisionFormat" xml:space="preserve"><value>백업 {0:N0}</value></data>
+  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>다음 백업 정보를 갱신할 수 없습니다.</value></data>
+  <data name="ProjectorStatusTitle" xml:space="preserve"><value>일부 정보를 갱신할 수 없습니다</value></data>
+  <data name="ProjectorStatusMessage" xml:space="preserve"><value>갱신하지 못한 정보: {0}</value></data>
+  <data name="ProjectorArea.State" xml:space="preserve"><value>세이브 상태</value></data>
+  <data name="ProjectorArea.Backup" xml:space="preserve"><value>백업 목록</value></data>
+  <data name="ProjectorArea.Schedule" xml:space="preserve"><value>다음 백업</value></data>
+  <data name="ProjectorArea.Details" xml:space="preserve"><value>세이브 정보</value></data>
+  <data name="ProjectorArea.Logs" xml:space="preserve"><value>작업 및 로그</value></data>
+  <data name="ProjectorArea.Other" xml:space="preserve"><value>화면 정보</value></data>
+  <data name="OperationCancelled" xml:space="preserve"><value>작업이 취소되었습니다.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>작업은 끝났지만 확인이 필요한 문제가 있습니다. 다시 실행하기 전에 로그를 확인해 주세요.</value></data>
+  <data name="LogsNavigation.Content" xml:space="preserve"><value>로그</value></data>
+  <data name="LogSettings.Header" xml:space="preserve"><value>로그</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>표시할 로그 수준</value></data>
+  <data name="LogLevelSetting.Description" xml:space="preserve"><value>선택한 수준 이상의 기록만 표시합니다.</value></data>
+  <data name="LogLimitSetting.Header" xml:space="preserve"><value>최근 로그 표시 개수</value></data>
+  <data name="LogLimitSetting.Description" xml:space="preserve"><value>로그 화면에 표시할 최근 기록 수입니다.</value></data>
+  <data name="LogLevel.Trace" xml:space="preserve"><value>추적</value></data>
+  <data name="LogLevel.Information" xml:space="preserve"><value>정보</value></data>
+  <data name="LogLevel.Warning" xml:space="preserve"><value>경고</value></data>
+  <data name="LogLevel.Error" xml:space="preserve"><value>오류</value></data>
+  <data name="LogLevel.Critical" xml:space="preserve"><value>치명적</value></data>
+  <data name="LogLevelAtOrAboveFormat" xml:space="preserve"><value>{0} 이상</value></data>
+  <data name="LogsTitle" xml:space="preserve"><value>로그</value></data>
+  <data name="LogsSubtitle" xml:space="preserve"><value>백업과 게임 상태 확인 기록입니다.</value></data>
+  <data name="LogSeverityFilter" xml:space="preserve"><value>로그 수준</value></data>
+  <data name="LogComponentFilter" xml:space="preserve"><value>작업 종류</value></data>
+  <data name="LogRunIndexFilter" xml:space="preserve"><value>작업 번호</value></data>
+  <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>예: 42</value></data>
+  <data name="All" xml:space="preserve"><value>전체</value></data>
+  <data name="NoLogs" xml:space="preserve"><value>표시할 로그가 없습니다.</value></data>
+  <data name="AcknowledgeLog" xml:space="preserve"><value>확인</value></data>
+  <data name="AcknowledgeAllLogs" xml:space="preserve"><value>모두 확인</value></data>
+  <data name="AcknowledgeIssue" xml:space="preserve"><value>이 작업 확인</value></data>
+  <data name="AcknowledgeAlert" xml:space="preserve"><value>이 알림 확인</value></data>
+  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>미확인 {0:N0}건 모두 확인</value></data>
+  <data name="LogIndexFormat" xml:space="preserve"><value>로그 번호 {0}</value></data>
+  <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="LogTimeHeaderFormat" xml:space="preserve"><value>시간 ({0})</value></data>
+  <data name="LogLocalTimeZone" xml:space="preserve"><value>현지</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>로그에 표시된 시간({0})을 기준으로 선택하세요.</value></data>
+  <data name="LogListTitle" xml:space="preserve"><value>기록 · 최신순</value></data>
+  <data name="LogNumberHeader" xml:space="preserve"><value>번호</value></data>
+  <data name="LogNumberHint" xml:space="preserve"><value>로그를 식별하는 고유 번호입니다.</value></data>
+  <data name="LogLevelHeader" xml:space="preserve"><value>수준</value></data>
+  <data name="LogMessageHeader" xml:space="preserve"><value>내용</value></data>
+  <data name="LogRunHeader" xml:space="preserve"><value>작업</value></data>
+  <data name="LogGroupCountFormat" xml:space="preserve"><value>총 {0:N0}건</value></data>
+  <data name="LogPageRangeSummaryFormat" xml:space="preserve"><value>총 {0:N0}건 중 {1:N0}–{2:N0}</value></data>
+  <data name="LogPreviousPage" xml:space="preserve"><value>이전</value></data>
+  <data name="LogNextPage" xml:space="preserve"><value>다음</value></data>
+  <data name="LogCurrentPageFormat" xml:space="preserve"><value>현재 {0:N0}페이지</value></data>
+  <data name="LogJumpToPage" xml:space="preserve"><value>페이지 번호로 이동</value></data>
+  <data name="LogJumpPageHeader" xml:space="preserve"><value>페이지 번호</value></data>
+  <data name="LogJumpPagePlaceholder" xml:space="preserve"><value>1–{0:N0}</value></data>
+  <data name="LogJumpPageInvalid" xml:space="preserve"><value>1–{0:N0} 사이의 페이지 번호를 입력하세요.</value></data>
+  <data name="LogJumpPageConfirm" xml:space="preserve"><value>이동</value></data>
+  <data name="LogGoToPageFormat" xml:space="preserve"><value>{0:N0}페이지로 이동</value></data>
+  <data name="LogPageStatusFormat" xml:space="preserve"><value>{0:N0} / {1:N0} 페이지</value></data>
+  <data name="RelatedLogsTitle" xml:space="preserve"><value>관련 기록</value></data>
+  <data name="RelatedLogCountFormat" xml:space="preserve"><value>관련 기록 {0:N0}개</value></data>
+  <data name="RelatedLogLineFormat" xml:space="preserve"><value>{0} · {1} · {2}</value></data>
+  <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>외 {0:N0}개</value></data>
+  <data name="TechnicalDetails" xml:space="preserve"><value>기술 정보</value></data>
+  <data name="CopyLogDetails" xml:space="preserve"><value>내용 복사</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>로그 상세 내용을 클립보드에 복사했습니다.</value></data>
+  <data name="Close" xml:space="preserve"><value>닫기</value></data>
+  <data name="RawLogPayload" xml:space="preserve"><value>원본 정보</value></data>
+  <data name="LoadingLogs" xml:space="preserve"><value>로그를 불러오는 중입니다</value></data>
+  <data name="LogsUnavailable" xml:space="preserve"><value>로그를 불러올 수 없습니다.</value></data>
+  <data name="SelectLog" xml:space="preserve"><value>로그를 선택하면 상세 정보가 표시됩니다.</value></data>
+  <data name="Time" xml:space="preserve"><value>시간</value></data>
+  <data name="LogEventCode" xml:space="preserve"><value>이벤트 코드</value></data>
+  <data name="LogSource" xml:space="preserve"><value>기록 출처</value></data>
+  <data name="LogEventId" xml:space="preserve"><value>이벤트 ID</value></data>
+  <data name="LogInstanceId" xml:space="preserve"><value>기록 세션 ID</value></data>
+  <data name="LogPayload" xml:space="preserve"><value>추가 정보</value></data>
+  <data name="NoPayload" xml:space="preserve"><value>추가 정보가 없습니다.</value></data>
+  <data name="LogDiagnostics.Title" xml:space="preserve"><value>실패 원인</value></data>
+  <data name="LogDiagnostics.Code" xml:space="preserve"><value>오류 코드</value></data>
+  <data name="LogDiagnostics.Outcome" xml:space="preserve"><value>결과</value></data>
+  <data name="LogDiagnostics.Operation" xml:space="preserve"><value>작업</value></data>
+  <data name="LogOutcome.Failed" xml:space="preserve"><value>실패</value></data>
+  <data name="LogOutcome.Degraded" xml:space="preserve"><value>일부 실패</value></data>
+  <data name="LogOutcome.Cancelled" xml:space="preserve"><value>취소</value></data>
+  <data name="LogDiagnostics.Phase" xml:space="preserve"><value>실패 단계</value></data>
+  <data name="LogDiagnostics.Path" xml:space="preserve"><value>대상 파일</value></data>
+  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>정리 실패 파일 수</value></data>
+  <data name="LogDiagnostics.FailedFiles" xml:space="preserve"><value>정리 실패 파일</value></data>
+  <data name="LogDiagnostics.Save" xml:space="preserve"><value>대상 세이브</value></data>
+  <data name="LogDiagnostics.Reason" xml:space="preserve"><value>실패 이유</value></data>
+  <data name="LogDiagnostics.FileChanged" xml:space="preserve"><value>복사 중 원본 파일이 변경되었습니다.</value></data>
+  <data name="LogDiagnostics.FileAccessFailed" xml:space="preserve"><value>파일에 접근할 수 없었습니다.</value></data>
+  <data name="LogDiagnostics.FileReplaced" xml:space="preserve"><value>복사 중 파일이 교체되거나 이동되었습니다.</value></data>
+  <data name="LogDiagnostics.UnstableFileHint" xml:space="preserve"><value>파일이 갱신 중이거나 접근이 제한됐을 수 있습니다. 잠시 후 다시 백업해 주세요.</value></data>
+  <data name="LogDiagnostics.LegacyMissingDetail" xml:space="preserve"><value>이전 기록에는 자세한 실패 이유가 남지 않았습니다.</value></data>
+  <data name="LogDiagnostics.Message" xml:space="preserve"><value>오류 설명</value></data>
+  <data name="LogDiagnostics.Exception" xml:space="preserve"><value>오류 종류</value></data>
+  <data name="LogDiagnostics.Inner" xml:space="preserve"><value>추가 원인</value></data>
+  <data name="LogDiagnostics.Origin" xml:space="preserve"><value>발생 위치</value></data>
+  <data name="LogPhase.boundary" xml:space="preserve"><value>백업 준비</value></data>
+  <data name="LogPhase.scan" xml:space="preserve"><value>파일 검색</value></data>
+  <data name="LogPhase.planning" xml:space="preserve"><value>변경 사항 확인</value></data>
+  <data name="LogPhase.capture" xml:space="preserve"><value>파일 읽기</value></data>
+  <data name="LogPhase.pack" xml:space="preserve"><value>백업 데이터 저장</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>백업 저장 마무리</value></data>
+  <data name="LogPhase.restore" xml:space="preserve"><value>백업 복원</value></data>
+  <data name="LogCountFormat" xml:space="preserve"><value>{0:N0}개</value></data>
+  <data name="LogEvent.RunStarted" xml:space="preserve"><value>{0} 작업을 시작했습니다.</value></data>
+  <data name="LogEvent.RunCommitted" xml:space="preserve"><value>{0} 작업을 완료했습니다.</value></data>
+  <data name="LogEvent.RunNoChanges" xml:space="preserve"><value>변경 사항이 없어 {0} 작업을 마쳤습니다.</value></data>
+  <data name="LogEvent.RunFailed" xml:space="preserve"><value>{0} 작업에 실패했습니다.</value></data>
+  <data name="LogEvent.RunCancelled" xml:space="preserve"><value>{0} 작업이 취소됐습니다.</value></data>
+  <data name="LogEvent.RunBusy" xml:space="preserve"><value>다른 작업이 실행 중이어서 {0} 작업을 시작하지 못했습니다.</value></data>
+  <data name="LogEvent.BackupCommittedFormat" xml:space="preserve"><value>{0:N0}번 백업을 저장했습니다.</value></data>
+  <data name="LogEvent.BackupChangesPlannedFormat" xml:space="preserve"><value>백업할 변경 항목 {0:N0}개를 확인했습니다.</value></data>
+  <data name="LogEvent.BackupChangesPlanned" xml:space="preserve"><value>백업할 변경 항목을 확인했습니다.</value></data>
+  <data name="LogEvent.CaptureCompleted" xml:space="preserve"><value>백업할 파일 읽기를 마쳤습니다.</value></data>
+  <data name="LogEvent.ScanCompleted" xml:space="preserve"><value>세이브 파일 검색을 마쳤습니다.</value></data>
+  <data name="LogEvent.TelemetryRecovered" xml:space="preserve"><value>로그를 다시 읽을 수 있습니다.</value></data>
+  <data name="LogEvent.OrphanBackupsCleaned" xml:space="preserve"><value>원본 세이브가 없는 백업을 정리했습니다.</value></data>
+  <data name="LogEvent.OrphanBackupsFailed" xml:space="preserve"><value>원본 세이브가 없는 백업을 정리하지 못했습니다.</value></data>
+  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>중단된 작업과 임시 파일을 정리했습니다.</value></data>
+  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>일부 중단 작업을 안전하게 정리할 수 없어 해당 파일을 보존했습니다.</value></data>
+  <data name="LogEvent.TelemetryStale" xml:space="preserve"><value>로그 갱신이 지연되고 있습니다.</value></data>
+  <data name="LogEvent.TelemetryUnreadable" xml:space="preserve"><value>로그를 읽을 수 없습니다.</value></data>
+  <data name="LogEvent.TelemetryUnsupported" xml:space="preserve"><value>현재 로그 형식을 읽을 수 없습니다.</value></data>
+  <data name="LogEvent.TickCompleted" xml:space="preserve"><value>완료: {0}</value></data>
+  <data name="LogEvent.TickFailed" xml:space="preserve"><value>{0} 중 오류가 발생했습니다.</value></data>
+  <data name="LogEvent.UnstableFile" xml:space="preserve"><value>세이브 파일을 안정적으로 읽지 못했습니다.</value></data>
+  <data name="LogEvent.PartialFailure" xml:space="preserve"><value>{0} 작업의 일부를 완료하지 못했습니다.</value></data>
+  <data name="LogEvent.StateRunCompleted" xml:space="preserve"><value>게임 상태 확인을 마쳤습니다.</value></data>
+  <data name="LogEvent.CollectorCompleted" xml:space="preserve"><value>게임 상태를 확인했습니다.</value></data>
+  <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>백업 일정을 확인했습니다.</value></data>
+  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>게임 저장, 백업 간격과 보관 개수, 사망 시 백업을 설정합니다.</value></data>
+  <data name="LogSettings.Description" xml:space="preserve"><value>로그 화면에 표시할 이벤트 수준과 개수를 설정합니다.</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>표시할 로그 수준</value></data>
+  <data name="LogDisplayLimitLabel" xml:space="preserve"><value>표시 개수</value></data>
+  <data name="AdvancedSettings.Header" xml:space="preserve"><value>고급</value></data>
+  <data name="AdvancedSettings.Description" xml:space="preserve"><value>고급 설정 파일을 열고 변경 사항을 적용합니다.</value></data>
+  <data name="AdvancedFiles.Header" xml:space="preserve"><value>설정 파일</value></data>
+  <data name="AdvancedFiles.Description" xml:space="preserve"><value>파일을 편집한 뒤 앱을 다시 시작해야 적용됩니다. 진행 중인 작업이 있으면 재시작할 수 없습니다.</value></data>
+  <data name="AdvancedFiles.OpenHeader" xml:space="preserve"><value>설정 파일 열기</value></data>
+  <data name="AdvancedFiles.OpenDescription" xml:space="preserve"><value>고급 설정 파일이 있는 폴더를 엽니다. 일반 설정은 이 화면에서 변경할 수 있습니다.</value></data>
+  <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>변경 사항 적용</value></data>
+  <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>편집한 설정 파일을 확인한 뒤 앱을 다시 시작합니다. 진행 중인 작업이 있으면 다시 시작할 수 없습니다.</value></data>
+  <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>고급 설정 초기화</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>현재 설정 파일을 따로 보관하고 고급 설정을 기본값으로 되돌립니다. 세이브와 백업은 삭제하지 않습니다.</value></data>
+  <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>폴더 열기</value></data>
+  <data name="AdvancedFiles.Restart" xml:space="preserve"><value>설정 적용 후 다시 시작</value></data>
+  <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>편집한 고급 설정 파일을 확인하고 앱을 다시 시작할까요? 진행 중인 작업이 있으면 다시 시작할 수 없습니다.</value></data>
+  <data name="AdvancedFiles.Reset" xml:space="preserve"><value>기본 설정으로 복원</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>고급 설정을 기본값으로 되돌리고 앱을 다시 시작할까요? 현재 설정 파일은 별도로 보관합니다. 일반 설정과 세이브·백업은 그대로 유지됩니다.</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>저장할 로그 수준</value></data>
+  <data name="LogRecordLevel.Description" xml:space="preserve"><value>새 로그부터 적용합니다. 이전 기록은 유지됩니다.</value></data>
+  <data name="LogMaxEntries.Header" xml:space="preserve"><value>최대 로그 기록 수</value></data>
+  <data name="LogMaxEntries.Description" xml:space="preserve"><value>초과하면 오래된 기록부터 정리합니다. 기본 100,000건.</value></data>
+  <data name="DeleteAction" xml:space="preserve"><value>삭제</value></data>
+  <data name="SaveAction" xml:space="preserve"><value>저장</value></data>
+  <data name="BackupNameFormat" xml:space="preserve"><value>백업 {0:N0}</value></data>
+  <data name="ManualBackupNameFormat" xml:space="preserve"><value>수동 백업 {0:N0}</value></data>
+  <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>자동 백업 {0:N0}</value></data>
+  <data name="AutomaticSaveLabel" xml:space="preserve"><value>자동 백업</value></data>
+  <data name="BackupNamePlaceholder" xml:space="preserve"><value>백업 이름</value></data>
+  <data name="RenameRevisionTitle" xml:space="preserve"><value>백업 이름 편집</value></data>
+  <data name="EditRevisionLabel" xml:space="preserve"><value>{0} 이름 편집</value></data>
+  <data name="ClearRevisionNameLabel" xml:space="preserve"><value>이름 지우기</value></data>
+  <data name="RevisionRenamed" xml:space="preserve"><value>백업 이름을 변경했습니다.</value></data>
+  <data name="DeleteSaveTitle" xml:space="preserve"><value>세이브 삭제</value></data>
+  <data name="DeletingSave" xml:space="preserve"><value>세이브 삭제 중</value></data>
+  <data name="DeleteSaveValidatePhase" xml:space="preserve"><value>세이브 파일을 확인하고 있습니다…</value></data>
+  <data name="DeleteSaveDiscoverPhase" xml:space="preserve"><value>삭제할 파일 목록을 확인하고 있습니다…</value></data>
+  <data name="OperationDiscoveredFormat" xml:space="preserve"><value>{0} · {1:N0}개 확인</value></data>
+  <data name="DeleteSaveFilesPhase" xml:space="preserve"><value>세이브 파일을 삭제하고 있습니다…</value></data>
+  <data name="DeleteSaveBackupsPhase" xml:space="preserve"><value>연결된 백업을 정리하고 있습니다…</value></data>
+  <data name="DeleteRevisionTitle" xml:space="preserve"><value>백업 삭제</value></data>
+  <data name="DeleteAllBackupsButton" xml:space="preserve"><value>백업 모두 삭제</value></data>
+  <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>‘{0}’의 모든 백업 삭제</value></data>
+  <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>백업 모두 삭제</value></data>
+  <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>‘{0}’의 백업 {1}개를 모두 삭제하시겠습니까?
+
+현재 세이브 파일은 유지됩니다. 삭제한 백업은 즉시 목록에서 사라지고 복원·내보내기할 수 없습니다. 백업이 사용하던 저장 공간은 나중에 정리됩니다. 이 작업은 되돌릴 수 없습니다.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>선택한 세이브의 모든 백업을 삭제했습니다. 현재 세이브는 유지됩니다.</value></data>
+  <data name="DeleteSaveLabel" xml:space="preserve"><value>{0} 세이브 삭제</value></data>
+  <data name="DeleteRevisionLabel" xml:space="preserve"><value>{0} 삭제</value></data>
+  <data name="DeleteSaveConfirmation" xml:space="preserve"><value>‘{0}’ 세이브를 삭제하시겠습니까?
+
+대상: {1}
+선택한 세이브 폴더와 모든 파일을 영구 삭제하고, 이 세이브의 백업도 모두 제거합니다. 휴지통이나 보관 폴더로 이동하지 않으며 되돌릴 수 없습니다. 삭제한 백업은 복원·내보내기할 수 없고, 백업이 사용하던 저장 공간은 나중에 정리됩니다.</value></data>
+  <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>‘{0}’의 ‘{1}’을 삭제하시겠습니까?
+
+현재 세이브와 다른 백업은 유지됩니다. 삭제한 백업은 더 이상 복원·내보내기할 수 없으며, 사용하던 저장 공간은 나중에 정리됩니다.</value></data>
+  <data name="SaveDeletedPermanently" xml:space="preserve"><value>세이브 폴더를 영구 삭제하고 해당 세이브의 모든 백업을 목록에서 제거했습니다.</value></data>
+  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>세이브 폴더는 삭제됐지만 백업을 제거하지 못했습니다. 백업 목록을 확인해 주세요.</value></data>
+  <data name="RevisionDeleted" xml:space="preserve"><value>선택한 백업을 삭제했습니다.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>세이브 상태가 바뀌었습니다. 플레이를 종료하고 목록이 새로고침된 뒤 다시 시도해 주세요.</value></data>
+  <data name="MutationRefreshFailed" xml:space="preserve"><value>작업은 완료됐지만 목록을 바로 갱신하지 못했습니다. 작업을 다시 실행하지 마세요. 잠시 후 목록을 다시 확인해 주세요.</value></data>
+  <data name="LogComponent.Backup" xml:space="preserve"><value>백업</value></data>
+  <data name="LogComponent.Restore" xml:space="preserve"><value>복원</value></data>
+  <data name="LogComponent.Archive" xml:space="preserve"><value>압축 파일</value></data>
+  <data name="LogComponent.State" xml:space="preserve"><value>게임 상태 확인</value></data>
+  <data name="LogComponent.Schedule" xml:space="preserve"><value>백업 일정</value></data>
+  <data name="LogComponent.Maintenance" xml:space="preserve"><value>백업 정리</value></data>
+  <data name="LogComponent.Other" xml:space="preserve"><value>기타 작업</value></data>
+  <data name="LogActivity.Backup" xml:space="preserve"><value>세이브 백업</value></data>
+  <data name="LogActivity.Restore" xml:space="preserve"><value>세이브 복원</value></data>
+  <data name="LogActivity.ArchiveExport" xml:space="preserve"><value>압축 파일 내보내기</value></data>
+  <data name="LogActivity.ArchiveImport" xml:space="preserve"><value>압축 파일 가져오기</value></data>
+  <data name="LogActivity.ArchiveInspect" xml:space="preserve"><value>압축 파일 확인</value></data>
+  <data name="LogActivity.Archive" xml:space="preserve"><value>압축 파일 처리</value></data>
+  <data name="LogActivity.StateCheck" xml:space="preserve"><value>게임 상태 확인</value></data>
+  <data name="LogActivity.BackupSchedule" xml:space="preserve"><value>백업 일정 확인</value></data>
+  <data name="LogActivity.Maintenance" xml:space="preserve"><value>백업 정리</value></data>
+  <data name="LogActivity.Other" xml:space="preserve"><value>기타</value></data>
+  <data name="LogEvent.Other" xml:space="preserve"><value>{0} 관련 기록입니다.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>필요한 파일이나 폴더에 접근할 권한이 없습니다. 해당 파일이나 폴더의 권한을 확인해 주세요.</value></data>
+  <data name="OperationError.FileMissing" xml:space="preserve"><value>필요한 파일이나 폴더를 찾을 수 없습니다. 경로를 확인해 주세요.</value></data>
+  <data name="OperationError.Generic" xml:space="preserve"><value>작업을 완료하지 못했습니다. 로그에서 자세한 내용을 확인해 주세요.</value></data>
+  <data name="OperationCardSucceeded" xml:space="preserve"><value>작업 완료</value></data>
+  <data name="OperationCardNoChange" xml:space="preserve"><value>작업 완료 · 변경 없음</value></data>
+  <data name="OperationCardFailed" xml:space="preserve"><value>작업 실패</value></data>
+  <data name="OperationCardCancelled" xml:space="preserve"><value>작업 취소됨</value></data>
+  <data name="OperationCardBusy" xml:space="preserve"><value>작업을 시작하지 못했습니다</value></data>
+  <data name="OperationCardDegraded" xml:space="preserve"><value>작업 종료 · 확인 필요</value></data>
+  <data name="OperationCardWaiting" xml:space="preserve"><value>작업 대기 중</value></data>
+  <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>백업 시간: {0}</value></data>
+  <data name="BackupGameSavePhase" xml:space="preserve"><value>게임 상태 확인 및 필요 시 저장 중…</value></data>
+  <data name="LogPhase.source.prepare" xml:space="preserve"><value>백업 전 게임 저장</value></data>
+  <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>백업 전 게임 저장이 필요한지 확인합니다.</value></data>
+  <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>게임 저장 단계가 끝났습니다. 이어서 백업을 진행합니다.</value></data>
+  <data name="LogEvent.GameSaveSkipped" xml:space="preserve"><value>선택한 세이브를 플레이 중이 아니어서 게임 저장을 건너뛰었습니다.</value></data>
+  <data name="LogEvent.GameSaveChecked" xml:space="preserve"><value>백업 전 게임 저장 확인을 마쳤습니다.</value></data>
+  <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>게임 저장을 확인하지 못해 백업을 중단했습니다.</value></data>
+  <data name="GameSaveSetting.Header" xml:space="preserve"><value>백업 전 게임 저장</value></data>
+  <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>게임 내 저장 카운트다운</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>캐릭터 위에 저장 전 5초 카운트다운과 저장 결과를 표시합니다. 끄면 안내와 수동 백업 전 대기만 생략하며, 게임은 그대로 저장합니다. 자동 백업 시각은 바뀌지 않습니다.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>백업 전에 게임의 최신 진행 내용을 저장합니다. 끄면 아직 저장되지 않은 진행 내용이나 차량·아이템이 백업에서 빠질 수 있으므로 켜두는 것을 권장합니다.</value></data>
+  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>다음 백업: 시작 대기 중</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>다음 백업: 현재 작업 종료 대기</value></data>
+  <data name="HealCharacterAction" xml:space="preserve"><value>캐릭터 회복</value></data>
+  <data name="HealCharacterTitle" xml:space="preserve"><value>캐릭터 회복·부활</value></data>
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>{0} 캐릭터를 회복하시겠습니까?&#xA;&#xA;체력을 채우고 부상·상태 이상을 치료합니다. 사망했다면 부활하며, 회수할 수 있는 소지품을 되찾습니다. 소지품을 회수한 좀비·시체는 제거됩니다.&#xA;&#xA;특성, 스킬·경험치, 위치는 유지됩니다. 일부 모드 효과는 남을 수 있습니다.&#xA;&#xA;계속하기 전에 백업을 만들어 두세요. 이 작업은 백업을 자동으로 만들지 않습니다.&#xA;&#xA;플레이를 종료한 상태에서 선택한 싱글플레이 세이브에 적용됩니다.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>캐릭터를 회복했습니다. 특성·스킬·경험치는 유지했습니다.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>소지품을 안전하게 회수할 수 없어 회복을 중단했습니다. 세이브는 변경하지 않았습니다.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>이전 세이브 변경 작업을 마무리해야 합니다. 이 세이브를 게임에서 불러오기 전에 PZ Tools를 다시 실행해 주세요.</value></data>
+  <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>캐릭터 회복</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>게임 또는 다른 작업이 이 세이브를 사용 중입니다. 플레이와 해당 작업을 마친 뒤 다시 시도해 주세요. 원본은 변경하지 않았습니다.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>이 세이브에 마무리되지 않은 변경 사항이 있습니다. 게임을 정상 종료한 뒤 다시 시도해 주세요. 원본 세이브는 변경하지 않았습니다.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>캐릭터가 한 명인 싱글플레이 세이브에서만 사용할 수 있습니다. 세이브는 변경하지 않았습니다.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>이 세이브를 안전하게 수정할 수 없습니다. 게임과 호환되는 PZ Tools 버전인지 확인해 주세요. 원본은 변경하지 않았습니다.</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>생존 시간을 읽지 못했습니다 · 다시 확인 예정</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>게임이나 다른 작업이 필요한 파일을 사용 중입니다. 저장 또는 해당 작업이 끝난 뒤 다시 시도해 주세요.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>저장 공간이 부족합니다. 파일을 저장할 드라이브의 공간을 확보한 뒤 다시 시도해 주세요.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>앱 실행에 필요한 파일이 없습니다. 배포 파일 전체를 한 폴더에 압축 해제하거나 PZ Tools를 다시 설치한 뒤 실행해 주세요.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>이 백업 폴더는 현재 앱과 저장 형식이 다릅니다. 설정에서 새 빈 백업 폴더를 선택해 주세요. 기존 백업이 필요하면 이전 폴더를 보관하고, 게임 세이브 폴더는 삭제하지 마세요.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>진행 중인 작업이 끝난 뒤 폴더 위치를 변경하거나 PZ Tools를 다시 시작해 주세요.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>설정을 적용할 수 없습니다. 입력한 값과 고급 설정에서 편집한 파일을 확인해 주세요.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>PZ Tools를 다시 시작하지 못했습니다. 진행 중인 작업이 끝난 뒤 앱을 종료하고 다시 실행해 주세요.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>선택한 폴더를 사용할 수 없어 이전 설정으로 되돌렸습니다. 폴더 위치와 접근 권한을 확인해 주세요.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>새 폴더를 사용할 수 없고 이전 설정으로도 되돌리지 못했습니다. 계속하기 전에 설정에서 폴더 위치를 확인해 주세요.</value></data>
+  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>기존 백업의 동일한 데이터 재사용 중</value></data>
+  <data name="LogPhase.deduplication" xml:space="preserve"><value>기존 백업의 동일한 데이터 재사용 중</value></data>
+  <data name="SettingEnabled" xml:space="preserve"><value>켜짐</value></data>
+  <data name="SettingDisabled" xml:space="preserve"><value>꺼짐</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>일시정지·수면 중 정기 백업 대기</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>게임 일시정지 또는 캐릭터 수면 중에는 정기 백업의 남은 시간이 멈추고, 플레이를 재개하면 이어서 셉니다. 게임 상태를 확인할 수 없을 때도 기다립니다. 수동 백업과 사망 시 백업에는 적용되지 않습니다.</value></data>
+  <data name="RuntimeBackupPaused" xml:space="preserve"><value>게임 일시정지 중</value></data>
+  <data name="RuntimeBackupWaiting" xml:space="preserve"><value>게임 상태 확인 중</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>게임을 하나만 실행해 주세요</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>이전 게임 저장 결과를 확인한 뒤 자동 백업을 다시 켜 주세요.</value></data>
+  <data name="LogFilterClear" xml:space="preserve"><value>필터 해제</value></data>
+  <data name="LogFiltersClearAll" xml:space="preserve"><value>모두 해제</value></data>
+  <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · 눌러서 필터</value></data>
+  <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 누르면 표시할 기록이 바뀝니다</value></data>
+  <data name="LogNumberRangeHint" xml:space="preserve"><value>번호(예: 42)나 범위(예: 40-50)를 입력하세요. 올바른 값을 입력하면 자동으로 적용되며, 비워 두면 전체를 표시합니다.</value></data>
+  <data name="LogNumberRangeInvalid" xml:space="preserve"><value>번호 하나 또는 작은 번호부터 큰 번호 순서의 범위를 입력하세요.</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>날짜와 시간을 입력하거나 달력에서 선택하세요. 올바른 값을 입력하면 자동으로 적용되며, 비워 두면 전체를 표시합니다.</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>올바른 날짜와 시간을 입력하세요. 시작 시각은 종료 시각보다 늦을 수 없습니다.</value></data>
+  <data name="LogTimeFrom" xml:space="preserve"><value>시작</value></data>
+  <data name="LogTimeThrough" xml:space="preserve"><value>종료</value></data>
+  <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>{0} 남음</value></data>
+  <data name="LogTimeRecentDay" xml:space="preserve"><value>최근 24시간</value></data>
+  <data name="LogChooseDateTime" xml:space="preserve"><value>날짜·시간 선택</value></data>
+  <data name="LogDateLabel" xml:space="preserve"><value>날짜</value></data>
+<data name="GameExtensions.Title" xml:space="preserve"><value>게임 확장</value></data>
+<data name="GameExtensions.Description" xml:space="preserve"><value>게임의 추가 기능을 설정합니다.</value></data>
+<data name="GameExtensions.Disabled" xml:space="preserve"><value>꺼짐 · 기본 저장 사용</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>다음 저장에서 호환성 확인 &#183; 실험 단계</value></data>
+<data name="GameExtensions.Configure" xml:space="preserve"><value>설정</value></data>
+<data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>{0} 설정</value></data>
+<data name="GameExtensions.Apply" xml:space="preserve"><value>적용</value></data>
+<data name="GameExtensions.SettingsError" xml:space="preserve"><value>확장 설정을 사용할 수 없음</value></data>
+<data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>변경 사항을 저장하지 못했습니다. 게임 확장 화면을 다시 열어 주세요. 문제가 계속되면 확장 설정 파일을 확인해 주세요.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>기본 저장 기능은 그대로 두고 별도 방식으로 저장합니다. 추가 미리보기 생성을 생략하고, 일부 파일 쓰기와 완료 대기를 게임 진행과 분리해 처리합니다. UI 조작이 끝나기를 기다리지 않습니다. 데이터 처리나 잠금 대기로 인한 멈춤은 남을 수 있으며, 지원하지 않는 버전에서는 기본 저장을 사용합니다.</value></data>
+<data name="GameExtensions.VersionAll" xml:space="preserve"><value>모든 버전</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>빌드 {0} 계열</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>빌드 {0}</value></data>
+<data name="GameExtensions.VersionInfo" xml:space="preserve"><value>지원: {0} · 현재 게임: {1}</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>지원 범위 밖 · 확장 비활성</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>게임 버전 확인 대기 · 확장 비활성</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>지원 버전 제한 무시</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>지원하지 않는 버전에서는 오류가 발생할 수 있습니다. 버전 제한만 무시하며 필수 안전 검사는 유지됩니다. 확장 기능은 별도로 켜야 합니다.</value></data>
+<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>버전 제한 무시 · 필수 안전 검사 유지</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>확장 저장 진행 중</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>마지막 요청: 확장 저장 완료</value></data>
+  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>마지막 요청: 기본 저장 사용 ({0})</value></data>
+  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>마지막 요청: 저장 실패 ({0})</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>게임 스레드 최장 작업 {0:N0}ms · 총 소요 시간 {1:N0}ms</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>커피 한 잔으로 응원</value></data>
+  <data name="CoffeeSupport.Message" xml:space="preserve"><value>도움이 되셨나요?</value></data>
+  <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>후원 링크를 준비 중입니다.</value></data>
+  <data name="RuntimeBackupOffline" xml:space="preserve"><value>게임이 실행 중이 아닙니다</value></data>
+  <data name="RuntimeBackupSleeping" xml:space="preserve"><value>캐릭터 수면 중</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>차량 주행 개선</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>전진 가속·변속, 후진과 키보드 조향을 각각 개선합니다. 싱글플레이용 실험 기능입니다.</value></data>
+  <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>자연스러운 가속·변속</value></data>
+  <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>엔진 회전수와 기어에 맞춰 전진 가속을 조절합니다.</value></data>
+  <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>부드러운 후진</value></data>
+  <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>후진 출발과 속도를 완만하게 조절합니다.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>섬세한 스티어링</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>키를 누르고 놓는 동작에 맞춰 조향각과 핸들의 중앙 복귀를 부드럽게 조절합니다.</value></data>
+  <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>각 옵션은 독립적으로 저장됩니다. 게임에서 확인한 적용 상태는 아래에 표시됩니다.</value></data>
+  <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>게임 적용 확인 · 실험 기능</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>게임에 적용 대기 중</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>꺼짐 · 기본 주행 사용</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>끄기 요청됨 · 해제 확인 대기</value></data>
+  <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>아직 적용 중 · 해제 대기</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>변경된 설정을 게임에 적용하는 중</value></data>
+  <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>지원하지 않음 · 기본 주행</value></data>
+  <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>확장 오류 · 기본 주행</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>이 확장을 사용하려면 게임을 다시 시작해 주세요</value></data>
+  <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>상세 정보: {0}</value></data>
+  <data name="GameExtensions.Applying" xml:space="preserve"><value>게임에 변경 사항을 적용하는 중입니다.</value></data>
+  <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>확장을 적용할 수 없습니다. 자세한 내용은 로그를 확인해 주세요.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>싱글플레이를 시작하면 저장된 설정이 적용됩니다.</value></data>
+  <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>게임을 재개하고 차량을 멈춘 뒤 가속 키를 놓고 크루즈 컨트롤을 끄면 적용됩니다.</value></data>
+  <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>게임 메인 화면</value></data>
+  <data name="VersionSetting.Header" xml:space="preserve"><value>버전</value></data>
+  <data name="AboutSettings.Header" xml:space="preserve"><value>정보</value></data>
+  <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>호환성 및 적용 상태</value></data>
+  <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>{0} 이상 로그가 없습니다.</value></data>
+  <data name="NoFilteredLogs" xml:space="preserve"><value>선택한 필터에 맞는 로그가 없습니다.</value></data>
+  <data name="LogShowAll" xml:space="preserve"><value>전체 로그 보기</value></data>
+  <data name="HomeNavigation.Content" xml:space="preserve"><value>홈</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Project Zomboid의 백업, 캐릭터 회복, 게임 확장을 관리합니다.</value></data>
+  <data name="Home.FeaturesHeading" xml:space="preserve"><value>주요 기능</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>자동·수동 백업</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>변경된 파일만 압축해 백업합니다. 자동 백업의 주기와 보관 개수를 설정할 수 있으며, 수동 백업은 보관 개수 제한을 받지 않습니다.</value></data>
+  <data name="Home.BackupAction" xml:space="preserve"><value>백업 설정</value></data>
+  <data name="Home.RestoreTitle" xml:space="preserve"><value>백업 복원·내보내기</value></data>
+  <data name="Home.RestoreDescription" xml:space="preserve"><value>세이브를 백업 당시 상태로 되돌립니다. 세이브와 백업을 ZIP으로 내보내거나 ZIP 파일을 가져올 수 있습니다.</value></data>
+  <data name="Home.RestoreAction" xml:space="preserve"><value>백업 목록</value></data>
+  <data name="Home.RecoveryTitle" xml:space="preserve"><value>캐릭터 회복</value></data>
+  <data name="Home.RecoveryDescription" xml:space="preserve"><value>현재 세이브의 캐릭터를 치료하거나 부활시킵니다. 특성과 스킬은 유지하며, 플레이 중인 세이브에는 사용할 수 없습니다.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>차량의 가속·변속·후진·키보드 조향을 조정합니다. 별도 모드 설치 없이 기능별로 켜고 끌 수 있습니다.</value></data>
+  <data name="Home.ReportIssue" xml:space="preserve"><value>문제 신고</value></data>
+  <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid 비공식 도구</value></data>
+</root>
