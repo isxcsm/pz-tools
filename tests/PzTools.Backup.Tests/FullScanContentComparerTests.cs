@@ -42,19 +42,20 @@ public sealed class FullScanContentComparerTests
     }
 
     [Fact]
-    public async Task Comparison_LargerBatchKeepsTwoReadersAndPreservesMissingOrMismatchedBaselines()
+    public async Task Comparison_LargerBatchRespectsDefaultReaderLimitAndPreservesMissingOrMismatchedBaselines()
     {
         using var temp = new TempDirectory();
         var entries = await CreateEntriesAsync(temp);
-        var batch = Enumerable.Range(0, new BackupTuningOptions().FullScanHashBatchSize)
+        var tuning = new BackupTuningOptions();
+        var batch = Enumerable.Range(0, tuning.FullScanHashBatchSize)
             .Select(index => entries[index % 2]).ToArray();
         batch[4] = (batch[4].Entry, null);
         batch[9] = (batch[9].Entry, new byte[ContentFingerprint.Length]);
-        var metadata = new TrackingMetadataReader();
-        var matches = await new FullScanContentComparer(metadata).CompareAsync(temp.Path, batch,
+        var metadata = new TrackingMetadataReader(expectedReaders: tuning.FullScanHashReadConcurrency);
+        var matches = await new FullScanContentComparer(metadata, tuning).CompareAsync(temp.Path, batch,
             CancellationToken.None, async _ => await metadata.ReadersOpened.Task.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.Equal(Enumerable.Range(0, batch.Length).Select(index => index is not (4 or 9)), matches);
-        Assert.Equal(2, metadata.MaximumOpenHandles);
+        Assert.Equal(tuning.FullScanHashReadConcurrency, metadata.MaximumOpenHandles);
         Assert.All(metadata.Handles, handle => Assert.True(handle.IsClosed));
     }
 

@@ -15,11 +15,11 @@ public sealed record BackupTuningOptions(
     int GameCompletionTimeoutSeconds = 150,
     int GameQueueTimeoutSeconds = 15,
     int SmallFileStagingKib = 256,
-    int StagingMemoryMib = 16,
-    int CaptureReadConcurrency = 2,
-    int CaptureQueueCapacity = 16,
+    int StagingMemoryMib = 4,
+    int CaptureReadConcurrency = 4,
+    int CaptureQueueCapacity = 8,
     int FullScanHashBatchSize = 16,
-    int FullScanHashReadConcurrency = 2)
+    int FullScanHashReadConcurrency = 4)
 {
     public static BackupTuningOptions Read(ComponentConfiguration configuration) => new(
         configuration.GetInt32("runtime", "capture_attempts", 5, 1, 20),
@@ -33,11 +33,11 @@ public sealed record BackupTuningOptions(
         configuration.GetInt32("runtime", "game_completion_timeout_seconds", 150, 30, 600),
         configuration.GetInt32("runtime", "game_queue_timeout_seconds", 15, 1, 60),
         configuration.GetInt32("runtime", "small_file_staging_kib", 256, 0, 1024),
-        configuration.GetInt32("runtime", "staging_memory_mib", 16, 1, 256),
-        configuration.GetInt32("runtime", "capture_read_concurrency", 2, 1, 8),
-        configuration.GetInt32("runtime", "capture_queue_capacity", 16, 1, 128),
+        configuration.GetInt32("runtime", "staging_memory_mib", 4, 1, 256),
+        configuration.GetInt32("runtime", "capture_read_concurrency", 4, 1, 8),
+        configuration.GetInt32("runtime", "capture_queue_capacity", 8, 1, 128),
         configuration.GetInt32("runtime", "full_scan_hash_batch_size", 16, 1, 128),
-        configuration.GetInt32("runtime", "full_scan_hash_read_concurrency", 2, 1, 8));
+        configuration.GetInt32("runtime", "full_scan_hash_read_concurrency", 4, 1, 8));
 
     public TomlTable ToTable() => new()
     {

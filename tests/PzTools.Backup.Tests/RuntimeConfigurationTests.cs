@@ -9,6 +9,22 @@ namespace PzTools.Backup.Tests;
 
 public sealed class RuntimeConfigurationTests
 {
+    [Fact]
+    public async Task BackupRuntime_DefaultsMatchFreshTemplateAndSerialization()
+    {
+        using var temp = new TempDirectory();
+        var settings = new AppSettingsService(temp.GetPath("runtime"));
+        await settings.EnsureComponentConfigurationAsync(temp.Path, "backup-worker");
+        var path = ComponentRuntimePaths.GetIdentityDefaultPath(temp.Path, "backup-worker", settings.ConfigurationRoot);
+        var template = BackupConfiguration.Parse(await File.ReadAllTextAsync(path), temp.GetPath("repo"), path,
+            new BackupOptionOverrides { Sources = [new("test", temp.GetPath("source"))] });
+        var defaults = new BackupTuningOptions();
+        Assert.Equal(defaults, template.EffectiveTuning);
+        Assert.Equal(defaults, BackupTuningOptions.Read(ComponentConfiguration.Parse("[runtime]")));
+        Assert.Equal(defaults, BackupConfiguration.Parse(BackupConfiguration.Serialize(template),
+            template.RepositoryPath, path).EffectiveTuning);
+    }
+
     [Theory]
     [InlineData("capture_attempts", "0")]
     [InlineData("capture_retry_delay_ms", "-1")]

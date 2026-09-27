@@ -7,6 +7,9 @@ using PzTools.Backup.Core.Configuration;
 using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
 
+if (args.FirstOrDefault() is "--tune" or "--tune-generate")
+    return await TuningProfile.RunAsync(args);
+
 var workerOptions = WorkerOptions.Extract(args);
 var settings = ProfileSettings.Parse(workerOptions.ProfileArguments);
 Directory.CreateDirectory(settings.OutputRoot);
