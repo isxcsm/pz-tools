@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
 using PzTools.SaveBridge;
@@ -10,7 +11,7 @@ namespace PzTools.State.Scheduler;
 /// <summary>Composition root for observation. Reception never waits for slow save discovery/SQLite.</summary>
 internal sealed class RuntimeObservationCoordinator(StateDatabase state, SchedulerDatabase scheduler,
     string savesRoot, string bridgeDirectory, RuntimeSnapshotStore published,
-    string runtimeRoot, RuntimeExtensionStatusStore extensions)
+    string runtimeRoot, RuntimeExtensionStatusStore extensions, ExtensionControlOptions extensionOptions)
 {
     private readonly RuntimeSnapshotStore received = new();
 
@@ -57,7 +58,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                     catch (OperationCanceledException) { }
                 }
                 var exit = WatchExitAsync();
-                var control = new RuntimeExtensionCoordinator(bridgeDirectory, runtimeRoot, received, extensions)
+                var control = new RuntimeExtensionCoordinator(bridgeDirectory, runtimeRoot, received, extensions, extensionOptions)
                     .RunAsync(game.Id, stream, connection.Token);
                 try
                 {

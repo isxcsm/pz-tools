@@ -147,7 +147,7 @@ public final class DrivetrainModel {
             // ratio/first multiplier reduced every higher gear before its torque curve/governor.
             // This is game-force calibration, not horsepower-to-SI or measured wheel torque.
             // Our RPM is a proxy: the original >6000 RPM fade is not compounded with it.
-            // The 1..1.10 modulation bounds the base formula, not the complete vanilla controller.
+            // The configurable modulation (at most 1..1.10) bounds the base formula, not the complete vanilla controller.
             // The model may upshift earlier than the original equal-speed gear bands. Do not
             // drop the original first-gear leverage merely because our RPM proxy changed gear.
             boolean firstGearRange = gear == 1 || speed * 3.6 < profile.maxSpeedKph / profile.gearCount;
@@ -163,7 +163,7 @@ public final class DrivetrainModel {
         double forceRate = direction < 0 ? cap / ramp : forceBase * config.lowGearBoost * trait / ramp;
         deliveredMagnitude = approach(deliveredMagnitude, requested, forceRate * dt);
         // A speed/trait/surface cap must take effect immediately even if the ordinary release is smoothed.
-        deliveredMagnitude = Math.min(deliveredMagnitude, cap * (direction < 0 ? 1.0 : 1.10) * governor);
+        deliveredMagnitude = Math.min(deliveredMagnitude, cap * (direction < 0 ? 1.0 : 1.0 + config.forwardTorqueBoostFraction) * governor);
         if (throttle == 0.0 && beforeThrottle == 0.0) deliveredMagnitude = 0.0;
         if (!Double.isFinite(deliveredMagnitude) || !Double.isFinite(rpm)) { reset(); return; }
 

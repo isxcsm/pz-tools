@@ -9,7 +9,7 @@
   <data name="SavesNavigation.Content" xml:space="preserve"><value>セーブ管理</value></data>
   <data name="Exporting.Text" xml:space="preserve"><value>エクスポート中</value></data>
   <data name="BackingUp.Text" xml:space="preserve"><value>バックアップ中</value></data>
-  <data name="ImportArchive.Content" xml:space="preserve"><value>ZIPをインポート</value></data>
+  <data name="ImportArchive.Content" xml:space="preserve"><value>アーカイブをインポート</value></data>
   <data name="NoSaves.Text" xml:space="preserve"><value>セーブが見つかりません</value></data>
   <data name="LoadingSaves.Text" xml:space="preserve"><value>セーブを読み込み中…</value></data>
   <data name="LoadingBackups.Text" xml:space="preserve"><value>セーブの詳細を読み込み中…</value></data>
@@ -57,7 +57,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動バックアップの保持数</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>最新の自動バックアップを1～100件保持します。この制限で手動バックアップは削除されません。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>キャラクター死亡時にバックアップ</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>実行中のゲームでキャラクターの死亡を検出するとバックアップします。自動バックアップが必要です。一時停止中も実行します。保存済みデータの死亡情報は別に管理します。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>実行中のゲームでキャラクターの死亡を検出するとバックアップします。自動バックアップをオンにする必要があり、一時停止中も実行します。既存のセーブに死亡情報があるだけでは実行しません。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>コピーしたファイルを確認</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>コピーの内容が元のファイルと一致するか確認します。コピー中に元のファイルが変わった場合は、コピーし直します。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>バックアップ中にセーブファイルが繰り返し変更されました。ゲームの保存が終わってから、もう一度バックアップしてください。</value></data>
@@ -116,7 +116,7 @@
   <data name="ConfirmImportTitle" xml:space="preserve"><value>このセーブをインポートしますか？</value></data>
   <data name="Import" xml:space="preserve"><value>インポート</value></data>
   <data name="Cancel" xml:space="preserve"><value>キャンセル</value></data>
-  <data name="ImportArchiveTitle" xml:space="preserve"><value>ZIPをインポート</value></data>
+  <data name="ImportArchiveTitle" xml:space="preserve"><value>アーカイブをインポート</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>このバックアップはインポートできません。ファイルが破損していないか確認してください。</value></data>
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>圧縮率が異常に高いため、安全にインポートできません。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手動バックアップ</value></data>
@@ -145,7 +145,7 @@
   <data name="OperationDegraded" xml:space="preserve"><value>処理は終了しましたが、確認が必要な問題があります。再実行する前にログを確認してください。</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>ログ</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>ログ</value></data>
-  <data name="LogLevelSetting.Header" xml:space="preserve"><value>最低レベル</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>表示するログ</value></data>
   <data name="LogLevelSetting.Description" xml:space="preserve"><value>選択したレベル以上のイベントを表示します。</value></data>
   <data name="LogLimitSetting.Header" xml:space="preserve"><value>最近のログ件数</value></data>
   <data name="LogLimitSetting.Description" xml:space="preserve"><value>ログ画面に表示する最近のイベントの件数です。</value></data>
@@ -165,9 +165,9 @@
   <data name="NoLogs" xml:space="preserve"><value>表示するログはありません。</value></data>
   <data name="AcknowledgeLog" xml:space="preserve"><value>確認済みにする</value></data>
   <data name="AcknowledgeAllLogs" xml:space="preserve"><value>すべて確認済みにする</value></data>
-  <data name="AcknowledgeIssue" xml:space="preserve"><value>この実行を確認済みにする</value></data>
+  <data name="AcknowledgeIssue" xml:space="preserve"><value>この処理を確認済みにする</value></data>
   <data name="AcknowledgeAlert" xml:space="preserve"><value>この通知を確認済みにする</value></data>
-  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>未確認の {0:N0} 件をすべて確認</value></data>
+  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>未確認の{0:N0}件をすべて確認済みにする</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>ログ番号 {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>時刻（{0}）</value></data>
@@ -219,7 +219,7 @@
   <data name="LogOutcome.Cancelled" xml:space="preserve"><value>キャンセル済み</value></data>
   <data name="LogDiagnostics.Phase" xml:space="preserve"><value>失敗した手順</value></data>
   <data name="LogDiagnostics.Path" xml:space="preserve"><value>ファイル</value></data>
-  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>未クリーンアップのファイル</value></data>
+  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>削除できなかったファイル</value></data>
   <data name="LogDiagnostics.FailedFiles" xml:space="preserve"><value>影響を受けたファイル</value></data>
   <data name="LogDiagnostics.Save" xml:space="preserve"><value>セーブ</value></data>
   <data name="LogDiagnostics.Reason" xml:space="preserve"><value>原因</value></data>
@@ -254,8 +254,8 @@
   <data name="LogEvent.TelemetryRecovered" xml:space="preserve"><value>ログを再び利用できるようになりました。</value></data>
   <data name="LogEvent.OrphanBackupsCleaned" xml:space="preserve"><value>元のセーブが存在しないバックアップを削除しました。</value></data>
   <data name="LogEvent.OrphanBackupsFailed" xml:space="preserve"><value>元のセーブが存在しないバックアップを削除できませんでした。</value></data>
-  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>中断された操作と一時ファイルをクリーンアップしました。</value></data>
-  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>一部の中断された操作を安全にクリーンアップできませんでした。該当するファイルは保持されています。</value></data>
+  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>中断した処理の残存ファイルと一時ファイルを削除しました。</value></data>
+  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>中断した一部の処理の残存ファイルを安全に削除できませんでした。該当するファイルは保持されています。</value></data>
   <data name="LogEvent.TelemetryStale" xml:space="preserve"><value>ログの更新が遅れています。</value></data>
   <data name="LogEvent.TelemetryUnreadable" xml:space="preserve"><value>ログを読み取れませんでした。</value></data>
   <data name="LogEvent.TelemetryUnsupported" xml:space="preserve"><value>このログ形式は読み取れません。</value></data>
@@ -268,7 +268,7 @@
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>バックアップのスケジュールを確認しました。</value></data>
   <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>ゲームの保存、バックアップ間隔、履歴の保存件数、キャラクター死亡後の動作を設定します。</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>ログ画面に表示するイベントのレベルと件数を設定します。</value></data>
-  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>最低ログレベル</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>表示するログ</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>表示件数の上限</value></data>
   <data name="AdvancedSettings.Header" xml:space="preserve"><value>詳細設定</value></data>
   <data name="AdvancedSettings.Description" xml:space="preserve"><value>詳細設定ファイルを開き、変更を適用します。</value></data>
@@ -285,12 +285,12 @@
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>編集した詳細設定ファイルを検証し、アプリを再起動しますか？操作の実行中は再起動できません。</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>既定の設定に戻す</value></data>
   <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>詳細設定を初期値に戻してアプリを再起動しますか？現在の設定ファイルのコピーは保管します。通常の設定、セーブ、バックアップは変更しません。</value></data>
-  <data name="LogRecordLevel.Header" xml:space="preserve"><value>記録する最低レベル</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>記録するイベント</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>新しいログに適用されます。既存の履歴は保持されます。</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>ログ件数の上限</value></data>
   <data name="LogMaxEntries.Description" xml:space="preserve"><value>上限を超えると古い記録から削除します。既定値：100,000 件。</value></data>
   <data name="DeleteAction" xml:space="preserve"><value>削除</value></data>
-  <data name="SaveAction" xml:space="preserve"><value>セーブ</value></data>
+  <data name="SaveAction" xml:space="preserve"><value>保存</value></data>
   <data name="BackupNameFormat" xml:space="preserve"><value>バックアップ {0:N0}</value></data>
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>手動バックアップ {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>自動バックアップ {0:N0}</value></data>
@@ -368,11 +368,13 @@
   <data name="HealCharacterTitle" xml:space="preserve"><value>キャラクターの回復・蘇生</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>{0}を回復しますか？
 
-体力を回復し、けがや状態異常を治療します。死亡している場合は復活し、回収できる所持品を取り戻します。所持品の回収元となったゾンビ・死体は削除されます。
+体力を回復し、けがや状態異常を治療します。死亡している場合は蘇生し、回収できる所持品を取り戻します。所持品の回収元となったゾンビ・死体は削除されます。
 
 特性、スキル、経験値、位置は維持されます。一部のMODの効果は残る場合があります。
 
-プレイを終了した状態で、選択したシングルプレイのセーブに適用します。</value></data>
+プレイを終了した状態で、選択したシングルプレイのセーブに適用します。
+
+続行する前にバックアップを作成してください。この処理ではバックアップを自動作成しません。</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>キャラクターの回復が完了しました。特性・スキル・経験値は保持されています。</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>所持品を安全に回収できないため、回復を中止しました。セーブは変更していません。</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>前回のセーブ変更を完了する必要があります。このセーブをゲームで読み込む前にPZ Toolsを再起動してください。</value></data>
@@ -381,7 +383,7 @@
   <data name="RecoveryError.Journal" xml:space="preserve"><value>このセーブには未完了の変更があります。ゲームを通常の手順で終了してから再試行してください。元のセーブは変更していません。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>キャラクターが1人のシングルプレイのセーブでのみ使用できます。セーブは変更していません。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>このセーブを安全に編集できません。PZ Toolsがゲームのバージョンに対応しているか確認してください。元のセーブは変更していません。</value></data>
-  <data name="SurvivalReadFailed" xml:space="preserve"><value>読み取り失敗・再試行予定</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>生存時間を読み取れませんでした · 再確認予定</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>ゲームや別の処理が必要なファイルを使用しています。保存や処理が終わってから再試行してください。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>空き容量が足りません。保存先ドライブの空き容量を増やしてから再試行してください。</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>アプリに必要なファイルがありません。ダウンロードしたファイルをすべて同じフォルダーに展開するか、PZ Toolsを再インストールして起動し直してください。</value></data>
@@ -407,8 +409,8 @@
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · クリックすると表示する記録が変わります</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42または40-50。入力すると自動で適用されます。空欄は制限なしです。</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>整数の番号、または小さい番号からの範囲を入力してください。</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>入力またはカレンダーで選択すると自動で適用されます。空欄は制限なしです。</value></data>
-  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>有効な日時を入力し、開始を終了以前にしてください。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>日時を入力するか、カレンダーで選択すると自動で適用されます。空欄の場合は制限しません。</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>有効な日時を入力し、開始日時が終了日時より後にならないようにしてください。</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>開始</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>終了</value></data>
   <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>残り {0}</value></data>
@@ -424,15 +426,15 @@
 <data name="GameExtensions.Apply" xml:space="preserve"><value>適用</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>拡張設定を利用できません</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>変更を保存できませんでした。ページを開き直し、拡張設定ファイルを確認してください。</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>通常の保存を変更せず、専用の経路で保存します。追加のプレビュー描画を省き、一部の書き込みと完了待ちをゲームスレッドから分離します。UI操作の終了を待って保存を遅らせることはありません。データのシリアライズやロックによる停止は残る場合があります。未対応のバージョンでは通常の保存を使用します。</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>通常の保存機能は変更せず、別の処理方式で保存します。追加のプレビュー描画を省き、一部の書き込みと完了待ちをバックグラウンドで処理します。画面操作が終わるまで保存を先延ばしにはしません。保存用のデータ変換やデータのロック待ちにより、ゲームが止まる場合はあります。未対応のバージョンでは通常の保存を使用します。</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>すべてのバージョン</value></data>
-<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>メジャー {0}</value></data>
-<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>マイナー {0}</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>ビルド{0}系</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>ビルド{0}</value></data>
 <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>対応: {0} · 現在のゲーム: {1}</value></data>
 <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>対応範囲外 · 拡張は無効</value></data>
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>ゲームバージョンを確認中 · 拡張は無効</value></data>
-<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>対応範囲外でも強制的に有効化</value></data>
-<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>互換性のないバージョンではエラーが発生する場合があります。バージョン範囲の制限のみ解除し、必須の安全確認は維持します。</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>対応バージョンの範囲を無視</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>互換性のないバージョンではエラーが発生する場合があります。バージョン範囲の制限のみ解除し、必須の安全確認は維持します。この設定だけでは拡張機能はオンになりません。</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>バージョン制限を無視 · 必須の確認は維持</value></data>
   <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>拡張保存を実行中</value></data>
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>前回の要求：拡張保存が完了</value></data>
@@ -444,14 +446,14 @@
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>支援リンクは準備中です。</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>ゲームが起動していません</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>キャラクターが睡眠中</value></data>
-  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>車両の運転改善</value></data>
+  <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>車両の操作性改善</value></data>
   <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>前進時の加速・変速、後退、キーボード操舵を個別に改善します。シングルプレイ専用の実験的な機能です。</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>自然な加速・変速</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>エンジン回転数とギアに合わせて前進時の加速を調整します。</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>滑らかな後退</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>後退時の発進を穏やかにし、速度を制限します。</value></data>
   <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>細やかなステアリング</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>キーボード操舵と中央への戻りを段階的に調整します。</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>キーボードでの操舵と中央への戻りを滑らかに調整します。</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>各オプションは個別に保存されます。ゲームで確認した適用状態を下に表示します。</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>ゲームへの適用を確認 · 実験的機能</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>有効化を要求済み · ゲームの確認待ち</value></data>
@@ -468,4 +470,24 @@
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>保存した設定はシングルプレイのゲームに入ると適用されます。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>ゲームを再開して車を止め、アクセルを離してクルーズコントロールを解除すると適用されます。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>ゲームのメインメニュー</value></data>
+  <data name="VersionSetting.Header" xml:space="preserve"><value>バージョン</value></data>
+  <data name="AboutSettings.Header" xml:space="preserve"><value>アプリについて</value></data>
+  <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>互換性と適用状況</value></data>
+  <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>レベルが「{0}」以上のログはありません。</value></data>
+  <data name="NoFilteredLogs" xml:space="preserve"><value>選択したフィルターに一致するログはありません。</value></data>
+  <data name="LogShowAll" xml:space="preserve"><value>すべてのログを表示</value></data>
+  <data name="HomeNavigation.Content" xml:space="preserve"><value>ホーム</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Project Zomboidのバックアップ作成やキャラクターの回復、ゲーム拡張ができます。</value></data>
+  <data name="Home.FeaturesHeading" xml:space="preserve"><value>主な機能</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>自動・手動バックアップ</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>変更されたファイルだけを圧縮してバックアップします。自動バックアップの間隔と保持数を設定でき、手動バックアップはその数に含まれません。</value></data>
+  <data name="Home.BackupAction" xml:space="preserve"><value>バックアップ設定</value></data>
+  <data name="Home.RestoreTitle" xml:space="preserve"><value>バックアップの復元・エクスポート</value></data>
+  <data name="Home.RestoreDescription" xml:space="preserve"><value>セーブをバックアップ時点の状態に戻します。セーブとバックアップをZIP形式でエクスポートでき、ZIPファイルのインポートもできます。</value></data>
+  <data name="Home.RestoreAction" xml:space="preserve"><value>バックアップ一覧</value></data>
+  <data name="Home.RecoveryTitle" xml:space="preserve"><value>キャラクターの回復</value></data>
+  <data name="Home.RecoveryDescription" xml:space="preserve"><value>現在のセーブでキャラクターを治療・蘇生します。特性とスキルは変わりません。プレイ中のセーブには使用できません。</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>車両の加速・変速・後退・キーボードでの操舵を調整します。別途MODを入れずに、機能ごとにオン・オフを切り替えられます。</value></data>
+  <data name="Home.ReportIssue" xml:space="preserve"><value>問題を報告</value></data>
+  <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboidの非公式ツール</value></data>
 </root>

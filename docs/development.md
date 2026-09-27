@@ -49,6 +49,22 @@ pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 folder first and then call `publish-app.ps1` on the same nonempty folder.
 The scripts require a **new or empty output folder**. Use another `-Output` for the
 next publication; they do not erase an existing installation or user settings.
+Use a fresh `-SaveBridgeOutput` folder for a release as well, so the Java payload
+does not reuse files from earlier development builds.
+
+After testing the published folder, create the release archive:
+
+```powershell
+pwsh scripts/package-release.ps1 -PublishDirectory artifacts/app-local -OutputArchive artifacts/PzTools-preview-win-x64.zip
+```
+
+The archive's parent folder must exist. The packager does not publish or modify
+the input folder and refuses existing output files. It adds the short
+[release guide](../build/START-HERE.txt), uses a `PzTools/` top-level folder and
+fixed entry order/timestamps, and verifies every file against its streamed SHA-256
+before completing the ZIP and its `.sha256` sidecar. Links and input changes are
+rejected. This makes packaging the same published files reproducible; it does not
+claim that separate builds with different toolchains produce identical binaries.
 
 Distribute the **whole output folder**, including workers, defaults, WinUI components
 and the reduced Java Attach runtime. Run `PzTools.App.exe`, not a source-code archive

@@ -6,6 +6,7 @@ torque_enabled = true            # Forward acceleration and transmission; indepe
 reverse_enabled = true           # Smooth reverse launch and direction transitions
 steering_enabled = true          # Progressive keyboard steering; gamepads retain original behavior
 force_scale = 1.0                 # 0.25..1.5; not an SI horsepower conversion
+forward_torque_boost_fraction = 0.10 # 0..0.10; RPM-curve boost above the base forward force (0 disables only this boost)
 low_gear_boost = 1.0              # 1.0..1.6; default adds no extra first-gear boost
 reverse_force_ratio = 1.0         # 0.4..1.0; multiplier of the vehicle's vanilla reverse output
 reverse_max_speed_kph = 0.0       # 0 = vanilla Script.maxSpeedReverse / 1.5; explicit override: 4..35 km/h

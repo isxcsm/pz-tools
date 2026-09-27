@@ -73,6 +73,22 @@ public sealed class InterruptedOperationRecoveryService
                 token.ThrowIfCancellationRequested();
                 try
                 {
+                    if (IsImportStaging(mode))
+                    {
+                        // Import workers hold the saves-root lock through extraction and publication.
+                        await OperationMutexSet.TryRunAsync(
+                            [new OperationMutexRequest(OperationMutexScope.SaveWrite, root)], innerToken =>
+                            {
+                                innerToken.ThrowIfCancellationRequested();
+                                if (Directory.Exists(mode))
+                                {
+                                    SafeRevisionRestoreService.DeleteOperationDirectory(mode);
+                                    deleted++;
+                                }
+                                return Task.FromResult(true);
+                            }, token);
+                        continue;
+                    }
                     if ((File.GetAttributes(mode) & FileAttributes.ReparsePoint) != 0) continue;
                     var names = Directory.GetFileSystemEntries(mode).Select(Path.GetFileName)
                         .Select(TryGetSaveName).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -134,6 +150,14 @@ public sealed class InterruptedOperationRecoveryService
 
     private static bool IsRecoverableFailure(Exception exception) =>
         exception is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException;
+
+    private static bool IsImportStaging(string path)
+    {
+        const string prefix = ".pztools-import-";
+        var name = Path.GetFileName(path);
+        return name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParseExact(name[prefix.Length..], "N", out _);
+    }
 
     private static string? TryGetSaveName(string? name)
     {

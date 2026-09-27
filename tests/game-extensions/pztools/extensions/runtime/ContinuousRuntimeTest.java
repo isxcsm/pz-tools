@@ -12,10 +12,12 @@ import javax.tools.ToolProvider;
 /** Real archived provider generations and callback races. No game classes or attach operation. */
 public final class ContinuousRuntimeTest {
     public static volatile CountDownLatch entered, release;
+    public static volatile CountDownLatch configurationEntered, configurationRelease;
     public static final AtomicInteger activations = new AtomicInteger(), closures = new AtomicInteger();
     public static volatile boolean ready = true, hold, fail, failClose, failHealth;
     public static volatile int preflightFailure;
     public static volatile boolean initializeFailure;
+    public static volatile boolean holdConfiguration;
     public static volatile String appliedValue;
     public static void main(String[] args) throws Exception { run(); }
     public static void run() throws Exception {
@@ -72,6 +74,8 @@ public final class ContinuousRuntimeTest {
             repeatedReplacement(root, first, world, worldId, loader);
             rejectedInstallAfterPreflight(root,first,world,worldId,loader);
             pendingLatestAndOff(root,world,worldId,loader);
+            pendingDuringConfigApplication(root,world,worldId,loader);
+            ContinuousRuntimePublicationTest.run(root,world,worldId,loader);
             failClose = true;
             var broken = new ContinuousRuntime(root);
             context.worldValid().set(true);
@@ -81,8 +85,9 @@ public final class ContinuousRuntimeTest {
             failClose = false;
             System.out.println("PASS: continuous activation/config CAS, safe boundary, corrupt archive, generation drain, world/fault fallback and closed host");
         } finally {
-            hold = false; fail = false; failClose = false; failHealth = false; ready = true; preflightFailure=0; initializeFailure=false;
+            hold = false; fail = false; failClose = false; failHealth = false; ready = true; preflightFailure=0; initializeFailure=false; holdConfiguration=false;
             if (release != null) release.countDown();
+            if (configurationRelease != null) configurationRelease.countDown();
             try (var paths = Files.walk(root)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); }
         }
     }
@@ -115,6 +120,57 @@ public final class ContinuousRuntimeTest {
             check(runtime.status().state().equals("Disabled") && appliedValue.equals("latest")
                 && VehicleHooks.tryControl(null,1,0)==0,"A cancelled pending revision was resurrected on resume");
         } finally { ready=true; runtime.close(); }
+    }
+    private static void pendingDuringConfigApplication(Path root,Object world,String worldId,ClassLoader loader) throws Exception {
+        var runtime=new ContinuousRuntime(root);
+        var context=new ContinuousProvider.Context(RuntimeIdentity.processId(),worldId,world,Thread.currentThread(),loader,new AtomicBoolean(true));
+        configurationEntered=new CountDownLatch(1); configurationRelease=new CountDownLatch(1);
+        var queued=new AtomicReference<ContinuousModules.Status>();
+        var failure=new AtomicReference<Throwable>();
+        Thread controller=new Thread(()->{
+            try {
+                check(configurationEntered.await(5,TimeUnit.SECONDS),"Configuration callback did not enter");
+                queued.set(runtime.apply(request(worldId,20,22,"waiting"),null,loader,"42.20"));
+                ready=false; // The vehicle leaves the safe boundary before the next game tick.
+            } catch(Throwable error) { failure.set(error); }
+            finally { configurationRelease.countDown(); }
+        },"continuous-config-controller");
+        try {
+            ready=true;
+            runtime.apply(request(worldId,-1,20,"baseline"),null,loader,"42.20"); runtime.tick(context);
+            String generation=runtime.status().generation();
+            check(appliedValue.equals("baseline"),"Concurrent-update baseline was not applied");
+            runtime.apply(request(worldId,20,21,"applying"),null,loader,"42.20");
+            holdConfiguration=true; controller.start(); runtime.tick(context); controller.join(5000);
+            check(!controller.isAlive() && failure.get()==null,"Concurrent update failed: "+failure.get());
+            check(queued.get()!=null && queued.get().state().equals("Pending")
+                && queued.get().appliedRevision()==20,"New request was not queued while the prior callback was in flight");
+            var pending=runtime.status();
+            check(pending.state().equals("Pending") && "safe-boundary".equals(pending.reason())
+                && pending.appliedRevision()==21 && appliedValue.equals("applying")
+                && pending.generation().equals(generation),
+                "Pending status did not acknowledge the configuration that finished applying");
+            runtime.tick(context);
+            check(runtime.status().appliedRevision()==21 && appliedValue.equals("applying"),
+                "An unsafe boundary applied the newer request");
+            var latest=runtime.apply(request(worldId,pending.appliedRevision(),23,"latest"),null,loader,"42.20");
+            check(latest.state().equals("Pending") && "safe-boundary".equals(latest.reason())
+                && latest.appliedRevision()==21,"An acknowledged applied revision caused a false conflict");
+            holdConfiguration=false; ready=true; runtime.tick(context);
+            check(runtime.status().state().equals("Active") && runtime.status().appliedRevision()==23
+                && appliedValue.equals("latest") && runtime.status().generation().equals(generation),
+                "The latest pending request was lost or replaced its generation");
+        } finally {
+            holdConfiguration=false; configurationRelease.countDown(); controller.join(5000);
+            ready=true; runtime.close();
+        }
+    }
+    public static void applyConfiguration(Map<String,String> config) throws Exception {
+        if(holdConfiguration) {
+            configurationEntered.countDown();
+            check(configurationRelease.await(5,TimeUnit.SECONDS),"Held configuration was not released");
+        }
+        appliedValue=config.get("value");
     }
     private static void rejectedPreflightPreservesActive(ContinuousRuntime runtime,Path root,byte[] original,String worldId,ClassLoader loader) throws Exception {
         var active=runtime.status(); int initialActivations=activations.get();
@@ -211,7 +267,7 @@ public final class ContinuousRuntimeTest {
                   if(ContinuousRuntimeTest.hold){ContinuousRuntimeTest.entered.countDown();if(!ContinuousRuntimeTest.release.await(2,java.util.concurrent.TimeUnit.SECONDS))throw new IllegalStateException("held");}
                   return VehicleHooks.APPLIED|VehicleHooks.OWN_OFFROAD;
                 });}
-              public void updateConfig(Map<String,String> c){ContinuousRuntimeTest.appliedValue=c.get("value");}
+              public void updateConfig(Map<String,String> c)throws Exception{ContinuousRuntimeTest.applyConfiguration(c);}
               public String failureReason(){return ContinuousRuntimeTest.failHealth?"fixture-transformation-failed":null;}
               public synchronized void deactivate(){if(retirement==null)retirement=VehicleHooks.unregister(this);}
               public void close()throws Exception{deactivate();if(retirement!=null)retirement.await(5000);ContinuousRuntimeTest.closures.incrementAndGet();if(ContinuousRuntimeTest.failClose)throw new java.io.IOException("fixture-close");}

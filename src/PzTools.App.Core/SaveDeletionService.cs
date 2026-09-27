@@ -41,6 +41,9 @@ public static class SaveDeletionService
         if (!File.Exists(players))
             throw new InvalidDataException("The target is not an existing save (players.db is missing).");
 
+        // Keep SQLite from opening the save after preflight. Delete sharing lets us
+        // remove players.db while still denying readers and writers; delete it last.
+        using var playersGuard = File.OpenHandle(players, FileMode.Open, FileAccess.Read, FileShare.Delete);
         // Enumerate once. Keep the full preflight so a known locked file prevents any deletion.
         var files = new List<string>();
         var directories = new List<string>();
@@ -49,7 +52,8 @@ public static class SaveDeletionService
         for (var i = 0; i < files.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using (var exclusive = File.OpenHandle(files[i], FileMode.Open, FileAccess.Read, FileShare.None)) { }
+            if (!IsPlayersDatabase(files[i]))
+                using (var exclusive = File.OpenHandle(files[i], FileMode.Open, FileAccess.Read, FileShare.None)) { }
             Report(SaveDeletionPhase.Validating, i + 1, files.Count, force: i + 1 == files.Count);
         }
 
@@ -67,11 +71,12 @@ public static class SaveDeletionService
             foreach (var file in group)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (IsPlayersDatabase(file)) continue;
                 File.Delete(file);
                 Report(SaveDeletionPhase.DeletingFiles, ++deleted, total);
             }
         }
-        for (var i = directories.Count - 1; i >= 0; i--)
+        for (var i = directories.Count - 1; i > 0; i--)
         {
             cancellationToken.ThrowIfCancellationRequested();
             RejectLinkedAncestors(directories[i]);
@@ -79,7 +84,17 @@ public static class SaveDeletionService
             Directory.Delete(directories[i], recursive: false);
             Report(SaveDeletionPhase.DeletingFiles, ++deleted, total, force: deleted == total);
         }
+        cancellationToken.ThrowIfCancellationRequested();
+        RejectLinkedAncestors(source);
+        File.Delete(players);
+        // Finish the pending deletion before removing its parent directory.
+        playersGuard.Dispose();
+        Report(SaveDeletionPhase.DeletingFiles, ++deleted, total);
+        Directory.Delete(source, recursive: false);
+        Report(SaveDeletionPhase.DeletingFiles, ++deleted, total, force: true);
         return new SaveDeletionResult(source);
+
+        bool IsPlayersDatabase(string path) => path.Equals(players, StringComparison.OrdinalIgnoreCase);
 
         void Discover(DirectoryInfo directory)
         {

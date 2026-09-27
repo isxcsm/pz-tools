@@ -19,6 +19,16 @@ confirmation_delay_ms = 150
 # around longer. Busy operations are skipped and retried on a later check.
 cleanup_interval_seconds = 60
 
+[extensions]
+# Recheck extension preferences and renew the control connection every this many
+# milliseconds (250-1000). Lower values react sooner but perform more disk and
+# control work. The upper bound preserves room within the fixed 5-second lease.
+reconcile_interval_ms = 1000
+# Allow this many seconds to prepare an extension connection (5-60). Increase
+# for slow JVM or disk startup. This does not change the 3-second command limit
+# or the 5-second lease after connection. Apply settings and restart to use it.
+connect_timeout_seconds = 20
+
 [telemetry]
 # Keep records of scheduled checks and failures. Turning this off makes a
 # missing game-state reaction harder to diagnose; checks continue to run.

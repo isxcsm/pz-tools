@@ -1,7 +1,6 @@
 package pztools.extensions.vehicle;
 
 import java.lang.instrument.*;
-import java.lang.classfile.*;
 import java.security.ProtectionDomain;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,15 +9,6 @@ import pztools.extensions.api.*;
 
 /** Explicitly activated local-SP module. Installation instruments only an inert stable hook. */
 public final class VehicleDrivetrainProvider implements ContinuousProvider {
-    private static final Map<String,String> RESOURCES=Map.of(
-        VehicleBytecode.TARGET,"5b660138ba8f2a575502d641318371ecf9e9b3555dc0815241dee45c5f30410d",
-        VehicleBytecode.TARGET+"$ControlState","94962a5ed51bde2fd0b4f10a216bb9007e676eb758793f3b6ead488d8424db30",
-        "zombie/vehicles/BaseVehicle","9c44f6a428c2fbefdd4e6c3d000c7d41dc961c43d4118605483946979daad24a",
-        "zombie/vehicles/VehicleEngine","6c3d95e186ebc867bd76483929af78f052c8b90ea6c2219f481ab9cc1509041a",
-        "zombie/vehicles/TransmissionNumber","35ca74837d2a2bb130a34488eb96b6c0a8a5412f7ceb0f4e3fd85b3cbbd4bbb9",
-        "zombie/scripting/objects/VehicleScript","45acc776dcd9aed2d625ecbb8213dc4e169137d4f17c933c2ce9ede288565d8c",
-        "zombie/GameTime","c312568e6d8b71c4b5c571ab5b59e106936737b1daba1b57b2182c3960d5e54a",
-        "zombie/core/physics/WorldSimulation","f41d89d8c1fafd21f35b4ecd3ac3917fc58a6b9f5bbbe26404ef5c035238c09a");
     private Instrumentation instrumentation;
     private Class<?> target;
     private ClassFileTransformer transformer;
@@ -38,27 +28,21 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider {
     private volatile VehicleControl control;
 
     @Override public String id() { return "pztools.vehicle-drivetrain"; }
-    /** Only resources are read here; callable by the separate-JVM verifier. */
+    /** Bounded offline input for the separate-JVM verifier, not a live compatibility decision. */
     public static byte[] verifyResources(ClassLoader loader) throws Exception {
-        byte[] controller=null;
-        for(var e:RESOURCES.entrySet()) {
-            try(var in=loader.getResourceAsStream(e.getKey()+".class")) {
-                if(in==null) throw new IllegalArgumentException("missing-game-resource:"+e.getKey());
-                byte[] bytes=in.readNBytes(4*1024*1024+1);
-                if(!VehicleBytecode.sha256(bytes).equals(e.getValue())) throw new IllegalArgumentException("unsupported-game-resource:"+e.getKey());
-                if(e.getKey().equals(VehicleBytecode.TARGET)) controller=bytes;
-            }
+        try(var in=loader.getResourceAsStream(VehicleBytecode.TARGET+".class")) {
+            if(in==null) throw new IllegalArgumentException("missing-game-resource:"+VehicleBytecode.TARGET);
+            int limit=4*1024*1024;
+            byte[] bytes=in.readNBytes(limit+1);
+            if(bytes.length>limit) throw new IllegalArgumentException("oversized-game-resource:"+VehicleBytecode.TARGET);
+            return bytes;
         }
-        return Objects.requireNonNull(controller);
     }
     /** Resolve private field types and methods without reading or changing a game instance. */
     public static void verifyAccess(ClassLoader loader) throws ReflectiveOperationException { new VehicleAccess(loader); }
     @Override public Support preflight(Instrumentation instrumentation,ClassLoader loader,PreflightSource activeSource) throws Exception {
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
-        byte[] original;
-        try { original=verifyResources(loader); }
-        catch(IllegalArgumentException rejected) { return new Support(false,rejected.getMessage()); }
         if(Class.forName(VehicleHooks.class.getName(),false,loader)!=VehicleHooks.class) return new Support(false,"unsupported-hook-loader");
         // Reject missing/type-changed handles before asking the healthy active generation to retransform.
         new VehicleAccess(loader);
@@ -66,11 +50,8 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider {
         if(!instrumentation.isModifiableClass(candidateTarget)) return new Support(false,"unmodifiable-controller");
         byte[] live=activeSource.capture(candidateTarget);
         if(live==null) live=captureUnownedInput(instrumentation,loader,candidateTarget);
-        if(!Arrays.equals(VehicleBytecode.fingerprint(original,loader),VehicleBytecode.fingerprint(live,loader)))
-            return new Support(false,"controller-contract-changed");
-        byte[] transformed=VehicleBytecode.transform(live,loader);
-        var format=ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)));
-        if(!format.verify(transformed).isEmpty()) return new Support(false,"controller-transform-invalid");
+        try { VehicleBytecode.transform(live,loader); }
+        catch(IllegalArgumentException rejected) { return new Support(false,"controller-contract-changed"); }
         return new Support(true,null);
     }
     private static byte[] captureUnownedInput(Instrumentation instrumentation,ClassLoader loader,Class<?> target) throws Exception {
@@ -131,21 +112,17 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider {
         if(initialized) return new Support(transformationFailure.get()==null,"game-code-changed");
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
-        byte[] original;
-        try { original=verifyResources(loader); }
-        catch(IllegalArgumentException rejected) { return new Support(false,rejected.getMessage()); }
         if(Class.forName(VehicleHooks.class.getName(),false,loader)!=VehicleHooks.class) return new Support(false,"unsupported-hook-loader");
         access=new VehicleAccess(loader);
         target=Class.forName(VehicleBytecode.TARGET.replace('/','.'),false,loader);
         if(!instrumentation.isModifiableClass(target)) return new Support(false,"unmodifiable-controller");
-        byte[] contract=VehicleBytecode.fingerprint(original,loader);
         AtomicBoolean observed=new AtomicBoolean();
         transformer=new ClassFileTransformer() {
             @Override public byte[] transform(ClassLoader owner,String name,Class<?> type,ProtectionDomain domain,byte[] bytes) {
                 synchronized(transformationGate) {
                     if(retired || owner!=loader || type!=target) return null;
                     try {
-                        if(!Arrays.equals(contract,VehicleBytecode.fingerprint(bytes,loader))) throw new IllegalStateException("controller-contract-changed");
+                        // Every retransformation validates and plans against this exact chain input.
                         byte[] transformed=VehicleBytecode.transform(bytes,loader);
                         var captured=preflightCapture.get();
                         if(captured!=null) try {

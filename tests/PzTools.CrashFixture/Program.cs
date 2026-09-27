@@ -4,6 +4,9 @@ using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Backup.Storage.Telemetry;
 using PzTools.Process.Hosting;
+using PzTools.Zomboid.Archive;
+using System.IO.Compression;
+using System.Text.Json;
 
 // This executable is only referenced by the test project, never by the app or publisher.
 var root = Path.GetFullPath(args[0]);
@@ -13,6 +16,30 @@ if (mode == "app-instance")
     using var instance = ApplicationInstanceLease.TryAcquire(root);
     Console.WriteLine(instance is null ? "REJECTED" : "ACQUIRED");
     if (instance is not null) Console.ReadLine();
+    return;
+}
+if (mode == "import")
+{
+    var archivePath = Path.Combine(root, "save.zip");
+    using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+    {
+        await using (var player = archive.CreateEntry("Sandbox/Test/players.db", CompressionLevel.NoCompression).Open())
+            await player.WriteAsync(new byte[2 * 1024 * 1024]);
+        await using var manifest = archive.CreateEntry("Sandbox/Test/" + ZomboidArchiveService.ManifestEntryName).Open();
+        await JsonSerializer.SerializeAsync(manifest, new ZomboidArchiveManifest(
+            ZomboidArchiveService.FormatMarker, 2, "Sandbox/Test", "Sandbox", "Test",
+            null, 0, 0, DateTimeOffset.UtcNow));
+    }
+    var savesRoot = Path.Combine(root, "Saves");
+    await OperationMutexSet.TryRunAsync([new(OperationMutexScope.SaveWrite, savesRoot)], async token =>
+    {
+        await new ZomboidArchiveService().ImportAsync(archivePath, savesRoot, (progress, _) =>
+        {
+            if (progress.CompletedBytes > 0) PauseAt.Stop(root);
+            return Task.CompletedTask;
+        }, token);
+        return true;
+    });
     return;
 }
 var repositoryPath = Path.Combine(root, "repository");

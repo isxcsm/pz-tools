@@ -268,6 +268,11 @@ public sealed class StableFileCapturer : IStableFileCapturer
                 capturedMetadata = postBefore;
             }
 
+            // Matching source hashes can survive growth/truncation after the
+            // metadata read. Keep the earlier timestamps for change detection,
+            // but the catalog length must describe the verified private copy.
+            if (capturedMetadata.Length != copyHash.Length)
+                capturedMetadata = capturedMetadata with { Length = copyHash.Length };
             cancellationToken.ThrowIfCancellationRequested();
             staging.Position = 0;
             return new StagedFileCapture(

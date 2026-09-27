@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <UseWinUI>true</UseWinUI>
+    <DefaultLanguage>ko-KR</DefaultLanguage>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
+    <ProjectReference Include="../../src/PzTools.App.Core/PzTools.App.Core.csproj" />
+    <Page Include="../../src/PzTools.App/LogsPage.xaml" Link="LogsPage.xaml" />
+    <Compile Include="../../src/PzTools.App/LogsPage*.cs" Link="%(Filename)%(Extension)" />
+    <Compile Include="../../src/PzTools.App/AnimatedListSelectionBar.cs" Link="AnimatedListSelectionBar.cs" />
+    <Compile Include="../../src/PzTools.App/AppToolTip.cs" Link="AppToolTip.cs" />
+    <Compile Include="../../src/PzTools.App/Localizer.cs" Link="Localizer.cs" />
+    <Compile Include="../../src/PzTools.App/LogTimeFormatter.cs" Link="LogTimeFormatter.cs" />
+    <Compile Include="../../src/PzTools.App/UserFacingError.cs" Link="UserFacingError.cs" />
+    <PRIResource Include="../../src/PzTools.App/Strings/ko-KR/Resources.resw" Link="Strings/ko-KR/Resources.resw" />
+    <PRIResource Include="../../src/PzTools.App/Strings/en-US/Resources.resw" Link="Strings/en-US/Resources.resw" />
+    <Content Include="../../src/PzTools.App/App.xaml" Link="SmokeAppResources.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

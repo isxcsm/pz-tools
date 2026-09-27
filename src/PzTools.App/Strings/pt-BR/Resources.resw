@@ -9,7 +9,7 @@
   <data name="SavesNavigation.Content" xml:space="preserve"><value>Gerenciar partidas</value></data>
   <data name="Exporting.Text" xml:space="preserve"><value>Exportando</value></data>
   <data name="BackingUp.Text" xml:space="preserve"><value>Fazendo backup</value></data>
-  <data name="ImportArchive.Content" xml:space="preserve"><value>Importar ZIP</value></data>
+  <data name="ImportArchive.Content" xml:space="preserve"><value>Importar arquivo de backup</value></data>
   <data name="NoSaves.Text" xml:space="preserve"><value>Nenhuma partida encontrada</value></data>
   <data name="LoadingSaves.Text" xml:space="preserve"><value>Carregando partidas…</value></data>
   <data name="LoadingBackups.Text" xml:space="preserve"><value>Carregando detalhes da partida…</value></data>
@@ -24,7 +24,7 @@
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Não é possível excluir a partida enquanto você joga. Saia da partida e tente novamente.</value></data>
   <data name="StopPlayingToHeal" xml:space="preserve"><value>Não é possível curar o personagem enquanto você joga. Saia da partida e tente novamente.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Ainda não há backups</value></data>
-  <data name="ManualBackup.Content" xml:space="preserve"><value>Fazer backup</value></data>
+  <data name="ManualBackup.Content" xml:space="preserve"><value>Fazer backup agora</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Restaurar</value></data>
   <data name="ExportArchive.Content" xml:space="preserve"><value>Exportar ZIP</value></data>
   <data name="SettingsTitle.Text" xml:space="preserve"><value>Configurações</value></data>
@@ -32,21 +32,21 @@
   <data name="SettingsAutoSaveHint" xml:space="preserve"><value>As alterações são salvas automaticamente.</value></data>
   <data name="SettingsSaving" xml:space="preserve"><value>Salvando…</value></data>
   <data name="SettingsSaved" xml:space="preserve"><value>Salvo</value></data>
-  <data name="DisplaySettings.Header" xml:space="preserve"><value>Aparência</value></data>
+  <data name="DisplaySettings.Header" xml:space="preserve"><value>Aparência e comportamento</value></data>
   <data name="DisplaySettings.Description" xml:space="preserve"><value>Escolha o idioma, o tema e o comportamento ao fechar a janela.</value></data>
   <data name="LanguageSetting.Header" xml:space="preserve"><value>Idioma</value></data>
   <data name="LanguageSetting.Description" xml:space="preserve"><value>Escolha o idioma do aplicativo. Traduções ausentes serão exibidas em inglês.</value></data>
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Tema</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>Siga o sistema ou escolha um tema.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>Bandeja do sistema</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Mantém o PZ Tools em execução ao fechar a janela. Para encerrar, escolha Sair no menu do ícone ao lado do relógio.</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Mantém o PZ Tools em execução ao fechar a janela. Para encerrar, clique com o botão direito no ícone ao lado do relógio na barra de tarefas e escolha Sair.</value></data>
   <data name="TrayRestore" xml:space="preserve"><value>Abrir PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Sair</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>Sair do PZ Tools?</value></data>
   <data name="ConfirmExitBody" xml:space="preserve"><value>Os backups automáticos serão interrompidos. Operações em andamento também podem ser interrompidas.</value></data>
   <data name="PathSettings.Header" xml:space="preserve"><value>Pastas</value></data>
   <data name="PathSettings.Description" xml:space="preserve"><value>Escolha onde guardar as partidas e os backups.</value></data>
-  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Pasta de jogos salvos</value></data>
+  <data name="SavesPathSetting.Header" xml:space="preserve"><value>Pasta das partidas</value></data>
   <data name="BackupPathSetting.Header" xml:space="preserve"><value>Pasta de backups</value></data>
   <data name="Browse.Content" xml:space="preserve"><value>Procurar</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Backup</value></data>
@@ -57,10 +57,10 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Quantidade de backups automáticos</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Mantenha os últimos 1–100 backups automáticos. Este limite não exclui backups manuais.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Fazer backup quando o personagem morrer</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Faz backup quando o jogo em execução informa a morte do personagem. Requer backups automáticos; a pausa não impede este backup. As informações de morte nos jogos salvos são mantidas separadamente.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Faz backup ao detectar a morte do personagem durante a partida. Os backups automáticos precisam estar ativados; este backup também ocorre com o jogo pausado. Uma morte já registrada em uma partida salva não aciona este backup.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Verificar arquivos copiados</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Verifica se as cópias correspondem aos arquivos originais. Se um arquivo mudar durante a cópia, ele será copiado novamente.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Os arquivos do jogo continuaram mudando durante o backup. Aguarde o jogo terminar de salvar e tente o backup novamente.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Os arquivos da partida continuaram mudando durante o backup. Aguarde o jogo terminar de salvar e tente fazer o backup novamente.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Próximo backup: aguardando</value></data>
   <data name="LanguageKorean.Content" xml:space="preserve"><value>한국어</value></data>
   <data name="LanguageEnglish.Content" xml:space="preserve"><value>English</value></data>
@@ -70,7 +70,7 @@
   <data name="HostNotReady" xml:space="preserve"><value>O aplicativo ainda não está pronto. Tente novamente em instantes.</value></data>
   <data name="WindowNotCreated" xml:space="preserve"><value>O PZ Tools ainda está iniciando. Tente novamente em instantes.</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Não foi possível iniciar os backups automáticos.</value></data>
-  <data name="NoLiveSave" xml:space="preserve"><value>Jogo salvo atual não encontrado</value></data>
+  <data name="NoLiveSave" xml:space="preserve"><value>Partida atual não encontrada</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Modo de jogo: {0}</value></data>
   <data name="DetailGameModeLabel" xml:space="preserve"><value>Modo de jogo</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Personagem: {0}</value></data>
@@ -80,7 +80,7 @@
   <data name="SurvivalHoursMinutesFormat" xml:space="preserve"><value>{0} h {1} min</value></data>
   <data name="CharacterNameUnknown" xml:space="preserve"><value>Nome indisponível</value></data>
   <data name="SurvivalTimeUnknown" xml:space="preserve"><value>indisponível</value></data>
-  <data name="InspectingArchive" xml:space="preserve"><value>Verificando detalhes do arquivo ZIP…</value></data>
+  <data name="InspectingArchive" xml:space="preserve"><value>Verificando detalhes do arquivo de backup…</value></data>
   <data name="CharacterAlive" xml:space="preserve"><value>Vivo</value></data>
   <data name="CharacterUnknown" xml:space="preserve"><value>Estado do personagem indisponível</value></data>
   <data name="PlayStateUnknown" xml:space="preserve"><value>Estado da partida indisponível</value></data>
@@ -116,12 +116,12 @@
   <data name="ConfirmImportTitle" xml:space="preserve"><value>Importar esta partida?</value></data>
   <data name="Import" xml:space="preserve"><value>Importar</value></data>
   <data name="Cancel" xml:space="preserve"><value>Cancelar</value></data>
-  <data name="ImportArchiveTitle" xml:space="preserve"><value>Importar ZIP</value></data>
+  <data name="ImportArchiveTitle" xml:space="preserve"><value>Importar arquivo de backup</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Não é possível importar este backup compactado. Verifique se o arquivo está danificado.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Este arquivo tem uma taxa de compactação incomum e não pode ser importado com segurança.</value></data>
+  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Este arquivo tem uma taxa de compactação muito acima do normal e não pode ser importado com segurança.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Backup manual</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restaurar o backup selecionado?</value></data>
-  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Substituir os arquivos atuais de “{0}” pelo backup “{1}”. O progresso feito após esse backup será perdido. Se a restauração for interrompida, abra o PZ Tools novamente antes de carregar esse jogo salvo.</value></data>
+  <data name="ConfirmRestoreBody" xml:space="preserve"><value>Substituir os arquivos atuais de “{0}” pelo backup “{1}”. O progresso feito após esse backup será perdido. Se a restauração for interrompida, abra o PZ Tools novamente antes de carregar essa partida no jogo.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Restaurar</value></data>
   <data name="RestoreTitle" xml:space="preserve"><value>Restaurar</value></data>
   <data name="ArchiveFileType" xml:space="preserve"><value>Backup de partida do PZ Tools</value></data>
@@ -142,10 +142,10 @@
   <data name="ProjectorArea.Logs" xml:space="preserve"><value>Operações e registros</value></data>
   <data name="ProjectorArea.Other" xml:space="preserve"><value>Informações da tela</value></data>
   <data name="OperationCancelled" xml:space="preserve"><value>A operação foi cancelada.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>A operação terminou com problemas. Confira os logs antes de executá-la novamente.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>A operação terminou com problemas. Confira os registros antes de executá-la novamente.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Registros</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Registros</value></data>
-  <data name="LogLevelSetting.Header" xml:space="preserve"><value>Gravidade mínima</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>Nível mínimo de registro a exibir</value></data>
   <data name="LogLevelSetting.Description" xml:space="preserve"><value>Mostra eventos do nível selecionado ou superior.</value></data>
   <data name="LogLimitSetting.Header" xml:space="preserve"><value>Quantidade de registros recentes</value></data>
   <data name="LogLimitSetting.Description" xml:space="preserve"><value>Número de eventos recentes exibidos na tela de registros.</value></data>
@@ -157,7 +157,7 @@
   <data name="LogLevelAtOrAboveFormat" xml:space="preserve"><value>{0} ou superior</value></data>
   <data name="LogsTitle" xml:space="preserve"><value>Registros</value></data>
   <data name="LogsSubtitle" xml:space="preserve"><value>Histórico de backups e do estado do jogo.</value></data>
-  <data name="LogSeverityFilter" xml:space="preserve"><value>Gravidade</value></data>
+  <data name="LogSeverityFilter" xml:space="preserve"><value>Nível do registro</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>Tipo de operação</value></data>
   <data name="LogRunIndexFilter" xml:space="preserve"><value>Número da operação</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>Ex.: 42</value></data>
@@ -165,9 +165,9 @@
   <data name="NoLogs" xml:space="preserve"><value>Não há registros para exibir.</value></data>
   <data name="AcknowledgeLog" xml:space="preserve"><value>Marcar como revisado</value></data>
   <data name="AcknowledgeAllLogs" xml:space="preserve"><value>Marcar tudo como revisado</value></data>
-  <data name="AcknowledgeIssue" xml:space="preserve"><value>Marcar esta execução como revisada</value></data>
+  <data name="AcknowledgeIssue" xml:space="preserve"><value>Marcar esta operação como revisada</value></data>
   <data name="AcknowledgeAlert" xml:space="preserve"><value>Marcar este alerta como revisado</value></data>
-  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>Revisar todos os {0:N0} itens pendentes</value></data>
+  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>Marcar todos os {0:N0} itens pendentes como revisados</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>Número do registro {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Hora ({0})</value></data>
@@ -268,7 +268,7 @@
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>A programação dos backups foi verificada.</value></data>
   <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Configure o salvamento do jogo, o intervalo dos backups, o limite do histórico e o comportamento após a morte do personagem.</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>Escolha o nível dos eventos e a quantidade de entradas exibidas nos registros.</value></data>
-  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Nível mínimo de registro</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Nível mínimo de registro a exibir</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>Limite de exibição</value></data>
   <data name="AdvancedSettings.Header" xml:space="preserve"><value>Avançado</value></data>
   <data name="AdvancedSettings.Description" xml:space="preserve"><value>Abra os arquivos de configuração avançada e aplique as alterações.</value></data>
@@ -279,18 +279,18 @@
   <data name="AdvancedFiles.ApplyHeader" xml:space="preserve"><value>Aplicar alterações</value></data>
   <data name="AdvancedFiles.ApplyDescription" xml:space="preserve"><value>Valida os arquivos editados e reinicia o aplicativo. Não é possível reiniciar durante uma operação.</value></data>
   <data name="AdvancedFiles.ResetHeader" xml:space="preserve"><value>Redefinir configuração avançada</value></data>
-  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Guarda uma cópia dos arquivos atuais e restaura os padrões avançados. Seus jogos salvos e backups não serão apagados.</value></data>
+  <data name="AdvancedFiles.ResetDescription" xml:space="preserve"><value>Guarda uma cópia dos arquivos atuais e restaura as configurações avançadas padrão. Suas partidas e backups não serão apagados.</value></data>
   <data name="AdvancedFiles.OpenFolder" xml:space="preserve"><value>Abrir pasta</value></data>
   <data name="AdvancedFiles.Restart" xml:space="preserve"><value>Aplicar configurações e reiniciar</value></data>
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Validar os arquivos editados de configuração avançada e reiniciar o aplicativo? Não é possível reiniciar durante uma operação.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Restaurar configurações padrão</value></data>
-  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restaurar as configurações avançadas padrão e reiniciar o aplicativo? Uma cópia dos arquivos atuais será mantida. As configurações comuns, os jogos salvos e os backups não mudarão.</value></data>
-  <data name="LogRecordLevel.Header" xml:space="preserve"><value>Nível mínimo gravado</value></data>
+  <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Restaurar as configurações avançadas padrão e reiniciar o aplicativo? Uma cópia dos arquivos atuais será mantida. As configurações comuns, as partidas e os backups não mudarão.</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>Nível mínimo de registro a gravar</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Aplica-se aos novos registros. O histórico existente é mantido.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>Máximo de entradas de registro</value></data>
   <data name="LogMaxEntries.Description" xml:space="preserve"><value>As entradas mais antigas são removidas quando o limite é ultrapassado. Padrão: 100.000.</value></data>
   <data name="DeleteAction" xml:space="preserve"><value>Excluir</value></data>
-  <data name="SaveAction" xml:space="preserve"><value>Partida</value></data>
+  <data name="SaveAction" xml:space="preserve"><value>Salvar</value></data>
   <data name="BackupNameFormat" xml:space="preserve"><value>Backup {0:N0}</value></data>
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>Backup manual {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>Backup automático {0:N0}</value></data>
@@ -350,7 +350,7 @@
   <data name="OperationCardBusy" xml:space="preserve"><value>Não foi possível iniciar a operação</value></data>
   <data name="OperationCardDegraded" xml:space="preserve"><value>Operação encerrada · Requer atenção</value></data>
   <data name="OperationCardWaiting" xml:space="preserve"><value>Operação em espera</value></data>
-  <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Registrado: {0}</value></data>
+  <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Backup feito: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Verificando se há uma partida em andamento e salvando se necessário…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Salvar o jogo antes do backup</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Verificando se é necessário salvar o jogo antes do backup.</value></data>
@@ -360,28 +360,30 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>O backup foi interrompido porque não foi possível confirmar o salvamento do jogo.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Salvar o jogo antes do backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Contagem regressiva no jogo</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra uma contagem de cinco segundos e o resultado acima do personagem. Desativar oculta as mensagens e pula a espera dos backups manuais, mas o jogo continua sendo salvo. O horário dos backups automáticos não muda.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra uma contagem regressiva de cinco segundos e o resultado do salvamento acima do personagem. Desativar esta opção oculta as mensagens e pula a espera dos backups manuais, mas o jogo continua sendo salvo. O horário dos backups automáticos não muda.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Salva o progresso mais recente no jogo antes do backup. Recomenda-se manter ativado: se desativado, progresso, veículos ou itens ainda não salvos podem faltar no backup.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próximo backup: aguardando início</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próximo backup: aguardando a tarefa atual</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próximo backup: aguardando a conclusão da operação atual</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Curar personagem</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Curar / ressuscitar personagem</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Recuperar {0}?
 
 Restaura a saúde e trata ferimentos e outras condições. Se o personagem morreu, ele é ressuscitado e os pertences disponíveis são recuperados. O zumbi ou cadáver de onde vieram os itens é removido.
 
-Características, habilidades, XP e posição são mantidos. Alguns efeitos de mods podem permanecer.
+Traços, habilidades, XP e posição são mantidos. Alguns efeitos de mods podem permanecer.
 
-Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>A recuperação do personagem foi concluída. Traços, habilidades e experiência foram preservados.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>A recuperação foi interrompida porque os pertences não puderam ser recuperados com segurança. O save não foi alterado.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Uma alteração anterior do save precisa ser concluída. Reabra o PZ Tools antes de carregar esse save no jogo.</value></data>
+Faça um backup antes de continuar. Esta operação não cria um backup automaticamente.
+
+Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>A recuperação do personagem foi concluída. Traços, habilidades e XP foram preservados.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>A recuperação foi interrompida porque os pertences não puderam ser recuperados com segurança. A partida não foi alterada.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Uma alteração anterior da partida precisa ser concluída. Reabra o PZ Tools antes de carregar essa partida no jogo.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Recuperação do personagem</value></data>
-  <data name="RecoveryError.Busy" xml:space="preserve"><value>O jogo ou outra operação está usando essa partida. Pare de jogar e tente novamente. O original não foi alterado.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>Este jogo salvo tem alterações pendentes. Saia do jogo normalmente e tente novamente. O original não foi alterado.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Este recurso exige um save solo com apenas um personagem. O save não foi alterado.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Este jogo salvo não pode ser editado com segurança. Verifique se a versão do PZ Tools é compatível com a do jogo. O original não foi alterado.</value></data>
-  <data name="SurvivalReadFailed" xml:space="preserve"><value>Falha de leitura; nova tentativa será feita</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>O jogo ou outra operação está usando esta partida. Pare de jogar e aguarde a conclusão da operação antes de tentar novamente. A partida original não foi alterada.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>Esta partida tem alterações pendentes. Saia do jogo normalmente e tente novamente. A partida original não foi alterada.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Este recurso exige uma partida de um jogador com apenas um personagem. A partida não foi alterada.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Esta partida não pode ser editada com segurança. Verifique se a versão do PZ Tools é compatível com a do jogo. A partida original não foi alterada.</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>Tempo de sobrevivência indisponível · verificando novamente</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>O jogo ou outra operação está usando um arquivo necessário. Aguarde o salvamento ou essa operação terminar e tente novamente.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Não há espaço livre suficiente. Libere espaço na unidade de destino e tente novamente.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Faltam arquivos necessários do aplicativo. Extraia todo o download em uma única pasta ou reinstale o PZ Tools e abra-o novamente.</value></data>
@@ -395,11 +397,11 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reutilizando dados idênticos já salvos no backup</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Ativado</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Desativado</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Aguardar durante pausas ou sono</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Adiar backups periódicos durante pausas ou sono</value></data>
   <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pausa a contagem regressiva dos backups periódicos enquanto o jogo estiver pausado ou o personagem dormir; continua pelo tempo restante ao retomar. Também aguarda se o estado do jogo for desconhecido. Não afeta backups manuais nem após a morte.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Jogo pausado</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Verificando o estado do jogo</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Execute apenas um jogo</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Execute apenas uma instância do Project Zomboid</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Verifique o resultado do último salvamento do jogo e reative os backups automáticos.</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Limpar filtro</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Limpar todos</value></data>
@@ -418,34 +420,34 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Extensões do jogo</value></data>
 <data name="GameExtensions.Description" xml:space="preserve"><value>Gerencie melhorias opcionais para o jogo.</value></data>
 <data name="GameExtensions.Disabled" xml:space="preserve"><value>Desativado · Salvamento padrão</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Compatibilidade verificada ao salvar &#183; Experimental</value></data>
+<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>A compatibilidade será verificada no próximo salvamento · Experimental</value></data>
 <data name="GameExtensions.Configure" xml:space="preserve"><value>Configurar</value></data>
 <data name="GameExtensions.ConfigureTitle" xml:space="preserve"><value>Configurações de {0}</value></data>
 <data name="GameExtensions.Apply" xml:space="preserve"><value>Aplicar</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Configurações de extensões indisponíveis</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Não foi possível salvar as alterações. Reabra a página e verifique o arquivo de configurações das extensões.</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Usa um caminho de salvamento separado sem alterar o salvamento normal. Omite a renderização extra da prévia e retira algumas gravações e esperas de conclusão da thread do jogo. Não espera o fim das interações com a interface. A serialização e os bloqueios ainda podem causar pausas. Versões sem suporte usam o salvamento normal.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Usa um método alternativo de salvamento sem alterar o salvamento normal. Evita renderizar a prévia novamente e executa algumas gravações de arquivos e esperas de conclusão fora da thread do jogo. O salvamento não espera o fim das interações com a interface. O processamento de dados e os bloqueios de recursos ainda podem causar pausas. Versões sem suporte usam o salvamento normal.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Todas as versões</value></data>
-<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Versão principal {0}</value></data>
-<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Versão secundária {0}</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Série Build {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Build {0}</value></data>
 <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Compatível: {0} · Jogo atual: {1}</value></data>
 <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Fora da faixa compatível · Extensão inativa</value></data>
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Aguardando a versão do jogo · Extensão inativa</value></data>
-<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Forçar ativação fora da faixa compatível</value></data>
-<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versões incompatíveis podem causar erros. Apenas o limite de versões é ignorado; as verificações essenciais de segurança permanecem ativas.</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Ignorar a faixa de versões compatíveis</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versões sem suporte podem causar erros. Apenas o limite de versões é ignorado; as verificações essenciais de segurança permanecem ativas. A extensão precisa ser ativada separadamente.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Limite de versão ignorado · Verificações essenciais mantidas</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Salvamento da extensão em andamento</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Última solicitação: salvamento da extensão concluído</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Salvamento pela extensão em andamento</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Última solicitação: salvamento pela extensão concluído</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Última solicitação: salvamento padrão usado ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Última solicitação: falha ao salvar ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Etapa de salvamento mais longa na thread do jogo {0:N0}ms · conclusão {1:N0}ms</value></data>
-  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Me pague um café</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Etapa de salvamento mais longa na thread do jogo: {0:N0} ms · duração total: {1:N0} ms</value></data>
+  <data name="CoffeeSupport.Title" xml:space="preserve"><value>Apoie com um café</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>O PZ Tools foi útil?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>O link de apoio ainda não está disponível.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>O jogo não está em execução</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>O personagem está dormindo</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Melhorias na condução</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Melhora separadamente a aceleração, as trocas de marcha, a ré e a direção pelo teclado. Experimental; apenas para um jogador.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Melhora separadamente a aceleração para a frente e as trocas de marcha, a ré e a direção pelo teclado. Experimental; apenas para um jogador.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Aceleração e trocas de marcha naturais</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Ajusta a aceleração para a frente à rotação do motor e à marcha.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Ré suave</value></data>
@@ -454,11 +456,11 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Torna graduais a direção pelo teclado e o retorno ao centro.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Cada opção é salva separadamente. O estado confirmado pelo jogo aparece abaixo.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Aplicado no jogo · Experimental</value></data>
-  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Ativação solicitada · Aguardando confirmação do jogo</value></data>
-  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Desativação confirmada · Condução original</value></data>
-  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Desativação solicitada · Estado não confirmado</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Aguardando aplicação no jogo</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Desativado · Condução original</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Desativando · Aguardando confirmação</value></data>
   <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Ainda ativo · Desativando</value></data>
-  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Ativo · Aguardando confirmação dos novos ajustes</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Aplicando as configurações atualizadas no jogo</value></data>
   <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Não compatível · Condução original</value></data>
   <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Erro na extensão · Condução original</value></data>
   <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Reinicie o jogo para usar esta extensão</value></data>
@@ -468,4 +470,24 @@ Aplica-se ao save solo selecionado depois de parar de jogar.</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>As configurações salvas serão aplicadas ao entrar em uma partida de um jogador.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Para aplicá-las, retome o jogo, pare o veículo, solte o acelerador e desligue o controle de cruzeiro.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Jogo no menu principal</value></data>
+  <data name="VersionSetting.Header" xml:space="preserve"><value>Versão</value></data>
+  <data name="AboutSettings.Header" xml:space="preserve"><value>Sobre</value></data>
+  <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibilidade e status</value></data>
+  <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Não há registros de nível {0} ou superior.</value></data>
+  <data name="NoFilteredLogs" xml:space="preserve"><value>Nenhum registro corresponde aos filtros selecionados.</value></data>
+  <data name="LogShowAll" xml:space="preserve"><value>Ver todos os registros</value></data>
+  <data name="HomeNavigation.Content" xml:space="preserve"><value>Início</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Backups, recuperação de personagens e extensões para Project Zomboid.</value></data>
+  <data name="Home.FeaturesHeading" xml:space="preserve"><value>Principais recursos</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>Backups automáticos e manuais</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>Compacta e faz backup apenas dos arquivos alterados. Permite definir o intervalo dos backups automáticos e quantos manter. Os backups manuais ficam fora dessa contagem.</value></data>
+  <data name="Home.BackupAction" xml:space="preserve"><value>Configurar backups</value></data>
+  <data name="Home.RestoreTitle" xml:space="preserve"><value>Restaurar e exportar backups</value></data>
+  <data name="Home.RestoreDescription" xml:space="preserve"><value>Restaura a partida ao estado salvo no backup. Permite exportar partidas e backups em ZIP e importar arquivos ZIP.</value></data>
+  <data name="Home.RestoreAction" xml:space="preserve"><value>Lista de backups</value></data>
+  <data name="Home.RecoveryTitle" xml:space="preserve"><value>Recuperação do personagem</value></data>
+  <data name="Home.RecoveryDescription" xml:space="preserve"><value>Cura ou ressuscita o personagem da partida atual, preservando traços e habilidades. Não está disponível enquanto você joga essa partida.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Ajusta a aceleração, as trocas de marcha, a ré e o controle da direção pelo teclado. Cada recurso pode ser ativado ou desativado separadamente, sem instalar mods.</value></data>
+  <data name="Home.ReportIssue" xml:space="preserve"><value>Relatar um problema</value></data>
+  <data name="Home.UnofficialNotice" xml:space="preserve"><value>Ferramenta não oficial para Project Zomboid</value></data>
 </root>

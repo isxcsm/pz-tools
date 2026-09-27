@@ -692,8 +692,10 @@ public sealed class IncrementalBackupRunner(
             if ((File.GetAttributes(ancestor.FullName) & FileAttributes.ReparsePoint) != 0)
                 throw new IOException($"Cannot verify a missing entry beneath a linked source: '{sourceRoot}'.");
 
-        foreach (var part in BackupPath.NormalizeRelative(relativePath).Split('/'))
+        var parts = BackupPath.NormalizeRelative(relativePath).Split('/');
+        for (var index = 0; index < parts.Length; index++)
         {
+            var part = parts[index];
             if (part.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                 throw new InvalidDataException($"Invalid source entry '{relativePath}'.");
             var child = Path.Combine(directory, part);
@@ -707,8 +709,13 @@ public sealed class IncrementalBackupRunner(
                 MatchCasing = MatchCasing.CaseInsensitive,
             });
             if (!entries.Contains(child, StringComparer.OrdinalIgnoreCase)) return true;
-            if ((File.GetAttributes(child) & FileAttributes.ReparsePoint) != 0)
+            var attributes = File.GetAttributes(child);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
                 throw new IOException($"Cannot verify a missing entry beneath a link: '{child}'.");
+            // A confirmed ordinary file cannot contain the remaining path. This
+            // occurs when a formerly tracked directory is replaced by a file.
+            if (index < parts.Length - 1 && (attributes & FileAttributes.Directory) == 0)
+                return true;
             directory = child;
         }
         return false;

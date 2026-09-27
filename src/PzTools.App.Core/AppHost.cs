@@ -34,6 +34,7 @@ public sealed class AppHost : IAsyncDisposable
     private readonly RuntimeSnapshotStore runtimeSnapshot = new();
     private readonly ExtensionRuntimeDiagnostics extensionDiagnostics;
     private readonly SemaphoreSlim refreshGate = new(1, 1);
+    private readonly SemaphoreSlim settingsGate = new(1, 1);
     private readonly object disposalGate = new();
     private Task? disposalTask;
     private readonly AppRuntimeOptions runtime;
@@ -107,6 +108,14 @@ public sealed class AppHost : IAsyncDisposable
     public ThumbnailCache Thumbnails { get; }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellationToken);
+        await settingsGate.WaitAsync(linked.Token).ConfigureAwait(false);
+        try { await StartCoreAsync(linked.Token).ConfigureAwait(false); }
+        finally { settingsGate.Release(); }
+    }
+
+    private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
         if (runtimeConfigurationError is not null)
             throw new InvalidDataException("Cannot start workers: invalid app runtime configuration.", runtimeConfigurationError);
@@ -270,6 +279,10 @@ public sealed class AppHost : IAsyncDisposable
         Projections.RequestStop();
         try
         {
+            // Startup and settings writes must finish unwinding before their stores,
+            // projection registrations and cancellation state can be torn down.
+            await settingsGate.WaitAsync().ConfigureAwait(false);
+            settingsGate.Release();
             // Stop projections now, not after both scheduler processes exit.
             await Task.WhenAll(
                 WaitForSupervisorsAsync(),
@@ -321,26 +334,37 @@ public sealed class AppHost : IAsyncDisposable
         AppSettings settings,
         CancellationToken cancellationToken = default)
     {
-        var scheduler = Scheduler
-            ?? throw new InvalidOperationException("The app host is not ready.");
-        await Settings.SaveAndApplyAsync(
-            settings,
-            scheduler,
-            cancellationToken);
-        if (LogInbox is not null)
-            await LogInbox.ConfigureStorageAsync(settings.LogRecordMinimumLevel,
-                settings.LogMaxEntries, cancellationToken);
-        Telemetry?.ConfigureLogs(new LogProjectionOptions(
-            settings.LogRecordMinimumLevel, settings.LogDisplayLimit));
-        Telemetry?.ConfigureRecordingLevel(settings.LogRecordMinimumLevel);
-        PublishSettings(settings);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellationToken);
+        await settingsGate.WaitAsync(linked.Token).ConfigureAwait(false);
+        try
+        {
+            var scheduler = Scheduler
+                ?? throw new InvalidOperationException("The app host is not ready.");
+            await Settings.SaveAndApplyAsync(settings, scheduler, linked.Token).ConfigureAwait(false);
+            if (LogInbox is not null)
+                await LogInbox.ConfigureStorageAsync(settings.LogRecordMinimumLevel,
+                    settings.LogMaxEntries, linked.Token).ConfigureAwait(false);
+            Telemetry?.ConfigureLogs(new LogProjectionOptions(
+                settings.LogRecordMinimumLevel, settings.LogDisplayLimit));
+            Telemetry?.ConfigureRecordingLevel(settings.LogRecordMinimumLevel);
+            PublishSettings(settings);
+        }
+        finally { settingsGate.Release(); }
     }
 
-    public async Task ApplyLogOptionsAsync(LogLevel minimumLevel, int displayLimit)
+    public async Task ApplyLogOptionsAsync(
+        LogLevel minimumLevel, int displayLimit, CancellationToken cancellationToken = default)
     {
-        var settings = await Settings.SaveLogOptionsAsync(minimumLevel, displayLimit);
-        Telemetry?.ConfigureLogs(new LogProjectionOptions(minimumLevel, displayLimit));
-        PublishSettings(settings);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellationToken);
+        await settingsGate.WaitAsync(linked.Token).ConfigureAwait(false);
+        try
+        {
+            var settings = await Settings.SaveLogOptionsAsync(minimumLevel, displayLimit, linked.Token)
+                .ConfigureAwait(false);
+            Telemetry?.ConfigureLogs(new LogProjectionOptions(minimumLevel, displayLimit));
+            PublishSettings(settings);
+        }
+        finally { settingsGate.Release(); }
     }
 
     public async Task<LogsView> AcknowledgeLogIssueAsync(

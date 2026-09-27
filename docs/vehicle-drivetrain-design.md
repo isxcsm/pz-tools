@@ -8,13 +8,19 @@ The `pztools.vehicle-drivetrain` module is an experimental, default-off extensio
 
 The goal is smoother reacceleration, shifting, reverse launch, and keyboard steering while retaining differences between vehicles. The module does not replace mass, cargo, tire friction, suspension, collision, ordinary braking, character traits, or gamepad steering.
 
-The catalog declares major version 42, but activation still requires the inspected 42.20 bytecode structure, signatures, fields, and canonical fingerprints. The inspected installation JAR had SHA-256:
+The catalog declares major version 42. Activation checks the exact field types, method signatures and static/instance access used by the adapter, then validates the actual bytes received by the JVM transformer. It does not require whole-class hashes for `WorldSimulation`, `GameTime`, `BaseVehicle` or the other surrounding classes to match. The inspected installation JAR had SHA-256:
 
 ```text
 80E405A4BFC42F6072E75B3735F458A6514143DA011D3226007DED305A442F44
 ```
 
 That is a research baseline, not a Steam-original authenticity check or a promise of support for every B42 patch. Research artifacts remain local under the ignored `artifacts/vehicle-physics-research/`; game classes and decompiled sources are not distributed.
+
+The three control methods and the steering and offroad blocks whose execution can be skipped retain narrow, normalized bytecode contracts. Changes to their instructions, constants, calls or branch targets require review because the adapter could otherwise omit new game or mod behavior. Constant-pool layout, method order, debug metadata and NOPs do not affect these contracts. The surrounding `update` layout is checked for call sites, control-flow boundaries and required fields; unrelated members are allowed. Each retransformation is checked again, and a conflict releases the extension's control without replacing another transformer's output with a disk copy.
+
+From dispatch through the braking decision, every path must pass the original mode guards and back-signal update in order. Early exits, skipped checkpoints, exception handlers and cycles or re-entry across that phase are rejected. The braking guard is checked even though the braking implementation is not replaced: direction-change hold relies on that original call. Original conditional branches and unrelated code outside this protected phase remain eligible.
+
+Passing these checks establishes patch compatibility, not equivalent driving behavior. External changes to physics stepping, input sampling or friction still need combined in-game testing. A version override does not bypass these contracts.
 
 Propulsion requires a local single-player driver, a running engine, four wheels, valid script values, and a supported engine family: `generic`, `van`, `jeep`, or `firebird`, with 3–5 gears. Being towed, burnt vehicles, and towing a burnt vehicle use original propulsion. Ordinary towing remains a driving-test case. Unknown profiles fall back rather than guessing a physical model.
 
@@ -45,7 +51,7 @@ enginePower × firstGearFactor × (0.3 + RPM / 30000)
 
 `firstGearFactor` is `1.5 × low_gear_boost` in first gear or below `maxSpeed / gearCount`; otherwise it is 1. This preserves the original low-speed force range when the RPM proxy shifts early. The default `low_gear_boost` is 1.
 
-The torque-curve modulation is 1.0–1.1 times that base envelope. This does **not** bound the change in total vehicle performance to 10%: the RPM/gear trajectory differs, and the original additional forward fade above 6,000 RPM is not reproduced. Candidate gear ratios guide RPM and shifting; they do not apply another `ratio(current)/ratio(first)` force penalty.
+The torque-curve modulation is `1 + forward_torque_boost_fraction × torqueShape(RPM)` times that base envelope. The setting accepts 0–0.10 and defaults to 0.10, preserving the existing 1.0–1.1 range. Zero removes only this RPM-dependent boost; it does not disable the extension's shifting or pedal response. This does **not** bound the change in total vehicle performance to 10%: the RPM/gear trajectory differs, and the original additional forward fade above 6,000 RPM is not reproduced. Candidate gear ratios guide RPM and shifting; they do not apply another `ratio(current)/ratio(first)` force penalty.
 
 Reverse uses the inspected reverse envelope:
 
@@ -123,6 +129,8 @@ Saved intent and JVM application are separate. The UI keeps controls editable of
 The delivered module is `pztools-vehicle-drivetrain.jar`, capability `vehicle.drivetrain.v1`. Current contracts are bootstrap API10, extension host ABI3, extension-control wire1, save wire6, and WATCH STATE4. The optional save extension is not distributed; when backup requests a game save, the normal path calls `GameWindow.save(true)`. Existing API9-or-earlier resident agents require one full game restart to obtain the new bootstrap contract.
 
 Control requests carry command identity, controller epoch, process/world identity, and expected revision. Retries are idempotent, queues/caches are bounded, and a new controller cannot take over a live owner. Activation/configuration waits for a game-thread safe boundary: vehicles stopped, throttle released, and cruise disabled. Explicit deactivation, disconnect, fault, and lease expiry can close callback admission without waiting for a game tick. The control lease is five seconds.
+
+On disconnect, the session revokes admission immediately and retains lifecycle ownership until its in-flight host calls and retirement finish. Late callbacks and repeated close requests are inert. Game-thread polls use a non-blocking session gate, so commands and retirement never make the game thread wait for that gate.
 
 State is scoped by process, world, module generation, vehicle, and driver; reused numeric vehicle IDs cannot revive it. Exit, world changes, retirement, and fault release references. A fault returns to original control and requires an explicit new activation/configuration or module candidate before revalidation.
 

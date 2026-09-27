@@ -15,6 +15,7 @@ public static class VehicleDrivetrainConfiguration
         new Dictionary<string, (double, double, double)>(StringComparer.Ordinal)
         {
             ["force_scale"] = (1, 0.25, 1.5), ["low_gear_boost"] = (1, 1, 1.6),
+            ["forward_torque_boost_fraction"] = (0.10, 0, 0.10),
             ["reverse_force_ratio"] = (1, 0.4, 1), ["reverse_max_speed_kph"] = (0, 0, 35),
             ["reverse_ramp_seconds"] = (0.8, 0.3, 2), ["forward_ramp_seconds"] = (0.3, 0.1, 2),
             ["direction_hold_seconds"] = (0.15, 0.05, 0.75), ["max_dt_seconds"] = (0.1, 0.02, 0.25),

@@ -23,31 +23,7 @@ public sealed class InterruptedOperationRecoveryTests
         var save = Path.Combine(root, "Saves", "Sandbox", "Test");
         Directory.CreateDirectory(save);
         await File.WriteAllTextAsync(Path.Combine(save, "data.bin"), "backup payload");
-        var info = new ProcessStartInfo("dotnet") { UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardError = true, RedirectStandardOutput = true };
-        foreach (var argument in new[] { "exec", "--runtimeconfig",
-                     Path.Combine(AppContext.BaseDirectory, "PzTools.Backup.Tests.runtimeconfig.json"),
-                     "--depsfile", Path.Combine(AppContext.BaseDirectory, "PzTools.Backup.Tests.deps.json"),
-                     Path.Combine(AppContext.BaseDirectory, "PzTools.CrashFixture.dll"), root, mode })
-            info.ArgumentList.Add(argument);
-        using var process = System.Diagnostics.Process.Start(info)!;
-        var error = process.StandardError.ReadToEndAsync();
-        var output = process.StandardOutput.ReadToEndAsync();
-        try
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            while (!File.Exists(Path.Combine(root, "ready")))
-            {
-                if (process.HasExited) Assert.Fail($"Fixture exited: {await error} {await output}");
-                await Task.Delay(25, timeout.Token);
-            }
-            process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync(timeout.Token);
-        }
-        finally
-        {
-            if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
-        }
+        await KillFixtureAtCheckpointAsync(root, mode);
         try
         {
             var repository = await RepositoryDatabase.CreateOrOpenAsync(Path.Combine(root, "repository"));
@@ -77,6 +53,61 @@ public sealed class InterruptedOperationRecoveryTests
         catch (SqliteException exception)
         {
             throw new Xunit.Sdk.XunitException($"Crash recovery mode={mode}; SQLite primary={exception.SqliteErrorCode}; extended={exception.SqliteExtendedErrorCode}; native={SQLitePCL.raw.sqlite3_libversion().utf8_to_string()}; {exception}");
+        }
+    }
+
+    [Fact]
+    public async Task KilledImport_IsCleanedOnStartupWithoutPublishingPartialSave()
+    {
+        using var temp = new TempDirectory();
+        var root = temp.Path;
+        var savesRoot = Path.Combine(root, "Saves");
+        var existing = Path.Combine(savesRoot, "Sandbox", "Test");
+        Directory.CreateDirectory(existing);
+        await File.WriteAllTextAsync(Path.Combine(existing, "players.db"), "original");
+        await KillFixtureAtCheckpointAsync(root, "import");
+        var staging = Assert.Single(Directory.GetDirectories(savesRoot, ".pztools-import-*"));
+        Assert.NotEmpty(Directory.GetFiles(staging, "*", SearchOption.AllDirectories));
+
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(Path.Combine(root, "repository"));
+        var recovery = new InterruptedOperationRecoveryService();
+        var result = await RecoverWhenAdmittedAsync(recovery, repository, savesRoot);
+        Assert.Empty(result.Problems);
+        Assert.Equal(1, result.DeletedArtifacts);
+        Assert.False(Directory.Exists(staging));
+        Assert.Equal("original", await File.ReadAllTextAsync(Path.Combine(existing, "players.db")));
+        Assert.Equal([existing], Directory.GetDirectories(Path.Combine(savesRoot, "Sandbox")));
+        var repeated = await RecoverWhenAdmittedAsync(recovery, repository, savesRoot);
+        Assert.Empty(repeated.Problems);
+        Assert.Equal(0, repeated.DeletedArtifacts);
+    }
+
+    private static async Task KillFixtureAtCheckpointAsync(string root, string mode)
+    {
+        var info = new ProcessStartInfo("dotnet") { UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardError = true, RedirectStandardOutput = true };
+        foreach (var argument in new[] { "exec", "--runtimeconfig",
+                     Path.Combine(AppContext.BaseDirectory, "PzTools.Backup.Tests.runtimeconfig.json"),
+                     "--depsfile", Path.Combine(AppContext.BaseDirectory, "PzTools.Backup.Tests.deps.json"),
+                     Path.Combine(AppContext.BaseDirectory, "PzTools.CrashFixture.dll"), root, mode })
+            info.ArgumentList.Add(argument);
+        using var process = System.Diagnostics.Process.Start(info)!;
+        var error = process.StandardError.ReadToEndAsync();
+        var output = process.StandardOutput.ReadToEndAsync();
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            while (!File.Exists(Path.Combine(root, "ready")))
+            {
+                if (process.HasExited) Assert.Fail($"Fixture exited: {await error} {await output}");
+                await Task.Delay(25, timeout.Token);
+            }
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        finally
+        {
+            if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
         }
     }
 
@@ -172,6 +203,48 @@ public sealed class InterruptedOperationRecoveryTests
         Assert.Equal(1, (await service.TryRunAsync(repository, root)).DeletedArtifacts);
     }
 
+    [Fact]
+    public async Task ImportRootLock_PreventsCleanupOfActiveExtraction()
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("Saves");
+        var staging = Path.Combine(root, $".pztools-import-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(staging);
+        var payload = Path.Combine(staging, "players.db");
+        await File.WriteAllTextAsync(payload, "partial");
+        var locked = await OperationMutexSet.TryRunAsync([new(OperationMutexScope.SaveWrite, root)], async _ =>
+        {
+            var result = await InterruptedOperationRecoveryService.RecoverSavesAsync(root);
+            Assert.Empty(result.Problems);
+            Assert.Equal(0, result.DeletedArtifacts);
+            Assert.True(File.Exists(payload));
+            return true;
+        });
+        Assert.True(locked.Acquired);
+        var recovered = await InterruptedOperationRecoveryService.RecoverSavesAsync(root);
+        Assert.Empty(recovered.Problems);
+        Assert.Equal(1, recovered.DeletedArtifacts);
+        Assert.False(Directory.Exists(staging));
+    }
+
+    [Theory]
+    [InlineData(".pztools-import-ordinary-save")]
+    [InlineData(".pztools-import-0123456789abcdef0123456789abcdef-extra")]
+    [InlineData(".pztools-import-")]
+    public async Task ImportLookalikeDirectory_IsPreserved(string name)
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("Saves");
+        var directory = Path.Combine(root, name);
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "players.db");
+        await File.WriteAllTextAsync(file, "keep");
+        var result = await InterruptedOperationRecoveryService.RecoverSavesAsync(root);
+        Assert.Empty(result.Problems);
+        Assert.Equal(0, result.DeletedArtifacts);
+        Assert.Equal("keep", await File.ReadAllTextAsync(file));
+    }
+
     [Theory]
     [InlineData(false, false, false)]
     [InlineData(true, false, true)]
@@ -216,14 +289,18 @@ public sealed class InterruptedOperationRecoveryTests
         Assert.Equal(WorkflowStatus.Running, (await repository.ReadWorkflowAsync(workflow.RunIndex)).Status);
     }
 
-    [Fact]
-    public async Task NestedJunctionInStaging_IsPreservedWithoutTouchingItsTarget()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NestedJunctionInStaging_IsPreservedWithoutTouchingItsTarget(bool import)
     {
         using var temp = new TempDirectory();
         var root = temp.GetPath("Saves");
         var save = Path.Combine(root, "Sandbox", "Test");
         Directory.CreateDirectory(save);
-        var staging = Path.Combine(Path.GetDirectoryName(save)!, $".Test.pztools-staging-{Guid.NewGuid():N}");
+        var staging = import
+            ? Path.Combine(root, $".pztools-import-{Guid.NewGuid():N}")
+            : Path.Combine(Path.GetDirectoryName(save)!, $".Test.pztools-staging-{Guid.NewGuid():N}");
         Directory.CreateDirectory(staging);
         var outside = temp.GetPath("unrelated");
         Directory.CreateDirectory(outside);

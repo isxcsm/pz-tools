@@ -11,8 +11,9 @@ public final class SteeringModelTest {
         counterFloorCrossover();
         rapidLatestIntent(config);
         releaseAndReset(config);
+        floatInputDeadZone(config);
         invalidInputsAndBounds(config);
-        System.out.println("PASS steering model: continuous latest-intent countersteer, exact rate-floor integration, fast release, neutral ramp timing, bounds/resets and 30-240 Hz independence");
+        System.out.println("PASS steering model: continuous latest-intent countersteer, exact rate-floor integration, fast release, float dead-zone boundaries, neutral ramp timing, bounds/resets and 30-240 Hz independence");
     }
 
     private static void neutralRampTimes(DrivetrainConfig current) {
@@ -134,6 +135,21 @@ public final class SteeringModelTest {
             model.reset();
             near(model.step(-1,.3,.4,0,100,1d/hz),new SteeringModel(config).step(-1,.3,.4,0,100,1d/hz),
                 "explicit reset rebases actual angle and intent");
+        }
+    }
+
+    private static void floatInputDeadZone(DrivetrainConfig config) {
+        double dt=1d/60;
+        for(int sign:new int[]{-1,1}) for(float magnitude:new float[]{Math.nextDown(.1f),.1f,Math.nextUp(.1f)}) {
+            float input=sign*magnitude;
+            double angle=new SteeringModel(config).step(input,0,.9,0,100,dt);
+            if(magnitude>.1f) check(angle*sign<0,"the first float above the dead zone still steers");
+            else {
+                near(angle,0,"float boundary and its inward neighbor remain neutral for either sign");
+                double returning=new SteeringModel(config).step(input,.4,.9,0,100,dt);
+                near(returning,new SteeringModel(config).step(0,.4,.9,0,100,dt),
+                    "float dead-zone input has the same return behavior as released input");
+            }
         }
     }
 

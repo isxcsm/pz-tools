@@ -84,17 +84,7 @@ public sealed partial class LogsPage
         ActiveFilters.Visibility = FilterChips.Children.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (FilterChips.Children.Count == 0) return;
         var clearAll = new Button { Content = Localizer.Get("LogFiltersClearAll"), Style = (Style)Resources["LogPageButtonStyle"] };
-        clearAll.Click += async (_, _) =>
-        {
-            DismissFilterEditor(commitPending: false);
-            logRange = runRange = null;
-            componentCategory = "All";
-            minimumLevel = recordMinimum;
-            levelChosenByUser = true;
-            ClearTime();
-            await FiltersChangedAsync();
-            LogNumberButton.Focus(FocusState.Programmatic);
-        };
+        clearAll.Click += ClearAllFilters_Click;
         FilterChips.Children.Add(clearAll);
 
         void AddChip(bool active, string label, string value, Action clear)
@@ -118,6 +108,18 @@ public sealed partial class LogsPage
             };
             FilterChips.Children.Add(chip);
         }
+    }
+
+    private async void ClearAllFilters_Click(object sender, RoutedEventArgs e)
+    {
+        DismissFilterEditor(commitPending: false);
+        logRange = runRange = null;
+        componentCategory = "All";
+        minimumLevel = recordMinimum;
+        levelChosenByUser = true;
+        ClearTime();
+        await FiltersChangedAsync();
+        LogNumberButton.Focus(FocusState.Programmatic);
     }
 
     private void ClearTime() { timeRange = null; timeFromText = timeThroughText = ""; }

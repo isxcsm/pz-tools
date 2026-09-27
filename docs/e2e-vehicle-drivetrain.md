@@ -79,6 +79,10 @@ Defaults and ranges are in [vehicle-drivetrain.toml](../config/game-extensions/v
 
 The three UI preferences take precedence over TOML feature defaults, even before the first JSON save. `low_mode`, `probe_only`, `diagnostics_enabled`, and numeric values remain TOML-only. After editing, stop and toggle off/on to apply a new revision.
 
+`forward_torque_boost_fraction` controls only the RPM-dependent forward boost, from 0 to 0.10 (default 0.10). Set it to 0 to compare the extension's shifting and pedal response without this extra boost. Unlike `force_scale`, it does not scale reverse output or the whole forward force envelope.
+
+Connection timing belongs in the state scheduler's `default.toml`, under `[extensions]`: `reconcile_interval_ms` is 250–1000 ms (default 1000), and `connect_timeout_seconds` is 5–60 seconds (default 20). The first controls preference checks and heartbeats; the second limits initial connection preparation. Restart the app after applying changes to these scheduler settings. Neither changes the fixed five-second control lease or three-second command limit.
+
 Existing overrides are not deleted automatically. In particular, old reverse values `22`, `0.85`, and `0.75`, or older steering return/countersteer rates, can mask current defaults. Current defaults are `reverse_max_speed_kph=0`, `reverse_force_ratio=1`, `reverse_governor_start_fraction=1`, and steering return/countersteer rates of 8. Explicit reverse limits accept 4–35 km/h.
 
 `probe_only=true` keeps original control and reports a reset one-step prediction, not continuous driving performance. Disable it before ordinary driving comparisons. Diagnostics retain a latest sample and one-second aggregates. `native_force/brake/steering` are pre-call arguments, not evidence of native success; `callback_mean_us/max_us` exclude native execution and observation cost. An old `sample_age_ms` means the last sample is stale.
@@ -101,3 +105,5 @@ dotnet test tests/PzTools.Backup.Tests -c Release --no-build --filter FullyQuali
 ```
 
 Record the commit, commands, results, and distribution hashes beside the candidate. Automated checks do not replace the driving and lifecycle checks above.
+
+To check a third-party class replacement archive without installing it, add `-GameOverrides path/to/classes.zip` to `test-game-extensions.ps1` together with `-InstalledGameJar`. Each class must be at its declared package path in the archive root; an extra release folder is rejected. The verifier checks resource and class-loading sources and rejects archives when none of their classes are used. It reports both the number of validated paths and actual override definitions; it does not claim to exercise every class in the archive. Archive classes precede the installed JAR, while normal parent-loader precedence is preserved and checked for shadowing. The verifier reads class metadata and exercises transformations in a separate JVM; it does not start or attach to the game. A pass confirms access and patch contracts only. Test steering, braking and timing in the game separately when another mod changes input sampling or physics stepping.

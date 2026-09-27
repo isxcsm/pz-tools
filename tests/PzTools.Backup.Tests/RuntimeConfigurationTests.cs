@@ -10,6 +10,48 @@ namespace PzTools.Backup.Tests;
 public sealed class RuntimeConfigurationTests
 {
     [Fact]
+    public async Task ExtensionControl_DefaultsMatchFreshSchedulerTemplate()
+    {
+        using var temp = new TempDirectory();
+        var settings = new AppSettingsService(temp.GetPath("runtime"));
+        await settings.EnsureComponentConfigurationAsync(temp.Path, "state-scheduler");
+        var path = ComponentRuntimePaths.GetIdentityDefaultPath(temp.Path, "state-scheduler", settings.ConfigurationRoot);
+        var text = await File.ReadAllTextAsync(path);
+        Assert.Contains("reconcile_interval_ms = 1000", text);
+        Assert.Contains("connect_timeout_seconds = 20", text);
+        var template = ComponentConfiguration.Parse(text);
+        ComponentOptions.Validate("state-scheduler", template);
+        Assert.Equal(new ExtensionControlOptions(), StateSchedulerOptions.Read(template).Extensions);
+        Assert.Equal(new ExtensionControlOptions(), StateSchedulerOptions.Read(ComponentConfiguration.Parse("[scheduler]")).Extensions);
+    }
+
+    [Theory]
+    [InlineData(250, 5)]
+    [InlineData(1000, 60)]
+    public void ExtensionControl_UsesBoundedSchedulerOptions(int interval, int timeout)
+    {
+        var configuration = ComponentConfiguration.Parse($"[extensions]\nreconcile_interval_ms = {interval}\nconnect_timeout_seconds = {timeout}");
+        ComponentOptions.Validate("state-scheduler", configuration);
+        Assert.Equal(new ExtensionControlOptions(interval, timeout), StateSchedulerOptions.Read(configuration).Extensions);
+        Assert.Throws<InvalidDataException>(() => ComponentOptions.Validate("backup-scheduler", configuration));
+    }
+
+    [Theory]
+    [InlineData("[extensions]\nreconcile_interval_ms = 249")]
+    [InlineData("[extensions]\nreconcile_interval_ms = 1001")]
+    [InlineData("[extensions]\nconnect_timeout_seconds = 4")]
+    [InlineData("[extensions]\nconnect_timeout_seconds = 61")]
+    [InlineData("[extensions]\nconnect_timeout_seconds = '20'")]
+    [InlineData("[extensions]\nreconcile_interval_ms = true")]
+    [InlineData("[extensions]\nreconcile_interval_ms = 500.0")]
+    [InlineData("[extensions]\nconnect_timeout_typo = 20")]
+    [InlineData("extensions = 1")]
+    public void ExtensionControl_InvalidOptionsFailComponentPreflight(string text)
+    {
+        Assert.Throws<InvalidDataException>(() => ComponentOptions.Validate("state-scheduler", ComponentConfiguration.Parse(text)));
+    }
+
+    [Fact]
     public async Task BackupRuntime_DefaultsMatchFreshTemplateAndSerialization()
     {
         using var temp = new TempDirectory();

@@ -10,6 +10,7 @@ public final class DrivetrainModelTest {
     public static void main(String[] args) {
         configurationAndProfiles();
         boundedProfileTuning();
+        forwardTorqueBoostTuning();
         finiteInputsAndRecovery();
         reverseRampAndGovernor();
         reverseVehicleLimitsAndTraitFade();
@@ -81,6 +82,59 @@ public final class DrivetrainModelTest {
                     check(p.torqueShape(rpm) >= 0 && p.torqueShape(rpm) <= 1, "curve remains bounded");
                 }
             }
+        }
+    }
+
+    private static void forwardTorqueBoostTuning() {
+        near(DrivetrainConfig.defaults().forwardTorqueBoostFraction, 0.10, 0, "default preserves ten-percent boost");
+        near(DrivetrainConfig.parse(Map.of("force_scale", "1")).forwardTorqueBoostFraction, 0.10, 0,
+            "missing boost setting preserves old configuration behavior");
+        for (String invalid : new String[]{"-0.0001", "0.100000001", "NaN", "Infinity", "-Infinity"})
+            reject(Map.of("forward_torque_boost_fraction", invalid));
+        DrivetrainConfig zero = DrivetrainConfig.parse(Map.of("forward_torque_boost_fraction", "0"));
+        for (double boost : new double[]{0, 0.04, 0.10}) {
+            DrivetrainConfig tuned = DrivetrainConfig.parse(Map.of("forward_torque_boost_fraction", Double.toString(boost)));
+            near(tuned.forwardTorqueBoostFraction, boost, 0, "zero/custom/maximum boost accepted");
+            for (String family : new String[]{"generic", "van", "jeep", "firebird"}) {
+                VehicleProfile p = VehicleProfile.resolve(family, 4, 120, tuned);
+                VehicleProfile original = VehicleProfile.resolve(family, 4, 120);
+                for (int rpm = 0; rpm <= 20000; rpm += 37) {
+                    double curve = p.forwardTorqueModulation(rpm);
+                    near(curve, 1 + boost * p.torqueShape(rpm), 0, "configured boost scales only the bounded curve");
+                    check(curve >= 1 && curve <= 1 + boost && curve <= 1.10, "curve stays within configured and hard maximum");
+                    near(original.forwardTorqueModulation(rpm), 1 + 0.10 * original.torqueShape(rpm), 0,
+                        "default curve exactly preserves previous formula");
+                }
+                for (int direction : new int[]{-1, 1}) {
+                    for (double speed : new double[]{0, 8, 80}) {
+                        DrivetrainModel.Input baseInput = input(), tunedInput = input();
+                        baseInput.profile = VehicleProfile.resolve(family, 4, 120, zero); tunedInput.profile = p;
+                        baseInput.direction = tunedInput.direction = direction;
+                        baseInput.currentGear = tunedInput.currentGear = direction;
+                        baseInput.speedMps = tunedInput.speedMps = direction * speed / 3.6;
+                        DrivetrainModel.Output base = new DrivetrainModel.Output(), actual = new DrivetrainModel.Output();
+                        step(new DrivetrainModel(zero), baseInput, base, 3);
+                        step(new DrivetrainModel(tuned), tunedInput, actual, 3);
+                        check(actual.decision == DrivetrainModel.Decision.APPLIED && actual.gear == base.gear,
+                            "boost changes no model decision or gear");
+                        near(actual.engineRpm, base.engineRpm, 0, "boost changes no RPM response");
+                        near(actual.throttle, base.throttle, 0, "boost changes no throttle ramp");
+                        double multiplier = direction < 0 ? 1 : 1 + boost * p.torqueShape(actual.engineRpm);
+                        near(actual.engineForce, base.engineForce * multiplier, direction < 0 ? 0 : 1e-8,
+                            "forward boost scales settled force; reverse remains exactly unchanged");
+                        if (direction > 0 && speed == 0 && boost > 0)
+                            check(actual.engineForce > base.engineForce, "nonzero boost has a real forward effect");
+                    }
+                }
+            }
+            DrivetrainModel.Input in = input(); in.profile = VehicleProfile.resolve("generic", 4, 120, tuned);
+            DrivetrainModel.Output out = new DrivetrainModel.Output(); DrivetrainModel model = new DrivetrainModel(tuned);
+            step(model, in, out, 3);
+            in.offroad = true; in.offroadEfficiency = 0.05;
+            model.step(in, out);
+            double reducedCap = forwardBaseEnvelope(in, out.engineRpm, out.gear) * 0.05 * 0.6;
+            near(out.engineForce, reducedCap * (1 + boost), 1e-8,
+                "abrupt surface cap applies configured boost ceiling immediately");
         }
     }
 

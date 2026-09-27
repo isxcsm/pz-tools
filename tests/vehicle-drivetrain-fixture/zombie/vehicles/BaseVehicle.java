@@ -1,5 +1,6 @@
 package zombie.vehicles;
 import zombie.characters.IsoPlayer;
+import zombie.characters.IsoGameCharacter;
 import zombie.scripting.objects.VehicleScript;
 public final class BaseVehicle {
     public float throttle,speed,maxSpeed=100,mass=1000,legacyOffroad=.25f;
@@ -7,15 +8,16 @@ public final class BaseVehicle {
     public int joypad=-1; public float currentSteering;
     public TransmissionNumber transmissionNumber=TransmissionNumber.N;
     public VehicleEngine engine=new VehicleEngine();
+    private final VehiclePart enginePart=new VehiclePart();
     public VehicleScript script=new VehicleScript();
     public IsoPlayer driver;
     public boolean running=true,burnt,offroad,regulator;
     public boolean keyboardControlled=true;
     public BaseVehicle towedBy,towing;
-    public Object getDriver() { return driver; }
+    public IsoGameCharacter getDriver() { return driver; }
     public VehicleScript getScript() { return script; }
     public boolean isEngineRunning() { return running; }
-    public Object getEngine() { return engine; }
+    public VehiclePart getEngine() { return engine==null?null:enginePart; }
     private VehicleEngine getVehicleEngine() { return engine; }
     public BaseVehicle getVehicleTowedBy() { return towedBy; }
     public BaseVehicle getVehicleTowing() { return towing; }

@@ -27,9 +27,15 @@ public sealed class GameExtensionClient : IGameExtensionSession
         writer = new(client.GetStream(), new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
     }
 
-    public static async Task<GameExtensionClient> ConnectAsync(string bridgeDirectory, int processId, CancellationToken token)
+    public static Task<GameExtensionClient> ConnectAsync(string bridgeDirectory, int processId, CancellationToken token) =>
+        ConnectAsync(bridgeDirectory, processId, TimeSpan.FromSeconds(20), token);
+
+    public static async Task<GameExtensionClient> ConnectAsync(string bridgeDirectory, int processId,
+        TimeSpan connectTimeout, CancellationToken token)
     {
         if (processId <= 0) throw new ArgumentOutOfRangeException(nameof(processId));
+        if (connectTimeout < TimeSpan.FromSeconds(5) || connectTimeout > TimeSpan.FromSeconds(60))
+            throw new ArgumentOutOfRangeException(nameof(connectTimeout), "Extension connection timeout must be between 5 and 60 seconds.");
         var java = Path.Combine(bridgeDirectory, "runtime", "bin", "java.exe");
         var jar = Path.Combine(bridgeDirectory, "pztools-save-bridge.jar");
         if (!File.Exists(java) || !File.Exists(jar))
@@ -51,7 +57,7 @@ public sealed class GameExtensionClient : IGameExtensionSession
             helper = System.Diagnostics.Process.Start(start) ?? throw new IOException("Cannot start extension helper.");
             output = helper.StandardOutput.ReadToEndAsync(); error = helper.StandardError.ReadToEndAsync();
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-            deadline.CancelAfter(TimeSpan.FromSeconds(20));
+            deadline.CancelAfter(connectTimeout);
             var accept = listener.AcceptTcpClientAsync(deadline.Token).AsTask();
             var exit = helper.WaitForExitAsync(deadline.Token);
             if (await Task.WhenAny(accept, exit) == exit)

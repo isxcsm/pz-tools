@@ -9,7 +9,7 @@
   <data name="SavesNavigation.Content" xml:space="preserve"><value>存档管理</value></data>
   <data name="Exporting.Text" xml:space="preserve"><value>正在导出</value></data>
   <data name="BackingUp.Text" xml:space="preserve"><value>正在备份</value></data>
-  <data name="ImportArchive.Content" xml:space="preserve"><value>导入 ZIP</value></data>
+  <data name="ImportArchive.Content" xml:space="preserve"><value>导入备份文件</value></data>
   <data name="NoSaves.Text" xml:space="preserve"><value>未找到存档</value></data>
   <data name="LoadingSaves.Text" xml:space="preserve"><value>正在加载存档…</value></data>
   <data name="LoadingBackups.Text" xml:space="preserve"><value>正在加载存档详情…</value></data>
@@ -57,7 +57,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自动备份保留数量</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>保留最近 1–100 个自动备份。此数量限制不会删除手动备份。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡时备份</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>运行中的游戏实时报告角色死亡时进行备份。需开启自动备份；游戏暂停不会阻止此备份。存档中的死亡信息单独保留。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>运行中的游戏报告角色死亡时进行备份。需开启自动备份，游戏暂停时也会执行。已有存档中的死亡标记不会触发此备份。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>检查复制的文件</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>检查复制后的文件是否与原文件一致。如果复制期间原文件发生变化，则重新复制。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>备份期间存档文件一直在变化。请等待游戏保存完成后重新备份。</value></data>
@@ -116,7 +116,7 @@
   <data name="ConfirmImportTitle" xml:space="preserve"><value>导入此存档？</value></data>
   <data name="Import" xml:space="preserve"><value>导入</value></data>
   <data name="Cancel" xml:space="preserve"><value>取消</value></data>
-  <data name="ImportArchiveTitle" xml:space="preserve"><value>导入 ZIP</value></data>
+  <data name="ImportArchiveTitle" xml:space="preserve"><value>导入备份文件</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>无法导入此备份压缩包，请检查文件是否损坏。</value></data>
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>此压缩包的压缩率异常，无法安全导入。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手动备份</value></data>
@@ -145,7 +145,7 @@
   <data name="OperationDegraded" xml:space="preserve"><value>操作已结束，但仍有问题需要确认。请先查看日志，再决定是否重试。</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>日志</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>日志</value></data>
-  <data name="LogLevelSetting.Header" xml:space="preserve"><value>最低级别</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>显示的日志</value></data>
   <data name="LogLevelSetting.Description" xml:space="preserve"><value>显示所选级别及以上的事件。</value></data>
   <data name="LogLimitSetting.Header" xml:space="preserve"><value>最近日志数量</value></data>
   <data name="LogLimitSetting.Description" xml:space="preserve"><value>日志视图中显示的最近事件数量。</value></data>
@@ -165,9 +165,9 @@
   <data name="NoLogs" xml:space="preserve"><value>没有可显示的日志。</value></data>
   <data name="AcknowledgeLog" xml:space="preserve"><value>标记为已查看</value></data>
   <data name="AcknowledgeAllLogs" xml:space="preserve"><value>全部标记为已查看</value></data>
-  <data name="AcknowledgeIssue" xml:space="preserve"><value>将此次运行标记为已查看</value></data>
+  <data name="AcknowledgeIssue" xml:space="preserve"><value>将此次操作标记为已查看</value></data>
   <data name="AcknowledgeAlert" xml:space="preserve"><value>将此提醒标记为已查看</value></data>
-  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>查看全部 {0:N0} 条未查看记录</value></data>
+  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>将全部 {0:N0} 条未查看记录标记为已查看</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>日志编号 {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>时间（{0}）</value></data>
@@ -219,7 +219,7 @@
   <data name="LogOutcome.Cancelled" xml:space="preserve"><value>已取消</value></data>
   <data name="LogDiagnostics.Phase" xml:space="preserve"><value>失败步骤</value></data>
   <data name="LogDiagnostics.Path" xml:space="preserve"><value>文件</value></data>
-  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>未清理的文件</value></data>
+  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>未能删除的文件</value></data>
   <data name="LogDiagnostics.FailedFiles" xml:space="preserve"><value>受影响的文件</value></data>
   <data name="LogDiagnostics.Save" xml:space="preserve"><value>存档</value></data>
   <data name="LogDiagnostics.Reason" xml:space="preserve"><value>原因</value></data>
@@ -254,8 +254,8 @@
   <data name="LogEvent.TelemetryRecovered" xml:space="preserve"><value>日志已恢复可用。</value></data>
   <data name="LogEvent.OrphanBackupsCleaned" xml:space="preserve"><value>已清理原始存档不存在的备份。</value></data>
   <data name="LogEvent.OrphanBackupsFailed" xml:space="preserve"><value>无法清理原始存档不存在的备份。</value></data>
-  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>已清理中断的操作和临时文件。</value></data>
-  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>部分中断的操作无法安全清理，其文件已保留。</value></data>
+  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>已清理中断操作留下的文件和临时文件。</value></data>
+  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>无法安全清理部分中断操作留下的文件，已保留这些文件。</value></data>
   <data name="LogEvent.TelemetryStale" xml:space="preserve"><value>日志更新延迟。</value></data>
   <data name="LogEvent.TelemetryUnreadable" xml:space="preserve"><value>无法读取日志。</value></data>
   <data name="LogEvent.TelemetryUnsupported" xml:space="preserve"><value>无法读取此日志格式。</value></data>
@@ -268,7 +268,7 @@
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>已检查备份计划。</value></data>
   <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>设置游戏保存、备份间隔、历史保留数量及角色死亡后的行为。</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>设置日志视图显示的事件级别和条数。</value></data>
-  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>最低日志级别</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>显示的日志</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>显示数量上限</value></data>
   <data name="AdvancedSettings.Header" xml:space="preserve"><value>高级</value></data>
   <data name="AdvancedSettings.Description" xml:space="preserve"><value>打开高级配置文件并应用更改。</value></data>
@@ -285,12 +285,12 @@
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>验证编辑后的高级配置文件并重启应用？有操作正在运行时无法重启。</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>恢复默认设置</value></data>
   <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>将高级设置恢复为默认值并重启应用？当前设置文件的副本会被保留。常规设置、存档及备份不会改变。</value></data>
-  <data name="LogRecordLevel.Header" xml:space="preserve"><value>最低记录级别</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>记录的事件</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>仅适用于新日志。现有记录将保留。</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>日志条数上限</value></data>
   <data name="LogMaxEntries.Description" xml:space="preserve"><value>超过上限时删除最早的记录。默认值：100,000。</value></data>
   <data name="DeleteAction" xml:space="preserve"><value>删除</value></data>
-  <data name="SaveAction" xml:space="preserve"><value>存档</value></data>
+  <data name="SaveAction" xml:space="preserve"><value>保存</value></data>
   <data name="BackupNameFormat" xml:space="preserve"><value>备份 {0:N0}</value></data>
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>手动备份 {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>自动备份 {0:N0}</value></data>
@@ -363,25 +363,27 @@
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>在角色头顶显示保存前的5秒倒计时及保存结果。关闭后不再显示提示，并跳过手动备份的等待，但仍会保存游戏。自动备份时间不变。</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前保存游戏的最新进度。建议保持开启：关闭后，尚未保存的进度、车辆或物品可能不会包含在备份中。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次备份：等待开始</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：等待当前任务</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：等待当前任务结束</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢复</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>治愈／复活角色</value></data>
-  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢复角色{0}？
+  <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>恢复角色 {0}？
 
 恢复生命值，治疗伤势和异常状态。如果角色已死亡，将复活并取回可找回的物品。取回物品后，对应的僵尸或尸体会被移除。
 
 保留特质、技能、经验和位置。部分模组效果可能仍然存在。
 
-结束游玩后，应用到选中的单人存档。</value></data>
+结束游玩后，应用到选中的单人存档。
+
+请先创建备份，再继续操作。此操作不会自动创建备份。</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>角色恢复完成。特质、技能和经验值已保留。</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>无法安全取回物品，已停止恢复。存档未被修改。</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>上一次存档修改尚未完成。请先重新打开PZ Tools，再在游戏中载入此存档。</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>上一次存档修改尚未完成。请先重新打开 PZ Tools，再在游戏中载入此存档。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>角色恢复</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。请停止游玩后重试。原始文件未更改。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档有尚未完成的更改。请正常退出游戏后重试。原存档未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>此功能仅支持只有一名角色的单人存档。存档未被修改。</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法安全修改此存档。请确认PZ Tools版本支持您的游戏版本。原存档未被修改。</value></data>
-  <data name="SurvivalReadFailed" xml:space="preserve"><value>读取失败，将重试</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法安全修改此存档。请确认 PZ Tools 版本支持您的游戏版本。原存档未被修改。</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>无法读取生存时间 · 将再次检查</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>游戏或其他操作正在使用所需的文件。请等待保存或相关操作结束后重试。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>可用空间不足。请释放目标驱动器上的空间后重试。</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>缺少应用所需的文件。请将下载包完整解压到同一文件夹，或重新安装 PZ Tools 后再打开。</value></data>
@@ -395,7 +397,7 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>正在复用已备份的相同数据</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>开启</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>关闭</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>暂停或睡眠时等待备份</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>暂停或睡眠时推迟定时备份</value></data>
   <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>游戏暂停或角色睡眠时暂停定时备份倒计时，恢复游玩后从剩余时间继续。无法确认游戏状态时也会等待。不影响手动备份和死亡时备份。</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>游戏已暂停</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>正在确认游戏状态</value></data>
@@ -407,8 +409,8 @@
   <data name="LogLevelCycleHint" xml:space="preserve"><value>{0} · 点击切换显示的记录</value></data>
   <data name="LogNumberRangeHint" xml:space="preserve"><value>42或40-50。有效输入会自动应用，留空表示不限。</value></data>
   <data name="LogNumberRangeInvalid" xml:space="preserve"><value>请输入整数编号或从小到大的编号范围。</value></data>
-  <data name="LogTimeRangeHint" xml:space="preserve"><value>输入或通过日历选择后自动应用。留空表示不限。</value></data>
-  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>请输入有效日期和时间，且开始不得晚于结束。</value></data>
+  <data name="LogTimeRangeHint" xml:space="preserve"><value>输入日期和时间，或通过日历选择后，系统会自动应用有效值。留空表示不限。</value></data>
+  <data name="LogTimeRangeInvalid" xml:space="preserve"><value>请输入有效的日期和时间，开始时间不得晚于结束时间。</value></data>
   <data name="LogTimeFrom" xml:space="preserve"><value>开始</value></data>
   <data name="LogTimeThrough" xml:space="preserve"><value>结束</value></data>
   <data name="BackupTimeRemainingFormat" xml:space="preserve"><value>剩余 {0}</value></data>
@@ -424,15 +426,15 @@
 <data name="GameExtensions.Apply" xml:space="preserve"><value>应用</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>无法使用扩展设置</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>无法保存更改。请重新打开页面并检查扩展设置文件。</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>使用独立的保存路径，不改变常规保存。省去额外的预览渲染，并将部分写入和完成等待移出游戏线程。不会等待界面操作结束才开始保存。序列化和锁仍可能造成短暂停顿；不支持的版本使用常规保存。</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>通过独立的处理方式保存，不修改游戏原有的保存功能。省去额外的预览绘制，并将部分数据写入和完成等待移到后台处理。不会等到界面操作结束后才保存。准备保存数据或等待数据解锁仍可能造成游戏停顿。不支持的版本使用常规保存。</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>所有版本</value></data>
-<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>主版本 {0}</value></data>
-<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>次版本 {0}</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Build {0} 系列</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Build {0}</value></data>
 <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>支持范围：{0} · 当前游戏：{1}</value></data>
 <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>超出支持范围 · 扩展未启用</value></data>
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>等待确认游戏版本 · 扩展未启用</value></data>
-<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>忽略支持范围并强制启用</value></data>
-<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>不兼容的版本可能导致错误。此选项仅绕过版本范围限制，不会关闭必要的安全检查。</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>忽略支持的版本范围</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>不兼容的版本可能导致错误。此选项仅绕过版本范围限制，不会关闭必要的安全检查，也不会自动开启扩展功能。</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>已忽略版本限制 · 保留必要安全检查</value></data>
   <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>正在使用扩展保存</value></data>
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>上次请求：扩展保存完成</value></data>
@@ -451,7 +453,7 @@
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>平稳倒车</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>缓和倒车起步并限制倒车速度。</value></data>
   <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>精细转向</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>让键盘转向和方向回正更加渐进。</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>让键盘转向和方向回正的过程更平顺。</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>各选项独立保存。下方显示游戏确认的应用状态。</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>已确认在游戏中应用 · 实验性功能</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>已请求开启 · 等待游戏确认</value></data>
@@ -468,4 +470,24 @@
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>进入单人游戏后，将应用已保存的设置。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>恢复游戏并停车，松开油门并关闭定速巡航后即可应用设置。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>游戏处于主菜单</value></data>
+  <data name="VersionSetting.Header" xml:space="preserve"><value>版本</value></data>
+  <data name="AboutSettings.Header" xml:space="preserve"><value>关于</value></data>
+  <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>兼容性与生效状态</value></data>
+  <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>没有“{0}”及更高级别的日志。</value></data>
+  <data name="NoFilteredLogs" xml:space="preserve"><value>没有符合所选筛选条件的日志。</value></data>
+  <data name="LogShowAll" xml:space="preserve"><value>查看全部日志</value></data>
+  <data name="HomeNavigation.Content" xml:space="preserve"><value>主页</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>提供 Project Zomboid 的存档备份、角色恢复和游戏扩展功能。</value></data>
+  <data name="Home.FeaturesHeading" xml:space="preserve"><value>主要功能</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>自动与手动备份</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>仅压缩并备份有改动的文件。可设置自动备份的间隔和保留数量，手动备份不受此数量限制。</value></data>
+  <data name="Home.BackupAction" xml:space="preserve"><value>备份设置</value></data>
+  <data name="Home.RestoreTitle" xml:space="preserve"><value>备份恢复与导出</value></data>
+  <data name="Home.RestoreDescription" xml:space="preserve"><value>将存档恢复到备份时的状态。可将存档和备份导出为 ZIP，也可导入 ZIP 文件。</value></data>
+  <data name="Home.RestoreAction" xml:space="preserve"><value>备份列表</value></data>
+  <data name="Home.RecoveryTitle" xml:space="preserve"><value>角色恢复</value></data>
+  <data name="Home.RecoveryDescription" xml:space="preserve"><value>治疗或复活当前存档中的角色，保留特质和技能。游玩该存档时无法使用。</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>调整车辆的加速、换挡、倒车和键盘转向。无需另装模组，可单独开启或关闭各项功能。</value></data>
+  <data name="Home.ReportIssue" xml:space="preserve"><value>报告问题</value></data>
+  <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid 非官方工具</value></data>
 </root>

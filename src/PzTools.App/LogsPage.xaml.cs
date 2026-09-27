@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using PzTools.App.Core;
 using PzTools.Projections;
 using Windows.ApplicationModel.DataTransfer;
 
@@ -25,6 +26,7 @@ public sealed partial class LogsPage : UserControl
     private int unreadIssues;
     private bool hasLoadedLogs;
     private bool loadFailed;
+    private bool isLoadingLogs;
     private int pageIndex;
     private int totalGroups;
     private long pageSnapshot;
@@ -84,7 +86,6 @@ public sealed partial class LogsPage : UserControl
         AcknowledgeAllButton.Visibility = unreadIssues > 0
             ? Visibility.Visible : Visibility.Collapsed;
         AcknowledgeAllButton.Content = Localizer.Format("AcknowledgeAllLogsFormat", unreadIssues);
-        EmptyLogsText.Text = Localizer.Get("NoLogs");
         var latest = view.Entries.Count == 0 ? 0 : view.Entries.Max(item => item.LogIndex);
         if (!hasLoadedLogs && !loadFailed && pageQueryCancellation is null)
             _ = LoadPageAsync(resetSnapshot: true);
@@ -101,8 +102,7 @@ public sealed partial class LogsPage : UserControl
     {
         if (hasLoadedLogs) return;
         loadFailed = true;
-        EmptyLogsText.Text = Localizer.Get("LogsUnavailable");
-        ApplyFilter();
+        UpdateEmptyState();
     }
 
     internal void ApplyLocalizedText()
@@ -114,7 +114,7 @@ public sealed partial class LogsPage : UserControl
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(NewerPageButton, Localizer.Get("LogPreviousPage"));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(OlderPageButton, Localizer.Get("LogNextPage"));
         LoadingLogsText.Text = Localizer.Get("LoadingLogs");
-        EmptyLogsText.Text = Localizer.Get(loadFailed ? "LogsUnavailable" : "NoLogs");
+        ShowAllLogsButton.Content = Localizer.Get("LogShowAll");
         AcknowledgeAllButton.Content = Localizer.Format("AcknowledgeAllLogsFormat", unreadIssues);
         AcknowledgeSelectedButton.Content = Localizer.Get("AcknowledgeIssue");
         var copyLabel = Localizer.Get("CopyLogDetails");
@@ -149,7 +149,8 @@ public sealed partial class LogsPage : UserControl
         pageQueryCancellation = cancellation;
         var requestedPage = resetSnapshot ? 0 : pageIndex;
         var snapshot = resetSnapshot ? 0 : pageSnapshot;
-        if (!hasLoadedLogs) ApplyFilter();
+        isLoadingLogs = true;
+        UpdateEmptyState();
         try
         {
             var query = new LogPageQuery(minimumLevel, componentCategory,
@@ -178,13 +179,18 @@ public sealed partial class LogsPage : UserControl
         catch (Exception exception)
         {
             if (version != queryVersion) return;
-            if (!hasLoadedLogs) ShowLoadFailure();
+            loadFailed = true;
             App.ShowSidebarNotification(InfoBarSeverity.Error,
                 Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
         }
         finally
         {
-            if (ReferenceEquals(pageQueryCancellation, cancellation)) pageQueryCancellation = null;
+            if (ReferenceEquals(pageQueryCancellation, cancellation))
+            {
+                pageQueryCancellation = null;
+                isLoadingLogs = false;
+                UpdateEmptyState();
+            }
             cancellation.Dispose();
         }
     }
@@ -343,10 +349,7 @@ public sealed partial class LogsPage : UserControl
             .ToArray();
         var newRows = SyncDisplayedItems(desired, refreshLocalizedText);
 
-        LoadingLogs.Visibility = hasLoadedLogs || loadFailed
-            ? Visibility.Collapsed : Visibility.Visible;
-        EmptyLogs.Visibility = loadFailed || (hasLoadedLogs && displayedItems.Count == 0)
-            ? Visibility.Visible : Visibility.Collapsed;
+        UpdateEmptyState();
         var first = totalGroups == 0 || displayedItems.Count == 0 ? 0 : pageIndex * 100 + 1;
         var last = first == 0 ? 0 : first + displayedItems.Count - 1;
         PageRangeSummaryText.Text = first == 0
@@ -359,6 +362,27 @@ public sealed partial class LogsPage : UserControl
             if (!ReferenceEquals(LogList.SelectedItem, selected)) LogList.SelectedItem = selected;
         }
         if (animateNewRows && newRows.Count > 0) AnimateNewLogRows(newRows);
+    }
+
+    private void UpdateEmptyState()
+    {
+        var state = LogListEmptyState.Create(hasLoadedLogs, isLoadingLogs, loadFailed,
+            displayedItems.Count, minimumLevel, recordMinimum,
+            logRange is not null || runRange is not null || timeRange is not null
+                || componentCategory != "All");
+        LoadingLogs.Visibility = state.Kind == LogListPlaceholder.Loading
+            ? Visibility.Visible : Visibility.Collapsed;
+        EmptyLogs.Visibility = state.Kind is LogListPlaceholder.None or LogListPlaceholder.Loading
+            ? Visibility.Collapsed : Visibility.Visible;
+        ShowAllLogsButton.Visibility = state.ShowAllLogs ? Visibility.Visible : Visibility.Collapsed;
+        EmptyLogsText.Text = state.Kind switch
+        {
+            LogListPlaceholder.Unavailable => Localizer.Get("LogsUnavailable"),
+            LogListPlaceholder.Filtered => Localizer.Get("NoFilteredLogs"),
+            LogListPlaceholder.MinimumLevel => Localizer.Format("NoLogsAtOrAboveFormat",
+                Localizer.Get($"LogLevel.{minimumLevel}")),
+            _ => Localizer.Get("NoLogs"),
+        };
     }
 
     private IReadOnlyList<LogEntryUiItem> SyncDisplayedItems(LogEntryUiItem[] desired,

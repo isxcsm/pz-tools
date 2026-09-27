@@ -19,7 +19,7 @@ public final class VehicleAdapterBehaviorTest {
         originalIntervalsResetHighGear(); enginePowerAndMass(); noDriverAndPausedRetirement(); repeatedCallbackGenerations();
         scriptReverseLimitAndOverrides(); invalidReverseLimitIsolation(); reverseNativeEnvelope(); forwardTraitNativeLimits();
         resolvedInputSentinels(); cellReplacement(); nativeObservationIsolation();
-        independentToggleMatrix(); steeringBehavior(); steeringCurrentKeyboardRelease(); steeringDuplicateFrames(); steeringDuplicateInvalidation();
+        independentToggleMatrix(); steeringBehavior(); steeringCurrentKeyboardRelease(); steeringInputDeadZone(); steeringDuplicateFrames(); steeringDuplicateInvalidation();
         steeringGuardsAndResets(); steeringPhaseFailure();
         System.out.println("PASS vehicle adapter: "+groups+" groups (synthetic classes only)");
     }
@@ -534,6 +534,27 @@ public final class VehicleAdapterBehaviorTest {
         }
         groups++;
     }
+    private static void steeringInputDeadZone() throws Throwable {
+        for(int sign:new int[]{-1,1}) for(float magnitude:new float[]{Math.nextDown(.1f),.1f,Math.nextUp(.1f)})
+            for(boolean held:new boolean[]{false,true}) try(var e=new Env()) {
+                VehicleControl control=e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
+                float cached=sign*magnitude;
+                e.set(input,"steering",cached); e.setStatic("zombie.input.GameKeyboard","steering",held?(float)sign:0f);
+                e.tick();
+                double angle=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
+                boolean active=magnitude>.1f;
+                if(active && held) check(angle*sign<0,"the first float outside the dead zone steers when its key is held");
+                else near(angle,0,"neutral or released float boundary input cannot create steering");
+                near(diagnostic(control,"steering_input"),active&&!held?0:cached,"fresh-release sampling uses the same float dead zone");
+                near(e.staticNumber("zombie.input.GameKeyboard","reads"),active?2:0,"only input outside the dead zone samples mapped keys");
+                e.update(); near(e.staticNumber("zombie.core.physics.Bullet","steer"),angle,"boundary duplicate does not integrate twice");
+                e.setStatic("zombie.input.GameKeyboard","steering",0f); e.tick();
+                near(e.staticNumber("zombie.core.physics.Bullet","steer"),0,"released boundary input stays at or returns to center");
+                near(e.number(input,"steering"),cached,"dead-zone sampling leaves cached game controls untouched");
+                near(e.number(e.controller,"originalSteeringCalls"),0,"accepted boundary input remains on the model path");
+            }
+        groups++;
+    }
     private static void steeringDuplicateFrames() throws Throwable {
         for(float tireFactor:new float[]{1f,.5f}) {
             double[] singlePass=new double[30];
@@ -660,7 +681,7 @@ public final class VehicleAdapterBehaviorTest {
         Env(boolean hooked) throws Throwable {
             URL url=fixture.toUri().toURL(); byte[] source=Files.readAllBytes(fixture.resolve("zombie/core/physics/CarController.class"));
             byte[] transformed;
-            try(var resolver=new URLClassLoader(new URL[]{url},getClass().getClassLoader())) { transformed=VehicleBytecode.transform(source,resolver); }
+            try(var resolver=new URLClassLoader(new URL[]{url},getClass().getClassLoader())) { transformed=VehicleBytecode.transform(source,resolver,VehicleBytecode.controlContracts(source,resolver)); }
             check(ClassFile.of().verify(transformed).isEmpty(),"transformed fixture class verifies");
             try(var resolver=new URLClassLoader(new URL[]{url},getClass().getClassLoader())) {
                 boolean rejected=false; try { VehicleBytecode.transform(transformed,resolver); } catch(IllegalArgumentException expected) { rejected=true; }

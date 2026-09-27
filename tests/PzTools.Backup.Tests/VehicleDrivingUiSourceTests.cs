@@ -17,7 +17,7 @@ public sealed class VehicleDrivingUiSourceTests
                 Assert.DoesNotContain(removed, source);
         Assert.False(File.Exists(Path.Combine(Root(), "src", "PzTools.App", "LightDismissContentDialog.cs")));
         Assert.Contains("new SettingsExpander", section);
-        Assert.Contains("IsExpanded = false", section);
+        Assert.Contains("IsExpanded = initiallyExpanded", section);
         Assert.Contains("new SettingsCard", section);
         Assert.Contains("Control.Items.Add(row.Card)", section);
         Assert.Contains("Content = enabled.Control", section);
@@ -36,6 +36,7 @@ public sealed class VehicleDrivingUiSourceTests
         Assert.Contains("Dictionary<string, ExtensionSettingsSection>", page);
         Assert.Contains("ObservableCollection<SettingsExpander> Sections", page);
         Assert.Contains("if (!sections.TryGetValue(id, out var section))", page);
+        Assert.Contains("initiallyExpanded: view.Cards.Count == 1", page);
         Assert.Single(Regex.Matches(page, "new ExtensionSettingsSection").Cast<Match>());
         Assert.Contains("section.Update(view, card)", page);
         Assert.Contains("desired.Add(section.Control)", page);
@@ -48,6 +49,22 @@ public sealed class VehicleDrivingUiSourceTests
         Assert.DoesNotContain("new SettingsExpander", update);
         Assert.Contains("if (block.Text != text) block.Text = text", update);
         Assert.Contains("if (block.Visibility != visibility)", update);
+        Assert.Contains("Control.Loaded -= CompleteInitialLayout;", section);
+        Assert.Contains("SettingsExpanderLayout.CompleteInitialExpansion(Control);", section);
+        Assert.DoesNotContain("SettingsExpanderLayout", update);
+    }
+
+    [Fact]
+    public void ExtensionHeaderStaysBriefWhileBodyKeepsCompatibilityAndRuntimeHints()
+    {
+        var section = Source("ExtensionSettingsSection.cs");
+        Assert.Contains("Header = title, Description = description, Content = enabled.Control", section);
+        Assert.Contains("new[] { version, status, lastSave, hint }", section);
+        Assert.Contains("Control.Items.Add(new SettingsCard { Header = statusTitle, Description = details })", section);
+        Assert.Contains("GameExtensions.CompatibilityStatus", section);
+        foreach (var key in new[] { "VersionInfo", "InitializationFailed", "ApplyWhenSafe", "Applying",
+            "WorldRequired", "VersionMismatch", "VersionUnknown", "ForceWarning", "ExecutionFailed", "ExecutionFallback" })
+            Assert.Contains("GameExtensions." + key, section);
     }
 
     [Fact]

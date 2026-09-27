@@ -1,0 +1,17 @@
+PZ Tools — pre-release for Windows x64
+
+1. Install the .NET 10 Runtime for Windows x64 if it is not already installed:
+   https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+2. Extract the entire ZIP to a new folder. Keep all files and subfolders together.
+3. Run PzTools.App.exe and approve the Windows administrator prompt.
+
+WinUI components and the Java Attach runtime are included. No separate WinUI or
+Java installation is required. Game files are not included.
+
+Settings and app data are stored in %LOCALAPPDATA%\PzTools. Save and backup folders
+are selected in the app; keep them outside the extracted application folder.
+
+To update, close PZ Tools and extract the new release to a different folder.
+Do not overwrite a running installation. Your settings stay in Local AppData.
+
+This is a pre-release. Keep a separate copy of saves and backups you need.

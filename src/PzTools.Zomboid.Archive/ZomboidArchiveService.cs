@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.IO.Hashing;
 using System.Text.Json;
 using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
@@ -37,17 +38,11 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 throw new InvalidDataException("PzTools archive manifest is missing or ambiguous.");
             entry = nested[0];
         }
-        if (entry.Length is <= 0 or > 1024 * 1024)
-            throw new InvalidDataException("PzTools archive manifest has an invalid size.");
-        ZomboidArchiveManifest? manifest;
-        await using (var manifestStream = entry.Open())
-            manifest = await JsonSerializer.DeserializeAsync<ZomboidArchiveManifest>(
-                manifestStream, JsonOptions, cancellationToken);
-        ValidateManifest(manifest);
-        ValidateLayout(entries, manifest!, entry);
+        var manifest = await ReadManifestAsync(entry, cancellationToken);
+        ValidateLayout(entries, manifest, entry);
 
         byte[]? thumbnail = null;
-        var savePrefix = manifest!.Version == 1 ? "" : SavePrefix(manifest);
+        var savePrefix = manifest.Version == 1 ? "" : SavePrefix(manifest);
         var thumbEntry = archive.GetEntry(savePrefix + "thumb.png");
         if (thumbEntry is not null && thumbEntry.Length > 0 && thumbEntry.Length <= maximumPreviewThumbnailBytes)
         {
@@ -59,8 +54,24 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         var playersEntry = entries.FirstOrDefault(item => item.FullName.Equals(
             savePrefix + "players.db", StringComparison.OrdinalIgnoreCase));
         var character = await ReadPreviewCharacterAsync(playersEntry, cancellationToken);
-        return new ArchiveInspection(manifest!, thumbnail, new FileInfo(fullPath).Length,
+        return new ArchiveInspection(manifest, thumbnail, new FileInfo(fullPath).Length,
             character?.Name, character?.HoursSurvived);
+    }
+
+    private static async Task<ZomboidArchiveManifest> ReadManifestAsync(
+        ZipArchiveEntry entry, CancellationToken cancellationToken)
+    {
+        if (entry.Length is <= 0 or > 1024 * 1024)
+            throw new InvalidDataException("PzTools archive manifest has an invalid size.");
+        await using var input = entry.Open();
+        using var content = new MemoryStream(checked((int)entry.Length));
+        await CopyEntryBoundedAsync(input, content, entry.Length, cancellationToken,
+            expectedCrc32: entry.Crc32);
+        content.Position = 0;
+        var manifest = await JsonSerializer.DeserializeAsync<ZomboidArchiveManifest>(
+            content, JsonOptions, cancellationToken);
+        ValidateManifest(manifest);
+        return manifest!;
     }
 
     private async Task<CharacterSnapshot?> ReadPreviewCharacterAsync(
@@ -330,9 +341,11 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
             var entries = ValidateEntries(archive, safety);
             var manifestPath = inspection.Manifest.Version == 1
                 ? ManifestEntryName : SavePrefix(inspection.Manifest) + ManifestEntryName;
-            ValidateLayout(entries, inspection.Manifest,
-                archive.GetEntry(manifestPath)
-                ?? throw new InvalidDataException("PzTools archive manifest is missing."));
+            var manifestEntry = archive.GetEntry(manifestPath)
+                ?? throw new InvalidDataException("PzTools archive manifest is missing.");
+            if (await ReadManifestAsync(manifestEntry, cancellationToken) != inspection.Manifest)
+                throw new InvalidDataException("Archive manifest changed after inspection.");
+            ValidateLayout(entries, inspection.Manifest, manifestEntry);
             var fileEntries = entries.Where(item =>
                     !item.FullName.EndsWith('/')
                     && !StringComparer.OrdinalIgnoreCase.Equals(item.FullName, manifestPath))
@@ -362,7 +375,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 await CopyEntryBoundedAsync(input, target, entry.Length, cancellationToken,
                     progress is null ? null : (copied, token) => progress(new ArchiveProgress(
                         "import", files, fileEntries.LongLength, completedBytes + copied,
-                        totalBytes, entry.FullName), token));
+                        totalBytes, entry.FullName), token), expectedCrc32: entry.Crc32);
                 files++;
                 completedBytes += entry.Length;
                 if (progress is not null)
@@ -420,8 +433,9 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
 
     private static async Task CopyEntryBoundedAsync(
         Stream input, Stream target, long expectedBytes, CancellationToken cancellationToken,
-        Func<long, CancellationToken, Task>? progress = null)
+        Func<long, CancellationToken, Task>? progress = null, uint? expectedCrc32 = null)
     {
+        var checksum = expectedCrc32.HasValue ? new Crc32() : null;
         var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(1024 * 1024);
         try
         {
@@ -431,6 +445,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 var read = await input.ReadAsync(
                     buffer.AsMemory(0, (int)Math.Min(buffer.Length, remaining)), cancellationToken);
                 if (read == 0) throw new InvalidDataException("Archive entry is shorter than its declared length.");
+                checksum?.Append(buffer.AsSpan(0, read));
                 await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
                 remaining -= read;
                 if (progress is not null) await progress(expectedBytes - remaining, cancellationToken);
@@ -438,6 +453,8 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
             // 헤더의 용량을 위조한 압축 데이터가 사전 검사한 한도를 넘어 기록되지 않게 합니다.
             if (await input.ReadAsync(buffer.AsMemory(0, 1), cancellationToken) != 0)
                 throw new InvalidDataException("Archive entry exceeds its declared length.");
+            if (checksum is not null && checksum.GetCurrentHashAsUInt32() != expectedCrc32!.Value)
+                throw new InvalidDataException("Archive entry failed CRC-32 verification.");
         }
         finally
         {

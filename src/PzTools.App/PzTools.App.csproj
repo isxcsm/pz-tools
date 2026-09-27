@@ -30,9 +30,10 @@
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Assets\Brand\*.png" CopyToOutputDirectory="PreserveNewest"
+    <!-- Keep editable art sources in the repository, not in runtime packages. -->
+    <Content Include="Assets\Brand\*.png" Exclude="Assets\Brand\pztools-master.png" CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="Assets\Navigation\*.svg" CopyToOutputDirectory="PreserveNewest"
+    <Content Include="Assets\Navigation\*.svg" Exclude="Assets\Navigation\pztools.svg" CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Assets\Navigation\pztools.ico" CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />

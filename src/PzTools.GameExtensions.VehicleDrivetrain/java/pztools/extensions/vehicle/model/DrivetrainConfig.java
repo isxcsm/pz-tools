@@ -11,7 +11,7 @@ public final class DrivetrainConfig {
         "downshift_rpm_fraction", "low_mode", "gear_ratio_span", "idle_rpm", "launch_rpm",
         "generic_redline_rpm", "utility_redline_rpm", "sport_redline_rpm",
         "generic_torque_peak_fraction", "utility_torque_peak_fraction", "sport_torque_peak_fraction",
-        "idle_torque_fraction", "rpm_response_seconds", "direction_speed_mps",
+        "idle_torque_fraction", "forward_torque_boost_fraction", "rpm_response_seconds", "direction_speed_mps",
         "forward_governor_start_fraction", "reverse_governor_start_fraction", "shift_hysteresis_fraction",
         "demand_downshift_fraction", "torque_enabled", "reverse_enabled", "steering_enabled",
         "steering_initial_rate", "steering_full_rate", "steering_ramp_seconds", "steering_return_rate",
@@ -38,6 +38,7 @@ public final class DrivetrainConfig {
     public final double utilityTorquePeakFraction;
     public final double sportTorquePeakFraction;
     public final double idleTorqueFraction;
+    public final double forwardTorqueBoostFraction;
     public final double rpmResponseSeconds;
     public final double directionSpeedMps;
     public final double forwardGovernorStartFraction;
@@ -84,6 +85,7 @@ public final class DrivetrainConfig {
         utilityTorquePeakFraction = number(values, "utility_torque_peak_fraction", 0.40, 0.25, 0.80);
         sportTorquePeakFraction = number(values, "sport_torque_peak_fraction", 0.65, 0.25, 0.80);
         idleTorqueFraction = number(values, "idle_torque_fraction", 0.60, 0.30, 0.80);
+        forwardTorqueBoostFraction = number(values, "forward_torque_boost_fraction", 0.10, 0.0, 0.10);
         rpmResponseSeconds = number(values, "rpm_response_seconds", 0.12, 0.04, 0.50);
         directionSpeedMps = number(values, "direction_speed_mps", 0.15, 0.05, 0.30);
         forwardGovernorStartFraction = number(values, "forward_governor_start_fraction", 1.0, 0.75, 1.0);

@@ -9,7 +9,7 @@
   <data name="SavesNavigation.Content" xml:space="preserve"><value>Kayıt yöneticisi</value></data>
   <data name="Exporting.Text" xml:space="preserve"><value>Dışa aktarılıyor</value></data>
   <data name="BackingUp.Text" xml:space="preserve"><value>Yedekleniyor</value></data>
-  <data name="ImportArchive.Content" xml:space="preserve"><value>ZIP içe aktar</value></data>
+  <data name="ImportArchive.Content" xml:space="preserve"><value>Arşiv içe aktar</value></data>
   <data name="NoSaves.Text" xml:space="preserve"><value>Kayıt bulunamadı</value></data>
   <data name="LoadingSaves.Text" xml:space="preserve"><value>Kayıtlar yükleniyor…</value></data>
   <data name="LoadingBackups.Text" xml:space="preserve"><value>Kayıt ayrıntıları yükleniyor…</value></data>
@@ -19,10 +19,10 @@
   <data name="CurrentSave" xml:space="preserve"><value>Mevcut kayıt</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Kayıt klasörü</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Mevcut kayıt kopyalanıyor</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Oynarken mevcut kayıt dışa aktarılamaz. Kayıttan çıkıp tekrar deneyin.</value></data>
-  <data name="StopPlayingToRestore" xml:space="preserve"><value>Oynarken yedek geri yüklenemez. Kayıttan çıkıp tekrar deneyin.</value></data>
-  <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Oynarken kayıt silinemez. Kayıttan çıkıp tekrar deneyin.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Oynarken karakter iyileştirilemez. Kayıttan çıkıp tekrar deneyin.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Oynarken mevcut kayıt dışa aktarılamaz. Oynamayı bırakıp tekrar deneyin.</value></data>
+  <data name="StopPlayingToRestore" xml:space="preserve"><value>Oynarken yedek geri yüklenemez. Oynamayı bırakıp tekrar deneyin.</value></data>
+  <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Oynarken kayıt silinemez. Oynamayı bırakıp tekrar deneyin.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Oynarken karakter iyileştirilemez. Oynamayı bırakıp tekrar deneyin.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Henüz yedek yok</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Şimdi yedekle</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Geri yükle</value></data>
@@ -32,14 +32,14 @@
   <data name="SettingsAutoSaveHint" xml:space="preserve"><value>Değişiklikler otomatik kaydedilir.</value></data>
   <data name="SettingsSaving" xml:space="preserve"><value>Kaydediliyor…</value></data>
   <data name="SettingsSaved" xml:space="preserve"><value>Kaydedildi</value></data>
-  <data name="DisplaySettings.Header" xml:space="preserve"><value>Görünüm</value></data>
+  <data name="DisplaySettings.Header" xml:space="preserve"><value>Görünüm ve davranış</value></data>
   <data name="DisplaySettings.Description" xml:space="preserve"><value>Dili, temayı ve pencere kapatma davranışını seçin.</value></data>
   <data name="LanguageSetting.Header" xml:space="preserve"><value>Dil</value></data>
   <data name="LanguageSetting.Description" xml:space="preserve"><value>Uygulama dilini seçin. Eksik çeviriler İngilizce gösterilir.</value></data>
   <data name="ThemeSetting.Header" xml:space="preserve"><value>Tema</value></data>
-  <data name="ThemeSetting.Description" xml:space="preserve"><value>Sistemi izleyin veya bir tema seçin.</value></data>
+  <data name="ThemeSetting.Description" xml:space="preserve"><value>Sistem temasını kullanın veya bir tema seçin.</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>Sistem tepsisi</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Pencere kapatıldığında PZ Tools çalışmaya devam eder. Tamamen kapatmak için saatin yanındaki simge menüsünden Çıkış'ı seçin.</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>Pencere kapatıldığında PZ Tools çalışmaya devam eder. Tamamen kapatmak için görev çubuğundaki saatin yanında bulunan simgesine sağ tıklayın ve Çıkış'ı seçin.</value></data>
   <data name="TrayRestore" xml:space="preserve"><value>PZ Tools'u aç</value></data>
   <data name="TrayExit" xml:space="preserve"><value>Çıkış</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>PZ Tools kapatılsın mı?</value></data>
@@ -57,7 +57,7 @@
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Otomatik yedek sayısı</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Son 1–100 otomatik yedeği saklayın. Bu sınır manuel yedekleri silmez.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Karakter ölünce yedekle</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Çalışan oyun karakterin öldüğünü bildirdiğinde yedekler. Otomatik yedekleme açık olmalıdır; oyunun duraklatılması bu yedeği engellemez. Kayıtlardaki ölüm bilgileri ayrı tutulur.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Oyun sırasında karakterin öldüğü tespit edildiğinde yedekler. Otomatik yedekleme açık olmalıdır; oyun duraklatıldığında da bu yedekleme yapılır. Mevcut bir oyun kaydındaki ölüm bilgisi bu yedeklemeyi tetiklemez.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopyalanan dosyaları denetle</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kopyalanan dosyaların özgün dosyalarla eşleştiğini denetler. Kopyalama sırasında değişen dosyalar yeniden kopyalanır.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Yedekleme sırasında kayıt dosyaları sürekli değişti. Oyunun kaydetmeyi bitirmesini bekleyip yeniden yedekleyin.</value></data>
@@ -99,7 +99,7 @@
   <data name="OperationCopyProgressFormat" xml:space="preserve"><value>{0} · {3:N0}% · {1:N1}/{2:N1} MB</value></data>
   <data name="BackupScanPhase" xml:space="preserve"><value>Kayıt dosyaları denetleniyor</value></data>
   <data name="BackupHashPhase" xml:space="preserve"><value>Dosya içeriğindeki değişiklikler denetleniyor</value></data>
-  <data name="LogPhase.hash" xml:space="preserve"><value>Dosya içeriklerini karşılaştır</value></data>
+  <data name="LogPhase.hash" xml:space="preserve"><value>Dosya içeriklerini karşılaştırma</value></data>
   <data name="BackupCopyPhase" xml:space="preserve"><value>Kayıt dosyaları kopyalanıyor</value></data>
   <data name="BackupCopyRetryPhase" xml:space="preserve"><value>Dosya değişti · yeniden kopyalanıyor</value></data>
   <data name="BackupCapturePhase" xml:space="preserve"><value>Kayıt dosyaları yedekleniyor</value></data>
@@ -116,7 +116,7 @@
   <data name="ConfirmImportTitle" xml:space="preserve"><value>Bu kayıt içe aktarılsın mı?</value></data>
   <data name="Import" xml:space="preserve"><value>İçe aktar</value></data>
   <data name="Cancel" xml:space="preserve"><value>İptal</value></data>
-  <data name="ImportArchiveTitle" xml:space="preserve"><value>ZIP içe aktar</value></data>
+  <data name="ImportArchiveTitle" xml:space="preserve"><value>Arşiv içe aktar</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Bu yedek arşivi içe aktarılamıyor. Dosyanın bozuk olup olmadığını kontrol edin.</value></data>
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Bu arşivin sıkıştırma oranı olağandışı yüksek; güvenle içe aktarılamıyor.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuel yedek</value></data>
@@ -145,9 +145,9 @@
   <data name="OperationDegraded" xml:space="preserve"><value>İşlem sorunlarla tamamlandı. Yeniden çalıştırmadan önce günlükleri kontrol edin.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Günlükler</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>Günlükler</value></data>
-  <data name="LogLevelSetting.Header" xml:space="preserve"><value>En düşük önem düzeyi</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>Gösterilecek en düşük günlük düzeyi</value></data>
   <data name="LogLevelSetting.Description" xml:space="preserve"><value>Seçilen düzeydeki ve daha yüksek düzeydeki olayları gösterir.</value></data>
-  <data name="LogLimitSetting.Header" xml:space="preserve"><value>Son günlük sayısı</value></data>
+  <data name="LogLimitSetting.Header" xml:space="preserve"><value>Gösterilecek günlük kaydı sayısı</value></data>
   <data name="LogLimitSetting.Description" xml:space="preserve"><value>Günlük görünümünde gösterilen son olayların sayısı.</value></data>
   <data name="LogLevel.Trace" xml:space="preserve"><value>İzleme</value></data>
   <data name="LogLevel.Information" xml:space="preserve"><value>Bilgi</value></data>
@@ -157,7 +157,7 @@
   <data name="LogLevelAtOrAboveFormat" xml:space="preserve"><value>{0} ve üzeri</value></data>
   <data name="LogsTitle" xml:space="preserve"><value>Günlükler</value></data>
   <data name="LogsSubtitle" xml:space="preserve"><value>Yedekleme ve oyun durumu geçmişi.</value></data>
-  <data name="LogSeverityFilter" xml:space="preserve"><value>Önem düzeyi</value></data>
+  <data name="LogSeverityFilter" xml:space="preserve"><value>Günlük düzeyi</value></data>
   <data name="LogComponentFilter" xml:space="preserve"><value>İşlem türü</value></data>
   <data name="LogRunIndexFilter" xml:space="preserve"><value>İşlem numarası</value></data>
   <data name="LogRunIndexPlaceholder" xml:space="preserve"><value>Örn. 42</value></data>
@@ -165,9 +165,9 @@
   <data name="NoLogs" xml:space="preserve"><value>Gösterilecek günlük yok.</value></data>
   <data name="AcknowledgeLog" xml:space="preserve"><value>İncelendi olarak işaretle</value></data>
   <data name="AcknowledgeAllLogs" xml:space="preserve"><value>Tümünü incelendi olarak işaretle</value></data>
-  <data name="AcknowledgeIssue" xml:space="preserve"><value>Bu çalıştırmayı incelendi olarak işaretle</value></data>
+  <data name="AcknowledgeIssue" xml:space="preserve"><value>Bu işlemi incelendi olarak işaretle</value></data>
   <data name="AcknowledgeAlert" xml:space="preserve"><value>Bu uyarıyı incelendi olarak işaretle</value></data>
-  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>İncelenmemiş {0:N0} öğenin tümünü işaretle</value></data>
+  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>İncelenmemiş {0:N0} öğenin tümünü incelendi olarak işaretle</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>Günlük numarası {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Saat ({0})</value></data>
@@ -237,7 +237,7 @@
   <data name="LogPhase.planning" xml:space="preserve"><value>Değişiklikleri denetleme</value></data>
   <data name="LogPhase.capture" xml:space="preserve"><value>Dosyayı okuma</value></data>
   <data name="LogPhase.pack" xml:space="preserve"><value>Yedek verilerini depolama</value></data>
-  <data name="LogPhase.commit" xml:space="preserve"><value>Yedeği kaydetmeyi tamamla</value></data>
+  <data name="LogPhase.commit" xml:space="preserve"><value>Yedeği kaydetmeyi tamamlama</value></data>
   <data name="LogPhase.restore" xml:space="preserve"><value>Yedeği geri yükleme</value></data>
   <data name="LogCountFormat" xml:space="preserve"><value>{0:N0} öğe</value></data>
   <data name="LogEvent.RunStarted" xml:space="preserve"><value>Başlatıldı: {0}.</value></data>
@@ -268,7 +268,7 @@
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>Yedekleme zamanlaması denetlendi.</value></data>
   <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Oyunun kaydedilmesini, yedekleme aralığını, geçmiş sınırını ve karakter öldükten sonraki davranışı ayarlayın.</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>Günlük görünümündeki olay düzeyini ve kayıt sayısını seçin.</value></data>
-  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>En düşük günlük düzeyi</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Gösterilecek en düşük günlük düzeyi</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>Görüntüleme sınırı</value></data>
   <data name="AdvancedSettings.Header" xml:space="preserve"><value>Gelişmiş</value></data>
   <data name="AdvancedSettings.Description" xml:space="preserve"><value>Gelişmiş yapılandırma dosyalarını açın ve değişiklikleri uygulayın.</value></data>
@@ -285,12 +285,12 @@
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>Düzenlenen gelişmiş yapılandırma dosyaları doğrulanıp uygulama yeniden başlatılsın mı? İşlem sürerken yeniden başlatılamaz.</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>Varsayılan ayarları geri yükle</value></data>
   <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>Gelişmiş ayarlar varsayılana döndürülüp uygulama yeniden başlatılsın mı? Geçerli ayar dosyalarının bir kopyası saklanır. Normal ayarlar, oyun kayıtları ve yedekler değişmez.</value></data>
-  <data name="LogRecordLevel.Header" xml:space="preserve"><value>Kaydedilen en düşük düzey</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>Kaydedilecek en düşük günlük düzeyi</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>Yeni günlükler için geçerlidir. Mevcut geçmiş korunur.</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>En fazla günlük kaydı</value></data>
   <data name="LogMaxEntries.Description" xml:space="preserve"><value>Sınır aşılınca en eski kayıtlar kaldırılır. Varsayılan: 100.000.</value></data>
   <data name="DeleteAction" xml:space="preserve"><value>Sil</value></data>
-  <data name="SaveAction" xml:space="preserve"><value>Oyun kaydı</value></data>
+  <data name="SaveAction" xml:space="preserve"><value>Kaydet</value></data>
   <data name="BackupNameFormat" xml:space="preserve"><value>Yedek {0:N0}</value></data>
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>Manuel yedek {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>Otomatik yedek {0:N0}</value></data>
@@ -350,7 +350,7 @@
   <data name="OperationCardBusy" xml:space="preserve"><value>İşlem başlatılamadı</value></data>
   <data name="OperationCardDegraded" xml:space="preserve"><value>İşlem sona erdi · İnceleme gerekli</value></data>
   <data name="OperationCardWaiting" xml:space="preserve"><value>İşlem bekliyor</value></data>
-  <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Kaydedilme: {0}</value></data>
+  <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Yedeklenme: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Oynama durumu denetleniyor ve gerekirse oyun kaydediliyor…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Yedeklemeden önce oyunu kaydet</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Yedeklemeden önce oyunun kaydedilmesi gerekip gerekmediği denetleniyor.</value></data>
@@ -363,7 +363,7 @@
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Karakterin üzerinde beş saniyelik geri sayımı ve kayıt sonucunu gösterir. Kapatmak mesajları gizler ve manuel yedeklemedeki beklemeyi atlar, ancak oyun yine kaydedilir. Otomatik yedekleme saati değişmez.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Yedeklemeden önce oyundaki en son ilerlemeyi kaydeder. Açık bırakılması önerilir: kapatılırsa henüz kaydedilmemiş ilerleme, araçlar veya eşyalar yedekte eksik olabilir.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Sonraki yedek: başlamayı bekliyor</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Sonraki yedek: geçerli işi bekliyor</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Sonraki yedek: devam eden işlemin bitmesi bekleniyor</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Karakteri iyileştir</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Karakteri iyileştir / dirilt</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>{0} iyileştirilsin mi?
@@ -372,16 +372,18 @@ Sağlığı yeniler, yaraları ve diğer rahatsızlıkları iyileştirir. Karakt
 
 Özellikler, beceriler, deneyim ve konum korunur. Bazı mod etkileri kalabilir.
 
+Devam etmeden önce bir yedek oluşturun. Bu işlem otomatik olarak yedek oluşturmaz.
+
 Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Karakter kurtarma tamamlandı. Özellikler, beceriler ve deneyim korundu.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Eşyalar güvenli biçimde geri alınamadığı için kurtarma durduruldu. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Önceki kayıt değişikliği tamamlanmalı. Bu kaydı oyunda açmadan önce PZ Tools&apos;u yeniden açın.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Karakter kurtarma</value></data>
-  <data name="RecoveryError.Busy" xml:space="preserve"><value>Bu kaydı oyun veya başka bir işlem kullanıyor. Oynamayı bırakıp yeniden deneyin. Asıl dosya değiştirilmedi.</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>Oyun veya başka bir işlem bu kaydı kullanıyor. Oynamayı bırakın ve işlemin bitmesini bekleyin, ardından tekrar deneyin. Özgün kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Bu oyun kaydında tamamlanmamış değişiklikler var. Oyundan normal şekilde çıkıp yeniden deneyin. Özgün kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Bu özellik, tek karakter içeren tek oyunculu bir kayıt gerektirir. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Bu kayıt güvenle düzenlenemiyor. PZ Tools sürümünüzün oyun sürümünü desteklediğini kontrol edin. Orijinal kayıt değiştirilmedi.</value></data>
-  <data name="SurvivalReadFailed" xml:space="preserve"><value>Okuma başarısız; yeniden denenecek</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>Hayatta kalma süresi alınamıyor · yeniden denetleniyor</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Oyun veya başka bir işlem gerekli bir dosyayı kullanıyor. Kaydetmenin veya işlemin bitmesini bekleyip yeniden deneyin.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Yeterli boş alan yok. Hedef sürücüde yer açıp yeniden deneyin.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Gerekli uygulama dosyaları eksik. İndirilen dosyaların tümünü tek bir klasöre çıkarın veya PZ Tools'u yeniden yükleyip açın.</value></data>
@@ -395,12 +397,12 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Önceden yedeklenmiş aynı veriler yeniden kullanılıyor</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Açık</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Kapalı</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Duraklatmada veya uykuda yedeklemeyi beklet</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Duraklatmada veya uykuda düzenli yedeklemeyi ertele</value></data>
   <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Oyun duraklatıldığında veya karakter uyurken düzenli yedekleme sayacını durdurur; oyuna dönüldüğünde kalan süreden devam eder. Oyun durumu bilinmiyorsa da bekler. Manuel ve ölüm sonrası yedeklemeleri etkilemez.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Oyun duraklatıldı</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Oyun durumu kontrol ediliyor</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Lütfen yalnızca bir oyun çalıştırın</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Son oyun kaydının sonucunu doğrulayın, ardından otomatik yedeklemeyi yeniden açın.</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Project Zomboid'i aynı anda yalnızca bir kez çalıştırın</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Oyundaki son kaydetme işleminin başarılı olup olmadığını kontrol edin, ardından otomatik yedeklemeyi yeniden açın.</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Filtreyi temizle</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Tümünü temizle</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · filtrelemek için tıklayın</value></data>
@@ -424,28 +426,28 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
 <data name="GameExtensions.Apply" xml:space="preserve"><value>Uygula</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Eklenti ayarları kullanılamıyor</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Değişiklikler kaydedilemedi. Sayfayı yeniden açın ve eklenti ayarları dosyasını kontrol edin.</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Normal kaydı değiştirmeden ayrı bir kayıt yolu kullanır. Ek önizleme çizimini atlar, bazı yazma işlemlerini ve tamamlanma beklemelerini oyun iş parçacığından ayırır. Arayüz etkileşimlerinin bitmesini beklemez. Serileştirme ve kilitler yine de duraklamalara yol açabilir. Desteklenmeyen sürümlerde normal kayıt kullanılır.</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>Normal kaydetme işlemini değiştirmeden alternatif bir yöntem kullanır. Ek önizleme çizimini atlar; bazı dosya yazma işlemlerini ve tamamlanma beklemelerini oyun iş parçacığının dışında yürütür. Kaydetme işlemi, arayüz etkileşimlerinin bitmesini beklemez. Veri işleme ve kaynak kilitleri yine de duraklamalara yol açabilir. Desteklenmeyen sürümlerde normal kaydetme yöntemi kullanılır.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Tüm sürümler</value></data>
-<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Ana sürüm {0}</value></data>
-<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Alt sürüm {0}</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>Build {0} serisi</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>Build {0}</value></data>
 <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>Desteklenen: {0} · Mevcut oyun: {1}</value></data>
-<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Desteklenen aralığın dışında · Uzantı etkin değil</value></data>
-<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oyun sürümü bekleniyor · Uzantı etkin değil</value></data>
-<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Desteklenen aralığın dışında zorla etkinleştir</value></data>
-<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Uyumsuz sürümler hatalara neden olabilir. Yalnızca sürüm aralığı sınırı kaldırılır; temel güvenlik kontrolleri etkin kalır.</value></data>
+<data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>Desteklenen aralığın dışında · Eklenti etkin değil</value></data>
+<data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oyun sürümü bekleniyor · Eklenti etkin değil</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Desteklenen sürüm aralığını yok say</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Desteklenmeyen sürümler hatalara neden olabilir. Yalnızca sürüm aralığı sınırı kaldırılır; temel güvenlik kontrolleri etkin kalır. Eklenti ayrıca açılmalıdır.</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Sürüm sınırı kaldırıldı · Temel kontroller etkin</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Eklenti kaydı sürüyor</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Son istek: eklenti kaydı tamamlandı</value></data>
+  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Eklenti aracılığıyla kayıt sürüyor</value></data>
+  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Son istek: eklenti aracılığıyla kayıt tamamlandı</value></data>
   <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Son istek: standart kayıt kullanıldı ({0})</value></data>
   <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Son istek: kayıt başarısız ({0})</value></data>
-  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Oyun iş parçacığında en uzun kayıt adımı {0:N0}ms · tamamlanma {1:N0}ms</value></data>
+  <data name="GameExtensions.ExecutionTiming" xml:space="preserve"><value>Oyun iş parçacığındaki en uzun kaydetme adımı: {0:N0} ms · toplam süre: {1:N0} ms</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Bir kahve ısmarla</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools işinize yaradı mı?</value></data>
   <data name="CoffeeSupport.NotReady" xml:space="preserve"><value>Destek bağlantısı henüz hazır değil.</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Karakter uyuyor</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanmayı, vites geçişlerini, geri sürüşü ve klavyeyle direksiyonu bağımsız iyileştirir. Deneyseldir; yalnızca tek oyunculu oyun içindir.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanma ve vites geçişlerini, geri sürüşü ve klavyeyle direksiyon kontrolünü ayrı ayrı iyileştirir. Deneyseldir; yalnızca tek oyunculu oyun içindir.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Doğal hızlanma ve vites geçişleri</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>İleri hızlanmayı motor devrine ve vitese göre ayarlar.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Yumuşak geri sürüş</value></data>
@@ -454,11 +456,11 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Klavyeyle direksiyon hareketini ve merkeze dönüşü kademeli yapar.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Her seçenek ayrı kaydedilir. Oyunun doğruladığı durum aşağıda gösterilir.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Oyunda uygulandı · Deneysel</value></data>
-  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Açılması istendi · Oyun onayı bekleniyor</value></data>
-  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Kapatıldığı doğrulandı · Özgün sürüş</value></data>
-  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Kapatılması istendi · Durum doğrulanmadı</value></data>
+  <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Oyunda uygulanması bekleniyor</value></data>
+  <data name="VehicleDrivetrain.Disabled" xml:space="preserve"><value>Kapalı · Özgün sürüş</value></data>
+  <data name="VehicleDrivetrain.OffRequested" xml:space="preserve"><value>Kapatılıyor · Onay bekleniyor</value></data>
   <data name="VehicleDrivetrain.Stopping" xml:space="preserve"><value>Hâlâ etkin · Kapatılıyor</value></data>
-  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Etkin · Yeni ayarların onayı bekleniyor</value></data>
+  <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>Güncellenen ayarlar oyunda uygulanıyor</value></data>
   <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>Desteklenmiyor · Özgün sürüş</value></data>
   <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>Eklenti hatası · Özgün sürüş</value></data>
   <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>Bu eklentiyi kullanmak için oyunu yeniden başlatın</value></data>
@@ -468,4 +470,24 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Kaydedilen ayarlar, tek oyunculu bir oyuna girdiğinizde uygulanır.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Uygulamak için oyuna devam edin, aracı durdurun, gazı bırakın ve hız sabitleyiciyi kapatın.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Oyun ana menüde</value></data>
+  <data name="VersionSetting.Header" xml:space="preserve"><value>Sürüm</value></data>
+  <data name="AboutSettings.Header" xml:space="preserve"><value>Hakkında</value></data>
+  <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Uyumluluk ve durum</value></data>
+  <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>{0} veya daha yüksek düzeyde günlük yok.</value></data>
+  <data name="NoFilteredLogs" xml:space="preserve"><value>Seçili filtrelerle eşleşen günlük yok.</value></data>
+  <data name="LogShowAll" xml:space="preserve"><value>Tüm günlükleri görüntüle</value></data>
+  <data name="HomeNavigation.Content" xml:space="preserve"><value>Ana sayfa</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Project Zomboid için yedekleme, karakter kurtarma ve oyun eklentileri.</value></data>
+  <data name="Home.FeaturesHeading" xml:space="preserve"><value>Temel özellikler</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>Otomatik ve manuel yedekleme</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>Yalnızca değişen dosyaları sıkıştırıp yedekler. Otomatik yedekleme aralığı ve saklanacak yedek sayısı ayarlanabilir. Manuel yedekler bu sınıra dahil değildir.</value></data>
+  <data name="Home.BackupAction" xml:space="preserve"><value>Yedekleme ayarları</value></data>
+  <data name="Home.RestoreTitle" xml:space="preserve"><value>Yedek geri yükleme ve dışa aktarma</value></data>
+  <data name="Home.RestoreDescription" xml:space="preserve"><value>Kaydı, yedeğin alındığı andaki durumuna döndürür. Kayıtlar ve yedekler ZIP olarak dışa aktarılabilir. ZIP dosyaları da içe aktarılabilir.</value></data>
+  <data name="Home.RestoreAction" xml:space="preserve"><value>Yedek listesi</value></data>
+  <data name="Home.RecoveryTitle" xml:space="preserve"><value>Karakter kurtarma</value></data>
+  <data name="Home.RecoveryDescription" xml:space="preserve"><value>Mevcut kayıttaki karakteri iyileştirir veya diriltir. Özellikler ve beceriler korunur. Bu kayıtla oynanırken kullanılamaz.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Aracın hızlanmasını, vites geçişlerini, geri sürüşünü ve klavyeyle direksiyon kontrolünü ayarlar. Her işlev mod kurmadan ayrı ayrı açılıp kapatılabilir.</value></data>
+  <data name="Home.ReportIssue" xml:space="preserve"><value>Sorun bildir</value></data>
+  <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid için resmî olmayan bir araç</value></data>
 </root>

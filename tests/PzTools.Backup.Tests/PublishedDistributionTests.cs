@@ -35,14 +35,19 @@ public sealed class PublishedDistributionTests
             "e_sqlite3.dll", "THIRD_PARTY_NOTICES.md", "save-bridge/pztools-save-bridge.jar", "save-bridge/pztools-save-bootstrap.jar",
             "save-bridge/pztools-attach-bootstrap.dll", "save-bridge/runtime/bin/java.exe",
             "save-bridge/runtime/bin/server/jvm.dll", "save-bridge/runtime/lib/modules",
-            "save-bridge/runtime/release"];
+            "save-bridge/runtime/release", "Assets/Brand/pztools.png", "Assets/Brand/pztools-home.png",
+            "Assets/Navigation/home.svg", "Assets/Navigation/extensions.svg", "Assets/Navigation/pztools.ico"];
         foreach (var path in required)
             Assert.True(File.Exists(Path.Combine(Root, path)), path);
         Assert.NotEmpty(Directory.GetFiles(Path.Combine(Root, "save-bridge/runtime/legal"), "*", SearchOption.AllDirectories));
         Assert.NotEmpty(Directory.GetFiles(Path.Combine(Root, "defaults"), "*.toml", SearchOption.AllDirectories));
         Assert.False(Directory.Exists(Path.Combine(Root, "runtimes")));
+        Assert.False(Directory.Exists(Path.Combine(Root, "workers")));
+        Assert.False(File.Exists(Path.Combine(Root, "Assets/Brand/pztools-master.png")));
+        Assert.False(File.Exists(Path.Combine(Root, "Assets/Navigation/pztools.svg")));
         var files = Directory.GetFiles(Root, "*", SearchOption.AllDirectories);
         Assert.Single(files, path => Path.GetFileName(path).Equals("e_sqlite3.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.Single(files, path => Path.GetFileName(path).Equals("java.exe", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(files, path => Path.GetExtension(path) is ".pdb" or ".lib");
         Assert.DoesNotContain(files, path => Path.GetFileName(path).StartsWith("Microsoft.Windows.AI.", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(path).StartsWith("Microsoft.Windows.Widgets", StringComparison.OrdinalIgnoreCase)
@@ -59,6 +64,8 @@ public sealed class PublishedDistributionTests
         string[] payload = ["pztools-extension-runtime.jar",
             "pztools-vehicle-drivetrain.jar", "catalog.tsv", "vehicle-drivetrain.toml"];
         foreach (var name in payload) Assert.True(File.Exists(Path.Combine(extensions, name)), name);
+        Assert.Equal(payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)).Order(),
+            Directory.GetFiles(extensions, "*.jar").Select(Path.GetFileName).Order());
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-seamless-save.jar")));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-test-save.jar")));
         foreach (var name in payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)))

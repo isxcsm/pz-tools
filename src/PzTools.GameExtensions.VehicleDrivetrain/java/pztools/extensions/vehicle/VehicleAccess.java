@@ -3,6 +3,7 @@ package pztools.extensions.vehicle;
 import java.lang.invoke.*;
 import java.lang.reflect.*;
 import pztools.extensions.api.ContinuousProvider;
+import pztools.extensions.vehicle.model.SteeringModel;
 
 /** Cached, build-specific reads and primitive commits; never calls Lua or Bullet. */
 final class VehicleAccess {
@@ -23,51 +24,74 @@ final class VehicleAccess {
         playerType=type("zombie.characters.IsoPlayer"); engineType=type("zombie.vehicles.VehicleEngine");
         transmissionType=type("zombie.vehicles.TransmissionNumber");
         Class<?> scriptType=type("zombie.scripting.objects.VehicleScript"), controlsType=type("zombie.core.physics.CarController$ClientControls");
+        Class<?> controlState=type("zombie.core.physics.CarController$ControlState");
+        for(String state:new String[]{"NoControl","Forward","Reverse","Braking"}) field(controlState,state,controlState,true);
         Class<?> gameTime=type("zombie.GameTime"), worldType=type("zombie.iso.IsoWorld"), character=type("zombie.characters.IsoGameCharacter");
         Class<?> trait=type("zombie.scripting.objects.CharacterTrait"), wheel=type("zombie.scripting.objects.VehicleScript$Wheel");
-        vehicle=field(controllerType,"vehicleObject"); force=field(controllerType,"engineForce"); brake=field(controllerType,"brakingForce");
-        controls=field(controllerType,"clientControls"); parking=field(controlsType,"wasUsingParkingBrakes");
-        steering=field(controllerType,"vehicleSteering"); steeringInput=field(controlsType,"steering");
-        throttle=field(vehicleType,"throttle"); transmission=field(vehicleType,"transmissionNumber"); rpm=field(engineType,"speed");
-        client=field(type("zombie.network.GameClient"),"client"); server=field(type("zombie.network.GameServer"),"server");
-        world=field(worldType,"instance"); worldCell=field(worldType,"currentCell"); players=field(playerType,"players"); time=field(gameTime,"instance");
-        slowTrait=field(trait,"SUNDAY_DRIVER"); fastTrait=field(trait,"SPEED_DEMON");
-        gearCount=field(scriptType,"gearRatioCount"); radius=field(wheel,"radius");
-        reverseSpeedLimit=field(scriptType,"maxSpeedReverse");
-        driver=method(vehicleType,"getDriver",Object.class); script=method(vehicleType,"getScript",Object.class);
-        running=method(vehicleType,"isEngineRunning",boolean.class); getEngine=method(vehicleType,"getEngine",Object.class);
-        getVehicleEngine=method(vehicleType,"getVehicleEngine",Object.class);
-        getTowedBy=method(vehicleType,"getVehicleTowedBy",Object.class); getTowing=method(vehicleType,"getVehicleTowing",Object.class);
-        burnt=method(vehicleType,"isBurnt",boolean.class); localPlayer=method(playerType,"isLocalPlayer",boolean.class);
-        hasTrait=method(character,"hasTrait",boolean.class,trait);
-        speed=method(vehicleType,"getCurrentSpeedKmHour",float.class); power=method(vehicleType,"getEnginePower",int.class);
-        mass=method(vehicleType,"getMass",float.class); engineRpm=method(vehicleType,"getEngineSpeed",double.class);
-        gear=method(vehicleType,"getTransmissionNumber",int.class); maxSpeed=method(vehicleType,"getMaxSpeed",float.class);
-        offroad=method(vehicleType,"isDoingOffroad",boolean.class); offroadEfficiency=method(scriptType,"getOffroadEfficiency",float.class);
-        rpmType=method(scriptType,"getEngineRPMType",Object.class); wheelCount=method(scriptType,"getWheelCount",int.class);
-        getWheel=method(scriptType,"getWheel",Object.class,int.class); physicsSeconds=method(gameTime,"getPhysicsSecondsSinceLastUpdate",float.class);
-        frameNo=method(worldType,"getFrameNo",int.class); getVehicle=method(playerType,"getVehicle",Object.class);
-        gas=method(controllerType,"isGas",boolean.class); gasReverse=method(controllerType,"isGasR",boolean.class);
-        regulator=method(vehicleType,"isRegulator",boolean.class);
-        joypad=method(vehicleType,"getJoypad",int.class); steeringClamp=method(scriptType,"getSteeringClamp",float.class,float.class);
-        keyboardControlled=method(vehicleType,"isKeyboardControlled",boolean.class);
-        steeringKeyDown=MethodHandles.publicLookup().findStatic(type("zombie.input.GameKeyboard"),"isKeyDown",
-            MethodType.methodType(boolean.class,String.class));
-        reverse=field(transmissionType,"R");
-        for(int i=1;i<=8;i++) gears[i]=field(transmissionType,"Speed"+i);
+        Class<?> cell=type("zombie.iso.IsoCell"), part=type("zombie.vehicles.VehiclePart");
+        if(!character.isAssignableFrom(playerType))
+            throw new ReflectiveOperationException("class-contract:zombie.characters.IsoPlayer:expected-IsoGameCharacter");
+        vehicle=field(controllerType,"vehicleObject",vehicleType,false);
+        force=writableField(controllerType,"engineForce",float.class,false); brake=writableField(controllerType,"brakingForce",float.class,false);
+        controls=field(controllerType,"clientControls",controlsType,false); parking=writableField(controlsType,"wasUsingParkingBrakes",boolean.class,false);
+        steering=writableField(controllerType,"vehicleSteering",float.class,false); steeringInput=field(controlsType,"steering",float.class,false);
+        throttle=writableField(vehicleType,"throttle",float.class,false); transmission=writableField(vehicleType,"transmissionNumber",transmissionType,false);
+        rpm=writableField(engineType,"speed",double.class,false);
+        client=field(type("zombie.network.GameClient"),"client",boolean.class,true);
+        server=field(type("zombie.network.GameServer"),"server",boolean.class,true);
+        world=field(worldType,"instance",worldType,true); worldCell=field(worldType,"currentCell",cell,false);
+        players=field(playerType,"players",playerType.arrayType(),true); time=field(gameTime,"instance",gameTime,true);
+        slowTrait=field(trait,"SUNDAY_DRIVER",trait,true); fastTrait=field(trait,"SPEED_DEMON",trait,true);
+        gearCount=field(scriptType,"gearRatioCount",int.class,false); radius=field(wheel,"radius",float.class,false);
+        reverseSpeedLimit=field(scriptType,"maxSpeedReverse",float.class,false);
+        driver=method(vehicleType,"getDriver",character,false); script=method(vehicleType,"getScript",scriptType,false);
+        running=method(vehicleType,"isEngineRunning",boolean.class,false); getEngine=method(vehicleType,"getEngine",part,false);
+        getVehicleEngine=method(vehicleType,"getVehicleEngine",engineType,false);
+        getTowedBy=method(vehicleType,"getVehicleTowedBy",vehicleType,false); getTowing=method(vehicleType,"getVehicleTowing",vehicleType,false);
+        burnt=method(vehicleType,"isBurnt",boolean.class,false); localPlayer=method(playerType,"isLocalPlayer",boolean.class,false);
+        hasTrait=method(character,"hasTrait",boolean.class,false,trait);
+        speed=method(vehicleType,"getCurrentSpeedKmHour",float.class,false); power=method(vehicleType,"getEnginePower",int.class,false);
+        mass=method(vehicleType,"getMass",float.class,false); engineRpm=method(vehicleType,"getEngineSpeed",double.class,false);
+        gear=method(vehicleType,"getTransmissionNumber",int.class,false); maxSpeed=method(vehicleType,"getMaxSpeed",float.class,false);
+        offroad=method(vehicleType,"isDoingOffroad",boolean.class,false); offroadEfficiency=method(scriptType,"getOffroadEfficiency",float.class,false);
+        rpmType=method(scriptType,"getEngineRPMType",String.class,false); wheelCount=method(scriptType,"getWheelCount",int.class,false);
+        getWheel=method(scriptType,"getWheel",wheel,false,int.class); physicsSeconds=method(gameTime,"getPhysicsSecondsSinceLastUpdate",float.class,false);
+        frameNo=method(worldType,"getFrameNo",int.class,false); getVehicle=method(playerType,"getVehicle",vehicleType,false);
+        gas=method(controllerType,"isGas",boolean.class,false); gasReverse=method(controllerType,"isGasR",boolean.class,false);
+        regulator=method(vehicleType,"isRegulator",boolean.class,false);
+        joypad=method(vehicleType,"getJoypad",int.class,false); steeringClamp=method(scriptType,"getSteeringClamp",float.class,false,float.class);
+        keyboardControlled=method(vehicleType,"isKeyboardControlled",boolean.class,false);
+        steeringKeyDown=method(type("zombie.input.GameKeyboard"),"isKeyDown",boolean.class,true,String.class)
+            .asType(MethodType.methodType(boolean.class,String.class));
+        reverse=field(transmissionType,"R",transmissionType,true);
+        for(int i=1;i<=8;i++) gears[i]=field(transmissionType,"Speed"+i,transmissionType,true);
     }
     private Class<?> type(String name) throws ClassNotFoundException { return Class.forName(name,false,loader); }
-    private static VarHandle field(Class<?> type,String name) throws ReflectiveOperationException {
+    private static VarHandle field(Class<?> type,String name,Class<?> expectedType,boolean isStatic) throws ReflectiveOperationException {
         Field f=type.getDeclaredField(name);
+        if(f.getType()!=expectedType || Modifier.isStatic(f.getModifiers())!=isStatic)
+            throw new NoSuchFieldException("field-contract:"+type.getName()+"."+name);
         return MethodHandles.privateLookupIn(type,MethodHandles.lookup()).unreflectVarHandle(f);
     }
-    private static MethodHandle method(Class<?> type,String name,Class<?> result,Class<?>... args) throws ReflectiveOperationException {
+    private static VarHandle writableField(Class<?> type,String name,Class<?> expectedType,boolean isStatic) throws ReflectiveOperationException {
+        VarHandle handle=field(type,name,expectedType,isStatic);
+        if(!handle.isAccessModeSupported(VarHandle.AccessMode.SET))
+            throw new IllegalAccessException("readonly-field-contract:"+type.getName()+"."+name);
+        return handle;
+    }
+    private static MethodHandle method(Class<?> type,String name,Class<?> result,boolean isStatic,Class<?>... args) throws ReflectiveOperationException {
         Method m;
         try { m=type.getMethod(name,args); } catch(NoSuchMethodException absent) { m=type.getDeclaredMethod(name,args); }
+        if(m.getReturnType()!=result || Modifier.isStatic(m.getModifiers())!=isStatic
+                || !java.util.Arrays.equals(m.getParameterTypes(),args))
+            throw new NoSuchMethodException("method-contract:"+type.getName()+"."+name);
         MethodHandle h=MethodHandles.privateLookupIn(m.getDeclaringClass(),MethodHandles.lookup()).unreflect(m);
-        Class<?>[] erased=new Class<?>[args.length+1]; erased[0]=Object.class;
-        for(int i=0;i<args.length;i++) erased[i+1]=args[i].isPrimitive()?args[i]:Object.class;
-        return h.asType(MethodType.methodType(result,erased));
+        int receiverCount=isStatic?0:1;
+        Class<?>[] erased=new Class<?>[args.length+receiverCount];
+        if(!isStatic) erased[0]=Object.class;
+        for(int i=0;i<args.length;i++) erased[i+receiverCount]=args[i].isPrimitive()?args[i]:Object.class;
+        // Erasure is only a calling convention, never a relaxation of the declared game ABI.
+        return h.asType(MethodType.methodType(result.isPrimitive()?result:Object.class,erased));
     }
     boolean ready(ContinuousProvider.Context context) throws Throwable {
         context.requireGameThread();
@@ -142,7 +166,7 @@ final class VehicleAccess {
         // a stale held direction when that mapped key is no longer held. Never
         // synthesize a new press/reversal or write ClientControls: the game's
         // aiming/loading/drunk input gates remain authoritative for new input.
-        if(Float.isFinite(f.input) && Math.abs(f.input)>0.1f && Math.abs(f.input)<=1.0001f
+        if(Float.isFinite(f.input) && Math.abs(f.input)>SteeringModel.INPUT_DEAD_ZONE && Math.abs(f.input)<=1.0001f
                 && (boolean)keyboardControlled.invokeExact(v)) {
             boolean left=(boolean)steeringKeyDown.invokeExact("Left");
             boolean right=(boolean)steeringKeyDown.invokeExact("Right");

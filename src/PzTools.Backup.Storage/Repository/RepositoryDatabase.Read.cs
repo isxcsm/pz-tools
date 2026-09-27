@@ -313,8 +313,21 @@ public sealed partial class RepositoryDatabase
         CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
-        await EnsureRevisionExistsAsync(connection, sourceId, revision, cancellationToken);
+        return await ReadRevisionEntriesCoreAsync(connection, sourceId, revision, cancellationToken);
+    }
+
+    internal static async Task<IReadOnlyList<RevisionEntry>> ReadRevisionEntriesCoreAsync(
+        SqliteConnection connection,
+        long sourceId,
+        long revision,
+        CancellationToken cancellationToken = default)
+    {
+        // A revision can be reclaimed between these queries. Keep existence and
+        // entries in one snapshot so a removed revision cannot appear empty.
+        using var transaction = connection.BeginTransaction(deferred: true);
+        await EnsureRevisionExistsAsync(connection, transaction, sourceId, revision, cancellationToken);
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText =
             """
             SELECT entry.display_path, entry.entry_kind, entry.byte_length,
@@ -360,6 +373,8 @@ public sealed partial class RepositoryDatabase
                 reader.IsDBNull(17) ? null : reader.GetInt32(17)));
         }
 
+        await reader.DisposeAsync();
+        transaction.Commit();
         return entries;
     }
 
@@ -422,11 +437,13 @@ public sealed partial class RepositoryDatabase
 
     private static async Task EnsureRevisionExistsAsync(
         SqliteConnection connection,
+        SqliteTransaction transaction,
         long sourceId,
         long revision,
         CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText =
             """
             SELECT 1 FROM revisions

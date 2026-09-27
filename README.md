@@ -20,6 +20,7 @@ Includes 18 interface languages, themes, tray mode, progress cards and filtered 
 ## Get started
 
 Requires **Windows x64** and the **[.NET 10 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)**. The app requests administrator permission for NTFS change tracking.
+WinUI components and the Java Attach runtime are included; no separate Java installation is needed.
 
 1. Get a runnable package from [Releases](https://github.com/isxcsm/pz-tools/releases), or build from source below. Extract the whole package and run `PzTools.App.exe`; GitHub's source ZIP is not a runnable app.
 2. Open Settings, choose your language and check the save and backup folders. Keep those folders separate.

@@ -196,14 +196,25 @@ public sealed class SafeRevisionRestoreService
     internal static void DeleteOperationDirectory(string path)
     {
         var pending = new Stack<string>();
+        var readOnlyPaths = new List<string>();
         pending.Push(path);
         while (pending.TryPop(out var current))
         {
             var attributes = File.GetAttributes(current);
             if ((attributes & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("linked-operation-inventory");
+            if ((attributes & FileAttributes.ReadOnly) != 0) readOnlyPaths.Add(current);
             if ((attributes & FileAttributes.Directory) != 0)
                 foreach (var child in Directory.EnumerateFileSystemEntries(current)) pending.Push(child);
+        }
+        // Nothing may be changed until the entire disposable inventory has passed
+        // the link check. Restored files can legitimately retain ReadOnly metadata.
+        foreach (var current in readOnlyPaths)
+        {
+            var attributes = File.GetAttributes(current);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("linked-operation-inventory");
+            File.SetAttributes(current, attributes & ~FileAttributes.ReadOnly);
         }
         Directory.Delete(path, recursive: true);
     }

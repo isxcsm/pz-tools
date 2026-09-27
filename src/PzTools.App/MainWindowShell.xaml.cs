@@ -70,6 +70,7 @@ public sealed partial class MainWindowShell : UserControl
     public MainWindowShell()
     {
         InitializeComponent();
+        HomeRoot.NavigationRequested += HomeRoot_NavigationRequested;
         var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
         thumbnailLoadGate = new(runtime.ThumbnailReadConcurrency, runtime.ThumbnailReadConcurrency);
         saveSelectionBar = new AnimatedListSelectionBar(
@@ -131,6 +132,7 @@ public sealed partial class MainWindowShell : UserControl
         AppSubtitleText.Text = Localizer.Get("AppSubtitle");
         LocalizeSupportButton();
         if (IsLoaded) App.MainWindow.Title = Localizer.Get("AppTitle");
+        HomeItem.Content = Localizer.Get("HomeNavigation.Content");
         SavesItem.Content = Localizer.Get("SavesNavigation.Content");
         SavesPageTitle.Text = Localizer.Get("SavesNavigation.Content");
         AppToolTip.SetTip(SavesPageTitle, SavesPageTitle.Text);
@@ -174,6 +176,7 @@ public sealed partial class MainWindowShell : UserControl
     internal void RefreshLocalization()
     {
         ApplyLocalizedText();
+        HomeRoot.ApplyLocalizedText();
         SettingsRoot.ApplyLocalizedText();
         LogsRoot.ApplyLocalizedText();
         GameExtensionsRoot.ApplyLocalizedText();
@@ -191,11 +194,11 @@ public sealed partial class MainWindowShell : UserControl
         App.MainWindow.SetTitleBar(AppTitleBar);
         App.MainWindow.Title = Localizer.Get("AppTitle");
         UpdateTitleBar();
-        Navigation.SelectedItem ??= SavesItem;
+        Navigation.SelectedItem ??= HomeItem;
         // Avoid the automatic startup focus ring on the pane toggle. Keyboard
         // navigation still uses the normal focus visuals after this first load.
         if (!hasSetInitialFocus)
-            hasSetInitialFocus = SavesItem.Focus(FocusState.Pointer);
+            hasSetInitialFocus = HomeItem.Focus(FocusState.Pointer);
         if (Navigation.SettingsItem is NavigationViewItem settings)
         {
             settings.Content = Localizer.Get("SettingsTitle.Text");
@@ -1029,11 +1032,24 @@ public sealed partial class MainWindowShell : UserControl
         var page = args.IsSettingsSelected ? (FrameworkElement)SettingsRoot
             : (args.SelectedItem as NavigationViewItem)?.Tag?.ToString() switch
             {
+                "home" => HomeRoot,
                 "logs" => LogsRoot,
                 "game-extensions" => GameExtensionsRoot,
                 _ => SavesRoot,
             };
         NavigateToContent(page);
+    }
+
+    private void HomeRoot_NavigationRequested(object? sender, HomeDestination destination)
+    {
+        Navigation.SelectedItem = destination switch
+        {
+            HomeDestination.Settings => Navigation.SettingsItem,
+            HomeDestination.Extensions => GameExtensionsItem,
+            _ => SavesItem,
+        };
+        if (destination == HomeDestination.Saves)
+            SaveList.SelectedItem ??= SaveItems.FirstOrDefault();
     }
 
     private void Navigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
@@ -1050,12 +1066,12 @@ public sealed partial class MainWindowShell : UserControl
 
     private void ApplyNavigationSpacing()
     {
-        if (Navigation is null || SavesItem is null || LogsItem is null || GameExtensionsItem is null) return;
+        if (Navigation is null || HomeItem is null || SavesItem is null || LogsItem is null || GameExtensionsItem is null) return;
         // 선택 표시줄을 창 가장자리에서 띄웁니다. 축소 모드에서는 아이콘 공간을 보존합니다.
         var expanded = Navigation.IsPaneOpen;
         // 기본 템플릿이 세로 2px 여백을 이미 제공하므로 중복해서 더하지 않습니다.
         var margin = expanded ? new Thickness(12, 0, 12, 0) : new Thickness(0);
-        SavesItem.Margin = GameExtensionsItem.Margin = LogsItem.Margin = margin;
+        HomeItem.Margin = SavesItem.Margin = GameExtensionsItem.Margin = LogsItem.Margin = margin;
         if (AppBrand is not null && BrandImage is not null && BrandCopy is not null && BrandHeaderSpace is not null)
         {
             AppBrand.Margin = expanded ? new Thickness(24, 20, 12, 0) : new Thickness(8, 8, 8, 0);

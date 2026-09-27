@@ -47,6 +47,7 @@ public sealed partial class MainWindowShell
     {
         if (refresh && page == SettingsRoot) SettingsRoot.PrepareForNavigation();
         displayedContent = page;
+        HomeRoot.Visibility = page == HomeRoot ? Visibility.Visible : Visibility.Collapsed;
         GameExtensionsRoot.Visibility = page == GameExtensionsRoot ? Visibility.Visible : Visibility.Collapsed;
         SettingsRoot.Visibility = page == SettingsRoot ? Visibility.Visible : Visibility.Collapsed;
         LogsRoot.Visibility = page == LogsRoot ? Visibility.Visible : Visibility.Collapsed;

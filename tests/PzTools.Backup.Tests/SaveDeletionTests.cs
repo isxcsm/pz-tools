@@ -5,6 +5,64 @@ namespace PzTools.Backup.Tests;
 public sealed class SaveDeletionTests
 {
     [Fact]
+    public void Deletion_KeepsPlayersDatabaseGuardedAfterValidation()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("Saves", "Sandbox", "Selected");
+        Directory.CreateDirectory(Path.Combine(source, "nested"));
+        var players = Path.Combine(source, "players.db");
+        File.WriteAllText(players, "player");
+        File.WriteAllText(Path.Combine(source, "a_chunk.bin"), "chunk");
+        File.WriteAllText(Path.Combine(source, "nested", "map.bin"), "nested chunk");
+        var attemptedDuringDeletion = false;
+        var attemptedAfterValidation = false;
+        var progress = new Recorder(value =>
+        {
+            var afterValidation = value.Phase == SaveDeletionPhase.Validating
+                && value.CompletedItems == value.TotalItems;
+            var deleting = value.Phase == SaveDeletionPhase.DeletingFiles;
+            if ((!afterValidation && !deleting) || !File.Exists(players)) return;
+            Assert.Throws<IOException>(() =>
+            {
+                using var game = new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+            });
+            attemptedAfterValidation |= afterValidation;
+            attemptedDuringDeletion |= deleting;
+        });
+
+        SaveDeletionService.DeletePermanently(temp.GetPath("Saves"), "Sandbox/Selected",
+            progress: progress, progressInterval: TimeSpan.Zero);
+
+        Assert.True(attemptedAfterValidation);
+        Assert.True(attemptedDuringDeletion);
+        Assert.False(Directory.Exists(source));
+    }
+
+    [Fact]
+    public void Deletion_CancellationAfterValidationReleasesGuardWithoutDeletingFiles()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("Saves", "Sandbox", "Selected");
+        Directory.CreateDirectory(source);
+        var players = Path.Combine(source, "players.db");
+        File.WriteAllText(players, "player");
+        File.WriteAllText(Path.Combine(source, "map.bin"), "chunk");
+        using var cancellation = new CancellationTokenSource();
+        var progress = new Recorder(value =>
+        {
+            if (value.Phase == SaveDeletionPhase.Validating && value.CompletedItems == value.TotalItems)
+                cancellation.Cancel();
+        });
+
+        Assert.Throws<OperationCanceledException>(() => SaveDeletionService.DeletePermanently(
+            temp.GetPath("Saves"), "Sandbox/Selected", cancellation.Token, progress));
+
+        Assert.Equal("player", File.ReadAllText(players));
+        Assert.Equal("chunk", File.ReadAllText(Path.Combine(source, "map.bin")));
+        using var game = new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+    }
+
+    [Fact]
     public void Deletion_ReportsRealCountsBeforeCompletion()
     {
         using var temp = new TempDirectory();

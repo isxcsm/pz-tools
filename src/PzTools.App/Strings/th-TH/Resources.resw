@@ -9,7 +9,7 @@
   <data name="SavesNavigation.Content" xml:space="preserve"><value>จัดการเซฟ</value></data>
   <data name="Exporting.Text" xml:space="preserve"><value>กำลังส่งออก</value></data>
   <data name="BackingUp.Text" xml:space="preserve"><value>กำลังสำรองข้อมูล</value></data>
-  <data name="ImportArchive.Content" xml:space="preserve"><value>นำเข้า ZIP</value></data>
+  <data name="ImportArchive.Content" xml:space="preserve"><value>นำเข้าไฟล์สำรอง</value></data>
   <data name="NoSaves.Text" xml:space="preserve"><value>ไม่พบเซฟ</value></data>
   <data name="LoadingSaves.Text" xml:space="preserve"><value>กำลังโหลดเซฟ…</value></data>
   <data name="LoadingBackups.Text" xml:space="preserve"><value>กำลังโหลดรายละเอียดเซฟ…</value></data>
@@ -39,7 +39,7 @@
   <data name="ThemeSetting.Header" xml:space="preserve"><value>ธีม</value></data>
   <data name="ThemeSetting.Description" xml:space="preserve"><value>ใช้ธีมตามระบบหรือเลือกเอง</value></data>
   <data name="SystemTraySetting.Header" xml:space="preserve"><value>ถาดระบบ</value></data>
-  <data name="SystemTraySetting.Description" xml:space="preserve"><value>ให้ PZ Tools ทำงานต่อเมื่อปิดหน้าต่าง หากต้องการปิดแอปทั้งหมด ให้เลือกออกจากเมนูไอคอน PZ Tools ข้างนาฬิกา</value></data>
+  <data name="SystemTraySetting.Description" xml:space="preserve"><value>ให้ PZ Tools ทำงานต่อเมื่อปิดหน้าต่าง หากต้องการปิดแอป ให้เลือก “ออก” จากเมนูไอคอน PZ Tools ข้างนาฬิกา</value></data>
   <data name="TrayRestore" xml:space="preserve"><value>เปิด PZ Tools</value></data>
   <data name="TrayExit" xml:space="preserve"><value>ออก</value></data>
   <data name="ConfirmExitTitle" xml:space="preserve"><value>ออกจาก PZ Tools หรือไม่?</value></data>
@@ -56,8 +56,8 @@
   <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 นาที เมื่อปิดจะเก็บค่าช่วงเวลาไว้ และเริ่มนับช่วงเวลาใหม่เมื่อเปิดอีกครั้ง</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>จำนวนข้อมูลสำรองอัตโนมัติที่เก็บไว้</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุด 1–100 ชุด ขีดจำกัดนี้จะไม่ลบข้อมูลสำรองที่สร้างด้วยตนเอง</value></data>
-  <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครตาย</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>สำรองข้อมูลเมื่อเกมที่กำลังทำงานรายงานว่าตัวละครเสียชีวิต ต้องเปิดการสำรองอัตโนมัติ การหยุดเกมชั่วคราวไม่ขัดขวางการสำรองนี้ ข้อมูลการเสียชีวิตในเซฟเกมจะแยกจัดเก็บต่างหาก</value></data>
+  <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครเสียชีวิต</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>สำรองข้อมูลเมื่อเกมที่กำลังทำงานรายงานว่าตัวละครเสียชีวิต ต้องเปิดการสำรองอัตโนมัติ และจะสำรองแม้หยุดเกมชั่วคราว ข้อมูลการเสียชีวิตที่มีอยู่ในเซฟเดิมจะไม่ทำให้เกิดการสำรองนี้</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>ตรวจสอบไฟล์ที่คัดลอก</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>ตรวจสอบว่าไฟล์ที่คัดลอกมีเนื้อหาตรงกับต้นฉบับ หากต้นฉบับเปลี่ยนระหว่างคัดลอก ระบบจะคัดลอกใหม่</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>ไฟล์เซฟเปลี่ยนแปลงต่อเนื่องระหว่างสำรองข้อมูล รอให้เกมบันทึกเสร็จแล้วลองสำรองอีกครั้ง</value></data>
@@ -116,7 +116,7 @@
   <data name="ConfirmImportTitle" xml:space="preserve"><value>นำเข้าเซฟนี้หรือไม่?</value></data>
   <data name="Import" xml:space="preserve"><value>นำเข้า</value></data>
   <data name="Cancel" xml:space="preserve"><value>ยกเลิก</value></data>
-  <data name="ImportArchiveTitle" xml:space="preserve"><value>นำเข้า ZIP</value></data>
+  <data name="ImportArchiveTitle" xml:space="preserve"><value>นำเข้าไฟล์สำรอง</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>นำเข้าข้อมูลสำรองนี้ไม่ได้ กรุณาตรวจสอบว่าไฟล์เสียหายหรือไม่</value></data>
   <data name="UnsafeArchiveCompression" xml:space="preserve"><value>อัตราการบีบอัดของไฟล์นี้สูงผิดปกติ จึงไม่สามารถนำเข้าอย่างปลอดภัยได้</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
@@ -145,7 +145,7 @@
   <data name="OperationDegraded" xml:space="preserve"><value>งานสิ้นสุดแล้ว แต่ยังมีปัญหาที่ต้องตรวจสอบ กรุณาดูบันทึกเหตุการณ์ก่อนเริ่มงานซ้ำ</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>บันทึกเหตุการณ์</value></data>
   <data name="LogSettings.Header" xml:space="preserve"><value>บันทึกเหตุการณ์</value></data>
-  <data name="LogLevelSetting.Header" xml:space="preserve"><value>ระดับความรุนแรงขั้นต่ำ</value></data>
+  <data name="LogLevelSetting.Header" xml:space="preserve"><value>บันทึกที่จะแสดง</value></data>
   <data name="LogLevelSetting.Description" xml:space="preserve"><value>แสดงเหตุการณ์ที่มีระดับความรุนแรงตั้งแต่ระดับที่เลือกขึ้นไป</value></data>
   <data name="LogLimitSetting.Header" xml:space="preserve"><value>จำนวนบันทึกล่าสุด</value></data>
   <data name="LogLimitSetting.Description" xml:space="preserve"><value>จำนวนเหตุการณ์ล่าสุดที่แสดงในหน้าบันทึก</value></data>
@@ -165,9 +165,9 @@
   <data name="NoLogs" xml:space="preserve"><value>ไม่มีบันทึกให้แสดง</value></data>
   <data name="AcknowledgeLog" xml:space="preserve"><value>ทำเครื่องหมายว่าตรวจสอบแล้ว</value></data>
   <data name="AcknowledgeAllLogs" xml:space="preserve"><value>ทำเครื่องหมายทั้งหมดว่าตรวจสอบแล้ว</value></data>
-  <data name="AcknowledgeIssue" xml:space="preserve"><value>ทำเครื่องหมายการรันนี้ว่าตรวจสอบแล้ว</value></data>
+  <data name="AcknowledgeIssue" xml:space="preserve"><value>ทำเครื่องหมายงานนี้ว่าตรวจสอบแล้ว</value></data>
   <data name="AcknowledgeAlert" xml:space="preserve"><value>ทำเครื่องหมายการแจ้งเตือนนี้ว่าตรวจสอบแล้ว</value></data>
-  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>ตรวจสอบรายการที่ยังไม่ได้ตรวจสอบทั้ง {0:N0} รายการ</value></data>
+  <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>ทำเครื่องหมายรายการที่ยังไม่ตรวจสอบทั้ง {0:N0} รายการว่าตรวจสอบแล้ว</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>หมายเลขบันทึก {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="LogTimeHeaderFormat" xml:space="preserve"><value>เวลา ({0})</value></data>
@@ -199,7 +199,7 @@
   <data name="CopyLogDetails" xml:space="preserve"><value>คัดลอกรายละเอียด</value></data>
   <data name="LogDetailsCopied" xml:space="preserve"><value>คัดลอกรายละเอียดบันทึกไปยังคลิปบอร์ดแล้ว</value></data>
   <data name="Close" xml:space="preserve"><value>ปิด</value></data>
-  <data name="RawLogPayload" xml:space="preserve"><value>บันทึกดิบ</value></data>
+  <data name="RawLogPayload" xml:space="preserve"><value>บันทึกต้นฉบับ</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>กำลังโหลดบันทึก…</value></data>
   <data name="LogsUnavailable" xml:space="preserve"><value>โหลดบันทึกไม่ได้</value></data>
   <data name="SelectLog" xml:space="preserve"><value>เลือกบันทึกเพื่อดูรายละเอียด</value></data>
@@ -219,7 +219,7 @@
   <data name="LogOutcome.Cancelled" xml:space="preserve"><value>ยกเลิกแล้ว</value></data>
   <data name="LogDiagnostics.Phase" xml:space="preserve"><value>ขั้นตอนที่ล้มเหลว</value></data>
   <data name="LogDiagnostics.Path" xml:space="preserve"><value>ไฟล์</value></data>
-  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>ไฟล์ที่ยังไม่ได้ล้าง</value></data>
+  <data name="LogDiagnostics.FailedFileCount" xml:space="preserve"><value>ไฟล์ที่ลบไม่สำเร็จ</value></data>
   <data name="LogDiagnostics.FailedFiles" xml:space="preserve"><value>ไฟล์ที่ได้รับผลกระทบ</value></data>
   <data name="LogDiagnostics.Save" xml:space="preserve"><value>เซฟ</value></data>
   <data name="LogDiagnostics.Reason" xml:space="preserve"><value>สาเหตุ</value></data>
@@ -252,10 +252,10 @@
   <data name="LogEvent.CaptureCompleted" xml:space="preserve"><value>อ่านไฟล์สำหรับการสำรองเสร็จแล้ว</value></data>
   <data name="LogEvent.ScanCompleted" xml:space="preserve"><value>สแกนไฟล์เซฟเสร็จแล้ว</value></data>
   <data name="LogEvent.TelemetryRecovered" xml:space="preserve"><value>ใช้งานบันทึกได้อีกครั้งแล้ว</value></data>
-  <data name="LogEvent.OrphanBackupsCleaned" xml:space="preserve"><value>ล้างข้อมูลสำรองที่ไม่มีเซฟต้นฉบับแล้ว</value></data>
-  <data name="LogEvent.OrphanBackupsFailed" xml:space="preserve"><value>ล้างข้อมูลสำรองที่ไม่มีเซฟต้นฉบับไม่ได้</value></data>
-  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>ล้างการทำงานที่ขัดจังหวะและไฟล์ชั่วคราวแล้ว</value></data>
-  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>การทำงานที่ขัดจังหวะบางส่วนล้างอย่างปลอดภัยไม่ได้ จึงเก็บไฟล์เหล่านั้นไว้</value></data>
+  <data name="LogEvent.OrphanBackupsCleaned" xml:space="preserve"><value>ลบข้อมูลสำรองที่ไม่มีเซฟต้นฉบับแล้ว</value></data>
+  <data name="LogEvent.OrphanBackupsFailed" xml:space="preserve"><value>ไม่สามารถลบข้อมูลสำรองที่ไม่มีเซฟต้นฉบับได้</value></data>
+  <data name="LogEvent.InterruptedOperationsRecovered" xml:space="preserve"><value>ลบไฟล์ที่ค้างจากงานที่ถูกขัดจังหวะและไฟล์ชั่วคราวแล้ว</value></data>
+  <data name="LogEvent.InterruptedOperationsRecoveryFailed" xml:space="preserve"><value>ไม่สามารถลบไฟล์ที่ค้างจากงานที่ถูกขัดจังหวะบางงานได้อย่างปลอดภัย จึงเก็บไฟล์เหล่านั้นไว้</value></data>
   <data name="LogEvent.TelemetryStale" xml:space="preserve"><value>การอัปเดตบันทึกล่าช้า</value></data>
   <data name="LogEvent.TelemetryUnreadable" xml:space="preserve"><value>อ่านบันทึกไม่ได้</value></data>
   <data name="LogEvent.TelemetryUnsupported" xml:space="preserve"><value>อ่านบันทึกรูปแบบนี้ไม่ได้</value></data>
@@ -268,7 +268,7 @@
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>ตรวจสอบกำหนดการสำรองแล้ว</value></data>
   <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>ตั้งค่าการบันทึกเกม ช่วงเวลาสำรอง จำนวนประวัติที่เก็บ และการทำงานหลังตัวละครเสียชีวิต</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>เลือกระดับเหตุการณ์และจำนวนรายการที่แสดงในหน้าบันทึก</value></data>
-  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>ระดับบันทึกขั้นต่ำ</value></data>
+  <data name="LogMinimumLevelLabel" xml:space="preserve"><value>บันทึกที่จะแสดง</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>จำนวนสูงสุดที่แสดง</value></data>
   <data name="AdvancedSettings.Header" xml:space="preserve"><value>ขั้นสูง</value></data>
   <data name="AdvancedSettings.Description" xml:space="preserve"><value>เปิดไฟล์การกำหนดค่าขั้นสูงและใช้การเปลี่ยนแปลง</value></data>
@@ -285,12 +285,12 @@
   <data name="AdvancedFiles.RestartConfirmation" xml:space="preserve"><value>ตรวจสอบไฟล์การกำหนดค่าขั้นสูงที่แก้ไขแล้วเริ่มแอปใหม่หรือไม่? ไม่สามารถเริ่มใหม่ขณะมีการทำงานอยู่</value></data>
   <data name="AdvancedFiles.Reset" xml:space="preserve"><value>คืนค่าการตั้งค่าเริ่มต้น</value></data>
   <data name="AdvancedFiles.ResetConfirmation" xml:space="preserve"><value>คืนค่าการตั้งค่าขั้นสูงเป็นค่าเริ่มต้นและเริ่มแอปใหม่หรือไม่? จะเก็บสำเนาไฟล์การตั้งค่าปัจจุบันไว้ การตั้งค่าทั่วไป เซฟ และข้อมูลสำรองจะไม่เปลี่ยน</value></data>
-  <data name="LogRecordLevel.Header" xml:space="preserve"><value>ระดับขั้นต่ำที่บันทึก</value></data>
+  <data name="LogRecordLevel.Header" xml:space="preserve"><value>เหตุการณ์ที่จะบันทึก</value></data>
   <data name="LogRecordLevel.Description" xml:space="preserve"><value>ใช้กับบันทึกใหม่ ประวัติเดิมจะยังคงอยู่</value></data>
   <data name="LogMaxEntries.Header" xml:space="preserve"><value>จำนวนบันทึกสูงสุด</value></data>
   <data name="LogMaxEntries.Description" xml:space="preserve"><value>ลบรายการเก่าที่สุดเมื่อเกินขีดจำกัด ค่าเริ่มต้น: 100,000</value></data>
   <data name="DeleteAction" xml:space="preserve"><value>ลบ</value></data>
-  <data name="SaveAction" xml:space="preserve"><value>เซฟ</value></data>
+  <data name="SaveAction" xml:space="preserve"><value>บันทึก</value></data>
   <data name="BackupNameFormat" xml:space="preserve"><value>ข้อมูลสำรอง {0:N0}</value></data>
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>สำรองด้วยตนเอง {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>สำรองอัตโนมัติ {0:N0}</value></data>
@@ -311,12 +311,19 @@
   <data name="DeleteAllBackupsButton" xml:space="preserve"><value>ลบข้อมูลสำรองทั้งหมด</value></data>
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>ลบข้อมูลสำรองทั้งหมดของ “{0}”</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>ลบข้อมูลสำรองทั้งหมด</value></data>
-  <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>ลบข้อมูลสำรองทั้ง {1} รายการของ “{0}” หรือไม่?&#xA;&#xA;ไฟล์เซฟปัจจุบันจะยังคงอยู่ ข้อมูลสำรองที่ลบจะหายจากรายการทันทีและไม่สามารถคืนค่าหรือส่งออกได้อีก พื้นที่ที่ใช้จะถูกล้างในภายหลัง การกระทำนี้ย้อนกลับไม่ได้</value></data>
+  <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>ลบข้อมูลสำรองทั้ง {1} รายการของ “{0}” หรือไม่?
+
+ไฟล์เซฟปัจจุบันจะยังคงอยู่ ข้อมูลสำรองที่ลบจะหายจากรายการทันทีและไม่สามารถกู้คืนหรือส่งออกได้อีก พื้นที่ที่ใช้จะว่างลงภายหลัง การกระทำนี้ย้อนกลับไม่ได้</value></data>
   <data name="AllBackupsDeleted" xml:space="preserve"><value>ลบข้อมูลสำรองทั้งหมดของเซฟที่เลือกแล้ว เซฟปัจจุบันยังคงอยู่</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>ลบเซฟ {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>ลบ {0}</value></data>
-  <data name="DeleteSaveConfirmation" xml:space="preserve"><value>ลบเซฟ “{0}” หรือไม่?&#xA;&#xA;เป้าหมาย: {1}&#xA;โฟลเดอร์เซฟที่เลือกและไฟล์ทั้งหมดจะถูกลบถาวร รวมถึงข้อมูลสำรองทุกชุดของเซฟนี้ด้วย จะไม่ใช้ถังรีไซเคิลหรือโฟลเดอร์กู้คืน การกระทำนี้ย้อนกลับไม่ได้ ข้อมูลสำรองที่ลบจะคืนค่าหรือส่งออกไม่ได้ และพื้นที่ที่ใช้จะถูกล้างในภายหลัง</value></data>
-  <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>ลบ “{1}” จาก “{0}” หรือไม่?&#xA;&#xA;เซฟปัจจุบันและข้อมูลสำรองอื่นจะยังคงอยู่ ข้อมูลสำรองที่ลบจะคืนค่าหรือส่งออกไม่ได้อีก พื้นที่ที่ใช้จะถูกล้างในภายหลัง</value></data>
+  <data name="DeleteSaveConfirmation" xml:space="preserve"><value>ลบเซฟ “{0}” หรือไม่?
+
+เป้าหมาย: {1}
+โฟลเดอร์เซฟที่เลือกและไฟล์ทั้งหมดจะถูกลบถาวร รวมถึงข้อมูลสำรองทุกชุดของเซฟนี้ด้วย จะไม่ใช้ถังรีไซเคิลหรือโฟลเดอร์กู้คืน การกระทำนี้ย้อนกลับไม่ได้ ข้อมูลสำรองที่ลบจะกู้คืนหรือส่งออกไม่ได้ และพื้นที่ที่ใช้จะว่างลงภายหลัง</value></data>
+  <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>ลบ “{1}” จาก “{0}” หรือไม่?
+
+เซฟปัจจุบันและข้อมูลสำรองอื่นจะยังคงอยู่ ข้อมูลสำรองที่ลบจะกู้คืนหรือส่งออกไม่ได้อีก พื้นที่ที่ใช้จะว่างลงภายหลัง</value></data>
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>ลบโฟลเดอร์เซฟถาวรแล้ว และนำข้อมูลสำรองทั้งหมดออกจากรายการแล้ว</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>ลบโฟลเดอร์เซฟแล้ว แต่ลบข้อมูลสำรองไม่ได้ โปรดตรวจสอบรายการสำรอง</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>ลบข้อมูลสำรองที่เลือกแล้ว</value></data>
@@ -363,16 +370,18 @@
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังห้าวินาทีและผลการบันทึกเหนือศีรษะตัวละคร เมื่อปิดจะไม่แสดงข้อความและข้ามการรอของการสำรองด้วยตนเอง แต่ยังบันทึกเกมตามเดิม เวลาสำรองอัตโนมัติไม่เปลี่ยน</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกความคืบหน้าล่าสุดในเกมก่อนสำรอง แนะนำให้เปิดไว้ เพราะหากปิด ความคืบหน้า ยานพาหนะ หรือสิ่งของที่ยังไม่ได้บันทึกอาจไม่อยู่ในข้อมูลสำรอง</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอเริ่ม</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: รองานปัจจุบัน</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอให้งานปัจจุบันเสร็จ</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>รักษาตัวละคร</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>รักษา / ชุบชีวิตตัวละคร</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>ฟื้นฟูตัวละคร {0} หรือไม่?
 
-ฟื้นฟูสุขภาพ รักษาบาดแผลและอาการผิดปกติ หากเสียชีวิตจะคืนชีพและนำสิ่งของที่ยังหาได้กลับมา ซอมบี้หรือศพที่นำสิ่งของกลับมาจะถูกลบ
+ฟื้นฟูสุขภาพ รักษาบาดแผลและอาการผิดปกติ หากตัวละครเสียชีวิต จะชุบชีวิตและกู้คืนสิ่งของที่ยังหาได้ ซอมบี้หรือศพที่ถูกนำสิ่งของออกมาจะถูกลบ
 
 คุณลักษณะ ทักษะ ประสบการณ์ และตำแหน่งจะคงเดิม ผลจากม็อดบางอย่างอาจยังอยู่
 
-ใช้กับเซฟผู้เล่นคนเดียวที่เลือก หลังจากหยุดเล่นแล้ว</value></data>
+ใช้กับเซฟผู้เล่นคนเดียวที่เลือก หลังจากหยุดเล่นแล้ว
+
+กรุณาสร้างข้อมูลสำรองก่อนดำเนินการต่อ การฟื้นฟูนี้จะไม่สร้างข้อมูลสำรองให้โดยอัตโนมัติ</value></data>
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>ฟื้นฟูตัวละครเสร็จแล้ว คุณลักษณะ ทักษะ และค่าประสบการณ์ยังคงอยู่</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>หยุดการฟื้นฟูเพราะไม่สามารถนำสิ่งของกลับมาได้อย่างปลอดภัย เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>ต้องดำเนินการแก้ไขเซฟครั้งก่อนให้เสร็จ โปรดเปิด PZ Tools ใหม่ก่อนโหลดเซฟนี้ในเกม</value></data>
@@ -381,7 +390,7 @@
   <data name="RecoveryError.Journal" xml:space="preserve"><value>เซฟนี้มีการเปลี่ยนแปลงที่ยังไม่เสร็จสมบูรณ์ กรุณาออกจากเกมตามปกติแล้วลองอีกครั้ง เซฟต้นฉบับยังไม่ถูกแก้ไข</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>ใช้ได้กับเซฟผู้เล่นคนเดียวที่มีตัวละครเพียงคนเดียว เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>ไม่สามารถแก้ไขเซฟนี้ได้อย่างปลอดภัย โปรดตรวจสอบว่า PZ Tools รุ่นที่ใช้รองรับเกมรุ่นนี้ เซฟต้นฉบับไม่ได้ถูกแก้ไข</value></data>
-  <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านไม่สำเร็จ จะลองใหม่</value></data>
+  <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านเวลาที่รอดชีวิตไม่ได้ · จะตรวจสอบอีกครั้ง</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ที่จำเป็น รอให้การบันทึกหรืองานนั้นเสร็จแล้วลองอีกครั้ง</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>พื้นที่ว่างไม่เพียงพอ กรุณาเพิ่มพื้นที่ว่างในไดรฟ์ปลายทางแล้วลองอีกครั้ง</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>ไฟล์ที่จำเป็นของแอปขาดหายไป กรุณาแตกไฟล์ที่ดาวน์โหลดทั้งหมดไว้ในโฟลเดอร์เดียวกัน หรือติดตั้ง PZ Tools ใหม่แล้วเปิดอีกครั้ง</value></data>
@@ -395,11 +404,11 @@
   <data name="LogPhase.deduplication" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>เปิด</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>ปิด</value></data>
-  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>รอสำรองระหว่างหยุดชั่วคราวหรือนอนหลับ</value></data>
+  <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>เลื่อนการสำรองเมื่อหยุดเกมชั่วคราวหรือตัวละครหลับ</value></data>
   <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>หยุดนับถอยหลังการสำรองตามช่วงเวลาเมื่อเกมหยุดชั่วคราวหรือตัวละครหลับ และนับต่อจากเวลาที่เหลือเมื่อกลับมาเล่น รอเช่นกันหากไม่ทราบสถานะเกม โดยไม่กระทบการสำรองด้วยตนเองหรือเมื่อตัวละครเสียชีวิต</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>เกมหยุดชั่วคราว</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>กำลังตรวจสอบสถานะเกม</value></data>
-  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>โปรดเปิดเกมเพียงหนึ่งตัว</value></data>
+  <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>กรุณาเปิดเกมเพียงเกมเดียว</value></data>
   <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>ตรวจสอบผลการบันทึกเกมครั้งก่อน แล้วเปิดการสำรองอัตโนมัติอีกครั้ง</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>ล้างตัวกรอง</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>ล้างทั้งหมด</value></data>
@@ -424,15 +433,15 @@
 <data name="GameExtensions.Apply" xml:space="preserve"><value>นำไปใช้</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>ไม่สามารถใช้การตั้งค่าส่วนขยายได้</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>บันทึกการเปลี่ยนแปลงไม่ได้ โปรดเปิดหน้านี้อีกครั้งและตรวจสอบไฟล์การตั้งค่าส่วนขยาย</value></data>
-<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>ใช้เส้นทางบันทึกแยกโดยไม่เปลี่ยนการบันทึกปกติ ข้ามการเรนเดอร์ภาพตัวอย่างเพิ่มเติม และแยกการเขียนข้อมูลกับการรอให้เสร็จบางส่วนออกจากเธรดเกม ไม่รอให้การโต้ตอบกับหน้าจอสิ้นสุดก่อนบันทึก การแปลงข้อมูลและการล็อกยังอาจทำให้หยุดชั่วคราวได้ เวอร์ชันที่ไม่รองรับจะใช้การบันทึกปกติ</value></data>
+<data name="GameExtensions.ValidationNotice" xml:space="preserve"><value>ใช้วิธีบันทึกแยกต่างหากโดยไม่แก้ไขการบันทึกปกติของเกม ข้ามการสร้างภาพตัวอย่างเพิ่มเติม และย้ายการเขียนข้อมูลกับการรอให้เสร็จบางส่วนไปทำงานเบื้องหลัง ไม่เลื่อนการบันทึกเพื่อรอให้ใช้งานหน้าจอเสร็จ การเตรียมข้อมูลและการรอปลดล็อกข้อมูลยังอาจทำให้เกมหยุดชะงักได้ เวอร์ชันที่ไม่รองรับจะใช้การบันทึกปกติ</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>ทุกเวอร์ชัน</value></data>
-<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>เวอร์ชันหลัก {0}</value></data>
-<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>เวอร์ชันย่อย {0}</value></data>
+<data name="GameExtensions.VersionMajor" xml:space="preserve"><value>บิลด์ตระกูล {0}</value></data>
+<data name="GameExtensions.VersionMinor" xml:space="preserve"><value>บิลด์ {0}</value></data>
 <data name="GameExtensions.VersionInfo" xml:space="preserve"><value>รองรับ: {0} · เกมปัจจุบัน: {1}</value></data>
 <data name="GameExtensions.VersionMismatch" xml:space="preserve"><value>อยู่นอกช่วงที่รองรับ · ส่วนขยายไม่ทำงาน</value></data>
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>กำลังรอเวอร์ชันเกม · ส่วนขยายไม่ทำงาน</value></data>
-<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>บังคับเปิดใช้งานนอกช่วงที่รองรับ</value></data>
-<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>เวอร์ชันที่เข้ากันไม่ได้อาจทำให้เกิดข้อผิดพลาด ตัวเลือกนี้ข้ามเฉพาะข้อจำกัดเวอร์ชัน แต่ยังคงตรวจสอบความปลอดภัยที่จำเป็น</value></data>
+<data name="GameExtensions.ForceVersion" xml:space="preserve"><value>ไม่ใช้ข้อจำกัดช่วงเวอร์ชันที่รองรับ</value></data>
+<data name="GameExtensions.ForceWarning" xml:space="preserve"><value>เวอร์ชันที่เข้ากันไม่ได้อาจทำให้เกิดข้อผิดพลาด ตัวเลือกนี้ข้ามเฉพาะข้อจำกัดเวอร์ชัน แต่ยังคงตรวจสอบความปลอดภัยที่จำเป็น และไม่ได้เปิดส่วนขยายให้ทำงาน</value></data>
 <data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>ข้ามข้อจำกัดเวอร์ชัน · ยังคงตรวจสอบความปลอดภัย</value></data>
   <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>กำลังบันทึกด้วยส่วนขยาย</value></data>
   <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>คำขอล่าสุด: บันทึกด้วยส่วนขยายสำเร็จ</value></data>
@@ -451,7 +460,7 @@
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>ถอยหลังอย่างนุ่มนวล</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>ทำให้ออกตัวถอยหลังนุ่มนวลขึ้นและจำกัดความเร็วถอยหลัง</value></data>
   <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>บังคับเลี้ยวอย่างละเอียด</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>ทำให้การเลี้ยวด้วยคีย์บอร์ดและการคืนล้อตรงค่อยเป็นค่อยไป</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>ปรับการเลี้ยวด้วยคีย์บอร์ดและการคืนล้อสู่แนวตรงให้ค่อยเป็นค่อยไป</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>แต่ละตัวเลือกจะบันทึกแยกกัน สถานะที่เกมยืนยันจะแสดงด้านล่าง</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>ใช้ในเกมแล้ว · ฟีเจอร์ทดลอง</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>ขอเปิดแล้ว · รอการยืนยันจากเกม</value></data>
@@ -461,11 +470,31 @@
   <data name="VehicleDrivetrain.Updating" xml:space="preserve"><value>ใช้งานอยู่ · รอยืนยันการตั้งค่าใหม่</value></data>
   <data name="VehicleDrivetrain.Unsupported" xml:space="preserve"><value>ไม่รองรับ · การขับขี่แบบเดิม</value></data>
   <data name="VehicleDrivetrain.Faulted" xml:space="preserve"><value>ส่วนขยายผิดพลาด · การขับขี่แบบเดิม</value></data>
-  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>เริ่มเกมใหม่เพื่อใช้ส่วนขยายนี้</value></data>
+  <data name="VehicleDrivetrain.RestartRequired" xml:space="preserve"><value>กรุณาปิดแล้วเปิดเกมใหม่เพื่อใช้ส่วนขยายนี้</value></data>
   <data name="VehicleDrivetrain.Reason" xml:space="preserve"><value>รายละเอียด: {0}</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>กำลังนำการเปลี่ยนแปลงไปใช้ในเกม</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>ไม่สามารถใช้ส่วนขยายได้ โปรดดูรายละเอียดในบันทึก</value></data>
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>การตั้งค่าที่บันทึกไว้จะมีผลเมื่อเข้าเกมผู้เล่นคนเดียว</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>หากต้องการใช้การตั้งค่า ให้เล่นเกมต่อ หยุดรถ ปล่อยคันเร่ง และปิดระบบควบคุมความเร็วอัตโนมัติ</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>เกมอยู่ที่เมนูหลัก</value></data>
+  <data name="VersionSetting.Header" xml:space="preserve"><value>เวอร์ชัน</value></data>
+  <data name="AboutSettings.Header" xml:space="preserve"><value>เกี่ยวกับ</value></data>
+  <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>ความเข้ากันได้และสถานะ</value></data>
+  <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>ไม่มีบันทึกระดับ{0}ขึ้นไป</value></data>
+  <data name="NoFilteredLogs" xml:space="preserve"><value>ไม่มีบันทึกที่ตรงกับตัวกรองที่เลือก</value></data>
+  <data name="LogShowAll" xml:space="preserve"><value>ดูบันทึกทั้งหมด</value></data>
+  <data name="HomeNavigation.Content" xml:space="preserve"><value>หน้าแรก</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>เครื่องมือสำรองเซฟ ฟื้นฟูตัวละคร และจัดการส่วนขยายสำหรับ Project Zomboid</value></data>
+  <data name="Home.FeaturesHeading" xml:space="preserve"><value>ฟีเจอร์หลัก</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>สำรองข้อมูลอัตโนมัติและด้วยตนเอง</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>บีบอัดและสำรองเฉพาะไฟล์ที่เปลี่ยนแปลง ตั้งช่วงเวลาสำรองอัตโนมัติและจำนวนชุดที่เก็บไว้ได้ โดยไม่นับชุดที่สำรองด้วยตนเอง</value></data>
+  <data name="Home.BackupAction" xml:space="preserve"><value>ตั้งค่าการสำรองข้อมูล</value></data>
+  <data name="Home.RestoreTitle" xml:space="preserve"><value>กู้คืนและส่งออกข้อมูลสำรอง</value></data>
+  <data name="Home.RestoreDescription" xml:space="preserve"><value>กู้คืนเซฟกลับไปยังตอนที่สำรองไว้ ส่งออกเซฟและข้อมูลสำรองเป็นไฟล์ ZIP หรือนำเข้าไฟล์ ZIP ได้</value></data>
+  <data name="Home.RestoreAction" xml:space="preserve"><value>รายการข้อมูลสำรอง</value></data>
+  <data name="Home.RecoveryTitle" xml:space="preserve"><value>ฟื้นฟูตัวละคร</value></data>
+  <data name="Home.RecoveryDescription" xml:space="preserve"><value>รักษาหรือชุบชีวิตตัวละครในเซฟปัจจุบัน โดยคงคุณลักษณะและทักษะไว้ ใช้กับเซฟที่กำลังเล่นอยู่ไม่ได้</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>ปรับการเร่งความเร็ว การเปลี่ยนเกียร์ การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ด เปิดหรือปิดแต่ละฟีเจอร์ได้โดยไม่ต้องติดตั้งม็อดแยก</value></data>
+  <data name="Home.ReportIssue" xml:space="preserve"><value>รายงานปัญหา</value></data>
+  <data name="Home.UnofficialNotice" xml:space="preserve"><value>เครื่องมือที่ไม่เป็นทางการสำหรับ Project Zomboid</value></data>
 </root>

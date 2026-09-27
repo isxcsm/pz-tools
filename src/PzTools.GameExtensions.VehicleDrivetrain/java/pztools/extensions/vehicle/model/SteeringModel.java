@@ -2,6 +2,8 @@ package pztools.extensions.vehicle.model;
 
 /** Keyboard-only angular-rate model. No game dependencies; rates are fractions of the current maximum angle per second. */
 public final class SteeringModel {
+    /** Preserve the game's float boundary when steering input is promoted to double. */
+    public static final double INPUT_DEAD_ZONE=0.1f;
     private final DrivetrainConfig config;
     private boolean initialized,countersteering;
     private double angle,held;
@@ -22,7 +24,7 @@ public final class SteeringModel {
         }
         if(!initialized) { angle=clamp(actualAngle,-maximumAngle,maximumAngle); initialized=true; }
         angle=clamp(angle,-maximumAngle,maximumAngle);
-        int next=Math.abs(input)<=0.1?0:input>0?-1:1;
+        int next=Math.abs(input)<=INPUT_DEAD_ZONE?0:input>0?-1:1;
         if(next!=direction) {
             held=0;
             // Countersteering belongs to the latest held intent, not to one side of center.

@@ -78,7 +78,8 @@ public sealed partial class GameExtensionsPage : UserControl
             ids.Add(id);
             if (!sections.TryGetValue(id, out var section))
             {
-                section = new ExtensionSettingsSection(id, (setting, value) => SaveEditAsync(id, setting, value));
+                section = new ExtensionSettingsSection(id, (setting, value) => SaveEditAsync(id, setting, value),
+                    initiallyExpanded: view.Cards.Count == 1);
                 sections.Add(id, section);
             }
             section.Update(view, card);

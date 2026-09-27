@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 
 /** Authenticated wire 1, independent of the save request and read-only WATCH slots. */
@@ -64,10 +65,13 @@ public final class ExtensionControl {
         private final Field gameThread;
         private final LongSupplier clock;
         private final Callable<ContinuousModules> moduleHost;
+        // Serialize this owner's host calls through retirement. The game thread must never wait
+        // for a command that can retransform classes or drain provider callbacks.
+        private final ReentrantLock operations = new ReentrantLock();
         private final Map<String, Cached> completed = new HashMap<>();
         private volatile ContinuousModules modules;
         private volatile long deadline;
-        private volatile boolean active = true;
+        private final AtomicBoolean active = new AtomicBoolean(true);
         private volatile ContinuousProvider.Context context;
         private String epoch;
         Session(Instrumentation instrumentation, Class<?> window) throws Exception {
@@ -83,8 +87,13 @@ public final class ExtensionControl {
             this.clock = clock; deadline = clock.getAsLong() + LEASE_NANOS;
             adapter = new PzRuntimeAdapter(window); gameThread = window.getField("gameThread");
         }
-        boolean expired() { return !active || clock.getAsLong() - deadline >= 0; }
+        boolean expired() { return !active.get() || clock.getAsLong() - deadline >= 0; }
         void poll() {
+            if (!active.get() || !operations.tryLock()) return;
+            try { if (active.get()) pollOwned(); }
+            finally { operations.unlock(); }
+        }
+        private void pollOwned() {
             ContinuousModules target = modules;
             if (expired()) { if (target != null) target.revoke("lease-expired"); return; }
             try {
@@ -111,6 +120,11 @@ public final class ExtensionControl {
             if (previous != null) previous.worldValid().set(false);
         }
         String command(String line) throws Exception {
+            operations.lock();
+            try { return commandOwned(line); }
+            finally { operations.unlock(); }
+        }
+        private String commandOwned(String line) throws Exception {
             if (expired()) throw new IOException("Extension lease expired");
             String[] p = line.split("\t", -1);
             if (p.length < 3 || !p[1].matches("[A-Za-z0-9_-]{1,80}") || !p[2].matches("[a-f0-9]{32}"))
@@ -156,14 +170,24 @@ public final class ExtensionControl {
             return response;
         }
         void close() {
-            active = false; invalidateWorld();
+            if (!active.compareAndSet(true, false)) return;
+            invalidateWorld();
             ContinuousModules target = modules;
+            // Revoke admission immediately, even if a game callback is still in flight.
             try { if (target != null) target.revoke("connection-ended"); }
-            catch (Throwable ignored) { /* Still release the bootstrap slot and attempt full retirement. */ }
-            finally { AgentEntry.releaseLifecycle(this); }
-            try { if (target != null) target.deactivate("connection-ended"); }
-            catch (Throwable ignored) { /* The closed owner cannot renew admission. */ }
-            finally { completed.clear(); modules = null; }
+            catch (Throwable ignored) { /* Still drain this owner and attempt full retirement. */ }
+            operations.lock();
+            try {
+                // An already admitted poll/command may have published these after close began.
+                invalidateWorld(); target = modules;
+                try { if (target != null) target.deactivate("connection-ended"); }
+                catch (Throwable ignored) { /* The closed owner cannot renew admission. */ }
+                finally { completed.clear(); modules = null; }
+            } finally {
+                // No old host call may run after a replacement owner acquires the shared host.
+                AgentEntry.releaseLifecycle(this);
+                operations.unlock();
+            }
         }
     }
     static Map<String, String> parseConfig(String encoded) throws IOException {

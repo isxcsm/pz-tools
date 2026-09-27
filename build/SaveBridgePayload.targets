@@ -14,8 +14,9 @@
                Link="save-bridge\pztools-save-bootstrap.jar" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(BridgeOutputPath)\pztools-attach-bootstrap.dll"
                Link="save-bridge\pztools-attach-bootstrap.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\*.jar"
-                        Exclude="$(BridgeOutputPath)\extensions\pztools-seamless-save.jar" />
+      <!-- Build outputs may also contain fixtures or retired modules. Ship only
+           the runtime and provider built for the bundled catalogue. -->
+      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar" />
       <Content Include="@(_BridgeExtension)" Link="save-bridge\extensions\%(_BridgeExtension.Filename)%(_BridgeExtension.Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(SaveBridgeRepositoryRoot)\config\game-extensions\catalog.tsv" Link="save-bridge\extensions\catalog.tsv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(SaveBridgeRepositoryRoot)\config\game-extensions\vehicle-drivetrain.toml" Link="save-bridge\extensions\vehicle-drivetrain.toml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

@@ -55,8 +55,12 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         await client.RequestAsync(game.Pid, temp.Path, true);
         var notices = (await File.ReadAllLinesAsync(temp.GetPath("notices.txt")))
             .Select(line => line.Split('\t')).ToArray();
-        Assert.Equal(new[] { "Game saving in 5 s", "Game saving in 4 s", "Game saving in 3 s", "Game saving in 2 s", "Game saving in 1 s", "Saving", "Game save complete" },
-            notices.Select(line => line[1]));
+        var language = LanguageCatalog.Get(SupportedLanguage.English);
+        var expectedNotices = Enumerable.Range(1, 5).Reverse()
+            .Select(seconds => string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                language.SaveCountdown, seconds))
+            .Append(language.SaveInProgress).Append(language.SaveCompleted);
+        Assert.Equal(expectedNotices, notices.Select(line => line[1]));
         Assert.InRange(long.Parse(notices[0][0]) - due.ToUnixTimeMilliseconds(), -5000, -4000);
         Assert.InRange(long.Parse(await File.ReadAllTextAsync(temp.GetPath("save-time.txt")))
             - due.ToUnixTimeMilliseconds(), 0, 1500);

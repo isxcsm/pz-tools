@@ -36,9 +36,11 @@ public sealed class PageEntranceUiSourceTests
         var layout = source[source.IndexOf("internal void CompleteInitialLayout", StringComparison.Ordinal)..
             source.IndexOf("private void LoadSettings", StringComparison.Ordinal)];
         Assert.Contains("if (initialLayoutCompleted) return;", layout);
-        Assert.Contains("group.Name == \"ExpandStates\"", layout);
-        Assert.Contains("storyboard.GetCurrentState() == ClockState.Active", layout);
-        Assert.True(layout.IndexOf("storyboard.SkipToFill()", StringComparison.Ordinal)
+        var shared = Source("SettingsExpanderLayout.cs");
+        Assert.Contains("group.Name == \"ExpandStates\"", shared);
+        Assert.Contains("storyboard.GetCurrentState() == ClockState.Active", shared);
+        Assert.Contains("storyboard.SkipToFill()", shared);
+        Assert.True(layout.IndexOf("SettingsExpanderLayout.CompleteInitialExpansion(section)", StringComparison.Ordinal)
             < layout.IndexOf("SettingsSections.ChildrenTransitions =", StringComparison.Ordinal));
         Assert.Contains("new RepositionThemeTransition { IsStaggeringEnabled = false }", layout);
         Assert.DoesNotContain("Task.Delay", layout);

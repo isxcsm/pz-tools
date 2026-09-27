@@ -1,4 +1,5 @@
 using PzTools.GameExtensions;
+using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
 using PzTools.SaveBridge;
@@ -7,7 +8,7 @@ namespace PzTools.State.Scheduler;
 
 /// <summary>Uses the selected WATCH process/session, never discovers another game or owns another WATCH.</summary>
 internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string runtimeRoot,
-    RuntimeSnapshotStore observations, RuntimeExtensionStatusStore published)
+    RuntimeSnapshotStore observations, RuntimeExtensionStatusStore published, ExtensionControlOptions options)
 {
     public async Task RunAsync(int processId, string stream, CancellationToken token)
     {
@@ -81,7 +82,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                         if (activation.Blocked(revision) is { } blocked)
                         {
                             published.Publish(blocked);
-                            await Task.Delay(1000, token);
+                            await Task.Delay(options.ReconcileIntervalMs, token);
                             continue;
                         }
                         RuntimeExtensionStatus? actual = null;
@@ -89,7 +90,8 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                         {
                             published.Publish(new(RuntimeExtensionState.Pending, "connecting", process, world,
                                 RequestedRevision: revision));
-                            client = await GameExtensionClient.ConnectAsync(bridgeDirectory, processId, token);
+                            client = await GameExtensionClient.ConnectAsync(bridgeDirectory, processId,
+                                TimeSpan.FromSeconds(options.ConnectTimeoutSeconds), token);
                             actual = await client.StatusAsync(token);
                             activation.VerifyTarget(actual, revision);
                             reconciliation = new(actual);
@@ -100,7 +102,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                         if (actual is not null && GameExtensionActivationState.IsDefinitiveFailure(actual, false))
                         {
                             await FailClosedAsync(actual, revision, process, world);
-                            await Task.Delay(1000, token);
+                            await Task.Delay(options.ReconcileIntervalMs, token);
                             continue;
                         }
 
@@ -148,14 +150,14 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                             else published.Publish(activation.Observe(actual, revision));
                         }
                     }
-                    await Task.Delay(1000, token);
+                    await Task.Delay(options.ReconcileIntervalMs, token);
                 }
                 catch (ExtensionSessionMismatchException)
                 {
                     await CloseLeaseAsync(requestOff: true);
                     published.Publish(new(RuntimeExtensionState.Pending, "control-session-changed",
                         process ?? "", world, RequestedRevision: revision));
-                    await Task.Delay(1000, token);
+                    await Task.Delay(options.ReconcileIntervalMs, token);
                 }
                 catch (Exception error) when (Recoverable(error, token))
                 {
@@ -170,7 +172,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                         await CloseLeaseAsync(requestOff: true);
                         published.Publish(failed);
                     }
-                    await Task.Delay(1000, token);
+                    await Task.Delay(options.ReconcileIntervalMs, token);
                 }
             }
         }

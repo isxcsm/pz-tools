@@ -167,9 +167,13 @@
                        Style="{StaticResource SecondaryTextStyle}" />
           </StackPanel>
           <StackPanel x:Name="EmptyLogs" Grid.Row="2" Visibility="Collapsed" HorizontalAlignment="Center"
-                      VerticalAlignment="Center" Spacing="8">
+                      VerticalAlignment="Center" Spacing="8" Margin="24">
             <FontIcon Glyph="&#xE8A5;" FontSize="30" Opacity="0.5" />
-            <TextBlock x:Name="EmptyLogsText" Text="표시할 로그가 없습니다." Opacity="0.68" />
+            <TextBlock x:Name="EmptyLogsText" Text="표시할 로그가 없습니다." Opacity="0.68"
+                       TextAlignment="Center" TextWrapping="Wrap" />
+            <HyperlinkButton x:Name="ShowAllLogsButton" Content="전체 로그 보기"
+                             HorizontalAlignment="Center" Visibility="Collapsed"
+                             Click="ClearAllFilters_Click" />
           </StackPanel>
           <Border x:Name="PagerFooter" Grid.Row="3" Padding="8,6,8,10"
                   Visibility="Collapsed">
@@ -199,9 +203,7 @@
       </Border>
 
       <Grid x:Name="LogDetailCard" Grid.Column="1">
-          <Border x:Name="NoLogSelectedCard" Padding="20" CornerRadius="8" BorderThickness="1"
-                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+          <Border x:Name="NoLogSelectedCard" Padding="20">
           <TextBlock x:Name="SelectLogText" Text="로그를 선택하면 상세 정보가 표시됩니다."
                      HorizontalAlignment="Center" VerticalAlignment="Center"
                      TextAlignment="Center" TextWrapping="Wrap" Opacity="0.62" />

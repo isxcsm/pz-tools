@@ -4,13 +4,28 @@ namespace PzTools.Process.Contracts;
 public sealed record StateSchedulerOptions(int IntervalSeconds, int WakeIntervalMs,
     int ConfirmationDelayMs, int CleanupIntervalSeconds)
 {
+    public ExtensionControlOptions Extensions { get; init; } = new();
+
     public static StateSchedulerOptions Read(ComponentConfiguration config)
     {
         config.ValidateSection("scheduler", "interval_seconds", "wake_interval_ms", "confirmation_delay_ms", "cleanup_interval_seconds");
         return new(config.GetInt32("scheduler", "interval_seconds", 3, 1, int.MaxValue),
             config.GetInt32("scheduler", "wake_interval_ms", 1000, 100, 5000),
             config.GetInt32("scheduler", "confirmation_delay_ms", 150, 50, 5000),
-            config.GetInt32("scheduler", "cleanup_interval_seconds", 60, 10, 86400));
+            config.GetInt32("scheduler", "cleanup_interval_seconds", 60, 10, 86400))
+        {
+            Extensions = ExtensionControlOptions.Read(config),
+        };
+    }
+}
+
+public sealed record ExtensionControlOptions(int ReconcileIntervalMs = 1000, int ConnectTimeoutSeconds = 20)
+{
+    public static ExtensionControlOptions Read(ComponentConfiguration config)
+    {
+        config.ValidateSection("extensions", "reconcile_interval_ms", "connect_timeout_seconds");
+        return new(config.GetInt32("extensions", "reconcile_interval_ms", 1000, 250, 1000),
+            config.GetInt32("extensions", "connect_timeout_seconds", 20, 5, 60));
     }
 }
 
@@ -97,7 +112,8 @@ public static class ComponentOptions
         if (component is "app" or "backup-worker") return;
         string[] sections = component switch
         {
-            "state-scheduler" or "backup-scheduler" => ["scheduler", "telemetry"],
+            "state-scheduler" => ["scheduler", "extensions", "telemetry"],
+            "backup-scheduler" => ["scheduler", "telemetry"],
             "maintenance-worker" => ["maintenance", "telemetry"],
             "archive-worker" => ["archive", "preview", "telemetry"],
             "state-reactor" => ["state", "telemetry"],

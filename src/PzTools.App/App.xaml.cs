@@ -167,6 +167,7 @@ public partial class App : Application
             {
                 Host = CreateHost(runtimeRoot!);
                 await Host.StartAsync();
+                RefreshShellAfterHostReplacement(Host.Settings.Load());
                 throw;
             }
         }
@@ -209,6 +210,7 @@ public partial class App : Application
                         scheduler);
                     rollback.PublishSettings(previous);
                     await rollback.StartAsync();
+                    RefreshShellAfterHostReplacement(previous);
                 }
                 catch (Exception rollbackFailure)
                 {
@@ -224,11 +226,22 @@ public partial class App : Application
             }
         }
 
-        ApplyLanguage(settings.Language, reloadContent: !pathsChanged);
-        if (pathsChanged && window is not null)
+        if (pathsChanged)
+            RefreshShellAfterHostReplacement(settings);
+        else
         {
-            window.Content = new MainWindowShell();
+            ApplyLanguage(settings.Language);
+            ApplyTheme(settings.Theme);
+            ConfigureTray(settings.UseSystemTray);
         }
+    }
+
+    private void RefreshShellAfterHostReplacement(AppSettings settings)
+    {
+        // A shell owns subscriptions and view revision cursors for one host.
+        // Recovery must replace it just like a successful data-root switch.
+        ApplyLanguage(settings.Language, reloadContent: false);
+        if (window is not null) window.Content = new MainWindowShell();
         ApplyTheme(settings.Theme);
         ConfigureTray(settings.UseSystemTray);
     }

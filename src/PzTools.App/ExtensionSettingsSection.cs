@@ -15,6 +15,7 @@ internal sealed class ExtensionSettingsSection
     public SettingsExpander Control { get; }
     private readonly TextBlock title = Text();
     private readonly TextBlock description = Text();
+    private readonly TextBlock statusTitle = Text();
     private readonly TextBlock version = Text();
     private readonly TextBlock status = Text();
     private readonly TextBlock lastSave = Text();
@@ -22,14 +23,14 @@ internal sealed class ExtensionSettingsSection
     private readonly SettingToggle enabled;
     private readonly List<SettingRow> options = [];
 
-    public ExtensionSettingsSection(string id, Func<GameExtensionSetting, bool, Task> save)
+    public ExtensionSettingsSection(string id, Func<GameExtensionSetting, bool, Task> save, bool initiallyExpanded = false)
     {
         enabled = new(value => save(GameExtensionSetting.Enabled, value));
         var details = new StackPanel { Spacing = 4 };
-        foreach (var text in new[] { description, version, status, lastSave, hint }) details.Children.Add(text);
+        foreach (var text in new[] { version, status, lastSave, hint }) details.Children.Add(text);
         Control = new SettingsExpander
         {
-            Header = title, Description = details, Content = enabled.Control, IsExpanded = false,
+            Header = title, Description = description, Content = enabled.Control, IsExpanded = initiallyExpanded,
             HeaderIcon = new ImageIcon
             {
                 Width = 20, Height = 20,
@@ -42,7 +43,9 @@ internal sealed class ExtensionSettingsSection
             AddOption(GameExtensionSetting.Reverse, "VehicleDrivetrain.Reverse", "VehicleDrivetrain.ReverseDescription");
             AddOption(GameExtensionSetting.Steering, "VehicleDrivetrain.Steering", "VehicleDrivetrain.SteeringDescription");
         }
+        Control.Items.Add(new SettingsCard { Header = statusTitle, Description = details });
         AddOption(GameExtensionSetting.ForceVersion, "GameExtensions.ForceVersion", "GameExtensions.ForceWarning");
+        Control.Loaded += CompleteInitialLayout;
 
         void AddOption(GameExtensionSetting setting, string titleKey, string descriptionKey)
         {
@@ -52,12 +55,21 @@ internal sealed class ExtensionSettingsSection
         }
     }
 
+    private void CompleteInitialLayout(object sender, RoutedEventArgs args)
+    {
+        Control.Loaded -= CompleteInitialLayout;
+        Control.UpdateLayout();
+        SettingsExpanderLayout.CompleteInitialExpansion(Control);
+        Control.UpdateLayout();
+    }
+
     public void Update(GameExtensionsView view, ExtensionCardView card)
     {
         var activation = view.ActivationFor(card);
         var name = Localizer.Get(card.Definition.TitleKey);
         SetText(title, name);
         SetText(description, Localizer.Get(card.Definition.DescriptionKey));
+        SetText(statusTitle, Localizer.Get("GameExtensions.CompatibilityStatus"));
         SetText(version, VersionDescription(card));
         SetText(status, activation.IsPerSave ? StatusText(card) : null);
         SetText(lastSave, ExecutionText(view.LastSave, card.Definition.Id));

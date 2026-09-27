@@ -6,6 +6,39 @@ namespace PzTools.Backup.Tests;
 
 public sealed class ContinuousExtensionContractsTests
 {
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(4999)]
+    [InlineData(60001)]
+    public async Task ConnectionTimeoutRejectsInvalidValuesBeforeStartingAHelper(int milliseconds)
+    {
+        using var temp = new TempDirectory();
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => GameExtensionClient.ConnectAsync(
+            temp.GetPath("missing-bridge"), 1, TimeSpan.FromMilliseconds(milliseconds), CancellationToken.None));
+        Assert.Equal("connectTimeout", error.ParamName);
+    }
+
+    [Theory]
+    [InlineData(5)]
+    [InlineData(60)]
+    public async Task ConnectionTimeoutAcceptsBoundsBeforeCheckingBridgeFiles(int seconds)
+    {
+        using var temp = new TempDirectory();
+        var error = await Assert.ThrowsAsync<GameSaveException>(() => GameExtensionClient.ConnectAsync(
+            temp.GetPath("missing-bridge"), 1, TimeSpan.FromSeconds(seconds), CancellationToken.None));
+        Assert.Equal("bridge-not-built", error.Code);
+    }
+
+    [Fact]
+    public async Task OriginalConnectionOverloadRetainsItsDefault()
+    {
+        using var temp = new TempDirectory();
+        var error = await Assert.ThrowsAsync<GameSaveException>(() => GameExtensionClient.ConnectAsync(
+            temp.GetPath("missing-bridge"), 1, CancellationToken.None));
+        Assert.Equal("bridge-not-built", error.Code);
+    }
+
     [Fact]
     public void StatusProtocolBindsCommandAndAppliedIdentity()
     {

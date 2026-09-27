@@ -397,6 +397,47 @@ public sealed class IncrementalBackupRunnerTests
         Assert.Equal(SHA256.HashData("original"u8)[..16], await ReadCurrentHashAsync(setup));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Run_DirectoryReplacedByFile_DeletesItsFormerChildren(bool fullScanWithAlwaysIncludedChild)
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("source");
+        var folder = Path.Combine(root, "folder");
+        Directory.CreateDirectory(folder);
+        var child = Path.Combine(folder, "child.bin");
+        await File.WriteAllTextAsync(child, "old child");
+        var metadata = new WindowsFileMetadataReader();
+        var rootReference = Decode(metadata.ReadPath(root).Identity);
+        var oldFolderReference = Decode(metadata.ReadPath(folder).Identity);
+        var oldChildReference = Decode(metadata.ReadPath(child).Identity);
+        await using var setup = await CreateInitialAsync(temp, root);
+        Directory.Delete(folder, recursive: true);
+        await File.WriteAllTextAsync(folder, "replacement file");
+        var records = new[]
+        {
+            Record(oldChildReference, oldFolderReference, 110, UsnReason.FileDelete, "child.bin"),
+            Record(oldFolderReference, rootReference, 120, UsnReason.FileDelete, "folder")
+                with { FileAttributes = FileAttributes.Directory },
+            Record(Decode(metadata.ReadPath(folder).Identity), rootReference, 130, UsnReason.FileCreate, "folder"),
+        };
+        IUsnJournalSource journal = fullScanWithAlwaysIncludedChild
+            ? new UnavailableJournal() : new FakeJournal(new(1, 2, 0, 200, 0), records);
+        var result = await CreateIncrementalRunner(metadata, journal).RunAsync(
+            setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry,
+            executionOptions: null, alwaysIncludePaths: fullScanWithAlwaysIncludedChild ? ["folder/child.bin"] : []);
+
+        Assert.Equal(2, result.Revision);
+        Assert.Equal(fullScanWithAlwaysIncludedChild ? BackupScanMode.FullScan : BackupScanMode.Journal, result.ScanMode);
+        var entry = Assert.Single(await setup.Repository.ReadRevisionEntriesAsync(setup.Source.SourceId, 2));
+        Assert.Equal("folder", entry.RelativePath);
+        Assert.Equal("File", entry.EntryKind);
+        var target = temp.GetPath("restored");
+        await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, 2, target);
+        Assert.Equal("replacement file", await File.ReadAllTextAsync(Path.Combine(target, "folder")));
+    }
+
     private sealed class FailingPathMetadataReader(string failingPath, int errorCode) : IFileMetadataReader
     {
         private readonly WindowsFileMetadataReader inner = new();

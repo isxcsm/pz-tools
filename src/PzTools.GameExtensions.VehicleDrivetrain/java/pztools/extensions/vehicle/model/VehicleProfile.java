@@ -14,6 +14,7 @@ public final class VehicleProfile {
     public final double launchRpm;
     private final double peakFraction;
     private final double idleTorqueFraction;
+    private final double forwardTorqueBoostFraction;
 
     private VehicleProfile(String type, int gears, double maxSpeed, double redline, double peak, DrivetrainConfig config) {
         engineRpmType = type;
@@ -24,6 +25,7 @@ public final class VehicleProfile {
         launchRpm = config.launchRpm;
         peakFraction = peak;
         idleTorqueFraction = config.idleTorqueFraction;
+        forwardTorqueBoostFraction = config.forwardTorqueBoostFraction;
         ratios = new double[gears];
         // Bounded, tunable geometric spacing. No claim that this is the car's physical gearbox.
         for (int i = 0; i < gears; i++) ratios[i] = Math.pow(config.gearRatioSpan, (gears - i - 1.0) / (gears - 1.0));
@@ -65,7 +67,7 @@ public final class VehicleProfile {
 
     /** Add at most ten percent to the base force envelope; do not turn proxy redline into another speed cap. */
     public double forwardTorqueModulation(double rpm) {
-        return 1.0 + 0.10 * torqueShape(rpm);
+        return 1.0 + forwardTorqueBoostFraction * torqueShape(rpm);
     }
 
     /** Bounded curve with useful idle torque, an engine-family peak and a redline fade. */

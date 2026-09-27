@@ -3,7 +3,6 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using PzTools.App.Core;
 using PzTools.Projections;
@@ -142,20 +141,7 @@ public sealed partial class SettingsPage : UserControl
         if (initialLayoutCompleted) return;
         UpdateLayout();
         foreach (var section in new[] { DisplaySection, PathSection, BackupSection, AdvancedSection })
-        {
-            // SettingsExpander wraps a native Expander whose initial expanded state
-            // includes a storyboard. Finish only that initial state, while the page
-            // is hidden, so it does not compete with the shell's entrance animation.
-            if (VisualTreeHelper.GetChildrenCount(section) == 0
-                || VisualTreeHelper.GetChild(section, 0) is not Expander expander
-                || VisualTreeHelper.GetChildrenCount(expander) == 0
-                || VisualTreeHelper.GetChild(expander, 0) is not FrameworkElement root)
-                continue;
-            foreach (var group in VisualStateManager.GetVisualStateGroups(root))
-                if (group.Name == "ExpandStates" && group.CurrentState?.Storyboard is { } storyboard
-                    && storyboard.GetCurrentState() == ClockState.Active)
-                    storyboard.SkipToFill();
-        }
+            SettingsExpanderLayout.CompleteInitialExpansion(section);
         UpdateLayout();
         SettingsSections.ChildrenTransitions = new TransitionCollection
         {

@@ -94,6 +94,13 @@
       </StackPanel>
     </NavigationView.PaneHeader>
     <NavigationView.MenuItems>
+      <NavigationViewItem x:Name="HomeItem" Tag="home">
+        <NavigationViewItem.Icon>
+          <ImageIcon Width="20" Height="20">
+            <ImageIcon.Source><SvgImageSource UriSource="ms-appx:///Assets/Navigation/home.svg" /></ImageIcon.Source>
+          </ImageIcon>
+        </NavigationViewItem.Icon>
+      </NavigationViewItem>
       <NavigationViewItem x:Name="SavesItem" x:Uid="SavesNavigation" Content="세이브 관리" Tag="saves">
         <NavigationViewItem.Icon>
           <ImageIcon Width="20" Height="20">
@@ -170,7 +177,8 @@
       </StackPanel>
     </NavigationView.PaneFooter>
     <Grid x:Name="PageContent" Background="Transparent" Padding="{StaticResource PageContentPadding}">
-      <Grid x:Name="SavesRoot" ColumnSpacing="12" SizeChanged="SavesRoot_SizeChanged">
+      <Grid x:Name="SavesRoot" ColumnSpacing="12" SizeChanged="SavesRoot_SizeChanged"
+            Opacity="0" IsHitTestVisible="False">
         <Grid.ColumnDefinitions>
           <ColumnDefinition x:Name="ListColumn" Width="420" MinWidth="320" />
           <ColumnDefinition x:Name="DetailColumn" Width="*" />
@@ -477,6 +485,7 @@
                      Height="2" VerticalAlignment="Top" IsIndeterminate="True"
                      Visibility="Collapsed" Canvas.ZIndex="10" IsHitTestVisible="False" />
       </Grid>
+      <local:HomePage x:Name="HomeRoot" />
       <local:LogsPage x:Name="LogsRoot" Visibility="Collapsed" />
       <local:SettingsPage x:Name="SettingsRoot" Visibility="Collapsed" />
       <local:GameExtensionsPage x:Name="GameExtensionsRoot" Visibility="Collapsed" />

@@ -13,6 +13,7 @@ public sealed class VehicleDrivetrainConfigurationTests
     {
         var values = VehicleDrivetrainConfiguration.Parse("schema_version = 1\nreverse_max_speed_kph = 10.5\n");
         Assert.Equal("1", values["force_scale"]);
+        Assert.Equal("0.1", values["forward_torque_boost_fraction"]);
         Assert.Equal("1", values["low_gear_boost"]);
         Assert.Equal("1", values["reverse_force_ratio"]);
         Assert.Equal("10.5", values["reverse_max_speed_kph"]);
@@ -44,6 +45,11 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("force_scale = inf")]
     [InlineData("force_scale = '1.0'")]
     [InlineData("force_scale = 0")]
+    [InlineData("forward_torque_boost_fraction = -0.001")]
+    [InlineData("forward_torque_boost_fraction = 0.1001")]
+    [InlineData("forward_torque_boost_fraction = nan")]
+    [InlineData("forward_torque_boost_fraction = inf")]
+    [InlineData("forward_torque_boost_fraction = '0.05'")]
     [InlineData("force_scale = 1\nforce_scale = 1")]
     [InlineData("force_scale = 1\n'force_scale' = 0.8")]
     [InlineData("force_scale = 1\n\"force_\\u0073cale\" = 0.8")]
@@ -106,6 +112,9 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("reverse_governor_start_fraction", "1.0", "1")]
     [InlineData("reverse_force_ratio", "0.4", "0.4")]
     [InlineData("reverse_force_ratio", "1.0", "1")]
+    [InlineData("forward_torque_boost_fraction", "0", "0")]
+    [InlineData("forward_torque_boost_fraction", "0.05", "0.05")]
+    [InlineData("forward_torque_boost_fraction", "0.10", "0.1")]
     [InlineData("steering_return_rate", "0.5", "0.5")]
     [InlineData("steering_return_rate", "10.0", "10")]
     [InlineData("steering_countersteer_rate", "0.5", "0.5")]
@@ -156,6 +165,7 @@ public sealed class VehicleDrivetrainConfigurationTests
             utility_torque_peak_fraction = 0.45
             sport_torque_peak_fraction = 0.7
             idle_torque_fraction = 0.4
+            forward_torque_boost_fraction = 0.05
             rpm_response_seconds = 0.2
             direction_speed_mps = 0.2
             forward_governor_start_fraction = 0.85
@@ -163,13 +173,34 @@ public sealed class VehicleDrivetrainConfigurationTests
             shift_hysteresis_fraction = 0.1
             demand_downshift_fraction = 0.5
             """);
-        Assert.Equal(40, values.Count);
+        Assert.Equal(41, values.Count);
         Assert.Equal("4", values["gear_ratio_span"]);
         Assert.Equal("700", values["idle_rpm"]);
         Assert.Equal("6000", values["generic_redline_rpm"]);
         Assert.Equal("0.4", values["idle_torque_fraction"]);
+        Assert.Equal("0.05", values["forward_torque_boost_fraction"]);
         Assert.Equal("0.2", values["rpm_response_seconds"]);
         Assert.Equal("0.1", values["shift_hysteresis_fraction"]);
+    }
+
+    [Fact]
+    public void ForwardTorqueBoostOverridePreservesOldDefaultsAndDoesNotRewriteFiles()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(temp.GetPath("bridge/extensions"));
+        Directory.CreateDirectory(temp.GetPath("runtime/extensions"));
+        var package = temp.GetPath("bridge/extensions/vehicle-drivetrain.toml");
+        var overrides = temp.GetPath("runtime/extensions/vehicle-drivetrain.toml");
+        const string oldPackage = "schema_version = 1\nforce_scale = 0.9\n";
+        File.WriteAllText(package, oldPackage);
+        Assert.Equal("0.1", VehicleDrivetrainConfiguration.Load(temp.GetPath("bridge"), temp.GetPath("runtime"))["forward_torque_boost_fraction"]);
+        File.WriteAllText(overrides, "forward_torque_boost_fraction = 0\n");
+        var values = VehicleDrivetrainConfiguration.Load(temp.GetPath("bridge"), temp.GetPath("runtime"));
+        Assert.Equal("0", values["forward_torque_boost_fraction"]);
+        Assert.Equal("0.9", values["force_scale"]);
+        Assert.Equal("true", values["torque_enabled"]);
+        Assert.Equal(oldPackage, File.ReadAllText(package));
+        Assert.Equal("forward_torque_boost_fraction = 0\n", File.ReadAllText(overrides));
     }
 
     [Fact]

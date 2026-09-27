@@ -7,4 +7,6 @@ artifacts/
 *.suo
 *.nupkg
 *.snupkg
+__pycache__/
+*.py[cod]
 

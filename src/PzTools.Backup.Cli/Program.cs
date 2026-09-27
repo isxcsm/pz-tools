@@ -404,9 +404,15 @@ internal static class BackupCli
                     new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repositoryPath),
                     new OperationMutexRequest(OperationMutexScope.SaveWrite, targetPath),
                 ],
-                token => new SafeRevisionRestoreService().RestoreReplacingAsync(
-                    repository, source.SourceId, revision, targetPath,
-                    ObserveRestoreAsync, token),
+                async token =>
+                {
+                    // Detached maintenance lanes use the writer lease. Keep it
+                    // through pack reads and publication, not just catalog lookup.
+                    await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
+                    return await new SafeRevisionRestoreService().RestoreReplacingAsync(
+                        repository, source.SourceId, revision, targetPath,
+                        ObserveRestoreAsync, token);
+                },
                 cancellationToken);
             if (!mutex.Acquired)
             {
@@ -426,6 +432,14 @@ internal static class BackupCli
         {
             telemetry?.RecordEvent("run.cancelled");
             return WriteFailure(ProcessOutcome.Cancelled, "cancelled", "Restore was cancelled.");
+        }
+        catch (RepositoryBusyException)
+        {
+            telemetry?.RecordEvent("run.busy");
+            Console.WriteLine(ProcessResultJson.Serialize(
+                ProcessResultEnvelope<SafeRestoreResult>.Success(
+                    "restore-worker", runIndex, ProcessOutcome.Busy, started)));
+            return ProcessExitCodes.Busy;
         }
         catch (Exception exception) when (
             exception is ArgumentException or FormatException or OverflowException)
@@ -484,16 +498,18 @@ internal static class BackupCli
             "--keep");
         var repositoryPath = RepositoryCommandArguments.Required(values, "--repository");
         var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath, cancellationToken);
-        await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
-        var source = await repository.GetSourceAsync(
-            RepositoryCommandArguments.Required(values, "--source-id"),
-            cancellationToken);
-        var result = await repository.PruneRevisionsAsync(
-            lease,
-            source.SourceId,
-            checked((int)RepositoryCommandArguments.RequiredInt64(values, "--keep")),
-            cancellationToken);
-        Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+        var sourceKey = RepositoryCommandArguments.Required(values, "--source-id");
+        var keepLatest = checked((int)RepositoryCommandArguments.RequiredInt64(values, "--keep"));
+        var result = await OperationMutexSet.TryRunAsync(
+            [new(OperationMutexScope.RepositoryAccess, repositoryPath)],
+            async token =>
+            {
+                await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
+                var source = await repository.GetSourceAsync(sourceKey, token);
+                return await repository.PruneRevisionsAsync(lease, source.SourceId, keepLatest, token);
+            }, cancellationToken);
+        if (!result.Acquired) throw new RepositoryBusyException(repositoryPath);
+        Console.WriteLine(JsonSerializer.Serialize(result.Value, JsonOptions));
         return 0;
     }
 
@@ -504,10 +520,16 @@ internal static class BackupCli
         var values = RepositoryCommandArguments.Parse(arguments, "--repository");
         var repositoryPath = RepositoryCommandArguments.Required(values, "--repository");
         var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath, cancellationToken);
-        await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
-        var result = await repository.CollectGarbageAsync(lease, cancellationToken);
-        Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
-        return result.FilesThatCouldNotBeDeleted.Count == 0 ? 0 : 4;
+        var result = await OperationMutexSet.TryRunAsync(
+            [new(OperationMutexScope.RepositoryAccess, repositoryPath)],
+            async token =>
+            {
+                await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
+                return await repository.CollectGarbageAsync(lease, token);
+            }, cancellationToken);
+        if (!result.Acquired) throw new RepositoryBusyException(repositoryPath);
+        Console.WriteLine(JsonSerializer.Serialize(result.Value, JsonOptions));
+        return result.Value!.FilesThatCouldNotBeDeleted.Count == 0 ? 0 : 4;
     }
 
     private static int ValidateConfiguration(string[] arguments)

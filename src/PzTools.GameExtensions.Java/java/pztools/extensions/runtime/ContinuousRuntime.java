@@ -99,7 +99,11 @@ final class ContinuousRuntime {
                     report = empty("Unsupported", support.reason()); return report;
                 }
                 var next = new Generation(candidate, definition, archive.digest(), request, loader);
-                candidate = null; current.set(next); report = next.status("Pending", "safe-boundary"); return report;
+                candidate = null;
+                // Initialize the report before tick can activate this generation and acknowledge it.
+                report = next.status("Pending", "safe-boundary");
+                current.set(next);
+                return report;
             } catch (Exception | LinkageError failure) {
                 if (candidate != null) try { candidate.deactivate(); candidate.close(); }
                 catch (Exception | LinkageError cleanup) { poisoned = true; report = empty("RestartRequired", "candidate-retirement-failed"); }
@@ -157,6 +161,8 @@ final class ContinuousRuntime {
                 if (!g.revoked) {
                     g.revision = pending.revision();
                     if (g.pending == pending) { g.pending = null; report = g.status("Active", null); }
+                    // A newer request may still be waiting, but this callback's configuration is already applied.
+                    else report = g.status("Pending", "safe-boundary");
                 }
             }
             if (g.revoked) g.provider.deactivate();
