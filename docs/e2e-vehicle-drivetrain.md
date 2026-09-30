@@ -1,56 +1,127 @@
-# Testing Vehicle Driving Improvements
+# Testing the vehicle and screen-look extensions
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-Vehicle Driving Improvements 0.2.0 is experimental and off by default. This is a test procedure, not a completed driving report. The [design document](vehicle-drivetrain-design.md) describes the supported build, model, and remaining calibration work.
+This is a hands-on procedure for trying the [game extensions](game-extensions.md) in a
+real game: **Vehicle Driving Improvements** 0.2.0 and **Screen look**. It is for
+testers who want to compare them with the original game, check that settings apply as
+expected, and back out safely. Vehicle Driving Improvements is experimental and off by
+default.
 
-## Prepare
+This page is a test procedure, not a finished driving report. The
+[design document](vehicle-drivetrain-design.md) describes the supported build, the
+driving model and the calibration work still open.
 
-Use a disposable single-player world with an existing backup. Start with a standard vehicle and disable other Java vehicle-physics patches. Check the app's save and backup paths before testing; settings and logs are shared under `%LOCALAPPDATA%/PzTools`.
+## Before you start
 
-Run a complete Windows x64 distribution containing the app, workers, bridge, extension runtime, and vehicle module. Close any earlier app, including its tray instance, and ensure a developer `PZTOOLS_TOOLS_DIR` override does not point elsewhere. Do not update a test installation by copying only one JAR.
+1. Use a disposable single-player world that already has a backup.
+2. Start with a standard vehicle, and disable other Java vehicle-physics patches.
+3. Check the app's save and backup paths. Settings and logs are shared under
+   `%LOCALAPPDATA%/PzTools`.
+4. Run a complete Windows x64 distribution containing the app, workers, bridge,
+   extension runtime and vehicle module. Do not update a test installation by copying
+   only one JAR.
+5. Close any earlier app, including its tray instance, and make sure a developer
+   `PZTOOLS_TOOLS_DIR` override does not point somewhere else.
+6. If the game has already loaded an older, incompatible
+   [bootstrap](glossary.md#bootstrap), restart the game fully once. The
+   [compatibility table](save-bridge.md#compatibility-and-lifecycle) lists which
+   bootstrap versions need this. Starting the game before the app is fine when no older
+   agent is resident, and while the bootstrap stays compatible, restarting the app does
+   not require restarting the game each time.
 
-A game that already loaded bootstrap API9 or earlier needs one full restart. Starting the game before the app is supported when no older agent is resident; compatible API10 app restarts do not require restarting the game each time.
+## Which vehicles and builds are covered
 
-The catalog declares major version 42. Mandatory bytecode and structural checks still target the inspected 42.20 build; the declaration does not guarantee every 42.x patch. Propulsion candidates are four-wheel vehicles with `generic`, `van`, `jeep`, or `firebird` engine types and 3–5 gears. Unknown profiles, stopped engines, towed/burnt vehicles, and burnt-vehicle towing use original propulsion. Keyboard steering is checked independently and can apply with the engine off or an unsupported propulsion profile. Gamepad, towed, and burnt-vehicle steering remains original.
+The [catalogue](../config/game-extensions/catalog.tsv) declares major version 42. The
+mandatory bytecode and structural checks still target the inspected 42.20 build;
+declaring the range does not guarantee every 42.x patch.
+
+| Part | Applies to | Uses the original game instead |
+| --- | --- | --- |
+| Propulsion (acceleration, shifting, reverse) | Four-wheel vehicles with engine type `generic`, `van`, `jeep` or `firebird` and 3–5 gears | Unknown profiles, stopped engines, towed or burnt vehicles, and towing a burnt vehicle |
+| Keyboard steering | Checked on its own, so it can apply with the engine off or with an unsupported propulsion profile | Gamepad steering, towed and burnt vehicles |
 
 ## First comparison
 
-Open **Game extensions → Vehicle Driving Improvements**. The extension-wide switch is on the right of the header; expand it to see:
+Open **Game extensions → Vehicle Driving Improvements**. The switch for the whole
+extension is on the right of the card header; expand the card to see:
 
 - **Natural acceleration and shifting**
 - **Smooth reversing**
 - **Fine steering control**
+- **Light around the vehicle**
 
-New feature preferences start on, but the extension itself starts off. All three off means original driving. Older observation-only preferences are read as all three off.
+The extension itself starts off. Of its options, the three driving ones start on and
+the light starts off. With everything off you have the original game. Preferences saved
+by older observation-only versions are read as everything off.
 
-Begin with only Fine steering control enabled. Resume the game, stop on level ground, and release acceleration and cruise so the saved settings can apply. Compare **off → on → off** with the same vehicle, load, tires, engine condition, road, and character traits.
+1. Turn on only **Fine steering control**.
+2. Resume the game, stop on level ground, and release acceleration and cruise control
+   so the saved settings can apply (the [safe boundary](glossary.md#safe-boundary)).
+3. Compare **off → on → off** with the same vehicle, load, tyres, engine condition,
+   road and character traits.
+4. Repeat for the other options.
 
 | Feature | What to compare |
 | --- | --- |
-| Steering | Tap and hold a direction, release it, then hold the opposite direction. Check return to center and repeated reversals, including a second reversal before reaching center. Watch both the wheels and actual turn. |
-| Reverse | Compare launch and sustained reverse. Check the default 0.8-second launch ramp, the vehicle-specific speed limit, and the absence of the old 22 km/h cap and additional force reduction after the ramp. |
+| Steering | Tap and hold a direction, release it, then hold the opposite direction. Check return to centre and repeated reversals, including a second reversal before reaching centre. Watch both the wheels and the actual turn. |
+| Reverse | Compare launch and sustained reverse. Check the default 0.8-second launch ramp and the vehicle-specific speed limit. There should be no 22 km/h cap (as in earlier versions) and no further force reduction after the ramp. |
 | Acceleration/shifting | Compare launch, first-to-second gear, and acceleration after a corner. Watch for gear hunting, early loss of low-speed force, or a long force gap after reapplying input. |
 
-For initial feedback, report `vehicle / enabled option / observed behavior`. Developer diagnostics are optional.
+For initial feedback, report `vehicle / enabled option / observed behavior`. Developer
+diagnostics are optional.
 
-For the release-input fix, tap and hold each direction, then release it or alternate directions quickly. The front wheels should start returning without an extra outward steering step from the old input. Return-rate settings and native body rotation/sliding are unchanged: immediate straight-line travel is not the acceptance condition. Check that gamepad behavior and the game's aiming/text-input restrictions remain intact.
+### Checking the key-release fix
 
-## Check settings and application
+Tap and hold each direction, then release it or alternate directions quickly. The
+front wheels should start returning without an extra outward steering step from the
+old input.
 
-The switches display saved preferences. When changes are waiting to apply, the UI should explain why and keep the controls available, without an indefinite progress indicator. You should be able to edit settings offline, paused, or while driving, and the last saved request should apply after resuming, stopping, releasing acceleration and turning off cruise control.
+- Return-rate settings and the game's own body rotation and sliding are unchanged, so
+  the vehicle going straight at once is not the pass condition.
+- Gamepad behaviour and the game's aiming and text-input restrictions must stay
+  intact.
+- Steering keeps the game's response curve and speed scaling. What to judge is
+  repeatability: equal short taps should turn the wheels by equal amounts.
 
-Expand/collapse the card, scroll, and focus a control. Status refresh and rapid switch changes must preserve those states without rebuilding the page. The main switch stays visible when collapsed; all expanded rows remain reachable by wheel, scrollbar, and Tab.
+To compare against the game's own per-frame key timing, set
+`steering_precise_input = false` in the override file. With diagnostics on,
+`steering_precise` and `steering_keys` show whether keys are being timed and, if not,
+why.
 
-**Ignore supported version range** is a separate inline row. It bypasses the declared version range, preserves mandatory code checks, and does not enable the extension by itself. Low mode, observation, and diagnostics are developer-only TOML options.
+## Check the settings and how they apply
 
-Confirmed failures may turn off the matching request. They must not overwrite a newer saved choice or repeatedly retry a failed request without a new change. `RestartRequired` remains locked until the game restarts. Application revisions, module versions/hashes, and transition reasons are in the logs; choose Information or above to inspect normal transitions.
+**Switches.** The switches show the saved preferences. While changes are waiting to
+apply, the card should explain why and keep the controls available, without a progress
+indicator that never ends. You should be able to change settings offline, while paused
+or while driving. The last saved choice should apply after you resume, stop, release
+acceleration and turn off cruise control.
 
-Backup's game-save and countdown preferences are separate. When enabled, backup uses `GameWindow.save(true)`; vehicle settings do not select a different save provider. The in-game save-completed notice and the app's backup-completed state must remain distinct.
+**Page state.** Expand and collapse the card, scroll, and focus a control. Status
+refreshes and quick switch changes must keep all of that without rebuilding the page.
+The main switch stays visible when the card is collapsed, and all expanded rows can be
+reached with the mouse wheel, the scrollbar and Tab.
+
+**Ignore supported version range** is a separate inline row. It skips the declared
+version range, keeps the mandatory code checks, and does not turn the extension on by
+itself. Low mode, observation and diagnostics are developer-only TOML options.
+
+**Failures.** A confirmed failure may turn off the matching request. It must not
+overwrite a newer saved choice, and a failed request must not be retried again and
+again without a new change. [`RestartRequired`](glossary.md#restart-required) stays
+locked until the game restarts. Application revisions, module versions and hashes, and
+the reasons for each transition are in the logs; choose log level Information or above
+to see normal transitions.
+
+**Backups.** The game-save and countdown settings for backups are separate. When
+enabled, a backup uses `GameWindow.save(true)`; the vehicle settings do not choose a
+different save provider. The in-game "save completed" notice and the app's "backup
+completed" state must stay distinct.
 
 ## Broader driving checks
 
-Keep the comparison conditions fixed and test each trait against vanilla with the same trait.
+Keep the comparison conditions fixed, and test each character trait against the
+original game with the same trait.
 
 | Area | Check | Stop for |
 | --- | --- | --- |
@@ -62,34 +133,95 @@ Keep the comparison conditions fixed and test each trait against vanilla with th
 | Input safety | Coast, normal/parking brake, starting, cruise, intoxication delay, unloaded chunks | Lost safety braking or a delayed parking-release ×8 force spike |
 | Side effects | Fuel, sound, zombie attraction, exit/re-entry | Excessive changes or retained driver/vehicle state |
 | Timing | 30/60/high FPS, pause/resume, delayed frames | Catch-up acceleration or sharply increased callback cost |
+| Screen look | Each mood at 0, 50 and 100%; day, dusk, night; indoors and outdoors; each season with seasonal colours on; night vision; drunk; changing graphics options while on; with the vehicle extension on and with it off; switching either extension while the other stays on; extension off, app closed, leaving to the menu | Black or garbled picture, wrong colours after switching off, a visible hitch on every change, the look missing after a graphics option change, any effect on night vision, the look surviving after the app is closed, either extension restarting or pausing when the other is changed |
+| Light around the vehicle | At night: headlights on/off, engine off with headlights on, flat battery, broken bulbs, getting out and back in, driving fast, entering a garage or tunnel, option off while lit, extension off while lit, leaving to the menu and reloading | Light left behind after any of these, light inside closed rooms through walls, visible flicker or stutter while driving, a light present after reloading the save |
 
-## Lifecycle and rollback
+## Lifecycle checks
 
-While the extension is confirmed active, exercise manual/automatic backup and WATCH together, checking that backup is not duplicated. Repeat app exit/restart three times in one game JVM, then leave/open worlds. Old model state and generations must not leak into later sessions.
+1. While the extension is confirmed active, run manual and automatic backups together
+   with the [WATCH](glossary.md#watch) stream, and check that no backup is duplicated.
+2. Exit and restart the app three times within one game session (one game JVM), then
+   leave and open worlds. Old model state and
+   [generations](glossary.md#generation-module) must not leak into later sessions.
+3. Turn the extension off, and exit the app, while the game is paused.
+4. Stop the vehicle before turning the extension off during a test. Turning it off
+   explicitly can release control while moving, but going back to the original game
+   need not keep the same force.
 
-Test off and app exit while paused. Disconnect closes new callback admission without a game tick; abrupt termination can take up to the five-second lease to be detected. Explicit off can release control while moving, but stop before changing it during a test: returning to vanilla need not preserve the same force.
+What to expect:
 
-Archive/configuration preflight rejection does not itself replace a healthy JVM generation. The app can turn off the matching rejected request. Installation-stage failure or transformer conflicts may instead return to original control; uncertain retirement/drain requires a game restart.
+- A disconnect stops new callbacks at once, without waiting for a game tick. If the
+  app is terminated abruptly, it can take up to the five-second
+  [control lease](glossary.md#control-lease) to notice.
+- If an archive or configuration is rejected before installing, that alone does not
+  replace a healthy module generation already running in the game. The app can turn
+  off the matching rejected request.
+- A failure while installing, or a conflict with another transformer, may instead
+  return to the game's original control. If retirement or draining is uncertain, the
+  game has to be restarted.
 
-If behavior is abnormal, stop and turn the extension off. If the state is unclear or `RestartRequired` appears, end the test and fully close the game. Disabling does not rewind movement, collisions, or fuel; use your backup to restore the earlier test state.
+## If something goes wrong
+
+- If behaviour is abnormal, stop and turn the extension off.
+- If the state is unclear or `RestartRequired` appears, end the test and close the game
+  fully.
+- Turning the extension off does not rewind movement, collisions or fuel. Use your
+  backup to go back to the earlier test state.
 
 ## Developer tuning and diagnostics
 
-Defaults and ranges are in [vehicle-drivetrain.toml](../config/game-extensions/vehicle-drivetrain.toml). Overrides belong in `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`; only needed flat keys are required. Both .NET and Java validate keys, ranges, duplicates, and cross-field constraints.
+### Settings file
 
-The three UI preferences take precedence over TOML feature defaults, even before the first JSON save. `low_mode`, `probe_only`, `diagnostics_enabled`, and numeric values remain TOML-only. After editing, stop and toggle off/on to apply a new revision.
+Defaults and ranges are in
+[vehicle-drivetrain.toml](../config/game-extensions/vehicle-drivetrain.toml). Overrides
+go in `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`, with only the flat
+keys you need. Both .NET and Java validate keys, ranges, duplicates and cross-field
+constraints.
 
-`forward_torque_boost_fraction` controls only the RPM-dependent forward boost, from 0 to 0.10 (default 0.10). Set it to 0 to compare the extension's shifting and pedal response without this extra boost. Unlike `force_scale`, it does not scale reverse output or the whole forward force envelope.
+The four switches in the app take precedence over the file's feature defaults, even
+before they are first saved to JSON. `low_mode`, `probe_only`, `diagnostics_enabled`
+and the numeric values can only be set in the file. After editing it, stop and switch
+the extension off and on to apply a new revision.
 
-Connection timing belongs in the state scheduler's `default.toml`, under `[extensions]`: `reconcile_interval_ms` is 250–1000 ms (default 1000), and `connect_timeout_seconds` is 5–60 seconds (default 20). The first controls preference checks and heartbeats; the second limits initial connection preparation. Restart the app after applying changes to these scheduler settings. Neither changes the fixed five-second control lease or three-second command limit.
+`forward_torque_boost_fraction` controls only the RPM-dependent forward boost, from 0
+to 0.10 (default 0.10). Set it to 0 to compare the extension's shifting and pedal
+response without this extra boost. Unlike `force_scale`, it does not scale reverse
+output or the whole forward force envelope.
 
-Existing overrides are not deleted automatically. In particular, old reverse values `22`, `0.85`, and `0.75`, or older steering return/countersteer rates, can mask current defaults. Current defaults are `reverse_max_speed_kph=0`, `reverse_force_ratio=1`, `reverse_governor_start_fraction=1`, and steering return/countersteer rates of 8. Explicit reverse limits accept 4–35 km/h.
+**Older override files.** Existing overrides are not deleted automatically. In
+particular, the old reverse values `22`, `0.85` and `0.75` can hide the current
+defaults, which are `reverse_max_speed_kph=0`, `reverse_force_ratio=1` and
+`reverse_governor_start_fraction=1`. An explicit reverse limit must be 4–35 km/h. Older
+steering rate settings are ignored.
 
-`probe_only=true` keeps original control and reports a reset one-step prediction, not continuous driving performance. Disable it before ordinary driving comparisons. Diagnostics retain a latest sample and one-second aggregates. `native_force/brake/steering` are pre-call arguments, not evidence of native success; `callback_mean_us/max_us` exclude native execution and observation cost. An old `sample_age_ms` means the last sample is stale.
+### Connection timing
+
+Connection timing is set in the state scheduler's `default.toml`, under `[extensions]`:
+
+| Key | Range | Default | Controls |
+| --- | --- | --- | --- |
+| `reconcile_interval_ms` | 250–1000 ms | 1000 | Preference checks and heartbeats |
+| `connect_timeout_seconds` | 5–60 seconds | 20 | Time allowed for preparing the first connection |
+
+Restart the app after changing these. Neither changes the fixed five-second control
+lease or the three-second command limit.
+
+### Diagnostics
+
+- `probe_only=true` keeps the original control and reports a one-step prediction from a
+  reset state, not continuous driving performance. Turn it off before ordinary driving
+  comparisons.
+- Diagnostics keep the latest sample and one-second aggregates.
+- `native_force/brake/steering` are the arguments before the native call, not evidence
+  that the native call succeeded.
+- `callback_mean_us/max_us` leave out native execution and the cost of observation.
+- An old `sample_age_ms` means the last sample is stale.
 
 ## Automated reproduction
 
-Run from the repository root with a Java 25 JDK in `$jdk` and your installation JAR in `$gameJar`. Installed-JAR validation uses a separate JVM and does not attach to a running game. Choose a fresh output directory when publishing.
+Run from the repository root, with a Java 25 JDK in `$jdk` and your installation's
+game JAR in `$gameJar`. Installed-JAR validation uses a separate JVM and does not attach
+to a running game. Choose a fresh output directory when publishing.
 
 ```powershell
 dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath="$jdk"
@@ -104,6 +236,26 @@ $env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/vehicle-validation/app).
 dotnet test tests/PzTools.Backup.Tests -c Release --no-build --filter FullyQualifiedName~PublishedDistributionTests
 ```
 
-Record the commit, commands, results, and distribution hashes beside the candidate. Automated checks do not replace the driving and lifecycle checks above.
+Record the commit, commands, results and distribution hashes next to the candidate.
+Automated checks do not replace the driving and lifecycle checks above.
 
-To check a third-party class replacement archive without installing it, add `-GameOverrides path/to/classes.zip` to `test-game-extensions.ps1` together with `-InstalledGameJar`. Each class must be at its declared package path in the archive root; an extra release folder is rejected. The verifier checks resource and class-loading sources and rejects archives when none of their classes are used. It reports both the number of validated paths and actual override definitions; it does not claim to exercise every class in the archive. Archive classes precede the installed JAR, while normal parent-loader precedence is preserved and checked for shadowing. The verifier reads class metadata and exercises transformations in a separate JVM; it does not start or attach to the game. A pass confirms access and patch contracts only. Test steering, braking and timing in the game separately when another mod changes input sampling or physics stepping.
+### Checking another mod's class replacements
+
+To check a third-party class replacement archive without installing it, add
+`-GameOverrides path/to/classes.zip` to `test-game-extensions.ps1`, together with
+`-InstalledGameJar`.
+
+- Each class must be at its declared package path in the archive root; an extra
+  release folder is rejected.
+- The verifier checks resource and class-loading sources, and rejects the archive when
+  none of its classes are used.
+- It reports both the number of validated paths and the actual override definitions.
+  It does not claim to exercise every class in the archive.
+- Archive classes come before the installed JAR, while normal parent-loader precedence
+  is kept and checked for shadowing.
+- It reads class metadata and exercises the transformations in a separate JVM; it does
+  not start or attach to the game.
+
+A pass confirms access and patch contracts only. When another mod changes input
+sampling or physics stepping, test steering, braking and timing in the game
+separately.

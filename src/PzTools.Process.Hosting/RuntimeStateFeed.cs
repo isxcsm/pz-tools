@@ -19,10 +19,11 @@ public sealed class RuntimeSnapshotStore(TimeProvider? timeProvider = null)
         if (value is null) return RuntimeObservation.Unknown("connecting");
         var elapsed = Math.Max(0, (long)clock.GetElapsedTime(value.Timestamp).TotalMilliseconds);
         var age = Math.Min(long.MaxValue - elapsed, value.Observation.AgeMilliseconds) + elapsed;
-        var extension = value.Observation.Extension;
+        RuntimeExtensionStatus? Aged(RuntimeExtensionStatus? status) => status is null ? null
+            : status with { AgeMilliseconds = Math.Min(long.MaxValue - elapsed, status.AgeMilliseconds) + elapsed };
         var result = value.Observation with { AgeMilliseconds = age,
-            Extension = extension is null ? null : extension with {
-                AgeMilliseconds = Math.Min(long.MaxValue - elapsed, extension.AgeMilliseconds) + elapsed } };
+            Extension = Aged(value.Observation.Extension),
+            Extensions = value.Observation.Extensions?.ToDictionary(pair => pair.Key, pair => Aged(pair.Value)!, StringComparer.Ordinal) };
         return result.Quality == RuntimeQuality.Fresh && (!result.IsFresh
             || result.Snapshot!.SampleAgeMilliseconds > 2000 - Math.Min(age, 2000))
             ? result with { Quality = RuntimeQuality.Stale, Reason = "stale-game-sample" } : result;
@@ -55,7 +56,7 @@ public static class RuntimeStateFeed
                     using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
                     deadline.CancelAfter(TimeSpan.FromSeconds(2));
                     var observation = source.Read();
-                    if (extensions is not null) observation = observation with { Extension = extensions.Read() };
+                    if (extensions is not null) observation = observation with { Extension = extensions.Read(), Extensions = extensions.ReadModules() };
                     await writer.WriteLineAsync(RuntimeJson.Write(observation).AsMemory(), deadline.Token);
                     await Task.Delay(250, token);
                 }

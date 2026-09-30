@@ -32,7 +32,7 @@ public sealed class ExtensionVersionTests
     [InlineData(null, false)]
     public void VehicleCatalogueAdmitsOnlyMajor42WithoutAForcedVersionOverride(string? version, bool admitted)
     {
-        var vehicle = Assert.Single(ExtensionCatalog.BuiltIn);
+        var vehicle = ExtensionCatalog.BuiltIn.Single(item => item.Id == ExtensionIds.VehicleDrivetrain);
         Assert.Equal(ExtensionIds.VehicleDrivetrain, vehicle.Id);
         var support = Assert.IsType<GameVersionSupport>(vehicle.SupportedVersions);
         Assert.Equal(new GameVersionSupport(VersionSupportScope.Major, "42", "42"), support);
@@ -41,8 +41,8 @@ public sealed class ExtensionVersionTests
 
         using var temp = new TempDirectory();
         var service = new GameExtensionService(new ExtensionSettingsStore(temp.Path), () => version);
-        var initial = Assert.Single(service.ReadCards());
-        var enabled = Assert.Single(service.SetEnabled(vehicle.Id, true, initial.SettingsRevision));
+        var initial = Vehicle(service.ReadCards());
+        var enabled = Vehicle(service.SetEnabled(vehicle.Id, true, initial.SettingsRevision));
         Assert.Equal(admitted, enabled.EffectiveEnabled);
         Assert.False(enabled.ForceVersion);
     }
@@ -51,31 +51,31 @@ public sealed class ExtensionVersionTests
     {
         using var temp = new TempDirectory();
         string? version = "41.78";
-        var definition = Assert.Single(ExtensionCatalog.BuiltIn) with { SupportedVersions = new(VersionSupportScope.Major, "42") };
+        var definition = ExtensionCatalog.BuiltIn.Single(item => item.Id == ExtensionIds.VehicleDrivetrain) with { SupportedVersions = new(VersionSupportScope.Major, "42") };
         var store = new ExtensionSettingsStore(temp.Path);
         var service = new GameExtensionService(store, () => version, () => new[] { definition });
-        var first = Assert.Single(service.ReadCards());
+        var first = Vehicle(service.ReadCards());
         Assert.False(first.CanEnable);
-        var requested = Assert.Single(service.SetEnabled(definition.Id, true, first.SettingsRevision));
+        var requested = Vehicle(service.SetEnabled(definition.Id, true, first.SettingsRevision));
         Assert.True(requested.Enabled);
         Assert.False(requested.EffectiveEnabled);
         Assert.Equal("version-mismatch", requested.StatusCode);
-        var forced = Assert.Single(service.SetPreference(definition.Id, true, true, requested.SettingsRevision));
+        var forced = Vehicle(service.SetPreference(definition.Id, true, true, requested.SettingsRevision));
         Assert.True(forced.EffectiveEnabled);
         Assert.Equal("forced-version", forced.StatusCode);
-        var off = Assert.Single(service.SetEnabled(definition.Id, false, forced.SettingsRevision));
+        var off = Vehicle(service.SetEnabled(definition.Id, false, forced.SettingsRevision));
         Assert.True(off.ForceVersion);
         Assert.False(off.Enabled);
         version = "42.20";
-        var normal = Assert.Single(service.SetPreference(definition.Id, true, false, off.SettingsRevision));
+        var normal = Vehicle(service.SetPreference(definition.Id, true, false, off.SettingsRevision));
         Assert.True(normal.EffectiveEnabled);
         version = null;
-        var unknown = Assert.Single(service.ReadCards());
+        var unknown = Vehicle(service.ReadCards());
         Assert.True(unknown.Enabled); // Desired preference is retained, but cannot be applied blindly.
         Assert.False(unknown.EffectiveEnabled);
         Assert.Equal("version-unknown", unknown.StatusCode);
         version = "43.0";
-        Assert.True(Assert.Single(service.ReadCards()).EffectiveEnabled);
+        Assert.True(Vehicle(service.ReadCards()).EffectiveEnabled);
         Assert.True(new ExtensionSettingsStore(temp.Path).Read().Extensions[definition.Id].Enabled);
     }
 
@@ -87,7 +87,7 @@ public sealed class ExtensionVersionTests
         using var temp = new TempDirectory();
         var definition = ExtensionCatalog.BuiltIn.Single(item => item.Id == ExtensionIds.VehicleDrivetrain);
         var service = new GameExtensionService(new ExtensionSettingsStore(temp.Path), () => null, () => [definition]);
-        var initial = Assert.Single(service.ReadCards());
+        var initial = Vehicle(service.ReadCards());
         Assert.False(initial.CanEnable);
         var saved = Assert.Single(usePreferenceCommand
             ? service.SetPreference(definition.Id, true, false, initial.SettingsRevision)
@@ -126,4 +126,6 @@ public sealed class ExtensionVersionTests
         string prefix = $"STATE2\t{id}\t{id}\t{id}\t0\t0\t1\tMenu\tUnknown\tLocalSinglePlayer\t-1\t0\t0\t-\t{RuntimeSnapshot.Capabilities}";
         Assert.Equal(state, RuntimeSnapshot.ParseWire(prefix + "\t" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("42.20"))));
     }
+    private static ExtensionCardView Vehicle(IEnumerable<ExtensionCardView> cards) =>
+        cards.Single(card => card.Definition.Id == ExtensionIds.VehicleDrivetrain);
 }

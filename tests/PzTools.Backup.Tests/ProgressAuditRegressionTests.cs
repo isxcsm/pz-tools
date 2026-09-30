@@ -45,6 +45,27 @@ public sealed class ProgressAuditRegressionTests
         Assert.Equal(6, lastScan.RootElement.GetProperty("completedItems").GetInt64());
     }
 
+    [Fact]
+    public async Task WorkThatFindsNoGame_EndsLikeBusyWork_AndIsNoProblemInTheLogs()
+    {
+        using var temp = new TempDirectory();
+        var store = await ProcessTelemetryStore.CreateForIdentityAsync(temp.Path, "profiler");
+        var catalog = new TelemetrySourceCatalog();
+        catalog.Register(new("profiler", "profiler", temp.Path, store.DatabasePath, TelemetryDatabaseKind.Process, true));
+        var views = new RevisionedViewStore();
+        var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
+        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        await store.RecordAsync("profiler", 1, "run.started", "{\"operation\":\"profile\"}");
+        await store.RecordAsync("profiler", 1, "run.unavailable",
+            "{\"failureCode\":\"profile-game-not-running\",\"exceptionType\":\"GameSaveException\",\"status\":\"Unavailable\"}");
+        await projector.ProjectOnceAsync();
+        var ended = Assert.Single(views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations);
+        Assert.Equal(OperationStatus.Busy, ended.Status);
+        Assert.Contains((await inbox.ReadViewAsync(new(LogLevel.Information, 100))).Entries,
+            log => log.EventName == "run.unavailable" && log.Level == LogLevel.Information);
+        Assert.Empty((await inbox.ReadViewAsync(new(LogLevel.Warning, 100))).Entries);
+    }
+
     [Theory]
     [InlineData("scan")]
     [InlineData("hash")]

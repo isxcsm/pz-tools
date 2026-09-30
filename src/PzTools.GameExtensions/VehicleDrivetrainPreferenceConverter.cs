@@ -13,15 +13,17 @@ internal sealed class VehicleDrivetrainPreferenceConverter : JsonConverter<Vehic
         if (document.RootElement.ValueKind != JsonValueKind.Object)
             throw new JsonException("Vehicle driving preferences must be an object.");
         bool? torque = null, reverse = null, steering = null;
+        bool areaLight = false;
         bool legacyProbe = false;
         foreach (var property in document.RootElement.EnumerateObject())
         {
             if (property.Name.Equals("torqueEnabled", StringComparison.OrdinalIgnoreCase)) torque = ReadBoolean(property);
             else if (property.Name.Equals("reverseEnabled", StringComparison.OrdinalIgnoreCase)) reverse = ReadBoolean(property);
             else if (property.Name.Equals("steeringEnabled", StringComparison.OrdinalIgnoreCase)) steering = ReadBoolean(property);
+            else if (property.Name.Equals("areaLightEnabled", StringComparison.OrdinalIgnoreCase)) areaLight = ReadBoolean(property);
             else if (property.Name.Equals("probeOnly", StringComparison.OrdinalIgnoreCase)) legacyProbe = ReadBoolean(property);
         }
-        return new(torque ?? !legacyProbe, reverse ?? !legacyProbe, steering ?? !legacyProbe);
+        return new(torque ?? !legacyProbe, reverse ?? !legacyProbe, steering ?? !legacyProbe, areaLight && !legacyProbe);
     }
 
     private static bool ReadBoolean(JsonProperty property) => property.Value.ValueKind switch
@@ -37,6 +39,7 @@ internal sealed class VehicleDrivetrainPreferenceConverter : JsonConverter<Vehic
         writer.WriteBoolean("torqueEnabled", value.TorqueEnabled);
         writer.WriteBoolean("reverseEnabled", value.ReverseEnabled);
         writer.WriteBoolean("steeringEnabled", value.SteeringEnabled);
+        writer.WriteBoolean("areaLightEnabled", value.AreaLightEnabled);
         writer.WriteEndObject();
     }
 }

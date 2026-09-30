@@ -44,13 +44,14 @@
           Inputs="$(BridgeJdkPath)\release;$(BridgeOutputPath)\runtime-inputs.txt;$(MSBuildProjectFullPath)"
           Outputs="$(BridgeOutputPath)\runtime-built.txt">
     <RemoveDir Directories="$(BridgeOutputPath)\runtime" />
-    <Exec Command="&quot;$(BridgeJdkPath)\bin\jlink.exe&quot; --add-modules jdk.attach --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output &quot;$(BridgeOutputPath)\runtime&quot;" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\jlink.exe&quot; --add-modules jdk.attach,jdk.jfr --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output &quot;$(BridgeOutputPath)\runtime&quot;" />
     <Touch Files="$(BridgeOutputPath)\runtime-built.txt" AlwaysCreate="true" />
   </Target>
   <Target Name="BuildExtensions" DependsOnTargets="ValidateBridgeToolchain">
     <Delete Files="$(BridgeOutputPath)\extensions\pztools-seamless-save.jar" />
     <MSBuild Projects="..\PzTools.GameExtensions.VehicleDrivetrain\PzTools.GameExtensions.VehicleDrivetrain.proj" Targets="Build" Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\..\..\config\game-extensions\catalog.tsv;$(MSBuildProjectDirectory)\..\..\config\game-extensions\vehicle-drivetrain.toml"
+    <MSBuild Projects="..\PzTools.GameExtensions.ScreenLook\PzTools.GameExtensions.ScreenLook.proj" Targets="Build" Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\..\..\config\game-extensions\catalog.tsv;$(MSBuildProjectDirectory)\..\..\config\game-extensions\vehicle-drivetrain.toml;$(MSBuildProjectDirectory)\..\..\config\game-extensions\screen-look.toml"
           DestinationFolder="$(BridgeOutputPath)\extensions" SkipUnchangedFiles="true" />
   </Target>
   <Target Name="Build" DependsOnTargets="PrepareAgent;BuildNative;BuildAgent;BuildRuntime;BuildExtensions" />

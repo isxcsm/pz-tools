@@ -7,6 +7,8 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import pztools.extensions.api.*;
+import pztools.extensions.runtime.input.KeyStateSource;
+import pztools.extensions.runtime.input.KeyTimelineTest.ScriptedKeys;
 
 /** Executes only hand-authored fixtures. No installed game method or native library is called. */
 public final class VehicleAdapterBehaviorTest {
@@ -20,7 +22,8 @@ public final class VehicleAdapterBehaviorTest {
         scriptReverseLimitAndOverrides(); invalidReverseLimitIsolation(); reverseNativeEnvelope(); forwardTraitNativeLimits();
         resolvedInputSentinels(); cellReplacement(); nativeObservationIsolation();
         independentToggleMatrix(); steeringBehavior(); steeringCurrentKeyboardRelease(); steeringInputDeadZone(); steeringDuplicateFrames(); steeringDuplicateInvalidation();
-        steeringGuardsAndResets(); steeringPhaseFailure();
+        steeringGuardsAndResets(); steeringPhaseFailure(); steeringDirectKeys(); steeringMeasuredKeys(); steeringMeasurementFallbacks();
+        areaLight(); areaLightLifecycle();
         System.out.println("PASS vehicle adapter: "+groups+" groups (synthetic classes only)");
     }
     private static void inert() throws Throwable {
@@ -412,7 +415,7 @@ public final class VehicleAdapterBehaviorTest {
                 else near(e.number(e.controller,mode==1?"forwardCalls":"reverseCalls"),0,"only enabled propulsion skips original");
                 near(e.number(e.controller,"originalSteeringCalls"),steering?0:1,"steering independent across all toggle/mode combinations");
                 if(!steering) near(e.staticNumber("zombie.core.physics.Bullet","steer"),originalAngle,"disabled steering is exact original");
-                else check(Math.abs(e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue())<Math.abs(originalAngle),"small immediate steering response");
+                else near(e.staticNumber("zombie.core.physics.Bullet","steer"),originalAngle,"a whole held update is the game's own step");
                 near(e.number(e.vehicle,"currentSteering"),e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue(),"front wheel/native steering share final value");
                 near(diagnostic(control,"mode"),mode==0?4:mode==3?3:mode,"steering phase does not overwrite propulsion mode diagnostics");
             }
@@ -424,7 +427,7 @@ public final class VehicleAdapterBehaviorTest {
             VehicleControl control=e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
             e.set(input,"steering",1f); e.set(e.controller,"steeringTireFactor",.5f); e.tick();
             double first=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
-            check(first<0 && first>-.02,"keyboard reacts immediately without snapping");
+            near(first,-.03,"a whole held update is the game's own step, before the tire correction");
             near(first,diagnostic(control,"steering_requested")*.5,"original tire steering correction runs once");
             near(e.number(e.vehicle,"currentSteering"),first,"wheel animation consumes tire-adjusted steering");
             e.set(e.controller,"steeringTireFactor",1f);
@@ -442,7 +445,7 @@ public final class VehicleAdapterBehaviorTest {
             e.set(e.get(e.controller,"clientControls"),"steering",1f);
             for(int i=0;i<60;i++) e.tick();
             double angle=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
-            if(sign==1) forward=angle; else near(angle,forward,"forward/reverse steering use absolute speed");
+            if(sign==1) forward=angle; else near(angle,forward,"both directions reach the same speed-limited angle");
             near(angle,-.5,"existing speed-sensitive script maximum preserved");
         }
         for(int mode=0;mode<=3;mode++) try(var e=new Env()) {
@@ -464,18 +467,18 @@ public final class VehicleAdapterBehaviorTest {
             double first=e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue();
             for(int i=0;i<20;i++) e.tick();
             e.set(e.controller,"vehicleSteering",0f); e.set(e.world,"frame",e.number(e.world,"frame").intValue()+5); e.tick();
-            near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"physics gap resets held-key ramp");
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"a physics gap starts from the current angle, with no carried state");
             for(int i=0;i<20;i++) e.tick();
             e.set(e.controller,"vehicleSteering",0f);
             Object nextDriver=e.type("zombie.characters.IsoPlayer").getConstructor().newInstance();
             e.set(nextDriver,"vehicle",e.vehicle); e.set(e.vehicle,"driver",nextDriver); e.tick();
-            near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"driver change resets held-key ramp");
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"a driver change carries no state over");
             for(int i=0;i<20;i++) e.tick();
             control.reconfigure(new VehicleControl.Settings(toggles(false,false,true))); e.set(e.controller,"vehicleSteering",0f); e.tick();
-            near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"configuration replacement resets held-key ramp");
+            near(e.staticNumber("zombie.core.physics.Bullet","steer"),first,"a configuration replacement carries no state over");
             e.update(); check(control.diagnostics().contains("steering_reason=duplicate-frame-applied;"),"steering has an independent duplicate-frame guard");
-            e.set(e.time,"dt",0f); e.tick(); check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-dt"),"paused dt uses original steering");
-            e.set(e.time,"dt",1f/60); e.set(e.controller,"vehicleSteering",0f); e.set(e.controller,"drunkDelay",true); e.set(input,"steering",1f); e.tick();
+            e.set(e.time,"multiplier",0f); e.tick(); check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-step"),"a paused game step uses original steering");
+            e.set(e.time,"multiplier",.8f); e.set(e.controller,"vehicleSteering",0f); e.set(e.controller,"drunkDelay",true); e.set(input,"steering",1f); e.tick();
             near(e.staticNumber("zombie.core.physics.Bullet","steer"),0,"drunk input delay is not bypassed");
             near(e.number(e.controller,"delaySelections"),1,"original drunk delay runs once");
             e.set(e.controller,"drunkDelay",false); e.set(input,"steering",1f); e.context.worldValid().set(false); e.tick();
@@ -596,12 +599,12 @@ public final class VehicleAdapterBehaviorTest {
         groups++;
     }
     private static void steeringDuplicateInvalidation() throws Throwable {
-        for(float invalidDt:new float[]{0f,-1f,Float.NaN,Float.POSITIVE_INFINITY,1f}) try(var e=new Env()) {
+        for(float invalidStep:new float[]{0f,-1f,Float.NaN,Float.POSITIVE_INFINITY,20f}) try(var e=new Env()) {
             VehicleControl control=e.adapter(toggles(false,false,true)); e.set(e.get(e.controller,"clientControls"),"steering",1f); e.tick();
-            e.set(e.time,"dt",invalidDt); e.update();
-            near(e.number(e.controller,"originalSteeringCalls"),1,"invalid duplicate dt falls back to original steering");
-            check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-dt"),"duplicate validates dt before replay");
-            e.set(e.time,"dt",1f/60); e.update();
+            e.set(e.time,"multiplier",invalidStep); e.update();
+            near(e.number(e.controller,"originalSteeringCalls"),1,"an invalid or overshooting game step falls back to original steering");
+            check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-step"),"duplicate validates the game step before replay");
+            e.set(e.time,"multiplier",.8f); e.update();
             near(e.number(e.controller,"originalSteeringCalls"),2,"original interval invalidates the previously applied cache");
             check(control.diagnostics().contains("steering_applied=false"),"invalidated duplicate cannot report applied steering");
             e.tick(); near(e.number(e.controller,"originalSteeringCalls"),2,"valid next frame resumes the model");
@@ -617,7 +620,7 @@ public final class VehicleAdapterBehaviorTest {
             VehicleControl control=e.adapter(toggles(false,false,true)); Object input=e.get(e.controller,"clientControls");
             e.set(input,"steering",1f); e.tick(); e.set(input,"steering",invalidInput); e.update();
             near(e.number(e.controller,"originalSteeringCalls"),1,"invalid duplicate input cannot reuse applied steering");
-            check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-dt"),"duplicate validates input before replay");
+            check(control.diagnostics().contains("steering_reason=invalid-steering-input-or-step"),"duplicate validates input before replay");
         }
         try(var e=new Env()) {
             VehicleControl control=e.adapter(toggles(false,false,true)); e.set(e.get(e.controller,"clientControls"),"steering",1f); e.tick();
@@ -649,6 +652,283 @@ public final class VehicleAdapterBehaviorTest {
             near(e.number(e.controller,"originalSteeringCalls"),1,"steering exception falls back to exactly one original interpolation");
             near(e.staticNumber("zombie.core.physics.Bullet","calls"),1,"phase exception does not duplicate native call");
             check(VehicleHooks.failure(e.owner)!=null,"steering phase fault is visible to runtime");
+        }
+        groups++;
+    }
+    private static final int LEFT=203,RIGHT=205;
+    private static SteeringKeys.Platform scripted(List<ScriptedKeys> sources) {
+        return new SteeringKeys.Platform() {
+            @Override public int virtualKey(int gameKey) { return gameKey>=10000?0:gameKey; }
+            @Override public KeyStateSource source() { var source=new ScriptedKeys(); sources.add(source); return source; }
+        };
+    }
+    /** Changes a key between two polls, then lets exactly that much measured time pass. */
+    private static void hold(ScriptedKeys keys,int key,boolean down,int milliseconds) throws Exception {
+        keys.down[key]=down; keys.poll(0); run(keys,milliseconds);
+    }
+    /** Measured time passes in ordinary one-millisecond polls; one long poll would count as a starved thread. */
+    private static void run(ScriptedKeys keys,double milliseconds) throws Exception {
+        for(;milliseconds>=1;milliseconds--) keys.poll(1);
+        if(milliseconds>0) keys.poll(milliseconds);
+    }
+    private static double steer(Env e) throws Exception { return e.staticNumber("zombie.core.physics.Bullet","steer").doubleValue(); }
+    /** The keys are the input: nothing waits for the game's once-per-frame look at the keyboard. */
+    private static void steeringDirectKeys() throws Throwable {
+        var sources=new ArrayList<ScriptedKeys>();
+        double keep=1-.06f, back=.04f;
+        try(var e=new Env()) {
+            e.bind("Left",LEFT,0,false); e.bind("Right",RIGHT,0,false);
+            VehicleControl control=e.adapter(toggles(false,false,true),scripted(sources)); Object input=e.get(e.controller,"clientControls");
+            e.tick(); var keys=sources.get(0); keys.started();
+            // The game's own controls stay neutral for the whole test: it never "sees" any of these keys.
+            run(keys,12); hold(keys,RIGHT,true,4); e.tick();
+            double pressed=-(1-Math.pow(keep,.25));
+            near(steer(e),pressed,"a key steers from the moment it goes down, not one update later");
+            check(control.diagnostics().contains("steering_timing=direct"),"direct timing");
+            run(keys,16); e.tick(); double held=pressed-(1+pressed)*.06f;
+            near(steer(e),held,"a key held throughout is the game's own step");
+            run(keys,4); hold(keys,RIGHT,false,12); e.tick();
+            double released=held-(1+held)*(1-Math.pow(keep,.25));
+            near(steer(e),released,"a 24 ms tap steers for 24 ms, and what it reached is still there when the update ends");
+            near(released,-(1-Math.pow(keep,1.5)),"the result depends on the time held, not on where the frames fell");
+            run(keys,16); e.tick(); near(steer(e),released+back*1.75,"the return owed from the release update is spent in the next: none is lost");
+            run(keys,16); e.tick(); near(steer(e),0,"and centres");
+            // A tap that begins and ends inside one update. The game would never have seen it.
+            e.set(e.controller,"vehicleSteering",.4f); hold(keys,LEFT,false,16); e.tick();
+            double untapped=steer(e); near(untapped,.4-back,"an update without keys only returns");
+            e.set(e.controller,"vehicleSteering",.4f); run(keys,5); hold(keys,LEFT,true,6); hold(keys,LEFT,false,5); e.tick();
+            double tapped=steer(e);
+            near(tapped,.4+(1-.4)*(1-Math.pow(keep,.375)),"a 6 ms tap inside one update steers for 6 ms, and is not returned before physics sees it");
+            check(tapped>untapped+1e-3,"a tap inside a single update still steers: "+tapped+" vs "+untapped);
+            near(diagnostic(control,"steering_held_share"),.375,"the tap's share of the update");            // Both keys cancel; opposite keys within one update steer by the difference.
+            e.set(e.controller,"vehicleSteering",0f);
+            keys.down[LEFT]=true; hold(keys,RIGHT,true,16); e.tick();
+            near(steer(e),0,"both keys held is neutral, as in the game");
+            keys.down[LEFT]=false; keys.poll(0); run(keys,12); keys.down[RIGHT]=false; hold(keys,LEFT,true,4); e.tick();
+            near(diagnostic(control,"steering_held_share"),.5,"opposite keys count by their difference");
+            check(steer(e)<0,"the side held longer wins");
+            near(e.number(input,"steering"),0,"the game's controls were neutral throughout and are never written");
+            near(e.number(e.controller,"originalSteeringCalls"),0,"direct steering replaces the original interpolation");
+            // Typing in a text box: the game takes no keys, and neither does steering.
+            e.set(e.controller,"vehicleSteering",0f); hold(keys,LEFT,false,16); e.tick();
+            Class<?> entry=e.type("zombie.ui.UITextEntryInterface");
+            Object box=java.lang.reflect.Proxy.newProxyInstance(e.loader,new Class<?>[]{entry},(proxy,method,arguments)->true);
+            e.setStatic("zombie.core.Core","currentTextEntryBox",box);
+            hold(keys,RIGHT,true,16); e.tick(); run(keys,16); e.tick();
+            near(steer(e),0,"keys typed into a text box do not steer");
+            check(control.diagnostics().contains("steering_timing=confirmed"),"a closed input gate falls back to the game's confirmation");
+            e.setStatic("zombie.core.Core","currentTextEntryBox",null); run(keys,16); e.tick();
+            check(steer(e)<0 && control.diagnostics().contains("steering_timing=direct"),"steering resumes when typing ends");
+            // Movement blocked, or the vehicle not operational: the game does not sample keys either.
+            for(String gate:new String[]{"blockMovement","operational"}) {
+                Object owner=gate.equals("operational")?e.vehicle:e.get(e.vehicle,"driver");
+                e.set(owner,gate,!gate.equals("operational")); run(keys,16); e.tick();
+                check(control.diagnostics().contains("steering_timing=confirmed"),"gate "+gate+" closes direct input");
+                e.set(owner,gate,gate.equals("operational")); run(keys,16); e.tick();
+                check(control.diagnostics().contains("steering_timing=direct"),"gate "+gate+" reopens");
+            }
+        } finally { for(var source:sources) source.finish(); }
+        groups++;
+    }
+    private static void steeringMeasuredKeys() throws Throwable {
+        var sources=new ArrayList<ScriptedKeys>();
+        double keep=1-.06f, back=.04f;
+        try(var e=new Env()) {
+            e.bind("Left",LEFT,0,false); e.bind("Right",RIGHT,0,false);
+            // A drunk driver: the game delays commands at random, so measured time waits for the game's own input.
+            e.set(e.get(e.get(e.vehicle,"driver"),"moodles"),"drunk",1);
+            VehicleControl control=e.adapter(toggles(false,false,true),scripted(sources)); Object input=e.get(e.controller,"clientControls");
+            e.tick(); // Starts the timeline; this update has no earlier reading to compare with.
+            near(sources.size(),1,"one measuring thread for the bound keys"); var keys=sources.get(0); keys.started();
+            check(control.diagnostics().contains("steering_precise=false"),"the first update is the game's own step");
+            // Pressed 4 ms before the update ends; the game's controls have not caught up yet.
+            run(keys,12); hold(keys,RIGHT,true,4); e.tick();
+            near(steer(e),0,"nothing is steered before the game accepts the press");
+            check(control.diagnostics().contains("steering_timing=confirmed") && control.diagnostics().contains("steering_keys=measuring"),"measuring, awaiting the game");
+            // The game confirms the press: the 4 ms it missed are steered together with this whole update.
+            e.set(input,"steering",1f); run(keys,16); e.tick();
+            double confirmed=-(1-Math.pow(keep,1.25));
+            near(steer(e),confirmed,"time held before the game noticed is not lost");
+            near(diagnostic(control,"steering_held_share"),1.25,"held share is reported");
+            // Let go 4 ms into the update; the game's controls still say right.
+            run(keys,4); hold(keys,RIGHT,false,12); e.tick();
+            double tapped=confirmed-(1+confirmed)*(1-Math.pow(keep,.25));
+            near(steer(e),tapped,"only the 4 ms really held steer; the return is owed to the next update");
+            // Frame-counted, the same tap would have steered three whole updates.
+            check(Math.abs(confirmed)<1-Math.pow(keep,3)-.05,"a 24 ms tap is not rounded up to three frames");
+            // The game's input is still stale for one more update: nothing was held, so it keeps returning.
+            run(keys,16); e.tick(); near(steer(e),tapped+back*1.75,"a stale direction steers nothing once the key is up");
+            near(diagnostic(control,"steering_held_share"),0,"nothing held");
+            e.set(input,"steering",0f); run(keys,16); e.tick(); near(steer(e),0,"returns to centre");
+            near(e.number(e.controller,"originalSteeringCalls"),0,"measured steering replaces the original interpolation");
+            near(e.number(input,"steering"),0,"the game's controls are never written");
+            // A key held throughout is exactly the game's own step, update after update.
+            e.set(input,"steering",-1f); hold(keys,LEFT,true,16); e.tick();
+            double held=steer(e);
+            for(int update=0;update<5;update++) { run(keys,16); e.tick(); double next=held-(-1+held)*.06f; near(steer(e),next,"a held key is the game's step"); held=next; }
+            // Duplicate callbacks in one frame do not read the keys again.
+            run(keys,16); e.tick(); double once=steer(e); e.update(); e.update();
+            near(steer(e),once,"a repeated callback neither integrates nor measures again");
+            // Rebinding replaces the timeline; the old thread ends.
+            e.bind("Left",30,0,false); e.bind("Right",32,0,false); e.tick();
+            near(sources.size(),2,"new bindings get a new timeline"); sources.get(1).started(); keys.finish();
+            for(int i=0;i<500 && !keys.released;i++) Thread.sleep(10);
+            check(keys.released,"the timeline for the old bindings is stopped");
+            check(control.diagnostics().contains("steering_precise=false"),"totals from two timelines are never compared");
+            hold(sources.get(1),30,true,16); e.tick();
+            check(control.diagnostics().contains("steering_precise=true"),"measuring resumes on the new keys");
+            control.stopKeys(); sources.get(1).finish();
+            for(int i=0;i<500 && !sources.get(1).released;i++) Thread.sleep(10);
+            check(sources.get(1).released,"deactivation stops the measuring thread");
+            e.tick(); check(control.diagnostics().contains("steering_precise=false"),"after a stop the game's own step remains");
+        } finally { for(var source:sources) source.finish(); }
+        groups++;
+    }
+    private static void steeringMeasurementFallbacks() throws Throwable {
+        // No bindings, a modifier binding, a mouse button, a disabled option, a non-keyboard driver:
+        // each leaves exactly the game's own whole-update step, and no thread where none is needed.
+        for(int variant=0;variant<5;variant++) {
+            var sources=new ArrayList<ScriptedKeys>();
+            try(var e=new Env()) {
+                if(variant==1) { e.bind("Left",LEFT,0,true); e.bind("Right",RIGHT,0,false); }
+                if(variant==2) { e.bind("Left",10000,0,false); e.bind("Right",RIGHT,0,false); }
+                if(variant>=3) { e.bind("Left",LEFT,0,false); e.bind("Right",RIGHT,0,false); }
+                if(variant==4) e.set(e.vehicle,"keyboardControlled",false);
+                var settings=new HashMap<>(toggles(false,false,true));
+                if(variant==3) settings.put("steering_precise_input","false");
+                VehicleControl control=e.adapter(settings,scripted(sources)); Object input=e.get(e.controller,"clientControls");
+                e.set(input,"steering",1f); e.tick(); e.tick();
+                near(steer(e),-.1164,"the game's own step is used when keys cannot be timed, variant "+variant);
+                check(control.diagnostics().contains("steering_precise=false"),"not measured, variant "+variant);
+                near(sources.size(),0,"no measuring thread is started, variant "+variant);
+                String state=variant<=1?"bindings-unavailable":variant==2?"binding-not-a-key":"not-started";
+                check(control.diagnostics().contains("steering_keys="+state+";"),"reason is visible, variant "+variant+": "+control.diagnostics());
+            } finally { for(var source:sources) source.finish(); }
+        }
+        // A starved measuring thread is a guess for that update only.
+        var sources=new ArrayList<ScriptedKeys>();
+        try(var e=new Env()) {
+            e.bind("Left",LEFT,0,false); e.bind("Right",RIGHT,0,false);
+            VehicleControl control=e.adapter(toggles(false,false,true),scripted(sources)); Object input=e.get(e.controller,"clientControls");
+            e.tick(); var keys=sources.get(0); keys.started();
+            e.set(input,"steering",1f); hold(keys,RIGHT,true,16); e.tick();
+            check(control.diagnostics().contains("steering_precise=true"),"measuring");
+            double before=steer(e);
+            keys.poll(40); e.tick();
+            check(control.diagnostics().contains("steering_precise=false"),"an interval beyond the tolerance is not trusted");
+            near(steer(e),before-(1+before)*.06f,"that update is the game's own step");
+            run(keys,16); e.tick(); check(control.diagnostics().contains("steering_precise=true"),"measuring resumes with the next update");
+            // The measuring thread dies: steering carries on with the game's input.
+            keys.fail=true; keys.finish();
+            for(int i=0;i<500 && !keys.released;i++) Thread.sleep(10);
+            e.tick(); check(control.diagnostics().contains("steering_precise=false") && control.diagnostics().contains("steering_keys=timeline-failed"),
+                "a failed timeline is reported and not restarted every update: "+control.diagnostics());
+            e.tick(); near(sources.size(),1,"no restart loop");
+            near(e.number(e.controller,"originalSteeringCalls"),0,"steering itself stays with the adapter");
+        } finally { for(var source:sources) source.finish(); }
+        // A platform that cannot be opened at all.
+        try(var e=new Env()) {
+            e.bind("Left",LEFT,0,false); e.bind("Right",RIGHT,0,false);
+            VehicleControl control=e.adapter(toggles(false,false,true),new SteeringKeys.Platform() {
+                @Override public int virtualKey(int gameKey) { throw new UnsupportedOperationException("no native access"); }
+                @Override public KeyStateSource source() { throw new AssertionError("never reached"); }
+            });
+            e.set(e.get(e.controller,"clientControls"),"steering",1f); e.tick(); e.tick();
+            near(steer(e),-.1164,"an unavailable platform leaves the game's own step");
+            check(control.diagnostics().contains("steering_keys=unavailable:UnsupportedOperationException;"),"platform failure is visible");
+        }
+        groups++;
+    }
+    private static void areaLight() throws Throwable {
+        try(var e=new Env()) {
+            Object cell=e.get(e.world,"currentCell");
+            // Off by default: headlights alone place nothing.
+            VehicleControl off=e.adapter(Map.of("diagnostics_enabled","true"));
+            e.set(e.vehicle,"headlightsOn",true); e.set(e.vehicle,"x",10.7f); e.set(e.vehicle,"y",-3.2f);
+            off.gameFrame();
+            near(e.number(cell,"added"),0,"area light is opt-in");
+            check(off.diagnostics().endsWith(";area_light=off"),"disabled light is reported off");
+            e.unregister();
+
+            VehicleControl control=e.adapter(Map.of("area_light_enabled","true","area_light_radius","11","area_light_brightness","0.5",
+                "torque_enabled","false","reverse_enabled","false","steering_enabled","false","diagnostics_enabled","true"));
+            e.set(e.vehicle,"headlightsOn",false); control.gameFrame();
+            near(e.number(cell,"added"),0,"no light while the headlights are off");
+            check(control.areaLightState().equals("waiting"),"waits for headlights");
+            e.set(e.vehicle,"headlightsOn",true); e.set(e.vehicle,"headlightsWork",false); control.gameFrame();
+            near(e.number(cell,"added"),0,"no light from a dead battery or bulb");
+            e.set(e.vehicle,"headlightsWork",true); control.gameFrame();
+            Object light=e.invoke(cell,"lit");
+            check(light!=null && control.areaLightState().equals("lit"),"lit with working headlights, independent of driving options");
+            near(e.number(light,"x"),10,"tile is the floor of the position"); near(e.number(light,"y"),-4,"negative coordinates floor downward");
+            near(e.number(light,"radius"),11,"configured reach"); near(e.number(light,"life"),-1,"steady, not a fading flash");
+            near(e.number(light,"r"),0.5,"configured brightness"); check(e.number(light,"b").floatValue()<e.number(light,"r").floatValue(),"warm tint");
+            // Standing still costs nothing: no relighting while the tile is unchanged.
+            for(int i=0;i<20;i++) control.gameFrame();
+            near(e.number(cell,"added"),1,"no churn while parked");
+            // A move within the pause between relights is deferred, then follows; one light at a time.
+            e.set(e.vehicle,"x",11.2f); control.gameFrame();
+            near(e.number(cell,"added"),1,"moves are paced");
+            Thread.sleep(70); control.gameFrame();
+            near(e.number(cell,"added"),2,"follows the vehicle"); near((Number)e.invoke(cell,"litCount"),1,"the previous light is withdrawn");
+            near(e.number(e.invoke(cell,"lit"),"x"),11,"new tile");
+            // The player leaves, or another player's vehicle: nothing to light.
+            Object player=((Object[])e.type("zombie.characters.IsoPlayer").getField("players").get(null))[0];
+            e.set(player,"vehicle",null); control.gameFrame();
+            near((Number)e.invoke(cell,"litCount"),0,"withdrawn when the player gets out"); check(control.areaLightState().equals("waiting"),"waiting again");
+            e.set(player,"vehicle",e.vehicle); e.set(player,"local",false); control.gameFrame();
+            near((Number)e.invoke(cell,"litCount"),0,"never for a remote player");
+            e.set(player,"local",true); control.gameFrame(); near((Number)e.invoke(cell,"litCount"),1,"back on re-entry");
+            // Switching the option off withdraws it at once; probe mode never lights.
+            control.reconfigure(new VehicleControl.Settings(Map.of("area_light_enabled","false"))); control.gameFrame();
+            near((Number)e.invoke(cell,"litCount"),0,"option off withdraws the light");
+            control.reconfigure(new VehicleControl.Settings(Map.of("area_light_enabled","true","probe_only","true"))); control.gameFrame();
+            near((Number)e.invoke(cell,"litCount"),0,"observation mode changes nothing in the game");
+            // A changed reach replaces the light without waiting for movement.
+            control.reconfigure(new VehicleControl.Settings(Map.of("area_light_enabled","true"))); control.gameFrame();
+            control.reconfigure(new VehicleControl.Settings(Map.of("area_light_enabled","true","area_light_radius","5"))); control.gameFrame();
+            near((Number)e.invoke(cell,"litCount"),1,"one light after a settings change"); near(e.number(e.invoke(cell,"lit"),"radius"),5,"new reach applied");
+        }
+        for(String invalid:new String[]{"area_light_radius=2","area_light_radius=21","area_light_brightness=0","area_light_brightness=1.5","area_light_enabled=yes"}) {
+            String[] pair=invalid.split("=");
+            boolean rejected=false;
+            try { new VehicleControl.Settings(Map.of(pair[0],pair[1])); } catch(IllegalArgumentException expected) { rejected=true; }
+            check(rejected,"rejected "+invalid);
+        }
+        groups++;
+    }
+    private static void areaLightLifecycle() throws Throwable {
+        try(var e=new Env()) {
+            Object cell=e.get(e.world,"currentCell");
+            VehicleControl control=e.adapter(Map.of("area_light_enabled","true","diagnostics_enabled","true"));
+            e.set(e.vehicle,"headlightsOn",true); control.gameFrame();
+            Object light=e.invoke(cell,"lit"); check(light!=null,"lit before retirement");
+            // Deactivation comes from another thread and may not call into the game: the light is only marked ended.
+            Thread other=new Thread(control::stopLight); other.start(); other.join();
+            near(e.number(light,"life"),0,"ended from any thread"); near(e.number(cell,"removed"),0,"without calling the game off its thread");
+            control.gameFrame(); near(e.number(cell,"added"),1,"a stopped activation never lights again");
+        }
+        try(var e=new Env()) {
+            // The world this activation belongs to is gone: no light is placed in its successor.
+            Object cell=e.get(e.world,"currentCell");
+            VehicleControl control=e.adapter(Map.of("area_light_enabled","true"));
+            e.set(e.vehicle,"headlightsOn",true); control.gameFrame();
+            Object light=e.invoke(cell,"lit");
+            Object next=cell.getClass().getConstructor().newInstance(); e.set(e.world,"currentCell",next);
+            control.gameFrame();
+            near(e.number(light,"life"),0,"old light ended"); near(e.number(next,"added"),0,"nothing placed in another world");
+            near(e.number(cell,"removed"),0,"the retired cell is not called");
+        }
+        try(var e=new Env()) {
+            // A lighting fault costs the light, not the driving assistance.
+            Object cell=e.get(e.world,"currentCell"); e.set(cell,"rejectLights",true);
+            VehicleControl control=e.adapter(Map.of("area_light_enabled","true","diagnostics_enabled","true"));
+            e.set(e.vehicle,"headlightsOn",true); control.gameFrame();
+            check(control.areaLightState().startsWith("failed:"),"fault is reported: "+control.areaLightState());
+            e.set(cell,"rejectLights",false); control.gameFrame();
+            near(e.number(cell,"added"),0,"no retry storm after a fault");
+            check(VehicleHooks.failure()==null,"the fault stays inside the light");
+            e.set(e.controller,"request",1); e.tick(); check(e.nativeForce()>0 && VehicleHooks.failure()==null,"driving assistance still applies");
         }
         groups++;
     }
@@ -712,7 +992,20 @@ public final class VehicleAdapterBehaviorTest {
             });
         }
         void registerPhases(VehicleHooks.Controller c) { VehicleHooks.register(owner,c); registered=true; }
-        VehicleControl adapter(Map<String,String> settings) throws Exception { var result=new VehicleControl(new VehicleAccess(loader),context,new VehicleControl.Settings(settings)); register(result); return result; }
+        VehicleControl adapter(Map<String,String> settings) throws Exception { return adapter(settings,null); }
+        VehicleControl adapter(Map<String,String> settings,SteeringKeys.Platform keys) throws Exception {
+            var result=new VehicleControl(new VehicleAccess(loader),context,new VehicleControl.Settings(settings),keys); register(result); return result;
+        }
+        /** Synthetic key bindings; without them the adapter has nothing to time and uses the game's input. */
+        void bind(String name,int key,int alternate,boolean shift) throws Exception {
+            Class<?> core=type("zombie.core.Core"), binding=type("zombie.core.Core$KeyBinding");
+            Object instance=core.getField("instance").get(null);
+            if(instance==null) { instance=core.getConstructor().newInstance(); core.getField("instance").set(null,instance); }
+            Object value=binding.getConstructor(String.class,int.class,int.class,boolean.class,boolean.class,boolean.class)
+                .newInstance(name,key,alternate,shift,false,false);
+            @SuppressWarnings("unchecked") Map<String,Object> bindings=(Map<String,Object>)core.getField("bindings").get(instance);
+            bindings.put(name,value);
+        }
         void unregister() throws Exception { if(registered) { VehicleHooks.unregister(owner).await(1000); registered=false; } }
         void tick() throws Exception { set(world,"frame",number(world,"frame").intValue()+1); update(); }
         void update() throws Exception { invoke(controller,"update"); }

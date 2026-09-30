@@ -4,6 +4,9 @@ using PzTools.Control;
 using PzTools.Process.Contracts;
 using PzTools.Process.Telemetry;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 var started = DateTimeOffset.UtcNow;
 long runIndex = 0;
 RepositoryDatabase? ownedWorkflowRepository = null;
@@ -29,6 +32,9 @@ try
             settings.DatabaseCleanupBatchSize, settings.VacuumEnabled,
             settings.VacuumMinimumFreeMib, settings.VacuumMinimumFreePercent,
             settings.VacuumMaximumDatabaseMib),
+        PackReclamation = new PackReclamationOptions(
+            settings.PackReclamationEnabled, settings.PackReclamationSparsePercent,
+            settings.PackReclamationMinimumMib, settings.PackReclamationMaximumCopyMib),
     };
     options.Validate();
     if (values.GetValueOrDefault("--lane") == "OrphanBackups")

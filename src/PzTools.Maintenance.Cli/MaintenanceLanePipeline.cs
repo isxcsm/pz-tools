@@ -161,6 +161,23 @@ internal static class MaintenanceLanePipeline
                 await repository.ReserveWorkflowAsync("maintenance-lane", sourceId, owner,
                     null, runIndex, token);
                 await repository.AttachWorkflowStageAsync(runIndex, owner, token);
+                ProcessTelemetryHeartbeat? heartbeat = null;
+                var announced = false;
+                // "planned" means the lane already knows it has work; otherwise only a long run is worth showing.
+                async Task StartedAsync(bool planned)
+                {
+                    announced = planned;
+                    await BestEffortProcessTelemetry.TryRecordAsync(
+                        repositoryPath, owner, runIndex, $"maintenance.{lane.ToLowerInvariant()}.started",
+                        System.Text.Json.JsonSerializer.Serialize(new { lane, planned }), configurationPath);
+                    heartbeat = ProcessTelemetryHeartbeat.Start(
+                        repositoryPath, owner, runIndex, configurationPath, TimeSpan.FromSeconds(3));
+                }
+                async Task StopHeartbeatAsync()
+                {
+                    if (heartbeat is not null) await heartbeat.DisposeAsync();
+                    heartbeat = null;
+                }
                 try
                 {
                     using var gameplayWatch = GameplayWorkGate.WatchForGameplay(cancellation);
@@ -184,6 +201,7 @@ internal static class MaintenanceLanePipeline
                                     options.RevisionCompactionBatchSize,
                                     TimeSpan.FromMinutes(options.RevisionCompactionMaxDelayMinutes), token))
                             {
+                                await StartedAsync(planned: true);
                                 var compacted = await repository.CompactDeletedRevisionsAsync(
                                     lease, sourceId, options.RevisionCompactionBatchSize, token);
                                 count += compacted.CompactedRevisions;
@@ -198,6 +216,7 @@ internal static class MaintenanceLanePipeline
                         }
                         else
                         {
+                            await StartedAsync(planned: false);
                             var cleanup = await repository.CleanupArtifactsAsync(lease, token);
                             count = cleanup.DeletedTemporaryFiles;
                             failed.AddRange(cleanup.FilesThatCouldNotBeDeleted);
@@ -220,12 +239,14 @@ internal static class MaintenanceLanePipeline
                             housekeeping is null
                                 ? (failed.Count == 0 ? null : $"failed-files={failed.Count}")
                                 : $"failed-files={failed.Count};{housekeeping.ToDetail()}");
+                        await StopHeartbeatAsync();
                         await BestEffortProcessTelemetry.TryRecordAsync(
                             repositoryPath, owner, runIndex, $"maintenance.{lane.ToLowerInvariant()}.completed",
                             System.Text.Json.JsonSerializer.Serialize(new
                             {
                                 outcome = outcome.ToString(),
                                 lane,
+                                planned = announced, // An announced start always gets its matching completion line.
                                 laneResult.ElapsedMilliseconds,
                                 laneResult.AffectedItems,
                                 database = housekeeping?.ToDetail(),
@@ -244,6 +265,7 @@ internal static class MaintenanceLanePipeline
                         runIndex, owner, status, exception.GetType().Name, CancellationToken.None);
                     await repository.CompleteWorkflowAsync(
                         runIndex, owner, status, exception.GetType().Name, CancellationToken.None);
+                    await StopHeartbeatAsync();
                     await BestEffortProcessTelemetry.TryRecordAsync(
                         repositoryPath, owner, runIndex,
                         $"maintenance.{lane.ToLowerInvariant()}." +

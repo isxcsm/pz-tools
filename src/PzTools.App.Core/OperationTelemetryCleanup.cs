@@ -16,6 +16,7 @@ public sealed class OperationTelemetryCleanup(string operationsRoot)
             "archive-worker" => "archive-",
             "restore-worker" => "restore-",
             "character-recovery" => "character-recovery-",
+            "profiler" => "profiler-",
             _ => null,
         };
         var suffix = source.SourceId[(source.SourceId.LastIndexOf('-') + 1)..];

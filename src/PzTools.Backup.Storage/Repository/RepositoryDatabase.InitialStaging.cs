@@ -16,7 +16,8 @@ public sealed partial class RepositoryDatabase
         CancellationToken cancellationToken = default,
         Action? beforeTransactionCommit = null,
         long? requestedRevision = null,
-        SupportedLanguage nameLanguage = SupportedLanguage.Korean)
+        SupportedLanguage nameLanguage = SupportedLanguage.Korean,
+        string? gameVersion = null)
     {
         EnsureLease(lease);
         ArgumentNullException.ThrowIfNull(stagingConnection);
@@ -39,7 +40,8 @@ public sealed partial class RepositoryDatabase
                 Packs: [],
                 Objects: [],
                 Entries: [],
-                NameLanguage: nameLanguage);
+                NameLanguage: nameLanguage,
+                GameVersion: gameVersion);
             var currentRevision = await ReadCurrentRevisionAsync(
                 stagingConnection,
                 transaction,

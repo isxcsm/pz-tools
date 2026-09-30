@@ -22,9 +22,9 @@ public sealed class VehicleDrivingUiSourceTests
         Assert.Contains("Control.Items.Add(row.Card)", section);
         Assert.Contains("Content = enabled.Control", section);
         Assert.Contains("Content = editor.Control", section);
-        Assert.Equal(3, Regex.Matches(section, @"AddOption\(GameExtensionSetting\.(Torque|Reverse|Steering),").Count);
+        Assert.Equal(4, Regex.Matches(section, @"AddOption\(GameExtensionSetting\.(Torque|Reverse|Steering|AreaLight),").Count);
         Assert.Single(Regex.Matches(section, @"AddOption\(GameExtensionSetting.ForceVersion,").Cast<Match>());
-        foreach (var name in new[] { "Torque", "Reverse", "Steering" })
+        foreach (var name in new[] { "Torque", "Reverse", "Steering", "AreaLight" })
             Assert.Contains($"GameExtensionSetting.{name} => preference.{name}Enabled", section);
     }
 
@@ -132,16 +132,16 @@ public sealed class VehicleDrivingUiSourceTests
     }
 
     [Fact]
-    public void AllEighteenLanguagesTranslateTheThreeFeaturesAndRemoveOldOptionKeys()
+    public void AllEighteenLanguagesTranslateEveryFeatureAndRemoveOldOptionKeys()
     {
         var files = Directory.GetFiles(Path.Combine(Root(), "src", "PzTools.App", "Strings"), "Resources.resw", SearchOption.AllDirectories);
         Assert.Equal(18, files.Length);
-        string[] features = ["VehicleDrivetrain.Torque", "VehicleDrivetrain.Reverse", "VehicleDrivetrain.Steering"];
+        string[] features = ["VehicleDrivetrain.Torque", "VehicleDrivetrain.Reverse", "VehicleDrivetrain.Steering", "VehicleDrivetrain.AreaLight"];
         var english = Read(files.Single(path => Path.GetFileName(Path.GetDirectoryName(path)) == "en-US"));
         foreach (var file in files)
         {
             var resources = Read(file);
-            Assert.Equal(3, features.Select(key => resources[key]).Distinct().Count());
+            Assert.Equal(features.Length, features.Select(key => resources[key]).Distinct().Count());
             foreach (var key in features)
             {
                 Assert.False(string.IsNullOrWhiteSpace(resources[key]));

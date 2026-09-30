@@ -1,11 +1,23 @@
-# Command-line contract
+# Command line
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-Workers and runners execute one operation. Schedulers own recurring state.
-Direct calls allocate a global `run_index`; a supplied `--run-index` is
-reused throughout the pipeline. Backup `--revision` is a CLI-only override
-that must exceed the current revision.
+Every background program in PZ Tools is also a command-line program. This page lists
+their commands and options, the exit codes they return, and how a restore protects the
+save it replaces. It is for scripting, testing and troubleshooting without the app;
+everyday backups and restores go through the app.
+
+Programs come in three kinds
+([scheduler, runner, worker](glossary.md#scheduler-runner-worker)):
+
+- **Workers and runners** carry out one operation and exit.
+- **Schedulers** keep the state of recurring work.
+
+Each operation gets a [run index](glossary.md#run-index). A direct call allocates a new
+global `run_index`; a `--run-index` you supply is reused throughout the pipeline.
+
+Settings, defaults and which setting wins are on the [configuration](configuration.md)
+page.
 
 ## Backup diagnostics
 
@@ -16,6 +28,7 @@ backup --repository <path> --source-id <id> [--source <id>=<path>]
     [--full-scan-hash-comparison <true|false>]
     [--save-game] [--save-game-before-backup <true|false>]
     [--require-active-game] [--scheduled-utc <ISO 8601>]
+    [--game-version <text>]
 restore --repository <path> --source-id <id> --revision <n> --target <save-path>
 verify --repository <path>
 maintenance prune --repository <path> --source-id <id> --keep <n>
@@ -26,13 +39,19 @@ scan <source> <catalog.json>
 diff <source> <catalog.json>
 ```
 
-`--save-game` requests a save from the matching running single-player world.
-`--require-active-game` skips automatic work when that world stops before
-capture. `--scheduled-utc` allows advance preparation but prevents saving
-and capture before the scheduled time.
+| Option of `backup` | Effect |
+| --- | --- |
+| `--save-game` | Asks the matching running single-player world to save first ([save bridge](save-bridge.md)) |
+| `--require-active-game` | Skips automatic work if that world stops before files are captured |
+| `--scheduled-utc` | Allows preparation in advance, but no saving or capture before the scheduled time |
+| `--game-version` | Records the running game's version with the new backup. The app and the scheduler pass it while the game has that save loaded. |
+| `--revision` | Command-line-only override of the revision number; it must be higher than the current revision |
 
-`restore`, `verify`, and all `maintenance` commands require an existing
-repository, so a mistyped path does not create one.
+`restore`, `verify` and all `maintenance` commands need an existing repository, so a
+mistyped path does not create a new one.
+
+The configuration options and overrides accepted by `backup` and `config` are listed
+under [configuration](configuration.md#checking-and-overriding-from-the-command-line).
 
 ## Runners, schedulers, and archives
 
@@ -64,28 +83,14 @@ PzTools.Zomboid.Archive.Cli import --archive <file> --saves-root <path>
     [--run-index <n>] [--control-db <path>]
 ```
 
-The scheduler configure command accepts zero to disable automatic backups.
-App settings store the enabled toggle separately from the 1–60 minute interval.
-
-Publish development executables together with `scripts/publish-tools.ps1`.
-Runners launch fixed worker names from that directory. Each `--config`
-selects only its own process's settings; BackupRunner and MaintenanceRunner use
-`--worker-config` to override a child's configuration. See
-[configuration](configuration.md) for defaults, precedence, and worker overrides.
-
-## Restore safety
-
-Restore builds staging beside the target, moves the existing save to a rollback
-name, and installs staging through an atomic directory rename. It accepts an
-existing target but rejects a running save if `players.db` cannot be opened
-exclusively.
-
-Interrupted operations are reconciled at app startup. Version 2 journals record
-directory identities so recovery can prove the installed target came from staging
-before removing rollback. A conflicting folder, unverifiable version 1 journal,
-or access error preserves the original, staging, and journal for resolution.
-An `installed` phase label alone is insufficient. Recovery also uses the
-original directory identity when resuming an interrupted rollback.
+- `PzTools.Backup.Scheduler configure` accepts an interval of zero to turn automatic
+  backups off. The app's settings store the on/off switch separately from the 1–60
+  minute interval.
+- Publish development executables together with `scripts/publish-tools.ps1`. Runners
+  start workers with fixed names from that same directory.
+- Each `--config` selects the settings of its own process only. BackupRunner and
+  MaintenanceRunner use `--worker-config` to override their child worker's settings.
+  See [configuration](configuration.md#which-setting-wins) for defaults and precedence.
 
 ## Results and exit codes
 
@@ -99,17 +104,52 @@ original directory identity when resuming an interrupted rollback.
 | 64 | Invalid command, configuration, or arguments |
 | 75 | Runner mutex or repository writer lease is busy |
 
-A runner that cannot acquire its mutex records a `Busy` workflow without
-starting a worker. Its allocated run index is retained. The scheduler retries
-without accumulating missed ticks or consuming an unstarted pending attempt.
+**Busy (75).** A runner that cannot take its mutex records a `Busy`
+[workflow](glossary.md#workflow) and does not start a worker. The run index it was given
+stays used. The scheduler tries again later; missed ticks do not pile up, and a pending
+attempt that never started is not used up.
 
-Runners and one-shot workers write a common JSON envelope to stdout with version,
-component, `runIndex`, outcome, timestamps, and result/error. Parents validate
-the supplied run index, component, and exit code; mismatches become
-`invalid-runner-result` or `runner-contract-mismatch`.
-Diagnostic errors may instead use stderr JSON with `success`, `code`,
-and `message`.
+**Result output.** Runners and one-shot workers write a common JSON envelope to stdout
+with the version, component, `runIndex`, outcome, timestamps, and result or error. The
+parent process checks the run index it supplied, the component and the exit code. A
+mismatch becomes `invalid-runner-result` or `runner-contract-mismatch`. Diagnostic
+errors may instead be written to stderr as JSON with `success`, `code` and `message`.
 
-Telemetry failure does not change a successful backup's exit code. The result's
-`warnings` can report telemetry errors, quarantined staging files, and orphan
-packs. See [telemetry](telemetry.md) for diagnostic details.
+**Warnings.** A telemetry failure does not change the exit code of a successful backup.
+The result's `warnings` can report telemetry errors, quarantined staging files and
+orphan packs. See [telemetry](telemetry.md) for details.
+
+## Restore safety
+
+A restore replaces a save folder with the contents of a backup. It works in three
+steps:
+
+1. Build the restored save in a staging folder beside the target. Each stored object is
+   verified as it is read, files are written under their final names, and every file is
+   flushed to disk (by a few background workers, while later files are written) before
+   the next step.
+2. Move the existing save aside to a rollback name.
+3. Put the staging folder in place with an atomic directory rename.
+
+An existing target is accepted. A save that is running is refused: if `players.db`
+cannot be opened exclusively, the restore does not start.
+
+The save is not touched until the rename step. A restore that fails before then
+discards its own staging folder and [journal](glossary.md#restore-journal), even if
+the save has been opened in the meantime, and reports the original error. After the
+new save is installed, a rollback folder that cannot be removed yet stays in the
+journal for later cleanup; the restore still counts as successful.
+
+### After an interruption
+
+Interrupted operations, restores included, are sorted out when the app starts. This
+recovery never writes
+into an existing save, so it does not wait for that save to be closed.
+
+- Version 2 journals record directory identities. Recovery uses them to prove that the
+  installed target came from staging before it removes the rollback folder, and uses
+  the original directory's identity when it resumes an interrupted rollback.
+- A phase label of `installed` alone is not enough proof.
+- If there is a conflicting folder, a version 1 journal that cannot be verified, or an
+  access error, the original save, the staging folder and the journal are all kept so
+  the situation can be resolved.

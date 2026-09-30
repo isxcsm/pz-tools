@@ -15,6 +15,7 @@ public enum LogActivityKind
     Maintenance,
     Other,
     CharacterRecovery,
+    Profile,
 }
 
 /// <summary>Derives a user-facing activity from durable event fields, including older rows.</summary>
@@ -47,6 +48,7 @@ public sealed record LogActivityContext(
             "backup-worker" or "backup-runner" => LogActivityKind.Backup,
             "restore-worker" => LogActivityKind.Restore,
             "character-recovery" => LogActivityKind.CharacterRecovery,
+            "profiler" => LogActivityKind.Profile,
             "archive-worker" => ArchiveKind(operation, entry.SourceId),
             "state-runner" or "state-collector" or "state-reactor" or "state-scheduler" =>
                 LogActivityKind.StateCheck,

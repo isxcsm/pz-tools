@@ -58,14 +58,17 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                     catch (OperationCanceledException) { }
                 }
                 var exit = WatchExitAsync();
-                var control = new RuntimeExtensionCoordinator(bridgeDirectory, runtimeRoot, received, extensions, extensionOptions)
-                    .RunAsync(game.Id, stream, connection.Token);
+                // Extension control is optional; its failure must not end the observation that times backups.
+                var control = OptionalWorkSupervisor.RunAsync(
+                    stop => new RuntimeExtensionCoordinator(bridgeDirectory, runtimeRoot, received, extensions, extensionOptions)
+                        .RunAsync(game.Id, stream, stop),
+                    () => extensions.Publish(new(RuntimeExtensionState.FaultedPassThrough, "controller-failed")),
+                    connection.Token);
                 try
                 {
                     long lastConfigurationCheck = 0;
                     await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(game.Id, connection.Token))
                     {
-                        if (control.IsCompleted) { await control; throw new IOException("Extension controller stopped."); }
                         if (game.HasExited || game.StartTime.ToUniversalTime() != started) break;
                         failures = 0;
                         if (Stopwatch.GetElapsedTime(lastConfigurationCheck).TotalSeconds >= 2)
@@ -93,7 +96,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             { if (received.Read().Quality != RuntimeQuality.Offline) received.Publish(RuntimeObservation.Unknown("runtime-disconnected")); }
-            catch (Exception error) when (error is IOException or GameSaveException or InvalidOperationException
+            catch (Exception error) when (error is IOException or InvalidDataException or GameSaveException or InvalidOperationException
                 or System.ComponentModel.Win32Exception or FormatException or OverflowException or UnauthorizedAccessException
                 or Microsoft.Data.Sqlite.SqliteException)
             {

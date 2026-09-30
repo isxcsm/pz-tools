@@ -34,6 +34,52 @@ public static class UserFacingErrorCatalog
         return Generic;
     }
 
+    /// <summary>
+    /// The same explanation for a failure that was logged: from its code, the exception's type and its Windows
+    /// error number, never from the wording of its message, which Windows may have written in another language.
+    /// </summary>
+    public static string FromDiagnostics(string? failureCode, string? exceptionType, string? message, string? hResult,
+        string? nativeErrorCode = null)
+    {
+        if (failureCode?.StartsWith("profile-", StringComparison.Ordinal) == true)
+        {
+            var profile = ProfileRecordingService.ErrorKey(failureCode);
+            if (profile != "ProfileError.Generic") return profile;
+        }
+        // A code the app knows, whether it was written as the code or at the start of the message.
+        var key = FromProcessError(failureCode);
+        if (key != Generic) return key;
+        key = FromProcessError(message);
+        if (key != Generic) return key;
+        key = exceptionType switch
+        {
+            "UnauthorizedAccessException" => "OperationError.AccessDenied",
+            "FileNotFoundException" or "DirectoryNotFoundException" => "OperationError.FileMissing",
+            "OperationCanceledException" or "TaskCanceledException" => "OperationCancelled",
+            _ => Generic,
+        };
+        if (key != Generic) return key;
+        // A Windows error number: a Win32Exception's own, or the one inside an HResult of the form 0x8007xxxx.
+        if (int.TryParse(nativeErrorCode, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var native))
+            return FromWindowsError(native);
+        if (hResult is null) return Generic;
+        var digits = hResult.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? hResult[2..] : hResult;
+        if (!uint.TryParse(digits, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            || (value & 0xffff0000U) != 0x80070000U) return Generic;
+        return FromWindowsError((int)(value & 0xffff));
+    }
+
+    private static string FromWindowsError(int error) => error switch
+    {
+        5 => "OperationError.AccessDenied",
+        2 or 3 => "OperationError.FileMissing",
+        32 or 33 => "OperationError.FileInUse",
+        39 or 112 => "OperationError.DiskFull",
+        // The same numbers LaunchFailure.Classify treats as Windows refusing to run a file by policy.
+        225 or 1260 or 4551 or 4552 => "OperationError.BlockedByPolicy",
+        _ => Generic,
+    };
+
     public static string FromArchiveError(Exception exception)
     {
         var key = FromException(exception);
@@ -60,7 +106,12 @@ public static class UserFacingErrorCatalog
             || HasCodePrefix(message, "recovery-no-character") || HasCodePrefix(message, "recovery-validation-failed")
             || HasCodePrefix(message, "recovery-invalid-chunk") || HasCodePrefix(message, "recovery-unsupported-format") || HasCodePrefix(message, "recovery-unsupported-dictionary"))
             return "RecoveryError.Unsupported";
+        if (HasCodePrefix(message, "launch-blocked")) return "OperationError.BlockedByPolicy";
         if (HasCodePrefix(message, "repository-reset-required")) return "OperationError.RepositoryIncompatible";
+        if (HasCodePrefix(message, "backup-data-damaged")) return "OperationError.BackupDamaged";
+        if (Contains(message, "The current save changed during export")) return "OperationError.ExportSaveChanged";
+        if (Starts(message, "The save is currently in use and cannot be restored")
+            || Starts(message, "The save cannot be opened for an exclusive restore")) return "OperationError.FileInUse";
         if (Starts(message, "Application workers are missing.") || Starts(message, "The configured worker directory is incomplete:"))
             return "OperationError.WorkersMissing";
         if (Starts(message, "Another operation is using ")) return "OperationError.FileInUse";

@@ -1,52 +1,149 @@
 # Game-aware backup timing
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-Periodic backups normally count active play time, not time spent paused or asleep. The existing JVM observer supplies this state; file-sharing checks are not used to infer pause.
+Automatic (periodic) backups run at a fixed interval. With game-aware timing, that
+interval counts only time you actually play: while the game is paused or your character
+is asleep, the countdown stops and picks up where it left off when you play again. This
+page is for anyone who wonders why the countdown stopped, why a backup came later than
+expected, or why a backup ran without a game save.
 
-## User behavior
+The setting is **Delay scheduled backups while paused or asleep**
+(`[backup].pause_periodic_during_game`), on by default. PZ Tools reads pause and sleep
+from the running game through the [save bridge](glossary.md#save-bridge); it does not
+guess them from which files the game has open.
 
-`[backup].pause_periodic_during_game` defaults to `true`. With a five-minute interval, pausing after two minutes leaves three minutes to run after resume. Sleeping also holds the remaining time. Faster game speed does not accelerate this real-time clock.
+## What you see
+
+With a five-minute interval, pausing after two minutes leaves three minutes, and they
+run once you resume. Sleeping holds the remaining time the same way. The countdown
+follows real time: a faster game speed does not make it run faster.
 
 | Game state | Periodic countdown |
 | --- | --- |
 | One active local world; player awake and game unpaused | Advances |
 | Paused or asleep | Holds the remaining time |
-| Loading, unknown/stale state, disconnected observation or ambiguous processes | Holds; does not assume active play |
-| Confirmed main menu or game exit | Clears the world target |
+| A debug-mode tool open on top of the game (the chunk viewer, for example) | Holds, like a pause: the world stays loaded and game time stands still |
+| Sleep cannot be read (pause can) | Advances; only the sleep pause is lost |
+| Played character is dead | Holds until a new character is played (see [death backups](runtime-character-death.md)) |
+| Loading, ambiguous processes, or a briefly unknown or [stale](glossary.md#observation-fresh-stale) state | Holds; does not assume active play |
+| Game cannot be read for about 90 seconds | Falls back to the wall clock (see [below](#when-the-game-cannot-be-read)) |
+| Confirmed main menu or game exit | Clears the world [target](glossary.md#active-save-target) |
 
-The footer distinguishes a fresh main-menu observation from loading or an absent process. A stale connection is not labeled "Game is not running." Held countdowns retain their remaining value and respect the system's animation preference.
+The footer tells a fresh main-menu reading apart from loading or no game process. A
+stale connection is not labelled "Game is not running." A held countdown keeps its
+remaining value, and its display follows the system's animation preference.
 
-Turning this setting off selects wall-clock scheduling. It does not stop the shared observer used by extensions and other game-state features. Turning **Save game before backup** off also leaves observation enabled. Pause-aware periodic backups then use a guarded probe to check admission without saving the game.
+## Settings and what restarts the countdown
 
-Automatic-backup enablement takes precedence over either timing policy. Manual and death-triggered work follow their own rules. Changing the interval or timing policy starts a new interval; restarting the app also rearms periodic timing. An observer reconnect preserves the checkpoint. Missed intervals do not cause a burst of catch-up saves.
+- **Turning the setting off** selects wall-clock scheduling: backups run at every
+  interval, paused or not. It does not stop the shared game-state reading used by the
+  [game extensions](game-extensions.md) and other game-state features.
+- **Turning Save game before backup off** also leaves that reading on. A pause-aware
+  periodic backup then uses a guarded check to confirm the backup is allowed
+  ([admission](glossary.md#admission)) without saving the game. See
+  [saving the game before a backup](save-bridge.md).
+- **Automatic backups switched off** wins over either timing choice. Manual and death
+  backups follow their own rules.
+- **Changing the interval or the timing setting** starts a new interval. Restarting
+  the app also starts periodic timing afresh. A reconnect to the game keeps the
+  countdown where it was.
+- **Missed intervals** do not cause a burst of catch-up saves.
 
-## Save admission
+## When the game cannot be read
 
-The UI displays the countdown; it does not authorize a backup. The scheduler issues a ticket for a specific process, world and timing generation. Immediately before saving, the game thread rechecks identity, pause, sleep and the due active time.
+Each game-dependent feature stops only when what it needs is missing; backups
+themselves never depend on the game. A game update, a blocked attach helper or an
+unrecognised game state must not end backups silently.
 
-If a setting changes while preparation is queued, cancellation competes with admission through the same state transition. Cancellation that wins defers the backup without consuming its periodic slot or creating a revision. A save that has already started completes normally. Capture follows only successful preparation.
+| What is missing | What happens |
+| --- | --- |
+| **Observation lost**: the connection is failing, stale, or answering without a recognisable game state, for longer than the grace period (about 90 seconds) | Periodic backups follow the wall clock at the configured interval. The target is the save the game's file locks point at, and each backup runs only while that save is still in use. They are ordinary unguarded backups. When the game can be read again, scheduling returns to game time. |
+| **Save request unreachable**: the helper cannot start or attach, the connection times out, or the bridge is missing or too old | Nothing was asked of the game, so the backup goes ahead with the files as they are on disk and records a warning. This applies to manual, periodic and death backups. |
+| **Sleep unreadable** | The clock keeps running; pausing still holds it. |
 
-A failed or missing completion is not replayed automatically. The scheduler preserves the uncertain result across recovery and blocks implicit retry for that generation. Check the result before turning automatic backups off and on to start a new interval. See [save-bridge behavior](save-bridge.md).
+A save the game refused, reported as failed, or left unanswered after the command was
+sent still fails; see the next section.
 
-## Observation and ownership
+While the connection is lost, the app shows one card for it, the schedule line says
+backups run without a game save, and the settings that need the game are locked until
+the connection returns. Their saved values are kept.
 
-The game thread samples state through the shared dispatcher. Snapshots are created on meaningful changes or 100ms checkpoints and sent at 250ms intervals; transport and SQLite work stay off the game thread. Unknown intervals or a gap longer than two seconds break active-time continuity instead of charging that time as play.
+## When a backup attempt fails
 
-The latest-value stream carries cumulative active time and epoch identifiers. This lets pause/resume survive coalesced updates. Receipt freshness and game-sample freshness are checked separately: a live socket cannot make a stalled game thread current. Reconnection reanchors the saved remainder.
+**The outcome is known.** A failure with a known game-save outcome ends that attempt,
+and the next interval tries again. This covers an error the game reported, a worker
+that could not start, and a capture that failed after the save returned. A save
+command that could not be sent at all is not a failure: the backup goes ahead without
+it, as described above.
+
+**The outcome is unknown.** The save command was sent and no usable answer came back,
+a dispatched worker's result is missing or malformed, or the attempt was cancelled. The
+game may still be saving, so the attempt is not retried at once. The scheduler sits out
+one full interval of active play and then resumes by itself; the footer shows the
+remaining time. The uncertain result survives a scheduler restart.
+
+**Not unknown.** An error before any worker was dispatched, a worker that did nothing
+(`Skipped`), and a reservation that never reached its worker keep the slot, and it is
+tried again. See [save-bridge behaviour](save-bridge.md#admission-and-failures).
+
+**Background processes.** Extension control runs beside the game-state reading and
+cannot end it. An extension-controller failure is reported and retried on its own. With
+the extension switched off, a failed OFF confirmation is recorded as informational and
+is not retried for that world. The scheduler processes are restarted with backoff,
+reported as faulted after repeated quick failures, and still retried about once a
+minute.
+
+## How it works inside
+
+### Save admission
+
+The countdown in the app is only a display; it does not permit a backup. The scheduler
+issues a [ticket](glossary.md#ticket) for a specific process, world and timing
+generation. Immediately before saving, the game thread checks identity, pause, sleep
+and the active time that is due once more.
+
+If a setting changes while preparation is queued, cancellation and admission go
+through the same state transition, and only one of them wins. If cancellation wins,
+the backup is deferred without using up its periodic slot or creating a
+[revision](glossary.md#revision-backup). A save that has already started completes
+normally. Files are captured only after successful preparation.
+
+### Reading the game state
+
+The game thread samples its state through the shared dispatcher. A snapshot is made on
+a meaningful change or at 100 ms checkpoints, and snapshots are sent every 250 ms;
+transport and SQLite work stay off the game thread. An unknown interval, or a gap
+longer than two seconds, breaks the run of active time instead of counting that time
+as play.
+
+The [WATCH](glossary.md#watch) stream sends only the latest value, so it carries the
+cumulative active time and [epoch](glossary.md#observer-epoch) identifiers. That way a
+pause and resume are not lost when updates are merged. How recently a message arrived
+and how recently the game took its sample are checked separately: a live socket cannot
+make a stalled game thread look current. After a reconnect, the saved remainder is
+anchored again.
 
 | Layer | Responsibility |
 | --- | --- |
 | Java adapter and observer | Read game state, maintain world/clock identity and cumulative active time |
 | SaveBridge / State.Scheduler | Authenticate the stream, reconnect and publish observations |
-| Zomboid.State | Commit semantic transitions and an idempotent outbox |
+| Zomboid.State | Commit semantic transitions and an idempotent [outbox](glossary.md#collector-reactor-projection-outbox) |
 | Scheduling | Own remaining time, policy generation and admission tickets |
 | Projections / WinUI | Display immutable status without controlling admission |
 
-Database writes follow semantic transitions and slower checkpoints, not every frame. Live character-death identity is separate from the saved `players.db` state; see [death-triggered backups](runtime-character-death.md).
+The database is written on meaningful transitions and slower checkpoints, not every
+frame. Whether the character is alive, as read from the game, is kept apart from the
+state saved in `players.db`; see [death backups](runtime-character-death.md).
 
-## Compatibility and tests
+## Updates and verification
 
-Deploy matching app, worker and bridge files. [Component reload](module-reload.md) explains compatible updates and when a resident bootstrap requires a game restart; no repository or save reset is needed for observation.
+Use app, worker and bridge files from the same build.
+[Component updates](module-reload.md) explains compatible updates and when a
+[bootstrap](glossary.md#bootstrap) already in the game requires a game restart. Game
+state reading needs no reset of the repository or the save.
 
-Controlled-clock, temporary-database and synthetic-JVM tests cover pause/sleep, reconnects, cancellation, settings changes and save-before-capture. They do not establish real-game frame time, long-session behavior or compatibility with every mod. Use a disposable world for those acceptance checks.
+Tests with a controlled clock, temporary databases and a synthetic game JVM cover
+pause and sleep, reconnects, cancellation, settings changes and save-before-capture.
+They do not establish real-game frame time, long-session behaviour or compatibility
+with every mod. Use a disposable world for those acceptance checks.

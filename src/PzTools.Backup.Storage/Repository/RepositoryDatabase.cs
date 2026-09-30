@@ -100,10 +100,37 @@ public sealed partial class RepositoryDatabase
                 // Validate before any PRAGMA that could write to an incompatible repository.
                 var identity = await ReadExistingIdentityAsync(connection, token);
                 await ConfigureConnectionAsync(connection, token, enableWal: false);
-                return identity;
+                // A read-only probe, so it may be replayed with the rest of the initialization
+                // while Windows still holds a killed process's WAL-index mapping.
+                return (Identity: identity, Complete: await HasGameVersionAsync(connection, token));
             }, cancellationToken);
         await using var connection = initialized.Connection;
-        return new RepositoryDatabase(absolutePath, initialized.Value, SqliteOpenMode.ReadWrite);
+        if (!initialized.Value.Complete) await AddOptionalColumnsAsync(connection, cancellationToken);
+        return new RepositoryDatabase(absolutePath, initialized.Value.Identity, SqliteOpenMode.ReadWrite);
+    }
+
+    // Optional nullable columns are added in place: builds that do not know them name their
+    // columns explicitly, so the repository stays the same schema version and opens everywhere.
+    private static async Task AddOptionalColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var add = connection.CreateCommand();
+            add.CommandText = "ALTER TABLE revisions ADD COLUMN game_version TEXT NULL;";
+            await add.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (SqliteException) when (connection.State == System.Data.ConnectionState.Open)
+        {
+            // Another process may have added it between the check and the change.
+            if (!await HasGameVersionAsync(connection, cancellationToken)) throw;
+        }
+    }
+
+    private static async Task<bool> HasGameVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM pragma_table_info('revisions') WHERE name='game_version';";
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
     }
 
     public async Task<RepositorySource> AddOrGetSourceAsync(
@@ -430,7 +457,7 @@ public sealed partial class RepositoryDatabase
             if (identity.FormatVersion != CurrentFormatVersion)
             {
                 throw new InvalidDataException(
-                    $"Unsupported repository format {identity.FormatVersion}.");
+                    $"repository-reset-required: unsupported repository format {identity.FormatVersion}.");
             }
 
             if (identity.SchemaVersion != schemaVersion)

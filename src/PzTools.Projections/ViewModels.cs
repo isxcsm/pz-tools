@@ -42,7 +42,8 @@ public sealed record BackupRevisionView(
     double? HoursSurvived = null,
     bool SurvivalPending = false,
     BackupKind Kind = BackupKind.Unknown,
-    string? CharacterMetadataError = null);
+    string? CharacterMetadataError = null,
+    string? GameVersion = null);
 
 public sealed record BackupSourceView(
     long SourceId,
@@ -75,7 +76,9 @@ public sealed record ScheduleStatusView(
     ScheduleHold Hold = ScheduleHold.None,
     bool CompletionUncertain = false,
     // Live presentation only; committed scheduler facts still control admission.
-    WorldPhase GamePhase = WorldPhase.Unknown);
+    WorldPhase GamePhase = WorldPhase.Unknown,
+    // The game cannot be observed: NextDueUtc is a wall-clock backup of the files on disk.
+    bool Fallback = false);
 
 public sealed record SettingsView(
     string Language,

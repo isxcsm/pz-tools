@@ -17,7 +17,8 @@
                                ..\PzTools.Backup.Scheduler\PzTools.Backup.Scheduler.csproj;
                                ..\PzTools.State.Scheduler\PzTools.State.Scheduler.csproj;
                                ..\PzTools.Zomboid.Archive.Cli\PzTools.Zomboid.Archive.Cli.csproj;
-                               ..\PzTools.Zomboid.Recovery.Cli\PzTools.Zomboid.Recovery.Cli.csproj"
+                               ..\PzTools.Zomboid.Recovery.Cli\PzTools.Zomboid.Recovery.Cli.csproj;
+                               ..\PzTools.Profiler.Cli\PzTools.Profiler.Cli.csproj"
                       ReferenceOutputAssembly="false" OutputItemType="_AppWorkerAssembly"
                       Private="false" />
   </ItemGroup>

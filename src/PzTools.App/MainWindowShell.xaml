@@ -4,6 +4,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:PzTools.App">
   <UserControl.Resources>
+    <Style x:Key="OperationCardStyle" TargetType="Border">
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+    </Style>
     <Style x:Key="SuspendedCountdownTextStyle" TargetType="TextBlock" BasedOn="{StaticResource SecondaryTextStyle}">
       <Setter Property="Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
     </Style>
@@ -108,6 +113,13 @@
           </ImageIcon>
         </NavigationViewItem.Icon>
       </NavigationViewItem>
+      <NavigationViewItem x:Name="ProfilerItem" Content="Performance" Tag="profiler">
+        <NavigationViewItem.Icon>
+          <ImageIcon Width="20" Height="20">
+            <ImageIcon.Source><SvgImageSource UriSource="ms-appx:///Assets/Navigation/profiler.svg" /></ImageIcon.Source>
+          </ImageIcon>
+        </NavigationViewItem.Icon>
+      </NavigationViewItem>
       <NavigationViewItem x:Name="GameExtensionsItem" Content="Game Extensions" Tag="game-extensions">
         <NavigationViewItem.Icon>
           <ImageIcon Width="20" Height="20">
@@ -129,38 +141,52 @@
     </NavigationView.MenuItems>
     <NavigationView.PaneFooter>
       <StackPanel x:Name="ProgressCards" Spacing="8" Margin="16,8,16,12">
-        <Border x:Name="ActionResultCard" Visibility="Collapsed" Padding="12" CornerRadius="8"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-          <StackPanel Spacing="4">
-            <TextBlock x:Name="ActionResultTitle" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock x:Name="ActionResultMessage" TextWrapping="Wrap" Opacity="0.7" />
-          </StackPanel>
-        </Border>
-        <Border x:Name="ProjectorStatusCard" Visibility="Collapsed"
-                Padding="12" CornerRadius="8"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-          <StackPanel Spacing="4">
-            <TextBlock x:Name="ProjectorStatusTitle" Text="일부 정보를 갱신할 수 없음"
-                       FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock x:Name="ProjectorStatusMessage" TextWrapping="Wrap" Opacity="0.8" />
-          </StackPanel>
-        </Border>
-        <Border x:Name="ExportProgressCard" Visibility="Collapsed"
-                Padding="12" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-          <StackPanel Spacing="6">
-            <TextBlock x:Name="ExportProgressTitle" x:Uid="Exporting" Text="내보내는 중" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <ProgressBar x:Name="ExportProgress" IsIndeterminate="True" />
-            <TextBlock x:Name="ExportProgressMessage" TextWrapping="Wrap" Opacity="0.7" />
-          </StackPanel>
-        </Border>
-        <Border x:Name="BackupProgressCard" Visibility="Collapsed"
-                Padding="12" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-          <StackPanel Spacing="6">
-            <TextBlock x:Name="BackupProgressTitle" x:Uid="BackingUp" Text="백업하는 중" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <ProgressBar x:Name="BackupProgress" IsIndeterminate="True" />
-            <TextBlock x:Name="BackupProgressMessage" TextWrapping="Wrap" Opacity="0.7" />
-          </StackPanel>
-        </Border>
+        <!-- One card per piece of work, filled from OperationCardStack: lowest priority on top,
+             the newest card of the highest priority just above the fixed schedule line. The result
+             of an action that runs no worker is a card here too, with the user's other work. -->
+        <StackPanel x:Name="OperationCards" Spacing="8" Visibility="Collapsed">
+          <StackPanel.ChildrenTransitions>
+            <TransitionCollection>
+              <AddDeleteThemeTransition />
+              <RepositionThemeTransition />
+            </TransitionCollection>
+          </StackPanel.ChildrenTransitions>
+        </StackPanel>
+        <!-- Cards that need the user's attention. They outrank every status card, so they sit closest
+             to the fixed schedule line, and they never expire: they leave when the condition clears or
+             through one of their own buttons. Every such card has the same shape: title, message, then
+             its buttons, if it has any. -->
+        <StackPanel x:Name="InteractiveCards" Spacing="8" Visibility="Collapsed">
+          <Border x:Name="ProjectorStatusCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
+            <StackPanel Spacing="8">
+              <TextBlock x:Name="ProjectorStatusTitle" Text="일부 정보를 갱신할 수 없음" TextWrapping="Wrap" />
+              <TextBlock x:Name="ProjectorStatusMessage" TextWrapping="Wrap" Opacity="0.8" />
+            </StackPanel>
+          </Border>
+          <Border x:Name="ComponentBlockedCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
+            <StackPanel Spacing="8">
+              <TextBlock x:Name="ComponentBlockedTitle" TextWrapping="Wrap" />
+              <TextBlock x:Name="ComponentBlockedMessage" TextWrapping="Wrap" Opacity="0.8" />
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="ComponentBlockedOpenButton" Click="ComponentBlockedOpen_Click"
+                        HorizontalAlignment="Stretch" />
+                <Button x:Name="ComponentBlockedCloseButton" Grid.Column="1" Click="ComponentBlockedClose_Click"
+                        HorizontalAlignment="Stretch" />
+              </Grid>
+            </StackPanel>
+          </Border>
+          <Border x:Name="GameLinkCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
+            <StackPanel Spacing="8">
+              <TextBlock x:Name="GameLinkTitle" TextWrapping="Wrap" />
+              <TextBlock x:Name="GameLinkMessage" TextWrapping="Wrap" Opacity="0.8" />
+              <Button x:Name="GameLinkCloseButton" Click="GameLinkClose_Click" HorizontalAlignment="Stretch" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
         <Border Padding="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -403,15 +429,21 @@
                       </StackPanel>
                       <TextBlock Grid.Column="2" Text="{x:Bind SizeText, Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" />
                       <TextBlock Grid.Column="2" Grid.ColumnSpan="2" Margin="0,0,8,0"
-                                 Text="{x:Bind AutomaticSaveLabel}"
+                                 Text="{x:Bind AutomaticSaveLabel, Mode=OneWay}"
                                  Visibility="{x:Bind AutomaticSaveVisibility, Mode=OneWay}"
                                  HorizontalAlignment="Right" VerticalAlignment="Top" FontSize="12"
+                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                      <TextBlock Grid.Column="2" Grid.ColumnSpan="2" Margin="0,0,8,0"
+                                 Text="{x:Bind GameVersionText, Mode=OneWay}"
+                                 Visibility="{x:Bind GameVersionVisibility, Mode=OneWay}"
+                                 local:AppToolTip.Tip="{x:Bind GameVersionTip, Mode=OneWay}"
+                                 HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="12"
                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                       <Border Grid.Column="3" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"
                               Visibility="{x:Bind HealVisibility}" local:AppToolTip.Tip="{x:Bind HealTooltip, Mode=OneWay}">
                         <Button Style="{StaticResource RowDeleteButtonStyle}" IsEnabled="{x:Bind CanHeal, Mode=OneWay}"
                                 Click="HealCharacter_Click" AutomationProperties.HelpText="{x:Bind HealTooltip, Mode=OneWay}"
-                                AutomationProperties.Name="{x:Bind HealLabel}">
+                                AutomationProperties.Name="{x:Bind HealLabel, Mode=OneWay}">
                           <FontIcon Glyph="&#xE95E;" FontSize="16" />
                         </Button>
                       </Border>
@@ -445,6 +477,7 @@
               </Border>
           </Grid>
           <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                  BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                   CornerRadius="8" Padding="12">
             <Grid ColumnSpacing="8">
               <Grid.ColumnDefinitions>
@@ -489,6 +522,7 @@
       <local:LogsPage x:Name="LogsRoot" Visibility="Collapsed" />
       <local:SettingsPage x:Name="SettingsRoot" Visibility="Collapsed" />
       <local:GameExtensionsPage x:Name="GameExtensionsRoot" Visibility="Collapsed" />
+      <local:ProfilerPage x:Name="ProfilerRoot" Visibility="Collapsed" />
     </Grid>
   </NavigationView>
   </Grid>

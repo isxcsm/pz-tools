@@ -2,7 +2,7 @@ namespace PzTools.App.Core;
 
 public static class AppWorkerDirectoryResolver
 {
-    private static readonly string[] RequiredExecutables =
+    public static IReadOnlyList<string> RequiredExecutables { get; } =
     [
         "PzTools.Backup.Scheduler.exe",
         "PzTools.State.Scheduler.exe",
@@ -15,6 +15,7 @@ public static class AppWorkerDirectoryResolver
         "PzTools.State.Collector.Cli.exe",
         "PzTools.State.Reactor.Cli.exe",
         "PzTools.Zomboid.Recovery.Cli.exe",
+        "PzTools.Profiler.Cli.exe",
     ];
 
     public static string Resolve(string startingDirectory, string? explicitDirectory = null)

@@ -16,7 +16,11 @@ public sealed record LogDiagnostics(
     string? FailureOrigin,
     string? Outcome,
     string? FailedFileCount,
-    string? FailedFiles)
+    string? FailedFiles,
+    // The Windows error number of the exception, such as 0x80070005 for access denied.
+    string? HResult = null,
+    // A Win32Exception's own error number, such as 5 for access denied; its HResult says nothing.
+    string? NativeErrorCode = null)
 {
     // Outcomes also describe successful/skipped work; they must not require a
     // failure diagnostics card in order to choose the correct log message.
@@ -78,7 +82,7 @@ public sealed record LogDiagnostics(
                 Get(root, "message") ?? Get(root, "failureMessage"), Get(root, "innerExceptionType"),
                 Get(root, "innerMessage"), Get(root, "saveId"),
                 Get(root, "operation"), Get(root, "failureOrigin"), outcome,
-                Get(root, "failedFileCount"), GetFileNames(root));
+                Get(root, "failedFileCount"), GetFileNames(root), Get(root, "hResult"), Get(root, "nativeErrorCode"));
         }
         catch (JsonException)
         {

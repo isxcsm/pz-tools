@@ -1,104 +1,99 @@
 # Normalized path identities
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-The path dictionaries introduced in schema 3 remain part of current format 2 /
-schema 5. They share path identities while preserving the exact spelling of each
-revision. See [repository format](repository-format.md) for compatibility; the
-measurements below describe the original schema-3 implementation.
+Every file in a backup is recorded with its path inside the save. The backup
+[repository](glossary.md#repository) stores each path once, in two dictionaries, and
+backups refer to it by number. Letter case is ignored when deciding whether two paths are
+the same file, but the exact spelling each backup saw is kept, so a file renamed only by
+changing its case is restored with the spelling it had at the time. This page is for
+people reading or changing the storage code.
+
+The dictionaries were introduced in schema 3 and are part of the current format; see
+[repository format](repository-format.md) for the version numbers and compatibility.
+
+## In short
+
+- A path has one **key** (its normalized, upper-cased form) and one or more
+  **spellings** (the exact forms seen in backups).
+- A case-only rename keeps the same key and adds a spelling. Changing it back reuses the
+  old spelling.
+- Different saves can share dictionary rows without sharing their file histories.
+- Keys and spellings are never rewritten. Unused ones are removed later, in bounded
+  batches.
 
 ## Layout and historical spelling
 
-`paths(path_id, path_key)` interns invariant-uppercase normalized relative keys.
-`path_spellings(path_id, spelling_id, display_path)` stores immutable exact spellings.
-`entry_versions` stores only the two integer references, not either path string.
+| Table | Columns | Holds |
+| --- | --- | --- |
+| `paths` | `path_id`, `path_key` | Normalized relative keys, upper-cased with the invariant culture |
+| `path_spellings` | `path_id`, `spelling_id`, `display_path` | Exact spellings; immutable |
+| `entry_versions` | `path_id`, `spelling_id` | Only the two integer references, neither path string |
 
-The canonical key is still derived by `BackupPath.NormalizeRelative(...).ToUpperInvariant()`;
-SQLite `upper()` or ASCII-only `NOCASE` is not substituted. Case-only changes share a
-path ID but have distinct spelling IDs. Reverting the spelling reuses its old ID.
-Different sources can share dictionary rows without sharing their entry histories:
-current-entry uniqueness remains `(source_id, path_id)` and the revision key remains
-`(source_id, path_id, valid_from_revision)`.
+The key is derived by `BackupPath.NormalizeRelative(...).ToUpperInvariant()`. SQLite
+`upper()` and the ASCII-only `NOCASE` are not used in its place.
 
-A composite foreign key requires every version's `(path_id, spelling_id)` pair to
-exist. Update triggers forbid rewriting identities or historical spellings. A
-spelling-uniqueness trigger checks the small primary-key range of one path; it avoids
-a secondary index that would store all display strings a second time. This trades
-that index for a linear scan of the spellings of one canonical path (normally one).
-The `entry_catalog` view joins the current normalized tables for readers; it is not
-a legacy data reader or a writable compatibility schema.
+Case-only changes share a path ID but get distinct spelling IDs; reverting the spelling
+reuses its old ID. Different [sources](glossary.md#source) can share dictionary rows
+without sharing their entry histories:
 
-## Commit, reads and reclamation
+- current-entry uniqueness stays `(source_id, path_id)`
+- the revision key stays `(source_id, path_id, valid_from_revision)`
 
-Initial scans keep strings only in connection-local TEMP staging. The persistent
-dictionaries are populated in the initial catalog commit, not during scanning.
-Initial insertion is set-based. Incremental insertion uses reusable commands in the
-same transaction as versions, summaries and the checkpoint. No dictionary ID is
-cached across transactions, so rollback/GC cannot produce stale cached IDs.
+Integrity rules:
 
-Restore, archive/metadata reads, USN path lookup, full-scan comparisons and revision
-compaction use the normalized relations. Point metadata queries resolve the numeric
-path ID before using the source/path/revision index; the cached catalog totals remain.
-Prefix lookups retain segment-boundary and literal wildcard semantics.
+- A composite foreign key requires every version's `(path_id, spelling_id)` pair to
+  exist.
+- Update triggers forbid rewriting identities or historical spellings.
+- A spelling-uniqueness trigger checks the small primary-key range of one path.
 
-GC removes only spellings referenced by no version in any source, including hidden
-baselines and tombstones. It removes keys only after all spellings have gone. The
-composite child index supports both FK checks and reference tests. Each dictionary
-sweep bounds the total removed rows across both tables. Object GC includes a sweep
-of at most 1,000 rows; periodic housekeeping also drains its configured batch even
-when no new backups or deletions occur. No vacuum runs per path insertion/deletion.
+The `entry_catalog` view joins the current normalized tables for readers. It is not a
+reader for older data and not a writable compatibility schema.
 
-## Reproducible layout experiment
+## Limits
 
-`python scripts/measure-path-normalization.py --baseline-ref 9894bdd`
+- **Spelling uniqueness is checked by a scan.** The trigger avoids a secondary index that
+  would store every display string a second time. In exchange it scans the spellings of
+  one canonical path linearly; there is normally one.
+- **Small repositories can grow slightly.** Normalization pays off for repeated file
+  versions, not for the mere number of backups: unchanged files create no new versions.
+  A repository where most files have a single version can become slightly larger (see the
+  measurements below).
 
-SQLite 3.46.1, 4,096-byte pages, 3,000 synthetic files, every file gets a version in
-every revision, and 10% change their spelling on alternating revisions. Both layouts
-use production schema SQL and are VACUUMed. Selected historical snapshots are compared
-field-for-field, and both foreign keys and integrity are checked. Windows Python
-SQLite 3.49.1 independently produced the same database byte sizes.
+## How it works inside
 
-| Revisions | Entry versions | Schema 2 bytes | Schema 3 bytes | Reduction |
-| ---: | ---: | ---: | ---: | ---: |
-| 1 | 3,000 | 1,118,208 | 1,150,976 | -2.93% |
-| 5 | 15,000 | 4,218,880 | 3,096,576 | 26.60% |
-| 20 | 60,000 | 15,892,480 | 10,489,856 | 33.99% |
+### Commit
 
-Normalization benefits repeated file versions, not the mere presence of many backup
-revisions: unchanged files create no new versions. A mostly single-version repository
-can become slightly larger. These are synthetic metadata measurements, not user DB
-measurements or backup throughput claims. The script also reports fixture construction
-time, which is not a C# commit throughput benchmark.
+- An initial scan keeps path strings only in connection-local `TEMP` staging. The
+  persistent dictionaries are filled in the initial catalog commit, not during scanning,
+  and that insertion is set-based.
+- An incremental backup inserts with reusable commands, in the same transaction as the
+  versions, summaries and checkpoint.
+- No dictionary ID is cached across transactions, so a rollback or GC cannot leave a
+  stale cached ID.
 
-The catalog benchmark was updated to evaluate the older aggregation through
-`entry_catalog` on the same normalized DB, comparing query algorithms rather than the
-old physical layout. The compact-format size script was also updated to seed normalized
-path dictionaries.
+### Reads
 
-## Verification scope
+Restore, archive and metadata reads, USN path lookup, full-scan comparisons and revision
+compaction all use the normalized tables. A point metadata query first resolves the
+numeric path ID and then uses the source/path/revision index; the cached catalog totals
+remain. Prefix lookups keep segment-boundary matching and treat wildcard characters
+literally.
 
-Local isolated production SQL checks: 10 path-normalization cases and 14 housekeeping
-cases passed. Both suites also passed on Windows. The path suite checks interning,
-spelling preservation, transaction rollback, initial set-based staging, FK/immutability
-constraints, bounded collection and lookup plans.
+### Reclamation
 
-Product commit `926d63671330e50ff7ea79d3a6624b3f5664a6d5` was built and verified on
-Windows with **181/181 storage regression cases passed, zero failures or skips**.
-This includes all **14 NormalizedPathTests** and the preceding **22 fingerprint cases**.
-Evidence: Actions run `36140435756`, job `108088649515`, artifact `10865934595`.
-The artifact contains the TRX, layout/query JSON and exact committed source ID.
-The reviewed patch SHA-256 is
-`e88b5bc1db0b7fa24a6ac34bafa38496825dd199f576f6ff1d54eae716cb9450`.
+- GC removes a spelling only when no version in any source refers to it, counting hidden
+  baselines and tombstones. It removes a key only after all its spellings have gone.
+- The composite child index supports both the foreign-key checks and these reference
+  tests.
+- Each dictionary sweep limits the number of rows it inspects across both tables
+  together, not only the rows it deletes. Its progress is saved, so the next maintenance
+  process continues the scan.
+- Object GC includes a sweep of at most 1,000 rows. Periodic housekeeping also works
+  through its configured batch even when there are no new backups or deletions.
+- No `VACUUM` runs for each path insertion or deletion.
 
-Coverage includes real capture/case rename/move and per-revision byte/spelling restore,
-cross-source sharing, hidden baselines, compaction/GC, rollback, Unicode keys, literal
-prefix handling and old-schema rejection. The same 181 cases passed in the preceding
-validation run; its publication step failed on a workflow-write permission restriction,
-not a test failure. Publishing and CI updates were then handled separately without
-changing product code or weakening tests.
+## Measurements
 
-Temporary transport workflows and payloads were removed from the final branch tree.
-The PR workflow at that time included the new SQL checks, layout experiment and path suite.
-Selected storage results did not cover the whole product. Check the exact commit's
-full validation before merging; [development](development.md) describes the current
-workflow. No live game, user saves or user repository was accessed or reset by this work.
+The size experiment and the verification runs from when normalized paths were introduced
+are kept in [path normalization measurements](history/path-normalization-measurements.md).

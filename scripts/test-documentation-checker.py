@@ -215,7 +215,7 @@ class RepositoryContractTests(unittest.TestCase):
     def test_real_documentation_passes(self):
         result = C.check(self.root)
         self.assertEqual(1, result['guides'])
-        self.assertEqual(10, result['topics_per_guide'])
+        self.assertEqual(len(C.GUIDE_SECTIONS), result['topics_per_guide'])
         self.assertGreater(result['local_links'], len(C.GUIDE_REFERENCES))
 
     def test_deleted_root_guide_is_rejected(self):
@@ -310,7 +310,7 @@ class IndependentEnglishDocumentationTests(unittest.TestCase):
             self.assertFalse((root/'src').exists())
             result = C.check(root)
             self.assertEqual(1, result['guides'])
-            self.assertEqual(10, result['topics_per_guide'])
+            self.assertEqual(len(C.GUIDE_SECTIONS), result['topics_per_guide'])
 
             # Independence from UI configuration does not exempt authored links from validation.
             guide += '\n[UI catalog](src/PzTools.Process.Contracts/Localization/languages.tsv)\n'

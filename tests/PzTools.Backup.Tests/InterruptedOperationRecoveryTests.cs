@@ -56,6 +56,67 @@ public sealed class InterruptedOperationRecoveryTests
         }
     }
 
+    [Theory]
+    [InlineData("BeforePackFlush", false)]      // Killed while the replacement is still in staging.
+    [InlineData("AfterPackPromotion", false)]   // Replacement pack exists but is not registered.
+    [InlineData("AfterRepositoryCommit", true)] // Switched over; the emptied packs are not removed yet.
+    public async Task KilledPackReclamation_KeepsEveryBackupRestorable_AndTheNextPassFinishesTheJob(
+        string point, bool switched)
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("crash");
+        var save = Path.Combine(root, "Saves", "Sandbox", "Test");
+        Directory.CreateDirectory(save);
+        await File.WriteAllTextAsync(Path.Combine(save, "data.bin"), "never changes");
+        await KillFixtureAtCheckpointAsync(root, "reclaim:" + point);
+
+        var repositoryPath = Path.Combine(root, "repository");
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
+        static byte[] Version(int seed) { var bytes = new byte[1_500_000]; new Random(seed).NextBytes(bytes); return bytes; }
+        async Task AssertBackupsRestoreAsync(string label)
+        {
+            var sourceId = Assert.Single((await repository.ReadCatalogIfChangedAsync(-1)).Sources).SourceId;
+            foreach (var (revision, seed) in new[] { (2L, 2), (3L, 3) })
+            {
+                var restored = Path.Combine(root, $"verify-{label}-{revision}");
+                await new RevisionRestorer().RestoreAsync(repository, sourceId, revision, restored);
+                Assert.Equal(Version(seed), await File.ReadAllBytesAsync(Path.Combine(restored, "big.bin")));
+                Assert.Equal("never changes", await File.ReadAllTextAsync(Path.Combine(restored, "data.bin")));
+            }
+            Assert.Empty((await new RepositoryVerifier().VerifyAsync(repository)).Issues);
+        }
+        long PackBytes() => Directory.GetFiles(Path.Combine(repositoryPath, "packs"), "*.pzpack").Sum(path => new FileInfo(path).Length);
+
+        // Exactly as the killed process left it, before any cleanup.
+        await AssertBackupsRestoreAsync("killed");
+        var leftover = PackBytes();
+
+        await using var lease = await AcquireLeaseAsync(repositoryPath);
+        await repository.CleanupArtifactsAsync(lease);
+        await repository.CollectGarbageAsync(lease);
+        var next = await new PackSpaceReclaimer().RunAsync(repository, lease, new PackReclamationOptions(MinimumReclaimMib: 1));
+
+        Assert.Equal(switched ? "below-threshold" : "Succeeded", next.Status);
+        Assert.Empty(Directory.GetFiles(Path.Combine(repositoryPath, "staging"), "*.tmp", SearchOption.AllDirectories));
+        var packs = await repository.ReadPacksAsync();
+        Assert.Equal(3, packs.Count);
+        Assert.All(packs, item => Assert.Equal("Committed", item.Status));
+        Assert.Equal(3, Directory.GetFiles(Path.Combine(repositoryPath, "packs"), "*.pzpack").Length);
+        Assert.True(PackBytes() < leftover - 1_400_000, $"{leftover} -> {PackBytes()}");
+        await AssertBackupsRestoreAsync("finished");
+    }
+
+    private static async Task<RepositoryWriterLease> AcquireLeaseAsync(string repositoryPath)
+    {
+        // The killed process's lock is released by the OS; allow it a moment.
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (true)
+        {
+            try { return RepositoryWriterLease.Acquire(repositoryPath); }
+            catch (RepositoryBusyException) { await Task.Delay(25, deadline.Token); }
+        }
+    }
+
     [Fact]
     public async Task KilledImport_IsCleanedOnStartupWithoutPublishingPartialSave()
     {

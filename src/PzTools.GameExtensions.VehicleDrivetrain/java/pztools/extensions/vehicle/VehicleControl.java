@@ -30,9 +30,79 @@ final class VehicleControl implements VehicleHooks.Controller {
     private boolean steeringSampleApplied;
     private String steeringSampleReason="awaiting-controller";
 
-    VehicleControl(VehicleAccess access,ContinuousProvider.Context context,Settings settings) {
-        this.access=access; this.context=context; this.settings=settings;
+    private final SteeringKeys keys;
+    private boolean steeringPrecise;
+    private double steeringHeld;
+    private boolean steeringSamplePrecise;
+    private double steeringSampleHeld;
+    private String steeringSampleKeys="not-started",steeringTiming="frame",steeringSampleTiming="frame";
+
+    // The light around the vehicle. Written on the game thread; deactivation reads the first two from any thread.
+    private static final long LIGHT_MOVE_NANOS=50_000_000L;
+    private volatile Object areaLight;
+    private volatile boolean lightStopped;
+    private volatile String areaLightState="off";
+    private final int[] lightTile=new int[3];
+    private int lightX,lightY,lightZ,lightRadius;
+    private float lightBrightness;
+    private long lightMovedNanos;
+    private boolean lightFailed;
+
+    VehicleControl(VehicleAccess access,ContinuousProvider.Context context,Settings settings) { this(access,context,settings,null); }
+    VehicleControl(VehicleAccess access,ContinuousProvider.Context context,Settings settings,SteeringKeys.Platform keyPlatform) {
+        this.access=access; this.context=context; this.settings=settings; keys=new SteeringKeys(access,keyPlatform);
     }
+    /** Any thread, never blocks: the key-measuring thread must not outlive the activation. */
+    void stopKeys() { keys.stop(); }
+    /**
+     * Once per game frame, driving or not. The light sits on the tile of the vehicle the player is
+     * in while its headlights are lit, and follows it tile by tile as the game's own lightbar glow
+     * does. A fault here ends only the light for this activation; driving assistance carries on.
+     */
+    void gameFrame() {
+        if(Thread.currentThread()!=context.gameThread()) return;
+        Settings current=settings;
+        if(!current.areaLight || lightStopped || lightFailed) {
+            if(areaLight!=null) removeAreaLight();
+            if(!lightFailed) areaLightState="off";
+            return;
+        }
+        try {
+            if(!access.areaLightResolved()) { areaLightState="unavailable"; return; }
+            if(!access.areaLightTarget(context,lightTile)) { removeAreaLight(); areaLightState="waiting"; return; }
+            int radius=current.model.areaLightRadius; float brightness=(float)current.model.areaLightBrightness;
+            boolean same=radius==lightRadius && brightness==lightBrightness;
+            if(areaLight!=null && same) {
+                if(lightTile[0]==lightX && lightTile[1]==lightY && lightTile[2]==lightZ) return;
+                // Each move makes the game relight the surroundings; at speed, not on every single tile.
+                if(System.nanoTime()-lightMovedNanos<LIGHT_MOVE_NANOS) return;
+            }
+            removeAreaLight();
+            // Slightly warm, like a headlamp's spill, rather than pure white.
+            Object next=access.placeLight(context,lightTile[0],lightTile[1],lightTile[2],brightness,brightness*0.95f,brightness*0.85f,radius);
+            lightX=lightTile[0]; lightY=lightTile[1]; lightZ=lightTile[2]; lightRadius=radius; lightBrightness=brightness;
+            lightMovedNanos=System.nanoTime();
+            areaLight=next; areaLightState="lit";
+            if(lightStopped) access.expireLight(next);
+        } catch(Throwable failure) {
+            lightFailed=true; areaLightState="failed:"+failure.getClass().getSimpleName();
+            try { removeAreaLight(); } catch(Throwable ignored) { }
+        }
+    }
+    private void removeAreaLight() {
+        Object light=areaLight;
+        if(light==null) return;
+        areaLight=null;
+        try { access.removeLight(context,light); }
+        catch(Throwable failure) { access.expireLight(light); }
+    }
+    /** Any thread, never blocks: the light must not outlive the activation that made it. */
+    void stopLight() {
+        lightStopped=true;
+        Object light=areaLight;
+        if(light!=null) access.expireLight(light);
+    }
+    String areaLightState() { return areaLightState; }
     @Override public int tryControl(Object controller,int mode,float speed) throws Exception {
         if(mode==VehicleHooks.STEERING) return trySteering(controller);
         if(Thread.currentThread()!=context.gameThread()) { invalidated=true; return VehicleHooks.VANILLA; }
@@ -103,12 +173,12 @@ final class VehicleControl implements VehicleHooks.Controller {
             if(!settings.model.steeringEnabled) return originalSteering(slot,"steering-disabled");
             String rejected=access.readSteering(controller,context,steeringFrame);
             if(rejected!=null) return originalSteering(slot,rejected);
-            if(slot==null) { slot=new SteeringSlot(settings.model); steeringStates.put(controller,slot); }
+            if(slot==null) { slot=new SteeringSlot(); steeringStates.put(controller,slot); }
             boolean sameDriver=slot.driver.get()==steeringFrame.driver;
             if(slot.lastFrame==steeringFrame.frame && sameDriver) {
-                if(!slot.model.accepts(steeringFrame.input,steeringFrame.actual,steeringFrame.maximum,
-                        steeringFrame.speed,steeringFrame.maximumSpeed,steeringFrame.dt))
-                    return originalSteering(slot,"invalid-steering-input-or-dt");
+                if(!SteeringModel.accepts(steeringFrame.gameInput,steeringFrame.actual,steeringFrame.multiplier,
+                        steeringFrame.speed,steeringFrame.maximumSpeed,0))
+                    return originalSteering(slot,"invalid-steering-input-or-step");
                 if(!slot.applied) return originalSteering(slot,"duplicate-frame");
                 // A completed physics frame owns one integration, even if input changes before a repeated callback.
                 // Restore the pre-tire value: replaying the already adjusted field would compound tire correction.
@@ -116,22 +186,51 @@ final class VehicleControl implements VehicleHooks.Controller {
                 access.commitSteering(controller,slot.appliedAngle);
                 return VehicleHooks.APPLIED;
             }
-            if(slot.lastFrame+1!=steeringFrame.frame || !sameDriver) slot.model.reset();
+            if(slot.lastFrame+1!=steeringFrame.frame || !sameDriver) slot.reset();
             slot.applied=false;
             slot.lastFrame=steeringFrame.frame;
             if(!sameDriver) slot.driver=new WeakReference<>(steeringFrame.driver);
-            double angle=slot.model.step(steeringFrame.input,steeringFrame.actual,steeringFrame.maximum,
-                steeringFrame.speed,steeringFrame.maximumSpeed,steeringFrame.dt);
-            if(!Double.isFinite(angle)) return originalSteering(slot,"invalid-steering-input-or-dt");
+            // Without a trustworthy measurement this is the game's own step: the whole update, by its input.
+            double input=steeringFrame.input, held=Math.abs(input)>SteeringModel.INPUT_DEAD_ZONE?1:0;
+            boolean heldAtEnd=true;
+            steeringPrecise=false; steeringTiming="frame";
+            if(settings.model.steeringPreciseInput && steeringFrame.keyboard && measure(slot)) {
+                if(steeringFrame.inputOpen) {
+                    // The keys themselves are the input: the game accepts steering right now, so nothing
+                    // waits for its once-per-frame look at the keyboard. A tap that falls between two
+                    // frames, however long the frame, steers for exactly as long as it was held.
+                    double net=(double)(slot.right-slot.left)/slot.update;
+                    input=net>0?1:net<0?-1:0; held=Math.min(1,Math.abs(net));
+                    heldAtEnd=input>0?slot.rightDown && !slot.leftDown:input<0 && slot.leftDown && !slot.rightDown;
+                    slot.input.reset(); steeringPrecise=true; steeringTiming="direct";
+                } else if(slot.input.update(steeringFrame.gameInput,slot.left,slot.right,slot.update,slot.leftDown,slot.rightDown)) {
+                    input=steeringFrame.gameInput; held=slot.input.fraction; heldAtEnd=slot.input.heldAtEnd;
+                    steeringPrecise=true; steeringTiming="confirmed";
+                }
+            } else slot.input.reset();
+            steeringHeld=held; steeringFrame.input=(float)input;
+            // Where the unheld part of the update goes. Physics only sees the value an update ends
+            // with, so returning right after a key is let go would hide the tap: the wheels would
+            // be back before anything turned, and by how much would depend on where in the frame
+            // the tap happened to end. Instead the steering is left standing for this update and
+            // the return it is owed is carried into the next one. No return is lost, only moved,
+            // and what a tap leaves behind depends on how long it was held and nothing else.
+            // A key that is down at the end was pressed after the gap, so the gap returns first.
+            double unheld=Math.max(0,1-held), before=slot.returnOwed, carried=0;
+            if(held<=0 || heldAtEnd) before+=unheld; else carried=unheld;
+            double angle=SteeringModel.advance(input,steeringFrame.actual,steeringFrame.multiplier,
+                steeringFrame.speed,steeringFrame.maximumSpeed,Math.min(SteeringModel.MAXIMUM_RELEASE,before),held,0);
+            slot.returnOwed=carried;
+            if(!Double.isFinite(angle)) return originalSteering(slot,"invalid-steering-input-or-step");
             if(settings.probeOnly) {
-                recordSteering(false,"probe-steering-prediction",angle); slot.model.reset(); return VehicleHooks.VANILLA;
+                recordSteering(false,"probe-steering-prediction",angle); slot.reset(); return VehicleHooks.VANILLA;
             }
             recordSteering(true,"applied",angle);
             access.commitSteering(controller,(float)angle);
             slot.appliedAngle=(float)angle; slot.applied=true;
             return VehicleHooks.APPLIED;
         } catch(Throwable failure) {
-            if(slot!=null) { slot.model.reset(); slot.applied=false; }
+            if(slot!=null) { slot.reset(); slot.applied=false; }
             if(failure instanceof Exception exception) throw exception;
             if(failure instanceof Error error) throw error;
             throw new IllegalStateException(failure);
@@ -140,15 +239,34 @@ final class VehicleControl implements VehicleHooks.Controller {
             if(started!=0) { sampleVersion++; steeringCostNanos=Math.max(0,System.nanoTime()-started); sampleVersion++; }
         }
     }
+    /**
+     * How much of this update the steering keys were really down. False whenever that cannot be
+     * said with confidence: the first update after a gap, a starved measuring thread, keys that
+     * cannot be timed. The caller then steers by the game's input, as the game itself would.
+     */
+    private boolean measure(SteeringSlot slot) {
+        if(!keys.read()) { slot.primed=false; return false; }
+        var now=keys.reading;
+        boolean comparable=slot.primed && slot.generation==keys.generation;
+        long update=now.clock-slot.clock, unreliable=now.unreliable-slot.unreliable;
+        slot.left=comparable?keys.held(slot.held,0):0; slot.right=comparable?keys.held(slot.held,1):0;
+        slot.update=update; slot.leftDown=keys.down(0); slot.rightDown=keys.down(1);
+        slot.primed=true; slot.generation=keys.generation; slot.clock=now.clock; slot.unreliable=now.unreliable;
+        System.arraycopy(now.held,0,slot.held,0,keys.keyCount());
+        return comparable && update>0 && unreliable==0;
+    }
     private int originalSteering(SteeringSlot slot,String reason) {
-        if(slot!=null) { slot.model.reset(); slot.applied=false; }
+        if(slot!=null) { slot.reset(); slot.applied=false; }
         recordSteering(false,reason,Double.NaN); return VehicleHooks.VANILLA;
     }
     private void recordSteering(boolean applied,String reason,double angle) {
         if(!settings.diagnostics) return;
         sampleVersion++; steeringSamples++; steeringSampleFrame=steeringFrame.frame;
         steeringSampleInput=steeringFrame.input; steeringSampleMaximum=steeringFrame.maximum;
-        steeringSampleAngle=angle; steeringSampleApplied=applied; steeringSampleReason=reason; sampleVersion++;
+        steeringSampleAngle=angle; steeringSampleApplied=applied; steeringSampleReason=reason;
+        steeringSamplePrecise=applied && steeringPrecise; steeringSampleHeld=applied?steeringHeld:0; steeringSampleKeys=keys.state;
+        steeringSampleTiming=applied?steeringTiming:"frame";
+        sampleVersion++;
     }
     private int vanilla(Slot slot,int mode,String reason) {
         if(slot!=null) slot.model.reset();
@@ -197,6 +315,7 @@ final class VehicleControl implements VehicleHooks.Controller {
             long steeringCount=steeringSamples,steeringCost=steeringCostNanos; int steeringFrameNumber=steeringSampleFrame;
             double steeringInput=steeringSampleInput,steeringAngle=steeringSampleAngle,steeringMaximum=steeringSampleMaximum;
             boolean steeringApplied=steeringSampleApplied; String steeringReason=steeringSampleReason;
+            boolean precise=steeringSamplePrecise; double heldShare=steeringSampleHeld; String keyState=steeringSampleKeys,timing=steeringSampleTiming;
             if(before!=sampleVersion) continue;
             return "mode="+mode+";outcome="+outcome+";reason="+reason+";samples="+count+";dt_seconds="+dt
                 +";gear="+gear+";rpm="+rpm+";requested_force="+force+";speed_kph="+speed+";mass="+mass
@@ -207,7 +326,9 @@ final class VehicleControl implements VehicleHooks.Controller {
                 +";steering_samples="+steeringCount+";steering_frame="+steeringFrameNumber+";steering_reason="+steeringReason
                 +";steering_applied="+steeringApplied+";steering_input="+steeringInput+";steering_requested="+steeringAngle
                 +";steering_max="+steeringMaximum+";steering_callback_us="+steeringCost/1000
-                +";sample_age_ms="+(last==0?-1:Math.max(0,(System.nanoTime()-last)/1_000_000));
+                +";steering_precise="+precise+";steering_timing="+timing+";steering_held_share="+heldShare+";steering_keys="+keyState
+                +";sample_age_ms="+(last==0?-1:Math.max(0,(System.nanoTime()-last)/1_000_000))
+                +";area_light="+areaLightState;
         }
         return "snapshot=updating";
     }
@@ -221,18 +342,21 @@ final class VehicleControl implements VehicleHooks.Controller {
         steeringSamples=steeringCostNanos=0; steeringSampleFrame=0;
         steeringSampleInput=steeringSampleAngle=steeringSampleMaximum=0;
         steeringSampleApplied=false; steeringSampleReason="awaiting-controller";
+        steeringSamplePrecise=false; steeringSampleHeld=0; steeringSampleKeys="not-started"; steeringSampleTiming="frame"; keys.clear();
         windowStart=windowCalls=windowNativeCalls=windowNanos=windowMaximum=0;
         completedCalls=completedNativeCalls=completedNanos=completedMaximum=completedWindowNanos=0;
         lastSampleNanos=0; sampleVersion++;
     }
     void reconfigure(Settings settings) { context.requireGameThread(); clear(); this.settings=settings; }
     static final class Settings {
-        final DrivetrainConfig model; final boolean probeOnly,diagnostics;
+        final DrivetrainConfig model; final boolean probeOnly,diagnostics,areaLight;
         Settings(Map<String,String> values) {
             var modelValues=new HashMap<>(values);
             probeOnly=flag(modelValues.remove("probe_only"),"probe_only");
             diagnostics=flag(modelValues.remove("diagnostics_enabled"),"diagnostics_enabled");
             model=DrivetrainConfig.parse(modelValues);
+            // Observation-only mode changes nothing in the game, a light included.
+            areaLight=model.areaLightEnabled && !probeOnly;
         }
         private static boolean flag(String value,String key) {
             if(value==null || value.equals("false")) return false;
@@ -247,8 +371,14 @@ final class VehicleControl implements VehicleHooks.Controller {
         Slot(DrivetrainConfig config) { model=new DrivetrainModel(config); }
     }
     private static final class SteeringSlot {
-        final SteeringModel model; WeakReference<Object> driver=new WeakReference<>(null); int lastFrame=Integer.MIN_VALUE;
+        final HeldInput input=new HeldInput(); WeakReference<Object> driver=new WeakReference<>(null); int lastFrame=Integer.MIN_VALUE;
         float appliedAngle; boolean applied;
-        SteeringSlot(DrivetrainConfig config) { model=new SteeringModel(config); }
+        // The key totals at this controller's previous update; differences give the time held since.
+        final long[] held=new long[4]; long clock,unreliable; int generation; boolean primed;
+        // This update's measurement: time each side was down, the span it covers, and what is down now.
+        long left,right,update; boolean leftDown,rightDown;
+        // Return time from an update in which a key was let go, to be spent at the start of the next.
+        double returnOwed;
+        void reset() { input.reset(); primed=false; returnOwed=0; }
     }
 }

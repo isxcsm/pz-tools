@@ -21,6 +21,7 @@
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>正在複製目前存檔</value></data>
   <data name="StopPlayingToExport" xml:space="preserve"><value>遊玩期間無法匯出目前存檔。請退出該存檔後重試。</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>遊玩期間無法還原備份。請退出該存檔後重試。</value></data>
+  <data name="SelectBackupToRestore" xml:space="preserve"><value>請在清單中選擇要還原的備份</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>遊玩期間無法刪除存檔。請退出該存檔後重試。</value></data>
   <data name="StopPlayingToHeal" xml:space="preserve"><value>遊玩期間無法恢復角色。請退出該存檔後重試。</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>尚無備份</value></data>
@@ -51,13 +52,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>瀏覽</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>備份</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>自動備份</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>開啟或關閉定時備份及角色死亡時備份。關閉後會保留間隔，不影響手動備份或正在進行的備份。</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>依設定的間隔備份正在遊玩的存檔。關閉後仍可手動備份。</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>備份間隔</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>1～60分鐘。關閉後保留間隔，重新開啟後開始新的計時間隔。</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>自動備份的間隔（1–60 分鐘）。變更後重新開始計時。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動備份保留數量</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>保留最近 1–100 個自動備份。此數量限制不會刪除手動備份。</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>自動備份只保留最近的這麼多個，更早的會被刪除（1–100 個）。手動備份不計入，也不會被刪除。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡時備份</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>執行中的遊戲回報角色死亡時進行備份。須開啟自動備份，遊戲暫停時也會執行。既有存檔中的死亡標記不會觸發此備份。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>角色死亡後停止自動備份，避免存活時的備份被擠掉。開啟後會保留一份死亡當下的備份。</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>檢查複製的檔案</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>檢查複製後的檔案是否與原始檔案一致。如果複製期間原始檔案變更，則重新複製。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>備份期間存檔檔案持續變更。請等遊戲儲存完成後再重新備份。</value></data>
@@ -170,9 +171,9 @@
   <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>將全部 {0:N0} 筆未檢視記錄標記為已檢視</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>記錄編號 {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
-  <data name="LogTimeHeaderFormat" xml:space="preserve"><value>時間（{0}）</value></data>
-  <data name="LogLocalTimeZone" xml:space="preserve"><value>本機</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>請按記錄顯示的時間（{0}）選擇。</value></data>
+  <data name="LogTimeHeader" xml:space="preserve"><value>時間</value></data>
+  <data name="LogTimeYesterdayFormat" xml:space="preserve"><value>昨天 {0}</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>請按此電腦的時鐘時間選擇。</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>記錄 · 最新優先</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>編號</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>用於識別此記錄的固定編號。</value></data>
@@ -228,6 +229,17 @@
   <data name="LogDiagnostics.FileReplaced" xml:space="preserve"><value>複製期間檔案遭到取代或移動。</value></data>
   <data name="LogDiagnostics.UnstableFileHint" xml:space="preserve"><value>檔案可能正在變更或無法存取。請稍後重試備份。</value></data>
   <data name="LogDiagnostics.LegacyMissingDetail" xml:space="preserve"><value>此舊記錄未包含詳細失敗原因。</value></data>
+  <data name="ProfilePhase.Prepare" xml:space="preserve"><value>準備</value></data>
+  <data name="ProfilePhase.Connect" xml:space="preserve"><value>連線到遊戲</value></data>
+  <data name="ProfilePhase.Start" xml:space="preserve"><value>開始錄製</value></data>
+  <data name="ProfilePhase.Stop" xml:space="preserve"><value>停止錄製</value></data>
+  <data name="LogPhase.ProcessLaunch" xml:space="preserve"><value>啟動工作處理程序</value></data>
+  <data name="LogPhase.ProcessResult" xml:space="preserve"><value>讀取工作處理程序結果</value></data>
+  <data name="LogPhase.ExtensionRuntime" xml:space="preserve"><value>執行遊戲擴充功能</value></data>
+  <data name="LogPhase.ComponentCheck" xml:space="preserve"><value>檢查元件</value></data>
+  <data name="SurvivalReadFailedTip" xml:space="preserve"><value>無法從此備份讀取角色資訊。詳細內容請查看記錄。</value></data>
+  <data name="LogDiagnostics.RawMessage" xml:space="preserve"><value>原始訊息</value></data>
+  <data name="LogDiagnostics.RawOnly" xml:space="preserve"><value>無法在此說明此錯誤。請查看技術資訊中的原始訊息。</value></data>
   <data name="LogDiagnostics.Message" xml:space="preserve"><value>錯誤訊息</value></data>
   <data name="LogDiagnostics.Exception" xml:space="preserve"><value>錯誤類型</value></data>
   <data name="LogDiagnostics.Inner" xml:space="preserve"><value>根本原因</value></data>
@@ -266,7 +278,7 @@
   <data name="LogEvent.StateRunCompleted" xml:space="preserve"><value>遊戲狀態檢查已結束。</value></data>
   <data name="LogEvent.CollectorCompleted" xml:space="preserve"><value>已收集遊戲狀態。</value></data>
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>已檢查備份排程。</value></data>
-  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>設定遊戲儲存、備份間隔、歷史保留數量及角色死亡後的行為。</value></data>
+  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>設定自動備份的間隔、保留數量以及備份前儲存遊戲。</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>設定記錄畫面顯示的事件層級和筆數。</value></data>
   <data name="LogMinimumLevelLabel" xml:space="preserve"><value>顯示的記錄</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>顯示數量上限</value></data>
@@ -295,6 +307,11 @@
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>手動備份 {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>自動備份 {0:N0}</value></data>
   <data name="AutomaticSaveLabel" xml:space="preserve"><value>自動備份</value></data>
+  <data name="BackupGameVersionTip" xml:space="preserve"><value>建立此備份時的遊戲版本</value></data>
+  <data name="GameVersionFormat" xml:space="preserve"><value>版本 {0}</value></data>
+  <data name="CurrentSaveVersionRunningTip" xml:space="preserve"><value>目前正在執行此存檔的遊戲版本</value></data>
+  <data name="CurrentSaveVersionSeenTip" xml:space="preserve"><value>{0} 執行此存檔的遊戲版本（存檔檔案不會記錄版本）</value></data>
+  <data name="CurrentSaveVersionBackupTip" xml:space="preserve"><value>最近一次備份（{0}）時的遊戲版本。若之後更新過遊戲，可能會不同</value></data>
   <data name="BackupNamePlaceholder" xml:space="preserve"><value>備份名稱</value></data>
   <data name="RenameRevisionTitle" xml:space="preserve"><value>編輯備份名稱</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>重新命名 {0}</value></data>
@@ -350,6 +367,20 @@
   <data name="OperationCardBusy" xml:space="preserve"><value>無法開始作業</value></data>
   <data name="OperationCardDegraded" xml:space="preserve"><value>作業已結束 · 需要處理</value></data>
   <data name="OperationCardWaiting" xml:space="preserve"><value>作業等待中</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Windows 安全性封鎖了元件</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>Windows 安全性原則（例如智慧型應用程式控制）阻止了下列元件啟動：{0}。自動備份等部分功能可能無法使用。請檢查 Windows 安全性 → 應用程式與瀏覽器控制。</value></data>
+  <data name="CardOpenSettings" xml:space="preserve"><value>開啟設定</value></data>
+  <data name="CardAcknowledge" xml:space="preserve"><value>確定</value></data>
+  <data name="FatalErrorMessageFormat" xml:space="preserve"><value>由於發生未預期的錯誤，PZ Tools 即將關閉。錯誤記錄：{0}</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Windows 安全性原則（例如智慧型應用程式控制）封鎖了 PZ Tools 元件。請檢查 Windows 安全性 → 應用程式與瀏覽器控制。</value></data>
+  <data name="MaintenanceRunning" xml:space="preserve"><value>正在清理備份</value></data>
+  <data name="OperationCardDeferred" xml:space="preserve"><value>已延後</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>為了備份或遊戲執行，已延後備份清理。</value></data>
+  <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>清理舊備份</value></data>
+  <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>清理暫存檔案</value></data>
+  <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>清理已刪除存檔的備份</value></data>
+  <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>回收未使用的空間</value></data>
+  <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>已回收 {0:N1} MB 未使用的備份空間。</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>記錄時間：{0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>正在檢查遊玩狀態，並在需要時儲存遊戲…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>備份前儲存遊戲</value></data>
@@ -360,8 +391,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>無法確認遊戲儲存結果，已停止備份。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>備份前儲存遊戲</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>遊戲內儲存倒數</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>在角色頭頂顯示儲存前的5秒倒數及儲存結果。關閉後不再顯示提示，並跳過手動備份的等待，但仍會儲存遊戲。自動備份時間不變。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>備份前儲存遊戲的最新進度。建議保持開啟：關閉後，尚未儲存的進度、車輛或物品可能不會包含在備份中。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>儲存前 5 秒起在角色頭頂顯示倒數，結束後顯示儲存結果。關閉後不顯示，直接儲存。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>備份前先儲存遊戲，把最新進度也包含進去。儲存時遊戲可能會卡頓約 0.5 秒。關閉後，尚未儲存的進度可能不會進入備份，建議保持開啟。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次備份：等待開始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次備份：等待目前作業結束</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢復</value></data>
@@ -379,12 +410,84 @@
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>無法安全取回物品，已停止恢復。存檔未被修改。</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>上一次存檔修改尚未完成。請先重新開啟 PZ Tools，再在遊戲中載入此存檔。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>角色恢復</value></data>
+  <data name="ProfilerNavigation" xml:space="preserve"><value>效能分析</value></data>
+  <data name="ProfileRecordStart" xml:space="preserve"><value>開始錄製</value></data>
+  <data name="ProfileRecordStop" xml:space="preserve"><value>停止錄製</value></data>
+  <data name="ProfileModeGeneral" xml:space="preserve"><value>標準</value></data>
+  <data name="ProfileModeDetailed" xml:space="preserve"><value>詳細</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>標準：每 0.01 秒記錄一次，幾乎不影響遊戲。&#xA;詳細：約每 0.002 秒記錄一次，也會記錄等待和停頓。遊戲可能會稍微變慢。</value></data>
+  <data name="ProfileIdleHint" xml:space="preserve"><value>先啟動遊戲，再開始錄製。重現卡頓後停止錄製，就能查看結果。</value></data>
+  <data name="ProfileStarting" xml:space="preserve"><value>正在連線到遊戲…</value></data>
+  <data name="ProfileRecordingFormat" xml:space="preserve"><value>錄製中 {0} · {1} 分鐘後自動停止</value></data>
+  <data name="ProfileConverting" xml:space="preserve"><value>正在處理錄製內容…</value></data>
+  <data name="ProfileNoLua" xml:space="preserve"><value>這個遊戲版本無法讀取模組（Lua）資訊，因此只會記錄 Java 程式碼。</value></data>
+  <data name="ProfileNoFrames" xml:space="preserve"><value>無法讀取影格邊界，因此這次錄製沒有影格圖表。</value></data>
+  <data name="ProfileRecordingTitle" xml:space="preserve"><value>正在錄製效能</value></data>
+  <data name="ProfilePhaseRecording" xml:space="preserve"><value>正在錄製遊戲效能…</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>正在處理錄製內容…</value></data>
+  <data name="LogActivity.Profile" xml:space="preserve"><value>效能錄製</value></data>
+  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
+  <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要刪除這筆錄製嗎？此動作無法復原。</value></data>
+  <data name="ProfileEmpty" xml:space="preserve"><value>還沒有錄製紀錄。</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>無法開啟這筆錄製。檔案已損毀，或是由較新的版本建立。</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部</value></data>
+  <data name="ProfileNeedsGame" xml:space="preserve"><value>啟動遊戲後即可錄製。</value></data>
+  <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>遊戲沒有在執行，未開始{0}。</value></data>
+  <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>有多個遊戲在執行，未開始{0}。</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>影格數</value></data>
+  <data name="ProfileStatFrame" xml:space="preserve"><value>影格</value></data>
+  <data name="ProfileStatAverage" xml:space="preserve"><value>平均</value></data>
+  <data name="ProfileStatSlowest" xml:space="preserve"><value>最慢</value></data>
+  <data name="ProfileStatWorst" xml:space="preserve"><value>最差 1%</value></data>
+  <data name="ProfileColumnFunction" xml:space="preserve"><value>函式</value></data>
+  <data name="ProfileColumnFile" xml:space="preserve"><value>檔案</value></data>
+  <data name="ProfileColumnMethod" xml:space="preserve"><value>方法</value></data>
+  <data name="ProfileColumnThread" xml:space="preserve"><value>執行緒</value></data>
+  <data name="ProfileColumnTime" xml:space="preserve"><value>時間點</value></data>
+  <data name="ProfileColumnLength" xml:space="preserve"><value>長度</value></data>
+  <data name="ProfileColumnKind" xml:space="preserve"><value>類型</value></data>
+  <data name="ProfileColumnDetail" xml:space="preserve"><value>詳細資料</value></data>
+  <data name="ProfileImport" xml:space="preserve"><value>開啟錄製檔案…</value></data>
+  <data name="ProfileSaveAs" xml:space="preserve"><value>另存新檔…</value></data>
+  <data name="ProfileMoreActions" xml:space="preserve"><value>更多</value></data>
+  <data name="ProfileTabLua" xml:space="preserve"><value>指令碼 (Lua)</value></data>
+  <data name="ProfileTabJava" xml:space="preserve"><value>遊戲程式碼 (Java)</value></data>
+  <data name="ProfileChartHelp" xml:space="preserve"><value>圖表使用方式</value></data>
+  <data name="ProfileFileType" xml:space="preserve"><value>效能錄製</value></data>
+  <data name="ProfileZoomAll" xml:space="preserve"><value>顯示全部</value></data>
+  <data name="ProfileZoomSelection" xml:space="preserve"><value>放大選取範圍</value></data>
+  <data name="ProfileThreadGame" xml:space="preserve"><value>遊戲執行緒</value></data>
+  <data name="ProfileThreadAll" xml:space="preserve"><value>所有執行緒</value></data>
+  <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} 個樣本 · 記憶體清理（GC）{1:N0} 次，停頓 {2:0.0} ms</value></data>
+  <data name="ProfileFewSamples" xml:space="preserve"><value>樣本太少，百分比不夠準確。請選取更大的範圍，或改用詳細模式錄製。</value></data>
+  <data name="ProfileLuaNone" xml:space="preserve"><value>這段範圍內沒有記錄到 Lua 指令碼活動。</value></data>
+  <data name="ProfileGroup.game" xml:space="preserve"><value>遊戲本體（原版）</value></data>
+  <data name="ProfileGroup.lua" xml:space="preserve"><value>Lua 引擎（執行模組和遊戲指令碼）</value></data>
+  <data name="ProfileGroup.java" xml:space="preserve"><value>Java 內建功能</value></data>
+  <data name="ProfileGroup.libraries" xml:space="preserve"><value>內建函式庫（圖形、音效等）</value></data>
+  <data name="ProfileGroup.tools" xml:space="preserve"><value>PZ Tools</value></data>
+  <data name="ProfileOwnerGame" xml:space="preserve"><value>遊戲內建指令碼（原版）</value></data>
+  <data name="ProfileOwnerUnknown" xml:space="preserve"><value>來源不明的指令碼</value></data>
+  <data name="ProfileColumnSelf" xml:space="preserve"><value>自身</value></data>
+  <data name="ProfileColumnTotal" xml:space="preserve"><value>總計</value></data>
+  <data name="ProfileColumnSamples" xml:space="preserve"><value>樣本</value></data>
+  <data name="ProfileColumnsTip" xml:space="preserve"><value>自身：直接花在該函式內的時間。總計：還包含它呼叫的其他函式。</value></data>
+  <data name="ProfileThreadsSection" xml:space="preserve"><value>各執行緒占比</value></data>
+  <data name="ProfilePausesSection" xml:space="preserve"><value>長時間等待和停頓</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>遊戲沒有在執行。請啟動遊戲後再試一次。</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>有多個遊戲正在執行，無法決定目標。</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>無法連線到遊戲。如果你更新過遊戲或 PZ Tools，請重新啟動遊戲。</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>正在進行其他作業。請稍後再試。</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>錄製已完成，但無法處理結果。詳情請查看記錄檔。</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>錄製失敗。詳情請查看記錄檔。</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>遊戲或其他作業正在使用此存檔。請停止遊玩後再試。原始檔案未變更。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存檔有尚未完成的變更。請正常結束遊戲後再試。原始存檔未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>此功能僅支援只有一名角色的單人存檔。存檔未被修改。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>無法安全修改此存檔。請確認 PZ Tools 版本支援您的遊戲版本。原始存檔未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>無法讀取生存時間 · 將再次檢查</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>遊戲或其他作業正在使用所需的檔案。請等儲存或相關作業結束後再試。</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>匯出期間存檔發生變更。請結束遊戲後重新匯出。原有檔案已保留。</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>此備份的資料已損毀，無法讀取。請選擇其他備份。目前的存檔與原有檔案皆未變更。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>可用空間不足。請釋出目標磁碟的空間後再試。</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>缺少應用程式所需的檔案。請將下載檔完整解壓縮至同一資料夾，或重新安裝 PZ Tools 後再開啟。</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>此備份資料夾的儲存格式與目前的應用程式不同。請在設定中選擇新的空白備份資料夾。如果仍需要舊備份，請保留原資料夾，勿刪除遊戲存檔。</value></data>
@@ -398,11 +501,11 @@
   <data name="SettingEnabled" xml:space="preserve"><value>開啟</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>關閉</value></data>
   <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>暫停或睡眠時延後定時備份</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>遊戲暫停或角色睡眠時暫停定時備份倒數，恢復遊玩後從剩餘時間繼續。無法確認遊戲狀態時也會等待。不影響手動備份和死亡時備份。</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>遊戲暫停或角色睡眠期間，剩餘時間停止計時，繼續遊玩後接著計時。關閉後，這段期間也會依間隔備份。</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>遊戲已暫停</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>正在確認遊戲狀態</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>請只執行一個遊戲</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>請確認上次遊戲儲存的結果，再重新開啟自動備份。</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>無法確認上次備份的結果，因此略過本次間隔。</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>清除篩選</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>全部清除</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · 點選篩選</value></data>
@@ -454,6 +557,20 @@
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>緩和倒車起步並限制倒車速度。</value></data>
   <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>細緻轉向</value></data>
   <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>讓鍵盤轉向和方向回正的過程更平順。</value></data>
+  <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>車輛周圍照明</value></data>
+  <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>車頭燈亮著時，照亮你所乘車輛的周圍。需要車頭燈和電瓶正常才會亮起，不會在存檔中寫入任何內容。</value></data>
+  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>畫面風格</value></data>
+  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>調整遊戲畫面的色彩與清晰度。不會更動任何遊戲檔案，關閉開關即可恢復原狀。</value></data>
+  <data name="ScreenLook.Preset" xml:space="preserve"><value>氛圍</value></data>
+  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>選擇畫面的整體感覺。</value></data>
+  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>寫實</value></data>
+  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>鮮豔</value></data>
+  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>電影感</value></data>
+  <data name="ScreenLook.Strength" xml:space="preserve"><value>強度</value></data>
+  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>所選氛圍的套用強度。</value></data>
+  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
+  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>季節色彩</value></data>
+  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>隨季節稍微改變白天戶外的色彩。夜晚與室內維持不變。</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>各選項獨立儲存。下方顯示遊戲確認的套用狀態。</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>已確認在遊戲中套用 · 實驗性功能</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>已要求開啟 · 等待遊戲確認</value></data>
@@ -470,6 +587,14 @@
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>進入單人遊戲後，將套用已儲存的設定。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>繼續遊戲並停車，放開油門並關閉定速巡航後即可套用設定。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>遊戲處於主選單</value></data>
+  <data name="RuntimeBackupLoading" xml:space="preserve"><value>遊戲載入中</value></data>
+  <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>角色已死亡 – 備份等待中</value></data>
+  <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>無法連線到遊戲，將不儲存遊戲直接備份。</value></data>
+  <data name="SettingSleepUnavailable" xml:space="preserve"><value>目前無法讀取睡眠狀態，僅暫停時套用。</value></data>
+  <data name="SettingUnavailableGameLink" xml:space="preserve"><value>無法連線到遊戲，目前不會套用。</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>下次備份（不儲存遊戲）</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>無法讀取遊戲狀態，因此將依設定的間隔備份，但不會先儲存遊戲。備份中可能缺少最近的進度。如果更新了遊戲或 PZ Tools，請嘗試重新啟動遊戲。</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>無法連線到遊戲</value></data>
   <data name="VersionSetting.Header" xml:space="preserve"><value>版本</value></data>
   <data name="AboutSettings.Header" xml:space="preserve"><value>關於</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>相容性與套用狀態</value></data>

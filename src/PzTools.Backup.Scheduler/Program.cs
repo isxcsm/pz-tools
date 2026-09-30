@@ -4,6 +4,9 @@ using PzTools.Process.Hosting;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 if (args.FirstOrDefault() is "help" or "--help" or "-h")
 {
     Console.WriteLine("PzTools Backup Scheduler");
@@ -40,11 +43,12 @@ try
     }
 
     if (command != "run") throw new ArgumentException("Expected configure or run.");
+    var runtimeSnapshot = new RuntimeSnapshotStore();
     var adapter = new RunnerProcessAdapter(
         options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory,
-        options.GetValueOrDefault("--control-db"));
+        options.GetValueOrDefault("--control-db"),
+        sourcePath => runtimeSnapshot.Read().GameVersionFor(sourcePath));
     var allocator = new RunIndexAllocator(options.GetValueOrDefault("--control-db"));
-    var runtimeSnapshot = new RuntimeSnapshotStore();
     var runtimeSchedule = new RuntimeScheduleController(database, runtimeSnapshot);
     var scheduler = new BackupScheduler(
         database,

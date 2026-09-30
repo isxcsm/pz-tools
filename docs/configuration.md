@@ -1,47 +1,94 @@
 # Configuration
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+
+This page lists PZ Tools' settings: where they are stored, their defaults and allowed
+values, and which one wins when the same choice is made in more than one place. For
+everyday use the app's Settings screen is enough. The files described here are for
+fine-tuning, and for running the [command-line tools](cli.md) without the app.
+
+Tuning values for each background program (timeouts, buffers, polling) are on a
+separate page: [advanced component settings](runtime-configuration.md).
+
+## Where settings live
+
+| File | What it holds |
+| --- | --- |
+| `%LOCALAPPDATA%/PzTools/settings.toml` | The choices you make in the app (UI preferences) |
+| `%LOCALAPPDATA%/PzTools/config/<component>/default.toml` | Advanced settings, one file per [component](glossary.md#component) |
+| `defaults/<component>/default.toml` in the app folder | Packaged defaults, read-only |
+
+Workflows, schedules and recorded logs are stored in databases, not in these files.
+
+The app creates 14 component TOML files, with English keys and comments. Changing the
+UI language does not rewrite them, update their comments or insert missing keys.
+
+To edit a component file:
+
+1. In Settings, use **Open folder** to find the files.
+2. Edit the file and save it.
+3. Use **Apply settings and restart**.
+
+**Restore defaults** moves the current `config` directory into `config-backups` and
+recreates the templates. Your UI choices are kept.
+
+## Which setting wins
+
+The backup worker reads `config/backup-worker/default.toml`, unless `--config` selects
+another file. From lowest to highest priority:
+
+1. Code defaults
+2. The TOML file
+3. The same choice made in the app, where the app offers it
+4. Options given explicitly on the command line
+
+Relative source paths in that TOML file are resolved against the file's own folder.
+
+Other components merge, in this order: the packaged `defaults/<component>/default.toml`,
+the central `config/<component>/default.toml`, overlapping app settings, and an explicit
+`--config`. The central file is shared by every run of that component in one
+installation.
+
+A parent process does not pass its settings on to the processes it starts. BackupRunner
+and MaintenanceRunner take `--worker-config` to override their child worker's settings
+explicitly; see [the command line](cli.md#runners-schedulers-and-archives).
 
 ## App settings
 
-The app saves UI choices in `%LOCALAPPDATA%/PzTools/settings.toml`.
-Advanced component settings live separately under `%LOCALAPPDATA%/PzTools/config`.
-Use **Open folder** in Settings to find them, then **Apply settings and restart**
-after editing. **Restore defaults** archives the current `config` directory
-under `config-backups` and recreates the templates while preserving UI choices.
+These live in `settings.toml` and are normally changed from the Settings screen.
 
-The app creates 13 component TOML files with English keys and comments. Changing
-the UI language does not rewrite them, update comments, or insert missing keys.
-Workflows, schedules, and recorded logs are stored in databases, not these files.
-
-Key app settings:
-
-| Setting | Default | Behavior |
+| Setting | Default | Behaviour |
 |---|---|---|
-| `[ui].system_tray` | `false` | When enabled, closing the window hides it in the tray. Restore or exit through the tray menu. Exit requires confirmation and stops the scheduler. |
-| `[backup].automatic_enabled` | `true` | Enables automatic backups independently of interval, death-backup, and pre-backup-save preferences. |
-| `[backup].interval_minutes` | `5` | Integer from 1 through 60. Editing it does not enable automatic backups. |
-| `[backup].pause_periodic_during_game` | `true` | Preserves the remaining interval while the game is paused, the player is asleep, or runtime state is unknown. Resumes counting afterward. |
+| `[ui].system_tray` | `false` | When enabled, closing the window hides it in the tray. Restore or exit through the tray menu. Exit asks for confirmation and stops the scheduler. |
+| `[backup].automatic_enabled` | `true` | Turns automatic backups on or off, independently of the interval, death-backup and save-before-backup preferences. |
+| `[backup].interval_minutes` | `5` | Integer from 1 through 60. Editing it does not turn automatic backups on. |
+| `[backup].pause_periodic_during_game` | `true` | Keeps the remaining interval while the game is paused, the player is asleep, or the game's state is unknown, and resumes counting afterwards. See [game-aware timing](runtime-pause-backups.md). |
 
-Disabling automatic backups preserves the selected interval and does not stop
-manual or already-started backups. Re-enabling checks current play state and starts
-a new interval. Older settings without the toggle interpret `interval_minutes = 0`
-as disabled, with five minutes as the retained interval. Reading does not rewrite
-the file; the next settings save writes both fields. With an explicit toggle, zero
-or an invalid interval type is an error. See
-[runtime pause observation](runtime-pause-backups.md) for pause behavior.
+Turning automatic backups off keeps the chosen interval. It does not stop manual
+backups or backups that have already started. Turning them back on checks the current
+play state and starts a new interval.
 
-In `config/app/default.toml`, `[logs].record_minimum_level` and `max_entries`
-control stored logs. The Logs screen's level and count filters affect display only.
+Settings files from older versions have no `automatic_enabled` key. In those files
+`interval_minutes = 0` means automatic backups are off, and five minutes is kept as the
+interval. Reading such a file does not rewrite it; the next time settings are saved,
+both fields are written. Once `automatic_enabled` is present, an interval of zero or of
+the wrong type is an error.
 
-## Backup worker
+### Stored logs
 
-The worker reads `config/backup-worker/default.toml` unless `--config`
-selects another file. Precedence, from lowest to highest, is code defaults, TOML,
-overlapping app choices, then explicit CLI options. Relative source paths in TOML
-resolve against that file's directory.
+Two keys in `config/app/default.toml` decide which log entries are stored:
 
-The current generated template includes:
+| Key | Default | Allowed values |
+|---|---|---|
+| `[logs].record_minimum_level` | `"Information"` | `Trace`, `Information`, `Warning`, `Error`, `Critical` |
+| `[logs].max_entries` | `100000` | 10000 to 500000 |
+
+The level and count filters on the Logs screen change only what is displayed. Entries
+discarded by `record_minimum_level` cannot be brought back by changing a filter.
+
+## Backup worker settings
+
+The generated `config/backup-worker/default.toml` template includes:
 
 ```toml
 format_version = 1
@@ -67,94 +114,133 @@ retain_runs = 100
 max_database_mib = 64
 ```
 
-These are template values. A custom TOML that omits telemetry fields uses the
-engine's fallback values: raw mode, 1,000 runs, and 256 MiB. Use `config show` to check the
-effective configuration.
+These are the template's values. A custom TOML file that leaves out telemetry fields
+gets the engine's fallback values instead: `raw` mode, 1,000 runs and 256 MiB. Run
+`config show` to see the settings actually in effect.
 
-`always_include` recaptures the listed source-relative paths even when USN or
-a full comparison reports no change. Missing previously stored files become
-tombstones after absence is confirmed. Omitting the key uses the same default list;
-an explicit `[]` disables extra capture. This setting does not ask the game to write
-unsaved changes to disk.
+### Saving the game first
 
-`full_scan_hash_comparison` reads content with SHA-256 when USN is unavailable,
-including files whose metadata matches. A missing comparison fingerprint causes
-capture to establish a baseline. Turning it off can miss content changes that
-preserve size and times; it does not affect `always_include`, existing
-fingerprints, or integrity checksums. Format 2 stores nullable comparison
-fingerprints as the first 16 bytes of SHA-256. Full SHA-256 integrity checksums can
-also supply a comparison baseline.
+`save_game_before_backup` asks the game to save before files are captured, when the
+game integration is used. Turned off, only data already on disk is backed up.
 
-`save_game_before_backup` requests a game save before file capture when using
-the game integration.
-Disabling it captures only data already on disk. Turning off
-`game_save_countdown` skips the messages and the manual backup's five-second delay
-while keeping the save request. Periodic backups keep their scheduled deadline.
-Changes apply to the next backup. See
-[save bridge](save-bridge.md).
+`game_save_countdown` controls the in-game notices. Turned off, it skips the notices
+and the manual backup's five-second delay, but the game is still asked to save.
+Periodic backups keep their scheduled deadline either way.
 
-`verify_staged_copies` verifies private copies with SHA-256 and retries unstable
-reads. Disabling it preserves staging and metadata checks but reduces content
-consistency checks; keep it enabled for live saves. Capture defaults to four
-readers, eight files in flight, and a 4 MiB pool budget. With 256 KiB slots, effective
-staging capacity is 2 MiB. Full-scan hashing uses batches of 16 and at most four
-readers. See [stable capture](stable-capture.md) and
-[runtime configuration](runtime-configuration.md) for bounds and controls.
+Changes apply from the next backup. The app's own switches for both settings take
+priority; see [save bridge](save-bridge.md#settings).
 
-Checksums support `auto`, `none`, `xxhash64`, and `sha256`;
-compression supports `auto`, `none`, and `brotli`. Currently
-`auto` resolves to XxHash64 and Brotli. Deduplication requires SHA-256.
+### Which files are captured
 
-New backup names follow the selected app language; English uses
-`Manual backup N` and `Automatic backup N`. Existing names do not change
-when language changes. App `[ui].language`, worker `[naming].language`,
-and CLI `--name-language` accept [supported locale codes](localization.md),
-including `en-US`, `ko-KR`, and `ja-JP`. Legacy `Korean`
-and `English` values remain readable.
+`always_include` recaptures the listed paths (relative to the save folder) in every
+backup, even when the [USN journal](glossary.md#usn-journal) or a full comparison
+reports no change. A file on the list that was stored before and is now missing is
+recorded as deleted (a tombstone) once its absence is confirmed. Leaving the key out
+uses the same default list; an explicit `[]` turns the extra capture off.
 
-## Validation and overrides
+`full_scan_hash_comparison` applies when the USN journal is unavailable. It reads file
+contents and compares their SHA-256 with the previous backup, including files whose
+size and times match. A file with no comparison fingerprint yet is captured once to
+establish a baseline. The repository stores these fingerprints as the first 16 bytes of
+SHA-256 ([repository format](repository-format.md)); a full SHA-256 integrity checksum
+can also serve as the baseline.
+
+Turning `full_scan_hash_comparison` off does not affect `always_include`, existing
+fingerprints or integrity checksums.
+
+### Checking copies
+
+`verify_staged_copies` checks each private copy with SHA-256 and retries reads of files
+that keep changing ([stable capture](glossary.md#stable-capture)). With it off, staging
+and metadata checks remain but content consistency checks are reduced. Keep it on for
+saves that are being played.
+
+Capture defaults, set in the `[runtime]` section:
+
+| Limit | Default |
+|---|---|
+| Parallel file readers | 4 |
+| Files in flight | 8 |
+| Staging memory pool | 4 MiB |
+| Staging slot size | 256 KiB (so 8 files × 256 KiB = 2 MiB of staging is actually used) |
+| Full-scan hash batch | 16 files, at most 4 readers |
+
+See [stable capture](stable-capture.md) and
+[advanced component settings](runtime-configuration.md) for the allowed ranges.
+
+### Checksums and compression
+
+| Key | Values | `auto` means |
+|---|---|---|
+| `checksum` | `auto`, `none`, `xxhash64`, `sha256` | XxHash64 |
+| `compression` | `auto`, `none`, `brotli` | Brotli |
+
+`content_deduplication = true` requires `checksum = "sha256"`.
+
+### Backup names
+
+New backups are named in the selected app language; in English, `Manual backup N` and
+`Automatic backup N`. Existing names do not change when the language changes.
+
+App `[ui].language`, worker `[naming].language` and CLI `--name-language` accept the
+[supported locale codes](localization.md), including `en-US`, `ko-KR` and `ja-JP`. The
+values `Korean` and `English` from older files are still read.
+
+## Retention and cleanup
+
+The app decides how many automatic backups to keep ([retention](glossary.md#retention)).
+Manual backups and backups of unknown origin do not count towards it. They can still
+be deleted explicitly, and they are covered by the separate cleanup for save folders
+confirmed missing ([orphan backups](glossary.md#orphan-backups)).
+
+Maintenance rewrites mostly unused pack files while the game is closed. The maintenance
+TOML holds diagnostics and bounded maintenance controls; see
+[repository housekeeping](repository-housekeeping.md).
+
+[Telemetry](glossary.md#telemetry) retention is separate from backup retention:
+
+- `enabled = false` turns recording off.
+- A `retain_runs` or `max_database_mib` of zero turns that limit off.
+- The size limit measures used database pages, not the size of the file on disk.
+
+See [telemetry](telemetry.md) for the modes and what happens on failure.
+
+The app owns the backup schedule. The state scheduler's `[scheduler].interval_seconds`
+is used only when `--interval-seconds` is not given. Archive resource limits are listed
+under [deployment layout](deployment-layout.md).
+
+## Checking and overriding from the command line
 
 ```powershell
 dotnet run --project src/PzTools.Backup.Cli -- config validate --repository C:\Backups\pz
 dotnet run --project src/PzTools.Backup.Cli -- config show --repository C:\Backups\pz
 ```
 
-For direct CLI use, define sources in TOML or pass repeated `--source <id>=<path>`
-options. Explicit source options replace the TOML source list. Repeated
-`--always-include <relative-path>` options likewise replace its entire list.
+When the CLI is used directly, define sources in TOML or pass repeated
+`--source <id>=<path>` options. Source options on the command line replace the whole
+TOML source list. Repeated `--always-include <relative-path>` options likewise replace
+the whole `always_include` list.
 
-Other overrides cover `--checksum`, `--compression`,
-`--content-deduplication`, `--verify-staged-copies`,
-`--full-scan-hash-comparison`, `--save-game-before-backup`,
-`--name-language`, and `--telemetry-{enabled,mode,batch-size,flush-ms,retain-runs,max-database-mib}`.
-Boolean options take `true` or `false`; telemetry modes are
-`off`, `run`, `phase`, and `raw`.
-See the [CLI contract](cli.md) for commands.
+Other overrides:
 
-Unknown keys/options are errors. Source IDs are unique without regard to case.
-Source roots cannot overlap each other or the repository. Always-include paths
-must be relative and cannot contain `..`.
+- `--checksum`, `--compression`
+- `--content-deduplication`, `--verify-staged-copies`
+- `--full-scan-hash-comparison`, `--save-game-before-backup`
+- `--name-language`
+- `--telemetry-{enabled,mode,batch-size,flush-ms,retain-runs,max-database-mib}`
 
-## Process ownership and retention
+Boolean options take `true` or `false`. Telemetry modes are `off`, `run`, `phase` and
+`raw`. See the [command line](cli.md) page for all commands.
 
-Other components merge packaged `defaults/<component>/default.toml`, central
-`config/<component>/default.toml`, overlapping app settings, and an explicit
-`--config`, in that order. Central settings are shared by that component
-across an installation. Parent processes do not automatically pass their settings to children:
-BackupRunner and MaintenanceRunner use `--worker-config` for an explicit
-child override.
+## Limits and errors
 
-The app chooses how many automatic backups to keep. Manual and unknown-origin
-backups are excluded from count-based retention, but remain subject to explicit
-deletion and the separate policy for confirmed missing source folders.
-Automatic pack recompression is disabled. Maintenance TOML contains diagnostics
-and bounded maintenance controls; see [repository housekeeping](repository-housekeeping.md).
-
-Telemetry retention is separate from backup retention. A zero run or size limit
-disables that limit; the size threshold measures used database pages, not the
-physical file size. `enabled = false` disables recording. See
-[telemetry](telemetry.md) for modes and failure behavior.
-
-The app owns backup cadence. StateScheduler's `[scheduler].interval_seconds`
-applies only without `--interval-seconds`. Archive resource limits are
-documented in [deployment layout](deployment-layout.md).
+- Unknown keys and unknown options are errors.
+- Source IDs must be unique, ignoring case.
+- Source roots cannot overlap each other or the repository.
+- `always_include` paths must be relative and cannot contain `..`.
+- `always_include` does not ask the game to write unsaved changes to disk. Only
+  `save_game_before_backup` does that.
+- With `full_scan_hash_comparison` off, a change that keeps a file's size and times
+  can be missed.
+- With `automatic_enabled` present, `interval_minutes = 0` or a non-integer interval
+  is an error.

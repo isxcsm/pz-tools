@@ -1,29 +1,49 @@
 # Windows USN journal
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-The Windows change-tracking layer queries NTFS volume serial number, journal ID,
-first readable USN, next USN, and lowest valid USN. An incremental checkpoint is
-the tuple `(volume serial, journal ID, next USN)`; all three are validated before
-reading. When USN cannot be used, backup falls back to a full scan with the
+NTFS keeps a change journal on each volume, the [USN journal](glossary.md#usn-journal),
+that records which files were created, changed, renamed or deleted. The backup worker
+reads it to find the save files that changed since the last backup without reading
+every file. This page is for people working on the Windows change-tracking code.
+
+## When it is used
+
+The backup worker keeps a checkpoint from the last backup and reads the journal from
+there. When the journal cannot be used, the backup falls back to a full scan with the
 configured [content comparison](configuration.md).
 
-Reads support record versions 2 and 3 with a fixed 1 MiB buffer. The parser checks
-record lengths, versions, filename ranges, and USN boundaries before producing
-typed records. V2 64-bit and V3 128-bit file/parent references normalize to
-`UInt128`. Reads stop at the captured upper bound even if the journal grows
-during the operation; records at or beyond that bound are ignored.
+The checkpoint is the triple `(volume serial, journal ID, next USN)`. All three are
+checked against the volume before reading.
 
-The delta planner consumes bounded batches rather than retaining the entire
-journal interval. Rename state survives batch boundaries, and all hard-link paths
-associated with a file reference remain tracked.
+## Limits
 
-## Testing and permissions
+- **Administrator rights.** Reading the journal on the development machine needs an
+  elevated process, and running a worker directly may need the same. There is no
+  separate elevation helper; if one is added, it would be a deployment option and
+  must not own repository or telemetry state.
+- **Record versions.** Only journal records of versions 2 and 3 are read.
 
-Binary-parser tests need no elevated privileges. Live volume-query and bounded-read
-tests run only with `PZTOOLS_TEST_USN=1`; disabled tests report skipped. The range
-test also checks file references against `FILE_ID_INFO`.
+## How it works inside
 
-Journal access on the development machine requires an elevated process, and direct
-worker runs may have the same requirement. A future elevation helper would be a
-deployment option; it must not own repository or telemetry state.
+**Volume query.** The change-tracking layer reads the volume's NTFS serial number,
+journal ID, first readable USN, next USN and lowest valid USN.
+
+**Reading.** Records are read with a fixed 1 MiB buffer. Reading stops at an upper
+bound captured at the start, even if the journal grows meanwhile; records at or beyond
+that bound are ignored.
+
+**Parsing.** Before producing typed records, the parser checks record lengths,
+versions, file-name ranges and USN boundaries. Version 2 uses 64-bit file and parent
+references and version 3 uses 128-bit ones; both are normalised to `UInt128`.
+
+**Planning.** The delta planner works through bounded batches instead of holding the
+whole journal interval in memory. Rename state carries over between batches, and every
+hard-link path belonging to a file reference stays tracked.
+
+## Verification
+
+- The binary-parser tests need no elevated rights.
+- The live volume-query and bounded-read tests run only with `PZTOOLS_TEST_USN=1`.
+  Without it they report as skipped.
+- The range test also checks file references against `FILE_ID_INFO`.

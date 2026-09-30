@@ -126,9 +126,13 @@ public sealed partial class RepositoryDatabase
             ? BackupKind.Automatic : BackupKind.Manual;
         command.CommandText =
             """
-            INSERT INTO revisions(source_id, revision, run_index, created_utc, display_name, backup_kind)
-            VALUES ($sourceId, $revision, $runIndex, $createdUtc, $displayName, $kind);
+            INSERT INTO revisions(source_id, revision, run_index, created_utc, display_name, backup_kind, game_version)
+            VALUES ($sourceId, $revision, $runIndex, $createdUtc, $displayName, $kind, $gameVersion);
             """;
+        var gameVersion = request.GameVersion?.Trim();
+        if (gameVersion is { Length: > 80 } || gameVersion?.Any(char.IsControl) == true)
+            throw new ArgumentException("Game version must be at most 80 printable characters.", nameof(request));
+        command.Parameters.AddWithValue("$gameVersion", string.IsNullOrEmpty(gameVersion) ? DBNull.Value : gameVersion);
         command.Parameters.AddWithValue("$sourceId", request.SourceId);
         command.Parameters.AddWithValue("$revision", revision);
         command.Parameters.AddWithValue("$createdUtc", createdUtc.ToString("O"));

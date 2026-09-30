@@ -6,6 +6,9 @@ using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Zomboid.Archive;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] args)
@@ -79,15 +82,22 @@ static async Task<int> RunAsync(string[] args)
                             value.RelativePath);
                         return Task.CompletedTask;
                     }
+                    async Task<ArchiveExportResult> ExportRevisionAsync(CancellationToken token)
+                    {
+                        // Background cleanup rewrites and removes packs under the writer lease. Hold it
+                        // while the revision is read, as a restore does, so no pack moves underneath.
+                        await using var lease = RepositoryWriterLease.Acquire(identity);
+                        return await service.ExportAsync(
+                            await RepositoryDatabase.OpenExistingAsync(identity, token),
+                            RequiredInt64(args, "--source-id"), RequiredInt64(args, "--revision"),
+                            Required(args, "--output"), ReportAsync, token);
+                    }
                     var locked = await OperationMutexSet.TryRunAsync(
                         [new OperationMutexRequest(live ? OperationMutexScope.SaveWrite : OperationMutexScope.RepositoryAccess, identity)],
                         async token => live
                             ? await service.ExportLiveAsync(identity, Required(args, "--save-id"),
                                 Required(args, "--output"), ReportAsync, token)
-                            : await service.ExportAsync(
-                                await RepositoryDatabase.OpenExistingAsync(identity, token),
-                                RequiredInt64(args, "--source-id"), RequiredInt64(args, "--revision"),
-                                Required(args, "--output"), ReportAsync, token),
+                            : await ExportRevisionAsync(token),
                         cancellation.Token);
                     if (!locked.Acquired)
                     {
@@ -132,6 +142,12 @@ static async Task<int> RunAsync(string[] args)
                 "archive-worker", runIndex, ProcessOutcome.Succeeded, started, result)));
         return ProcessExitCodes.Success;
     }
+    catch (RepositoryBusyException)
+    {
+        // Cleanup or a backup holds the repository; the export can simply be tried again.
+        telemetry?.RecordEvent("run.busy");
+        return Busy(runIndex, started);
+    }
     catch (OperationCanceledException)
     {
         telemetry?.RecordEvent("run.cancelled");
@@ -153,6 +169,19 @@ static async Task<int> RunAsync(string[] args)
                 "invalid-arguments", exception.Message)));
         return ProcessExitCodes.InvalidArguments;
     }
+    catch (Exception exception) when (IsDamagedBackupData(exception))
+    {
+        // Exporting a backup whose stored data fails its integrity checks.
+        telemetry?.RecordEvent("run.failed", FailureTelemetry.FromException(
+            "backup-data-damaged", exception, status: "Failed",
+            phase: operation, path: currentRelativePath ?? diagnosticPath,
+            operation: operation, saveId: saveId));
+        Console.WriteLine(ProcessResultJson.Serialize(
+            ProcessResultEnvelope<object>.Failure(
+                "archive-worker", runIndex, ProcessOutcome.Failed, started,
+                "backup-data-damaged", "backup-data-damaged: " + exception.Message)));
+        return ProcessExitCodes.Failure;
+    }
     catch (Exception exception)
     {
         telemetry?.RecordEvent("run.failed", FailureTelemetry.FromException(
@@ -169,6 +198,13 @@ static async Task<int> RunAsync(string[] args)
     {
         if (telemetry is not null) await telemetry.DisposeAsync();
     }
+}
+
+static bool IsDamagedBackupData(Exception? exception)
+{
+    for (; exception is not null; exception = exception.InnerException)
+        if (exception is PzTools.Backup.Storage.Packs.PackFormatException) return true;
+    return false;
 }
 
 static int Busy(long runIndex, DateTimeOffset started)

@@ -30,7 +30,8 @@ public sealed class OperationCoordinator(
     RunIndexAllocator runIndexes,
     string operationsRoot,
     AppRuntimeOptions? runtimeOptions = null,
-    LogInboxStore? diagnostics = null)
+    LogInboxStore? diagnostics = null,
+    Func<string, string?>? gameVersion = null)
 {
     private readonly AppRuntimeOptions runtime = runtimeOptions ?? new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> gates =
@@ -248,6 +249,8 @@ public sealed class OperationCoordinator(
                     "--save-game",
                     "--run-index", workflow.RunIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     "--worker-directory", workerDirectory,
+                    // Saves carry no version of their own; record what the game reports while this save is loaded.
+                    .. gameVersion?.Invoke(sourcePath) is { } version ? new[] { "--game-version", version } : [],
                 ],
                 "backup-runner",
                 workflow.RunIndex,
@@ -416,6 +419,24 @@ public sealed class OperationCoordinator(
             cancellationToken, "character-recovery", "PzTools.Zomboid.Recovery.Cli.exe", operationId);
     }
 
+    /// <summary>
+    /// One recording of the running game, from start to converted file. It returns when the worker
+    /// ends: after <paramref name="stopFile"/> appears, at the time limit, or when the game exits.
+    /// Nothing here touches a save or the repository, so it runs alongside backups.
+    /// </summary>
+    /// <param name="progress">Lines the worker reports while it runs: "recording ..." and "converting".</param>
+    public Task<AppOperationResult> RecordProfileAsync(
+        string outputPath, string stopFile, bool detailed, int maximumSeconds,
+        Action<string>? progress = null, CancellationToken cancellationToken = default, string? operationId = null) =>
+        RunArchiveAsync("profile", Path.GetFullPath(outputPath), OperationScope.SaveWrite,
+            [
+                "record", "--output", Path.GetFullPath(outputPath), "--stop-file", Path.GetFullPath(stopFile),
+                "--mode", detailed ? "detailed" : "general",
+                "--max-seconds", maximumSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--bridge", Path.Combine(workerDirectory, "save-bridge"),
+            ], cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId,
+            line => { if (line.StartsWith("PROFILE\t", StringComparison.Ordinal)) progress?.Invoke(line["PROFILE\t".Length..]); });
+
     private async Task<AppOperationResult> RunArchiveAsync(
         string kind,
         string identity,
@@ -424,13 +445,16 @@ public sealed class OperationCoordinator(
         CancellationToken cancellationToken,
         string component = "archive-worker",
         string executable = "PzTools.Zomboid.Archive.Cli.exe",
-        string? operationId = null)
+        string? operationId = null,
+        Action<string>? standardOutput = null)
     {
-        var prefix = component == "archive-worker" ? $"archive-{kind}" : kind;
+        var prefix = component == "archive-worker" ? $"archive-{kind}" : component == "profiler" ? component : kind;
         operationId ??= $"{prefix}:{Guid.NewGuid():N}";
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
         await using var admission = await TryAcquireAsync(component == "character-recovery"
             ? [(scope, identity), (OperationScope.RepositoryWrite, repository.RepositoryPath)]
+            // Only one recording at a time, whatever its file is called.
+            : component == "profiler" ? [(scope, Path.Combine(operationsRoot, "profiler"))]
             : [(scope, identity)], cancellationToken);
         if (admission is null)
             return new AppOperationResult(operationId, 0, ProcessOutcome.Busy, null, "operation-busy");
@@ -456,7 +480,8 @@ public sealed class OperationCoordinator(
                 invocation,
                 component,
                 runIndex,
-                cancellationToken);
+                cancellationToken,
+                standardOutput);
             var outcome = execution.Outcome;
             finalStatus = ToOperationStatus(outcome);
             return new AppOperationResult(
@@ -510,12 +535,13 @@ public sealed class OperationCoordinator(
         IReadOnlyList<string> arguments,
         string expectedComponent,
         long expectedRunIndex,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<string>? observeOutput = null)
     {
         var standardOutput = new StringBuilder();
         var standardError = new StringBuilder();
         var exit = await launcher.RunAsync(executable, arguments,
-            line => standardOutput.AppendLine(line),
+            line => { standardOutput.AppendLine(line); observeOutput?.Invoke(line); },
             line =>
             {
                 standardError.AppendLine(line);
@@ -528,9 +554,13 @@ public sealed class OperationCoordinator(
                     Guid.NewGuid().ToString("N"), "app-dispatch", Guid.Empty, 0, DateTimeOffset.UtcNow,
                     LogLevel.Error, expectedComponent, expectedRunIndex, "run.failed",
                     JsonSerializer.Serialize(new { failureCode = exit.FailureCode ?? "launch-failed",
-                        phase = "process-launch", message = standardError.ToString(), path = executable }))]);
+                        phase = "process-launch", message = standardError.ToString(), path = executable,
+                        nativeErrorCode = exit.NativeErrorCode }))]);
+            // Keep the code in front of Windows' own text so the user-facing mapping can recognise a policy block.
             return new ValidatedExecution(ProcessOutcome.Failed, exit.ExitCode,
-                exit.FailureCode ?? "launch-failed", standardError.ToString(), default);
+                exit.FailureCode ?? LaunchFailure.Failed,
+                exit.FailureCode == LaunchFailure.Blocked ? $"{LaunchFailure.Blocked}: {standardError}" : standardError.ToString(),
+                default);
         }
         try
         {

@@ -6,7 +6,7 @@ namespace PzTools.Process.Contracts.GameRuntime;
 public enum RuntimeExtensionState { Disabled, Pending, Active, Unsupported, FaultedPassThrough, RestartRequired }
 
 /// <summary>Feature values confirmed by an applied revision, never merely the saved request.</summary>
-public sealed record RuntimeVehicleOptions(bool TorqueEnabled, bool ReverseEnabled, bool SteeringEnabled);
+public sealed record RuntimeVehicleOptions(bool TorqueEnabled, bool ReverseEnabled, bool SteeringEnabled, bool AreaLightEnabled = false);
 
 /// <summary>Applied JVM state, not the user's saved preference. It does not grant backup permission.</summary>
 public sealed record RuntimeExtensionStatus(RuntimeExtensionState State, string? Reason = null,

@@ -1,0 +1,226 @@
+namespace PzTools.Profiling;
+
+/// <summary>
+/// One row of a breakdown. <see cref="Self"/> is time spent in the item itself, <see cref="Total"/>
+/// includes what it called; both are shares (0..1) of the range. <see cref="Samples"/> is how many
+/// samples the row rests on, so the reader can tell a measurement from a guess.
+/// </summary>
+public sealed record ProfileShare(string Name, string Detail, double Self, double Total, int Samples);
+
+/// <summary>Rows that belong together: the game's own code, one mod, the Java runtime. Largest rows first.</summary>
+public sealed record ProfileGroup(string Key, double Self, int Samples, IReadOnlyList<ProfileShare> Rows);
+
+public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
+    double SlowestMilliseconds, double OnePercentWorstMilliseconds);
+
+public sealed record ProfileRange(
+    long Start, long End,
+    ProfileFrameStatistics Frames,
+    // Samples of the chosen thread(s) inside the range.
+    int Samples,
+    IReadOnlyList<ProfileShare> Methods,
+    IReadOnlyList<ProfileGroup> MethodGroups,
+    IReadOnlyList<ProfileShare> Threads,
+    // Share of the range the game spent running Lua (mods and the game's own scripts).
+    double LuaShare,
+    int LuaSamples,
+    IReadOnlyList<ProfileShare> LuaFunctions,
+    IReadOnlyList<ProfileShare> LuaOwners,
+    IReadOnlyList<ProfileGroup> LuaGroups,
+    int Collections,
+    double CollectionPauseMilliseconds,
+    IReadOnlyList<ProfilePause> LongestPauses);
+
+/// <summary>Answers "what was the game doing between these two moments" from a loaded recording.</summary>
+public static class ProfileAnalysis
+{
+    public const string GameOwner = "(game)";
+    public const string UnknownOwner = "(unknown)";
+    /// <summary>Keys of <see cref="ProfileRange.MethodGroups"/>.</summary>
+    public const string GameCode = "game", LuaRuntime = "lua", JavaRuntime = "java", Tools = "tools", Libraries = "libraries";
+
+    /// <param name="thread">Index into <see cref="ProfileRecording.Threads"/>; -1 for every thread together.</param>
+    public static ProfileRange Analyze(ProfileRecording recording, long start, long end, int thread, int maximumRows = 40)
+    {
+        if (end < start) (start, end) = (end, start);
+        start = Math.Max(0, start);
+        end = Math.Max(start + 1, Math.Min(Math.Max(recording.Duration, 1), end));
+
+        // A sample stands for the time until the next one of its kind, so its weight is that period.
+        var samples = recording.Samples;
+        var first = LowerBound(samples, start, sample => sample.Time);
+        var methodSelf = new Dictionary<int, (double Weight, int Count)>();
+        var methodTotal = new Dictionary<int, double>();
+        var threadWeight = new Dictionary<int, (double Weight, int Count)>();
+        double weightSum = 0;
+        var count = 0;
+        var seen = new HashSet<int>();
+        for (var index = first; index < samples.Length && samples[index].Time < end; index++)
+        {
+            var sample = samples[index];
+            double weight = sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+            var byThread = threadWeight.GetValueOrDefault(sample.Thread);
+            threadWeight[sample.Thread] = (byThread.Weight + weight, byThread.Count + 1);
+            if (thread >= 0 && sample.Thread != thread) continue;
+            count++;
+            weightSum += weight;
+            var stack = recording.Stacks[sample.Stack];
+            if (stack.Length == 0) continue;
+            var self = methodSelf.GetValueOrDefault(stack[0]);
+            methodSelf[stack[0]] = (self.Weight + weight, self.Count + 1);
+            // Recursion must not count one sample twice for the same method.
+            seen.Clear();
+            foreach (var method in stack)
+                if (seen.Add(method)) methodTotal[method] = methodTotal.GetValueOrDefault(method) + weight;
+        }
+        var allMethods = methodTotal
+            .Select(item =>
+            {
+                var self = methodSelf.GetValueOrDefault(item.Key);
+                return new ProfileShare(recording.Methods[item.Key], "", self.Weight / Math.Max(1, weightSum), item.Value / Math.Max(1, weightSum), self.Count);
+            })
+            .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal)
+            .ToArray();
+        var methods = allMethods.Take(maximumRows).ToArray();
+        // A sample belongs to the group of the code that was actually running, so group shares add up to the whole.
+        var methodGroups = allMethods.GroupBy(row => GroupOf(row.Name))
+            .Select(group => new ProfileGroup(group.Key, group.Sum(row => row.Self), group.Sum(row => row.Samples), group.Take(maximumRows).ToArray()))
+            .Where(group => group.Samples > 0)
+            .OrderByDescending(group => group.Self).ThenBy(group => group.Key, StringComparer.Ordinal).ToArray();
+        var allThreads = threadWeight.Values.Sum(item => item.Weight);
+        var threads = threadWeight
+            .Select(item => new ProfileShare(recording.Threads[item.Key], "", item.Value.Weight / Math.Max(1, allThreads),
+                item.Value.Weight / Math.Max(1, allThreads), item.Value.Count))
+            .OrderByDescending(row => row.Self).ThenBy(row => row.Name, StringComparer.Ordinal).Take(maximumRows).ToArray();
+
+        var lua = recording.LuaSamples;
+        var luaFirst = LowerBound(lua, start, sample => sample.Time);
+        var functionSelf = new Dictionary<int, int>();
+        var functionTotal = new Dictionary<int, int>();
+        var ownerSelf = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var ownerTotal = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var luaCount = 0;
+        var owners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = luaFirst; index < lua.Length && lua[index].Time < end; index++)
+        {
+            var stack = recording.LuaStacks[lua[index].Stack];
+            if (stack.Length == 0) continue;
+            luaCount++;
+            functionSelf[stack[0].Function] = functionSelf.GetValueOrDefault(stack[0].Function) + 1;
+            seen.Clear(); owners.Clear();
+            for (var depth = 0; depth < stack.Length; depth++)
+            {
+                var function = stack[depth].Function;
+                if (seen.Add(function)) functionTotal[function] = functionTotal.GetValueOrDefault(function) + 1;
+                var owner = OwnerOf(recording.LuaFunctions[function].File);
+                if (depth == 0) ownerSelf[owner] = ownerSelf.GetValueOrDefault(owner) + 1;
+                if (owners.Add(owner)) ownerTotal[owner] = ownerTotal.GetValueOrDefault(owner) + 1;
+            }
+        }
+        // Lua rows are shares of the whole range, so a mod's row reads directly as "this much of the time".
+        var perLuaSample = recording.LuaPeriod <= 0 ? 0 : Math.Min(1.0, (double)recording.LuaPeriod / (end - start));
+        var allLuaFunctions = functionTotal
+            .Select(item => new ProfileShare(recording.LuaFunctions[item.Key].Name, recording.LuaFunctions[item.Key].File,
+                Math.Min(1, functionSelf.GetValueOrDefault(item.Key) * perLuaSample), Math.Min(1, item.Value * perLuaSample), functionSelf.GetValueOrDefault(item.Key)))
+            .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal)
+            .ToArray();
+        var luaFunctions = allLuaFunctions.Take(maximumRows).ToArray();
+        // One group per mod, plus the game's own scripts; a file whose owner cannot be told stays under "unknown".
+        var luaGroups = allLuaFunctions.GroupBy(row => OwnerOf(row.Detail), StringComparer.OrdinalIgnoreCase)
+            .Select(group => new ProfileGroup(group.Key, Math.Min(1, group.Sum(row => row.Samples) * perLuaSample), group.Sum(row => row.Samples),
+                group.Take(maximumRows).ToArray()))
+            .OrderByDescending(group => group.Self).ThenByDescending(group => group.Rows.Count > 0 ? group.Rows[0].Total : 0)
+            .ThenBy(group => group.Key, StringComparer.Ordinal).ToArray();
+        var luaOwners = ownerTotal
+            .Select(item => new ProfileShare(item.Key, "", Math.Min(1, ownerSelf.GetValueOrDefault(item.Key) * perLuaSample),
+                Math.Min(1, item.Value * perLuaSample), ownerSelf.GetValueOrDefault(item.Key)))
+            .OrderByDescending(row => row.Self).ThenBy(row => row.Name, StringComparer.Ordinal).Take(maximumRows).ToArray();
+
+        var collections = recording.Collections.Where(item => item.Time < end && item.Time + item.Duration >= start).ToArray();
+        var pauses = recording.Pauses.Where(item => item.Time < end && item.Time + item.Duration >= start
+                && (thread < 0 || item.Thread < 0 || item.Thread == thread))
+            .OrderByDescending(item => item.Duration).Take(10).ToArray();
+
+        return new ProfileRange(start, end, FrameStatistics(recording, start, end), count, methods, methodGroups, threads,
+            Math.Min(1, luaCount * perLuaSample), luaCount, luaFunctions, luaOwners, luaGroups,
+            collections.Length, collections.Sum(item => item.Duration) / 1000.0, pauses);
+    }
+
+    /// <summary>Frames that begin inside the range.</summary>
+    public static ProfileFrameStatistics FrameStatistics(ProfileRecording recording, long start, long end)
+    {
+        var frames = recording.Frames;
+        var first = LowerBound(frames, start, frame => frame.Start);
+        var durations = new List<long>();
+        for (var index = first; index < frames.Length && frames[index].Start < end; index++) durations.Add(frames[index].Duration);
+        if (durations.Count == 0) return new(0, 0, 0, 0, 0);
+        durations.Sort();
+        // "1% low" as players know it: the average of the slowest hundredth of the frames.
+        var worst = Math.Max(1, durations.Count / 100);
+        return new(durations.Count, durations.Average() / 1000.0, durations[durations.Count / 2] / 1000.0, durations[^1] / 1000.0,
+            durations.Skip(durations.Count - worst).Average() / 1000.0);
+    }
+
+    /// <summary>
+    /// The slowest frame in each of <paramref name="buckets"/> equal slices of the range, in milliseconds;
+    /// 0 where no frame began. Taking the maximum keeps a single spike visible however far the chart is zoomed out.
+    /// </summary>
+    public static double[] SlowestFramePerBucket(ProfileRecording recording, long start, long end, int buckets)
+    {
+        var result = new double[Math.Max(1, buckets)];
+        if (end <= start) return result;
+        var frames = recording.Frames;
+        var span = (double)(end - start);
+        for (var index = LowerBound(frames, start, frame => frame.Start); index < frames.Length && frames[index].Start < end; index++)
+        {
+            var bucket = Math.Min(result.Length - 1, (int)((frames[index].Start - start) / span * result.Length));
+            result[bucket] = Math.Max(result[bucket], frames[index].Duration / 1000.0);
+        }
+        return result;
+    }
+
+    /// <summary>The frame that contains <paramref name="time"/>, or the nearest one that began before it.</summary>
+    public static ProfileFrame? FrameAt(ProfileRecording recording, long time)
+    {
+        var frames = recording.Frames;
+        if (frames.Length == 0) return null;
+        var index = LowerBound(frames, time + 1, frame => frame.Start) - 1;
+        return frames[Math.Max(0, index)];
+    }
+
+    /// <summary>Which mod a Lua file belongs to, from the shortened path the recording keeps.</summary>
+    public static string OwnerOf(string file)
+    {
+        var path = file.Replace('\\', '/');
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var mods = Array.FindIndex(parts, part => part.Equals("mods", StringComparison.OrdinalIgnoreCase));
+        if (mods >= 0 && mods + 1 < parts.Length) return parts[mods + 1];
+        if (parts.Length > 0 && parts[0].Equals("media", StringComparison.OrdinalIgnoreCase)) return GameOwner;
+        return UnknownOwner;
+    }
+
+    /// <summary>
+    /// Where a Java method comes from, by its package. Only what the name settles is decided here:
+    /// anything unrecognised is a bundled library, never guessed to be a mod.
+    /// </summary>
+    public static string GroupOf(string method)
+    {
+        if (method.StartsWith("zombie.", StringComparison.Ordinal)) return GameCode;
+        if (method.StartsWith("se.krka.kahlua.", StringComparison.Ordinal)) return LuaRuntime;
+        if (method.StartsWith("pztools.", StringComparison.Ordinal)) return Tools;
+        foreach (var prefix in (ReadOnlySpan<string>)["java.", "javax.", "jdk.", "sun.", "com.sun."])
+            if (method.StartsWith(prefix, StringComparison.Ordinal)) return JavaRuntime;
+        return Libraries;
+    }
+
+    private static int LowerBound<T>(T[] items, long time, Func<T, long> key)
+    {
+        int low = 0, high = items.Length;
+        while (low < high)
+        {
+            var middle = (low + high) >>> 1;
+            if (key(items[middle]) < time) low = middle + 1; else high = middle;
+        }
+        return low;
+    }
+}

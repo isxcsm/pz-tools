@@ -45,6 +45,35 @@ if (mode == "import")
 var repositoryPath = Path.Combine(root, "repository");
 var sourcePath = Path.Combine(root, "Saves", "Sandbox", "Test");
 var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
+if (mode.StartsWith("reclaim:", StringComparison.Ordinal))
+{
+    // Three backups of one large changing file plus one unchanged file, then the first backup is
+    // removed: its pack keeps only the small file alive. Reclamation is then stopped mid-way.
+    await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
+    var source = await repository.AddOrGetSourceAsync(lease, "Sandbox/Test", sourcePath);
+    var telemetry = await TelemetryStore.CreateOrOpenAsync(repositoryPath);
+    var metadata = new WindowsFileMetadataReader();
+    var storage = new StorageOptions(ChecksumAlgorithm.Sha256, CompressionAlgorithm.None, false);
+    var telemetryOptions = new TelemetryOptions(TelemetryMode.Off, 4, 5, 10, 32);
+    var big = Path.Combine(sourcePath, "big.bin");
+    static byte[] Version(int seed) { var bytes = new byte[1_500_000]; new Random(seed).NextBytes(bytes); return bytes; }
+    await File.WriteAllBytesAsync(big, Version(1));
+    await new InitialBackupRunner(new StreamingFullScanner(metadata), new StableFileCapturer(metadata),
+        new FixedBoundary()).RunAsync(repository, telemetry, lease, source, storage, telemetryOptions);
+    foreach (var seed in new[] { 2, 3 })
+    {
+        await File.WriteAllBytesAsync(big, Version(seed));
+        await new IncrementalBackupRunner(new StreamingFullScanner(metadata), new StableFileCapturer(metadata),
+            metadata, new NoJournal(), new UsnDeltaPlanner())
+            .RunAsync(repository, telemetry, lease, source, storage, telemetryOptions);
+    }
+    await repository.MarkRevisionDeletedAsync(lease, source.SourceId, 1);
+    await repository.CompactDeletedRevisionsAsync(lease, source.SourceId);
+    await repository.CollectGarbageAsync(lease);
+    await new PackSpaceReclaimer(new PauseAt(Enum.Parse<BackupFailurePoint>(mode["reclaim:".Length..]), root))
+        .RunAsync(repository, lease, new PackReclamationOptions(MinimumReclaimMib: 1));
+    return;
+}
 await OperationMutexSet.TryRunAsync(
     [new(OperationMutexScope.RepositoryAccess, repositoryPath), new(OperationMutexScope.SaveWrite, sourcePath)],
     async token =>
@@ -75,6 +104,14 @@ await OperationMutexSet.TryRunAsync(
 sealed class FixedBoundary : ICheckpointBoundaryProvider
 {
     public CheckpointBoundaryResult Capture(string path) => new(new SourceCheckpoint("1", "2", 100), null);
+}
+
+sealed class NoJournal : IUsnJournalSource
+{
+    public UsnJournalState Query(string sourcePath) => throw new PlatformNotSupportedException("fixture full scan");
+    public IEnumerable<UsnRecord> ReadRange(string sourcePath, UsnCheckpoint checkpoint,
+        long upperUsnExclusive, CancellationToken cancellationToken = default) =>
+        throw new InvalidOperationException("Full scan must not read journal records.");
 }
 
 sealed class PauseAt(BackupFailurePoint point, string root) : IBackupFailureInjector

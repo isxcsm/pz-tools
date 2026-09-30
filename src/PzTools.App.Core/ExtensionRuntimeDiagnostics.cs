@@ -17,8 +17,8 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
 
     private readonly object gate = new();
     private readonly Guid instance = Guid.NewGuid();
-    private Identity? previous;
-    private bool observed;
+    // Each module has its own history of transitions; one module changing state is not news about another.
+    private readonly Dictionary<string, Identity?> previous = new(StringComparer.Ordinal);
     private long sequence;
     private Task pending = Task.CompletedTask;
     private LogInboxStore? fallbackInbox;
@@ -27,7 +27,9 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
     /// Queues only identity transitions. Supply the AppHost's existing inbox to share its configured
     /// recording level, retention and view cache; standalone callers use runtimeRoot/logs.db.
     /// </summary>
-    public void Observe(RuntimeExtensionStatus? status)
+    public void Observe(RuntimeExtensionStatus? status) => Observe(ExtensionIds.VehicleDrivetrain, status);
+
+    public void Observe(string extensionId, RuntimeExtensionStatus? status)
     {
         try
         {
@@ -36,9 +38,9 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
             lock (gate)
             {
                 // No runtime data at startup is not a failure. Losing known data is informational.
-                if ((!observed && status is null) || observed && previous == identity) return;
-                observed = true;
-                previous = identity;
+                bool observed = previous.TryGetValue(extensionId, out var before0);
+                if ((!observed && status is null) || observed && before0 == identity) return;
+                previous[extensionId] = identity;
                 var eventId = ++sequence;
                 var occurred = DateTimeOffset.UtcNow;
                 var before = pending;
@@ -47,7 +49,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
                     try
                     {
                         await before.ConfigureAwait(false);
-                        await WriteAsync(status, eventId, occurred).ConfigureAwait(false);
+                        await WriteAsync(extensionId, status, eventId, occurred).ConfigureAwait(false);
                     }
                     catch (Exception)
                     {
@@ -69,7 +71,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
         lock (gate) return pending;
     }
 
-    private async Task WriteAsync(RuntimeExtensionStatus? status, long eventId, DateTimeOffset occurred)
+    private async Task WriteAsync(string extensionId, RuntimeExtensionStatus? status, long eventId, DateTimeOffset occurred)
     {
         var sink = inbox?.Invoke();
         if (sink is null)
@@ -84,12 +86,12 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
         var reason = status?.Reason ?? (status is null ? "runtime-status-unavailable" : null);
         var payload = JsonSerializer.Serialize(new
         {
-            extensionId = ExtensionIds.VehicleDrivetrain,
+            extensionId,
             state,
             reason,
             failureCode = level >= LogLevel.Warning ? reason ?? state : null,
             phase = "extension-runtime",
-            message = $"Vehicle drivetrain runtime changed to {state}.",
+            message = $"{extensionId} runtime changed to {state}.",
             processSession = status?.ProcessSession,
             worldSession = status?.WorldSession,
             generation = status?.Generation,
@@ -103,18 +105,25 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
                 torqueEnabled = options.TorqueEnabled,
                 reverseEnabled = options.ReverseEnabled,
                 steeringEnabled = options.SteeringEnabled,
+                areaLightEnabled = options.AreaLightEnabled,
             } : null,
             diagnostics = status?.Diagnostics,
         });
         await sink.AppendAsync([new LogEntryView(
             $"extension-runtime:{instance:N}:{eventId.ToString(CultureInfo.InvariantCulture)}",
-            "game-extensions:vehicle-drivetrain", instance, eventId, occurred, level,
+            "game-extensions:" + (extensionId.StartsWith("pztools.", StringComparison.Ordinal) ? extensionId["pztools.".Length..] : extensionId), instance, eventId, occurred, level,
             "game-extensions", 0, "extension.runtime.changed", payload)]).ConfigureAwait(false);
     }
 
     private static LogLevel Severity(RuntimeExtensionStatus? status)
     {
         if (status is null) return LogLevel.Information;
+        // Leaving the world, loading another, closing the app or the game: the extension steps aside
+        // and comes back by itself. Nothing is wrong, and nothing for the user to look at.
+        if (status.State is RuntimeExtensionState.Disabled or RuntimeExtensionState.Pending
+            && status.Reason is "world-unavailable" or "world-changed" or "connection-ended" or "lease-expired"
+                or "waiting-for-local-world" or "observer-disconnected" or "control-session-changed" or "host-retired")
+            return LogLevel.Information;
         if (status.State == RuntimeExtensionState.Unsupported) return LogLevel.Warning;
         if (status.State is RuntimeExtensionState.FaultedPassThrough or RuntimeExtensionState.RestartRequired)
             return LogLevel.Error;

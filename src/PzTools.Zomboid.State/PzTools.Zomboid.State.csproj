@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\PzTools.Process.Contracts\PzTools.Process.Contracts.csproj" />
+    <ProjectReference Include="..\PzTools.Process.Hosting\PzTools.Process.Hosting.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
 </Project>

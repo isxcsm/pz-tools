@@ -43,6 +43,23 @@ public sealed partial class SchedulerDatabase
         return new(enabled, saved is null ? null : RuntimeJson.Read<ActiveTimeScheduleState>(saved),
             facts is null ? null : RuntimeJson.Read<RuntimeObservation>(facts));
     }
+    /// <summary>
+    /// The save the game's file locks last pointed at. Runtime scheduling ignores these weaker
+    /// transitions, but they are all that is left when the game itself cannot be observed.
+    /// </summary>
+    public async Task<BackupTarget?> ReadFileDerivedTargetAsync(CancellationToken token = default)
+    {
+        await using var c = await OpenAsync(token);
+        await using var q = c.CreateCommand();
+        q.CommandText = """
+            SELECT command,save_id,source_key,source_path FROM backup_target_commands
+            WHERE command IN ('ActivateTarget','FinalizeTarget','ClearTarget','SuspendAmbiguous')
+            ORDER BY received_utc DESC, rowid DESC LIMIT 1;
+            """;
+        await using var reader = await q.ExecuteReaderAsync(token);
+        return await reader.ReadAsync(token) && reader.GetString(0) == "ActivateTarget"
+            ? new(reader.GetString(1), reader.GetString(2), reader.GetString(3)) : null;
+    }
     public async Task WriteRuntimeCheckpointAsync(ActiveTimeScheduleState state, CancellationToken token = default)
     {
         await using var c = await OpenAsync(token); using var t = c.BeginTransaction();

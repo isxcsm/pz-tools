@@ -7,6 +7,8 @@ final class PzRuntimeAdapter {
     private final Class<?> window, ingame;
     private final Method paused, currentSave, speedControls, speed, coreInstance, noSave, gameMode;
     private final Field states, current, worldInstance, cell, fsInstance, client, clientSave, server, exiting;
+    /** Optional: the states the game has yielded to run another state on top (debug tools). */
+    private final Field yieldStack;
     private final Object[] none = new Object[0];
     String phase = "Unknown", pause = "Unknown", mode = "Unsupported", path;
     int speedLevel = -1;
@@ -20,6 +22,10 @@ final class PzRuntimeAdapter {
         ingame = Class.forName("zombie.gameStates.IngameState", false, loader);
         states = window.getField("states");
         current = states.getType().getField("current");
+        Field stack = null;
+        try { stack = states.getType().getDeclaredField("yieldStack"); stack.setAccessible(true); }
+        catch (ReflectiveOperationException | RuntimeException unavailable) { /* Then a yielded game reads as before. */ }
+        yieldStack = stack;
         Class<?> world = Class.forName("zombie.iso.IsoWorld", false, loader);
         worldInstance = world.getField("instance"); cell = world.getField("currentCell");
         Class<?> fs = Class.forName("zombie.ZomboidFileSystem", false, loader);
@@ -48,6 +54,9 @@ final class PzRuntimeAdapter {
         Object nextCell = world == null ? null : cell.get(world);
         Object state = machine == null ? null : current.get(machine);
         boolean loaded = ingame.isInstance(state);
+        // A debug tool (the chunk viewer, for example) yields the game and runs on top of it. The world
+        // stays loaded and game time stands still: that is a pause, not the end of the world.
+        boolean yielded = !loaded && nextCell != null && machine != null && yieldedFromGame(machine);
         mode = client.getBoolean(null) || clientSave.getBoolean(null) || server.getBoolean(null)
             ? "Networked" : "LocalSinglePlayer";
         Object core = coreInstance.invoke(null, none);
@@ -56,7 +65,7 @@ final class PzRuntimeAdapter {
         // A non-playing state is not necessarily the main menu: loading, startup and
         // unknown states must not be presented as an observed main screen. These final
         // game classes are identified without loading or initializing additional types.
-        phase = exiting.getBoolean(null) ? "Unloading" : loaded ? nextCell == null ? "Loading" : "Ready"
+        phase = exiting.getBoolean(null) ? "Unloading" : loaded || yielded ? nextCell == null ? "Loading" : "Ready"
             : state == null ? "Unknown" : switch (state.getClass().getName()) {
                 case "zombie.gameStates.MainScreenState" -> "Menu";
                 case "zombie.gameStates.GameLoadingState" -> "Loading";
@@ -68,6 +77,12 @@ final class PzRuntimeAdapter {
         worldCell = nextCell;
         Object controls = speedControls.invoke(null, none);
         speedLevel = controls == null ? -1 : (int)speed.invoke(controls, none);
-        pause = controls == null ? "Unknown" : (boolean)paused.invoke(null, none) ? "Paused" : "Running";
+        pause = yielded ? "Paused" : controls == null ? "Unknown" : (boolean)paused.invoke(null, none) ? "Paused" : "Running";
+    }
+
+    private boolean yieldedFromGame(Object machine) throws ReflectiveOperationException {
+        if (yieldStack == null || !(yieldStack.get(machine) instanceof java.util.List<?> yielded)) return false;
+        for (Object state : yielded) if (ingame.isInstance(state)) return true;
+        return false;
     }
 }

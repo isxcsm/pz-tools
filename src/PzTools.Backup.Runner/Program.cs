@@ -4,6 +4,9 @@ using PzTools.Control;
 using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] arguments)

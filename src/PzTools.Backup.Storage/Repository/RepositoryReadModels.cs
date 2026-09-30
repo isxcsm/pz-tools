@@ -29,6 +29,8 @@ public sealed record RepositoryPack(
     string Status,
     long CreatedRunIndex);
 
+public sealed record PackUsage(RepositoryPack Pack, long LiveBytes);
+
 public sealed record CompactionObject(
     Guid ObjectId,
     Guid PackId,
@@ -74,7 +76,8 @@ public sealed record RepositoryRevisionSummary(
     BackupKind Kind = BackupKind.Unknown,
     double? HoursSurvived = null,
     bool CharacterMetadataRead = false,
-    string? CharacterMetadataError = null);
+    string? CharacterMetadataError = null,
+    string? GameVersion = null);
 
 public sealed record RepositorySourceHistory(
     long SourceId,

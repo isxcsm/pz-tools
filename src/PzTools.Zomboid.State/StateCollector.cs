@@ -73,6 +73,8 @@ public sealed class SaveDiscoveryLane
                         complete = false;
                         saves.RemoveAll(save => restoring.Contains(save.NormalizedPath));
                     }
+                    // Never read an unresolved swap gap as a deleted save.
+                    if (SaveOperationPaths.HasJournalWithoutSave(modePath)) complete = false;
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {

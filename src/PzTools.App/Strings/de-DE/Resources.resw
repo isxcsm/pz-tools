@@ -21,6 +21,7 @@
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Aktueller Spielstand wird kopiert</value></data>
   <data name="StopPlayingToExport" xml:space="preserve"><value>Während des Spielens kann der aktuelle Spielstand nicht exportiert werden. Beenden Sie die Spielsitzung und versuchen Sie es erneut.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Während des Spielens können keine Sicherungen wiederhergestellt werden. Beenden Sie die Spielsitzung und versuchen Sie es erneut.</value></data>
+  <data name="SelectBackupToRestore" xml:space="preserve"><value>Wähle in der Liste eine Sicherung zum Wiederherstellen aus</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Während des Spielens kann der Spielstand nicht gelöscht werden. Beenden Sie die Spielsitzung und versuchen Sie es erneut.</value></data>
   <data name="StopPlayingToHeal" xml:space="preserve"><value>Während des Spielens kann der Charakter nicht geheilt werden. Beenden Sie die Spielsitzung und versuchen Sie es erneut.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Noch keine Sicherungen</value></data>
@@ -51,13 +52,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Durchsuchen</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Sicherung</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatische Sicherungen</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Schaltet regelmäßige Sicherungen und Sicherungen beim Tod ein oder aus. Beim Ausschalten bleibt das Intervall erhalten. Manuelle und bereits laufende Sicherungen sind nicht betroffen.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Sichert den Spielstand, den du gerade spielst, im eingestellten Intervall. Manuelle Sicherungen funktionieren auch, wenn dies aus ist.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Sicherungsintervall</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 Minuten. Das Intervall bleibt beim Ausschalten erhalten; beim Einschalten beginnt ein neues Intervall.</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>Zeit zwischen automatischen Sicherungen (1–60 Minuten). Nach einer Änderung beginnt die Zählung neu.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Anzahl automatischer Sicherungen</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Die letzten 1–100 automatischen Sicherungen behalten. Manuelle Sicherungen werden durch dieses Limit nicht gelöscht.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Behält so viele der neuesten automatischen Sicherungen und löscht ältere (1–100). Manuelle Sicherungen zählen nicht mit und werden nie gelöscht.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Sichert, wenn während des Spielens der Tod des Charakters erkannt wird. Automatische Sicherungen müssen aktiviert sein; diese Sicherung erfolgt auch bei pausiertem Spiel. Ein bereits im Spielstand vermerkter Tod löst sie nicht aus.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Wenn dein Charakter stirbt, werden automatische Sicherungen angehalten, damit die zu Lebzeiten erstellten nicht verdrängt werden. Aktivieren, um eine Sicherung vom Zeitpunkt des Todes zu behalten.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kopierte Dateien prüfen</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Prüft, ob die Kopien mit den Originaldateien übereinstimmen. Ändert sich eine Datei während des Kopierens, wird sie erneut kopiert.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Die Spielstanddateien haben sich während der Sicherung wiederholt geändert. Warten Sie, bis das Spiel fertig gespeichert hat, und versuchen Sie es erneut.</value></data>
@@ -170,9 +171,9 @@
   <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>Alle {0:N0} ungeprüften Einträge als geprüft markieren</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>Protokollnummer {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
-  <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Zeit ({0})</value></data>
-  <data name="LogLocalTimeZone" xml:space="preserve"><value>lokal</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Wählen Sie die im Protokoll angezeigten Zeiten ({0}).</value></data>
+  <data name="LogTimeHeader" xml:space="preserve"><value>Zeit</value></data>
+  <data name="LogTimeYesterdayFormat" xml:space="preserve"><value>Gestern {0}</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Wählen Sie Zeiten nach der Uhr dieses PCs.</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Verlauf · Neueste zuerst</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Nummer</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Eine feste Nummer zur eindeutigen Kennzeichnung dieses Protokolleintrags.</value></data>
@@ -228,6 +229,17 @@
   <data name="LogDiagnostics.FileReplaced" xml:space="preserve"><value>Die Datei wurde während des Kopierens ersetzt oder verschoben.</value></data>
   <data name="LogDiagnostics.UnstableFileHint" xml:space="preserve"><value>Die Datei wurde möglicherweise gerade geändert oder war nicht zugänglich. Versuchen Sie die Sicherung in Kürze erneut.</value></data>
   <data name="LogDiagnostics.LegacyMissingDetail" xml:space="preserve"><value>Dieser ältere Eintrag enthält keine detaillierte Fehlerursache.</value></data>
+  <data name="ProfilePhase.Prepare" xml:space="preserve"><value>Vorbereitung</value></data>
+  <data name="ProfilePhase.Connect" xml:space="preserve"><value>Verbindung zum Spiel</value></data>
+  <data name="ProfilePhase.Start" xml:space="preserve"><value>Aufnahme starten</value></data>
+  <data name="ProfilePhase.Stop" xml:space="preserve"><value>Aufnahme beenden</value></data>
+  <data name="LogPhase.ProcessLaunch" xml:space="preserve"><value>Arbeitsprozess starten</value></data>
+  <data name="LogPhase.ProcessResult" xml:space="preserve"><value>Ergebnis des Arbeitsprozesses lesen</value></data>
+  <data name="LogPhase.ExtensionRuntime" xml:space="preserve"><value>Spielerweiterung ausführen</value></data>
+  <data name="LogPhase.ComponentCheck" xml:space="preserve"><value>Komponenten prüfen</value></data>
+  <data name="SurvivalReadFailedTip" xml:space="preserve"><value>Die Charakterdaten dieser Sicherung konnten nicht gelesen werden. Details stehen im Protokoll.</value></data>
+  <data name="LogDiagnostics.RawMessage" xml:space="preserve"><value>Ursprüngliche Meldung</value></data>
+  <data name="LogDiagnostics.RawOnly" xml:space="preserve"><value>Dieser Fehler lässt sich hier nicht erklären. Die ursprüngliche Meldung steht in den technischen Details.</value></data>
   <data name="LogDiagnostics.Message" xml:space="preserve"><value>Fehlermeldung</value></data>
   <data name="LogDiagnostics.Exception" xml:space="preserve"><value>Fehlertyp</value></data>
   <data name="LogDiagnostics.Inner" xml:space="preserve"><value>Grundursache</value></data>
@@ -266,7 +278,7 @@
   <data name="LogEvent.StateRunCompleted" xml:space="preserve"><value>Die Prüfung des Spielstatus ist beendet.</value></data>
   <data name="LogEvent.CollectorCompleted" xml:space="preserve"><value>Der Spielstatus wurde erfasst.</value></data>
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>Der Sicherungszeitplan wurde geprüft.</value></data>
-  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Legen Sie fest, ob das Spiel vor einer Sicherung gespeichert wird, wie oft Sicherungen erstellt und wie viele behalten werden und was beim Tod des Charakters geschieht.</value></data>
+  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Intervall und Anzahl der automatischen Sicherungen sowie das Speichern des Spiels vor einer Sicherung festlegen.</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>Legen Sie Ereignisstufe und Anzahl der angezeigten Protokolleinträge fest.</value></data>
   <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Niedrigste angezeigte Protokollstufe</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>Anzeigelimit</value></data>
@@ -295,6 +307,11 @@
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>Manuelle Sicherung {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>Automatische Sicherung {0:N0}</value></data>
   <data name="AutomaticSaveLabel" xml:space="preserve"><value>Automatische Sicherung</value></data>
+  <data name="BackupGameVersionTip" xml:space="preserve"><value>Spielversion zum Zeitpunkt dieser Sicherung</value></data>
+  <data name="GameVersionFormat" xml:space="preserve"><value>Version {0}</value></data>
+  <data name="CurrentSaveVersionRunningTip" xml:space="preserve"><value>Version des Spiels, das diesen Spielstand gerade ausführt</value></data>
+  <data name="CurrentSaveVersionSeenTip" xml:space="preserve"><value>Version des Spiels, das diesen Spielstand am {0} ausgeführt hat (Spielstände speichern keine Version)</value></data>
+  <data name="CurrentSaveVersionBackupTip" xml:space="preserve"><value>Spielversion bei der letzten Sicherung ({0}). Sie kann abweichen, wenn das Spiel seitdem aktualisiert wurde</value></data>
   <data name="BackupNamePlaceholder" xml:space="preserve"><value>Sicherungsname</value></data>
   <data name="RenameRevisionTitle" xml:space="preserve"><value>Sicherungsnamen bearbeiten</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>{0} umbenennen</value></data>
@@ -350,6 +367,20 @@
   <data name="OperationCardBusy" xml:space="preserve"><value>Vorgang konnte nicht gestartet werden</value></data>
   <data name="OperationCardDegraded" xml:space="preserve"><value>Vorgang beendet · Prüfung erforderlich</value></data>
   <data name="OperationCardWaiting" xml:space="preserve"><value>Vorgang wartet</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Windows-Sicherheit hat eine Komponente blockiert</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>Eine Windows-Sicherheitsrichtlinie (z. B. Smart App Control) hat den Start dieser Komponenten verhindert: {0}. Automatische Sicherungen und einige Funktionen funktionieren möglicherweise nicht. Prüfen Sie Windows-Sicherheit → App- und Browsersteuerung.</value></data>
+  <data name="CardOpenSettings" xml:space="preserve"><value>Einstellungen öffnen</value></data>
+  <data name="CardAcknowledge" xml:space="preserve"><value>OK</value></data>
+  <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools wird wegen eines unerwarteten Fehlers beendet. Fehlerbericht: {0}</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Eine Windows-Sicherheitsrichtlinie (z. B. Smart App Control) hat eine PZ Tools-Komponente blockiert. Prüfen Sie Windows-Sicherheit → App- und Browsersteuerung.</value></data>
+  <data name="MaintenanceRunning" xml:space="preserve"><value>Sicherungen werden bereinigt</value></data>
+  <data name="OperationCardDeferred" xml:space="preserve"><value>Verschoben</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Die Sicherungsbereinigung wurde für eine Sicherung oder das Spiel verschoben.</value></data>
+  <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Alte Sicherungen entfernen</value></data>
+  <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Temporäre Dateien entfernen</value></data>
+  <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Sicherungen gelöschter Spielstände entfernen</value></data>
+  <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>Ungenutzten Speicher freigeben</value></data>
+  <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>{0:N1} MB ungenutzter Sicherungsspeicher wurden freigegeben.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Gesichert: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Spielstatus wird geprüft und bei Bedarf gespeichert…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
@@ -360,8 +391,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Die Sicherung wurde gestoppt, weil die Spielspeicherung nicht bestätigt werden konnte.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Speicher-Countdown im Spiel</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zeigt über dem Charakter einen Countdown von fünf Sekunden und das Speicherergebnis an. Beim Ausschalten entfallen die Hinweise und die Wartezeit bei manuellen Sicherungen; das Spiel wird weiterhin gespeichert. Die Zeitpunkte automatischer Sicherungen bleiben unverändert.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Speichert vor der Sicherung den aktuellen Spielfortschritt. Es wird empfohlen, diese Option aktiviert zu lassen: Andernfalls können noch nicht gespeicherte Fortschritte, Fahrzeuge oder Gegenstände in der Sicherung fehlen.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zeigt ab 5 Sekunden vor dem Speichern einen Countdown über deinem Charakter und danach das Ergebnis. Wenn aus, speichert das Spiel ohne Anzeige.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Speichert das Spiel direkt vor einer Sicherung, damit sie den neuesten Fortschritt enthält. Beim Speichern kann das Spiel etwa eine halbe Sekunde stocken. Wenn aus, kann noch nicht gespeicherter Fortschritt in der Sicherung fehlen; daher wird empfohlen, dies eingeschaltet zu lassen.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Nächste Sicherung: wartet auf Start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Nächste Sicherung: wartet auf laufenden Vorgang</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Charakter heilen</value></data>
@@ -379,12 +410,84 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Die Wiederherstellung wurde gestoppt, da Gegenstände nicht sicher zurückgeholt werden konnten. Ihr Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Eine vorherige Änderung des Spielstands muss abgeschlossen werden. Öffnen Sie PZ Tools erneut, bevor Sie diesen Spielstand im Spiel laden.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Wiederherstellung des Charakters</value></data>
+  <data name="ProfilerNavigation" xml:space="preserve"><value>Leistung</value></data>
+  <data name="ProfileRecordStart" xml:space="preserve"><value>Aufzeichnung starten</value></data>
+  <data name="ProfileRecordStop" xml:space="preserve"><value>Aufzeichnung beenden</value></data>
+  <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
+  <data name="ProfileModeDetailed" xml:space="preserve"><value>Detailliert</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misst alle 0,01 Sekunden und belastet das Spiel kaum.&#xA;Detailliert: misst etwa alle 0,002 Sekunden und erfasst auch Wartezeiten und Pausen. Das Spiel kann etwas langsamer laufen.</value></data>
+  <data name="ProfileIdleHint" xml:space="preserve"><value>Starte das Spiel und dann die Aufzeichnung. Stelle den Lag nach und beende die Aufzeichnung, um das Ergebnis zu sehen.</value></data>
+  <data name="ProfileStarting" xml:space="preserve"><value>Verbindung zum Spiel wird hergestellt…</value></data>
+  <data name="ProfileRecordingFormat" xml:space="preserve"><value>Aufzeichnung läuft {0} · endet automatisch nach {1} Minuten</value></data>
+  <data name="ProfileConverting" xml:space="preserve"><value>Aufzeichnung wird verarbeitet…</value></data>
+  <data name="ProfileNoLua" xml:space="preserve"><value>In dieser Spielversion können keine Mod-Informationen (Lua) gelesen werden, daher wird nur Java-Code aufgezeichnet.</value></data>
+  <data name="ProfileNoFrames" xml:space="preserve"><value>Die Frame-Grenzen können nicht gelesen werden, daher hat diese Aufzeichnung kein Frame-Diagramm.</value></data>
+  <data name="ProfileRecordingTitle" xml:space="preserve"><value>Leistung wird aufgezeichnet</value></data>
+  <data name="ProfilePhaseRecording" xml:space="preserve"><value>Spielleistung wird aufgezeichnet…</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Aufzeichnung wird verarbeitet…</value></data>
+  <data name="LogActivity.Profile" xml:space="preserve"><value>Leistungsaufzeichnung</value></data>
+  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
+  <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Diese Aufzeichnung löschen? Das kann nicht rückgängig gemacht werden.</value></data>
+  <data name="ProfileEmpty" xml:space="preserve"><value>Noch keine Aufzeichnungen.</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>Diese Aufzeichnung kann nicht geöffnet werden. Die Datei ist beschädigt oder stammt aus einer neueren Version.</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Mausrad: Zoomen · Ziehen: Bereich auswählen · Klick: einen Frame auswählen · Ziehen mit rechter Taste: Verschieben · Doppelklick: alles anzeigen</value></data>
+  <data name="ProfileNeedsGame" xml:space="preserve"><value>Starte das Spiel, um aufzunehmen.</value></data>
+  <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} wurde nicht gestartet, weil das Spiel nicht läuft.</value></data>
+  <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} wurde nicht gestartet, weil mehr als ein Spiel läuft.</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Frames</value></data>
+  <data name="ProfileStatFrame" xml:space="preserve"><value>Frame</value></data>
+  <data name="ProfileStatAverage" xml:space="preserve"><value>Durchschnitt</value></data>
+  <data name="ProfileStatSlowest" xml:space="preserve"><value>Langsamster</value></data>
+  <data name="ProfileStatWorst" xml:space="preserve"><value>Schlechteste 1 %</value></data>
+  <data name="ProfileColumnFunction" xml:space="preserve"><value>Funktion</value></data>
+  <data name="ProfileColumnFile" xml:space="preserve"><value>Datei</value></data>
+  <data name="ProfileColumnMethod" xml:space="preserve"><value>Methode</value></data>
+  <data name="ProfileColumnThread" xml:space="preserve"><value>Thread</value></data>
+  <data name="ProfileColumnTime" xml:space="preserve"><value>Zeitpunkt</value></data>
+  <data name="ProfileColumnLength" xml:space="preserve"><value>Dauer</value></data>
+  <data name="ProfileColumnKind" xml:space="preserve"><value>Art</value></data>
+  <data name="ProfileColumnDetail" xml:space="preserve"><value>Details</value></data>
+  <data name="ProfileImport" xml:space="preserve"><value>Aufnahme öffnen…</value></data>
+  <data name="ProfileSaveAs" xml:space="preserve"><value>Speichern unter…</value></data>
+  <data name="ProfileMoreActions" xml:space="preserve"><value>Mehr</value></data>
+  <data name="ProfileTabLua" xml:space="preserve"><value>Skripte (Lua)</value></data>
+  <data name="ProfileTabJava" xml:space="preserve"><value>Spielcode (Java)</value></data>
+  <data name="ProfileChartHelp" xml:space="preserve"><value>So bedienst du das Diagramm</value></data>
+  <data name="ProfileFileType" xml:space="preserve"><value>Leistungsaufnahme</value></data>
+  <data name="ProfileZoomAll" xml:space="preserve"><value>Alles anzeigen</value></data>
+  <data name="ProfileZoomSelection" xml:space="preserve"><value>Auf Auswahl zoomen</value></data>
+  <data name="ProfileThreadGame" xml:space="preserve"><value>Spiel-Thread</value></data>
+  <data name="ProfileThreadAll" xml:space="preserve"><value>Alle Threads</value></data>
+  <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} Samples · Speicherbereinigung (GC) {1:N0}-mal, {2:0.0} ms pausiert</value></data>
+  <data name="ProfileFewSamples" xml:space="preserve"><value>Zu wenige Samples für genaue Prozentwerte. Wähle einen größeren Bereich oder zeichne im Modus „Detailliert“ auf.</value></data>
+  <data name="ProfileLuaNone" xml:space="preserve"><value>In diesem Bereich wurde keine Lua-Skriptaktivität aufgezeichnet.</value></data>
+  <data name="ProfileGroup.game" xml:space="preserve"><value>Basisspiel (Vanilla)</value></data>
+  <data name="ProfileGroup.lua" xml:space="preserve"><value>Lua-Engine (führt Mod- und Spielskripte aus)</value></data>
+  <data name="ProfileGroup.java" xml:space="preserve"><value>Integrierte Java-Funktionen</value></data>
+  <data name="ProfileGroup.libraries" xml:space="preserve"><value>Mitgelieferte Bibliotheken (Grafik, Sound und mehr)</value></data>
+  <data name="ProfileGroup.tools" xml:space="preserve"><value>PZ Tools</value></data>
+  <data name="ProfileOwnerGame" xml:space="preserve"><value>Skripte des Basisspiels (Vanilla)</value></data>
+  <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Skripte unbekannter Herkunft</value></data>
+  <data name="ProfileColumnSelf" xml:space="preserve"><value>Selbst</value></data>
+  <data name="ProfileColumnTotal" xml:space="preserve"><value>Gesamt</value></data>
+  <data name="ProfileColumnSamples" xml:space="preserve"><value>Samples</value></data>
+  <data name="ProfileColumnsTip" xml:space="preserve"><value>Selbst: Zeit, die direkt in dieser Funktion verbracht wurde. Gesamt: einschließlich der von ihr aufgerufenen Funktionen.</value></data>
+  <data name="ProfileThreadsSection" xml:space="preserve"><value>Anteil pro Thread</value></data>
+  <data name="ProfilePausesSection" xml:space="preserve"><value>Lange Wartezeiten und Pausen</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Das Spiel läuft nicht. Starte das Spiel und versuche es erneut.</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Es laufen mehrere Spiele gleichzeitig, daher kann kein Ziel bestimmt werden.</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>Verbindung zum Spiel fehlgeschlagen. Falls du das Spiel oder PZ Tools aktualisiert hast, starte das Spiel neu.</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>Ein anderer Vorgang läuft gerade. Versuche es gleich noch einmal.</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>Die Aufzeichnung wurde beendet, aber das Ergebnis konnte nicht verarbeitet werden. Details findest du im Protokoll.</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>Aufzeichnung fehlgeschlagen. Details findest du im Protokoll.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang verwendet diesen Spielstand. Beenden Sie die Spielsitzung und warten Sie, bis der Vorgang abgeschlossen ist. Versuchen Sie es dann erneut. Das Original wurde nicht geändert.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Dieser Spielstand enthält noch nicht abgeschlossene Änderungen. Beenden Sie das Spiel regulär und versuchen Sie es erneut. Der ursprüngliche Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Diese Funktion benötigt einen Einzelspieler-Spielstand mit genau einem Charakter. Ihr Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Dieser Spielstand kann nicht sicher bearbeitet werden. Prüfen Sie, ob Ihre PZ-Tools-Version die Spielversion unterstützt. Das Original wurde nicht geändert.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Überlebenszeit nicht verfügbar · wird erneut geprüft</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang verwendet eine benötigte Datei. Warten Sie, bis das Speichern oder der Vorgang beendet ist, und versuchen Sie es erneut.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Der Spielstand hat sich während des Exports geändert. Beende das Spiel und exportiere erneut. Eine vorhandene Datei wurde beibehalten.</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Die gespeicherten Daten dieser Sicherung sind beschädigt und können nicht gelesen werden. Wähle eine andere Sicherung. Der aktuelle Spielstand und vorhandene Dateien wurden nicht verändert.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Es ist nicht genügend Speicherplatz frei. Geben Sie Speicherplatz auf dem Ziellaufwerk frei und versuchen Sie es erneut.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Benötigte App-Dateien fehlen. Entpacken Sie den gesamten Download in einen Ordner oder installieren Sie PZ Tools neu und öffnen Sie es anschließend wieder.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Dieser Sicherungsordner verwendet ein anderes Speicherformat. Wählen Sie in den Einstellungen einen neuen leeren Sicherungsordner. Behalten Sie den alten Ordner, falls Sie seine Sicherungen noch brauchen, und löschen Sie keine Spielstände.</value></data>
@@ -398,11 +501,11 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="SettingEnabled" xml:space="preserve"><value>Ein</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Aus</value></data>
   <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Regelmäßige Sicherungen bei Pause oder Schlaf aufschieben</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Hält den Countdown für regelmäßige Sicherungen bei Spielpause oder schlafendem Charakter an. Beim Weiterspielen läuft die Restzeit weiter. Bei unbekanntem Spielstatus wird ebenfalls gewartet. Manuelle Sicherungen und Sicherungen beim Tod bleiben unverändert.</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Solange das Spiel pausiert ist oder dein Charakter schläft, bleibt die Restzeit stehen und läuft weiter, wenn du wieder spielst. Wenn aus, wird auch dann in jedem Intervall gesichert.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Spiel pausiert</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Spielstatus wird geprüft</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Starten Sie Project Zomboid nur einmal gleichzeitig</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Prüfen Sie, ob das letzte Speichern im Spiel erfolgreich war, und aktivieren Sie die automatischen Sicherungen erneut.</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Das Ergebnis der letzten Sicherung ist unbekannt, daher wird dieses Intervall übersprungen.</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Filter löschen</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Alle löschen</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · zum Filtern klicken</value></data>
@@ -454,6 +557,20 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Ermöglicht sanftes Anfahren im Rückwärtsgang und begrenzt die Rückwärtsgeschwindigkeit.</value></data>
   <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Feinfühlige Lenkung</value></data>
   <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Tastaturlenkung und Rückstellung zur Mitte erfolgen allmählich.</value></data>
+  <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Licht rund ums Fahrzeug</value></data>
+  <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Beleuchtet die Umgebung des Fahrzeugs, in dem du sitzt, solange die Scheinwerfer an sind. Benötigt funktionierende Scheinwerfer und eine geladene Batterie; im Spielstand wird nichts gespeichert.</value></data>
+  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Bildlook</value></data>
+  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Passt Farben und Schärfe des Spielbilds an. Es werden keine Spieldateien verändert, und mit dem Schalter lässt es sich wieder ausschalten.</value></data>
+  <data name="ScreenLook.Preset" xml:space="preserve"><value>Stimmung</value></data>
+  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Wähle die Gesamtwirkung des Bilds.</value></data>
+  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Realistisch</value></data>
+  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Lebendig</value></data>
+  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Filmisch</value></data>
+  <data name="ScreenLook.Strength" xml:space="preserve"><value>Stärke</value></data>
+  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>Wie stark die gewählte Stimmung angewendet wird.</value></data>
+  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
+  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Jahreszeitenfarben</value></data>
+  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Verändert die Farben im Freien bei Tag leicht je nach Jahreszeit. Nächte und Innenräume bleiben unverändert.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Jede Option wird einzeln gespeichert. Der im Spiel bestätigte Status steht unten.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Im Spiel angewendet · Experimentell</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Wartet auf Anwendung im Spiel</value></data>
@@ -470,6 +587,14 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Gespeicherte Einstellungen werden beim Einstieg in ein Einzelspielerspiel angewendet.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Zum Anwenden das Spiel fortsetzen, das Fahrzeug anhalten, Gas loslassen und den Tempomaten ausschalten.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Spiel im Hauptmenü</value></data>
+  <data name="RuntimeBackupLoading" xml:space="preserve"><value>Spiel wird geladen</value></data>
+  <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Charakter tot – Sicherungen warten</value></data>
+  <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Keine Verbindung zum Spiel; es wird ohne vorheriges Speichern gesichert.</value></data>
+  <data name="SettingSleepUnavailable" xml:space="preserve"><value>Der Schlafzustand ist derzeit nicht lesbar; es gilt nur die Pause.</value></data>
+  <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Derzeit nicht aktiv, weil das Spiel nicht erreichbar ist.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Nächste Sicherung (ohne Spielspeicherung)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Der Spielzustand kann nicht gelesen werden. Daher wird im eingestellten Intervall gesichert, ohne das Spiel vorher zu speichern. Der neueste Fortschritt kann in den Sicherungen fehlen. Wenn das Spiel oder PZ Tools aktualisiert wurde, starte das Spiel neu.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Keine Verbindung zum Spiel</value></data>
   <data name="VersionSetting.Header" xml:space="preserve"><value>Version</value></data>
   <data name="AboutSettings.Header" xml:space="preserve"><value>Info</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilität und Status</value></data>

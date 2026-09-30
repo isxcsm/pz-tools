@@ -52,7 +52,8 @@ $projects = @(
     'src/PzTools.Backup.Scheduler/PzTools.Backup.Scheduler.csproj',
     'src/PzTools.State.Scheduler/PzTools.State.Scheduler.csproj',
     'src/PzTools.Zomboid.Archive.Cli/PzTools.Zomboid.Archive.Cli.csproj',
-    'src/PzTools.Zomboid.Recovery.Cli/PzTools.Zomboid.Recovery.Cli.csproj'
+    'src/PzTools.Zomboid.Recovery.Cli/PzTools.Zomboid.Recovery.Cli.csproj',
+    'src/PzTools.Profiler.Cli/PzTools.Profiler.Cli.csproj'
 )
 
 foreach ($project in $projects) {

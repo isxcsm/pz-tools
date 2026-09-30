@@ -1,3 +1,5 @@
+using PzTools.Process.Hosting;
+
 namespace PzTools.Zomboid.State;
 
 // On-disk names used by SafeRevisionRestoreService and ZomboidArchiveService.
@@ -31,6 +33,20 @@ internal static class SaveOperationPaths
             if (name.Length > ".pztools-file-edit".Length + 1)
                 yield return Normalize(Path.Combine(modePath, name[1..^".pztools-file-edit".Length]));
         }
+        foreach (var target in JournalTargets(modePath))
+            if (IsSaveLocked(target)) yield return target;
+    }
+
+    // A journal without its save directory may still hold the original in rollback.
+    public static bool HasJournalWithoutSave(string modePath) =>
+        JournalTargets(modePath).Any(target => !Directory.Exists(target));
+
+    public static bool IsRestoring(string savePath) => (File.Exists(Path.Combine(
+        Path.GetDirectoryName(savePath)!, $".{Path.GetFileName(savePath)}{JournalSuffix}")) && IsSaveLocked(savePath))
+        || Directory.Exists(Path.Combine(Path.GetDirectoryName(savePath)!, $".{Path.GetFileName(savePath)}.pztools-file-edit"));
+
+    private static IEnumerable<string> JournalTargets(string modePath)
+    {
         foreach (var journal in Directory.EnumerateFiles(modePath, ".*" + JournalSuffix))
         {
             var name = Path.GetFileName(journal);
@@ -39,9 +55,10 @@ internal static class SaveOperationPaths
         }
     }
 
-    public static bool IsRestoring(string savePath) => File.Exists(Path.Combine(
-        Path.GetDirectoryName(savePath)!, $".{Path.GetFileName(savePath)}{JournalSuffix}"))
-        || Directory.Exists(Path.Combine(Path.GetDirectoryName(savePath)!, $".{Path.GetFileName(savePath)}.pztools-file-edit"));
+    // The restore worker holds the save lock for as long as it owns its journal. A journal
+    // nobody owns was left by a failed or crashed restore and must not hide a playable save.
+    private static bool IsSaveLocked(string savePath) =>
+        OperationMutexSet.IsInUse(new OperationMutexRequest(OperationMutexScope.SaveWrite, savePath));
 
     private static string Normalize(string path) =>
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)).ToUpperInvariant();

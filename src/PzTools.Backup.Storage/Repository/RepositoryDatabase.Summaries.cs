@@ -21,7 +21,8 @@ public sealed partial class RepositoryDatabase
                    ORDER BY entry.valid_from_revision DESC LIMIT 1
                ) END,
                revision.character_name,revision.character_state,revision.backup_kind,
-               revision.hours_survived,revision.character_metadata_read,revision.character_metadata_error
+               revision.hours_survived,revision.character_metadata_read,revision.character_metadata_error,
+               revision.game_version
         FROM sources AS source
         JOIN source_state AS state ON state.source_id=source.source_id
         LEFT JOIN revisions AS revision

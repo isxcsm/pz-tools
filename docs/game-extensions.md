@@ -1,58 +1,153 @@
 # Game extensions
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-## Available extension
+Game extensions are optional features that run inside Project Zomboid while you play.
+PZ Tools loads them through the same [save bridge](glossary.md#save-bridge) it uses for
+saving; no game file is changed. This page is for players who want to know what the
+extensions do, where to switch them on and when a change takes effect. The
+[overview](overview.md) shows how they fit into the rest of PZ Tools.
 
-**Vehicle Driving Improvements** is the currently shipped extension. It is
-experimental and off by default. In Game extensions, its main switch enables the
-extension; expanding the card shows three independent controls:
+Two extensions are shipped. Each is a [module](glossary.md#extension-module) of its
+own, with its own archive, [catalogue](glossary.md#catalogue) row, switch,
+supported-version rule, options and tuning file. Both are off by default, and each can
+be on without the other. You find them on the **Game extensions** page of the app.
+
+## The extensions
+
+### Vehicle Driving Improvements
+
+Experimental. Its main switch turns the extension on; expanding the card shows four
+independent controls:
 
 - Natural acceleration and shifting
 - Smooth reversing
 - Fine steering control for keyboard input
+- Light around the vehicle (off until you turn it on)
 
-Disabled features retain the game's original control. The extension adjusts
-driving response while preserving native tires, suspension and collisions. Probe,
-diagnostics and low-gear tuning remain developer-only TOML options.
+A control that is off keeps the game's original behaviour. The extension adjusts
+driving response and leaves the game's own tyres, suspension and collisions as they
+are.
 
-Switches show saved preferences. You can change them while the game is disconnected
-or earlier changes are waiting to apply. The latest settings apply after the game
-resumes, the vehicle stops, acceleration is released and cruise control is off.
-Changes do not wait for a backup.
-See the [vehicle test guide](e2e-vehicle-drivetrain.md) for comparisons and status
-checks, or the [design](vehicle-drivetrain-design.md) for the model and adapter.
+The light is an addition rather than a correction. While the headlights of the vehicle
+you are in are lit, it brightens the ground around that vehicle, the way a lightbar's
+glow does. It is never written to the save.
 
-Pre-backup saving and in-game notices have separate settings. Vehicle controls do
-not change those choices; see [game-save behavior](save-bridge.md).
+Observation (probe), diagnostics and low-gear tuning are developer-only options in the
+TOML settings file. See the [vehicle test guide](e2e-vehicle-drivetrain.md) for
+comparisons and status checks, or the [design](vehicle-drivetrain-design.md) for the
+driving model and how it attaches to the game.
+
+### Screen look
+
+Adjusts the colour and clarity of the game picture: a mood (Realistic, Vivid or
+Cinematic), a strength and optional seasonal colours. It changes nothing about
+driving. See [screen look](screen-look.md).
+
+## When a change takes effect
+
+The switches show your saved choices. You can change them while the game is not
+connected, or while earlier changes are still waiting to apply.
+
+| Extension | Your latest settings apply… |
+| --- | --- |
+| Vehicle Driving Improvements | once the game is running unpaused, the vehicle has stopped, acceleration is released and cruise control is off (the [safe boundary](glossary.md#safe-boundary)) |
+| Screen look | as soon as the game is running, without waiting for a vehicle to stop |
+
+Changes never wait for a backup.
+
+Running extensions stay as they are through moments when the game briefly stops answering,
+such as a long save or a debug tool opened on top of the game; they are only released when
+the world is really left or the game stays silent for 30 seconds. Leaving the world, loading
+another or closing the game turns them off and on again by themselves, and the logs record that
+as information, not as a warning. The other way round, the extensions do not affect
+backups: saving before a backup and the in-game save notices have their own settings,
+and the vehicle controls do not change them. See
+[saving the game before a backup](save-bridge.md).
+
+The vehicle card shows what the game is actually doing:
+
+| Card status | Meaning |
+| --- | --- |
+| Applied in game · Experimental | Your settings are running in the game |
+| Waiting to apply in game | Saved, but not applied yet (see the table above) |
+| Applying updated settings in game | A settings change is being applied |
+| Off · Original driving | The extension is off; the game drives as usual |
+| Turning off · Waiting for confirmation / Still active · Turning off | Switching off is in progress |
+| Unsupported · Original driving | The game build or the settings did not pass the checks |
+| Extension error · Original driving | The extension faulted and the game's own control is back ([pass-through](glossary.md#pass-through)) |
+| Restart the game to use this extension | [Restart required](glossary.md#restart-required): nothing new is loaded until the game restarts |
 
 ## Compatibility
 
 The [catalogue](../config/game-extensions/catalog.tsv) declares major version 42.
-Activation still requires the inspected 42.20 bytecode and
-structural checks; the range declaration does not guarantee every 42.x patch.
-**Ignore supported version range** bypasses only the declared version range. Identity,
-structural, admission and cleanup checks still apply, and the setting does not turn
-on the extension itself.
+Activation still requires the bytecode and structural checks against the inspected
+42.20 build; declaring the range does not guarantee every 42.x patch.
 
-Use matching app, worker and JAR files. The [save-bridge compatibility policy](save-bridge.md#compatibility-and-lifecycle)
-defines the runtime requirements; [component replacement](module-reload.md)
-explains compatible updates without changing repository or save formats.
+**Ignore supported version range** skips only the declared version range. Identity,
+structural, [admission](glossary.md#admission) and cleanup checks still apply, and the
+setting does not turn the extension on by itself.
 
-## Implementation boundaries
+Use app, worker and JAR files from the same build. The
+[save-bridge compatibility table](save-bridge.md#compatibility-and-lifecycle) defines
+the runtime requirements, and [component updates](module-reload.md) explains compatible
+updates, which never change the repository or save formats.
 
-WinUI presents inline expandable settings rows. App.Core projects preferences and
-actual application results. GameExtensions owns configuration and version rules;
-the bridge owns authentication and admission. The vehicle module owns the driving
-model, inspected-build adapter and transforms. The general backup engine has no
-module-specific branch.
+## How it works inside
 
-Vehicle control shares the selected WATCH process/world, but has its own leased
-session and settings revisions. It does not occupy the save-provider slot.
+### Who owns what
 
-## Validation and acceptance
+| Part | Responsibility |
+| --- | --- |
+| WinUI | Inline expandable settings rows |
+| App.Core | Projects your preferences and the results actually applied in the game |
+| GameExtensions | Configuration and version rules |
+| Save bridge | Authentication and admission |
+| Vehicle module | Driving model, adapter for the inspected build, and code transforms |
 
-Vehicle tests cover the model, configuration, control-session lifecycle and
-inspected bytecode boundaries. Installed-class checks read a local game JAR in an
-isolated JVM. Use the [vehicle test guide](e2e-vehicle-drivetrain.md) for automated
-reproduction and the separate driving, performance and lifecycle acceptance steps.
+The general backup engine has no module-specific branch.
+
+### Several modules on one connection
+
+Continuous modules (see [capability](glossary.md#capability)) share the game process
+and world selected for the [WATCH](glossary.md#watch) stream. The game is reached
+through one [control lease](glossary.md#control-lease), and every continuous module
+runs on it. The lease does not occupy the save-provider slot. What is shared ends
+there:
+
+- **In the game** the [host](glossary.md#extension-runtime-host) keeps one
+  [slot](glossary.md#slot) per module. A slot has its own module archive and class
+  loader, [generation](glossary.md#generation-module), configuration, applied revision
+  and fault state. Every slot is called each frame; one that faults is
+  [revoked](glossary.md#retire-revoke) by itself.
+- **On the wire** `APPLY` names its module, and `STATUS`, `PING` and `OFF` take the
+  module as a fourth field. With three fields they address the host as a whole: `OFF`
+  then retires every module, which is what ending the lease does.
+- **In the scheduler** each module has its own request, acknowledgement and failure
+  record. A module that is rejected or faults is turned off in the game and in the
+  saved preferences; the lease and the other modules carry on. Only losing the lease
+  itself concerns every module.
+- **Revisions** come from one settings file, so an edit to one extension is a new
+  [settings revision](glossary.md#settings-revision) for all. A module that receives a
+  new revision of the configuration it is already running acknowledges it at once: its
+  provider is not called and it does not wait for a safe moment.
+- **Status** is published per module, and the app shows each card from its own.
+
+Adding a module means a catalogue row with a continuous capability, a provider archive
+in its own namespace, and its configuration in the scheduler
+(`RuntimeExtensionCoordinator.Configure`). Nothing in another module changes.
+
+The per-module host calls (`ModuleControl`) live in the replaceable extension runtime,
+not in the resident [bootstrap](glossary.md#bootstrap) contract, so a running game
+picks them up without a restart.
+
+## Verification
+
+Module independence is tested at three levels: the host with two synthetic module
+archives (`ModuleSlotsTest`), the control channel against a synthetic game JVM, and the
+scheduler's coordinator driving both from saved preferences.
+
+Vehicle tests cover the model, configuration, control-session lifecycle and inspected
+bytecode boundaries. Installed-class checks read a local game JAR in an isolated JVM.
+Use the [vehicle test guide](e2e-vehicle-drivetrain.md) for automated reproduction and
+for the separate driving, performance and lifecycle acceptance steps.

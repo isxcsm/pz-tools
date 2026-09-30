@@ -20,14 +20,47 @@ public partial class App : Application
     private bool exitConfirmed;
     private bool exitDialogOpen;
 
+    private IDisposable? activationListener;
+    private static int fatalReported;
+
     public App()
     {
         InitializeComponent();
-        UnhandledException += (_, args) =>
-        {
-            System.Diagnostics.Debug.WriteLine(args.Exception);
-        };
+        // The process ends after either of these. Leave a report and say so, instead of only
+        // Windows' generic "unknown software exception" dialog.
+        UnhandledException += (_, args) => ReportFatal("ui-thread", args.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            ReportFatal("background-thread", args.ExceptionObject as Exception);
     }
+
+    private static void ReportFatal(string origin, Exception? exception)
+    {
+        if (Interlocked.Exchange(ref fatalReported, 1) != 0) return;
+        System.Diagnostics.Debug.WriteLine(exception);
+        string directory;
+        try { directory = Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "crash"); }
+        catch (Exception) { directory = Path.Combine(Path.GetTempPath(), "PzTools", "crash"); }
+        var report = CrashReport.TryWrite(directory, origin, exception, DateTimeOffset.UtcNow);
+        string message;
+        try { message = Localizer.Format("FatalErrorMessageFormat", report ?? "—"); }
+        catch (Exception) { message = $"PZ Tools has to close because of an unexpected error. Error report: {report ?? "—"}"; }
+        ShowFatalMessage(message);
+    }
+
+    // A native dialog: it works before the first window exists and while XAML is failing.
+    private static void ShowFatalMessage(string message)
+    {
+        const uint IconError = 0x10, SetForeground = 0x10000;
+        try { _ = MessageBoxW(nint.Zero, message, "PZ Tools", IconError | SetForeground); }
+        catch (Exception) { }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int MessageBoxW(nint window, string text, string caption, uint type);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool AllowSetForegroundWindow(int processId);
 
     public AppHost? Host { get; private set; }
     public Window MainWindow => window ?? throw new InvalidOperationException(Localizer.Get("WindowNotCreated"));
@@ -38,16 +71,33 @@ public partial class App : Application
             shell.ShowSidebarNotification(severity, title, message);
     }
 
+    internal void ExplainOnOperationCard(string operationId, string message)
+    {
+        if (window?.Content is MainWindowShell shell)
+            shell.ExplainOnOperationCard(operationId, message);
+    }
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         runtimeRoot = PzTools.Process.Contracts.PzToolsPathLayout.CreateDefault().DataRoot;
         instanceLease = ApplicationInstanceLease.TryAcquire(runtimeRoot);
         if (instanceLease is null)
         {
+            // Already running, possibly hidden in the tray. Bring that window forward rather than
+            // exit with no sign of life; this launch may hand over its right to take the foreground.
+            AllowSetForegroundWindow(-1);
+            ApplicationActivationSignal.TrySignal(runtimeRoot);
             Exit();
             return;
         }
-        Host = CreateHost(runtimeRoot);
+        try { Host = CreateHost(runtimeRoot); }
+        catch (DirectoryNotFoundException exception)
+        {
+            // An incomplete copy of the app cannot be repaired from inside it: explain and leave.
+            ShowFatalMessage(UserFacingError.FromException(exception));
+            Exit();
+            return;
+        }
         AppSettings settings;
         Exception? configurationError = null;
         try { settings = Host.Settings.Load(); }
@@ -59,9 +109,15 @@ public partial class App : Application
         Host.PublishSettings(settings);
         ApplyLanguage(settings.Language, reloadContent: false);
         window = new MainWindow();
+        // Log entries the app wrote in another language are shown in today's; the table for that takes a second.
+        Localizer.Warm();
         window.AppWindow.Closing += MainWindow_Closing;
+        var dispatcher = window.DispatcherQueue;
+        activationListener = ApplicationActivationSignal.Listen(runtimeRoot, () => dispatcher.TryEnqueue(RestoreWindow));
         window.Closed += async (_, _) =>
         {
+            activationListener?.Dispose();
+            activationListener = null;
             trayIcon?.Dispose();
             trayIcon = null;
             if (Host is not null) await Host.DisposeAsync();
@@ -313,6 +369,9 @@ public partial class App : Application
     {
         if (window is null) return;
         window.AppWindow.Show();
+        if (window.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+            { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized } presenter)
+            presenter.Restore();
         window.Activate();
     }
 
@@ -369,6 +428,6 @@ public partial class App : Application
             layout.StateDatabasePath,
             layout.SchedulerDatabasePath,
             layout.ControlDatabasePath,
-            layout.OperationsRoot));
+            layout.OperationsRoot), dispatchCleanupOnExit: true, checkComponentLaunch: true);
     }
 }

@@ -45,7 +45,8 @@ public sealed class ReadOnlyRestoreTests
         await Assert.ThrowsAsync<OperationCanceledException>(() => service.RestoreReplacingAsync(
             repository, source.SourceId, 1, target, (progress, _) =>
             {
-                if (progress.Event == "file.restore.completed")
+                // Attributes are applied once every file has been written and flushed.
+                if (progress.Event == "workload.completed")
                 {
                     var staging = Assert.Single(Directory.GetDirectories(fixture.Root, ".Save.pztools-staging-*"));
                     AssertReadOnlyFile(Path.Combine(staging, "restored.bin"), "restored");
@@ -61,6 +62,53 @@ public sealed class ReadOnlyRestoreTests
         fixture.AssertNoRestoreInventory();
         await service.RestoreReplacingAsync(repository, source.SourceId, 1, target);
         AssertReadOnlyFile(Path.Combine(target, "restored.bin"), "restored");
+        fixture.AssertNoRestoreInventory();
+    }
+
+    [Fact]
+    public async Task FailedRestore_WhileSaveBecomesInUse_LeavesOriginalAndNoInventory()
+    {
+        using var fixture = new Fixture();
+        var (repository, source) = await fixture.CreateRevisionAsync();
+        var target = fixture.Path("Save");
+        var players = Path.Combine(target, "players.db");
+        Directory.CreateDirectory(target);
+        File.WriteAllText(players, "original");
+        FileStream? game = null;
+        try
+        {
+            var error = await Assert.ThrowsAsync<IOException>(() => new SafeRevisionRestoreService().RestoreReplacingAsync(
+                repository, source.SourceId, 1, target, (progress, _) =>
+                {
+                    if (progress.Event != "file.restore.completed") return Task.CompletedTask;
+                    // The game opens the save mid-restore, then the restore fails.
+                    game ??= new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                    throw new IOException("restore failed for its own reason");
+                }));
+
+            Assert.Equal("restore failed for its own reason", error.Message);
+            Assert.NotNull(game);
+            fixture.AssertNoRestoreInventory();
+        }
+        finally { game?.Dispose(); }
+        Assert.Equal("original", File.ReadAllText(players));
+    }
+
+    [Fact]
+    public async Task Recovery_UntouchedSaveInUse_StillDiscardsJournalAndStaging()
+    {
+        using var fixture = new Fixture();
+        var inventory = fixture.CreateInventory();
+        Directory.CreateDirectory(inventory.Staging);
+        var players = Path.Combine(inventory.Target, "players.db");
+        Directory.CreateDirectory(inventory.Target);
+        File.WriteAllText(players, "original");
+        await fixture.WriteJournalAsync(inventory, "prepared");
+
+        using (new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            await new SafeRevisionRestoreService().RecoverAsync(inventory.Target);
+
+        Assert.Equal("original", File.ReadAllText(players));
         fixture.AssertNoRestoreInventory();
     }
 

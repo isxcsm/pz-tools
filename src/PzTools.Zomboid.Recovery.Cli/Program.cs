@@ -3,6 +3,9 @@ using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Zomboid.Recovery;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 const string component = "character-recovery";
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;

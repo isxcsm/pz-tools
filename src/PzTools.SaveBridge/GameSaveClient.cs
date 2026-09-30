@@ -13,6 +13,13 @@ public sealed class GameSaveException(string code, string message, string? diagn
     : Exception($"[{code}] {message}"), IFailureDiagnostics
 {
     public string Code { get; } = code;
+    /// <summary>The save command was sent but no usable answer came back; every other code is a known outcome.</summary>
+    public bool SaveOutcomeUnknown => Code is "completion-unknown" or "invalid-response";
+    /// <summary>
+    /// The game could not be reached at all and nothing was asked of it (a blocked helper, a game
+    /// update, a missing bridge). The files on disk can still be backed up as they are.
+    /// </summary>
+    public bool LinkUnavailable => Code is "attach-failed" or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
     public string? Diagnostics { get; } = diagnostics;
 }
 
@@ -105,7 +112,10 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 processId.ToString(System.Globalization.CultureInfo.InvariantCulture), jar,
                 ((IPEndPoint)listener.LocalEndpoint).Port.ToString(System.Globalization.CultureInfo.InvariantCulture), token })
                 start.ArgumentList.Add(argument);
-            helper = DiagnosticsProcess.Start(start) ?? throw new IOException("Could not start the attach helper.");
+            try { helper = DiagnosticsProcess.Start(start); }
+            catch (System.ComponentModel.Win32Exception blocked)
+            { throw new GameSaveException("attach-failed", "Could not start the attach helper: " + blocked.Message); }
+            if (helper is null) throw new GameSaveException("attach-failed", "Could not start the attach helper.");
             var output = helper.StandardOutput.ReadToEndAsync(cancellationToken);
             var error = helper.StandardError.ReadToEndAsync(cancellationToken);
             using var connectionDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -187,6 +197,12 @@ public sealed class GameSaveClient(string bridgeDirectory,
             throw new GameSaveException(sent ? "completion-unknown" : "connection-timeout",
                 sent ? "No completion response. The game may still be saving; do not assume success or retry immediately."
                     : "Could not connect to the game. No save command was sent.");
+        }
+        catch (Exception exception) when (sent && exception is IOException or ObjectDisposedException)
+        {
+            // A connection lost after submission is not evidence that the save did not run.
+            throw new GameSaveException("completion-unknown",
+                "The game connection was lost after the save command was sent; do not assume success or retry immediately.");
         }
         finally
         {

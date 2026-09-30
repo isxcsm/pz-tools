@@ -68,7 +68,8 @@ public sealed partial class RepositoryDatabase
                     reader.IsDBNull(12) ? null : reader.GetString(12),
                     Enum.Parse<BackupKind>(reader.GetString(13)),
                     reader.IsDBNull(14) ? null : reader.GetDouble(14), reader.GetBoolean(15),
-                    reader.IsDBNull(16) ? null : reader.GetString(16)));
+                    reader.IsDBNull(16) ? null : reader.GetString(16),
+                    reader.IsDBNull(17) ? null : reader.GetString(17)));
             }
         }
         transaction.Commit();
@@ -399,6 +400,38 @@ public sealed partial class RepositoryDatabase
                 reader.GetInt64(2),
                 reader.GetString(3),
                 reader.GetInt64(4)));
+        }
+
+        return packs;
+    }
+
+    /// <summary>
+    /// Bytes each committed pack still stores for registered objects. Garbage collection removes
+    /// unreferenced object rows, so after it the difference from the file size is dead space.
+    /// </summary>
+    public async Task<IReadOnlyList<PackUsage>> ReadPackUsageAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT pack.pack_id, pack.relative_path, pack.byte_length, pack.status, pack.created_run_index,
+                   COALESCE(SUM(object.stored_length), 0)
+            FROM packs AS pack
+            LEFT JOIN stored_objects AS object ON object.pack_id = pack.pack_id
+            WHERE pack.status = 'Committed'
+            GROUP BY pack.pack_id
+            ORDER BY pack.pack_id;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var packs = new List<PackUsage>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            packs.Add(new PackUsage(
+                new RepositoryPack(reader.GetGuid(0), reader.GetString(1), reader.GetInt64(2),
+                    reader.GetString(3), reader.GetInt64(4)),
+                reader.GetInt64(5)));
         }
 
         return packs;

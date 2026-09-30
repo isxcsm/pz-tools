@@ -9,17 +9,20 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /** Refreshes closed deployment snapshots BETWEEN saves. WATCH never owns a module generation. */
-public final class ModuleHost implements SaveModules, ContinuousModules {
+public final class ModuleHost implements SaveModules, ContinuousModules, ModuleControl {
     private record Definition(String id, String version, String jar, String namespace, String entry, VersionSupport support, String capability) { }
     private Path directory;
     private final Map<String, Loaded> loaded = new HashMap<>();
     private record Rejected(Definition definition, String digest, String reason) { }
     private final Map<String, Rejected> rejected = new HashMap<>();
     private final CheckpointRuntime runtime = new CheckpointRuntime(64L * 1024 * 1024);
-    private final ContinuousRuntime continuous;
+    // One slot per continuous module, created when the module is first applied. Slots share nothing
+    // but this host: each has its own generation, revision and fault state.
+    private static final int MAXIMUM_SLOTS = 16;
+    private final java.util.concurrent.ConcurrentHashMap<String, ContinuousRuntime> continuous = new java.util.concurrent.ConcurrentHashMap<>();
     private ClassLoader boundGameLoader;
     private volatile boolean closed, poisoned;
-    public ModuleHost(Path directory) throws Exception { this.directory = directory.toAbsolutePath().normalize(); catalogue(); continuous = new ContinuousRuntime(this.directory); }
+    public ModuleHost(Path directory) throws Exception { this.directory = directory.toAbsolutePath().normalize(); catalogue(); }
 
     private Map<String, Definition> catalogue() throws IOException {
         byte[] bytes;
@@ -38,7 +41,7 @@ public final class ModuleHost implements SaveModules, ContinuousModules {
                 throw new IOException("Invalid extension catalogue row");
             var range = new VersionSupport(p[5], p[6].equals("-") ? null : p[6], p[7].equals("-") ? null : p[7]);
             String capability = p.length == 10 ? "save.prepare.v1" : p[10];
-            if (!Set.of("save.prepare.v1", "vehicle.drivetrain.v1").contains(capability)) throw new IOException("Unknown extension capability");
+            if (!capability.equals("save.prepare.v1") && !ContinuousRuntime.CAPABILITIES.contains(capability)) throw new IOException("Unknown extension capability");
             if (definitions.putIfAbsent(p[0], new Definition(p[0], p[1], p[4], p[2], p[3], range, capability)) != null)
                 throw new IOException("Duplicate module identity");
         }
@@ -48,7 +51,7 @@ public final class ModuleHost implements SaveModules, ContinuousModules {
         if (directory.equals(next.toAbsolutePath().normalize())) return;
         requireIdle();
         directory = next.toAbsolutePath().normalize();
-        continuous.relocate(directory);
+        for (ContinuousRuntime slot : continuous.values()) slot.relocate(directory);
     }
     private void requireIdle() {
         if (closed || poisoned) throw new IllegalStateException("Extension host requires restart");
@@ -121,20 +124,66 @@ public final class ModuleHost implements SaveModules, ContinuousModules {
     @Override public synchronized void close() throws Exception {
         if (closed) return;
         requireIdle();
-        continuous.close();
+        // Every slot gets its chance to retire; one that cannot is reported after the others are done.
+        Exception stuck = null;
+        for (ContinuousRuntime slot : continuous.values())
+            try { slot.close(); } catch (Exception failure) { if (stuck == null) stuck = failure; }
+        if (stuck != null) throw stuck;
         for (var entry : List.copyOf(loaded.entrySet())) retire(entry.getKey(), entry.getValue());
         runtime.close();
         if (!runtime.awaitTermination(5000)) { poisoned = true; throw new IOException("Extension executor did not retire"); }
         closed = true; loaded.clear(); rejected.clear(); boundGameLoader = null;
     }
     @Override public ContinuousModules.Status apply(ContinuousModules.Apply request, Instrumentation instrumentation, ClassLoader gameClasses, String version) {
-        if (closed || poisoned) return status();
-        return continuous.apply(request, instrumentation, gameClasses, version);
+        if (closed || poisoned) return status(request.moduleId());
+        ContinuousRuntime slot = continuous.get(request.moduleId());
+        if (slot == null) {
+            synchronized (this) {
+                slot = continuous.get(request.moduleId());
+                if (slot == null) {
+                    if (continuous.size() >= MAXIMUM_SLOTS || !request.moduleId().matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+"))
+                        return new ContinuousModules.Status("Unsupported", "update-rejected:module-limit", RuntimeIdentity.processId(), null, null, -1, null, null, "");
+                    slot = new ContinuousRuntime(directory);
+                    continuous.put(request.moduleId(), slot);
+                }
+            }
+        }
+        ContinuousModules.Status result = slot.apply(request, instrumentation, gameClasses, version);
+        // A request that never produced a generation (unknown module, rejected archive) leaves no slot behind.
+        if (result.generation() == null && !slot.occupied()) continuous.remove(request.moduleId(), slot);
+        return hostStatus(result);
     }
-    @Override public void tick(ContinuousProvider.Context context) { continuous.tick(context); }
-    @Override public void revoke(String reason) { continuous.revoke(reason); }
-    @Override public ContinuousModules.Status deactivate(String reason) { return hostStatus(continuous.deactivate(reason)); }
-    @Override public ContinuousModules.Status status() { return hostStatus(continuous.status()); }
+    /** Game thread. A module that throws or faults is revoked inside its own slot; the rest still run this frame. */
+    @Override public void tick(ContinuousProvider.Context context) { for (ContinuousRuntime slot : continuous.values()) slot.tick(context); }
+    @Override public void revoke(String reason) { for (ContinuousRuntime slot : continuous.values()) slot.revoke(reason); }
+    /** Every module: the lease ended or the controller asked for everything off. */
+    @Override public ContinuousModules.Status deactivate(String reason) {
+        ContinuousModules.Status worst = empty();
+        for (ContinuousRuntime slot : continuous.values()) {
+            ContinuousModules.Status state = slot.deactivate(reason);
+            if (state.state().equals("RestartRequired")) worst = state;
+        }
+        return hostStatus(worst);
+    }
+    /** The host as a whole: usable, or in need of a restart. A module's own state is asked for by name. */
+    @Override public ContinuousModules.Status status() {
+        for (ContinuousRuntime slot : continuous.values()) {
+            ContinuousModules.Status state = slot.status();
+            if (state.state().equals("RestartRequired")) return hostStatus(state);
+        }
+        return hostStatus(empty());
+    }
+    @Override public ContinuousModules.Status status(String moduleId) {
+        ContinuousRuntime slot = continuous.get(moduleId);
+        return hostStatus(slot == null ? empty() : slot.status());
+    }
+    @Override public ContinuousModules.Status deactivate(String moduleId, String reason) {
+        ContinuousRuntime slot = continuous.get(moduleId);
+        return hostStatus(slot == null ? empty() : slot.deactivate(reason));
+    }
+    private static ContinuousModules.Status empty() {
+        return new ContinuousModules.Status("Disabled", null, RuntimeIdentity.processId(), null, null, -1, null, null, "");
+    }
     private ContinuousModules.Status hostStatus(ContinuousModules.Status state) {
         if (!poisoned) return state;
         // Save and continuous providers share host ownership. A failed save-provider retirement

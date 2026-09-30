@@ -5,43 +5,26 @@ using PzTools.Backup.Storage.Repository;
 
 namespace PzTools.Backup.Engine;
 
-public sealed class PackCompactor
+public sealed class PackCompactor(IBackupFailureInjector? failureInjector = null)
 {
-    public async Task<PackCompactionResult> CompactAsync(
-        RepositoryDatabase repository,
-        RepositoryWriterLease lease,
-        long maximumSourcePackBytes,
-        CancellationToken cancellationToken = default)
-        => await CompactCoreAsync(
-            repository, lease, createdRunIndex: null, maximumSourcePackBytes, cancellationToken);
+    private readonly IBackupFailureInjector failures = failureInjector ?? NoBackupFailureInjector.Instance;
 
-    public async Task<PackCompactionResult> CompactAsync(
+    /// <summary>
+    /// Moves every registered object of the given packs into one new pack and leaves the old packs
+    /// empty for garbage collection. Nothing changes unless the whole replacement commits.
+    /// <see cref="PackSpaceReclaimer"/> decides which packs are worth rewriting.
+    /// </summary>
+    public async Task<PackCompactionResult> RewriteAsync(
         RepositoryDatabase repository,
         RepositoryWriterLease lease,
-        long createdRunIndex,
-        long maximumSourcePackBytes,
+        IReadOnlyList<RepositoryPack> packs,
+        long? createdRunIndex = null,
         CancellationToken cancellationToken = default)
-        => await CompactCoreAsync(
-            repository, lease, createdRunIndex, maximumSourcePackBytes, cancellationToken);
-
-    private static async Task<PackCompactionResult> CompactCoreAsync(
-        RepositoryDatabase repository,
-        RepositoryWriterLease lease,
-        long? createdRunIndex,
-        long maximumSourcePackBytes,
-        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(repository);
         ArgumentNullException.ThrowIfNull(lease);
-        if (maximumSourcePackBytes <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maximumSourcePackBytes));
-        }
-
-        var packs = (await repository.ReadPacksAsync(cancellationToken))
-            .Where(item => item.Status == "Committed" && item.ByteLength <= maximumSourcePackBytes)
-            .ToArray();
-        if (packs.Length < 2)
+        ArgumentNullException.ThrowIfNull(packs);
+        if (packs.Count == 0)
         {
             return new PackCompactionResult(0, 0, NewPackId: null, []);
         }
@@ -92,7 +75,11 @@ public sealed class PackCompactor
                     descriptor.Flags));
             }
 
+            // The same three interruption boundaries as a backup: data only in staging, a promoted
+            // but unregistered pack, and a committed switch whose old packs are not yet removed.
+            failures.ThrowIfRequested(BackupFailurePoint.BeforePackFlush);
             var committed = await writer.SealAndPromoteAsync(cancellationToken);
+            failures.ThrowIfRequested(BackupFailurePoint.AfterPackPromotion);
             await repository.CommitCompactionAsync(
                 lease,
                 runIndex,
@@ -104,12 +91,14 @@ public sealed class PackCompactor
                 relocated,
                 packs.Select(item => item.PackId).ToArray(),
                 cancellationToken);
+            failures.ThrowIfRequested(BackupFailurePoint.AfterRepositoryCommit);
 
             return new PackCompactionResult(
-                packs.Length,
+                packs.Count,
                 relocated.Count,
                 committed.PackId,
-                FilesThatCouldNotBeDeleted: []);
+                FilesThatCouldNotBeDeleted: [],
+                committed.ByteLength);
         }
         finally
         {

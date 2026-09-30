@@ -5,6 +5,9 @@ using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Zomboid.State;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;
 string? stateDb = null;

@@ -5,6 +5,9 @@ using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 using PzTools.State.Scheduler;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 if (args.FirstOrDefault() is "help" or "--help" or "-h")
 {
     Console.WriteLine("PzTools State Scheduler");
@@ -91,7 +94,11 @@ try
                 continue;
             }
             if (await gameExitWatcher.WaitAsync(wakeInterval, token))
+            {
                 confirmationsRemaining = 2;
+                // Cleanup was deferred for the whole play session; start it now rather than up to a minute later.
+                orphanCleanup?.RequestNow();
+            }
         } while (!token.IsCancellationRequested);
         return 0;
         }

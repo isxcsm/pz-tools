@@ -8,7 +8,30 @@ using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.SaveBridge;
 
-/// <summary>Independent continuous-extension lease; never occupies the save request gate.</summary>
+/// <summary>One module on a shared lease. Disposing it does nothing: the lease belongs to the client.</summary>
+public sealed class GameExtensionModule : IGameExtensionSession
+{
+    private readonly GameExtensionClient client;
+    internal GameExtensionModule(GameExtensionClient client, string moduleId) { this.client = client; ModuleId = moduleId; }
+    public string ModuleId { get; }
+    public Task<RuntimeExtensionStatus> StatusAsync(CancellationToken token) => client.ModuleCommandAsync("STATUS", ModuleId, token);
+    public Task<RuntimeExtensionStatus> PingAsync(CancellationToken token) => client.ModuleCommandAsync("PING", ModuleId, token);
+    /// <summary>Retires this module only; the others keep running on the same lease.</summary>
+    public Task<RuntimeExtensionStatus> DisableAsync(CancellationToken token) => client.ModuleCommandAsync("OFF", ModuleId, token);
+    public Task<RuntimeExtensionStatus> ApplyAsync(string processSession, string worldSession,
+        long expectedRevision, long revision, string moduleId, bool forceVersion,
+        IReadOnlyDictionary<string, string> configuration, CancellationToken token) =>
+        moduleId == ModuleId
+            ? client.ApplyAsync(processSession, worldSession, expectedRevision, revision, moduleId, forceVersion, configuration, token)
+            : throw new ArgumentException("This session addresses another module.", nameof(moduleId));
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+/// <summary>
+/// Independent continuous-extension lease; never occupies the save request gate. The lease is one
+/// connection for every continuous module. Its own status and OFF are about the host as a whole
+/// (OFF retires every module); <see cref="Module"/> addresses one.
+/// </summary>
 public sealed class GameExtensionClient : IGameExtensionSession
 {
     private readonly TcpClient client;
@@ -93,6 +116,20 @@ public sealed class GameExtensionClient : IGameExtensionSession
     public Task<RuntimeExtensionStatus> StatusAsync(CancellationToken token) => CommandAsync("STATUS", null, token);
     public Task<RuntimeExtensionStatus> PingAsync(CancellationToken token) => CommandAsync("PING", null, token);
     public Task<RuntimeExtensionStatus> DisableAsync(CancellationToken token) => CommandAsync("OFF", null, token);
+
+    public GameExtensionModule Module(string moduleId)
+    {
+        ValidateModule(moduleId);
+        return new(this, moduleId);
+    }
+    internal Task<RuntimeExtensionStatus> ModuleCommandAsync(string verb, string moduleId, CancellationToken token) =>
+        CommandAsync(verb, moduleId, token);
+    private static void ValidateModule(string moduleId)
+    {
+        if (string.IsNullOrWhiteSpace(moduleId) || moduleId.Length > 80
+            || moduleId.Any(c => !char.IsAsciiLetterLower(c) && !char.IsAsciiDigit(c) && c is not '.' and not '-'))
+            throw new ArgumentException("Invalid extension identity.", nameof(moduleId));
+    }
 
     public Task<RuntimeExtensionStatus> ApplyAsync(string processSession, string worldSession,
         long expectedRevision, long revision, string moduleId, bool forceVersion,

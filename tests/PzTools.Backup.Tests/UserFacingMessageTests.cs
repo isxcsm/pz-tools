@@ -13,6 +13,10 @@ public sealed class UserFacingMessageTests
     [Theory]
     [InlineData("repository-reset-required: incompatible schema", "OperationError.RepositoryIncompatible")]
     [InlineData("  REPOSITORY-RESET-REQUIRED", "OperationError.RepositoryIncompatible")]
+    [InlineData("backup-data-damaged: Object 1 checksum does not match.", "OperationError.BackupDamaged")]
+    [InlineData("The current save changed during export. Stop playing and try again.", "OperationError.ExportSaveChanged")]
+    [InlineData("The save is currently in use and cannot be restored.", "OperationError.FileInUse")]
+    [InlineData("The save cannot be opened for an exclusive restore.", "OperationError.FileInUse")]
     [InlineData("Application workers are missing. Missing: backup.exe", "OperationError.WorkersMissing")]
     [InlineData("The configured worker directory is incomplete: path", "OperationError.WorkersMissing")]
     [InlineData("Another operation is using this repository", "OperationError.FileInUse")]
@@ -41,10 +45,46 @@ public sealed class UserFacingMessageTests
     [InlineData("C:\\games\\save-edit-review\\file.bin")]
     [InlineData("C:\\games\\recovery-save-busy\\file.bin")]
     [InlineData("repository-reset-required-other")]
+    [InlineData("backup-data-damaged-elsewhere")]
     [InlineData("recovery-save-busyness")]
     [InlineData("recovery-new-failure")]
     public void UnknownMessagesAndUserPaths_AreNotTreatedAsDiagnosticCodes(string? message) =>
         Assert.Equal(UserFacingErrorCatalog.Generic, UserFacingErrorCatalog.FromProcessError(message));
+
+    // A logged failure is explained from its code, type and Windows error number; its message may be in
+    // whatever language Windows used, as the Korean ones below are.
+    [Theory]
+    [InlineData(null, "UnauthorizedAccessException", "액세스가 거부되었습니다.", "0x80070005", "OperationError.AccessDenied")]
+    [InlineData(null, "IOException", "다른 프로세스가 파일을 사용 중이기 때문에 액세스할 수 없습니다.", "0x80070020", "OperationError.FileInUse")]
+    [InlineData(null, "IOException", "디스크 공간이 부족합니다.", "0x80070070", "OperationError.DiskFull")]
+    [InlineData(null, "DirectoryNotFoundException", "경로의 일부를 찾을 수 없습니다.", "0x80070003", "OperationError.FileMissing")]
+    [InlineData("profile-game-not-running", "GameSaveException", "No game.", "0x80131500", "ProfileError.GameNotRunning")]
+    [InlineData("backup-data-damaged", "InvalidDataException", "backup-data-damaged: pack 3", "0x80131501", "OperationError.BackupDamaged")]
+    [InlineData("launch-blocked", null, "Windows application control refused to start these components.", null, "OperationError.BlockedByPolicy")]
+    [InlineData(null, "InvalidOperationException", "Something unexpected.", "0x80131509", "OperationError.Generic")]
+    [InlineData(null, null, "No details.", null, "OperationError.Generic")]
+    public void LoggedFailures_AreExplainedWithoutReadingTheirWording(string? code, string? type, string message, string? hResult, string key) =>
+        Assert.Equal(key, UserFacingErrorCatalog.FromDiagnostics(code, type, message, hResult));
+
+    // Starting a worker that Windows refuses: a Win32Exception, whose HResult is only E_FAIL and whose number says why.
+    [Theory]
+    [InlineData("5", "OperationError.AccessDenied")]
+    [InlineData("2", "OperationError.FileMissing")]
+    [InlineData("4551", "OperationError.BlockedByPolicy")]
+    [InlineData("1234", "OperationError.Generic")]
+    public void Win32Failures_AreExplainedByTheirOwnNumber(string native, string key) =>
+        Assert.Equal(key, UserFacingErrorCatalog.FromDiagnostics("orphan-cleanup-launch-failed", "Win32Exception",
+            "액세스가 거부되었습니다.", "0x80004005", native));
+
+    [Fact]
+    public void Win32Failures_KeepTheirNumberInTheLog()
+    {
+        var payload = PzTools.Process.Contracts.FailureTelemetry.FromException("launch-failed", new System.ComponentModel.Win32Exception(5));
+        var diagnostics = PzTools.Projections.LogDiagnostics.Parse(payload)!;
+        Assert.Equal(("5", "0x80004005"), (diagnostics.NativeErrorCode, diagnostics.HResult));
+        Assert.Equal("OperationError.AccessDenied", UserFacingErrorCatalog.FromDiagnostics(diagnostics.FailureCode,
+            diagnostics.ExceptionType, diagnostics.Message, diagnostics.HResult, diagnostics.NativeErrorCode));
+    }
 
     [Theory]
     [InlineData(5, "OperationError.AccessDenied")]

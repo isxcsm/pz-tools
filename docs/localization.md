@@ -1,55 +1,91 @@
 # Localization
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-PZ Tools bundles 18 locales. Changing the app language does not call an online
-translation service or download a language pack. The supported tags and native names
-come from the [shared language catalog](../src/PzTools.Process.Contracts/Localization/languages.tsv).
-Repository documentation is English-only; interface localization is independent.
+The PZ Tools app, and the notices it shows inside the game, can be used in 18 languages.
+All of them ship with the app: switching language does not call an online translation
+service or download a language pack. This page is for anyone translating the interface,
+reviewing wording or adding a language. The supported language tags and their native
+names come from the
+[shared language catalog](../src/PzTools.Process.Contracts/Localization/languages.tsv).
 
-## Translation scope
+## What is translated
 
-Translations cover the interface, settings, progress, dialogs, log summaries, failure
-explanations, new default backup names and game-save notices. Raw diagnostic details,
-file paths, game modes, mod-defined names and user-entered names are not translated.
-All locales must supply the complete resource-key set; do not maintain a separate
-hard-coded key count in this document.
+| Translated | Not translated |
+| --- | --- |
+| The interface and settings | Raw diagnostic details |
+| Progress, dialogs and log summaries | File paths |
+| Failure explanations | Game modes |
+| New default backup names | Mod-defined names |
+| Game-save notices shown in the game | Names the user typed |
 
-Changing the language does not rewrite existing backup names. The game and .NET workers
-use the same UTF-8 catalog. Synthetic JVM tests verify message delivery, but actual
-game font coverage and on-screen layout require separate checks. `es-MX` supplies the
-Windows culture for the Latin American Spanish option; shared neutral Spanish wording
-is intentional, not a claim of a separate translation for every country.
+Every locale must supply the complete set of resource keys. Do not keep a separate
+hard-coded count of keys in this document.
 
-Review labels and instructions in context. Distinguish game saving from backup creation,
-keep current-save and historical-backup operations separate, and preserve destructive
-operation warnings. An interrupted operation must not promise successful automatic
-recovery. The [user-facing copy review](localization-review.md) records an earlier set
-of changes; it is not independent native-speaker certification.
+## Choosing a language
+
+- A fresh installation starts in Korean.
+- Settings store the locale tag. Older identifiers that are still supported, such as
+  `Korean`, `English`, `ko` and `en`, can still be read. Unsupported tags are rejected.
+- Changing the language does not rewrite the names of existing backups.
+- The *Latin American Spanish* option uses the `es-MX` Windows culture. Its wording is
+  shared neutral Spanish on purpose; see [limits](#limits).
+
+## Writing and reviewing translations
+
+Review labels and instructions in context, where they appear. In every language:
+
+- Keep *saving the game* and *creating a backup* distinct.
+- Keep operations on the current save apart from operations on historical backups.
+- Keep the warnings on destructive operations.
+- Never promise that an interrupted operation will recover on its own.
+- Keep placeholder arguments, numeric formats, conditions and paragraph boundaries.
+
+Review wording and rendered layout separately from the structural checks under
+[verification](#verification).
+
+## Adding a language
+
+1. Add the language to the enum and to the
+   [catalog](../src/PzTools.Process.Contracts/Localization/languages.tsv).
+2. Add all UI resources under [App Strings](../src/PzTools.App/Strings).
+3. Run the relevant [checks](#verification).
+
+Do not add another README edition for the new language; see
+[repository documentation](#repository-documentation).
+
+## Limits
+
+- **Game fonts and layout are not tested automatically.** Synthetic JVM tests check that
+  the in-game messages are delivered. Whether the game's fonts cover the characters, and
+  how the text looks on screen, needs separate checks.
+- **Spanish is not per country.** The `es-MX` option is shared neutral Spanish. It does
+  not claim a separate translation for every country.
+- **The copy review is not a certification.** The
+  [user-facing copy review](history/localization-review.md) records an earlier set of changes; it is not an independent native-speaker review.
 
 ## Repository documentation
 
-Maintain the [README](../README.md) and [reference documents](README.md) in English.
-Do not add per-language copies or tie documentation coverage to the app's locale catalog.
-See [documentation maintenance](documentation-maintenance.md) for the checks.
+The app's languages and the documentation are independent. Maintain the
+[README](../README.md) and the [reference documents](README.md) in English only. Do not
+add per-language copies, and do not tie documentation coverage to the app's language
+catalog. [Documentation maintenance](documentation-maintenance.md) describes the checks.
 
-## Sources of truth
+## How it works inside
 
 | Source | Responsibility |
 | --- | --- |
 | [languages.tsv](../src/PzTools.Process.Contracts/Localization/languages.tsv) | Enum ID, locale tag, native name, three backup-name prefixes and four game-notice templates (countdown, completion, failure, in progress) |
 | [App Strings](../src/PzTools.App/Strings) | Complete UI resources for each locale |
-| [LanguageCatalog](../src/PzTools.Process.Contracts/LanguageCatalog.cs) | Supported IDs, validation and legacy-name parsing |
-| [Localizer](../src/PzTools.App/Localizer.cs) | Resource context and date/number culture; English fallback |
+| [LanguageCatalog](../src/PzTools.Process.Contracts/LanguageCatalog.cs) | Supported IDs, validation and parsing of older names |
+| [Localizer](../src/PzTools.App/Localizer.cs) | Resource context and date/number culture; falls back to English |
 
-Settings persist locale tags. Supported legacy identifiers such as `Korean`, `English`,
-`ko` and `en` remain readable; unsupported tags are rejected. A fresh app defaults to
-Korean. The Java payload receives the same catalog at build time, so do not edit a
-second independent set of game-notice strings.
+The game side and the .NET workers read the same UTF-8 catalog. The Java payload
+receives it at build time, so there is no second set of game-notice strings to edit.
 
 ## Verification
 
-Static resource and documentation checks do not open a user save:
+The static resource and documentation checks do not open a user save:
 
 ```powershell
 python scripts/check-localization.py
@@ -62,9 +98,9 @@ On a configured Windows build machine, run the resource, message and setting reg
 dotnet test tests/PzTools.Backup.Tests -c Release --filter "FullyQualifiedName~LocalizationTests|FullyQualifiedName~UserFacingMessageTests|FullyQualifiedName~SaveActionTooltipTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~BackupConfigurationTests"
 ```
 
-The [localization smoke project](../tests/PzTools.LocalizationSmoke) exercises the real
-WinUI resource-loading and language-switching pipeline. It has no AppHost, scheduler or
-game connection and does not read or modify user saves. Build and run it on Windows:
+The [localization smoke project](../tests/PzTools.LocalizationSmoke) runs the real WinUI
+resource-loading and language-switching pipeline. It has no `AppHost`, scheduler or game
+connection, and does not read or modify user saves. Build and run it on Windows:
 
 ```powershell
 dotnet build tests/PzTools.LocalizationSmoke -c Debug
@@ -76,10 +112,7 @@ Start-Process -FilePath $smoke -ArgumentList @("`"$strings`"", "`"$result`"") -W
 Get-Content -LiteralPath $result
 ```
 
-[The bridge test script](../scripts/test-save-bridge.ps1) runs an isolated synthetic JVM.
-Its tests cover the shared notices as well as timing, game-thread execution, failure and
-payload replacement. They are not a substitute for real-game opt-in tests.
-
-When adding a language, update the enum and catalog, add all UI resources, and run
-the relevant checks. Do not add another README edition. Preserve placeholder arguments, numeric formats, conditions and
-paragraph boundaries. Review wording and rendered layout separately from structural checks.
+The [bridge test script](../scripts/test-save-bridge.ps1) runs an isolated synthetic JVM.
+Its tests cover the shared in-game notices as well as timing, game-thread execution,
+failure and [payload](glossary.md#payload) replacement. They do not replace opt-in tests
+in the real game.

@@ -23,6 +23,30 @@ public sealed class GameplayBackgroundTests
     }
 
     [Fact]
+    public async Task OrphanDispatch_RunsAtOnceWhenTheGameExits_InsteadOfWaitingOutTheInterval()
+    {
+        using var temp = new TempDirectory();
+        var playing = true;
+        var launches = new List<IReadOnlyList<string>>();
+        var dispatcher = new OrphanCleanupDispatcher(temp.GetPath("repo"), temp.GetPath("saves"),
+            temp.GetPath("workers"), shouldDefer: () => playing,
+            startDetached: (_, arguments, _) => launches.Add(arguments));
+        var now = DateTimeOffset.UtcNow;
+
+        await dispatcher.TickAsync(now);                 // Deferred during play; the interval restarts.
+        playing = false;
+        await dispatcher.TickAsync(now.AddSeconds(5));   // Still inside the interval.
+        Assert.Empty(launches);
+
+        dispatcher.RequestNow();                         // The game-exit signal.
+        await dispatcher.TickAsync(now.AddSeconds(6));
+        var launch = Assert.Single(launches);
+        Assert.Contains("OrphanBackups", launch);
+        await dispatcher.TickAsync(now.AddSeconds(7));   // One request is one dispatch.
+        Assert.Single(launches);
+    }
+
+    [Fact]
     public async Task GameplayWatch_CancelsExistingMaintenanceWhenGameStarts()
     {
         using var cancellation = new CancellationTokenSource();

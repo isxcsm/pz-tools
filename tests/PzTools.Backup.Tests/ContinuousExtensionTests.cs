@@ -1,3 +1,4 @@
+using PzTools.GameExtensions;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
 using PzTools.SaveBridge;
@@ -88,13 +89,19 @@ public sealed partial class GameSaveClientTests
         await using var watch = new RuntimeWatchCapture(game.Pid, bridge);
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-        await using var control = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
+        await using var lease = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
+        var control = lease.Module(ExtensionIds.VehicleDrivetrain);
+        Assert.Equal(RuntimeExtensionState.Disabled, (await lease.StatusAsync(deadline.Token)).State);
         Assert.Equal(RuntimeExtensionState.Disabled, (await control.StatusAsync(deadline.Token)).State);
         var pending = await control.ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1,
             "pztools.vehicle-drivetrain", false, new Dictionary<string, string> { ["fixture_value"] = "first" }, deadline.Token);
         Assert.Equal(RuntimeExtensionState.Pending, pending.State);
         var active = await AwaitContinuousState(control, s => s.State == RuntimeExtensionState.Active, deadline.Token);
         Assert.Contains("fixtureValue=first", active.Diagnostics); Assert.Equal(1, active.AppliedRevision);
+        // An active generation is called once per game frame, whether or not any vehicle hook fires.
+        var framed = await AwaitContinuousState(control, s => FixtureCount(s, "fixtureFrames") >= 5, deadline.Token);
+        Assert.Equal(0, FixtureCount(framed, "fixtureCallbacks"));
+        Assert.Equal(0, FixtureCount(framed, "fixtureLateFrames"));
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
         await new GameSaveClient(bridge).RequestAsync(game.Pid, temp.Path, true, deadline.Token);
         var afterSave = await watch.WaitAsync(s => s.Sequence > ready.Sequence + 1);
@@ -119,6 +126,37 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
+    public async Task ADebugToolOnTopOfTheGame_IsAPause_NotTheEndOfTheWorld()
+    {
+        using var temp = new TempDirectory();
+        var bridge = ContinuousFixtureBridge(temp);
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        await using var watch = new RuntimeWatchCapture(game.Pid, bridge);
+        var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        await using var lease = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
+        var control = lease.Module(ExtensionIds.VehicleDrivetrain);
+        await control.ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1,
+            ExtensionIds.VehicleDrivetrain, false, new Dictionary<string, string> { ["fixture_value"] = "first" }, deadline.Token);
+        var active = await AwaitContinuousState(control, s => s.State == RuntimeExtensionState.Active, deadline.Token);
+
+        // The game yields to a debug tool (the chunk viewer): the same world, loaded, with time standing still.
+        await File.WriteAllTextAsync(temp.GetPath("open-debug-tool"), "open", deadline.Token);
+        var yielded = await watch.WaitAsync(s => s.Pause == GamePause.Paused);
+        Assert.True(yielded.IsWorldReady);
+        Assert.Equal((ready.WorldSession, ready.ObserverEpoch), (yielded.WorldSession, yielded.ObserverEpoch));
+        await Task.Delay(500, deadline.Token);
+        var during = await control.PingAsync(deadline.Token);
+        Assert.Equal((RuntimeExtensionState.Active, active.Generation), (during.State, during.Generation));
+
+        await File.WriteAllTextAsync(temp.GetPath("close-debug-tool"), "close", deadline.Token);
+        var back = await watch.WaitAsync(s => s.Pause == GamePause.Running && s.Sequence > yielded.Sequence);
+        Assert.Equal(ready.WorldSession, back.WorldSession);
+        var after = await control.PingAsync(deadline.Token);
+        Assert.Equal((RuntimeExtensionState.Active, active.Generation), (after.State, after.Generation));
+    }
+
+    [BridgeFact]
     public async Task ContinuousDisconnectRetiresOldGeneration_AndWorldExitRevokesWithoutAnotherSave()
     {
         using var temp = new TempDirectory(); var bridge = ContinuousFixtureBridge(temp);
@@ -129,9 +167,9 @@ public sealed partial class GameSaveClientTests
         string? generation;
         await using (var first = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token))
         {
-            await first.ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1, "pztools.vehicle-drivetrain", false,
+            await first.Module(ExtensionIds.VehicleDrivetrain).ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1, "pztools.vehicle-drivetrain", false,
                 new Dictionary<string, string>(), deadline.Token);
-            generation = (await AwaitContinuousState(first, s => s.State == RuntimeExtensionState.Active, deadline.Token)).Generation;
+            generation = (await AwaitContinuousState(first.Module(ExtensionIds.VehicleDrivetrain), s => s.State == RuntimeExtensionState.Active, deadline.Token)).Generation;
         }
         // Observe actual ownership release; a transient BUSY is not permission to reuse an old session.
         GameExtensionClient? reconnected = null;
@@ -140,7 +178,8 @@ public sealed partial class GameSaveClientTests
             try { reconnected = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token); }
             catch (GameSaveException) { await Task.Delay(100, deadline.Token); }
         }
-        await using var second = reconnected;
+        await using var secondLease = reconnected;
+        var second = secondLease.Module(ExtensionIds.VehicleDrivetrain);
         Assert.Equal(RuntimeExtensionState.Disabled, (await second.StatusAsync(deadline.Token)).State);
         await second.ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 2, "pztools.vehicle-drivetrain", false,
             new Dictionary<string, string>(), deadline.Token);
@@ -152,6 +191,79 @@ public sealed partial class GameSaveClientTests
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
     }
 
+    [BridgeFact]
+    public async Task TwoContinuousModulesShareOneLease_AndAreAppliedUpdatedAndRetiredIndependently()
+    {
+        using var temp = new TempDirectory();
+        var bridge = ContinuousFixtureBridge(temp);
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        await using var watch = new RuntimeWatchCapture(game.Pid, bridge);
+        var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await using var lease = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
+        var vehicle = lease.Module(ExtensionIds.VehicleDrivetrain);
+        var look = lease.Module(ExtensionIds.ScreenLook);
+        Task<RuntimeExtensionStatus> Apply(GameExtensionModule module, long expected, long revision, string value) =>
+            module.ApplyAsync(ready.ProcessSession, ready.WorldSession, expected, revision, module.ModuleId, false,
+                new Dictionary<string, string> { ["fixture_value"] = value }, deadline.Token);
+
+        Assert.Equal(RuntimeExtensionState.Pending, (await Apply(vehicle, -1, 1, "drive")).State);
+        Assert.Equal(RuntimeExtensionState.Pending, (await Apply(look, -1, 2, "look")).State);
+        var driving = await AwaitContinuousState(vehicle, s => s.State == RuntimeExtensionState.Active && FixtureCount(s, "fixtureFrames") >= 3, deadline.Token);
+        var looking = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.Active && FixtureCount(s, "lookFrames") >= 3, deadline.Token);
+        Assert.Equal((1L, 2L), (driving.AppliedRevision, looking.AppliedRevision));
+        Assert.NotEqual(driving.Generation, looking.Generation);
+        Assert.Contains("fixtureValue=drive", driving.Diagnostics);
+        Assert.Contains("lookValue=look", looking.Diagnostics);
+        // A command must name the module it means.
+        await Assert.ThrowsAsync<ArgumentException>(() => look.ApplyAsync(ready.ProcessSession, ready.WorldSession, 2, 3,
+            ExtensionIds.VehicleDrivetrain, false, new Dictionary<string, string>(), deadline.Token));
+
+        // With the game paused nothing can be applied on the game thread. A new settings revision that
+        // leaves this module's configuration as it was is still acknowledged at once, while a real
+        // change to the other module waits. Neither holds the other up.
+        await File.WriteAllTextAsync(temp.GetPath("pause-game"), "pause", deadline.Token);
+        await watch.WaitAsync(s => s.Pause == GamePause.Paused);
+        var unchanged = await Apply(vehicle, 1, 3, "drive");
+        Assert.Equal((RuntimeExtensionState.Active, 3L, driving.Generation), (unchanged.State, unchanged.AppliedRevision, unchanged.Generation));
+        var waiting = await Apply(look, 2, 3, "stronger");
+        Assert.Equal((RuntimeExtensionState.Pending, 2L), (waiting.State, waiting.AppliedRevision));
+        Assert.Equal(RuntimeExtensionState.Active, (await vehicle.PingAsync(deadline.Token)).State);
+        await File.WriteAllTextAsync(temp.GetPath("resume-game"), "resume", deadline.Token);
+        await watch.WaitAsync(s => s.Pause == GamePause.Running);
+        var updated = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 3, deadline.Token);
+        Assert.Contains("lookValue=stronger", updated.Diagnostics);
+        Assert.Equal(looking.Generation, updated.Generation);
+
+        // One module faults on its own; the other does not notice.
+        await look.ApplyAsync(ready.ProcessSession, ready.WorldSession, 3, 4, look.ModuleId, false,
+            new Dictionary<string, string> { ["fixture_fail"] = "true" }, deadline.Token);
+        var faulted = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.FaultedPassThrough, deadline.Token);
+        Assert.Equal("provider-failed:fixture-failed", faulted.Reason);
+        var still = await vehicle.PingAsync(deadline.Token);
+        Assert.Equal((RuntimeExtensionState.Active, driving.Generation), (still.State, still.Generation));
+        Assert.Equal(RuntimeExtensionState.Disabled, (await lease.StatusAsync(deadline.Token)).State);
+
+        // Turning one off leaves the other running on the same lease.
+        Assert.Equal(RuntimeExtensionState.Disabled, (await look.DisableAsync(deadline.Token)).State);
+        var frames = FixtureCount(await vehicle.PingAsync(deadline.Token), "fixtureFrames");
+        var later = await AwaitContinuousState(vehicle, s => FixtureCount(s, "fixtureFrames") > frames, deadline.Token);
+        Assert.Equal((RuntimeExtensionState.Active, driving.Generation, 3L), (later.State, later.Generation, later.AppliedRevision));
+        Assert.Equal(RuntimeExtensionState.Pending, (await Apply(look, -1, 5, "again")).State);
+        var again = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.Active, deadline.Token);
+        Assert.NotEqual(looking.Generation, again.Generation);
+
+        // OFF without a module is the whole host.
+        Assert.Equal(RuntimeExtensionState.Disabled, (await lease.DisableAsync(deadline.Token)).State);
+        Assert.Equal(RuntimeExtensionState.Disabled, (await vehicle.StatusAsync(deadline.Token)).State);
+        Assert.Equal(RuntimeExtensionState.Disabled, (await look.StatusAsync(deadline.Token)).State);
+        Assert.False(File.Exists(temp.GetPath("calls.txt")));
+    }
+
+    private static int FixtureCount(RuntimeExtensionStatus status, string key) =>
+        status.Diagnostics?.Split(';').Select(field => field.Split('='))
+            .Where(pair => pair.Length == 2 && pair[0] == key).Select(pair => int.Parse(pair[1])).FirstOrDefault(-1) ?? -1;
+
     private static string ContinuousFixtureBridge(TempDirectory temp)
     {
         var bridge = temp.GetPath("continuous-bridge");
@@ -160,13 +272,16 @@ public sealed partial class GameSaveClientTests
             var target = Path.Combine(bridge, Path.GetRelativePath(RuntimeBridgeDirectory(), source));
             Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.Copy(source, target);
         }
-        File.Copy(Environment.GetEnvironmentVariable("PZTOOLS_CONTINUOUS_FIXTURE_JAR")
-            ?? throw new InvalidOperationException("Continuous fixture must be prepared."),
-            Path.Combine(bridge, "extensions", "pztools-vehicle-drivetrain.jar"), true);
+        var fixture = Environment.GetEnvironmentVariable("PZTOOLS_CONTINUOUS_FIXTURE_JAR")
+            ?? throw new InvalidOperationException("Continuous fixture must be prepared.");
+        File.Copy(fixture, Path.Combine(bridge, "extensions", "pztools-vehicle-drivetrain.jar"), true);
+        // The second synthetic module is built beside the first.
+        File.Copy(Path.Combine(Path.GetDirectoryName(fixture)!, "screen-fixture.jar"),
+            Path.Combine(bridge, "extensions", "pztools-screen-look.jar"), true);
         return bridge;
     }
 
-    private static async Task<RuntimeExtensionStatus> AwaitContinuousState(GameExtensionClient client,
+    private static async Task<RuntimeExtensionStatus> AwaitContinuousState(IGameExtensionSession client,
         Func<RuntimeExtensionStatus, bool> predicate, CancellationToken token)
     {
         while (true)

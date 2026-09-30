@@ -24,7 +24,8 @@ public sealed record PackCompactionResult(
     int SourcePacks,
     int RelocatedObjects,
     Guid? NewPackId,
-    IReadOnlyList<string> FilesThatCouldNotBeDeleted);
+    IReadOnlyList<string> FilesThatCouldNotBeDeleted,
+    long NewPackBytes = 0);
 
 public sealed record ArtifactCleanupResult(
     int DeletedTemporaryFiles,

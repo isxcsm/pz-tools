@@ -7,5 +7,6 @@ public enum GameExtensionSetting
     ForceVersion,
     Torque,
     Reverse,
-    Steering
+    Steering,
+    AreaLight
 }

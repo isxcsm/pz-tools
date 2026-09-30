@@ -98,7 +98,7 @@ internal sealed class AnimatedListSelectionBar
         surface.UpdateLayout();
         var compositor = CompositionTarget.GetCompositorForCurrentThread();
         var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
-        StartIndicatorAnimation(bar, previousTop, previousHeight, top, height);
+        (translationAnimation, scaleAnimation) = StartStretch(bar, previousTop, previousHeight, top, height, horizontal: false);
         var version = animationVersion;
         batch.Completed += (_, _) =>
         {
@@ -107,46 +107,47 @@ internal sealed class AnimatedListSelectionBar
         batch.End();
     }
 
-    private void StartIndicatorAnimation(
-        Border indicator, double from, double fromHeight, double to, double toHeight)
+    /// <summary>
+    /// Moves an indicator from its previous place to where layout has already put it: the leading edge
+    /// arrives first and the trailing edge follows, along the vertical or the horizontal axis.
+    /// </summary>
+    internal static (Vector3KeyFrameAnimation Translation, Vector3KeyFrameAnimation Scale) StartStretch(
+        UIElement indicator, double from, double fromSize, double to, double toSize, bool horizontal)
     {
         var compositor = CompositionTarget.GetCompositorForCurrentThread();
-        var movingDown = from < to;
+        var forward = from < to;
         var fromTranslation = (float)(from - to);
         var stretchEase = compositor.CreateCubicBezierEasingFunction(
             new Vector2(0.9f, 0.1f), new Vector2(1f, 0.2f));
         var settleEase = compositor.CreateCubicBezierEasingFunction(
             new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1f));
+        Vector3 Along(float value, float rest) => horizontal ? new Vector3(value, rest, rest == 0 ? 0 : 1) : new Vector3(rest, value, rest == 0 ? 0 : 1);
 
         // 한 막대의 앞쪽 끝이 먼저 도착하고 뒤쪽 끝이 따라오게 합니다.
         // 두 막대를 따로 그리면 이동 중 선택 항목이 두 개인 것처럼 보입니다.
-        var stretchedHeight = movingDown
-            ? to + toHeight - from
-            : from + fromHeight - to;
-        // Canvas.Top은 이미 새 선택 항목의 좌표입니다. XAML 레이아웃이 소유하는
+        var stretchedSize = forward
+            ? to + toSize - from
+            : from + fromSize - to;
+        // Canvas 좌표는 이미 새 선택 항목의 위치입니다. XAML 레이아웃이 소유하는
         // Visual.Offset에 절대 좌표를 다시 넣으면 위치가 중복 적용되므로 상대 이동만 애니메이션합니다.
         var translation = compositor.CreateVector3KeyFrameAnimation();
         translation.Target = "Translation";
-        translation.InsertKeyFrame(0, new Vector3(0, fromTranslation, 0));
-        translation.InsertKeyFrame(StretchKeyFrame,
-            new Vector3(0, movingDown ? fromTranslation : 0, 0), stretchEase);
+        translation.InsertKeyFrame(0, Along(fromTranslation, 0));
+        translation.InsertKeyFrame(StretchKeyFrame, Along(forward ? fromTranslation : 0, 0), stretchEase);
         translation.InsertKeyFrame(1, Vector3.Zero, settleEase);
         translation.Duration = AnimationDuration;
 
         var scale = compositor.CreateVector3KeyFrameAnimation();
         scale.Target = "Scale";
-        scale.InsertKeyFrame(0, new Vector3(1, (float)(fromHeight / toHeight), 1));
-        scale.InsertKeyFrame(StretchKeyFrame,
-            new Vector3(1, (float)(stretchedHeight / toHeight), 1), stretchEase);
+        scale.InsertKeyFrame(0, Along((float)(fromSize / toSize), 1));
+        scale.InsertKeyFrame(StretchKeyFrame, Along((float)(stretchedSize / toSize), 1), stretchEase);
         scale.InsertKeyFrame(1, Vector3.One, settleEase);
         scale.Duration = AnimationDuration;
 
         indicator.StartAnimation(translation);
-        translationAnimation = translation;
         indicator.StartAnimation(scale);
-        scaleAnimation = scale;
+        return (translation, scale);
     }
-
     private void ResetAnimation()
     {
         animationVersion++;

@@ -132,6 +132,7 @@ public sealed partial class LogsPage : UserControl
         DetailEventIdLabel.Text = Localizer.Get("LogEventId");
         DetailInstanceLabel.Text = Localizer.Get("LogInstanceId");
         DetailFailureCodeLabel.Text = Localizer.Get("LogDiagnostics.Code");
+        DetailRawMessageLabel.Text = Localizer.Get("LogDiagnostics.RawMessage");
         DetailPayloadLabel.Text = Localizer.Get("RawLogPayload");
         NoPayloadText.Text = Localizer.Get("NoPayload");
         DiagnosticsTitle.Text = Localizer.Get("LogDiagnostics.Title");
@@ -548,6 +549,8 @@ public sealed partial class LogsPage : UserControl
         text.AppendLine($"{DetailInstanceLabel.Text}: {DetailInstance.Text}");
         if (item.Diagnostics?.FailureCode is not null)
             text.AppendLine($"{DetailFailureCodeLabel.Text}: {DetailFailureCode.Text}");
+        if (DetailRawMessage.Visibility == Visibility.Visible)
+            text.AppendLine($"{DetailRawMessageLabel.Text}: {DetailRawMessage.Text}");
         if (DetailPayload.Visibility == Visibility.Visible)
             text.AppendLine().AppendLine(DetailPayloadLabel.Text).AppendLine(DetailPayload.Text);
 
@@ -604,22 +607,36 @@ public sealed partial class LogsPage : UserControl
     private void ShowDiagnostics(LogDiagnostics? diagnostics)
     {
         DiagnosticsFields.Children.Clear();
+        DetailRawMessage.Text = "";
+        DetailRawMessage.Visibility = DetailRawMessageLabel.Visibility = Visibility.Collapsed;
         if (diagnostics is null)
         {
             DiagnosticsCard.Visibility = Visibility.Collapsed;
             return;
         }
 
+        // The failure card speaks the app's language only. Words it cannot explain, from a worker or from
+        // Windows (which writes some messages in its own language), go word for word to the technical details.
+        var raw = new List<string>();
+        var reason = UserFacingReason(diagnostics);
+        if (reason is null && diagnostics.Reason is { Length: > 0 } unexplained) raw.Add(unexplained);
+        var explanation = FailureExplanation(diagnostics);
+        if (explanation is null && diagnostics.Message is { Length: > 0 } message
+            && !string.Equals(message, diagnostics.Reason, StringComparison.Ordinal)) raw.Add(message);
         AddDiagnostic("Save", diagnostics.SaveId);
         AddDiagnostic("Path", diagnostics.Path);
-        AddDiagnostic("Reason", UserFacingReason(diagnostics));
-        AddDiagnostic("Phase", diagnostics.Phase is { } phase ? LocalizedPhase(phase) : null);
+        AddDiagnostic("Reason", reason);
+        AddDiagnostic("Phase", diagnostics.Phase is { } phase ? LocalizedPhase(phase, diagnostics.Operation) : null);
         AddDiagnostic("FailedFileCount", diagnostics.FailedFileCount);
         AddDiagnostic("FailedFiles", diagnostics.FailedFiles);
-        if (!string.Equals(diagnostics.Message, diagnostics.Reason, StringComparison.Ordinal))
-            AddDiagnostic("Message", diagnostics.Message);
+        if (explanation is not null && explanation != reason) AddDiagnostic("Message", explanation);
+        if (raw.Count > 0)
+        {
+            DetailRawMessage.Text = string.Join("\n", raw);
+            DetailRawMessage.Visibility = DetailRawMessageLabel.Visibility = Visibility.Visible;
+        }
         if (DiagnosticsFields.Children.Count == 0 && diagnostics.FailureCode is not null)
-            AddDiagnostic("Reason", Localizer.Get("LogDiagnostics.LegacyMissingDetail"));
+            AddDiagnostic("Reason", Localizer.Get(raw.Count > 0 ? "LogDiagnostics.RawOnly" : "LogDiagnostics.LegacyMissingDetail"));
         DiagnosticsCard.Visibility = DiagnosticsFields.Children.Count > 0
             ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -633,8 +650,19 @@ public sealed partial class LogsPage : UserControl
         "copy length changed" => Localizer.Get("LogDiagnostics.FileChanged"),
         null when diagnostics.FailureCode == "UnstableFileException" =>
             Localizer.Get("LogDiagnostics.UnstableFileHint"),
-        var reason => reason,
+        _ => null,
     };
+
+    /// <summary>The failure explained in today's language, or null when only its original words would say it.</summary>
+    private static string? FailureExplanation(LogDiagnostics diagnostics)
+    {
+        if (diagnostics.Message is not { Length: > 0 } message) return null;
+        // A notice's own text, kept in the language it was shown in.
+        if (diagnostics.FailureCode == "app-action") return Localizer.Translate(message);
+        var key = UserFacingErrorCatalog.FromDiagnostics(diagnostics.FailureCode, diagnostics.ExceptionType, message,
+            diagnostics.HResult, diagnostics.NativeErrorCode);
+        return key == UserFacingErrorCatalog.Generic ? null : Localizer.Get(key);
+    }
 
     private void ShowRelatedLogs(LogEntryUiItem item)
     {
@@ -680,8 +708,31 @@ public sealed partial class LogsPage : UserControl
         DiagnosticsFields.Children.Add(row);
     }
 
-    private static string LocalizedPhase(string phase) => phase switch
+    // A phase with no name in the app's languages is left out of the failure card; the raw payload keeps it.
+    private static string? LocalizedPhase(string phase, string? operation) => (operation, phase) switch
     {
+        // The recorder's phases have plain names that other work could use too, so they are read only for it.
+        ("profile", "arguments") => Localizer.Get("ProfilePhase.Prepare"),
+        ("profile", "connect") => Localizer.Get("ProfilePhase.Connect"),
+        ("profile", "start") => Localizer.Get("ProfilePhase.Start"),
+        ("profile", "recording") => Localizer.Get("ProfilePhaseRecording"),
+        ("profile", "stop") => Localizer.Get("ProfilePhase.Stop"),
+        ("profile", "convert") => Localizer.Get("ProfilePhaseConverting"),
+        _ => LocalizedPhase(phase),
+    };
+
+    private static string? LocalizedPhase(string phase) => phase switch
+    {
+        "process-launch" => Localizer.Get("LogPhase.ProcessLaunch"),
+        "process-result" => Localizer.Get("LogPhase.ProcessResult"),
+        "extension-runtime" => Localizer.Get("LogPhase.ExtensionRuntime"),
+        "component-check" => Localizer.Get("LogPhase.ComponentCheck"),
+        "delete.discover" => Localizer.Get("DeleteSaveDiscoverPhase"),
+        "delete.validate" => Localizer.Get("DeleteSaveValidatePhase"),
+        "delete.files" => Localizer.Get("DeleteSaveFilesPhase"),
+        "delete.backups" => Localizer.Get("DeleteSaveBackupsPhase"),
+        "maintenance.revisionreclamation" or "maintenance.artifactcleanup" or "maintenance.orphanbackups"
+            or "maintenance.packreclamation" => Localizer.Get($"MaintenancePhase.{phase["maintenance.".Length..]}"),
         "boundary" or "scan" or "hash" or "planning" or "capture" or "pack" or "commit"
             or "restore" or "source.prepare" or "deduplication" => Localizer.Get($"LogPhase.{phase}"),
         "copy" => Localizer.Get("BackupCopyPhase"),
@@ -691,7 +742,7 @@ public sealed partial class LogsPage : UserControl
         "archive.compress" => Localizer.Get("ArchiveCompressPhase"),
         "archive.finalize" => Localizer.Get("ArchiveFinalizePhase"),
         "import" => Localizer.Get("Importing"),
-        _ => phase,
+        _ => null,
     };
 
     private static string FormatPayload(string? json)
@@ -769,7 +820,7 @@ public sealed class LogEntryUiItem
         _ => Colors.Gray,
     });
     public string Component => activity.Kind is LogActivityKind.ArchiveExport
-        or LogActivityKind.ArchiveImport or LogActivityKind.ArchiveInspect or LogActivityKind.CharacterRecovery
+        or LogActivityKind.ArchiveImport or LogActivityKind.ArchiveInspect or LogActivityKind.CharacterRecovery or LogActivityKind.Profile
         ? ActivityName : Localizer.Get($"LogComponent.{ComponentCategory(model.Component)}");
     public static string ComponentCategory(string component) => component switch
     {
@@ -819,14 +870,66 @@ public sealed class LogEntryUiItem
             return diagnostics;
         }
     }
+    private double? ReclaimedMegabytes
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(model.PayloadJson)) return null;
+            try
+            {
+                using var document = JsonDocument.Parse(model.PayloadJson);
+                return document.RootElement.ValueKind == JsonValueKind.Object
+                    && document.RootElement.TryGetProperty("reclaimedBytes", out var bytes)
+                    && bytes.ValueKind == JsonValueKind.Number && bytes.TryGetInt64(out var value)
+                    ? value / 1048576.0 : null;
+            }
+            catch (JsonException) { return null; }
+        }
+    }
+    // Which extension a runtime entry is about; entries written before there was more than one are the vehicle's.
+    private string ExtensionTitle
+    {
+        get
+        {
+            string? id = null;
+            if (!string.IsNullOrWhiteSpace(model.PayloadJson))
+                try
+                {
+                    using var document = JsonDocument.Parse(model.PayloadJson);
+                    if (document.RootElement.ValueKind == JsonValueKind.Object
+                        && document.RootElement.TryGetProperty("extensionId", out var value) && value.ValueKind == JsonValueKind.String)
+                        id = value.GetString();
+                }
+                catch (JsonException) { }
+            return Localizer.Get(id == PzTools.GameExtensions.ExtensionIds.ScreenLook
+                ? "Extension.ScreenLook.Title" : "Extension.VehicleDrivetrain.Title");
+        }
+    }
+    private string? PayloadText(string name)
+    {
+        if (string.IsNullOrWhiteSpace(model.PayloadJson)) return null;
+        try
+        {
+            using var document = JsonDocument.Parse(model.PayloadJson);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString() : null;
+        }
+        catch (JsonException) { return null; }
+    }
     private string ActivityName => Localizer.Get($"LogActivity.{activity.Kind}");
     private string ActivityMessage(string key) => Localizer.Format(key, ActivityName);
     public string Message => model.EventName switch
     {
         "extension.runtime.changed" when model.Level >= LogLevel.Warning =>
-            Localizer.Format("LogEvent.RunFailed", Localizer.Get("Extension.VehicleDrivetrain.Title")),
+            Localizer.Format("LogEvent.RunFailed", ExtensionTitle),
         "extension.runtime.changed" =>
-            Localizer.Format("LogEvent.Other", Localizer.Get("Extension.VehicleDrivetrain.Title")),
+            Localizer.Format("LogEvent.Other", ExtensionTitle),
+        "component.launch.blocked" => Localizer.Get("OperationError.BlockedByPolicy"),
+        // An action that ran no worker; its title is the one its card had, stored with the entry.
+        "app.action.failed" => Localizer.Format(model.Level >= LogLevel.Error ? "LogEvent.RunFailed" : "LogEvent.Other",
+            PayloadText("title") is { } title ? Localizer.Translate(title) : Localizer.Get("LogComponent.Other")),
+        "source.prepare.completed" when outcome == "save-unavailable" => Localizer.Get("LogEvent.GameSaveUnavailable"),
         "tick.completed" when outcome == "Failed" => ActivityMessage("LogEvent.TickFailed"),
         "tick.failed" => ActivityMessage("LogEvent.TickFailed"),
         var name when name.EndsWith(".completed", StringComparison.Ordinal)
@@ -865,10 +968,18 @@ public sealed class LogEntryUiItem
             Localizer.Get("LogEvent.GameSaveFailed"),
         "run.failed" => ActivityMessage("LogEvent.RunFailed"),
         "run.cancelled" => ActivityMessage("LogEvent.RunCancelled"),
+        "run.unavailable" when Diagnostics?.FailureCode == "profile-multiple-games" => ActivityMessage("LogEvent.RunMultipleGames"),
+        "run.unavailable" => ActivityMessage("LogEvent.RunGameNotRunning"),
+        var name when name.StartsWith("maintenance.", StringComparison.Ordinal)
+            && name.EndsWith(".started", StringComparison.Ordinal) => ActivityMessage("LogEvent.RunStarted"),
+        var name when name.StartsWith("maintenance.", StringComparison.Ordinal)
+            && name.EndsWith(".cancelled", StringComparison.Ordinal) => Localizer.Get("MaintenanceDeferred"),
         var name when name.EndsWith(".cancelled", StringComparison.Ordinal) =>
             ActivityMessage("LogEvent.RunCancelled"),
         var name when name.EndsWith(".busy", StringComparison.Ordinal) =>
             ActivityMessage("LogEvent.RunBusy"),
+        "maintenance.packreclamation.completed" when ReclaimedMegabytes is { } megabytes =>
+            Localizer.Format("LogEvent.PackSpaceReclaimedFormat", megabytes),
         "maintenance.orphanbackups.completed" => Localizer.Get("LogEvent.OrphanBackupsCleaned"),
         "maintenance.orphanbackups.removed" => Localizer.Get("LogEvent.OrphanBackupsCleaned"),
         "maintenance.orphanbackups.failed" => Localizer.Get("LogEvent.OrphanBackupsFailed"),

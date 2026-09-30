@@ -21,6 +21,7 @@
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Menyalin simpanan saat ini</value></data>
   <data name="StopPlayingToExport" xml:space="preserve"><value>Simpanan saat ini tidak dapat diekspor ketika sedang dimainkan. Keluar dari permainan lalu coba lagi.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Cadangan tidak dapat dipulihkan ketika sedang bermain. Keluar dari permainan lalu coba lagi.</value></data>
+  <data name="SelectBackupToRestore" xml:space="preserve"><value>Pilih cadangan di daftar untuk memulihkannya</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Simpanan tidak dapat dihapus ketika sedang dimainkan. Keluar dari permainan lalu coba lagi.</value></data>
   <data name="StopPlayingToHeal" xml:space="preserve"><value>Karakter tidak dapat dipulihkan ketika sedang bermain. Keluar dari permainan lalu coba lagi.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Belum ada cadangan</value></data>
@@ -51,13 +52,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Telusuri</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Pencadangan</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Pencadangan otomatis</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Aktifkan atau nonaktifkan pencadangan berkala dan saat karakter mati. Menonaktifkannya tetap menyimpan interval dan tidak memengaruhi pencadangan manual atau yang sedang berlangsung.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Mencadangkan save yang sedang dimainkan pada interval yang ditetapkan. Cadangan manual tetap bisa dibuat saat ini dimatikan.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Interval pencadangan</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 menit. Interval tetap disimpan saat dinonaktifkan; mengaktifkannya memulai interval baru.</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>Waktu antara cadangan otomatis (1–60 menit). Jika diubah, hitungan dimulai ulang.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Jumlah cadangan otomatis</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Simpan 1–100 cadangan otomatis terbaru. Batas ini tidak menghapus cadangan manual.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Menyimpan sejumlah ini cadangan otomatis terbaru dan menghapus yang lebih lama (1–100). Cadangan manual tidak dihitung dan tidak pernah dihapus.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Cadangkan saat karakter mati</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Mencadangkan saat kematian karakter terdeteksi selama bermain. Pencadangan otomatis harus aktif; pencadangan ini juga berjalan saat gim dijeda. Kematian yang sudah tercatat dalam simpanan tidak memicu pencadangan ini.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Saat karakter mati, pencadangan otomatis berhenti agar cadangan yang dibuat saat masih hidup tidak tergeser. Aktifkan untuk menyimpan satu cadangan pada saat kematian.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Periksa berkas yang disalin</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Memeriksa apakah berkas salinan sama dengan aslinya. Berkas yang berubah saat disalin akan disalin ulang.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Berkas simpanan terus berubah selama pencadangan. Tunggu hingga gim selesai menyimpan, lalu coba cadangkan lagi.</value></data>
@@ -170,9 +171,9 @@
   <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>Tandai semua {0:N0} entri yang belum ditinjau sebagai sudah ditinjau</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>Nomor log {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
-  <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Waktu ({0})</value></data>
-  <data name="LogLocalTimeZone" xml:space="preserve"><value>lokal</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Pilih waktu seperti yang ditampilkan di log ({0}).</value></data>
+  <data name="LogTimeHeader" xml:space="preserve"><value>Waktu</value></data>
+  <data name="LogTimeYesterdayFormat" xml:space="preserve"><value>Kemarin {0}</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Pilih waktu sesuai jam di PC ini.</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Riwayat · Terbaru lebih dulu</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Nomor</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Nomor tetap untuk mengidentifikasi log ini.</value></data>
@@ -228,6 +229,17 @@
   <data name="LogDiagnostics.FileReplaced" xml:space="preserve"><value>Berkas diganti atau dipindahkan saat disalin.</value></data>
   <data name="LogDiagnostics.UnstableFileHint" xml:space="preserve"><value>Berkas mungkin sedang berubah atau tidak dapat diakses. Coba cadangkan lagi sebentar nanti.</value></data>
   <data name="LogDiagnostics.LegacyMissingDetail" xml:space="preserve"><value>Catatan lama ini tidak memuat alasan kegagalan secara terperinci.</value></data>
+  <data name="ProfilePhase.Prepare" xml:space="preserve"><value>Persiapan</value></data>
+  <data name="ProfilePhase.Connect" xml:space="preserve"><value>Menghubungkan ke game</value></data>
+  <data name="ProfilePhase.Start" xml:space="preserve"><value>Memulai rekaman</value></data>
+  <data name="ProfilePhase.Stop" xml:space="preserve"><value>Menghentikan rekaman</value></data>
+  <data name="LogPhase.ProcessLaunch" xml:space="preserve"><value>Menjalankan proses kerja</value></data>
+  <data name="LogPhase.ProcessResult" xml:space="preserve"><value>Membaca hasil proses kerja</value></data>
+  <data name="LogPhase.ExtensionRuntime" xml:space="preserve"><value>Menjalankan ekstensi game</value></data>
+  <data name="LogPhase.ComponentCheck" xml:space="preserve"><value>Memeriksa komponen</value></data>
+  <data name="SurvivalReadFailedTip" xml:space="preserve"><value>Informasi karakter tidak dapat dibaca dari cadangan ini. Detailnya ada di log.</value></data>
+  <data name="LogDiagnostics.RawMessage" xml:space="preserve"><value>Pesan asli</value></data>
+  <data name="LogDiagnostics.RawOnly" xml:space="preserve"><value>Kesalahan ini tidak dapat dijelaskan di sini. Lihat pesan asli di detail teknis.</value></data>
   <data name="LogDiagnostics.Message" xml:space="preserve"><value>Pesan kesalahan</value></data>
   <data name="LogDiagnostics.Exception" xml:space="preserve"><value>Jenis kesalahan</value></data>
   <data name="LogDiagnostics.Inner" xml:space="preserve"><value>Penyebab utama</value></data>
@@ -266,7 +278,7 @@
   <data name="LogEvent.StateRunCompleted" xml:space="preserve"><value>Pemeriksaan status gim selesai.</value></data>
   <data name="LogEvent.CollectorCompleted" xml:space="preserve"><value>Status gim telah dikumpulkan.</value></data>
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>Jadwal pencadangan telah diperiksa.</value></data>
-  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Atur penyimpanan gim, interval pencadangan, batas riwayat, dan perilaku setelah karakter mati.</value></data>
+  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Atur interval cadangan otomatis, jumlah yang disimpan, dan penyimpanan gim sebelum pencadangan.</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>Pilih tingkat peristiwa dan jumlah entri yang ditampilkan dalam log.</value></data>
   <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Tingkat log minimum yang ditampilkan</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>Batas tampilan</value></data>
@@ -295,6 +307,11 @@
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>Cadangan manual {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>Cadangan otomatis {0:N0}</value></data>
   <data name="AutomaticSaveLabel" xml:space="preserve"><value>Cadangan otomatis</value></data>
+  <data name="BackupGameVersionTip" xml:space="preserve"><value>Versi gim saat cadangan ini dibuat</value></data>
+  <data name="GameVersionFormat" xml:space="preserve"><value>Versi {0}</value></data>
+  <data name="CurrentSaveVersionRunningTip" xml:space="preserve"><value>Versi game yang sedang menjalankan save ini</value></data>
+  <data name="CurrentSaveVersionSeenTip" xml:space="preserve"><value>Versi game yang menjalankan save ini pada {0} (file save tidak mencatat versi)</value></data>
+  <data name="CurrentSaveVersionBackupTip" xml:space="preserve"><value>Versi game saat cadangan terbaru dibuat ({0}). Bisa berbeda jika game diperbarui setelahnya</value></data>
   <data name="BackupNamePlaceholder" xml:space="preserve"><value>Nama cadangan</value></data>
   <data name="RenameRevisionTitle" xml:space="preserve"><value>Sunting nama cadangan</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>Ganti nama {0}</value></data>
@@ -350,6 +367,20 @@
   <data name="OperationCardBusy" xml:space="preserve"><value>Operasi tidak dapat dimulai</value></data>
   <data name="OperationCardDegraded" xml:space="preserve"><value>Operasi berakhir · Perlu perhatian</value></data>
   <data name="OperationCardWaiting" xml:space="preserve"><value>Operasi menunggu</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Keamanan Windows memblokir komponen</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>Kebijakan keamanan Windows (misalnya Smart App Control) mencegah komponen berikut dijalankan: {0}. Pencadangan otomatis dan beberapa fitur mungkin tidak berfungsi. Periksa Keamanan Windows → Kontrol aplikasi &amp; browser.</value></data>
+  <data name="CardOpenSettings" xml:space="preserve"><value>Buka pengaturan</value></data>
+  <data name="CardAcknowledge" xml:space="preserve"><value>OK</value></data>
+  <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools akan ditutup karena kesalahan tak terduga. Laporan kesalahan: {0}</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Kebijakan keamanan Windows (misalnya Smart App Control) memblokir komponen PZ Tools. Periksa Keamanan Windows → Kontrol aplikasi &amp; browser.</value></data>
+  <data name="MaintenanceRunning" xml:space="preserve"><value>Membersihkan cadangan</value></data>
+  <data name="OperationCardDeferred" xml:space="preserve"><value>Ditunda</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Pembersihan cadangan ditunda demi pencadangan atau gim.</value></data>
+  <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Menghapus cadangan lama</value></data>
+  <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Menghapus berkas sementara</value></data>
+  <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Menghapus cadangan dari simpanan yang dihapus</value></data>
+  <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>Mengambil kembali ruang tak terpakai</value></data>
+  <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>{0:N1} MB ruang cadangan tak terpakai telah diambil kembali.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Dicadangkan: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Memeriksa apakah gim sedang dimainkan dan menyimpan jika perlu…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Simpan gim sebelum pencadangan</value></data>
@@ -360,8 +391,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Pencadangan dihentikan karena penyimpanan gim tidak dapat dikonfirmasi.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Simpan gim sebelum pencadangan</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Hitung mundur penyimpanan di dalam gim</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Menampilkan hitung mundur lima detik dan hasil penyimpanan di atas karakter. Menonaktifkan opsi ini menyembunyikan pesan dan melewati waktu tunggu pencadangan manual, tetapi gim tetap disimpan. Waktu pencadangan otomatis tidak berubah.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Menyimpan progres terbaru di dalam gim sebelum pencadangan. Sebaiknya biarkan opsi ini aktif: jika dinonaktifkan, progres, kendaraan, atau barang yang belum disimpan mungkin tidak masuk cadangan.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Menampilkan hitung mundur di atas karakter mulai 5 detik sebelum menyimpan, lalu hasilnya. Jika dimatikan, gim menyimpan tanpa tampilan itu.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Menyimpan gim tepat sebelum pencadangan agar kemajuan terbaru ikut tercadangkan. Gim bisa tersendat sekitar setengah detik saat menyimpan. Jika dimatikan, kemajuan yang belum disimpan bisa tidak masuk ke cadangan, jadi sebaiknya tetap diaktifkan.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Pencadangan berikutnya: menunggu dimulai</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Pencadangan berikutnya: menunggu operasi saat ini selesai</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Pulihkan karakter</value></data>
@@ -379,12 +410,84 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Pemulihan dihentikan karena barang tidak dapat diambil kembali dengan aman. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Perubahan sebelumnya pada simpanan perlu diselesaikan. Buka kembali PZ Tools sebelum memuat simpanan ini di gim.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Pemulihan karakter</value></data>
+  <data name="ProfilerNavigation" xml:space="preserve"><value>Performa</value></data>
+  <data name="ProfileRecordStart" xml:space="preserve"><value>Mulai merekam</value></data>
+  <data name="ProfileRecordStop" xml:space="preserve"><value>Hentikan rekaman</value></data>
+  <data name="ProfileModeGeneral" xml:space="preserve"><value>Standar</value></data>
+  <data name="ProfileModeDetailed" xml:space="preserve"><value>Detail</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standar: mengukur setiap 0,01 detik dan hampir tidak membebani game.&#xA;Detail: mengukur kira-kira setiap 0,002 detik serta mencatat waktu tunggu dan jeda. Game mungkin berjalan sedikit lebih lambat.</value></data>
+  <data name="ProfileIdleHint" xml:space="preserve"><value>Jalankan game, lalu mulai merekam. Munculkan kembali lag-nya dan hentikan rekaman untuk melihat hasilnya.</value></data>
+  <data name="ProfileStarting" xml:space="preserve"><value>Menghubungkan ke game…</value></data>
+  <data name="ProfileRecordingFormat" xml:space="preserve"><value>Merekam {0} · berhenti otomatis setelah {1} menit</value></data>
+  <data name="ProfileConverting" xml:space="preserve"><value>Memproses rekaman…</value></data>
+  <data name="ProfileNoLua" xml:space="preserve"><value>Informasi mod (Lua) tidak dapat dibaca pada versi game ini, jadi hanya kode Java yang direkam.</value></data>
+  <data name="ProfileNoFrames" xml:space="preserve"><value>Batas frame tidak dapat dibaca, jadi rekaman ini tidak memiliki grafik frame.</value></data>
+  <data name="ProfileRecordingTitle" xml:space="preserve"><value>Merekam performa</value></data>
+  <data name="ProfilePhaseRecording" xml:space="preserve"><value>Merekam performa game…</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Memproses rekaman…</value></data>
+  <data name="LogActivity.Profile" xml:space="preserve"><value>Rekaman performa</value></data>
+  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
+  <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Hapus rekaman ini? Tindakan ini tidak dapat dibatalkan.</value></data>
+  <data name="ProfileEmpty" xml:space="preserve"><value>Belum ada rekaman.</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman ini tidak dapat dibuka. File rusak atau dibuat oleh versi yang lebih baru.</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua</value></data>
+  <data name="ProfileNeedsGame" xml:space="preserve"><value>Jalankan game untuk merekam.</value></data>
+  <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} tidak dimulai karena game tidak sedang berjalan.</value></data>
+  <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} tidak dimulai karena ada lebih dari satu game yang berjalan.</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Frame</value></data>
+  <data name="ProfileStatFrame" xml:space="preserve"><value>Frame</value></data>
+  <data name="ProfileStatAverage" xml:space="preserve"><value>Rata-rata</value></data>
+  <data name="ProfileStatSlowest" xml:space="preserve"><value>Paling lambat</value></data>
+  <data name="ProfileStatWorst" xml:space="preserve"><value>1% terburuk</value></data>
+  <data name="ProfileColumnFunction" xml:space="preserve"><value>Fungsi</value></data>
+  <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>
+  <data name="ProfileColumnMethod" xml:space="preserve"><value>Metode</value></data>
+  <data name="ProfileColumnThread" xml:space="preserve"><value>Thread</value></data>
+  <data name="ProfileColumnTime" xml:space="preserve"><value>Waktu</value></data>
+  <data name="ProfileColumnLength" xml:space="preserve"><value>Durasi</value></data>
+  <data name="ProfileColumnKind" xml:space="preserve"><value>Jenis</value></data>
+  <data name="ProfileColumnDetail" xml:space="preserve"><value>Detail</value></data>
+  <data name="ProfileImport" xml:space="preserve"><value>Buka rekaman…</value></data>
+  <data name="ProfileSaveAs" xml:space="preserve"><value>Simpan sebagai…</value></data>
+  <data name="ProfileMoreActions" xml:space="preserve"><value>Lainnya</value></data>
+  <data name="ProfileTabLua" xml:space="preserve"><value>Skrip (Lua)</value></data>
+  <data name="ProfileTabJava" xml:space="preserve"><value>Kode game (Java)</value></data>
+  <data name="ProfileChartHelp" xml:space="preserve"><value>Cara menggunakan grafik</value></data>
+  <data name="ProfileFileType" xml:space="preserve"><value>Rekaman performa</value></data>
+  <data name="ProfileZoomAll" xml:space="preserve"><value>Tampilkan semua</value></data>
+  <data name="ProfileZoomSelection" xml:space="preserve"><value>Perbesar ke pilihan</value></data>
+  <data name="ProfileThreadGame" xml:space="preserve"><value>Thread game</value></data>
+  <data name="ProfileThreadAll" xml:space="preserve"><value>Semua thread</value></data>
+  <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} sampel · pembersihan memori (GC) {1:N0} kali, terjeda {2:0.0} ms</value></data>
+  <data name="ProfileFewSamples" xml:space="preserve"><value>Sampel terlalu sedikit untuk persentase yang akurat. Pilih rentang yang lebih lebar atau rekam dalam mode Detail.</value></data>
+  <data name="ProfileLuaNone" xml:space="preserve"><value>Tidak ada aktivitas skrip Lua yang terekam dalam rentang ini.</value></data>
+  <data name="ProfileGroup.game" xml:space="preserve"><value>Game dasar (vanilla)</value></data>
+  <data name="ProfileGroup.lua" xml:space="preserve"><value>Mesin Lua (menjalankan skrip mod dan game)</value></data>
+  <data name="ProfileGroup.java" xml:space="preserve"><value>Fungsi bawaan Java</value></data>
+  <data name="ProfileGroup.libraries" xml:space="preserve"><value>Pustaka bawaan (grafis, suara, dan lainnya)</value></data>
+  <data name="ProfileGroup.tools" xml:space="preserve"><value>PZ Tools</value></data>
+  <data name="ProfileOwnerGame" xml:space="preserve"><value>Skrip game dasar (vanilla)</value></data>
+  <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Skrip yang asalnya tidak diketahui</value></data>
+  <data name="ProfileColumnSelf" xml:space="preserve"><value>Sendiri</value></data>
+  <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
+  <data name="ProfileColumnSamples" xml:space="preserve"><value>Sampel</value></data>
+  <data name="ProfileColumnsTip" xml:space="preserve"><value>Sendiri: waktu yang dihabiskan langsung di fungsi itu. Total: termasuk fungsi-fungsi yang dipanggilnya.</value></data>
+  <data name="ProfileThreadsSection" xml:space="preserve"><value>Porsi per thread</value></data>
+  <data name="ProfilePausesSection" xml:space="preserve"><value>Waktu tunggu dan jeda yang lama</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Game tidak sedang berjalan. Jalankan game lalu coba lagi.</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Ada lebih dari satu game yang berjalan, jadi target tidak dapat ditentukan.</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>Tidak dapat terhubung ke game. Jika Anda baru memperbarui game atau PZ Tools, mulai ulang game.</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>Operasi lain sedang berlangsung. Coba lagi sebentar lagi.</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>Rekaman selesai, tetapi hasilnya tidak dapat diproses. Periksa log untuk detailnya.</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>Perekaman gagal. Periksa log untuk detailnya.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan simpanan ini. Berhenti bermain dan tunggu hingga operasi selesai, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Simpanan ini memiliki perubahan yang belum selesai. Keluar dari gim secara normal, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Fitur ini memerlukan simpanan pemain tunggal dengan satu karakter. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Simpanan ini tidak dapat disunting dengan aman. Pastikan versi PZ Tools mendukung versi gim Anda. Simpanan asli tidak diubah.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Waktu bertahan hidup tidak tersedia · memeriksa kembali</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan berkas yang diperlukan. Tunggu hingga penyimpanan atau operasi itu selesai, lalu coba lagi.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Save berubah saat sedang diekspor. Keluar dari game, lalu ekspor lagi. File yang sudah ada tetap disimpan.</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Data cadangan ini rusak dan tidak dapat dibaca. Pilih cadangan lain. Save saat ini dan file yang sudah ada tidak berubah.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Ruang kosong tidak cukup. Kosongkan ruang pada drive tujuan, lalu coba lagi.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Berkas aplikasi yang diperlukan tidak ditemukan. Ekstrak seluruh unduhan ke satu folder atau pasang ulang PZ Tools, lalu buka kembali.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Folder cadangan ini menggunakan format penyimpanan yang berbeda. Pilih folder cadangan baru yang kosong di Pengaturan. Simpan folder lama jika cadangannya masih diperlukan dan jangan hapus simpanan gim Anda.</value></data>
@@ -398,11 +501,11 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="SettingEnabled" xml:space="preserve"><value>Aktif</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Nonaktif</value></data>
   <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Tunda pencadangan berkala saat gim dijeda atau karakter tidur</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Hentikan hitung mundur pencadangan berkala saat gim dijeda atau karakter tidur; lanjutkan dari sisa waktu setelah bermain kembali. Tunggu juga jika status gim tidak diketahui. Pencadangan manual dan saat kematian tidak terpengaruh.</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Saat gim dijeda atau karakter tidur, sisa waktu berhenti dan berlanjut ketika Anda bermain lagi. Jika dimatikan, pencadangan tetap berjalan setiap interval pada saat itu.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gim dijeda</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Memeriksa status gim</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Jalankan hanya satu sesi Project Zomboid</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Periksa hasil penyimpanan gim sebelumnya, lalu aktifkan kembali pencadangan otomatis.</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Hasil pencadangan sebelumnya tidak diketahui, jadi interval ini dilewati.</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Hapus filter</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Hapus semua</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · klik untuk memfilter</value></data>
@@ -454,6 +557,20 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Memperhalus awal gerak mundur dan membatasi kecepatannya.</value></data>
   <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Kemudi yang presisi</value></data>
   <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Membuat kemudi keyboard dan gerak kembali ke tengah lebih bertahap.</value></data>
+  <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Cahaya di sekitar kendaraan</value></data>
+  <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Menerangi area di sekitar kendaraan yang Anda naiki selama lampu depannya menyala. Perlu lampu depan yang berfungsi dan aki yang terisi, dan tidak ada yang ditulis ke save Anda.</value></data>
+  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Tampilan layar</value></data>
+  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Menyesuaikan warna dan ketajaman gambar game. Tidak ada file game yang diubah, dan bisa dimatikan lewat sakelar.</value></data>
+  <data name="ScreenLook.Preset" xml:space="preserve"><value>Suasana</value></data>
+  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Pilih nuansa gambar secara keseluruhan.</value></data>
+  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Realistis</value></data>
+  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Cerah</value></data>
+  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Sinematik</value></data>
+  <data name="ScreenLook.Strength" xml:space="preserve"><value>Kekuatan</value></data>
+  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>Seberapa kuat suasana yang dipilih diterapkan.</value></data>
+  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
+  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Warna musiman</value></data>
+  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Sedikit mengubah warna luar ruangan di siang hari sesuai musim. Malam hari dan bagian dalam ruangan tetap sama.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Setiap opsi disimpan secara terpisah. Status yang dikonfirmasi gim ditampilkan di bawah.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Diterapkan dalam gim · Eksperimental</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Menunggu penerapan dalam gim</value></data>
@@ -470,6 +587,14 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Pengaturan tersimpan akan diterapkan saat Anda masuk ke permainan pemain tunggal.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Untuk menerapkannya, lanjutkan gim, hentikan kendaraan, lepas pedal gas, dan matikan kontrol jelajah.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Gim berada di menu utama</value></data>
+  <data name="RuntimeBackupLoading" xml:space="preserve"><value>Gim sedang dimuat</value></data>
+  <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Karakter mati – pencadangan menunggu</value></data>
+  <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Tidak dapat terhubung ke gim; mencadangkan tanpa menyimpan gim terlebih dahulu.</value></data>
+  <data name="SettingSleepUnavailable" xml:space="preserve"><value>Status tidur saat ini tidak dapat dibaca, jadi hanya jeda yang diterapkan.</value></data>
+  <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Saat ini tidak diterapkan karena gim tidak dapat dijangkau.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Cadangan berikutnya (tanpa menyimpan gim)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Status gim tidak dapat dibaca, sehingga pencadangan dilakukan pada interval yang ditetapkan tanpa menyimpan gim terlebih dahulu. Kemajuan terbaru mungkin tidak ikut tercadangkan. Jika gim atau PZ Tools diperbarui, coba mulai ulang gim.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Tidak dapat terhubung ke gim</value></data>
   <data name="VersionSetting.Header" xml:space="preserve"><value>Versi</value></data>
   <data name="AboutSettings.Header" xml:space="preserve"><value>Tentang</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilitas dan status</value></data>

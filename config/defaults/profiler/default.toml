@@ -1,0 +1,17 @@
+# Technical records for this operation. These settings never change saved game
+# data. Use Advanced settings > Apply settings and restart after editing.
+[telemetry]
+# Keep diagnostic records. Turning this off makes failures harder to investigate.
+enabled = true
+# Number of operations whose records are retained; 0 keeps all by count.
+# This is NOT the number of save backups kept by the app.
+retain_runs = 100
+# Approximate diagnostic storage budget in MiB; 0 removes the size limit.
+# Old records may be deleted, but the database file may remain larger on disk.
+max_database_mib = 64
+# Write the latest progress this often (25-2000 ms). Larger intervals reduce
+# diagnostic writes but make progress less smooth. No game data is affected.
+progress_flush_interval_ms = 100
+# Send an activity signal this often (250-5000 ms). The upper bound stays below
+# the app's default stale-worker timeout. Lower values produce more writes.
+heartbeat_interval_ms = 5000

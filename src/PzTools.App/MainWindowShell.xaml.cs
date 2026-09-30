@@ -30,11 +30,11 @@ public sealed partial class MainWindowShell : UserControl
     private readonly DispatcherQueueTimer detailProgressDelayTimer;
     private readonly DispatcherQueueTimer revisionEntranceTimer;
     private readonly DispatcherQueueTimer localOperationCardTimer;
+    private readonly DispatcherQueueTimer operationCardExpiryTimer;
     private readonly SemaphoreSlim thumbnailLoadGate;
     private readonly Dictionary<SaveVersionUiItem, CancellationTokenSource> revisionThumbnailLoads = [];
     private readonly HashSet<SaveVersionUiItem> revisionThumbnailAttempted = [];
     private CancellationTokenSource? operationProgressRefreshCancellation;
-    private readonly TransientNotification notification;
     private readonly AnimatedListSelectionBar saveSelectionBar;
     private readonly AnimatedListSelectionBar revisionSelectionBar;
     private readonly ListInsertionAnimator saveInsertionAnimator;
@@ -48,6 +48,12 @@ public sealed partial class MainWindowShell : UserControl
     private long scheduleRevision;
     private long operationsRevision;
     private long projectorHealthRevision;
+    private long blockedComponentsRevision;
+    private BlockedComponentsView? blockedComponents;
+    private string? dismissedBlockedComponents;
+    private long gameLinkRevision;
+    private GameLinkView? gameLink;
+    private bool gameLinkDismissed;
     private long logsRevision;
     private long selectedDetailRevision;
     private long saveListApplyGeneration;
@@ -66,6 +72,21 @@ public sealed partial class MainWindowShell : UserControl
     private bool revisionEntranceInProgress;
     private OperationView? localOperation;
     private long localOperationBaselineRunIndex;
+    // Results of the user's actions that ran no worker, and placeholders whose work must not come back as a card.
+    private readonly List<OperationNotice> notices = [];
+    private readonly List<RetiredWork> retiredLocalWork = [];
+    // While the pointer rests on the cards, finished ones stay so they can be read to the end.
+    private bool operationCardsHovered;
+    private IReadOnlyList<OperationCard> shownOperationCards = [];
+    private readonly DispatcherQueueTimer operationCardsHoverTimer;
+    // The cards may only use room the menu does not need; finished ones that do not fit are left out.
+    private ScrollViewer? menuItemsScroller;
+    private readonly Dictionary<string, double> operationCardHeights = new(StringComparer.Ordinal);
+    private bool operationCardFitQueued;
+    private readonly Dictionary<string, OperationCardElements> operationCardElements = new(StringComparer.Ordinal);
+
+    private sealed record OperationCardElements(Border Root, FontIcon Icon, TextBlock Title, TextBlock Percent,
+        ProgressBar Progress, Grid Detail, TextBlock Phase, TextBlock Amount, TextBlock Message);
 
     public MainWindowShell()
     {
@@ -80,7 +101,6 @@ public sealed partial class MainWindowShell : UserControl
         saveInsertionAnimator = new ListInsertionAnimator(SaveList);
         revisionInsertionAnimator = new ListInsertionAnimator(RevisionList);
         RevisionList.LayoutUpdated += (_, _) => RevealRevisionSelectionIfReady();
-        notification = new TransientNotification(ActionResultCard, ActionResultTitle, ActionResultMessage);
         // Keep header/card presentation in sync with the responsive icon-only rail.
         Navigation.RegisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty,
             (_, _) => ApplyNavigationSpacing());
@@ -113,9 +133,34 @@ public sealed partial class MainWindowShell : UserControl
         localOperationCardTimer.IsRepeating = false;
         localOperationCardTimer.Tick += (_, _) =>
         {
+            // The worker's own record of the same work must not appear as a second card now.
+            if (localOperation is not null)
+                retiredLocalWork.Add(new(localOperation.OperationId, localOperation.RunIndex, DateTimeOffset.UtcNow));
             localOperation = null;
             RefreshOperationCards();
         };
+        operationCardExpiryTimer = DispatcherQueue.CreateTimer();
+        operationCardExpiryTimer.IsRepeating = false;
+        operationCardExpiryTimer.Tick += (_, _) => RefreshOperationCards();
+        operationCardsHoverTimer = DispatcherQueue.CreateTimer();
+        operationCardsHoverTimer.IsRepeating = false;
+        // A pointer merely crossing the cards should not make them vanish the instant it leaves.
+        operationCardsHoverTimer.Interval = TimeSpan.FromSeconds(1);
+        operationCardsHoverTimer.Tick += (_, _) =>
+        {
+            operationCardsHovered = false;
+            RefreshOperationCards();
+        };
+        OperationCards.PointerEntered += (_, _) =>
+        {
+            operationCardsHoverTimer.Stop();
+            operationCardsHovered = true;
+            operationCardExpiryTimer.Stop();
+        };
+        OperationCards.PointerExited += (_, _) => operationCardsHoverTimer.Start();
+        OperationCards.SizeChanged += (_, _) => QueueOperationCardFit();
+        InteractiveCards.SizeChanged += (_, _) => QueueOperationCardFit();
+        Navigation.SizeChanged += (_, _) => QueueOperationCardFit();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         ActualThemeChanged += (_, _) => UpdateTitleBar();
@@ -138,14 +183,16 @@ public sealed partial class MainWindowShell : UserControl
         AppToolTip.SetTip(SavesPageTitle, SavesPageTitle.Text);
         LogsItem.Content = Localizer.Get("LogsNavigation.Content");
         GameExtensionsItem.Content = Localizer.Get("GameExtensions.Title");
+        ProfilerItem.Content = Localizer.Get("ProfilerNavigation");
         if (Navigation.SettingsItem is NavigationViewItem settings)
             settings.Content = Localizer.Get("SettingsTitle.Text");
-        ExportProgressTitle.Text = Localizer.Get("Exporting.Text");
-        BackupProgressTitle.Text = Localizer.Get("BackingUp.Text");
+        if (IsLoaded) RefreshOperationCards();
+        if (blockedComponents is not null) ApplyBlockedComponents(blockedComponents);
+        if (gameLink is not null) ApplyGameLink(gameLink);
         NextBackupText.Text = Localizer.Get("NextBackupWaiting.Text");
         ProjectorStatusTitle.Text = Localizer.Get("ProjectorStatusTitle");
-        ImportButton.Content = Localizer.Get("ImportArchive.Content");
-        DeleteAllBackupsButton.Content = Localizer.Get("DeleteAllBackupsButton");
+        SetIconContent(ImportButton, "\uE8B5", Localizer.Get("ImportArchive.Content"));
+        SetIconContent(DeleteAllBackupsButton, "\uE74D", Localizer.Get("DeleteAllBackupsButton"));
         NoSavesText.Text = Localizer.Get("NoSaves.Text");
         LoadingSavesText.Text = Localizer.Get("LoadingSaves.Text");
         SavesUnavailableText.Text = Localizer.Get("ProjectorStatusTitle");
@@ -154,9 +201,20 @@ public sealed partial class MainWindowShell : UserControl
         NarrowBackButton.Content = Localizer.Get("BackToList.Content");
         BackupRevisionsText.Text = Localizer.Get("BackupRevisions.Text");
         NoBackups.Text = Localizer.Get("NoBackups.Text");
-        ManualBackupButton.Content = Localizer.Get("ManualBackup.Content");
-        RestoreButton.Content = Localizer.Get("Restore.Content");
-        ExportButton.Content = Localizer.Get("ExportArchive.Content");
+        SetIconContent(ManualBackupButton, "\uE74E", Localizer.Get("ManualBackup.Content"));
+        SetIconContent(RestoreButton, "\uE777", Localizer.Get("Restore.Content"));
+        SetIconContent(ExportButton, "\uEDE1", Localizer.Get("ExportArchive.Content"));
+        if (IsLoaded) UpdateRevisionActions();
+    }
+
+    // Action buttons carry a small icon before their label; the label stays their accessible name.
+    private static void SetIconContent(Button button, string glyph, string text)
+    {
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        content.Children.Add(new FontIcon { Glyph = glyph, FontSize = 14, VerticalAlignment = VerticalAlignment.Center });
+        content.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center });
+        button.Content = content;
+        AutomationProperties.SetName(button, text);
     }
 
     public void ShowHostError(Exception exception)
@@ -170,8 +228,21 @@ public sealed partial class MainWindowShell : UserControl
             Localizer.Get("BackgroundServiceStartFailed"), UserFacingError.FromException(exception));
     }
 
-    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message) =>
-        notification.Show(severity, title, message);
+    /// <summary>Shows the result of an action as a card with the user's other work; it expires like one.</summary>
+    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message)
+    {
+        notices.Add(new(Guid.NewGuid().ToString("N"), title, message, severity switch
+        {
+            InfoBarSeverity.Error => OperationStatus.Failed,
+            InfoBarSeverity.Warning => OperationStatus.Degraded,
+            // Something that could not be done right now, with nothing wrong: the neutral icon of work that did not start.
+            InfoBarSeverity.Informational => OperationStatus.Busy,
+            _ => OperationStatus.Succeeded,
+        }, DateTimeOffset.UtcNow));
+        if (severity is InfoBarSeverity.Error or InfoBarSeverity.Warning)
+            App.Host?.RecordActionIssue(title, message, severity == InfoBarSeverity.Error);
+        RefreshOperationCards();
+    }
 
     internal void RefreshLocalization()
     {
@@ -180,6 +251,7 @@ public sealed partial class MainWindowShell : UserControl
         SettingsRoot.ApplyLocalizedText();
         LogsRoot.ApplyLocalizedText();
         GameExtensionsRoot.ApplyLocalizedText();
+        ProfilerRoot.ApplyLocalizedText();
         saveListRevision = 0;
         scheduleRevision = 0;
         operationsRevision = 0;
@@ -281,6 +353,21 @@ public sealed partial class MainWindowShell : UserControl
             projectorHealthRevision = health.ViewRevision;
             projectorHealth = health.Snapshot;
             ApplyProjectorHealth();
+        }
+
+        var blocked = host.Views.ReadIfChanged<BlockedComponentsView>(
+            AppHost.BlockedComponentsViewKey, blockedComponentsRevision);
+        if (blocked.Modified && blocked.Snapshot is not null)
+        {
+            blockedComponentsRevision = blocked.ViewRevision;
+            ApplyBlockedComponents(blocked.Snapshot);
+        }
+
+        var link = host.Views.ReadIfChanged<GameLinkView>(AppHost.GameLinkViewKey, gameLinkRevision);
+        if (link.Modified && link.Snapshot is not null)
+        {
+            gameLinkRevision = link.ViewRevision;
+            ApplyGameLink(link.Snapshot);
         }
 
         var logs = host.Views.ReadIfChanged<LogsView>(ViewKey.Logs, logsRevision);
@@ -446,7 +533,14 @@ public sealed partial class MainWindowShell : UserControl
 
         if (currentItem is not null && live is not null)
         {
-            currentItem.UpdateLive(live, currentCharacter);
+            // The save file records no version; the running game, the last one seen with this save, or the
+            // newest backup that recorded one, in that order.
+            var currentVersion = App.Host?.CurrentSaveVersion(live.SourcePath)
+                ?? (detail.BackupRevisions.Where(revision => !string.IsNullOrWhiteSpace(revision.GameVersion))
+                    .MaxBy(revision => revision.Revision) is { } latest
+                    ? new SaveGameVersion(latest.GameVersion!.Trim(), SaveVersionBasis.LatestBackup, latest.CreatedUtc)
+                    : null);
+            currentItem.UpdateLive(live, currentCharacter, currentVersion);
             if (replaceCurrentThumbnail) currentItem.Thumbnail = currentThumbnail;
         }
         foreach (var (item, model, replaceThumbnail) in revisionUpdates)
@@ -752,26 +846,222 @@ public sealed partial class MainWindowShell : UserControl
                      .Where(item => DateTimeOffset.UtcNow - item.Value.RecordedUtc > TimeSpan.FromMinutes(1))
                      .Select(item => item.Key).ToArray())
             operationErrors.Remove(expired);
-        var backup = OperationProgressDisplay.SelectLocal(view.Operations.Where(operation =>
-            operation.Kind.Contains("backup", StringComparison.OrdinalIgnoreCase)),
-            localOperation?.Kind == "backup" ? localOperation : null, localOperationBaselineRunIndex);
-        var foreground = OperationProgressDisplay.SelectForeground(view,
-            localOperation?.Kind == "backup" ? null : localOperation, localOperationBaselineRunIndex);
-        BackupProgressTitle.Text = OperationProgressTitle(backup, "BackingUp.Text");
-        var foregroundTitleKey = foreground?.Kind == "delete-save" ? "DeletingSave" : foreground?.Kind == "character-recovery" ? "HealCharacterTitle" : foreground?.Kind.Contains(
-            "import", StringComparison.OrdinalIgnoreCase) == true
-            ? "Importing"
-            : foreground?.Kind.Contains("restore", StringComparison.OrdinalIgnoreCase) == true
-                ? "Restoring"
-                : "ExportingDynamic";
-        ExportProgressTitle.Text = OperationProgressTitle(foreground, foregroundTitleKey);
-        ApplyProgress(BackupProgressCard, BackupProgress, BackupProgressMessage, backup);
-        ApplyProgress(ExportProgressCard, ExportProgress, ExportProgressMessage, foreground);
-        if (backup?.Status == OperationStatus.Running
-            || (foreground?.Status == OperationStatus.Running && foreground.Kind != "delete-save"))
+        var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
+        var success = TimeSpan.FromSeconds(runtime.SuccessCardSeconds);
+        var failure = TimeSpan.FromSeconds(runtime.FailureCardSeconds);
+        var now = DateTimeOffset.UtcNow;
+        retiredLocalWork.RemoveAll(work => now - work.RetiredUtc > TimeSpan.FromMinutes(1));
+        notices.RemoveAll(notice => now - notice.ShownUtc > OperationCardLifetime.Of(notice.Status, false, success, failure));
+        var cards = OperationCardStack.Build(
+            OperationCardStack.Visible(view, retiredLocalWork, now, success, failure),
+            localOperation, localOperationBaselineRunIndex, notices: notices);
+        if (operationCardsHovered)
+        {
+            // Keep finished cards that would have left, in their place, until the pointer moves away.
+            var kept = cards.ToList();
+            for (var index = 0; index < shownOperationCards.Count; index++)
+            {
+                var previous = shownOperationCards[index];
+                if (previous.Operation.Status is OperationStatus.Running or OperationStatus.Waiting
+                    || kept.Any(card => card.Key == previous.Key)) continue;
+                kept.Insert(Math.Min(index, kept.Count), previous);
+            }
+            cards = kept;
+        }
+        else ScheduleOperationCardExpiry(cards, now, success, failure);
+        shownOperationCards = cards;
+        foreach (var key in operationCardElements.Keys.Except(cards.Select(card => card.Key)).ToArray())
+        {
+            OperationCards.Children.Remove(operationCardElements[key].Root);
+            operationCardElements.Remove(key);
+        }
+        for (var index = 0; index < cards.Count; index++)
+        {
+            var card = cards[index];
+            if (!operationCardElements.TryGetValue(card.Key, out var elements))
+                operationCardElements.Add(card.Key, elements = CreateOperationCard());
+            // Keep each card's element so a refresh moves it instead of rebuilding the stack.
+            var current = OperationCards.Children.IndexOf(elements.Root);
+            if (current < 0) OperationCards.Children.Insert(index, elements.Root);
+            else if (current != index) OperationCards.Children.Move((uint)current, (uint)index);
+            elements.Title.Text = OperationCardTitle(card);
+            ApplyOutcomeIcon(elements.Icon, card.Operation.Status);
+            ApplyProgress(elements, card);
+        }
+        OperationCards.Visibility = cards.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var key in operationCardHeights.Keys.Except(cards.Select(card => card.Key)).ToArray())
+            operationCardHeights.Remove(key);
+        QueueOperationCardFit();
+        // Local deletion and background cleanup report no worker progress worth polling for.
+        if (cards.Any(card => card.Operation.Status == OperationStatus.Running
+                && card.Group is not (OperationCardGroup.DeleteSave or OperationCardGroup.Maintenance)))
             StartOperationProgressRefresh();
         else StopOperationProgressRefresh();
         UpdateOperationActions();
+    }
+
+    private void QueueOperationCardFit()
+    {
+        if (operationCardFitQueued) return;
+        operationCardFitQueued = true;
+        // After layout, so the menu and the cards report the sizes they actually have.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            operationCardFitQueued = false;
+            FitOperationCards();
+        });
+    }
+
+    /// <summary>
+    /// The menu keeps the room it needs; the cards get what is left. Finished cards that do not fit are left
+    /// out, least important and oldest first. Running work and the cards that need attention always stay.
+    /// </summary>
+    private void FitOperationCards()
+    {
+        if (!Navigation.IsPaneOpen || OperationCards.Visibility != Visibility.Visible) return;
+        menuItemsScroller ??= FindNamedDescendant<ScrollViewer>(Navigation, "MenuItemsScrollViewer");
+        if (menuItemsScroller is null || menuItemsScroller.ViewportHeight <= 0) return;
+        const double spacing = 8;
+        var shown = shownOperationCards
+            .Where(card => operationCardElements.ContainsKey(card.Key))
+            .Select(card => (Card: card, Root: operationCardElements[card.Key].Root)).ToList();
+        foreach (var (card, root) in shown)
+            if (root.Visibility == Visibility.Visible && root.ActualHeight > 0)
+                operationCardHeights[card.Key] = root.ActualHeight;
+        double HeightOf(OperationCard card) => operationCardHeights.GetValueOrDefault(card.Key, 56);
+        // What the cards use now plus the menu's spare room; negative spare room means the menu is squeezed.
+        var budget = OperationCards.ActualHeight + menuItemsScroller.ViewportHeight - menuItemsScroller.ExtentHeight;
+        var total = shown.Sum(item => HeightOf(item.Card)) + spacing * Math.Max(0, shown.Count - 1);
+        var hidden = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (card, _) in shown)
+        {
+            if (total <= budget + 0.5) break;
+            if (card.Operation.Status is OperationStatus.Running or OperationStatus.Waiting) continue;
+            hidden.Add(card.Key);
+            total -= HeightOf(card) + spacing;
+        }
+        foreach (var (card, root) in shown)
+            root.Visibility = hidden.Contains(card.Key) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private static T? FindNamedDescendant<T>(DependencyObject root, string name) where T : FrameworkElement
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T match && match.Name == name) return match;
+            if (FindNamedDescendant<T>(child, name) is { } found) return found;
+        }
+        return null;
+    }
+
+    // A finished card leaves when its time is up, not only when the next projection happens to arrive.
+    private void ScheduleOperationCardExpiry(IReadOnlyList<OperationCard> cards, DateTimeOffset now, TimeSpan success, TimeSpan failure)
+    {
+        operationCardExpiryTimer.Stop();
+        var next = cards
+            .Where(card => card.Key != "local" && card.Operation.CompletedUtc is not null
+                && card.Operation.Status is not (OperationStatus.Running or OperationStatus.Waiting))
+            .Select(card => card.Operation.CompletedUtc!.Value + OperationCardLifetime.Of(card.Operation.Status,
+                card.Group == OperationCardGroup.Maintenance, success, failure))
+            .DefaultIfEmpty(DateTimeOffset.MaxValue).Min();
+        if (next == DateTimeOffset.MaxValue) return;
+        operationCardExpiryTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(50, (next - now).TotalMilliseconds + 50));
+        operationCardExpiryTimer.Start();
+    }
+
+    private OperationCardElements CreateOperationCard()
+    {
+        // Hierarchy by colour, not weight: Malgun Gothic has no semibold, so SemiBold drew a heavy Bold title.
+        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        var icon = new FontIcon { FontSize = 14, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 3, 0, 0) };
+        var title = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var percent = new TextBlock { Foreground = secondary, VerticalAlignment = VerticalAlignment.Top };
+        Grid.SetColumn(title, 1);
+        Grid.SetColumn(percent, 2);
+        var header = new Grid { ColumnSpacing = 8 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.Children.Add(icon);
+        header.Children.Add(title);
+        header.Children.Add(percent);
+        var progress = new ProgressBar { IsIndeterminate = true };
+        // While running: what is happening on the left, how much on the right, always one line each,
+        // so the card keeps its height as the numbers change.
+        var phase = new TextBlock
+        {
+            Foreground = secondary, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        var amount = new TextBlock { Foreground = secondary, TextWrapping = TextWrapping.NoWrap };
+        Grid.SetColumn(amount, 1);
+        var detail = new Grid { ColumnSpacing = 8 };
+        detail.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        detail.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        detail.Children.Add(phase);
+        detail.Children.Add(amount);
+        // When finished: why, in at most two lines; the full text stays one hover away.
+        var message = new TextBlock
+        {
+            Foreground = secondary, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        var content = new StackPanel { Spacing = 6 };
+        content.Children.Add(header);
+        content.Children.Add(progress);
+        content.Children.Add(detail);
+        content.Children.Add(message);
+        var root = new Border { Style = (Style)Resources["OperationCardStyle"], Child = content };
+        return new(root, icon, title, percent, progress, detail, phase, amount, message);
+    }
+
+    // Finished work shows its outcome as an icon next to its name; running work has its progress bar instead.
+    private static void ApplyOutcomeIcon(FontIcon icon, OperationStatus status)
+    {
+        (string? glyph, string? brush) = status switch
+        {
+            OperationStatus.Succeeded or OperationStatus.NoChange => ("\uE73E", "SystemFillColorSuccessBrush"),
+            OperationStatus.Failed => ("\uE7BA", "SystemFillColorCriticalBrush"),
+            OperationStatus.Degraded => ("\uE7BA", "SystemFillColorCautionBrush"),
+            OperationStatus.Cancelled or OperationStatus.Busy => ("\uE946", "TextFillColorSecondaryBrush"),
+            _ => (null, null),
+        };
+        icon.Visibility = glyph is null ? Visibility.Collapsed : Visibility.Visible;
+        if (glyph is null) return;
+        icon.Glyph = glyph;
+        icon.Foreground = (Brush)Application.Current.Resources[brush!];
+    }
+
+    private static string OperationCardTitle(OperationCard card)
+    {
+        if (card.Title is not null) return card.Title;
+        if (card.Operation.Status == OperationStatus.Running)
+            return Localizer.Get(card.Group switch
+            {
+                OperationCardGroup.Backup => "BackingUp.Text",
+                OperationCardGroup.Restore => "Restoring",
+                OperationCardGroup.Import => "Importing",
+                OperationCardGroup.Export => "ExportingDynamic",
+                OperationCardGroup.DeleteSave => "DeletingSave",
+                OperationCardGroup.CharacterRecovery => "HealCharacterTitle",
+                OperationCardGroup.Profile => "ProfileRecordingTitle",
+                _ => "MaintenanceRunning",
+            });
+        // Several finished cards can be stacked, so each one names its work.
+        var name = Localizer.Get(card.Group switch
+        {
+            OperationCardGroup.Backup => "LogActivity.Backup",
+            OperationCardGroup.Restore => "LogActivity.Restore",
+            OperationCardGroup.Export => "LogActivity.ArchiveExport",
+            OperationCardGroup.Import => "LogActivity.ArchiveImport",
+            OperationCardGroup.DeleteSave => "DeleteSaveTitle",
+            OperationCardGroup.CharacterRecovery => "HealCharacterTitle",
+            OperationCardGroup.Profile => "LogActivity.Profile",
+            _ => "LogActivity.Maintenance",
+        });
+        // The outcome is the icon beside the title and, when it needs words, the line below it;
+        // repeating it in the title only made the title wrap.
+        return card.Operation.Status == OperationStatus.Waiting
+            ? $"{name} · {Localizer.Get("OperationCardWaiting")}" : name;
     }
 
     private void UpdateOperationActions()
@@ -787,17 +1077,13 @@ public sealed partial class MainWindowShell : UserControl
     // 진행 막대가 나타나도 버튼이 잠깐 비활성화됐다가 다시 켜지지 않게 합니다.
     private bool IsPreservingDetailActions => detailLoading && hasPresentedDetail;
 
-    private void ApplyProgress(
-        FrameworkElement card,
-        ProgressBar progress,
-        TextBlock message,
-        OperationView? operation)
+    private void ApplyProgress(OperationCardElements elements, OperationCard card)
     {
-        card.Visibility = operation is null ? Visibility.Collapsed : Visibility.Visible;
+        var operation = card.Operation;
+        var progress = elements.Progress;
         var display = OperationProgressDisplay.From(operation, projectorHealth?.IsFaulted("telemetry") == true);
         progress.IsIndeterminate = display.IsIndeterminate;
         progress.Visibility = display.IsVisible ? Visibility.Visible : Visibility.Collapsed;
-        if (operation is null) return;
         var telemetryUnavailable = operation.Kind != "delete-save" && (projectorHealth?.IsFaulted("telemetry") == true
             || operation.TelemetryHealth is TelemetryHealth.Unreadable or TelemetryHealth.UnsupportedSchema
                 or TelemetryHealth.Stale or TelemetryHealth.Disabled);
@@ -810,58 +1096,72 @@ public sealed partial class MainWindowShell : UserControl
                 ? Math.Clamp(operation.CompletedBytes, 0, operation.TotalBytes!.Value)
                 : Math.Clamp(operation.CompletedItems, 0, operation.TotalItems!.Value);
         }
-        message.Text = (operation.Status is OperationStatus.Failed or OperationStatus.Degraded)
+
+        var running = operation.Status == OperationStatus.Running;
+        string phase = "", amount = "", percent = "";
+        if (running)
+        {
+            var culture = Localizer.Culture;
+            if (telemetryUnavailable) phase = Localizer.Get("TelemetryProgressUnavailable");
+            else if (byteBased)
+            {
+                phase = ProgressPhaseText(operation.Phase);
+                amount = string.Format(culture, "{0:N1} / {1:N1} MB",
+                    operation.CompletedBytes / 1048576.0, operation.TotalBytes!.Value / 1048576.0);
+                percent = string.Format(culture, "{0:N0}%",
+                    Math.Floor(Math.Clamp(100.0 * operation.CompletedBytes / operation.TotalBytes.Value, 0, 100)));
+            }
+            else if (operation.TotalItems is > 0 and var total)
+            {
+                phase = ProgressPhaseText(operation.Phase);
+                amount = string.Format(culture, "{0:N0} / {1:N0}", operation.CompletedItems, total);
+                percent = string.Format(culture, "{0:N0}%",
+                    Math.Floor(Math.Clamp(100.0 * operation.CompletedItems / total, 0, 100)));
+            }
+            else phase = operation.CompletedItems > 0
+                ? Localizer.Format("OperationDiscoveredFormat", ProgressPhaseText(operation.Phase), operation.CompletedItems)
+                : ProgressPhaseText(operation.Phase);
+        }
+        elements.Percent.Text = percent;
+        elements.Percent.Visibility = percent.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        elements.Phase.Text = phase;
+        elements.Amount.Text = amount;
+        elements.Detail.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+        AppToolTip.SetTip(elements.Phase, phase.Length == 0 ? null : phase);
+
+        var message = running ? ""
+            : card.Group == OperationCardGroup.Notice ? operation.Message ?? ""
+            : (operation.Status is OperationStatus.Failed or OperationStatus.Degraded or OperationStatus.Busy)
             && operationErrors.TryGetValue(operation.OperationId, out var error)
             ? error.Message
-            : operation.Status is not OperationStatus.Running
-            ? operation.Status switch
+            : operation.Status == OperationStatus.Cancelled && card.Group == OperationCardGroup.Maintenance
+            ? Localizer.Get("MaintenanceDeferred")
+            : operation.Status switch
             {
-                OperationStatus.Succeeded => Localizer.Get("OperationSucceeded"),
+                // Title and icon already say it; only an action that did something specific adds a line.
+                OperationStatus.Succeeded => card.Key == "local" && operation.Message is { } done ? done : "",
                 OperationStatus.NoChange => Localizer.Get("OperationNoChange"),
                 OperationStatus.Busy => Localizer.Get("OperationBusy"),
                 OperationStatus.Cancelled => Localizer.Get("OperationCancelled"),
                 OperationStatus.Degraded => Localizer.Get("OperationDegraded"),
-                _ => operation.Message ?? Localizer.Get("OperationFailed"),
-            }
-            : telemetryUnavailable
-            ? Localizer.Get("TelemetryProgressUnavailable")
-            : byteBased
-            ? Localizer.Format(
-                "OperationCopyProgressFormat",
-                ProgressPhaseText(operation.Phase),
-                operation.CompletedBytes / 1048576.0,
-                operation.TotalBytes!.Value / 1048576.0,
-                Math.Floor(Math.Clamp(
-                    100.0 * operation.CompletedBytes / operation.TotalBytes.Value, 0, 100)))
-            : operation.TotalItems is > 0 and var total
-                ? Localizer.Format(
-                    "OperationProgressFormat",
-                    ProgressPhaseText(operation.Phase),
-                    operation.CompletedItems,
-                    total,
-                    Math.Floor(Math.Clamp(byteBased
-                        ? 100.0 * operation.CompletedBytes / operation.TotalBytes!.Value
-                        : 100.0 * operation.CompletedItems / total, 0, 100)))
-                : operation.CompletedItems > 0
-                    ? Localizer.Format("OperationDiscoveredFormat", ProgressPhaseText(operation.Phase), operation.CompletedItems)
-                    : ProgressPhaseText(operation.Phase);
+                OperationStatus.Waiting => "",
+                // Only the app's own card carries a sentence; a worker's card carries a code (such as
+                // "progress-unavailable") that is for the logs, never for the screen.
+                _ => card.Key == "local" && operation.Message is { } failure ? failure : Localizer.Get("OperationFailed"),
+            };
+        elements.Message.Text = message;
+        // A plain success says everything in its title and icon; the card is one line.
+        elements.Message.Visibility = message.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        AppToolTip.SetTip(elements.Message, message.Length == 0 ? null : message);
     }
-
-    private static string OperationProgressTitle(OperationView? operation, string runningTitleKey) =>
-        Localizer.Get(operation?.Status switch
-        {
-            OperationStatus.Succeeded => "OperationCardSucceeded",
-            OperationStatus.NoChange => "OperationCardNoChange",
-            OperationStatus.Failed => "OperationCardFailed",
-            OperationStatus.Cancelled => "OperationCardCancelled",
-            OperationStatus.Busy => "OperationCardBusy",
-            OperationStatus.Degraded => "OperationCardDegraded",
-            OperationStatus.Waiting => "OperationCardWaiting",
-            _ => runningTitleKey,
-        });
 
     private static string ProgressPhaseText(string? phase) => phase switch
     {
+        "maintenance.revisionreclamation" or "maintenance.artifactcleanup" or "maintenance.orphanbackups"
+            or "maintenance.packreclamation"
+            => Localizer.Get($"MaintenancePhase.{phase["maintenance.".Length..]}"),
+        "profile.recording" => Localizer.Get("ProfilePhaseRecording"),
+        "profile.converting" => Localizer.Get("ProfilePhaseConverting"),
         "delete.discover" => Localizer.Get("DeleteSaveDiscoverPhase"),
         "delete.validate" => Localizer.Get("DeleteSaveValidatePhase"),
         "delete.files" => Localizer.Get("DeleteSaveFilesPhase"),
@@ -953,6 +1253,9 @@ public sealed partial class MainWindowShell : UserControl
         if (!string.IsNullOrWhiteSpace(error))
             operationErrors[localOperation.OperationId] = (error, DateTimeOffset.UtcNow);
         RefreshOperationCards();
+        var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
+        localOperationCardTimer.Interval = TimeSpan.FromSeconds(status is OperationStatus.Succeeded or OperationStatus.NoChange
+            ? runtime.SuccessCardSeconds : runtime.FailureCardSeconds);
         localOperationCardTimer.Start();
     }
 
@@ -980,7 +1283,82 @@ public sealed partial class MainWindowShell : UserControl
         catch (Exception exception)
         {
             CompleteLocalOperationProgress(OperationStatus.Failed, error: UserFacingError.FromException(exception));
-            throw;
+            // The work's own card now shows the failure; callers must not report it a second time.
+            throw new ReportedOnCardException(exception);
+        }
+    }
+
+    /// <summary>A failure already shown on the card of the work that failed.</summary>
+    private sealed class ReportedOnCardException(Exception inner) : Exception(inner.Message, inner);
+
+    /// <summary>Replaces the generic "done" on the card of the work just finished with what was done.</summary>
+    private void SetLocalResultMessage(string operationId, string message)
+    {
+        if (localOperation?.OperationId != operationId || localOperation.Status == OperationStatus.Running) return;
+        localOperation = localOperation with { Message = message };
+        RefreshOperationCards();
+    }
+
+    // Not a piece of work but something for the user to act on: it never expires. It leaves when the
+    // user closes it or Windows stops blocking, and comes back only if a different set gets blocked.
+    private void ApplyBlockedComponents(BlockedComponentsView view)
+    {
+        blockedComponents = view;
+        var signature = string.Join("|", view.Components);
+        if (view.Components.Count == 0) dismissedBlockedComponents = null;
+        ComponentBlockedCard.Visibility = view.Components.Count == 0 || signature == dismissedBlockedComponents
+            ? Visibility.Collapsed : Visibility.Visible;
+        ComponentBlockedTitle.Text = Localizer.Get("ComponentBlockedTitle");
+        ComponentBlockedMessage.Text = Localizer.Format("ComponentBlockedMessage", string.Join(", ", view.Components));
+        ComponentBlockedOpenButton.Content = Localizer.Get("CardOpenSettings");
+        ComponentBlockedCloseButton.Content = Localizer.Get("CardAcknowledge");
+        UpdateInteractiveCards();
+    }
+
+    // Shown once per outage: it explains why backups now run without the game. Closing it keeps it
+    // closed until the game has been readable again and is lost anew; the schedule line keeps saying so.
+    private void ApplyGameLink(GameLinkView view)
+    {
+        gameLink = view;
+        SettingsRoot.ApplyGameLink(view);
+        if (!view.LinkUnavailable) gameLinkDismissed = false;
+        GameLinkCard.Visibility = view.LinkUnavailable && !gameLinkDismissed ? Visibility.Visible : Visibility.Collapsed;
+        GameLinkTitle.Text = Localizer.Get("GameLinkCardTitle");
+        GameLinkMessage.Text = Localizer.Get("GameLinkCardMessage");
+        GameLinkCloseButton.Content = Localizer.Get("CardAcknowledge");
+        UpdateInteractiveCards();
+    }
+
+    private void GameLinkClose_Click(object sender, RoutedEventArgs e)
+    {
+        gameLinkDismissed = true;
+        GameLinkCard.Visibility = Visibility.Collapsed;
+        UpdateInteractiveCards();
+    }
+
+    private void UpdateInteractiveCards() =>
+        InteractiveCards.Visibility = InteractiveCards.Children.Any(card => card.Visibility == Visibility.Visible)
+            ? Visibility.Visible : Visibility.Collapsed;
+
+    private void ComponentBlockedClose_Click(object sender, RoutedEventArgs e)
+    {
+        dismissedBlockedComponents = string.Join("|", blockedComponents?.Components ?? []);
+        ComponentBlockedCard.Visibility = Visibility.Collapsed;
+        UpdateInteractiveCards();
+    }
+
+    private void ComponentBlockedOpen_Click(object sender, RoutedEventArgs e)
+    {
+        // Opens the Smart App Control page of Windows Security; the app changes no security setting itself.
+        try
+        {
+            using var _ = System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo("windowsdefender://smartapp/") { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception
+            or InvalidOperationException or System.IO.FileNotFoundException)
+        {
+            ShowActionError(Localizer.Get("ComponentBlockedTitle"), exception);
         }
     }
 
@@ -993,6 +1371,7 @@ public sealed partial class MainWindowShell : UserControl
             .Where(item => item.Health == ProjectorHealth.Faulted).ToArray() ?? [];
         ProjectorStatusCard.Visibility = faults.Length == 0
             ? Visibility.Collapsed : Visibility.Visible;
+        UpdateInteractiveCards();
         ProjectorStatusMessage.Text = Localizer.Format(
             "ProjectorStatusMessage", string.Join(", ", faults.Select(item => item.Name switch
             {
@@ -1013,12 +1392,16 @@ public sealed partial class MainWindowShell : UserControl
     private bool HasConflictingOperation() =>
         archiveInteraction || (projectorHealth?.IsFaulted("telemetry") != true
         && App.Host?.Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
-            .Any(operation => operation.Status == OperationStatus.Running) == true);
+            // A recording only watches the game; it holds no save and no repository.
+            .Any(operation => operation.Status == OperationStatus.Running && operation.Kind != "profile") == true);
+
+    private readonly CountdownDisplayStabilizer countdownStabilizer = new();
 
     private void UpdateCountdown()
     {
-        var display = ScheduleCountdownPresentation.Resolve(schedule, DateTimeOffset.UtcNow,
-            projectorHealth?.IsFaulted("scheduler") == true);
+        var now = DateTimeOffset.UtcNow;
+        var display = countdownStabilizer.Apply(ScheduleCountdownPresentation.Resolve(schedule, now,
+            projectorHealth?.IsFaulted("scheduler") == true), now);
         NextBackupText.Text = Localizer.Get(display.MessageKey);
         NextBackupRemainingText.Text = display.RemainingSeconds is { } seconds
             ? Localizer.Format("BackupTimeRemainingFormat", $"{seconds / 60:00}:{seconds % 60:00}") : "";
@@ -1035,6 +1418,7 @@ public sealed partial class MainWindowShell : UserControl
                 "home" => HomeRoot,
                 "logs" => LogsRoot,
                 "game-extensions" => GameExtensionsRoot,
+                "profiler" => ProfilerRoot,
                 _ => SavesRoot,
             };
         NavigateToContent(page);
@@ -1062,16 +1446,22 @@ public sealed partial class MainWindowShell : UserControl
         SaveList.SelectedItem ??= SaveItems.FirstOrDefault();
     }
 
-    private void Navigation_PaneChanged(NavigationView sender, object args) => ApplyNavigationSpacing();
+    private void Navigation_PaneChanged(NavigationView sender, object args)
+    {
+        ApplyNavigationSpacing();
+        QueueOperationCardFit();
+    }
 
     private void ApplyNavigationSpacing()
     {
-        if (Navigation is null || HomeItem is null || SavesItem is null || LogsItem is null || GameExtensionsItem is null) return;
+        if (Navigation is null) return;
         // 선택 표시줄을 창 가장자리에서 띄웁니다. 축소 모드에서는 아이콘 공간을 보존합니다.
         var expanded = Navigation.IsPaneOpen;
         // 기본 템플릿이 세로 2px 여백을 이미 제공하므로 중복해서 더하지 않습니다.
         var margin = expanded ? new Thickness(12, 0, 12, 0) : new Thickness(0);
-        HomeItem.Margin = SavesItem.Margin = GameExtensionsItem.Margin = LogsItem.Margin = margin;
+        // 메뉴에 있는 항목 전부에 같은 여백을 줍니다. 항목을 추가해도 여기를 고칠 필요가 없습니다.
+        foreach (var item in Navigation.MenuItems.OfType<NavigationViewItem>())
+            item.Margin = margin;
         if (AppBrand is not null && BrandImage is not null && BrandCopy is not null && BrandHeaderSpace is not null)
         {
             AppBrand.Margin = expanded ? new Thickness(24, 20, 12, 0) : new Thickness(8, 8, 8, 0);
@@ -1239,6 +1629,8 @@ public sealed partial class MainWindowShell : UserControl
             && !backupFaulted && idle;
         var restoreReason = selected is { IsCurrent: false, SourceId: not null } && liveActive
             ? Localizer.Get("StopPlayingToRestore") : null;
+        // A restore needs a backup: say so when the current save, or nothing, is selected.
+        restoreReason ??= selected is null or { IsCurrent: true } ? Localizer.Get("SelectBackupToRestore") : null;
         AppToolTip.SetTip(RestoreToolTipHost, restoreReason);
         AutomationProperties.SetHelpText(RestoreButton, restoreReason ?? string.Empty);
     }
@@ -1637,7 +2029,7 @@ public sealed partial class MainWindowShell : UserControl
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
                 await RefreshAfterMutationAsync(host, Localizer.Get("ImportArchiveTitle"),
                     Localizer.Get("OperationSucceeded"), showSuccessNotification: false);
-            else ShowOperationResult(Localizer.Get("ImportArchiveTitle"), result);
+            else ShowOperationResult(result);
         }
         catch (InvalidDataException exception)
         {
@@ -1689,9 +2081,12 @@ public sealed partial class MainWindowShell : UserControl
             var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(root, save.SaveId, operationId: id));
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
+            {
+                SetLocalResultMessage(result.OperationId, Localizer.Get("HealCharacterSucceeded"));
                 await RefreshAfterMutationAsync(host, Localizer.Get("HealCharacterTitle"),
-                    Localizer.Get("HealCharacterSucceeded"), collectState: true);
-            else ShowOperationResult(Localizer.Get("HealCharacterTitle"), result);
+                    Localizer.Get("HealCharacterSucceeded"), collectState: true, showSuccessNotification: false);
+            }
+            else ShowOperationResult(result);
         }
         catch (Exception exception) { ShowActionError(Localizer.Get("HealCharacterTitle"), exception); }
         finally { archiveInteraction = false; UpdateOperationActions(); }
@@ -1708,7 +2103,7 @@ public sealed partial class MainWindowShell : UserControl
         {
             var operations = App.Host.Operations;
             var result = await RunWithProgressAsync("backup", id => operations.BackupAsync(save.SaveId, save.SourcePath, operationId: id));
-            ShowOperationResult(Localizer.Get("ManualBackupTitle"), result);
+            ShowOperationResult(result);
         }
         catch (Exception exception)
         {
@@ -1750,7 +2145,7 @@ public sealed partial class MainWindowShell : UserControl
         {
             var result = await RunWithProgressAsync("restore", id => host.Operations!.RestoreAsync(
                 revision.SourceId.Value, revision.Revision, save.SourcePath, operationId: id));
-            ShowOperationResult(Localizer.Get("RestoreTitle"), result);
+            ShowOperationResult(result);
         }
         catch (Exception exception)
         {
@@ -1797,11 +2192,7 @@ public sealed partial class MainWindowShell : UserControl
         }
         catch (Exception exception)
         {
-            if (localOperation?.Kind == "export")
-                CompleteLocalOperationProgress(OperationStatus.Failed,
-                    error: UserFacingError.FromException(exception));
-            else
-                ShowActionError(Localizer.Get("ExportArchiveTitle"), exception);
+            ShowActionError(Localizer.Get("ExportArchiveTitle"), exception);
         }
         finally
         {
@@ -1840,38 +2231,33 @@ public sealed partial class MainWindowShell : UserControl
         ShowSidebarNotification(InfoBarSeverity.Error, title, message);
     }
 
-    private void ShowActionError(string title, Exception exception) =>
-        ShowActionError(title, UserFacingError.FromException(exception));
-
-    private void ShowOperationResult(string title, PzTools.App.Core.AppOperationResult result)
+    private void ShowActionError(string title, Exception exception)
     {
-        // 실행 번호가 부여된 작업은 진행 카드가 완료/실패 상태까지 표시합니다.
-        if (result.RunIndex > 0)
-        {
-            if ((result.Outcome is PzTools.Process.Contracts.ProcessOutcome.Failed
-                    or PzTools.Process.Contracts.ProcessOutcome.Degraded)
-                && !string.IsNullOrWhiteSpace(result.Error))
-            {
-                operationErrors[result.OperationId] = (
-                    UserFacingError.FromProcessError(result.ErrorMessage ?? result.Error), DateTimeOffset.UtcNow);
-                var current = App.Host?.Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot;
-                if (current is not null) ApplyOperations(current);
-            }
-            return;
-        }
-        var severity = result.Outcome is PzTools.Process.Contracts.ProcessOutcome.Succeeded
-            or PzTools.Process.Contracts.ProcessOutcome.NoChange
-            ? InfoBarSeverity.Success
-            : result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Busy
-                ? InfoBarSeverity.Warning : InfoBarSeverity.Error;
-        var message = result.Outcome switch
-        {
-            PzTools.Process.Contracts.ProcessOutcome.Succeeded => Localizer.Get("OperationSucceeded"),
-            PzTools.Process.Contracts.ProcessOutcome.NoChange => Localizer.Get("OperationNoChange"),
-            PzTools.Process.Contracts.ProcessOutcome.Busy => Localizer.Get("OperationBusy"),
-            _ => UserFacingError.FromProcessError(result.ErrorMessage ?? result.Error),
-        };
-        ShowSidebarNotification(severity, title, message);
+        if (exception is ReportedOnCardException) return;
+        ShowActionError(title, UserFacingError.FromException(exception));
+    }
+
+    /// <summary>
+    /// Names why a worker's work failed or did not start, on that work's own card. The worker has logged it
+    /// already, so this adds no notice and no log entry of its own.
+    /// </summary>
+    internal void ExplainOnOperationCard(string operationId, string message)
+    {
+        if (string.IsNullOrEmpty(operationId)) return;
+        operationErrors[operationId] = (message, DateTimeOffset.UtcNow);
+        RefreshOperationCards();
+    }
+
+    private void ShowOperationResult(PzTools.App.Core.AppOperationResult result)
+    {
+        // Every caller ran its work through RunWithProgressAsync, whose card already shows the
+        // outcome; this only lets the worker's own card, if it takes over, name a failure the same way.
+        if (result.RunIndex <= 0
+            || result.Outcome is not (PzTools.Process.Contracts.ProcessOutcome.Failed or PzTools.Process.Contracts.ProcessOutcome.Degraded)
+            || string.IsNullOrWhiteSpace(result.Error)) return;
+        operationErrors[result.OperationId] = (
+            UserFacingError.FromProcessError(result.ErrorMessage ?? result.Error), DateTimeOffset.UtcNow);
+        RefreshOperationCards();
     }
 }
 
@@ -2005,6 +2391,12 @@ public sealed class SaveVersionUiItem : DeletableUiItem
     public string AutomaticSaveLabel => Localizer.Get("AutomaticSaveLabel");
     public Visibility AutomaticSaveVisibility => !IsCurrent && backupKind == BackupKind.Automatic
         ? Visibility.Visible : Visibility.Collapsed;
+    // The game's version when this backup was made; older backups and ones made without the game have none.
+    private string? gameVersion;
+    private string gameVersionTip = string.Empty;
+    public string GameVersionText => gameVersion is null ? string.Empty : Localizer.Format("GameVersionFormat", gameVersion);
+    public string GameVersionTip => gameVersionTip;
+    public Visibility GameVersionVisibility => gameVersion is null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility NameDisplayVisibility => isEditing ? Visibility.Collapsed : Visibility.Visible;
     public Visibility NameEditorVisibility => isEditing ? Visibility.Visible : Visibility.Collapsed;
     public bool IsEditing
@@ -2043,7 +2435,9 @@ public sealed class SaveVersionUiItem : DeletableUiItem
     public double? HoursSurvived => hoursSurvived;
     public string CharacterText => Localizer.Format("VersionCharacterFormat",
         characterName ?? Localizer.Get("CharacterNameUnknown"));
-    public string? SurvivalReadError => characterMetadataError;
+    // The stored reason is the reader's own words (Windows may have written them in its language), so the
+    // screen says only that it failed, in today's language.
+    public string? SurvivalReadError => characterMetadataError is null ? null : Localizer.Get("SurvivalReadFailedTip");
     public string SurvivalText => characterMetadataError is not null
         ? Localizer.Format("VersionSurvivalFormat", Localizer.Get("SurvivalReadFailed"))
         : isSurvivalPending
@@ -2062,8 +2456,18 @@ public sealed class SaveVersionUiItem : DeletableUiItem
         set => Set(ref thumbnail, value, nameof(Thumbnail));
     }
 
-    public void UpdateLive(SaveListItemView live, CharacterSnapshot? snapshot = null)
+    public void UpdateLive(SaveListItemView live, CharacterSnapshot? snapshot = null, SaveGameVersion? version = null)
     {
+        SetGameVersion(version?.Version, version switch
+        {
+            null => string.Empty,
+            { Basis: SaveVersionBasis.RunningGame } => Localizer.Get("CurrentSaveVersionRunningTip"),
+            { Basis: SaveVersionBasis.LastSeen, AsOfUtc: { } seen } => Localizer.Format("CurrentSaveVersionSeenTip",
+                seen.ToLocalTime().ToString("G", Localizer.Culture)),
+            { AsOfUtc: { } made } => Localizer.Format("CurrentSaveVersionBackupTip",
+                made.ToLocalTime().ToString("G", Localizer.Culture)),
+            _ => string.Empty,
+        });
         Set(ref characterMetadataError, null, nameof(SurvivalReadError));
         SourcePath = live.SourcePath;
         ThumbnailKey = live.ThumbnailKey;
@@ -2106,16 +2510,33 @@ public sealed class SaveVersionUiItem : DeletableUiItem
             Notify(nameof(CharacterState));
             Notify(nameof(DeadVisibility));
         }
+        // An unedited name was written in the language of the day it was made; show today's.
         Set(ref revisionText, string.IsNullOrWhiteSpace(revision.DisplayName)
+            || PzTools.Process.Contracts.LanguageCatalog.IsDefaultBackupName(revision.DisplayName, revision.Revision)
             ? NamePlaceholderText
             : revision.DisplayName, nameof(RevisionText));
         Notify(nameof(EditableNameText));
         Notify(nameof(NamePlaceholderText));
+        Notify(nameof(AutomaticSaveLabel));
+        SetGameVersion(string.IsNullOrWhiteSpace(revision.GameVersion) ? null : revision.GameVersion.Trim(),
+            Localizer.Get("BackupGameVersionTip"));
         Set(ref timeText, Localizer.Format("BackupRecordedTimeFormat",
             revision.CreatedUtc.ToLocalTime().ToString("G", Localizer.Culture)), nameof(TimeText));
         Set(ref sizeText, FormatBytes(revision.LogicalSize), nameof(SizeText));
         Notify(nameof(EditLabel));
         Notify(nameof(DeleteLabel));
+    }
+
+    private void SetGameVersion(string? version, string tip)
+    {
+        Set(ref gameVersionTip, tip, nameof(GameVersionTip));
+        gameVersion = version;
+        // Always: the text is formatted when read, so a language change must redraw it even if the version is the same.
+        Notify(nameof(GameVersionText));
+        Notify(nameof(GameVersionVisibility));
+        // Labels read straight from the resources, for the same reason.
+        Notify(nameof(HealLabel));
+        Notify(nameof(ClearNameLabel));
     }
 
     private static string FormatLastPlayed(DateTimeOffset? played) => played is { } value
@@ -2141,6 +2562,7 @@ public sealed class SaveVersionUiItem : DeletableUiItem
             value /= 1024;
             suffix++;
         }
-        return $"{value:0.#} {suffixes[suffix]}";
+        // The UI language's decimal mark; the thread's culture can still be the one the app started with.
+        return string.Create(Localizer.Culture, $"{value:0.#} {suffixes[suffix]}");
     }
 }

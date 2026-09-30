@@ -10,11 +10,11 @@ public sealed class GameExtensionTests
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.GetPath("runtime"));
         var service = new GameExtensionService(store, () => "42.20");
-        var card = Assert.Single(service.ReadCards());
+        var card = Vehicle(service.ReadCards());
         Assert.Equal(ExtensionIds.VehicleDrivetrain, card.Definition.Id);
         Assert.False(card.Enabled);
         Assert.False(File.Exists(store.FilePath));
-        var enabled = Assert.Single(service.SetEnabled(card.Definition.Id, true, card.SettingsRevision));
+        var enabled = Vehicle(service.SetEnabled(card.Definition.Id, true, card.SettingsRevision));
         Assert.True(enabled.Enabled);
         Assert.Equal("runtime-pending", enabled.StatusCode);
     }
@@ -89,7 +89,7 @@ public sealed class GameExtensionTests
         store.SetPreference(ExtensionIds.VehicleDrivetrain, vehicle, 1);
         var original = File.ReadAllText(store.FilePath);
         var service = new GameExtensionService(store, () => "42.20");
-        var card = Assert.Single(service.ReadCards());
+        var card = Vehicle(service.ReadCards());
         Assert.Equal(ExtensionIds.VehicleDrivetrain, card.Definition.Id);
         Assert.Equal(vehicle.Enabled, card.Enabled);
         Assert.Equal(vehicle.VehicleDrivetrain, card.VehicleDrivetrain);
@@ -114,4 +114,6 @@ public sealed class GameExtensionTests
             return Task.FromResult(new SavePreparationReceipt(id, SaveCompletionKind.StandardCallReturned, "returned"));
         }
     }
+    private static ExtensionCardView Vehicle(IEnumerable<ExtensionCardView> cards) =>
+        cards.Single(card => card.Definition.Id == ExtensionIds.VehicleDrivetrain);
 }

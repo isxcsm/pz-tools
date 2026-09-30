@@ -460,6 +460,25 @@ public sealed class ProcessPipelineIntegrationTests
         var revision = (await repository.GetSourceStateAsync(source.SourceId)).CurrentRevision;
         var archivePath = temp.GetPath("save.zip");
 
+        // While cleanup or a backup holds the repository, an export waits its turn instead of
+        // reading packs that may be rewritten underneath it.
+        await using (RepositoryWriterLease.Acquire(repositoryPath))
+        {
+            var busy = await RunProcessAsync(
+                Path.Combine(tools, "PzTools.Zomboid.Archive.Cli.exe"),
+                [
+                    "export", "--repository", repositoryPath,
+                    "--source-id", source.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    "--revision", revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    "--output", archivePath,
+                    "--run-index", "11",
+                    // Diagnostics go to the test folder, never into the app data of whoever runs the tests.
+                    "--telemetry-identity", temp.GetPath("telemetry-busy"),
+                ]);
+            Assert.Equal(ProcessOutcome.Busy, ProcessResultJson.Deserialize<object>(busy.StandardOutput).Outcome);
+            Assert.False(File.Exists(archivePath));
+        }
+
         var exported = await RunProcessAsync(
             Path.Combine(tools, "PzTools.Zomboid.Archive.Cli.exe"),
             [
@@ -468,6 +487,7 @@ public sealed class ProcessPipelineIntegrationTests
                 "--revision", revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--output", archivePath,
                 "--run-index", "12",
+                "--telemetry-identity", temp.GetPath("telemetry-export"),
             ]);
         Assert.Equal(0, exported.ExitCode);
         using (var zip = ZipFile.OpenRead(archivePath))
@@ -478,7 +498,7 @@ public sealed class ProcessPipelineIntegrationTests
         }
         var inspected = await RunProcessAsync(
             Path.Combine(tools, "PzTools.Zomboid.Archive.Cli.exe"),
-            ["inspect", "--archive", archivePath, "--run-index", "13"]);
+            ["inspect", "--archive", archivePath, "--run-index", "13", "--telemetry-identity", temp.GetPath("telemetry-inspect")]);
         var savesRoot = temp.GetPath("Saves");
         var imported = await RunProcessAsync(
             Path.Combine(tools, "PzTools.Zomboid.Archive.Cli.exe"),
@@ -486,6 +506,7 @@ public sealed class ProcessPipelineIntegrationTests
                 "import", "--archive", archivePath,
                 "--saves-root", savesRoot,
                 "--run-index", "14",
+                "--telemetry-identity", temp.GetPath("telemetry-import"),
             ]);
 
         Assert.True(exported.ExitCode == 0, exported.StandardError);

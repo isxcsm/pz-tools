@@ -24,9 +24,9 @@ public sealed class RepositoryConnectionInitializationTests
         }, (connection, token) =>
         {
             calls++;
-            if (calls <= 2) { SetLastError(1224); throw fault; }
+            if (calls <= 2) throw fault;
             return Task.FromResult(42);
-        }, default);
+        }, default, _ => 1224);
         await using var returned = result.Connection;
         Assert.Equal(3, calls);
         Assert.Equal(42, result.Value);
@@ -49,7 +49,7 @@ public sealed class RepositoryConnectionInitializationTests
                 var connection = new SqliteConnection($"Data Source={temp.GetPath("test.db")};Pooling=False");
                 connections.Add(connection);
                 return connection;
-            }, (connection, token) => { SetLastError(osError); throw expected; }, default));
+            }, (connection, token) => throw expected, default, _ => (int)osError));
         Assert.Same(expected, actual);
         Assert.Equal(ConnectionState.Closed, Assert.Single(connections).State);
     }
@@ -66,7 +66,7 @@ public sealed class RepositoryConnectionInitializationTests
                 var connection = new SqliteConnection($"Data Source={temp.GetPath("test.db")};Pooling=False");
                 connections.Add(connection);
                 return connection;
-            }, (connection, token) => { SetLastError(1224); throw expected; }, default));
+            }, (connection, token) => throw expected, default, _ => 1224));
         Assert.Same(expected, actual);
         Assert.Equal(RepositoryConnectionInitialization.MaximumAttempts, connections.Count);
         Assert.All(connections, item => Assert.Equal(ConnectionState.Closed, item.State));
@@ -88,9 +88,8 @@ public sealed class RepositoryConnectionInitializationTests
             }, (connection, token) =>
             {
                 cancellation.Cancel();
-                SetLastError(1224);
                 throw expected;
-            }, cancellation.Token));
+            }, cancellation.Token, _ => 1224));
         Assert.Equal(ConnectionState.Closed, Assert.Single(connections).State);
     }
 
@@ -127,7 +126,4 @@ public sealed class RepositoryConnectionInitializationTests
         }
         finally { release.TrySetResult(); await releases; }
     }
-
-    [DllImport("kernel32.dll", ExactSpelling = true)]
-    private static extern void SetLastError(uint error);
 }

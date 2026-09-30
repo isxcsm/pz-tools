@@ -134,7 +134,7 @@ public sealed class RuntimeScheduleIntegrationTests
     [Theory]
     [InlineData(ProcessOutcome.Failed)]
     [InlineData(ProcessOutcome.Cancelled)]
-    public async Task MissingWorkerDispositionCannotAuthorizeImplicitRetry(ProcessOutcome outcome)
+    public async Task MissingWorkerDisposition_SitsOutOneIntervalOfPlay_ThenBackupsResume(ProcessOutcome outcome)
     {
         using var temp = new TempDirectory();
         var f = await Fixture.CreateAsync(temp);
@@ -144,8 +144,90 @@ public sealed class RuntimeScheduleIntegrationTests
         // Covers a lost/malformed worker envelope and cancellation without a typed outcome.
         await f.Controller.FinishAsync(admission, new(false, outcome, "missing-result"));
         Assert.True((await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.CompletionUncertain);
-        await f.PublishAsync(600_000);
+        // No immediate retry: the game may still be saving.
         Assert.Null((await f.TickAsync()).Admission);
+        await f.PublishAsync(450_000);
+        Assert.Null((await f.TickAsync()).Admission);
+        // One full interval later the unknown outcome no longer blocks anything.
+        await f.PublishAsync(600_000);
+        Assert.NotNull((await f.TickAsync()).Admission);
+        Assert.False((await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!.CompletionUncertain);
+    }
+
+    [Theory]
+    [InlineData(false, false)] // The error came before any worker was dispatched: nothing is in doubt.
+    [InlineData(true, true)]   // The worker was dispatched and its result was lost: the save may have run.
+    public async Task OnlyAnErrorAfterDispatchLeavesTheOutcomeUnknown(bool dispatch, bool uncertain)
+    {
+        using var temp = new TempDirectory();
+        var f = await Fixture.CreateAsync(temp);
+        await f.PublishAsync(0); await f.TickAsync();
+        await f.PublishAsync(300_000);
+        var run = 100L;
+        var scheduler = new BackupScheduler(f.Database, _ => Task.FromResult(++run),
+            (_, _, _, _, _) => throw new InvalidOperationException("must use the guarded runner"),
+            (_, _, _, _, _) => throw new InvalidOperationException("must not maintain"),
+            runtimeSchedule: f.Controller,
+            guardedBackupRunner: dispatch ? (_, _, _) => throw new IOException("worker result lost") : null);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => scheduler.TickAsync(DateTimeOffset.UtcNow));
+
+        var saved = (await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!;
+        Assert.Equal(uncertain, saved.CompletionUncertain);
+        if (uncertain) Assert.Null((await f.TickAsync()).Admission);
+        else Assert.NotNull((await f.TickAsync()).Admission); // The same slot is still due.
+    }
+
+    [Fact]
+    public async Task SkippedWorkerDidNothing_SoItsSlotIsKept()
+    {
+        using var temp = new TempDirectory();
+        var f = await Fixture.CreateAsync(temp);
+        await f.PublishAsync(0); await f.TickAsync();
+        await f.PublishAsync(300_000);
+        var admission = (await f.TickAsync()).Admission!;
+        await f.Controller.FinishAsync(admission, new(false, ProcessOutcome.Skipped, "skipped-without-disposition"));
+        var saved = (await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!;
+        Assert.False(saved.CompletionUncertain);
+        Assert.Equal(0, saved.Slot);
+        Assert.NotNull((await f.TickAsync()).Admission);
+    }
+
+    [Fact]
+    public async Task FailedBackupWithKnownSaveOutcome_SpendsItsSlotAndRunsAgainNextInterval()
+    {
+        using var temp = new TempDirectory();
+        var f = await Fixture.CreateAsync(temp);
+        await f.PublishAsync(0); await f.TickAsync();
+        await f.PublishAsync(300_000);
+        var admission = (await f.TickAsync()).Admission!;
+        await f.Controller.FinishAsync(admission, new(true, ProcessOutcome.Failed, "backup-failed", ScheduleDisposition.Consume));
+        var saved = (await f.Database.ReadRuntimeScheduleAsync()).Checkpoint!;
+        Assert.False(saved.CompletionUncertain);
+        Assert.Equal(1, saved.Slot);
+        Assert.Null((await f.TickAsync()).Admission); // No immediate retry storm.
+        await f.PublishAsync(600_000);
+        Assert.NotNull((await f.TickAsync()).Admission);
+    }
+
+    [Theory]
+    [InlineData("completion-unknown", true)]
+    [InlineData("invalid-response", true)]
+    [InlineData("attach-failed", false)]
+    [InlineData("connection-timeout", false)]
+    [InlineData("unsupported-protocol", false)]
+    public void OnlyAnUnansweredSaveCommandLeavesTheOutcomeUnknown(string code, bool unknown) =>
+        Assert.Equal(unknown, new PzTools.SaveBridge.GameSaveException(code, "fixture").SaveOutcomeUnknown);
+
+    [Fact]
+    public async Task WorkerThatNeverStarted_IsNotAnUnknownCompletion()
+    {
+        using var temp = new TempDirectory();
+        var invocation = await new RunnerProcessAdapter(temp.GetPath("no-workers")).RunBackupAsync(
+            temp.GetPath("repo"), new("Sandbox/World", "Sandbox/World", temp.GetPath("save")), 1, null, default);
+        Assert.False(invocation.Started);
+        Assert.Equal(ProcessOutcome.Failed, invocation.Outcome);
+        Assert.Equal(ScheduleDisposition.Consume, invocation.ScheduleDisposition);
     }
 
     [Fact]

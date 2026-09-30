@@ -20,9 +20,10 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
     /// Readiness is session evidence even when no revision has been applied. Keep only current,
     /// fresh evidence; a restart requirement is process-scoped and follows that process's world.
     /// </summary>
-    public static RuntimeExtensionStatus? SelectCurrentStatus(RuntimeObservation observation)
+    /// <param name="moduleId">The module whose status is wanted; null for the connection as a whole.</param>
+    public static RuntimeExtensionStatus? SelectCurrentStatus(RuntimeObservation observation, string? moduleId = null)
     {
-        var status = observation.Extension;
+        var status = moduleId is null ? observation.Extension : observation.ExtensionFor(moduleId);
         if (!IsFresh(status)) return null;
         if (status.ProcessSession.Length != 0 || status.WorldSession is not null)
         {
@@ -70,6 +71,6 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
         // Even a restart requirement must not prevent turning a saved ON request OFF.
         return new(card.Enabled, card.Enabled || !restartRequired, busy, true,
             failed ? runtime!.Reason : null,
-            options is null ? null : new(options.TorqueEnabled, options.ReverseEnabled, options.SteeringEnabled));
+            options is null ? null : new(options.TorqueEnabled, options.ReverseEnabled, options.SteeringEnabled, options.AreaLightEnabled));
     }
 }

@@ -221,7 +221,7 @@ public sealed class RuntimeConfigurationTests
         using var temp = new TempDirectory();
         var settings = new AppSettingsService(temp.GetPath("runtime"));
         foreach (var component in new[] { "app", "backup-worker", "backup-scheduler", "state-scheduler",
-                     "maintenance-worker", "archive-worker", "restore-worker", "character-recovery" })
+                     "maintenance-worker", "archive-worker", "restore-worker", "character-recovery", "profiler" })
         {
             await settings.EnsureComponentConfigurationAsync(temp.Path, component);
             var path = ComponentRuntimePaths.GetIdentityDefaultPath(temp.Path, component, settings.ConfigurationRoot);

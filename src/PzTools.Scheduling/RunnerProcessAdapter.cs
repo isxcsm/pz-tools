@@ -6,10 +6,12 @@ using PzTools.Process.Hosting;
 namespace PzTools.Scheduling;
 
 public sealed class RunnerProcessAdapter(
-    ChildProcessHost host, string workerDirectory, string? controlDatabasePath = null)
+    ChildProcessHost host, string workerDirectory, string? controlDatabasePath = null,
+    Func<string, string?>? gameVersion = null)
 {
-    public RunnerProcessAdapter(string workerDirectory, string? controlDatabasePath = null)
-        : this(new ChildProcessHost(), Path.GetFullPath(workerDirectory), controlDatabasePath) { }
+    public RunnerProcessAdapter(string workerDirectory, string? controlDatabasePath = null,
+        Func<string, string?>? gameVersion = null)
+        : this(new ChildProcessHost(), Path.GetFullPath(workerDirectory), controlDatabasePath, gameVersion) { }
 
     public Task<WorkerInvocation> RunBackupAsync(string repositoryPath, BackupTarget target, long runIndex,
         DateTimeOffset? scheduledUtc, CancellationToken token) =>
@@ -32,6 +34,8 @@ public sealed class RunnerProcessAdapter(
                 "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--worker-directory", workerDirectory,
             ];
+        // Saves carry no version of their own; record what the game reports while this save is loaded.
+        if (gameVersion?.Invoke(target.SourcePath) is { } version) arguments.AddRange(["--game-version", version]);
         if (runtimeTicket is not null)
         {
             if (runtimeAuthority is null || runtimeGeneration is null) throw new InvalidOperationException("A guarded request requires its scheduling authority.");
@@ -108,7 +112,8 @@ public sealed class RunnerProcessAdapter(
         var result = await host.RunAsync(
             Path.Combine(workerDirectory, executableName), arguments, token);
         if (!result.Started)
-            return new WorkerInvocation(false, ProcessOutcome.Failed, result.FailureCode);
+            // Nothing ran, so nothing is in doubt: spend this slot and try again next interval.
+            return new WorkerInvocation(false, ProcessOutcome.Failed, result.FailureCode, ScheduleDisposition.Consume);
         try
         {
             var envelope = ProcessResultValidator.Read<RunnerExecutionResult>(result.StandardOutput,

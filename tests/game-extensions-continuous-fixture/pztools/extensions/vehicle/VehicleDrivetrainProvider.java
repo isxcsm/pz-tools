@@ -6,9 +6,9 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Synthetic control/retirement provider. It never accesses game fields or alters physics. */
-public final class VehicleDrivetrainProvider implements ContinuousProvider {
+public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.FrameListener {
     private final String fixtureGeneration = UUID.randomUUID().toString().replace("-", "");
-    private final AtomicInteger callbacks = new AtomicInteger();
+    private final AtomicInteger callbacks = new AtomicInteger(), frames = new AtomicInteger(), lateFrames = new AtomicInteger();
     private volatile boolean active;
     private volatile String setting = "";
     private VehicleHooks.Retirement retirement;
@@ -23,6 +23,8 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider {
         if (!context.worldValid().get()) { retirement = VehicleHooks.unregister(this); return; }
         active = true;
     }
+    // Per-frame work is owed only to an active generation.
+    public void gameFrame() { if (active) frames.incrementAndGet(); else lateFrames.incrementAndGet(); }
     public void updateConfig(Map<String, String> config) { setting = config.getOrDefault("fixture_value", ""); }
     public synchronized void deactivate() {
         active = false;
@@ -31,6 +33,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider {
     public void close() throws Exception { deactivate(); if (retirement != null) retirement.await(5000); }
     public String diagnostics() {
         return "fixtureGeneration=" + fixtureGeneration + ";fixtureActive=" + active
-            + ";fixtureValue=" + setting + ";fixtureCallbacks=" + callbacks.get();
+            + ";fixtureValue=" + setting + ";fixtureCallbacks=" + callbacks.get()
+            + ";fixtureFrames=" + frames.get() + ";fixtureLateFrames=" + lateFrames.get();
     }
 }

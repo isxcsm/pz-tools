@@ -67,7 +67,7 @@ public sealed class BackupKindTests
             Assert.Equal(0, (await repository.MarkRevisionsForRetentionAsync(lease, sourceId, 2)).MarkedDeleted);
             Assert.Equal(2, (await repository.CompactDeletedRevisionsAsync(lease, sourceId)).CompactedRevisions);
             await repository.CollectGarbageAsync(lease);
-            await new PackCompactor().CompactAsync(repository, lease, maximumSourcePackBytes: long.MaxValue);
+            await new PackCompactor().RewriteAsync(repository, lease, await repository.ReadPacksAsync());
             await repository.CollectGarbageAsync(lease);
         }
 

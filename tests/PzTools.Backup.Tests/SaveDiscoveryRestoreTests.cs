@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PzTools.Process.Hosting;
 using PzTools.Zomboid.State;
 
 namespace PzTools.Backup.Tests;
@@ -74,16 +75,21 @@ public sealed class SaveDiscoveryRestoreTests
         var staging = Path.Combine(parent, $".Save.pztools-staging-{token}");
         var rollback = Path.Combine(parent, $".Save.pztools-rollback-{token}");
         var journal = Path.Combine(parent, ".Save.pztools-restore.json");
-        // Discovery only needs the durable marker, not its contents or phase.
-        await File.WriteAllTextAsync(journal, "{}");
-        await CreateSaveAsync(staging, 1);
-        await CollectAsync(false); // Full staging copy next to the original.
-        Directory.Move(target, rollback);
-        await CollectAsync(false); // Original target absent between renames.
-        Directory.Move(staging, target);
-        await CollectAsync(false); // New target and rollback coexist.
-        Directory.Delete(rollback, recursive: true);
-        File.Delete(journal);
+        // Discovery needs the durable marker and its owner's save lock, not its contents or phase.
+        var locked = await OperationMutexSet.TryRunAsync([new(OperationMutexScope.SaveWrite, target)], async _ =>
+        {
+            await File.WriteAllTextAsync(journal, "{}");
+            await CreateSaveAsync(staging, 1);
+            await CollectAsync(false); // Full staging copy next to the original.
+            Directory.Move(target, rollback);
+            await CollectAsync(false); // Original target absent between renames.
+            Directory.Move(staging, target);
+            await CollectAsync(false); // New target and rollback coexist.
+            Directory.Delete(rollback, recursive: true);
+            File.Delete(journal);
+            return true;
+        });
+        Assert.True(locked.Acquired);
         await CollectAsync(true);
 
         var final = await database.ReadCurrentStateIfChangedAsync(-1);
@@ -104,6 +110,28 @@ public sealed class SaveDiscoveryRestoreTests
             if (!complete)
                 Assert.Equal(CharacterState.Alive, snapshot.Saves.Single(item => item.DisplayName == "Save").Character);
         }
+    }
+
+    [Fact]
+    public async Task Collection_ObservesSaveWhoseRestoreJournalHasNoOwner()
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("Saves");
+        var target = Path.Combine(root, "Sandbox", "Save");
+        await CreateSaveAsync(target, 0);
+        var journal = Path.Combine(root, "Sandbox", ".Save.pztools-restore.json");
+        await File.WriteAllTextAsync(journal, "{}"); // Left by a failed or crashed restore.
+        var database = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
+
+        var observed = await new StateCollector().RunAsync(database, root);
+        Assert.True(observed.Batch.DiscoveryComplete);
+        Assert.Equal("Save", Assert.Single(observed.Batch.Saves).DisplayName);
+
+        // The original may be waiting in rollback: unknown, not deleted.
+        Directory.Move(target, Path.Combine(root, "Sandbox", $".Save.pztools-rollback-{Guid.NewGuid():N}"));
+        var gap = await new StateCollector().RunAsync(database, root);
+        Assert.False(gap.Batch.DiscoveryComplete);
+        Assert.Empty(gap.Batch.Saves);
     }
 
     private static async Task CreateSaveAsync(string directory, int dead)

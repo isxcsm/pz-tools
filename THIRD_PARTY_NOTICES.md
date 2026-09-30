@@ -1,5 +1,50 @@
 # Third-party notices
 
+PZ Tools itself is released under the MIT License (see `LICENSE`). The components
+below are distributed with it, or were adapted for it, under their own terms.
+
+## Libraries distributed with the app
+
+| Component | License | Copyright / source |
+| --- | --- | --- |
+| Microsoft.Data.Sqlite, System.IO.Hashing | MIT | © Microsoft Corporation. https://github.com/dotnet |
+| Windows Community Toolkit (SettingsControls, Extensions, Helpers, Triggers, Common) | MIT | © .NET Foundation and Contributors. https://github.com/CommunityToolkit |
+| SQLitePCLRaw (core, provider, bundle, `e_sqlite3`) | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC. https://github.com/ericsink/SQLitePCL.raw |
+| SQLite (inside `e_sqlite3.dll`) | Public domain | https://www.sqlite.org/copyright.html |
+| Tomlyn | BSD-2-Clause | Copyright (c) 2019-2026, Alexandre Mutel. https://github.com/xoofx/Tomlyn |
+| Windows App SDK, WinUI, WebView2 loader | Microsoft Software License Terms | © Microsoft Corporation. https://github.com/microsoft/WindowsAppSDK/blob/main/LICENSE |
+
+License texts: MIT is reproduced several times below.
+The Apache License 2.0 is included in full as `licenses/Apache-2.0.txt`.
+
+Tomlyn (BSD 2-Clause):
+
+Copyright (c) 2019-2026, Alexandre Mutel
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## OpenJDK runtime
+
 Application and backup-worker builds include a trimmed Eclipse Temurin OpenJDK 25 runtime for the
 local JVM Attach helper. Its licenses and notices are included under
 `save-bridge/runtime/legal/`; its build information is in `save-bridge/runtime/release`.
@@ -8,6 +53,8 @@ additional component notices in that directory. Corresponding Temurin source
 and build releases: https://github.com/adoptium/temurin25-binaries/releases
 and https://github.com/adoptium/jdk25u. No Project Zomboid classes are distributed
 with the bridge.
+
+## pzmonitor players.db layout
 
 The Build 42 player blob layout used by `PlayerBlobDurationReader` was adapted
 from [pzmonitor's players.db parser](https://github.com/MarioMoura/pzmonitor/blob/main/internal/playersdb/parser.go).

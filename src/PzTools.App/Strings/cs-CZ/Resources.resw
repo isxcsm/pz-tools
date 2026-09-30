@@ -21,6 +21,7 @@
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Kopírování aktuální uložené hry</value></data>
   <data name="StopPlayingToExport" xml:space="preserve"><value>Aktuální uloženou hru nelze exportovat během hraní. Ukončete hraní a zkuste to znovu.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Zálohy nelze obnovovat během hraní. Ukončete hraní a zkuste to znovu.</value></data>
+  <data name="SelectBackupToRestore" xml:space="preserve"><value>Vyberte v seznamu zálohu, kterou chcete obnovit</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Uloženou hru nelze smazat během hraní. Ukončete hraní a zkuste to znovu.</value></data>
   <data name="StopPlayingToHeal" xml:space="preserve"><value>Postavu nelze léčit během hraní. Ukončete hraní a zkuste to znovu.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Zatím žádné zálohy</value></data>
@@ -51,13 +52,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Procházet</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Zálohování</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatické zálohování</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Zapíná nebo vypíná pravidelné zálohy a zálohy při smrti postavy. Vypnutí zachová interval a neovlivní ruční ani již probíhající zálohy.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Zálohuje uloženou hru, kterou právě hrajete, v nastaveném intervalu. Ruční zálohy fungují i při vypnutí.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Interval zálohování</value></data>
-  <data name="IntervalSetting.Description" xml:space="preserve"><value>1–60 minut. Interval se při vypnutí zachová; po zapnutí začne nový interval.</value></data>
+  <data name="IntervalSetting.Description" xml:space="preserve"><value>Doba mezi automatickými zálohami (1–60 minut). Po změně se odpočet spustí znovu.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Počet automatických záloh</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Ponechat posledních 1–100 automatických záloh. Tento limit nemaže ruční zálohy.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Uchová tento počet nejnovějších automatických záloh a starší smaže (1–100). Ruční zálohy se nepočítají a nikdy se nemažou.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Zálohovat při smrti postavy</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Vytvoří zálohu, když spuštěná hra ohlásí smrt postavy. Vyžaduje zapnuté automatické zálohování a funguje i během pauzy. Záznam o smrti v již uložené hře tuto zálohu nespustí.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Když postava zemře, automatické zálohy se zastaví, aby nevytlačily zálohy vytvořené za jejího života. Zapněte, chcete-li uchovat jednu zálohu z okamžiku smrti.</value></data>
   <data name="VerifyCopiesSetting.Header" xml:space="preserve"><value>Kontrolovat zkopírované soubory</value></data>
   <data name="VerifyCopiesSetting.Description" xml:space="preserve"><value>Kontroluje, zda zkopírované soubory odpovídají originálům. Pokud se soubor během kopírování změní, zkopíruje se znovu.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Soubory uložené hry se během zálohování opakovaně měnily. Počkejte, až hra dokončí ukládání, a zkuste zálohu znovu.</value></data>
@@ -170,9 +171,9 @@
   <data name="AcknowledgeAllLogsFormat" xml:space="preserve"><value>Označit všechny nezkontrolované položky jako zkontrolované ({0:N0})</value></data>
   <data name="LogIndexFormat" xml:space="preserve"><value>Číslo záznamu {0}</value></data>
   <data name="LogSummaryFormat" xml:space="preserve"><value>{0} · {1}</value></data>
-  <data name="LogTimeHeaderFormat" xml:space="preserve"><value>Čas ({0})</value></data>
-  <data name="LogLocalTimeZone" xml:space="preserve"><value>místní</value></data>
-  <data name="LogLocalTimeHint" xml:space="preserve"><value>Vyberte časy zobrazené v protokolu ({0}).</value></data>
+  <data name="LogTimeHeader" xml:space="preserve"><value>Čas</value></data>
+  <data name="LogTimeYesterdayFormat" xml:space="preserve"><value>Včera {0}</value></data>
+  <data name="LogLocalTimeHint" xml:space="preserve"><value>Vyberte časy podle hodin tohoto počítače.</value></data>
   <data name="LogListTitle" xml:space="preserve"><value>Historie · Od nejnovějších</value></data>
   <data name="LogNumberHeader" xml:space="preserve"><value>Číslo</value></data>
   <data name="LogNumberHint" xml:space="preserve"><value>Stálé číslo identifikující tento záznam.</value></data>
@@ -228,6 +229,17 @@
   <data name="LogDiagnostics.FileReplaced" xml:space="preserve"><value>Soubor byl během kopírování nahrazen nebo přesunut.</value></data>
   <data name="LogDiagnostics.UnstableFileHint" xml:space="preserve"><value>Soubor se mohl měnit nebo byl nedostupný. Zkuste zálohu za chvíli znovu.</value></data>
   <data name="LogDiagnostics.LegacyMissingDetail" xml:space="preserve"><value>Tento starší záznam neobsahuje podrobný důvod selhání.</value></data>
+  <data name="SurvivalReadFailedTip" xml:space="preserve"><value>Z této zálohy se nepodařilo načíst údaje o postavě. Podrobnosti najdete v protokolu.</value></data>
+  <data name="LogPhase.ComponentCheck" xml:space="preserve"><value>Kontrola součástí</value></data>
+  <data name="LogPhase.ExtensionRuntime" xml:space="preserve"><value>Běh herního rozšíření</value></data>
+  <data name="LogPhase.ProcessResult" xml:space="preserve"><value>Čtení výsledku pracovního procesu</value></data>
+  <data name="LogPhase.ProcessLaunch" xml:space="preserve"><value>Spouštění pracovního procesu</value></data>
+  <data name="ProfilePhase.Stop" xml:space="preserve"><value>Ukončování nahrávání</value></data>
+  <data name="ProfilePhase.Start" xml:space="preserve"><value>Spouštění nahrávání</value></data>
+  <data name="ProfilePhase.Prepare" xml:space="preserve"><value>Příprava</value></data>
+  <data name="ProfilePhase.Connect" xml:space="preserve"><value>Připojování ke hře</value></data>
+  <data name="LogDiagnostics.RawMessage" xml:space="preserve"><value>Původní zpráva</value></data>
+  <data name="LogDiagnostics.RawOnly" xml:space="preserve"><value>Tuto chybu zde nelze vysvětlit. Původní zprávu najdete v technických podrobnostech.</value></data>
   <data name="LogDiagnostics.Message" xml:space="preserve"><value>Chybová zpráva</value></data>
   <data name="LogDiagnostics.Exception" xml:space="preserve"><value>Typ chyby</value></data>
   <data name="LogDiagnostics.Inner" xml:space="preserve"><value>Prvotní příčina</value></data>
@@ -266,7 +278,7 @@
   <data name="LogEvent.StateRunCompleted" xml:space="preserve"><value>Kontrola stavu hry skončila.</value></data>
   <data name="LogEvent.CollectorCompleted" xml:space="preserve"><value>Byl zjištěn stav hry.</value></data>
   <data name="LogEvent.ReactorCompleted" xml:space="preserve"><value>Byl zkontrolován plán záloh.</value></data>
-  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Nastavte ukládání hry, interval záloh, limit historie a chování po smrti postavy.</value></data>
+  <data name="AutomaticBackupSection.Description" xml:space="preserve"><value>Nastavte interval automatických záloh, počet uchovávaných záloh a uložení hry před zálohou.</value></data>
   <data name="LogSettings.Description" xml:space="preserve"><value>Vyberte úroveň událostí a počet záznamů zobrazených v protokolu.</value></data>
   <data name="LogMinimumLevelLabel" xml:space="preserve"><value>Zobrazované záznamy</value></data>
   <data name="LogDisplayLimitLabel" xml:space="preserve"><value>Limit zobrazení</value></data>
@@ -295,6 +307,11 @@
   <data name="ManualBackupNameFormat" xml:space="preserve"><value>Ruční záloha {0:N0}</value></data>
   <data name="AutomaticBackupNameFormat" xml:space="preserve"><value>Automatická záloha {0:N0}</value></data>
   <data name="AutomaticSaveLabel" xml:space="preserve"><value>Automatická záloha</value></data>
+  <data name="BackupGameVersionTip" xml:space="preserve"><value>Verze hry v době vytvoření této zálohy</value></data>
+  <data name="CurrentSaveVersionBackupTip" xml:space="preserve"><value>Verze hry při vytvoření poslední zálohy ({0}). Pokud byla hra mezitím aktualizována, může se lišit</value></data>
+  <data name="CurrentSaveVersionSeenTip" xml:space="preserve"><value>Verze hry, která tuto uloženou hru spouštěla {0} (soubory uložené hry verzi nezaznamenávají)</value></data>
+  <data name="GameVersionFormat" xml:space="preserve"><value>Verze {0}</value></data>
+  <data name="CurrentSaveVersionRunningTip" xml:space="preserve"><value>Verze hry, která tuto uloženou hru právě spouští</value></data>
   <data name="BackupNamePlaceholder" xml:space="preserve"><value>Název zálohy</value></data>
   <data name="RenameRevisionTitle" xml:space="preserve"><value>Upravit název zálohy</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>Přejmenovat {0}</value></data>
@@ -350,6 +367,20 @@
   <data name="OperationCardBusy" xml:space="preserve"><value>Operaci se nepodařilo spustit</value></data>
   <data name="OperationCardDegraded" xml:space="preserve"><value>Operace skončila · Vyžaduje pozornost</value></data>
   <data name="OperationCardWaiting" xml:space="preserve"><value>Operace čeká</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Zabezpečení Windows zablokovalo součást</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>Zásada zabezpečení Windows (například Inteligentní řízení aplikací) zabránila spuštění těchto součástí: {0}. Automatické zálohování a některé funkce nemusí fungovat. Zkontrolujte Zabezpečení Windows → Řízení aplikací a prohlížečů.</value></data>
+  <data name="CardOpenSettings" xml:space="preserve"><value>Otevřít nastavení</value></data>
+  <data name="CardAcknowledge" xml:space="preserve"><value>OK</value></data>
+  <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools se kvůli neočekávané chybě ukončí. Záznam chyby: {0}</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Zásada zabezpečení Windows (například Inteligentní řízení aplikací) zablokovala součást PZ Tools. Zkontrolujte Zabezpečení Windows → Řízení aplikací a prohlížečů.</value></data>
+  <data name="MaintenanceRunning" xml:space="preserve"><value>Úklid záloh</value></data>
+  <data name="OperationCardDeferred" xml:space="preserve"><value>Odloženo</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Úklid záloh byl odložen kvůli zálohování nebo hře.</value></data>
+  <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Odstraňování starých záloh</value></data>
+  <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Odstraňování dočasných souborů</value></data>
+  <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Odstraňování záloh smazaných her</value></data>
+  <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>Uvolňování nevyužitého místa</value></data>
+  <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Uvolněno {0:N1} MB nevyužitého místa záloh.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Zaznamenáno: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Kontrola probíhající hry a případné uložení…</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
@@ -360,8 +391,8 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Zálohování bylo zastaveno, protože uložení hry se nepodařilo potvrdit.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odpočet uložení ve hře</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Nad postavou zobrazí pětisekundový odpočet a výsledek uložení. Vypnutí skryje zprávy a přeskočí čekání při ručních zálohách, ale hra se stále uloží. Čas automatických záloh se nemění.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Před zálohou uloží nejnovější postup ve hře. Doporučujeme ponechat zapnuté: při vypnutí mohou v záloze chybět dosud neuložený postup, vozidla nebo předměty.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Od 5 sekund před uložením zobrazuje nad postavou odpočet a poté výsledek. Při vypnutí se hra uloží bez něj.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Uloží hru těsně před zálohou, aby obsahovala váš nejnovější postup. Při ukládání se hra může asi na půl sekundy zaseknout. Při vypnutí může v záloze chybět dosud neuložený postup, proto doporučujeme nechat zapnuté.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Příští záloha: čeká na spuštění</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: čeká na dokončení aktuální operace</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Vyléčit postavu</value></data>
@@ -379,12 +410,84 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Obnova byla zastavena, protože předměty nelze bezpečně získat zpět. Uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Je třeba dokončit předchozí úpravu uložené hry. Před jejím načtením ve hře znovu otevřete PZ Tools.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Obnova postavy</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>Nahrávání se nezdařilo. Podrobnosti najdete v protokolu.</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>Záznam byl dokončen, ale výsledek se nepodařilo zpracovat. Podrobnosti najdete v protokolu.</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>Právě probíhá jiná operace. Zkuste to za chvíli znovu.</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>Nepodařilo se připojit ke hře. Pokud jste aktualizovali hru nebo PZ Tools, restartujte hru.</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Je spuštěno více her najednou, takže nelze určit cíl.</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Hra není spuštěná. Spusťte hru a zkuste to znovu.</value></data>
+  <data name="ProfilePausesSection" xml:space="preserve"><value>Dlouhá čekání a pauzy</value></data>
+  <data name="ProfileThreadsSection" xml:space="preserve"><value>Podíl podle vláken</value></data>
+  <data name="ProfileColumnsTip" xml:space="preserve"><value>Vlastní: čas strávený přímo v dané funkci. Celkem: včetně funkcí, které zavolala.</value></data>
+  <data name="ProfileColumnSamples" xml:space="preserve"><value>Vzorky</value></data>
+  <data name="ProfileColumnTotal" xml:space="preserve"><value>Celkem</value></data>
+  <data name="ProfileColumnSelf" xml:space="preserve"><value>Vlastní</value></data>
+  <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Skripty neznámého původu</value></data>
+  <data name="ProfileOwnerGame" xml:space="preserve"><value>Skripty základní hry (vanilla)</value></data>
+  <data name="ProfileGroup.tools" xml:space="preserve"><value>PZ Tools</value></data>
+  <data name="ProfileGroup.libraries" xml:space="preserve"><value>Přibalené knihovny (grafika, zvuk a další)</value></data>
+  <data name="ProfileGroup.java" xml:space="preserve"><value>Vestavěné funkce Javy</value></data>
+  <data name="ProfileGroup.lua" xml:space="preserve"><value>Engine Lua (spouští skripty módů a hry)</value></data>
+  <data name="ProfileGroup.game" xml:space="preserve"><value>Základní hra (vanilla)</value></data>
+  <data name="ProfileLuaNone" xml:space="preserve"><value>V tomto úseku nebyla zaznamenána žádná aktivita skriptů Lua.</value></data>
+  <data name="ProfileFewSamples" xml:space="preserve"><value>Příliš málo vzorků na přesná procenta. Vyberte širší úsek nebo nahrávejte v podrobném režimu.</value></data>
+  <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>Vzorků: {0:N0} · úklid paměti (GC) {1:N0}×, pozastavení {2:0.0} ms</value></data>
+  <data name="ProfileThreadAll" xml:space="preserve"><value>Všechna vlákna</value></data>
+  <data name="ProfileThreadGame" xml:space="preserve"><value>Herní vlákno</value></data>
+  <data name="ProfileZoomSelection" xml:space="preserve"><value>Přiblížit výběr</value></data>
+  <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše</value></data>
+  <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} se nespustilo, protože běží více než jedna hra.</value></data>
+  <data name="ProfileNeedsGame" xml:space="preserve"><value>Nahrávat můžete po spuštění hry.</value></data>
+  <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} se nespustilo, protože hra neběží.</value></data>
+  <data name="ProfileColumnDetail" xml:space="preserve"><value>Podrobnosti</value></data>
+  <data name="ProfileColumnKind" xml:space="preserve"><value>Druh</value></data>
+  <data name="ProfileColumnLength" xml:space="preserve"><value>Délka</value></data>
+  <data name="ProfileColumnTime" xml:space="preserve"><value>Čas</value></data>
+  <data name="ProfileColumnThread" xml:space="preserve"><value>Vlákno</value></data>
+  <data name="ProfileColumnMethod" xml:space="preserve"><value>Metoda</value></data>
+  <data name="ProfileColumnFile" xml:space="preserve"><value>Soubor</value></data>
+  <data name="ProfileColumnFunction" xml:space="preserve"><value>Funkce</value></data>
+  <data name="ProfileStatWorst" xml:space="preserve"><value>Nejhorší 1 %</value></data>
+  <data name="ProfileStatSlowest" xml:space="preserve"><value>Nejpomalejší</value></data>
+  <data name="ProfileStatAverage" xml:space="preserve"><value>Průměr</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Snímky</value></data>
+  <data name="ProfileStatFrame" xml:space="preserve"><value>Snímek</value></data>
+  <data name="ProfileFileType" xml:space="preserve"><value>Záznam výkonu</value></data>
+  <data name="ProfileChartHelp" xml:space="preserve"><value>Jak používat graf</value></data>
+  <data name="ProfileTabJava" xml:space="preserve"><value>Kód hry (Java)</value></data>
+  <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>
+  <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>
+  <data name="ProfileImport" xml:space="preserve"><value>Otevřít záznam…</value></data>
+  <data name="ProfileSaveAs" xml:space="preserve"><value>Uložit jako…</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>Tento záznam nelze otevřít. Soubor je poškozený nebo byl vytvořen novější verzí.</value></data>
+  <data name="ProfileEmpty" xml:space="preserve"><value>Zatím žádné záznamy.</value></data>
+  <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Smazat tento záznam? Tuto akci nelze vrátit zpět.</value></data>
+  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
+  <data name="LogActivity.Profile" xml:space="preserve"><value>Záznam výkonu</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Zpracovává se záznam…</value></data>
+  <data name="ProfilePhaseRecording" xml:space="preserve"><value>Zaznamenává se výkon hry…</value></data>
+  <data name="ProfileRecordingTitle" xml:space="preserve"><value>Nahrávání výkonu</value></data>
+  <data name="ProfileNoFrames" xml:space="preserve"><value>Hranice snímků nelze přečíst, proto tento záznam nemá graf snímků.</value></data>
+  <data name="ProfileNoLua" xml:space="preserve"><value>V této verzi hry nelze číst informace o módech (Lua), proto se zaznamenává jen kód Java.</value></data>
+  <data name="ProfileConverting" xml:space="preserve"><value>Zpracovávání záznamu…</value></data>
+  <data name="ProfileRecordingFormat" xml:space="preserve"><value>Nahrávání {0} · automaticky skončí po {1} min</value></data>
+  <data name="ProfileStarting" xml:space="preserve"><value>Připojování ke hře…</value></data>
+  <data name="ProfileIdleHint" xml:space="preserve"><value>Spusťte hru a pak začněte nahrávat. Vyvolejte sekání a zastavte záznam, zobrazí se výsledek.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Běžný: měří každých 0,01 sekundy a hru téměř nezatěžuje.&#xA;Podrobný: měří přibližně každých 0,002 sekundy a zaznamenává i čekání a pauzy. Hra může běžet o něco pomaleji.</value></data>
+  <data name="ProfileModeDetailed" xml:space="preserve"><value>Podrobný</value></data>
+  <data name="ProfileModeGeneral" xml:space="preserve"><value>Běžný</value></data>
+  <data name="ProfileRecordStop" xml:space="preserve"><value>Zastavit záznam</value></data>
+  <data name="ProfilerNavigation" xml:space="preserve"><value>Výkon</value></data>
+  <data name="ProfileRecordStart" xml:space="preserve"><value>Spustit záznam</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Tuto uloženou hru používá hra nebo jiná operace. Přestaňte hrát a zkuste to znovu. Originál nebyl změněn.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Tato uložená hra obsahuje nedokončené změny. Ukončete hru běžným způsobem a zkuste to znovu. Původní uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Tato funkce vyžaduje uloženou hru pro jednoho hráče s jedinou postavou. Uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Tuto uloženou hru nelze bezpečně upravit. Ověřte, že vaše verze PZ Tools podporuje verzi hry. Originál nebyl změněn.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Doba přežití není dostupná · kontrola se zopakuje</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Hra nebo jiná operace používá potřebný soubor. Počkejte na dokončení ukládání nebo dané operace a zkuste to znovu.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Uložená hra se během exportu změnila. Ukončete hru a exportujte znovu. Případný existující soubor zůstal zachován.</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Uložená data této zálohy jsou poškozená a nelze je přečíst. Vyberte jinou zálohu. Aktuální uložená hra ani existující soubor se nezměnily.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Není dostatek volného místa. Uvolněte místo na cílovém disku a zkuste to znovu.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Chybí potřebné soubory aplikace. Rozbalte celý stažený obsah do jedné složky nebo přeinstalujte PZ Tools a znovu jej otevřete.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Tato složka záloh používá jiný formát ukládání. V nastavení vyberte novou prázdnou složku. Pokud staré zálohy potřebujete, ponechte původní složku. Nemažte uložené hry.</value></data>
@@ -398,11 +501,11 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="SettingEnabled" xml:space="preserve"><value>Zapnuto</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Vypnuto</value></data>
   <data name="PausePeriodicSetting.Header" xml:space="preserve"><value>Pozastavit zálohování během pauzy nebo spánku</value></data>
-  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Pozastaví odpočet pravidelné zálohy během pauzy nebo spánku postavy. Po návratu ke hře pokračuje zbývající čas. Čeká také při neznámém stavu hry. Ruční zálohy a zálohy při smrti se nemění.</value></data>
+  <data name="PausePeriodicSetting.Description" xml:space="preserve"><value>Když je hra pozastavená nebo postava spí, zbývající čas se zastaví a pokračuje, až budete zase hrát. Při vypnutí se zálohuje v každém intervalu i tehdy.</value></data>
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Hra pozastavena</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Ověřování stavu hry</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Spusťte pouze jednu hru</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Ověřte výsledek posledního uložení hry a znovu zapněte automatické zálohování.</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Výsledek předchozí zálohy není známý, proto se tento interval přeskočí.</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Zrušit filtr</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Zrušit všechny</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · kliknutím filtrovat</value></data>
@@ -454,6 +557,20 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Zjemňuje rozjezd při couvání a omezuje jeho rychlost.</value></data>
   <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Jemné řízení</value></data>
   <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Zajišťuje pozvolné řízení klávesnicí a návrat do středové polohy.</value></data>
+  <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Světlo kolem vozidla</value></data>
+  <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Osvětluje okolí vozidla, ve kterém sedíte, dokud svítí jeho světlomety. Vyžaduje funkční světlomety a nabitou baterii a do uložené hry se nic nezapisuje.</value></data>
+  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Podle ročního období lehce mění barvy venku za dne. Noc a interiéry zůstávají beze změny.</value></data>
+  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Sezónní barvy</value></data>
+  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
+  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>Jak výrazně se zvolená nálada projeví.</value></data>
+  <data name="ScreenLook.Strength" xml:space="preserve"><value>Síla</value></data>
+  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Filmová</value></data>
+  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Sytá</value></data>
+  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Realistická</value></data>
+  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Vyberte celkový dojem z obrazu.</value></data>
+  <data name="ScreenLook.Preset" xml:space="preserve"><value>Nálada</value></data>
+  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Vzhled obrazu</value></data>
+  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Upravuje barvy a ostrost herního obrazu. Herní soubory se nemění a přepínačem vše zase vypnete.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Každá volba se ukládá samostatně. Níže je stav potvrzený hrou.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Použito ve hře · Experimentální</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Zapnutí vyžádáno · Čeká se na potvrzení hry</value></data>
@@ -470,6 +587,14 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Uložená nastavení se použijí po vstupu do hry pro jednoho hráče.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pro použití pokračujte ve hře, zastavte vozidlo, uvolněte plyn a vypněte tempomat.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Hra v hlavní nabídce</value></data>
+  <data name="RuntimeBackupLoading" xml:space="preserve"><value>Hra se načítá</value></data>
+  <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Postava je mrtvá – zálohy čekají</value></data>
+  <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nepodařilo se připojit ke hře; zálohuje se bez předchozího uložení hry.</value></data>
+  <data name="SettingSleepUnavailable" xml:space="preserve"><value>Spánek teď nelze přečíst, proto platí jen pauza.</value></data>
+  <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Nyní se nepoužívá, protože se nelze připojit ke hře.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Další záloha (bez uložení hry)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Stav hry nelze přečíst, proto se zálohuje v nastaveném intervalu bez předchozího uložení hry. V zálohách může chybět nedávný postup. Pokud byla hra nebo PZ Tools aktualizována, zkuste hru restartovat.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Nepodařilo se připojit ke hře</value></data>
   <data name="VersionSetting.Header" xml:space="preserve"><value>Verze</value></data>
   <data name="AboutSettings.Header" xml:space="preserve"><value>O aplikaci</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilita a stav</value></data>

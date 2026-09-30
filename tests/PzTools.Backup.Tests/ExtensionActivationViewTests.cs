@@ -212,7 +212,7 @@ public sealed class ExtensionActivationViewTests
         var pending = Active() with { State = RuntimeExtensionState.Pending, Reason = "safe-boundary",
             AppliedRevision = 1, RequestedRevision = 2 };
         var controller = new GameExtensionController(root, new RevisionedViewStore(), gameVersion: () => "42.20.0",
-            extensionStatus: () => pending, runtimeWorldReady: () => true);
+            extensionStatus: _ => pending, runtimeWorldReady: () => true);
         var initial = await controller.RefreshAsync();
         var card = initial.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain);
         Assert.True(initial.ActivationFor(card).IsBusy);

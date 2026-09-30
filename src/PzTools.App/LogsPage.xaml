@@ -73,13 +73,15 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <Grid Padding="20,4,20,2" ColumnSpacing="7">
+          <!-- The short columns are fitted to the language in LogColumns; the message takes the rest.
+               Shifted 3 px left so the header text, inside its button padding, starts where the row text does. -->
+          <Grid Padding="17,4,23,2" ColumnSpacing="7">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="65" />
-              <ColumnDefinition Width="104" />
-              <ColumnDefinition Width="85" />
+              <ColumnDefinition x:Name="LevelHeaderColumn" Width="64" />
+              <ColumnDefinition x:Name="TimeHeaderColumn" Width="104" />
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="108" />
+              <ColumnDefinition x:Name="RunHeaderColumn" Width="72" />
             </Grid.ColumnDefinitions>
             <Button x:Name="LogNumberButton" Style="{StaticResource LogHeaderButtonStyle}" Click="LogNumberButton_Click">
               <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -128,10 +130,10 @@
                 <Grid Padding="8,5" ColumnSpacing="7">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="65" />
-                    <ColumnDefinition Width="104" />
-                    <ColumnDefinition Width="85" />
+                    <ColumnDefinition Width="{x:Bind local:LogColumns.Level}" />
+                    <ColumnDefinition Width="{x:Bind local:LogColumns.Time}" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="108" />
+                    <ColumnDefinition Width="{x:Bind local:LogColumns.Run}" />
                   </Grid.ColumnDefinitions>
                   <Grid>
                     <Ellipse Width="5" Height="5" HorizontalAlignment="Left"
@@ -214,8 +216,10 @@
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
               <StackPanel Spacing="16">
+              <!-- The buttons share the row of the log number, so the message below gets the full width. -->
               <Grid ColumnSpacing="12" RowSpacing="5">
                 <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
                   <RowDefinition Height="Auto" />
                   <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -223,13 +227,15 @@
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Spacing="5">
-                  <TextBlock x:Name="DetailLogIndex" Opacity="0.62" IsTextSelectionEnabled="True" />
-                  <TextBlock x:Name="DetailMessage" TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                             Style="{ThemeResource SubtitleTextBlockStyle}" />
-                </StackPanel>
+                <TextBlock x:Name="DetailLogIndex" Opacity="0.62" IsTextSelectionEnabled="True"
+                           VerticalAlignment="Center" />
+                <TextBlock x:Name="DetailMessage" Grid.Row="1" Grid.ColumnSpan="2" TextWrapping="Wrap"
+                           IsTextSelectionEnabled="True" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="17" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                            VerticalAlignment="Top">
+                            VerticalAlignment="Center">
+                  <Button x:Name="AcknowledgeSelectedButton"
+                          Content="확인" Visibility="Collapsed"
+                          Click="AcknowledgeSelectedButton_Click" />
                   <Button x:Name="CopyLogDetailsButton" Width="36" Height="36" Padding="0"
                           Style="{StaticResource SubtleButtonStyle}"
                           local:AppToolTip.Tip="내용 복사"
@@ -237,11 +243,8 @@
                           Click="CopyLogDetailsButton_Click">
                     <FontIcon Glyph="&#xE8C8;" FontSize="16" />
                   </Button>
-                  <Button x:Name="AcknowledgeSelectedButton"
-                          Content="확인" Visibility="Collapsed"
-                          Click="AcknowledgeSelectedButton_Click" />
                 </StackPanel>
-                <TextBlock x:Name="DetailSummaryTime" Grid.Row="1" Grid.ColumnSpan="2"
+                <TextBlock x:Name="DetailSummaryTime" Grid.Row="2" Grid.ColumnSpan="2"
                            TextWrapping="Wrap" Opacity="0.62" IsTextSelectionEnabled="True" />
               </Grid>
               </StackPanel>
@@ -283,6 +286,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                       </Grid.RowDefinitions>
                       <TextBlock x:Name="DetailTimeLabel" Text="시간" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailTime" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
@@ -300,6 +304,10 @@
                       <TextBlock x:Name="DetailInstance" Grid.Row="6" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailFailureCodeLabel" Grid.Row="7" Text="오류 코드" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailFailureCode" Grid.Row="7" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                      <!-- What the failing code or Windows said, word for word and in whatever language it used.
+                           The failure card above shows only explanations in the app's language. -->
+                      <TextBlock x:Name="DetailRawMessageLabel" Grid.Row="8" Opacity="0.62" IsTextSelectionEnabled="True" Visibility="Collapsed" />
+                      <TextBlock x:Name="DetailRawMessage" Grid.Row="8" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="Collapsed" />
                     </Grid>
                     <TextBlock x:Name="DetailPayloadLabel" Text="원본 정보"
                                FontWeight="SemiBold" AutomationProperties.HeadingLevel="Level2" />

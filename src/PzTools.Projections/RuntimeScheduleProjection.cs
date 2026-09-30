@@ -12,6 +12,7 @@ public static class RuntimeScheduleProjection
         // Presentation can immediately show a confirmed process/world state, even while
         // its scheduler transition is committing. This does not grant execution permission.
         bool offline = observation.Quality == RuntimeQuality.Offline;
+        var fallbackDue = control.AutomaticEnabled && observation.IsLinkUnusable ? storage.Checkpoint?.FallbackDueUtc : null;
         var gamePhase = ObservedGamePhase(observation);
         if (storage.Facts is null || storage.Facts.AuthorityEpoch != observation.AuthorityEpoch
             || storage.Facts.StateRevision < observation.StateRevision || storage.Facts.SemanticKey != observation.SemanticKey)
@@ -22,6 +23,10 @@ public static class RuntimeScheduleProjection
             control.Generation, (long)control.Interval.TotalMilliseconds);
         var hold = control.CurrentTarget is null ? state.Hold | ScheduleHold.NoWorld : state.Hold;
         if (offline) hold |= ScheduleHold.GameOffline | ScheduleHold.NoWorld;
+        if (fallbackDue is { } due)
+            return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, due,
+                control.LastRunIndex, control.LastOutcome, control.AutomaticEnabled, control.PendingRuns,
+                PauseAware: true, Hold: hold, GamePhase: gamePhase, Fallback: true);
         return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, null,
             control.LastRunIndex, control.LastOutcome, control.AutomaticEnabled, control.PendingRuns,
             PauseAware: true, RemainingMilliseconds: Math.Max(0, state.RemainingMilliseconds),

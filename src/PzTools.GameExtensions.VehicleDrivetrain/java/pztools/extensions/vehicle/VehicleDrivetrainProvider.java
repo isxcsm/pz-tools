@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.*;
 import pztools.extensions.api.*;
 
 /** Explicitly activated local-SP module. Installation instruments only an inert stable hook. */
-public final class VehicleDrivetrainProvider implements ContinuousProvider {
+public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.FrameListener {
     private Instrumentation instrumentation;
     private Class<?> target;
     private ClassFileTransformer transformer;
@@ -40,6 +40,15 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider {
     }
     /** Resolve private field types and methods without reading or changing a game instance. */
     public static void verifyAccess(ClassLoader loader) throws ReflectiveOperationException { new VehicleAccess(loader); }
+    /** Whether the optional key-binding accessors resolve; without them steering keys are not timed, only that. */
+    public static boolean verifySteeringBindings(ClassLoader loader) throws ReflectiveOperationException {
+        var access=new VehicleAccess(loader);
+        return access.bindingsResolved() && access.inputGateResolved();
+    }
+    /** Whether the optional lighting accessors resolve; without them only the light around the vehicle is unavailable. */
+    public static boolean verifyAreaLight(ClassLoader loader) throws ReflectiveOperationException {
+        return new VehicleAccess(loader).areaLightResolved();
+    }
     @Override public Support preflight(Instrumentation instrumentation,ClassLoader loader,PreflightSource activeSource) throws Exception {
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
@@ -170,9 +179,12 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider {
         if(!readyToActivate(current.context,config)) throw new IllegalStateException("safe-boundary-required");
         current.reconfigure(settings);
     }
+    @Override public void gameFrame() { var current=control; if(current!=null) current.gameFrame(); }
     @Override public String diagnostics() { var current=control; return current==null?"":current.diagnostics(); }
     @Override public String failureReason() { return transformationFailure.get()==null?null:"controller-contract-changed"; }
     @Override public synchronized void deactivate() {
+        var current=control;
+        if(current!=null) { current.stopKeys(); current.stopLight(); }
         if(registered) { registered=false; retirement=VehicleHooks.unregister(this); }
     }
     @Override public void close() throws Exception {

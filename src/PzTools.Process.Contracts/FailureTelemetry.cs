@@ -29,6 +29,8 @@ public static class FailureTelemetry
             ["message"] = Limit(messageOverride ?? exception.Message, redactPathPrefix),
             ["hResult"] = $"0x{exception.HResult:X8}",
         };
+        // A Win32Exception says why in its own number (5 is access denied); its HResult is only the generic E_FAIL.
+        if (exception is System.ComponentModel.Win32Exception win32) fields["nativeErrorCode"] = win32.NativeErrorCode;
         Add(fields, "status", status, redactPathPrefix);
         Add(fields, "phase", phase, redactPathPrefix);
         Add(fields, "path", path, redactPathPrefix);

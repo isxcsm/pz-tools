@@ -7,7 +7,9 @@ public sealed record ChildProcessResult(
     int? ExitCode,
     string StandardOutput,
     string StandardError,
-    string? FailureCode);
+    string? FailureCode,
+    // Why Windows would not start it, as its own error number (5 is access denied); the message is in Windows' language.
+    int? NativeErrorCode = null);
 
 public sealed class ChildProcessHost
 {
@@ -50,7 +52,8 @@ public sealed class ChildProcessHost
             or DirectoryNotFoundException)
         {
             return new ChildProcessResult(
-                false, null, "", exception.Message, "launch-failed");
+                false, null, "", exception.Message, LaunchFailure.Classify(exception),
+                (exception as System.ComponentModel.Win32Exception)?.NativeErrorCode);
         }
 
         ProcessTreeJob? createdJob = null;

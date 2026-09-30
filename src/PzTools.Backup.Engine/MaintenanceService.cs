@@ -10,6 +10,7 @@ public sealed record MaintenanceOptions(
 {
     public int RevisionCompactionMaxDelayMinutes { get; init; } = 60;
     public RepositoryHousekeepingOptions Housekeeping { get; init; } = new();
+    public PackReclamationOptions PackReclamation { get; init; } = new();
 
     public void Validate()
     {
@@ -20,6 +21,8 @@ public sealed record MaintenanceOptions(
             throw new ArgumentOutOfRangeException(nameof(RevisionCompactionMaxDelayMinutes));
         ArgumentNullException.ThrowIfNull(Housekeeping);
         Housekeeping.Validate();
+        ArgumentNullException.ThrowIfNull(PackReclamation);
+        PackReclamation.Validate();
     }
 }
 

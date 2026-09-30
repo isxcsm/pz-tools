@@ -17,6 +17,20 @@ public sealed record OperationMutexSetResult<T>(
 
 public static class OperationMutexSet
 {
+    /// <summary>Whether any process currently holds or is taking this lock. Never acquires it.</summary>
+    public static bool IsInUse(OperationMutexRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var name = NamedMutexRunner.CreateName(request.Scope.ToString(), Path.GetFullPath(request.Identity));
+        try
+        {
+            if (!Mutex.TryOpenExisting(name, out var mutex)) return false;
+            mutex.Dispose();
+            return true;
+        }
+        catch (UnauthorizedAccessException) { return true; }
+    }
+
     public static async Task<OperationMutexSetResult<T>> TryRunAsync<T>(
         IEnumerable<OperationMutexRequest> requests,
         Func<CancellationToken, Task<T>> action,

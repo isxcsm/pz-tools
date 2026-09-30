@@ -91,6 +91,23 @@ public sealed record OperationView(
 
 public sealed record OperationsView(IReadOnlyList<OperationView> Operations);
 
+/// <summary>How long a finished operation stays on screen: the same rule for the projection and the app.</summary>
+public static class OperationCardLifetime
+{
+    public static TimeSpan Of(OperationStatus status, bool maintenance, TimeSpan success, TimeSpan failure) =>
+        // Postponed cleanup is not a failure to dwell on.
+        status is OperationStatus.Succeeded or OperationStatus.NoChange
+            || maintenance && status == OperationStatus.Cancelled ? success : failure;
+
+    public static bool IsExpired(OperationStatus status, DateTimeOffset? completedUtc, DateTimeOffset now,
+        bool maintenance, TimeSpan success, TimeSpan failure)
+    {
+        if (status is OperationStatus.Running or OperationStatus.Waiting) return false;
+        if (completedUtc is null) return true;
+        return now - completedUtc.Value > Of(status, maintenance, success, failure);
+    }
+}
+
 public sealed record ProducerMetricsView(
     string Producer,
     int RunCount,
@@ -513,13 +530,30 @@ public sealed class TelemetryProjectionHost(
             || name == "progress.snapshot"
             || IsCompletedFileEvent(name))
             return null;
+        if (name.StartsWith("maintenance.", StringComparison.Ordinal))
+        {
+            // Background cleanup is logged when it has real work; routine no-op checks stay trace-only.
+            if (name.EndsWith(".started", StringComparison.Ordinal))
+                return IsPlannedMaintenance(payload) ? LogLevel.Information : LogLevel.Trace;
+            // Yielding to a backup or to the game postpones the work; it is not a fault.
+            if (name.EndsWith(".cancelled", StringComparison.Ordinal)) return LogLevel.Information;
+            if (name == "maintenance.recovery.completed") return LogLevel.Information;
+        }
+        // The backup went ahead without the game's own save: worth seeing, though nothing failed.
+        if (name == "source.prepare.completed" && payload is { ValueKind: JsonValueKind.Object } prepared
+            && LogDiagnostics.ReadOutcome(prepared) == "save-unavailable")
+            return LogLevel.Warning;
         if (name.Contains("critical", StringComparison.OrdinalIgnoreCase))
             return LogLevel.Critical;
         if (name.EndsWith(".failed", StringComparison.Ordinal)
             || name.Contains("error", StringComparison.OrdinalIgnoreCase))
             return LogLevel.Error;
+        // Work that did not start because other work was running: the card says so and it can simply be
+        // started again. Nothing failed, so it is no problem to acknowledge in the logs.
+        if (name.EndsWith(".busy", StringComparison.Ordinal)) return LogLevel.Information;
+        // Work that could not start because what it needs is absent, such as a recording with no game running.
+        if (name.EndsWith(".unavailable", StringComparison.Ordinal)) return LogLevel.Information;
         if (name.Contains("warning", StringComparison.OrdinalIgnoreCase)
-            || name.EndsWith(".busy", StringComparison.Ordinal)
             || name.EndsWith(".degraded", StringComparison.Ordinal)
             || name.EndsWith(".cancelled", StringComparison.Ordinal))
             return LogLevel.Warning;
@@ -544,6 +578,8 @@ public sealed class TelemetryProjectionHost(
                             && started.ValueKind == JsonValueKind.False => LogLevel.Trace,
                         ProcessOutcome.Failed => LogLevel.Error,
                         ProcessOutcome.Busy or ProcessOutcome.Degraded or ProcessOutcome.Cancelled => LogLevel.Warning,
+                        _ when name.StartsWith("maintenance.", StringComparison.Ordinal)
+                            && (IsPlannedMaintenance(value) || AffectedMaintenanceItems(value) > 0) => LogLevel.Information,
                         _ => LogLevel.Trace,
                     };
                 }
@@ -553,6 +589,13 @@ public sealed class TelemetryProjectionHost(
         }
         return LogLevel.Information;
     }
+
+    private static bool IsPlannedMaintenance(JsonElement? payload) =>
+        payload is { ValueKind: JsonValueKind.Object } value
+        && value.TryGetProperty("planned", out var planned) && planned.ValueKind == JsonValueKind.True;
+
+    private static long AffectedMaintenanceItems(JsonElement payload) =>
+        ReadInt64(payload, "affectedItems") ?? 0;
 
     private IReadOnlyList<OperationView> BuildOperations(
         IReadOnlyList<TelemetrySourceRegistration> registrations,
@@ -600,23 +643,22 @@ public sealed class TelemetryProjectionHost(
                 if (sourcesCatchingUp.Contains(source.SourceId)) continue;
                 if (item.Value.IsUnfinished
                     && now - item.Value.LastEventUtc > staleAfter) continue;
+                if (item.Value.IsMaintenance && !item.Value.ShowMaintenance(now)) continue;
                 result.Add(item.Value.ToView(source.SourceId, null, health.Health, null));
             }
         }
         return result.Where(item => !dismissedOperations.ContainsKey(item.OperationId))
-            .Where(item => !IsTerminalExpired(item.Status, item.CompletedUtc, now))
+            .Where(item => !IsTerminalExpired(item.Status, item.CompletedUtc, now, IsMaintenanceProducer(item.Producer)))
             .OrderByDescending(item => item.RunIndex).ToArray();
     }
 
+    private static bool IsMaintenanceProducer(string producer) =>
+        producer.StartsWith("maintenance", StringComparison.Ordinal);
+
     private bool IsTerminalExpired(
-        OperationStatus status, DateTimeOffset? completedUtc, DateTimeOffset now)
-    {
-        if (status is OperationStatus.Running or OperationStatus.Waiting) return false;
-        if (completedUtc is null) return true;
-        var lifetime = status is OperationStatus.Succeeded or OperationStatus.NoChange
-            ? successCardLifetime ?? TimeSpan.FromSeconds(5) : failureCardLifetime ?? TimeSpan.FromSeconds(10);
-        return now - completedUtc.Value > lifetime;
-    }
+        OperationStatus status, DateTimeOffset? completedUtc, DateTimeOffset now, bool maintenance = false) =>
+        OperationCardLifetime.IsExpired(status, completedUtc, now, maintenance,
+            successCardLifetime ?? TimeSpan.FromSeconds(5), failureCardLifetime ?? TimeSpan.FromSeconds(10));
 
     private MetricsView BuildMetrics()
     {
@@ -745,10 +787,31 @@ public sealed class TelemetryProjectionHost(
 
         public bool IsUnfinished => status is OperationStatus.Waiting or OperationStatus.Running;
         public DateTimeOffset LastEventUtc { get; private set; }
+        public bool IsMaintenance { get; } = IsMaintenanceProducer(producer);
+        private bool planned, shownRunning;
+        private DateTimeOffset startedUtc;
+
+        /// <summary>
+        /// Background cleanup gets a card only while it is visibly working: at once when it announced
+        /// real work, otherwise after it has run long enough to matter. A finished run keeps the card it
+        /// already had; one that was never shown appears only if it needs attention.
+        /// </summary>
+        public bool ShowMaintenance(DateTimeOffset now)
+        {
+            if (status == OperationStatus.Running)
+                return shownRunning |= planned || now - startedUtc >= TimeSpan.FromSeconds(2);
+            return status != OperationStatus.Waiting
+                && (shownRunning || status is OperationStatus.Failed or OperationStatus.Degraded);
+        }
 
         public void Apply(NormalizedTelemetryEvent item)
         {
             LastEventUtc = item.OccurredUtc;
+            if (IsMaintenance && item.Name.EndsWith(".started", StringComparison.Ordinal))
+            {
+                startedUtc = item.OccurredUtc;
+                planned |= IsPlannedMaintenance(item.Payload);
+            }
             if (item.Name == "file.capture.started" && item.Payload is JsonElement started
                 && started.TryGetProperty("path", out var path)
                 && path.ValueKind == JsonValueKind.String)
@@ -890,6 +953,16 @@ public sealed class TelemetryProjectionHost(
             "run.failed" => OperationStatus.Failed,
             "run.cancelled" => OperationStatus.Cancelled,
             "run.busy" => OperationStatus.Busy,
+            // Did not start, like work that found other work running; the card names what was missing.
+            "run.unavailable" => OperationStatus.Busy,
+            // Interrupted-operation recovery reports inside a cleanup run; it is a log entry, not that run's state.
+            _ when item.Name.StartsWith("maintenance.", StringComparison.Ordinal)
+                && !item.Name.StartsWith("maintenance.recovery.", StringComparison.Ordinal) =>
+                item.Name.EndsWith(".started", StringComparison.Ordinal) ? OperationStatus.Running
+                : item.Name.EndsWith(".failed", StringComparison.Ordinal) ? OperationStatus.Failed
+                : item.Name.EndsWith(".cancelled", StringComparison.Ordinal) ? OperationStatus.Cancelled
+                : item.Name.EndsWith(".completed", StringComparison.Ordinal) && current == OperationStatus.Waiting
+                    ? OperationStatus.Succeeded : current,
             _ when item.Name.EndsWith(".completed", StringComparison.Ordinal)
                 && current == OperationStatus.Waiting => OperationStatus.Succeeded,
             _ => current,

@@ -19,8 +19,9 @@ from urllib.parse import unquote, urlsplit
 
 GUIDE_SECTIONS = (
     'features', 'getting-started', 'backups-and-retention', 'game-saving',
-    'restore-and-archives', 'character-recovery', 'compatibility-and-limits',
-    'troubleshooting', 'building', 'technical-documentation',
+    'restore-and-archives', 'character-recovery', 'performance-recording',
+    'compatibility-and-limits', 'troubleshooting', 'building', 'technical-documentation',
+    'license',
 )
 GUIDE_REFERENCES = (
     'docs/README.md', 'docs/development.md', 'docs/configuration.md',

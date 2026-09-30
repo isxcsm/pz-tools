@@ -12,7 +12,8 @@ internal sealed record OnceBackupArguments(
     ConfigurationArguments Configuration,
     DateTimeOffset? ScheduledUtc = null,
     bool RequireActiveGame = false,
-    RuntimeSaveTicket? RuntimeTicket = null, string? RuntimeAuthority = null, long? RuntimeGeneration = null)
+    RuntimeSaveTicket? RuntimeTicket = null, string? RuntimeAuthority = null, long? RuntimeGeneration = null,
+    string? GameVersion = null)
 {
     // Recover only an unambiguous caller identity for errors raised while
     // parsing other options. Full argument validation still happens in Parse.
@@ -37,9 +38,17 @@ internal sealed record OnceBackupArguments(
         RuntimeSaveTicket? runtimeTicket = null;
         string? runtimeAuthority = null;
         long? runtimeGeneration = null;
+        string? gameVersion = null;
         var configurationArguments = new List<string>();
         for (var index = 0; index < arguments.Length; index++)
         {
+            if (arguments[index] == "--game-version")
+            {
+                if (gameVersion is not null || ++index >= arguments.Length || string.IsNullOrWhiteSpace(arguments[index])
+                    || arguments[index].Length > 80 || arguments[index].Any(char.IsControl))
+                    throw new BackupConfigurationException("--game-version requires one value of at most 80 printable characters.");
+                gameVersion = arguments[index].Trim(); continue;
+            }
             if (arguments[index] == "--runtime-authority")
             {
                 if (runtimeAuthority is not null || ++index >= arguments.Length || !Path.IsPathFullyQualified(arguments[index]))
@@ -158,6 +167,6 @@ internal sealed record OnceBackupArguments(
             revision,
             controlDatabasePath,
             saveGame,
-            ConfigurationArguments.Parse(configurationArguments.ToArray()), scheduledUtc, requireActiveGame, runtimeTicket, runtimeAuthority, runtimeGeneration);
+            ConfigurationArguments.Parse(configurationArguments.ToArray()), scheduledUtc, requireActiveGame, runtimeTicket, runtimeAuthority, runtimeGeneration, gameVersion);
     }
 }

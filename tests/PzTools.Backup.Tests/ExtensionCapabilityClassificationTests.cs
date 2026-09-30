@@ -36,7 +36,7 @@ public sealed class ExtensionCapabilityClassificationTests
         var card = new ExtensionCardView(definition, true, "runtime-pending", 4, ForceVersion: true);
         Assert.False(card.CanEnable);
         Assert.False(card.EffectiveEnabled);
-        var view = new GameExtensionsView([card], true, VehicleStatus: Active(), RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = Active() }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.False(activation.IsOn);
         Assert.False(activation.IsPerSave);
@@ -75,7 +75,7 @@ public sealed class ExtensionCapabilityClassificationTests
         var runtime = Active() with { State = state, Reason = state == RuntimeExtensionState.FaultedPassThrough ? "vehicle-failed" : null };
         if (state == RuntimeExtensionState.FaultedPassThrough)
             runtime = runtime with { ControlReady = false, AppliedVehicleOptions = null };
-        var view = new GameExtensionsView([card], true, VehicleStatus: runtime, RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [ExtensionIds.VehicleDrivetrain] = runtime }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.Equal(ExtensionActivationKind.Continuous, definition.ActivationKind);
         Assert.True(activation.IsOn); // This module's saved request, not the vehicle module's runtime evidence.
@@ -92,7 +92,7 @@ public sealed class ExtensionCapabilityClassificationTests
     {
         var card = new ExtensionCardView(Definition(ExtensionIds.VehicleDrivetrain,
             [ExtensionCapabilities.VehicleDrivetrain]), true, "runtime-pending", 4);
-        var view = new GameExtensionsView([card], true, VehicleStatus: Active(), RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = Active() }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.True(activation.IsOn);
         Assert.True(activation.CanToggle);
@@ -107,7 +107,7 @@ public sealed class ExtensionCapabilityClassificationTests
         var card = new ExtensionCardView(Definition("pztools.another-save", [ExtensionCapabilities.SavePreparation]),
             true, "compatibility-on-request", 4);
         var failure = new RuntimeExtensionStatus(RuntimeExtensionState.RestartRequired, "vehicle-retirement-failed");
-        var view = new GameExtensionsView([card], true, VehicleStatus: failure, RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = failure }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.True(activation.IsOn);
         Assert.True(activation.IsPerSave);

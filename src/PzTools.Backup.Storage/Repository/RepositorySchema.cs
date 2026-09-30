@@ -72,6 +72,7 @@ internal static class RepositorySchema
                 character_metadata_error TEXT NULL,
                 logical_size INTEGER NOT NULL DEFAULT 0 CHECK (logical_size >= 0),
                 file_count INTEGER NOT NULL DEFAULT 0 CHECK (file_count >= 0),
+                game_version TEXT NULL,
                 PRIMARY KEY (source_id, revision)
             ) STRICT;
 

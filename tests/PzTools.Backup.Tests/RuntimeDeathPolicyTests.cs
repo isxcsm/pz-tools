@@ -51,6 +51,65 @@ public sealed class RuntimeDeathPolicyTests
         Assert.NotNull((await controller.PrepareAsync(now, TimeSpan.Zero, default)).Admission);
     }
     [Fact]
+    public void DeadCharacterHoldsPeriodicBackups_AndANewLifeStartsAFullInterval()
+    {
+        string stream = Id(), process = Id(), observer = Id(), world = Id(), character = Id();
+        RuntimeObservation Observe(long active, RuntimeCharacterLife life, string session) => new(stream, RuntimeQuality.Fresh,
+            new(process, observer, world, 1, 1, active + 1, WorldPhase.Ready, GamePause.Running, RuntimeMode.LocalSinglePlayer,
+                1, active, 0, @"C:\fixture\Saves\Sandbox\World", CharacterLife: life, CharacterSession: session,
+                DeathId: life == RuntimeCharacterLife.Dead ? session : null, Sleep: RuntimeSleep.Awake));
+        ActiveTimeScheduleState Step(ActiveTimeScheduleState state, RuntimeObservation sample) =>
+            ActiveTimeSchedulePolicy.Advance(state, sample, true, 1, 300_000);
+
+        var state = Step(new(1, 300_000, 300_000), Observe(0, RuntimeCharacterLife.Alive, character));
+        state = Step(state, Observe(200_000, RuntimeCharacterLife.Alive, character));
+        Assert.Equal(100_000, state.RemainingMilliseconds);
+        // Left running on the death screen for an hour: nothing becomes due.
+        state = Step(state, Observe(210_000, RuntimeCharacterLife.Dead, character));
+        state = Step(state, Observe(3_810_000, RuntimeCharacterLife.Dead, character));
+        Assert.Equal(ScheduleHold.CharacterDead, state.Hold);
+        Assert.Equal(300_000, state.RemainingMilliseconds);
+        Assert.Equal(new CountdownPresentation("RuntimeBackupCharacterDead"), ScheduleCountdownPresentation.Resolve(
+            new ScheduleStatusView(1, SchedulerMode.Continuous, null, null, null, null, true, 0, PauseAware: true,
+                RemainingMilliseconds: state.RemainingMilliseconds, Hold: state.Hold, GamePhase: WorldPhase.Ready), DateTimeOffset.UtcNow));
+
+        state = Step(state, Observe(3_820_000, RuntimeCharacterLife.Alive, Id()));
+        Assert.Equal(ScheduleHold.None, state.Hold);
+        Assert.Equal(300_000, state.RemainingMilliseconds);
+        state = Step(state, Observe(3_920_000, RuntimeCharacterLife.Alive, Id()));
+        Assert.Equal(200_000, state.RemainingMilliseconds);
+    }
+
+    [Fact]
+    public async Task ClockTimeScheduleAlsoWaitsWhileTheCharacterIsDead()
+    {
+        using var temp = new TempDirectory();
+        var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
+        var now = DateTimeOffset.UtcNow;
+        await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: false);
+        await db.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));
+        var feed = new RuntimeSnapshotStore();
+        int backups = 0; long run = 0;
+        var scheduler = new BackupScheduler(db, _ => Task.FromResult(++run),
+            (_, _, _, _, _) => { backups++; return Task.FromResult(new WorkerInvocation(false, ProcessOutcome.Skipped, null)); },
+            (_, _, _, _, _) => Task.FromResult(new WorkerInvocation(false, ProcessOutcome.Skipped, null)),
+            runtimeSchedule: new RuntimeScheduleController(db, feed));
+        var dead = new RuntimeSnapshot(Id(), Id(), Id(), 1, 1, 1, WorldPhase.Ready, GamePause.Running,
+            RuntimeMode.LocalSinglePlayer, 1, 0, 0, target.SourcePath, CharacterLife: RuntimeCharacterLife.Dead,
+            CharacterSession: Id(), DeathId: Id());
+        await scheduler.TickAsync(now);
+
+        feed.Publish(new(Id(), RuntimeQuality.Fresh, dead));
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(6))).Due);
+        Assert.Equal(0, backups);
+
+        feed.Publish(new(Id(), RuntimeQuality.Fresh, dead with { CharacterLife = RuntimeCharacterLife.Alive, CharacterSession = Id(), DeathId = null }));
+        Assert.True((await scheduler.TickAsync(now.AddMinutes(6))).Due);
+        Assert.Equal(1, backups);
+    }
+
+    [Fact]
     public async Task DisabledDeathsAreConsumedAndNewCharacterInvalidatesPendingWork()
     {
         using var temp = new TempDirectory();

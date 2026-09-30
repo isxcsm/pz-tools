@@ -56,7 +56,8 @@ public final class RuntimeObserver {
                 boolean newWorld = ready && adapter.worldCell != lastCell;
                 if (newWorld) world = RuntimeIdentity.worldId(adapter.worldCell);
                 LiveCharacter.Facts nextCharacter = ready ? characterReader.read(world) : LiveCharacter.observe(null, null, "Unknown");
-                boolean running = ready && adapter.pause.equals("Running") && nextCharacter.sleep().equals("Awake");
+                // Sleep that cannot be read only loses the sleep pause; it must not stop the clock.
+                boolean running = ready && adapter.pause.equals("Running") && !nextCharacter.sleep().equals("Asleep");
                 boolean gap = lastTick != 0 && (now - lastTick < 0 || now - lastTick > 2_000_000_000L);
                 boolean changed = !adapter.phase.equals(phase) || !adapter.pause.equals(pause)
                     || !adapter.mode.equals(mode) || newWorld;
@@ -92,7 +93,8 @@ public final class RuntimeObserver {
         if (context != null && context.active) return false;
         Context next = new Context(AgentEntry.ensureGameHook());
         context = next;
-        AgentEntry.observe(next::sample);
+        // The per-frame slot is shared with an optional profile recording; its mark is one branch when idle.
+        AgentEntry.observe(() -> { ProfileRecorder.frame(); next.sample(); });
         return true;
     }
     public static synchronized void stop() {
@@ -104,7 +106,9 @@ public final class RuntimeObserver {
         }
         AgentEntry.observe(null);
         context = null;
+        ProfileControl.observerStopped();
     }
+    static boolean running() { Context value = context; return value != null && value.active; }
     static String frame() {
         Context value = context;
         if (value == null || !value.active) throw new Deferred("runtime-unavailable");
@@ -153,8 +157,7 @@ public final class RuntimeObserver {
                 return 0; // Death backups do not depend on the periodic active-time/pause clock.
             }
             if (!s.pause.equals("Running")) throw new Deferred("runtime-game-paused");
-            if (!s.character.sleep().equals("Awake"))
-                throw new Deferred(s.character.sleep().equals("Asleep") ? "runtime-character-asleep" : "runtime-sleep-unavailable");
+            if (s.character.sleep().equals("Asleep")) throw new Deferred("runtime-character-asleep");
             long remaining = due - s.activeMillis;
             if (remaining > 60_000) throw new Deferred("runtime-deadline-invalid");
             return Math.max(0, remaining);

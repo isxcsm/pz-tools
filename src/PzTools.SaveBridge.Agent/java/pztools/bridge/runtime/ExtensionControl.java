@@ -152,18 +152,23 @@ public final class ExtensionControl {
                     result = next.apply(new ContinuousModules.Apply(p[3], p[4], expected, revision, p[7], p[8].equals("force"), config),
                         instrumentation, loader, PzRuntimeAdapter.readVersion(loader));
                 } catch (Exception | LinkageError unavailable) {
-                    var previous = modules == null ? disabled() : modules.status();
+                    ContinuousModules.Status previous;
+                    try { previous = modules == null ? disabled() : one(modules, "status", p[7]); }
+                    catch (IOException unknown) { previous = disabled(); }
                     result = new ContinuousModules.Status(previous.state().equals("Disabled") ? "Unsupported" : previous.state(),
                         "host-update-unavailable", previous.processId(), previous.worldId(), previous.generation(),
                         previous.appliedRevision(), previous.moduleVersion(), previous.moduleSha256(), previous.diagnostics());
                 }
-            } else if (p.length == 3 && Set.of("STATUS", "PING", "OFF").contains(p[0])) {
+            } else if ((p.length == 3 || p.length == 4) && Set.of("STATUS", "PING", "OFF").contains(p[0])) {
+                // Three fields address the host as a whole (OFF retires every module); a fourth names one module.
+                if (p.length == 4 && !p[3].matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+")) throw new IOException("Invalid module identity");
                 deadline = clock.getAsLong() + LEASE_NANOS;
                 ContinuousModules target = modules;
                 // A new controller must see the resident host's failure, not manufacture a clean Disabled state.
                 // Commands run only after acquiring the lifecycle slot; a rejected owner never touches that host.
                 if (target == null) modules = target = moduleHost.call();
-                result = p[0].equals("OFF") ? target.deactivate("user-disabled") : target.status();
+                if (p.length == 3) result = p[0].equals("OFF") ? target.deactivate("user-disabled") : target.status();
+                else result = p[0].equals("OFF") ? one(target, "deactivate", p[3], "user-disabled") : one(target, "status", p[3]);
             } else throw new IOException("Unknown extension command");
             String response = wire(p[1], result);
             if (mutating) completed.put(p[1], new Cached(line, response));
@@ -188,6 +193,23 @@ public final class ExtensionControl {
                 AgentEntry.releaseLifecycle(this);
                 operations.unlock();
             }
+        }
+    }
+    /**
+     * One module's state or retirement. The host that implements this is loaded separately from
+     * this channel and the resident contract has no such call, so it is reached by name.
+     */
+    private static ContinuousModules.Status one(ContinuousModules host, String method, String... arguments) throws IOException {
+        try {
+            Class<?>[] types = new Class<?>[arguments.length];
+            Arrays.fill(types, String.class);
+            var call = host.getClass().getMethod(method, types);
+            call.setAccessible(true);
+            return (ContinuousModules.Status)call.invoke(host, (Object[])arguments);
+        } catch (java.lang.reflect.InvocationTargetException failure) {
+            throw new IOException("Module control failed", failure.getCause());
+        } catch (ReflectiveOperationException | ClassCastException unavailable) {
+            throw new IOException("This extension host cannot address one module", unavailable);
         }
     }
     static Map<String, String> parseConfig(String encoded) throws IOException {
