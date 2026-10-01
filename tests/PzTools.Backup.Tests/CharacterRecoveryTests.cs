@@ -54,10 +54,21 @@ public sealed class CharacterRecoveryTests
         return (player, layout);
     }
 
-    internal static byte[] Zombie(string name, bool includeCard = true)
+    // Seen in a real save: a woman with human skin 4 rose with skin 3, as there are only four zombie skins.
+    [Fact]
+    public void ZombieInventory_MatchesAZombieWhoseSkinTheGameRenumbered()
+    {
+        var (player, layout) = EmptyPlayer();
+        var result = ZombieInventoryRecovery.Recover(player, layout, "Test", ZombieFile(Zombie("Test", skinTexture: 1)), Registry);
+        Assert.Equal(3, result.Items);
+        Assert.Throws<InvalidDataException>(() => ZombieInventoryRecovery.Recover(player, layout, "Test",
+            ZombieFile(Zombie("Other Test", skinTexture: 1)), Registry));
+    }
+
+    internal static byte[] Zombie(string name, bool includeCard = true, byte skinTexture = 2)
     {
         var w = new BigEndianWriter(); w.Byte(1); w.Byte(3); w.Zeros(24); w.Byte(0); w.Byte(1);
-        Descriptor(w, "None", "None"); Visual(w, name);
+        Descriptor(w, "None", "None"); Visual(w, name, skinTexture);
         w.String("inventoryfemale"); w.Byte(0); w.Short(includeCard ? 4 : 3);
         var card = new BigEndianWriter(); card.Short(1); card.Byte(255); card.Int(11); card.Byte(64);
         card.Int(8); card.String("ID card: " + name);
@@ -76,10 +87,10 @@ public sealed class CharacterRecoveryTests
         w.Int(0); w.String(first); w.String(last); w.String("Kate"); w.Int(1);
         w.String("base:unemployed"); w.Int(0); w.Int(0); w.String("VoiceFemale"); w.Zeros(8);
     }
-    internal static void Visual(BigEndianWriter w, string variant)
+    internal static void Visual(BigEndianWriter w, string variant, byte skinTexture = 2)
     {
         w.Byte(44); w.Byte(variant == "Test" ? (byte)70 : (byte)90); w.Byte(40); w.Byte(20);
-        w.Byte(255); w.Byte(200); w.Byte(100); w.Byte(0); w.Byte(2); w.Byte(255);
+        w.Byte(255); w.Byte(200); w.Byte(100); w.Byte(0); w.Byte(skinTexture); w.Byte(255);
         w.String("Short"); w.Zeros(4); w.String(""); w.Byte(4); w.Byte(70); w.Byte(40); w.Byte(20);
     }
     internal static byte[] ZombieFile(params byte[][] zombies)

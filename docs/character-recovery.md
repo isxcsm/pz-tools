@@ -66,8 +66,14 @@ Three kinds of evidence are used, strongest first:
    saved name, sex and persistent appearance fields. Such a corpse can be matched even
    if it was moved from where the character died.
 3. **Nameless zombie.** Older reanimated records lose their name. They need
-   distinctive full visual data inherited from the character (only the zombie's rot
-   stage is ignored), the same sex, and the exact saved death position.
+   distinctive full visual data inherited from the character, the same sex, and the
+   exact saved death position. Two visual fields are ignored because the game rewrites
+   them when the character rises: the rot stage, and the skin texture number, which
+   the game fits to the shorter list of zombie skins (a woman's human skin 4 becomes
+   zombie skin 3).
+
+A character who dies before their first backup was never stamped with a recovery ID,
+however new the save, so their remains are found by rules 2 and 3.
 
 A zombie is never chosen just because it is nearby. If no remains can be identified,
 recovery stops with `recovery-inventory-unavailable` and the save is not changed.
@@ -180,6 +186,7 @@ Focused Windows tests cover:
   character that is gone
 - inventory recovery without an ID card
 - stamped zombies that have moved
+- a nameless zombie whose skin texture number the game changed
 - hand-item IDs
 - named corpses
 - byte-exact bags and items

@@ -114,7 +114,10 @@ internal static class RemainsFormat
         for (var n = r.Byte(); n > 0; n--) ItemVisual(r);
         r.Text(); var flags2 = r.Byte(); if ((flags2 & ~6) != 0) throw RemainsReader.Invalid();
         stable.WriteByte(flags2); foreach (var bit in new[] { 4, 2 }) if ((flags2 & bit) != 0) { var p = r.Position; r.Skip(3); stable.Write(r.Bytes.AsSpan(p, 3)); }
-        var exact = r.Slice(start); exact[rot - start] = 255;
+        // The game rewrites two fields when the character rises: the rot stage, and the skin texture
+        // number, which HumanVisual.getSkinTexture clamps to the shorter zombie skin list (human skin 4 of
+        // a woman becomes zombie skin 3). Neither can identify the character.
+        var exact = r.Slice(start); exact[rot - start] = 255; exact[p0 + 1 - start] = 255;
         // Default/all-zero synthetic visuals cannot establish identity on their own.
         return new(exact, stable.ToArray(), (flags & 14) != 0 && (flags & 48) != 0);
     }
