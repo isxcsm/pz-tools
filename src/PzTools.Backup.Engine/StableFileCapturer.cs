@@ -29,6 +29,9 @@ public sealed class StagedFileCapture(
     // This digest describes the private staged copy, never a later live source read.
     internal ReadOnlyMemory<byte> FullSha256 { get; } = fullSha256 ?? [];
 
+    // The staged copy's change fingerprint, when recorded.
+    internal byte[]? ContentHash => contentHash;
+
     internal StableFileCaptureResult Reuse(PackObjectDescriptor storedObject) =>
         new(storedObject, SourceMetadata, contentHash);
 

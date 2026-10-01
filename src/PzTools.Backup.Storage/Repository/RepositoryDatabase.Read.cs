@@ -364,6 +364,60 @@ public sealed partial class RepositoryDatabase
         return candidates;
     }
 
+    /// <summary>
+    /// The stored object each of these paths currently holds in the source's catalog, keyed by path key
+    /// (normalized, invariant upper case). Paths without a live file version are absent.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, CurrentFileObject>> ReadCurrentFileObjectsAsync(
+        long sourceId,
+        IEnumerable<string> relativePaths,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(relativePaths);
+        var keys = relativePaths.Select(path => BackupPath.NormalizeRelative(path).ToUpperInvariant())
+            .Distinct(StringComparer.Ordinal).ToArray();
+        var result = new Dictionary<string, CurrentFileObject>(keys.Length, StringComparer.Ordinal);
+        if (keys.Length == 0) return result;
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT path.path_key, object.object_id, object.pack_id, pack.relative_path,
+                   object.pack_offset, object.stored_length, object.original_length,
+                   object.checksum_algorithm, object.checksum,
+                   object.compression_algorithm, object.flags, object.content_hash
+            FROM json_each($keys) AS wanted
+            JOIN paths AS path ON path.path_key = wanted.value
+            JOIN entry_versions AS entry
+              ON entry.source_id = $sourceId AND entry.path_id = path.path_id
+             AND entry.valid_to_revision IS NULL
+            JOIN stored_objects AS object ON object.object_id = entry.object_id
+            JOIN packs AS pack ON pack.pack_id = object.pack_id
+            WHERE entry.entry_kind = 'File' AND entry.tombstone = 0 AND pack.status = 'Committed';
+            """;
+        command.Parameters.AddWithValue("$sourceId", sourceId);
+        command.Parameters.AddWithValue("$keys", System.Text.Json.JsonSerializer.Serialize(keys));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result[reader.GetString(0)] = new CurrentFileObject(
+                new DeduplicationCandidate(
+                    reader.GetGuid(1),
+                    reader.GetGuid(2),
+                    reader.GetString(3),
+                    reader.GetInt64(4),
+                    reader.GetInt64(5),
+                    reader.GetInt64(6),
+                    StorageAlgorithmCodec.Checksum(reader.GetInt32(7)),
+                    reader.IsDBNull(8) ? [] : (byte[])reader.GetValue(8),
+                    StorageAlgorithmCodec.Compression(reader.GetInt32(9)),
+                    reader.GetInt32(10)),
+                reader.IsDBNull(11) ? null : (byte[])reader.GetValue(11));
+        }
+
+        return result;
+    }
+
     public async Task<IReadOnlyList<RevisionEntry>> ReadRevisionEntriesAsync(
         long sourceId,
         long revision,

@@ -19,11 +19,19 @@ public sealed record BackupOptions(
 
 public sealed record BackupSourceOptions(string Id, string Path);
 
+/// <param name="CompressionLevel">Brotli quality for new data, 1 (fastest) to 11. On a save's files, 3
+/// stored 12% less than 1 for 2.5 times the CPU; above 5 the size barely moved while the time kept growing.</param>
 public sealed record StorageOptions(
     ChecksumAlgorithm Checksum,
     CompressionAlgorithm Compression,
     bool ContentDeduplication,
-    bool VerifyStagedCopies = true);
+    bool VerifyStagedCopies = true,
+    int CompressionLevel = StorageOptions.DefaultCompressionLevel)
+{
+    public const int DefaultCompressionLevel = 3;
+    public const int MinimumCompressionLevel = 1;
+    public const int MaximumCompressionLevel = 11;
+}
 
 public sealed record TelemetryOptions(
     TelemetryMode Mode,

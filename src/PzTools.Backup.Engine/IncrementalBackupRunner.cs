@@ -224,6 +224,13 @@ public sealed class IncrementalBackupRunner(
                 cancellationToken);
             var progress = new BackupCaptureProgress(telemetry, workloadItems, workloadBytes,
                 tuning.ProgressIntervalMs, cancellationToken);
+            // A changed file may hold the bytes its path already stores: the game rewrites every chunk it
+            // has loaded on each save. Each is compared with that object before it is stored again.
+            var currentObjects = deduplicatingCapturer is null ? null
+                : await repository.ReadCurrentFileObjectsAsync(source.SourceId,
+                    pending.Where(item => !item.Tombstone && item.Kind == CatalogEntryKind.File)
+                        .Select(item => item.RelativePath), cancellationToken);
+            var reusedFiles = 0;
             async IAsyncEnumerable<PendingEntry> CaptureEntries(
                 [EnumeratorCancellation] CancellationToken token)
             {
@@ -235,7 +242,7 @@ public sealed class IncrementalBackupRunner(
                         entries.Add(item.ToRegistration(ObjectId: null));
                         continue;
                     }
-                    packWriter ??= await PackWriter.CreateAsync(repository.RepositoryPath, run.RunIndex, token);
+                    packWriter ??= await PackWriter.CreateAsync(repository.RepositoryPath, run.RunIndex, token, storageOptions.CompressionLevel);
                     yield return item;
                 }
             }
@@ -249,10 +256,16 @@ public sealed class IncrementalBackupRunner(
                 currentFile = item.RelativePath;
                 await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Raw, "file.capture.started",
                     JsonSerializer.Serialize(new { path = item.RelativePath })), cancellationToken);
-                var stored = await prepared.CaptureAsync(repository, fileCapturer, deduplicatingCapturer,
+                StoredFileCapture? stored = null;
+                if (currentObjects is not null && prepared.Staged is { } staged
+                    && currentObjects.TryGetValue(BackupPath.NormalizeRelative(item.RelativePath).ToUpperInvariant(), out var current))
+                    stored = await deduplicatingCapturer!.TryReuseCurrentAsync(
+                        repository, staged, current, cancellationToken, progress.ReportAsync);
+                stored ??= await prepared.CaptureAsync(repository, fileCapturer, deduplicatingCapturer,
                     packWriter!, checksum, compression, storageOptions.ContentDeduplication,
                     cancellationToken, progress.ReportAsync);
                 var captured = stored.Capture;
+                if (stored.Reused) reusedFiles++;
                 if (!stored.Reused)
                 {
                     objects.Add(new StoredObjectRegistration(
@@ -287,7 +300,8 @@ public sealed class IncrementalBackupRunner(
                 currentFile = null;
             }
             await telemetry.EmitAsync(
-                new TelemetryEvent(TelemetryEventScope.Phase, "capture.completed"),
+                new TelemetryEvent(TelemetryEventScope.Phase, "capture.completed",
+                    JsonSerializer.Serialize(new { reusedFiles })),
                 cancellationToken);
 
             failurePhase = "pack";

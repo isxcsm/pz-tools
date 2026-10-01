@@ -153,7 +153,7 @@ public sealed class InitialBackupRunner(
                 await foreach (var entry in scan.EnumerateEntriesAsync(token))
                 {
                     if (entry.Kind == CatalogEntryKind.Directory) continue;
-                    packWriter ??= await PackWriter.CreateAsync(repository.RepositoryPath, run.RunIndex, token);
+                    packWriter ??= await PackWriter.CreateAsync(repository.RepositoryPath, run.RunIndex, token, storageOptions.CompressionLevel);
                     yield return entry;
                 }
             }

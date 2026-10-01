@@ -103,6 +103,7 @@ full_scan_hash_comparison = true
 [storage]
 checksum = "auto"
 compression = "auto"
+compression_level = 3
 content_deduplication = false
 verify_staged_copies = true
 
@@ -187,7 +188,15 @@ See [stable capture](stable-capture.md) and
 | `checksum` | `auto`, `none`, `xxhash64`, `sha256` | XxHash64 |
 | `compression` | `auto`, `none`, `brotli` | Brotli |
 
-`content_deduplication = true` requires `checksum = "sha256"`.
+`compression_level` (1 to 11, default 3) sets how hard Brotli compresses new data. On a
+save's 10,733 files (78 MB), level 1 stored 14.4 MB in 0.4 s, level 3 12.6 MB in 0.9 s
+and level 4 12.2 MB in 1.6 s, on one core; from level 5 the size hardly changed while
+the time kept growing. An ordinary backup compresses only the files that changed. Pack
+compaction recompresses the objects it moves at the default level.
+
+`content_deduplication = true` requires `checksum = "sha256"`. Without it, a changed file
+whose bytes equal what its path already stores still reuses that copy; see
+[repository format](repository-format.md#paths-and-objects).
 
 ### Backup names
 

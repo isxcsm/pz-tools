@@ -55,6 +55,9 @@ public sealed record DeduplicationCandidate(
     string CompressionAlgorithm,
     int Flags);
 
+/// <param name="ContentHash">The object's change fingerprint (first 16 bytes of SHA-256), when recorded.</param>
+public sealed record CurrentFileObject(DeduplicationCandidate Object, byte[]? ContentHash);
+
 public sealed record RevisionReference(long SourceId, long Revision);
 
 public sealed record CurrentTrackedPath(

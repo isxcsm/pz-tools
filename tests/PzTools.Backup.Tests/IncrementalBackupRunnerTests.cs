@@ -198,6 +198,71 @@ public sealed class IncrementalBackupRunnerTests
         Assert.Equal([9, 9, 9], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_1.bin")));
     }
 
+    [Fact]
+    public async Task RewriteWithTheSameBytes_ReusesItsObject_ButAMatchingFingerprintAloneDoesNot()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        var same = Path.Combine(sourcePath, "map_1_1.bin");
+        var changed = Path.Combine(sourcePath, "map_1_2.bin");
+        await File.WriteAllBytesAsync(same, [1, 2, 3, 4]);
+        await File.WriteAllBytesAsync(changed, [5, 6, 7, 8]);
+        await using var setup = await CreateInitialAsync(temp, sourcePath);
+        var objectsBefore = await CountObjectsAsync(setup.Repository);
+        var sameObject = await CurrentObjectAsync(setup.Repository, "map_1_1.bin");
+
+        // As the game saves: the same bytes written again, and new bytes of the same length.
+        await File.WriteAllBytesAsync(same, [1, 2, 3, 4]);
+        await File.WriteAllBytesAsync(changed, [9, 9, 9, 9]);
+        File.SetLastWriteTimeUtc(same, DateTime.UtcNow.AddMinutes(1));
+        // Make the changed file's old object claim the new fingerprint: only the byte comparison can tell.
+        await using (var connection = await setup.Repository.OpenConnectionAsync())
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText =
+                """
+                UPDATE stored_objects SET content_hash=$hash WHERE object_id=(
+                    SELECT entry.object_id FROM current_entry_catalog AS entry WHERE entry.path_key='MAP_1_2.BIN');
+                """;
+            command.Parameters.AddWithValue("$hash", ContentFingerprint.FromSha256(SHA256.HashData(new byte[] { 9, 9, 9, 9 })));
+            Assert.Equal(1, await command.ExecuteNonQueryAsync());
+        }
+        var metadata = new WindowsFileMetadataReader();
+        var capturer = new StableFileCapturer(metadata);
+        await using var deduplicating = new DeduplicatingFileCapturer(capturer);
+        var runner = new IncrementalBackupRunner(new StreamingFullScanner(metadata), capturer, metadata,
+            new UnavailableJournal(), new UsnDeltaPlanner(), deduplicatingCapturer: deduplicating);
+
+        var result = await runner.RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry);
+
+        Assert.Equal(2, result.Revision);
+        Assert.Equal(2, result.ChangedEntries);
+        Assert.Equal(objectsBefore + 1, await CountObjectsAsync(setup.Repository));
+        Assert.Equal(sameObject, await CurrentObjectAsync(setup.Repository, "map_1_1.bin"));
+        var restore = temp.GetPath("restore");
+        await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, revision: 2, restore);
+        Assert.Equal([1, 2, 3, 4], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_1.bin")));
+        Assert.Equal([9, 9, 9, 9], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_2.bin")));
+        var previous = temp.GetPath("previous");
+        await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, revision: 1, previous);
+        Assert.Equal([5, 6, 7, 8], await File.ReadAllBytesAsync(Path.Combine(previous, "map_1_2.bin")));
+    }
+
+    private static async Task<long> CountObjectsAsync(RepositoryDatabase repository)
+    {
+        await using var connection = await repository.OpenConnectionAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM stored_objects;";
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<Guid> CurrentObjectAsync(RepositoryDatabase repository, string relativePath)
+    {
+        var current = await repository.ReadCurrentFileObjectsAsync(1, [relativePath]);
+        return Assert.Single(current).Value.Object.ObjectId;
+    }
+
     [FatVolumeFact]
     public async Task FullScanOnFat_BacksUpAndCapturesASameSizeRewriteWithItsOldTimeRestored()
     {

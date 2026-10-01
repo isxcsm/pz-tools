@@ -111,6 +111,16 @@ rather than merging them silently. See [path handling](path-normalization.md).
 
 Object IDs are opaque locators, not content hashes. Deduplication uses full SHA-256 and
 a byte comparison, then reuses the existing object without compressing it again.
+
+Independently of that setting, an incremental backup compares each file it is about to
+store with the object its path already holds. The game rewrites every chunk it has
+loaded on each save, mostly with the bytes they had, and a new time makes each one look
+changed. When the length and the comparison fingerprint match and every byte compares
+equal, the new version reuses that object. The fingerprint only picks the candidate;
+the byte comparison decides. An earlier pack that cannot be read is not an error here:
+the file is stored again. With the game saving each time and the player standing still,
+389 of the 391 files a backup took were reused, and the backup added 150 KB instead of
+1.27 MB.
 [Storage performance](history/storage-performance.md) records the implementation work.
 
 ### Commit boundaries

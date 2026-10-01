@@ -54,6 +54,36 @@ public sealed class PackFormatTests
     }
 
     [Fact]
+    public async Task CompressionLevel_ChangesTheStoredSizeOnly()
+    {
+        // Text-like content, as save files are: a higher level must store less and read back the same.
+        var words = "zombie chunk square object tile room building vehicle player item ".Split(' ');
+        var random = new Random(7);
+        var content = System.Text.Encoding.ASCII.GetBytes(string.Join(' ',
+            Enumerable.Range(0, 40_000).Select(_ => words[random.Next(words.Length)] + random.Next(100))));
+        async Task<(long Stored, byte[] Restored)> StoreAtAsync(int level)
+        {
+            using var temp = new TempDirectory();
+            await using var writer = await PackWriter.CreateAsync(temp.Path, runIndex: 1, compressionLevel: level);
+            await using var source = new MemoryStream(content, writable: false);
+            var written = await writer.AddObjectAsync(source, ChecksumAlgorithm.XxHash64, CompressionAlgorithm.Brotli);
+            var committed = await writer.SealAndPromoteAsync();
+            await using var reader = await PackReader.OpenAsync(committed.FullPath, verifyPayloads: true);
+            await using var output = new MemoryStream();
+            await reader.CopyObjectToAsync(written.ObjectId, output);
+            return (written.StoredLength, output.ToArray());
+        }
+
+        var (fastest, fromFastest) = await StoreAtAsync(1);
+        var (standard, fromStandard) = await StoreAtAsync(3);
+        Assert.Equal(content, fromFastest);
+        Assert.Equal(content, fromStandard);
+        Assert.True(standard < fastest, $"level 3 stored {standard} bytes, level 1 {fastest}");
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            PackWriter.CreateAsync(Path.GetTempPath(), runIndex: 1, compressionLevel: 12));
+    }
+
+    [Fact]
     public async Task Reader_DetectsTruncatedPack()
     {
         using var temp = new TempDirectory();

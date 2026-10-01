@@ -45,6 +45,11 @@ full_scan_hash_comparison = true
 # Compression reduces storage space; "auto" chooses the usual compression.
 checksum = "auto"
 compression = "auto"
+# How hard new data is compressed, 1 (fastest) to 11. Typical backups compress only the few
+# MB that changed, so a higher level costs little time there; a first full backup of a large
+# save takes longer. On a save's files, 3 stored 12% less than 1 for 2.5 times the CPU time;
+# above 5 the size hardly shrinks while the time keeps growing. Existing data is unchanged.
+compression_level = 3
 # Reuse stored content when different revisions contain identical files. This
 # saves disk space but requires checksum = "sha256" and extra processing time.
 content_deduplication = false
