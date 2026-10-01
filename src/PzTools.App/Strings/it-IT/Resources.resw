@@ -442,6 +442,15 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Questo salvataggio contiene modifiche non completate. Esci normalmente dal gioco e riprova. Il salvataggio originale non è stato modificato.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Impossibile stabilire quale personaggio ripristinare. La funzione è disponibile solo per i salvataggi per giocatore singolo e, se un salvataggio contiene più personaggi, bisogna sceglierne uno. Il salvataggio non è stato modificato.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Questo salvataggio contiene più personaggi. Scegli quello da ripristinare; gli altri non vengono modificati.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Ricerca dello zombie o del cadavere del personaggio…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Scegli lo zombie o il cadavere da cui recuperare gli oggetti. Quello scelto scompare dal mondo.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie ({0} oggetti)</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Cadavere ({0} oggetti)</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>A {0} caselle dal luogo della morte</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Rianima senza oggetti</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Nessuno zombie o cadavere di questo personaggio trovato. Verrà rianimato senza oggetti.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Non è stato possibile cercare in anticipo lo zombie o il cadavere del personaggio. Il ripristino lo cercherà di nuovo.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Lo zombie o il cadavere scelto è cambiato nel frattempo. Riapri la finestra di ripristino. Il salvataggio non è stato modificato.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Il personaggio scelto non è più presente in questo salvataggio. Il salvataggio potrebbe essere cambiato nel frattempo; riprova. Il salvataggio non è stato modificato.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Questo salvataggio non può essere modificato in sicurezza. Verifica che la versione di PZ Tools supporti quella del gioco. L’originale non è stato modificato.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Tempo di sopravvivenza non disponibile · nuova verifica</value></data>

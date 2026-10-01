@@ -54,9 +54,28 @@ and the corpse lists in the world's `map/<chunk-x>/<chunk-y>.bin` files. Item ty
 resolved through `WorldDictionary.bin`. An ID card is treated as an ordinary item; it
 is not needed to identify the character.
 
+### Choosing in the confirmation
+
+The search runs when the confirmation opens, before anything is changed, and the
+confirm button waits for it (well under a second on a warm disk; a freshly copied save
+of 930 map files took 1.1 s). What it finds is shown in the confirmation:
+
+- **Remains found:** each one is listed as a zombie or a corpse, with how many items it
+  carries and how far it is from where the character died. The one carrying most is
+  chosen; you can pick another, or **Revive without belongings**. The remains you
+  choose are removed from the world; the others are left as they are.
+- **Nothing found:** the confirmation says so, and the character is revived without
+  belongings rather than not at all.
+- **The search failed:** the confirmation says so, and recovery looks again on its own.
+
+Recovery then edits only the remains you chose. It reads only that file again, and
+refuses with `recovery-remains-changed` if the file is no longer exactly as it was
+when the list was made. Without a choice (the worker run directly), the only candidate
+is used; several are refused as ambiguous and none as `recovery-inventory-unavailable`.
+
 ### How the remains are identified
 
-Three kinds of evidence are used, strongest first:
+Four kinds of evidence are used, strongest first:
 
 1. **Recovery ID.** A saved `pztools.recovery.id` UUID matches the player to the
    remains, even if the zombie has wandered off or the body's appearance has changed.
@@ -71,13 +90,20 @@ Three kinds of evidence are used, strongest first:
    them when the character rises: the rot stage, and the skin texture number, which
    the game fits to the shorter list of zombie skins (a woman's human skin 4 becomes
    zombie skin 3).
+4. **Lookalike player zombie.** Only when rules 1–3 find nothing, and neither side has a
+   recovery ID: a zombie in `reanimated.bin` with the same sex and the same lasting
+   appearance (hair and skin colour, hair and beard style, body hair), wherever it has
+   walked. The game keeps only the save's player zombies in that file, so the
+   candidates are the world's earlier characters. The dead player's record keeps no
+   clothing, so two characters made from the same preset both match; that is why the
+   user chooses. Corpses in map chunks are never matched this way: every killed zombie
+   leaves one there, and random zombies share the game's few hair and skin colours.
 
 A character who died while PZ Tools was not connected to the game (before it was
 installed, or with versions up to v0.1.0, which stamped only at a backup) has no
-recovery ID, so their remains are found by rules 2 and 3.
+recovery ID, so their remains are found by rules 2 to 4.
 
-A zombie is never chosen just because it is nearby. If no remains can be identified,
-recovery stops with `recovery-inventory-unavailable` and the save is not changed.
+A zombie is never chosen just because it is nearby.
 
 ### What is copied
 
@@ -94,8 +120,8 @@ recovery stops with `recovery-inventory-unavailable` and the save is not changed
   against the locally installed 42.20.4 game classes and the MIT-licensed pzdataspec
   world-249 schemas.
 - **Refused before any edit:** other versions, several local characters with none
-  chosen, a chosen character that is gone, network players, malformed records, linked
-  paths and pending SQLite journals.
+  chosen, a chosen character that is gone, chosen remains that changed since the list,
+  network players, malformed records, linked paths and pending SQLite journals.
 - **Lost items stay lost.** Items that are missing, were dropped elsewhere, looted or
   destroyed are not recreated.
 - **Old saves.** Saves made without hand-item IDs need the items re-equipped by hand.
@@ -144,8 +170,9 @@ reserved keys into the player's modData on the game thread:
 They are written at two moments:
 
 - **While the game is being watched.** The runtime observer, which already reads the
-  character each frame for the game-link status, checks every two seconds whether the
-  living player has an ID and writes one if not. A new character therefore has an ID
+  character each frame for the game-link status, looks at a living player it has not
+  yet seen with an ID, at most every two seconds, and writes one if there is none. Once
+  that player has an ID it is not looked at again. A new character therefore has an ID
   within seconds, long before a death is likely, and no save is needed: the game
   copies the player's modData to the corpse and the zombie in memory. Hand items are
   not written here.
@@ -161,8 +188,9 @@ The stamp is optional metadata. If the observer's write fails, only the ID is mi
 If stamping before a save fails, the bridge result reports
 `recovery-metadata-unavailable`, but `save(true)` still runs and backup capture still
 waits for it to finish. Probe-only requests do not stamp. The stamp adds no timer,
-thread or JVM retransformation of its own; the observer's check is one clock comparison
-per frame. Characters that were never stamped keep using the stricter rules for older
+thread or JVM retransformation of its own; once the player has an ID, the observer's
+check is one reference comparison per frame, and the game methods it needs are looked
+up once. Characters that were never stamped keep using the stricter rules for older
 remains described above.
 
 ### Writing the changes
@@ -199,6 +227,9 @@ Focused Windows tests cover:
 - inventory recovery without an ID card
 - stamped zombies that have moved
 - a nameless zombie whose skin texture number the game changed
+- a lookalike player zombie that walked away, a choice between two lookalikes, proven
+  remains hiding lookalikes, killed-zombie corpses never matched by look, chosen
+  remains that changed since, and reviving without belongings
 - hand-item IDs
 - named corpses
 - byte-exact bags and items

@@ -2161,6 +2161,9 @@ public sealed partial class MainWindowShell : UserControl
                 });
                 content.Children.Add(choice);
             }
+            var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
+            var remains = new RemainsQuestion(root, save.SaveId);
+            content.Children.Add(remains.Panel);
             content.Children.Add(body);
             var confirmation = new ContentDialog
             {
@@ -2175,8 +2178,18 @@ public sealed partial class MainWindowShell : UserControl
                 PrimaryButtonText = Localizer.Get("HealCharacterAction"),
                 CloseButtonText = Localizer.Get("Cancel"), DefaultButton = ContentDialogButton.Close,
             };
-            if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
-            long? playerId = choice is null ? null : characters[Math.Max(0, choice.SelectedIndex)].Id;
+            long? ChosenPlayer() => choice is null ? null : characters[Math.Max(0, choice.SelectedIndex)].Id;
+            // Which remains to take the belongings from depends on the character, so it is looked up for
+            // the one chosen, again whenever the choice changes. Confirming waits for the answer.
+            remains.Ready += ready => confirmation.IsPrimaryButtonEnabled = ready;
+            if (choice is not null) choice.SelectionChanged += (_, _) => remains.Look(ChosenPlayer());
+            remains.Look(ChosenPlayer());
+            ContentDialogResult answer;
+            try { answer = await confirmation.ShowAsync(); }
+            finally { remains.Stop(); }
+            if (answer != ContentDialogResult.Primary) return;
+            long? playerId = ChosenPlayer();
+            var remainsChoice = remains.Choice;
             // Not current.CanHeal: the lock taken above for the dialog has already turned it off. What it
             // stands for is checked again instead, and a refusal is reported rather than doing nothing.
             if (App.Host != host || !ReferenceEquals(SaveList.SelectedItem, save) || !current.IsCurrent) return;
@@ -2184,8 +2197,8 @@ public sealed partial class MainWindowShell : UserControl
                 || projectorHealth?.IsFaulted("state") == true || projectorHealth?.IsFaulted("backup") == true)
                 throw new InvalidOperationException(Localizer.Get(save.Activity == ActivityState.Active
                     ? "StopPlayingToHeal" : "OperationBusy"));
-            var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
-            var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(root, save.SaveId, operationId: id, playerId: playerId));
+            var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(
+                root, save.SaveId, operationId: id, playerId: playerId, remains: remainsChoice));
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
             {
                 SetLocalResultMessage(result.OperationId, Localizer.Get("HealCharacterSucceeded"));

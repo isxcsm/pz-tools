@@ -442,6 +442,15 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Tato uložená hra obsahuje nedokončené změny. Ukončete hru běžným způsobem a zkuste to znovu. Původní uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Nepodařilo se určit, kterou postavu obnovit. Funkce funguje jen s uloženými hrami pro jednoho hráče, a pokud jich uložená hra obsahuje více, je třeba jednu vybrat. Uložená hra nebyla změněna.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Tato uložená hra obsahuje více postav. Vyberte postavu, kterou chcete obnovit; ostatní se nezmění.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Vybraná zombie nebo mrtvola se mezitím změnila. Otevřete okno obnovy znovu. Uložená hra nebyla změněna.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Zombii ani mrtvolu postavy se nepodařilo předem vyhledat. Obnova je vyhledá znovu.</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Zombie ani mrtvola této postavy nebyla nalezena. Postava bude oživena bez věcí.</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Oživit bez věcí</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>Vzdálenost od místa smrti: {0} polí</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Mrtvola (předměty: {0})</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie (předměty: {0})</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Hledá se zombie nebo mrtvola postavy…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Vyberte zombii nebo mrtvolu, ze které se mají vzít věci. Vybraná zmizí ze světa.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Vybraná postava už v této uložené hře není. Uložená hra se mezitím mohla změnit; zkuste to prosím znovu. Uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Tuto uloženou hru nelze bezpečně upravit. Ověřte, že vaše verze PZ Tools podporuje verzi hry. Originál nebyl změněn.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Doba přežití není dostupná · kontrola se zopakuje</value></data>

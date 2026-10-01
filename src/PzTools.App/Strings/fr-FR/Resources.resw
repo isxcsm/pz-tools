@@ -442,6 +442,15 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Cette partie contient des modifications inachevées. Quittez le jeu normalement, puis réessayez. La partie d’origine n’a pas été modifiée.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Impossible de déterminer quel personnage rétablir. Cette fonction ne prend en charge que les parties solo et, si une partie contient plusieurs personnages, il faut en choisir un. La partie n’a pas été modifiée.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Cette partie contient plusieurs personnages. Choisissez celui à rétablir ; les autres ne sont pas modifiés.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Recherche du zombie ou du cadavre du personnage…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Choisissez le zombie ou le cadavre dont récupérer les affaires. Celui choisi disparaît du monde.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie ({0} objets)</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Cadavre ({0} objets)</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>À {0} cases du lieu de la mort</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Ranimer sans les affaires</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Aucun zombie ni cadavre de ce personnage n’a été trouvé. Il sera ranimé sans ses affaires.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Le zombie ou le cadavre du personnage n’a pas pu être recherché à l’avance. Le rétablissement le cherchera à nouveau.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Le zombie ou le cadavre choisi a changé entre-temps. Rouvrez la fenêtre de rétablissement. La partie n’a pas été modifiée.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Le personnage choisi ne se trouve plus dans cette partie. Elle a peut-être changé entre-temps ; veuillez réessayer. La partie n’a pas été modifiée.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Cette partie ne peut pas être modifiée en toute sécurité. Vérifiez que votre version de PZ Tools est compatible avec celle du jeu. L’original n’a pas été modifié.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Durée de survie indisponible · nouvelle vérification</value></data>

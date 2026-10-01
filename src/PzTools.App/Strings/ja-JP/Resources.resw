@@ -442,6 +442,15 @@
   <data name="RecoveryError.Journal" xml:space="preserve"><value>このセーブには未完了の変更があります。ゲームを通常の手順で終了してから再試行してください。元のセーブは変更していません。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>回復するキャラクターを特定できませんでした。シングルプレイのセーブでのみ使用でき、キャラクターが複数いる場合は1人を選ぶ必要があります。セーブは変更していません。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>このセーブには複数のキャラクターがいます。回復するキャラクターを選んでください。選ばなかったキャラクターは変更されません。</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>キャラクターのゾンビや死体を探しています…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>所持品を取り戻すゾンビまたは死体を選んでください。選んだものはワールドから消えます。</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>ゾンビ（所持品 {0} 個）</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>死体（所持品 {0} 個）</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>死亡地点から {0} マス</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>所持品なしで復活のみ行う</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>このキャラクターのゾンビや死体が見つかりませんでした。所持品なしで復活します。</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>ゾンビや死体を事前に探せませんでした。回復の際にもう一度探します。</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>選んだゾンビまたは死体がその間に変わりました。回復ウィンドウを開き直してください。セーブは変更していません。</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>選んだキャラクターがこのセーブにもう存在しません。その間にセーブが変わった可能性があります。もう一度お試しください。セーブは変更していません。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>このセーブを安全に編集できません。PZ Toolsがゲームのバージョンに対応しているか確認してください。元のセーブは変更していません。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>生存時間を読み取れませんでした · 再確認予定</value></data>

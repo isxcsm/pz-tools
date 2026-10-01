@@ -442,6 +442,15 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Ten zapis gry zawiera niedokończone zmiany. Zamknij grę w zwykły sposób i spróbuj ponownie. Oryginalny zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Nie udało się ustalić, którą postać przywrócić. Funkcja działa tylko z zapisami jednoosobowymi, a jeśli zapis zawiera kilka postaci, trzeba wybrać jedną. Zapis nie został zmieniony.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Ten zapis zawiera kilka postaci. Wybierz postać do przywrócenia; pozostałe nie zostaną zmienione.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Wyszukiwanie zombie lub zwłok postaci…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Wybierz zombie lub zwłoki, z których mają zostać zabrane rzeczy. Wybrane znikną ze świata.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie (przedmioty: {0})</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Zwłoki (przedmioty: {0})</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>Odległość od miejsca śmierci: {0} pól</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Ożyw bez rzeczy</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Nie znaleziono zombie ani zwłok tej postaci. Postać zostanie ożywiona bez rzeczy.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Nie udało się wcześniej wyszukać zombie ani zwłok postaci. Przywracanie wyszuka je ponownie.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Wybrane zombie lub zwłoki zmieniły się w międzyczasie. Otwórz ponownie okno przywracania. Zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Wybranej postaci nie ma już w tym zapisie. Zapis mógł się w międzyczasie zmienić; spróbuj ponownie. Zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie można bezpiecznie edytować tego zapisu. Sprawdź, czy wersja PZ Tools obsługuje wersję gry. Oryginał nie został zmieniony.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Czas przetrwania niedostępny · sprawdzanie zostanie powtórzone</value></data>

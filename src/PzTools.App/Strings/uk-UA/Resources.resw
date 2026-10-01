@@ -442,6 +442,15 @@
   <data name="RecoveryError.Journal" xml:space="preserve"><value>У цьому збереженні є незавершені зміни. Вийдіть із гри звичайним способом і повторіть спробу. Початкове збереження не змінено.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Не вдалося визначити, якого персонажа відновити. Функція працює лише зі збереженнями одиночної гри, а якщо у збереженні кілька персонажів, потрібно вибрати одного. Збереження не змінено.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>У цьому збереженні кілька персонажів. Виберіть, кого відновити; інші не зміняться.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Пошук зомбі або трупа персонажа…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Виберіть зомбі або труп, з якого забрати речі. Вибраний зникне зі світу.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Зомбі (предметів: {0})</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Труп (предметів: {0})</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>Відстань від місця смерті: {0} клітинок</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Воскресити без речей</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Зомбі або труп цього персонажа не знайдено. Персонажа буде воскрешено без речей.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Не вдалося заздалегідь знайти зомбі або труп персонажа. Відновлення пошукає знову.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Вибраний зомбі або труп за цей час змінився. Відкрийте вікно відновлення знову. Збереження не змінено.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Вибраного персонажа більше немає в цьому збереженні. Можливо, збереження за цей час змінилося; спробуйте ще раз. Збереження не змінено.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Це збереження неможливо безпечно змінити. Перевірте сумісність версій PZ Tools і гри. Оригінал не було змінено.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Час виживання недоступний · перевірку буде повторено</value></data>

@@ -442,6 +442,15 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Dieser Spielstand enthält noch nicht abgeschlossene Änderungen. Beenden Sie das Spiel regulär und versuchen Sie es erneut. Der ursprüngliche Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Es ließ sich nicht bestimmen, welcher Charakter wiederhergestellt werden soll. Die Funktion arbeitet nur mit Einzelspieler-Spielständen; enthält ein Spielstand mehrere Charaktere, muss einer ausgewählt werden. Ihr Spielstand wurde nicht verändert.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Dieser Spielstand enthält mehrere Charaktere. Wählen Sie den Charakter, der wiederhergestellt werden soll; die anderen bleiben unverändert.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Zombie oder Leiche des Charakters wird gesucht…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Wählen Sie den Zombie oder die Leiche, von der die Habseligkeiten genommen werden. Die Auswahl verschwindet aus der Welt.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie ({0} Gegenstände)</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Leiche ({0} Gegenstände)</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>{0} Felder vom Todesort entfernt</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Ohne Habseligkeiten wiederbeleben</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Kein Zombie und keine Leiche dieses Charakters gefunden. Der Charakter wird ohne Habseligkeiten wiederbelebt.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Zombie oder Leiche des Charakters konnten nicht vorab gesucht werden. Die Wiederherstellung sucht erneut.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Der gewählte Zombie oder die gewählte Leiche hat sich inzwischen verändert. Öffnen Sie das Fenster erneut. Ihr Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Der gewählte Charakter ist nicht mehr in diesem Spielstand. Der Spielstand hat sich möglicherweise inzwischen geändert; bitte versuchen Sie es erneut. Ihr Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Dieser Spielstand kann nicht sicher bearbeitet werden. Prüfen Sie, ob Ihre PZ-Tools-Version die Spielversion unterstützt. Das Original wurde nicht geändert.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Überlebenszeit nicht verfügbar · wird erneut geprüft</value></data>

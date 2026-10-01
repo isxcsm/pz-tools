@@ -442,6 +442,15 @@
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存檔有尚未完成的變更。請正常結束遊戲後再試。原始存檔未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>無法確定要恢復的角色。此功能僅支援單人存檔；存檔中有多名角色時，需要選擇其中一名。存檔未被修改。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>此存檔中有多名角色。請選擇要恢復的角色；未選擇的角色不會被變更。</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>正在尋找該角色的殭屍或屍體…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>請選擇要取回物品的殭屍或屍體。所選對象將從世界中移除。</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>殭屍（物品 {0} 件）</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>屍體（物品 {0} 件）</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>距死亡地點 {0} 格</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>僅復活，不取回物品</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>找不到該角色的殭屍或屍體。將在不取回物品的情況下復活。</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>無法預先尋找殭屍或屍體。恢復時將再次尋找。</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>所選的殭屍或屍體在此期間已有變更。請重新開啟恢復視窗。存檔未被修改。</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>所選角色已不在此存檔中。存檔可能在此期間有所變更，請再試一次。存檔未被修改。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>無法安全修改此存檔。請確認 PZ Tools 版本支援您的遊戲版本。原始存檔未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>無法讀取生存時間 · 將再次檢查</value></data>

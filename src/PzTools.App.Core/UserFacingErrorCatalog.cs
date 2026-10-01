@@ -104,6 +104,7 @@ public static class UserFacingErrorCatalog
         if (HasCodePrefix(message, "recovery-ambiguous-character") || HasCodePrefix(message, "recovery-singleplayer-only"))
             return "RecoveryError.Ambiguous";
         if (HasCodePrefix(message, "recovery-character-missing")) return "RecoveryError.CharacterChanged";
+        if (HasCodePrefix(message, "recovery-remains-changed")) return "RecoveryError.RemainsChanged";
         if (HasCodePrefix(message, "recovery-invalid-database") || HasCodePrefix(message, "recovery-linked-path")
             || HasCodePrefix(message, "recovery-no-character") || HasCodePrefix(message, "recovery-validation-failed")
             || HasCodePrefix(message, "recovery-invalid-chunk") || HasCodePrefix(message, "recovery-unsupported-format") || HasCodePrefix(message, "recovery-unsupported-dictionary"))

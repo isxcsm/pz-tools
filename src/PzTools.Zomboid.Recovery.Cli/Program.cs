@@ -18,13 +18,15 @@ try
     // Only when the save holds several characters: the one the user chose.
     long? playerId = CommandLine.Optional(args, "--player-id") is { } player
         ? CommandLine.Int64(player, "--player-id") : null;
+    // A dead character's remains as the user chose them in the preview, or "none" to revive without them.
+    var remains = CommandLine.Optional(args, "--remains");
     telemetry = await ProcessTelemetrySession.StartAsync(Required("--telemetry-identity"), component, runIndex);
     telemetry.RecordEvent("run.started");
     await using var heartbeat = ProcessTelemetryHeartbeat.Start(telemetry);
     var locked = await OperationMutexSet.TryRunAsync([
         new OperationMutexRequest(OperationMutexScope.SaveWrite, Path.Combine(root, saveId)),
         new OperationMutexRequest(OperationMutexScope.RepositoryAccess, Required("--repository"))],
-        token => new CharacterRecoveryService().RecoverAsync(root, saveId, playerId, token));
+        token => new CharacterRecoveryService().RecoverAsync(root, saveId, playerId, remains, token));
     var outcome = locked.Acquired ? ProcessOutcome.Succeeded : ProcessOutcome.Busy;
     telemetry.RecordEvent(locked.Acquired ? "run.committed" : "run.busy",
         locked.Acquired ? System.Text.Json.JsonSerializer.Serialize(locked.Value) : null);

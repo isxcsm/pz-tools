@@ -442,6 +442,15 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Esta partida tem alterações pendentes. Saia do jogo normalmente e tente novamente. A partida original não foi alterada.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Não foi possível determinar qual personagem recuperar. Este recurso funciona apenas com partidas de um jogador e, se a partida tiver vários personagens, é preciso escolher um. A partida não foi alterada.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Esta partida tem vários personagens. Escolha o que deseja recuperar; os outros não serão alterados.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Procurando o zumbi ou o cadáver do personagem…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Escolha o zumbi ou o cadáver de onde pegar os pertences. O escolhido some do mundo.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zumbi ({0} itens)</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Cadáver ({0} itens)</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>A {0} quadrados do local da morte</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Reviver sem os pertences</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Nenhum zumbi ou cadáver deste personagem foi encontrado. Ele será revivido sem os pertences.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Não foi possível procurar o zumbi ou o cadáver do personagem antes. A recuperação procurará de novo.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>O zumbi ou o cadáver escolhido mudou nesse meio-tempo. Abra a janela de recuperação de novo. A partida não foi alterada.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>O personagem escolhido não está mais nesta partida. A partida pode ter mudado nesse meio-tempo; tente novamente. A partida não foi alterada.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Esta partida não pode ser editada com segurança. Verifique se a versão do PZ Tools é compatível com a do jogo. A partida original não foi alterada.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Tempo de sobrevivência indisponível · verificando novamente</value></data>

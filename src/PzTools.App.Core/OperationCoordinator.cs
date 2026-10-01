@@ -410,13 +410,14 @@ public sealed class OperationCoordinator(
 
     public Task<AppOperationResult> RecoverCharacterAsync(
         string savesRoot, string saveId, CancellationToken cancellationToken = default,
-        string? operationId = null, long? playerId = null)
+        string? operationId = null, long? playerId = null, string? remains = null)
     {
         var source = Path.GetFullPath(Path.Combine(savesRoot, saveId));
         string[] arguments = ["--saves-root", savesRoot, "--save-id", saveId,
             "--repository", repository.RepositoryPath];
         if (playerId is { } player)
             arguments = [.. arguments, "--player-id", player.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        if (remains is not null) arguments = [.. arguments, "--remains", remains];
         return RunArchiveAsync("character-recovery", source, OperationScope.SaveWrite, arguments,
             cancellationToken, "character-recovery", "PzTools.Zomboid.Recovery.Cli.exe", operationId);
     }

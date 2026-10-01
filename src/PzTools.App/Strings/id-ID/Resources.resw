@@ -442,6 +442,15 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Simpanan ini memiliki perubahan yang belum selesai. Keluar dari gim secara normal, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Tidak dapat menentukan karakter mana yang dipulihkan. Fitur ini hanya untuk simpanan pemain tunggal, dan jika simpanan memiliki beberapa karakter, salah satunya harus dipilih. Simpanan tidak diubah.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Simpanan ini memiliki beberapa karakter. Pilih karakter yang ingin dipulihkan; karakter lain tidak diubah.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Mencari zombi atau mayat karakter…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Pilih zombi atau mayat tempat barang-barang diambil. Yang dipilih akan hilang dari dunia.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombi ({0} barang)</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Mayat ({0} barang)</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>{0} petak dari tempat karakter mati</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Hidupkan kembali tanpa barang</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>Zombi atau mayat karakter ini tidak ditemukan. Karakter akan dihidupkan kembali tanpa barang.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>Zombi atau mayat karakter tidak dapat dicari sebelumnya. Pemulihan akan mencarinya lagi.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Zombi atau mayat yang dipilih telah berubah sementara itu. Buka jendela pemulihan lagi. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Karakter yang dipilih sudah tidak ada di simpanan ini. Simpanan mungkin telah berubah sementara itu; silakan coba lagi. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Simpanan ini tidak dapat disunting dengan aman. Pastikan versi PZ Tools mendukung versi gim Anda. Simpanan asli tidak diubah.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Waktu bertahan hidup tidak tersedia · memeriksa kembali</value></data>

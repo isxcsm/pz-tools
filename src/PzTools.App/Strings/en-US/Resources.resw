@@ -441,6 +441,15 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="RecoveryError.Journal" xml:space="preserve"><value>This save has unfinished changes. Exit the game normally, then try again. The original save was not changed.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Could not tell which character to recover. This works only with single-player saves, and when a save has several characters, one must be chosen. Your save was not changed.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>This save has several characters. Choose the one to recover; the others are not changed.</value></data>
+  <data name="HealRemainsSearching" xml:space="preserve"><value>Looking for the character's zombie or corpse…</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Choose the zombie or corpse to take the belongings from. The one you choose is removed from the world.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie ({0} items)</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Corpse ({0} items)</value></data>
+  <data name="HealRemainsDistance" xml:space="preserve"><value>{0} tiles from where the character died</value></data>
+  <data name="HealRemainsNone" xml:space="preserve"><value>Revive without belongings</value></data>
+  <data name="HealRemainsNotFound" xml:space="preserve"><value>No zombie or corpse of this character was found. The character will be revived without belongings.</value></data>
+  <data name="HealRemainsReadFailed" xml:space="preserve"><value>The character's zombie or corpse could not be looked for in advance. Recovery will look again.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>The zombie or corpse you chose has changed in the meantime. Open the recovery window again. Your save was not changed.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>The character you chose is no longer in this save. The save may have changed in the meantime; please try again. Your save was not changed.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>This save cannot be edited safely. Check that your PZ Tools version supports your game version. The original save was not changed.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Survival time unavailable · checking again</value></data>
