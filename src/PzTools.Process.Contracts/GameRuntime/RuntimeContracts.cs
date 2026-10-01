@@ -25,6 +25,11 @@ public sealed record RuntimeSnapshot(
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
     public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
     public bool IsWorldReady => Phase == WorldPhase.Ready && Mode == RuntimeMode.LocalSinglePlayer && SavePath is not null;
+    /// <summary>
+    /// The observer's initial snapshot, repeated until the game's main loop first runs. A game that runs
+    /// but cannot be read is sampled too: its Unknown moves past sequence 0 within a tenth of a second.
+    /// </summary>
+    public bool IsBeforeFirstFrame => Sequence == 0 && Phase == WorldPhase.Unknown;
     public RuntimeSnapshot Validate()
     {
         if (!Id(ProcessSession) || !Id(ObserverEpoch) || !Id(WorldSession)
@@ -92,11 +97,19 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     /// </summary>
     public bool IsCharacterDead => IsFresh && Snapshot is { IsWorldReady: true, CharacterLife: RuntimeCharacterLife.Dead };
     /// <summary>
+    /// Connected, but the game has not run a frame yet: its observer samples on the main loop, which
+    /// starts only after the initial load, and that load can take minutes.
+    /// </summary>
+    public const string GameStartingReason = "game-starting";
+    /// <summary>The game still runs a bridge older than this app's; it connects again after a game restart.</summary>
+    public const string RestartRequiredReason = "runtime-restart-required";
+    /// <summary>
     /// A game is running but its state cannot be read: the connection failed, or it answers without
     /// a recognisable game state (for example after a game update). An absent game, a second game,
-    /// multiplayer and a loading world are known states, not an unusable link.
+    /// multiplayer, a game still starting and a loading world are known states, not an unusable link.
     /// </summary>
-    public bool IsLinkUnusable => Quality is RuntimeQuality.Unknown or RuntimeQuality.Stale
+    public bool IsLinkUnusable => Quality is RuntimeQuality.Unknown && Reason != GameStartingReason
+        || Quality is RuntimeQuality.Stale
         || Quality == RuntimeQuality.Fresh && Snapshot is { Phase: WorldPhase.Unknown };
     /// <summary>The running game's version, only while it has this save loaded; a save records no version itself.</summary>
     public string? GameVersionFor(string savePath) =>

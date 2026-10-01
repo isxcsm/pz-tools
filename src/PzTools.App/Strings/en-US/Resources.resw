@@ -520,8 +520,9 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Sleep cannot be read right now, so only pausing applies.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Not applied right now because the game cannot be reached.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Next backup (without game save)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>The game's state cannot be read, so backups run at the set interval without saving the game first. Recent progress may be missing from them. If the game or PZ Tools was updated, try restarting the game.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Could not connect to the game</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Backups run without saving the game.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Cannot read the game's state</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Backups run without saving the game. PZ Tools was updated, so restart the game to reconnect.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibility and status</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>No {0} or higher logs.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>No logs match the selected filters.</value></data>

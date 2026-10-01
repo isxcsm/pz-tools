@@ -521,8 +521,9 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>No momento não é possível ler o sono, então só a pausa se aplica.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Não se aplica no momento porque não há conexão com o jogo.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Próximo backup (sem salvar o jogo)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Não é possível ler o estado do jogo, então os backups são feitos no intervalo definido sem salvar o jogo antes. O progresso recente pode ficar fora deles. Se o jogo ou o PZ Tools foi atualizado, tente reiniciar o jogo.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Não foi possível conectar ao jogo</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Os backups são feitos sem salvar o jogo.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Não é possível ler o estado do jogo</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Os backups são feitos sem salvar o jogo. O PZ Tools foi atualizado; reinicie o jogo para reconectar.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibilidade e status</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Não há registros de nível {0} ou superior.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Nenhum registro corresponde aos filtros selecionados.</value></data>

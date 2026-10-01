@@ -520,8 +520,9 @@
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>수면 상태를 읽을 수 없어 지금은 일시정지만 적용됩니다.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>게임에 연결할 수 없어 지금은 적용되지 않습니다.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>다음 백업 (게임 저장 없이)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>게임 상태를 읽을 수 없어, 게임 저장 없이 설정한 간격마다 백업합니다. 최근 진행 내용이 백업에서 빠질 수 있습니다. 게임이나 PZ Tools를 업데이트했다면 게임을 다시 시작해 보세요.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>게임에 연결하지 못했습니다</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>게임 저장 없이 백업합니다.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>게임 상태를 읽지 못했습니다</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>게임 저장 없이 백업합니다. PZ Tools가 업데이트되어, 게임을 다시 시작하면 다시 연결됩니다.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>호환성 및 적용 상태</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>{0} 이상 로그가 없습니다.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>선택한 필터에 맞는 로그가 없습니다.</value></data>

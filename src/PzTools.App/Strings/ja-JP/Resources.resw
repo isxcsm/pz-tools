@@ -521,8 +521,9 @@
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>睡眠状態を読み取れないため、現在は一時停止のみ適用されます。</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ゲームに接続できないため、現在は適用されません。</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>次のバックアップ（ゲーム保存なし）</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>ゲームの状態を読み取れないため、ゲームを保存せずに設定した間隔でバックアップします。最近の進行状況がバックアップに含まれないことがあります。ゲームまたは PZ Tools を更新した場合は、ゲームを再起動してみてください。</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>ゲームに接続できませんでした</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>ゲームを保存せずにバックアップします。</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>ゲームの状態を読み取れません</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>ゲームを保存せずにバックアップします。PZ Tools が更新されたため、ゲームを再起動すると再接続されます。</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>互換性と適用状況</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>レベルが「{0}」以上のログはありません。</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>選択したフィルターに一致するログはありません。</value></data>

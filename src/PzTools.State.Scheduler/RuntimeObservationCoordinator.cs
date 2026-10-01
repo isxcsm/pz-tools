@@ -86,6 +86,12 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                             }
                             finally { foreach (var process in currentGames) process.Dispose(); }
                         }
+                        if (snapshot.IsBeforeFirstFrame)
+                        {
+                            // Connected, but the game is still loading; that can take minutes.
+                            received.Publish(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason));
+                            continue;
+                        }
                         bool validPath = !snapshot.IsWorldReady || RuntimeSaveResolver.Resolve(snapshot, savesRoot) is not null;
                         received.Publish(validPath ? new(stream, RuntimeQuality.Fresh, snapshot)
                             : new(stream, RuntimeQuality.Unsupported, snapshot, Reason: "outside-configured-save-root"));
@@ -100,7 +106,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 or Microsoft.Data.Sqlite.SqliteException)
             {
                 bool restart = error is GameSaveException { Code: "restart-required" };
-                received.Publish(RuntimeObservation.Unknown(restart ? "runtime-restart-required" : "runtime-unavailable"));
+                received.Publish(RuntimeObservation.Unknown(restart ? RuntimeObservation.RestartRequiredReason : "runtime-unavailable"));
                 if (restart) extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
             }
             finally { foreach (var game in games) game.Dispose(); }

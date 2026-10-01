@@ -1367,7 +1367,7 @@ public sealed partial class MainWindowShell : UserControl
         if (!view.LinkUnavailable) gameLinkDismissed = false;
         GameLinkCard.Visibility = view.LinkUnavailable && !gameLinkDismissed ? Visibility.Visible : Visibility.Collapsed;
         GameLinkTitle.Text = Localizer.Get("GameLinkCardTitle");
-        GameLinkMessage.Text = Localizer.Get("GameLinkCardMessage");
+        GameLinkMessage.Text = Localizer.Get(view.RestartRequired ? "GameLinkCardRestartMessage" : "GameLinkCardMessage");
         GameLinkCloseButton.Content = Localizer.Get("CardAcknowledge");
         UpdateInteractiveCards();
     }

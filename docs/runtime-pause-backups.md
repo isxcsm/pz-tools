@@ -26,7 +26,7 @@ follows real time: a faster game speed does not make it run faster.
 | A debug-mode tool open on top of the game (the chunk viewer, for example) | Holds, like a pause: the world stays loaded and game time stands still |
 | Sleep cannot be read (pause can) | Advances; only the sleep pause is lost |
 | Played character is dead | Holds until a new character is played (see [death backups](runtime-character-death.md)) |
-| Loading, ambiguous processes, or a briefly unknown or [stale](glossary.md#observation-fresh-stale) state | Holds; does not assume active play |
+| Game still starting up, loading, ambiguous processes, or a briefly unknown or [stale](glossary.md#observation-fresh-stale) state | Holds; does not assume active play |
 | Game cannot be read for about 90 seconds | Falls back to the wall clock (see [below](#when-the-game-cannot-be-read)) |
 | Confirmed main menu or game exit | Clears the world [target](glossary.md#active-save-target) |
 
@@ -62,12 +62,21 @@ unrecognised game state must not end backups silently.
 | **Save request unreachable**: the helper cannot start or attach, the connection times out, or the bridge is missing or too old | Nothing was asked of the game, so the backup goes ahead with the files as they are on disk and records a warning. This applies to manual, periodic and death backups. |
 | **Sleep unreadable** | The clock keeps running; pausing still holds it. |
 
+A game that is still starting up is not a lost observation, however long it takes. Its
+state is read once per frame of the game's main loop, which first runs after the
+initial load; until then the connection is up but no state has been read yet. A game
+that runs but whose state cannot be read is told apart within a fraction of a second,
+because its frames report the unreadable state.
+
 A save the game refused, reported as failed, or left unanswered after the command was
 sent still fails; see the next section.
 
 While the connection is lost, the app shows one card for it, the schedule line says
 backups run without a game save, and the settings that need the game are locked until
-the connection returns. Their saved values are kept.
+the connection returns. Their saved values are kept. The card suggests restarting the
+game only when that is known to help: the game still runs the bridge from before a PZ
+Tools update. A game version this PZ Tools cannot read stays unreadable after a
+restart, and backups keep running without a game save.
 
 ## When a backup attempt fails
 

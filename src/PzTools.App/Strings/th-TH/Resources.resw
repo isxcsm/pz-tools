@@ -528,8 +528,9 @@
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>ขณะนี้อ่านสถานะการหลับไม่ได้ จึงมีผลเฉพาะการหยุดชั่วคราว</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ขณะนี้ไม่มีผลเพราะเชื่อมต่อกับเกมไม่ได้</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>สำรองครั้งถัดไป (ไม่บันทึกเกม)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>อ่านสถานะของเกมไม่ได้ จึงสำรองข้อมูลตามช่วงเวลาที่ตั้งไว้โดยไม่บันทึกเกมก่อน ความคืบหน้าล่าสุดอาจไม่อยู่ในข้อมูลสำรอง หากอัปเดตเกมหรือ PZ Tools ให้ลองเริ่มเกมใหม่</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>สำรองข้อมูลโดยไม่บันทึกเกมก่อน</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>อ่านสถานะของเกมไม่ได้</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>สำรองข้อมูลโดยไม่บันทึกเกมก่อน PZ Tools ได้รับการอัปเดตแล้ว ให้เริ่มเกมใหม่เพื่อเชื่อมต่ออีกครั้ง</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>ความเข้ากันได้และสถานะ</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>ไม่มีบันทึกระดับ{0}ขึ้นไป</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>ไม่มีบันทึกที่ตรงกับตัวกรองที่เลือก</value></data>

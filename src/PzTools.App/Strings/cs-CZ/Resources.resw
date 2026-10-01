@@ -521,8 +521,9 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Spánek teď nelze přečíst, proto platí jen pauza.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Nyní se nepoužívá, protože se nelze připojit ke hře.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Další záloha (bez uložení hry)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Stav hry nelze přečíst, proto se zálohuje v nastaveném intervalu bez předchozího uložení hry. V zálohách může chybět nedávný postup. Pokud byla hra nebo PZ Tools aktualizována, zkuste hru restartovat.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Nepodařilo se připojit ke hře</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Zálohuje se bez uložení hry.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Stav hry nelze přečíst</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Zálohuje se bez uložení hry. Aplikace PZ Tools byla aktualizována; po restartu hry se znovu připojí.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilita a stav</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Žádné záznamy úrovně {0} nebo vyšší.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Vybraným filtrům neodpovídají žádné záznamy.</value></data>

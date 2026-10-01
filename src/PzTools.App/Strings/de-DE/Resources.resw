@@ -521,8 +521,9 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Der Schlafzustand ist derzeit nicht lesbar; es gilt nur die Pause.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Derzeit nicht aktiv, weil das Spiel nicht erreichbar ist.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Nächste Sicherung (ohne Spielspeicherung)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Der Spielzustand kann nicht gelesen werden. Daher wird im eingestellten Intervall gesichert, ohne das Spiel vorher zu speichern. Der neueste Fortschritt kann in den Sicherungen fehlen. Wenn das Spiel oder PZ Tools aktualisiert wurde, starte das Spiel neu.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Keine Verbindung zum Spiel</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Es wird gesichert, ohne das Spiel zu speichern.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Spielzustand nicht lesbar</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Es wird gesichert, ohne das Spiel zu speichern. PZ Tools wurde aktualisiert; starte das Spiel neu, um die Verbindung wiederherzustellen.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilität und Status</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Keine Protokolle der Stufe {0} oder höher.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Keine Protokolle entsprechen den ausgewählten Filtern.</value></data>

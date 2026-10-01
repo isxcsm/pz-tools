@@ -51,6 +51,39 @@ public sealed class GameLinkFallbackTests
         Assert.False(new RuntimeObservation("", RuntimeQuality.Offline, null).IsLinkUnusable);
         Assert.False(new RuntimeObservation("", RuntimeQuality.Ambiguous, null).IsLinkUnusable);
         Assert.False(new RuntimeObservation(Id(), RuntimeQuality.Unsupported, World(path)).IsLinkUnusable);
+        // Connected while the game is still on its initial load, before its first frame: not lost.
+        Assert.False(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason).IsLinkUnusable);
+    }
+
+    [Fact]
+    public void FirstFrame_SeparatesAStartingGameFromOneThatCannotBeRead()
+    {
+        var initial = World(@"C:\fixture\Saves\Sandbox\World", phase: WorldPhase.Unknown) with { Sequence = 0 };
+        Assert.True(initial.IsBeforeFirstFrame);
+        // Sampled by a running game that cannot be read: still the warning case.
+        Assert.False((initial with { Sequence = 1 }).IsBeforeFirstFrame);
+        Assert.True(new RuntimeObservation(Id(), RuntimeQuality.Fresh, initial with { Sequence = 1 }).IsLinkUnusable);
+        Assert.False((initial with { Phase = WorldPhase.Menu }).IsBeforeFirstFrame);
+    }
+
+    [Fact]
+    public async Task StartingGame_HoldsTheScheduleWithoutTheFallback()
+    {
+        using var temp = new TempDirectory();
+        var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var now = DateTimeOffset.UtcNow;
+        await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
+        var feed = new RuntimeSnapshotStore();
+        // Committed, as the state scheduler does before publishing it.
+        var starting = RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason) with { StateRevision = 1, AuthorityEpoch = Id() };
+        await db.ApplyRuntimeTransitionAsync(starting, null);
+        feed.Publish(starting);
+        var controller = new RuntimeScheduleController(db, feed, linkGrace: TimeSpan.Zero);
+        await controller.PrepareAsync(now, TimeSpan.Zero, default);
+        await controller.PrepareAsync(now.AddMinutes(10), TimeSpan.Zero, default);
+        Assert.Null((await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
+        Assert.Equal(GameLinkView.Available, new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true)
+            .Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)));
     }
 
     [Fact]
@@ -152,5 +185,17 @@ public sealed class GameLinkFallbackTests
         var patient = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), valueGrace: TimeSpan.FromHours(1), gameRunning: () => true);
         Assert.Equal(GameLinkView.Available, patient.Update(RuntimeObservation.Unknown("connecting")));
         Assert.Equal(GameLinkView.Available, patient.Update(new(Id(), RuntimeQuality.Fresh, World(path, sleep: RuntimeSleep.Unknown))));
+    }
+
+    [Fact]
+    public void Monitor_SuggestsARestartOnlyWhenTheGameRunsAnOlderBridge()
+    {
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true);
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).RestartRequired);
+        Assert.True(monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason)).RestartRequired);
+        // Each retry reports "connecting" first; the known cause stays for the whole outage.
+        Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).RestartRequired);
+        Assert.Equal(GameLinkView.Available, monitor.Update(new("", RuntimeQuality.Offline, null)));
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).RestartRequired);
     }
 }

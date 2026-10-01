@@ -521,8 +521,9 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Uyku durumu şu anda okunamıyor; yalnızca duraklatma uygulanıyor.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Oyuna ulaşılamadığı için şu anda uygulanmıyor.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Sonraki yedek (oyun kaydedilmeden)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Oyunun durumu okunamıyor; bu nedenle yedekler, oyun önce kaydedilmeden belirlenen aralıkla alınıyor. Son ilerlemeniz yedeklerde eksik olabilir. Oyun veya PZ Tools güncellendiyse oyunu yeniden başlatmayı deneyin.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Oyuna bağlanılamadı</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Yedekler oyun kaydedilmeden alınıyor.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Oyunun durumu okunamıyor</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Yedekler oyun kaydedilmeden alınıyor. PZ Tools güncellendi; yeniden bağlanmak için oyunu yeniden başlatın.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Uyumluluk ve durum</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>{0} veya daha yüksek düzeyde günlük yok.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Seçili filtrelerle eşleşen günlük yok.</value></data>

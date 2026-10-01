@@ -521,8 +521,9 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Obecnie nie można odczytać snu, więc działa tylko pauza.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Obecnie nie działa, ponieważ nie ma połączenia z grą.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Następna kopia (bez zapisu gry)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Nie można odczytać stanu gry, dlatego kopie są tworzone w ustawionych odstępach bez wcześniejszego zapisu gry. Może w nich brakować ostatnich postępów. Jeśli gra lub PZ Tools zostały zaktualizowane, spróbuj uruchomić grę ponownie.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Nie udało się połączyć z grą</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Kopie są tworzone bez zapisu gry.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Nie można odczytać stanu gry</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Kopie są tworzone bez zapisu gry. PZ Tools zostało zaktualizowane; uruchom grę ponownie, aby znów się połączyć.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Zgodność i stan</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Brak wpisów o poziomie {0} lub wyższym.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Brak wpisów pasujących do wybranych filtrów.</value></data>

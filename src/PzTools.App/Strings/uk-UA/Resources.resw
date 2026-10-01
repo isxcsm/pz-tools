@@ -521,8 +521,9 @@
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Стан сну зараз недоступний, тому враховується лише пауза.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Зараз не застосовується: немає зв’язку з грою.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Наступна копія (без збереження гри)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Стан гри прочитати не вдається, тому копії створюються через заданий інтервал без збереження гри. До них може не потрапити останній прогрес. Якщо гру або PZ Tools було оновлено, спробуйте перезапустити гру.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Не вдалося підключитися до гри</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Копії створюються без збереження гри.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Не вдається прочитати стан гри</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Копії створюються без збереження гри. PZ Tools оновлено, тож перезапустіть гру, щоб знову підключитися.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Сумісність і стан</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Немає записів рівня «{0}» або вище.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Немає записів, що відповідають вибраним фільтрам.</value></data>

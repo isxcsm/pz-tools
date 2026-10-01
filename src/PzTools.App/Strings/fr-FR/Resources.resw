@@ -521,8 +521,9 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Le sommeil ne peut pas être lu pour l’instant : seule la pause s’applique.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Non appliqué pour l’instant, car le jeu est injoignable.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Prochaine sauvegarde (sans enregistrement de la partie)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>L’état du jeu ne peut pas être lu : les sauvegardes ont donc lieu à l’intervalle choisi, sans enregistrer la partie au préalable. Votre progression récente peut y manquer. Si le jeu ou PZ Tools a été mis à jour, essayez de redémarrer le jeu.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Connexion au jeu impossible</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Les sauvegardes ont lieu sans enregistrer la partie.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Impossible de lire l’état du jeu</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Les sauvegardes ont lieu sans enregistrer la partie. PZ Tools a été mis à jour : redémarrez le jeu pour vous reconnecter.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibilité et état</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Aucun journal de niveau {0} ou supérieur.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Aucun journal ne correspond aux filtres sélectionnés.</value></data>

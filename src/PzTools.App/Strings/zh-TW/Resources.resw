@@ -521,8 +521,9 @@
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>目前無法讀取睡眠狀態，僅暫停時套用。</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>無法連線到遊戲，目前不會套用。</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>下次備份（不儲存遊戲）</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>無法讀取遊戲狀態，因此將依設定的間隔備份，但不會先儲存遊戲。備份中可能缺少最近的進度。如果更新了遊戲或 PZ Tools，請嘗試重新啟動遊戲。</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>無法連線到遊戲</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>將在不儲存遊戲的情況下備份。</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>無法讀取遊戲狀態</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>將在不儲存遊戲的情況下備份。PZ Tools 已更新，重新啟動遊戲後即可重新連線。</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>相容性與套用狀態</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>沒有「{0}」或更高等級的記錄。</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>沒有符合所選篩選條件的記錄。</value></data>

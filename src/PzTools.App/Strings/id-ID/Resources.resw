@@ -521,8 +521,9 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Status tidur saat ini tidak dapat dibaca, jadi hanya jeda yang diterapkan.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Saat ini tidak diterapkan karena gim tidak dapat dijangkau.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Cadangan berikutnya (tanpa menyimpan gim)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Status gim tidak dapat dibaca, sehingga pencadangan dilakukan pada interval yang ditetapkan tanpa menyimpan gim terlebih dahulu. Kemajuan terbaru mungkin tidak ikut tercadangkan. Jika gim atau PZ Tools diperbarui, coba mulai ulang gim.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Tidak dapat terhubung ke gim</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Pencadangan dilakukan tanpa menyimpan gim.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Status gim tidak dapat dibaca</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Pencadangan dilakukan tanpa menyimpan gim. PZ Tools telah diperbarui; mulai ulang gim untuk menyambung kembali.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilitas dan status</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Tidak ada log dengan tingkat {0} atau lebih tinggi.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Tidak ada log yang cocok dengan filter yang dipilih.</value></data>

@@ -521,8 +521,9 @@
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Состояние сна сейчас недоступно, поэтому учитывается только пауза.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Сейчас не применяется: нет связи с игрой.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Следующая копия (без сохранения игры)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Состояние игры прочитать не удаётся, поэтому копии создаются через заданный интервал без сохранения игры. В них может не попасть последний прогресс. Если игра или PZ Tools обновлялись, попробуйте перезапустить игру.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Не удалось подключиться к игре</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Копии создаются без сохранения игры.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Не удаётся прочитать состояние игры</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Копии создаются без сохранения игры. PZ Tools обновлён, поэтому перезапустите игру, чтобы снова подключиться.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Совместимость и состояние</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Нет записей уровня «{0}» и выше.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Нет записей, соответствующих выбранным фильтрам.</value></data>
