@@ -143,12 +143,13 @@ public sealed class OneShotBackupServiceTests
         var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
         var views = new RevisionedViewStore();
         using var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
-        projector.ConfigureRecordingLevel(LogLevel.Warning);
+        projector.ConfigureRecordingLevel(LogLevel.Information);
         await projector.ProjectOnceAsync();
+        // Deferred is retried on its own: recorded with its diagnostics, but not as a warning.
         var logged = Assert.Single((await inbox.ReadPageAsync(
-            new LogPageQuery(LogLevel.Warning, "All", "", 0))).Entries,
+            new LogPageQuery(LogLevel.Information, "All", "", 0))).Entries,
             item => item.RunIndex == runIndex && item.EventName == "run.cancelled");
-        Assert.Equal(LogLevel.Warning, logged.Level);
+        Assert.Equal(LogLevel.Information, logged.Level);
         Assert.Equal(cancelled.PayloadJson, logged.PayloadJson);
     }
 

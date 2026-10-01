@@ -108,6 +108,10 @@ How levels are chosen:
 - Work that did not start is Information, not a problem to acknowledge: `run.busy` (other
   work was running) and `run.unavailable` (what it needs is absent, such as a recording
   with no game or with more than one). Its card shows the neutral icon and says why.
+- An automatic backup put off during preparation is Information too: `run.cancelled`
+  with `failureCode` `source-deferred` (the game paused or changed state during the
+  countdown) or `source-skipped` (the world stopped being played). It is tried again on
+  its own; twice in one session the retry succeeded 6 and 20 seconds later.
 - A duplicate state-scheduler check (`Busy`, `Started=false`) is logged at Trace. This
   does not hide rejected user backups or real failures.
 - A numeric `outcome` is read as `ProcessOutcome`. The numeric backup `status` written

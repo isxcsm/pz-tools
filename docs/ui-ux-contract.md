@@ -335,6 +335,7 @@ How filters behave:
 | Actual backup results | Information |
 | Failures | Error |
 | Work that did not start: `run.busy`, `run.unavailable` | Information |
+| An automatic backup put off during preparation, tried again on its own: `run.cancelled` with `source-deferred` or `source-skipped` | Information |
 | Busy, degraded, cancelled and unknown outcomes | Warning |
 
 The default settings do not record Trace. Grouping, acknowledgement, details, copy and

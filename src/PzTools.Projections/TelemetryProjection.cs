@@ -553,6 +553,13 @@ public sealed class TelemetryProjectionHost(
             if (name.EndsWith(".cancelled", StringComparison.Ordinal)) return LogLevel.Information;
             if (name == "maintenance.recovery.completed") return LogLevel.Information;
         }
+        // An automatic backup that preparation put off: the game paused or changed state during the
+        // countdown, or the world stopped being played. It is tried again on its own (seconds later,
+        // measured), and the log says it was skipped; nothing failed, so nothing to warn about.
+        if (name == "run.cancelled" && payload is { ValueKind: JsonValueKind.Object } cancelled
+            && cancelled.TryGetProperty("failureCode", out var code) && code.ValueKind == JsonValueKind.String
+            && code.GetString() is "source-deferred" or "source-skipped")
+            return LogLevel.Information;
         // The backup went ahead without the game's own save: worth seeing, though nothing failed.
         if (name == "source.prepare.completed" && payload is { ValueKind: JsonValueKind.Object } prepared
             && LogDiagnostics.ReadOutcome(prepared) == "save-unavailable")
