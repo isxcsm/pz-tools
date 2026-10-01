@@ -11,7 +11,19 @@ every file. This page is for people working on the Windows change-tracking code.
 
 The backup worker keeps a checkpoint from the last backup and reads the journal from
 there. When the journal cannot be used, the backup falls back to a full scan with the
-configured [content comparison](configuration.md).
+configured [content comparison](configuration.md#which-files-are-captured).
+
+The most common reason is that the journal has moved on: it has a fixed size, and when
+a busy drive fills it between two backups, the records after the checkpoint are gone.
+On one development machine this was about one backup in ten.
+
+A file kept open and written again does not get a new journal record until it is
+closed or a different kind of change happens (it grows, for example): the journal notes
+the first change of each kind per open. A backup taken in between does not see those
+later writes. The databases the game keeps open, `players.db` and `vehicles.db`, are
+therefore captured every time (`always_include`), and the backup asks the game to save
+first. Whether the game keeps any other save file open between saves has not been
+observed.
 
 The checkpoint is the triple `(volume serial, journal ID, next USN)`. All three are
 checked against the volume before reading.

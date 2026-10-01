@@ -146,6 +146,15 @@ establish a baseline. The repository stores these fingerprints as the first 16 b
 SHA-256 ([repository format](repository-format.md)); a full SHA-256 integrity checksum
 can also serve as the baseline.
 
+On a local NTFS drive, a file whose size, times, attributes and identity match the
+previous backup is not read again if it was last written more than two seconds before
+the run that made the save's newest backup began. There, a file's last-write and change
+times move with every write, also while the game keeps the file open. A write in the
+same instant as the previous backup's look at the file can keep the old time, so files
+written around or after that run are still compared. On other drives (FAT, exFAT,
+network shares) every such file is compared. See
+[USN journal](usn-journal.md#when-it-is-used) for when this fallback happens.
+
 Turning `full_scan_hash_comparison` off does not affect `always_include`, existing
 fingerprints or integrity checksums.
 

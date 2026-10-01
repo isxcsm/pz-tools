@@ -111,6 +111,7 @@ public sealed class IncrementalBackupRunner(
             failurePhase = "planning";
             await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Phase,
                 "planning.started"), cancellationToken);
+            metadataTrustedFiles = 0;
             var boundary = TryQueryBoundary(source.RootPath);
             var planningProgress = new BackupPlanningProgress(telemetry, tuning.ProgressIntervalMs, cancellationToken);
             var mode = BackupScanMode.FullScan;
@@ -172,6 +173,8 @@ public sealed class IncrementalBackupRunner(
                         mode = mode.ToString(),
                         count = pending.Count,
                         fallback = fullScanReason,
+                        // Unchanged-looking files left uncompared because their metadata settled earlier.
+                        metadataTrusted = metadataTrustedFiles,
                     })),
                 cancellationToken);
 
@@ -409,9 +412,19 @@ public sealed class IncrementalBackupRunner(
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var comparer = new FullScanContentComparer(metadataReader, tuning);
             var batch = new List<(FullScanEntry Entry, byte[]? PreviousHash)>(tuning.FullScanHashBatchSize);
+            var settledBefore = await MetadataSettledBeforeAsync(repository, source, cancellationToken);
             await foreach (var (entry, previousHash) in scan.EnumerateContentComparisonsAsync(cancellationToken))
             {
                 if (changedPaths.Contains(entry.RelativePath)) continue;
+                // Same size, times, attributes and identity as the catalog, and last written well before
+                // the run that made the newest revision began: that run already saw this content.
+                if (settledBefore is { } limit && entry.ModifiedUtc < limit && entry.ChangedUtc < limit)
+                {
+                    metadataTrustedFiles++;
+                    comparedFiles++;
+                    comparedBytes += entry.Length;
+                    continue;
+                }
                 batch.Add((entry, previousHash));
                 if (batch.Count == tuning.FullScanHashBatchSize) await CompareBatchAsync();
             }
@@ -441,6 +454,23 @@ public sealed class IncrementalBackupRunner(
         }
 
         return pending;
+    }
+
+    // Files whose content comparison was skipped because their metadata settled before the last revision.
+    private long metadataTrustedFiles;
+
+    // On a local NTFS volume read through handles, a file's last-write and change times move with every
+    // write, also while the writer keeps the file open (measured; directory listings, by contrast, lag).
+    // Timestamps step about every 2 ms, so a write right after the previous run read a file can keep its
+    // old time: everything last written after that run began, less a margin, is still compared. Files
+    // written through a memory mapping keep their time on NTFS; the game writes its saves with ordinary
+    // writes. Elsewhere (FAT, exFAT, network shares) every unchanged-looking file is compared, as before.
+    private async Task<DateTimeOffset?> MetadataSettledBeforeAsync(
+        RepositoryDatabase repository, RepositorySource source, CancellationToken cancellationToken)
+    {
+        if (metadataReader is not WindowsFileMetadataReader || !LocalVolume.IsLocalNtfs(source.RootPath)) return null;
+        var started = await repository.ReadLatestRevisionRunStartAsync(source.SourceId, cancellationToken);
+        return started?.Subtract(TimeSpan.FromSeconds(2));
     }
 
     private IBackupFailureInjector FailureInjector =>

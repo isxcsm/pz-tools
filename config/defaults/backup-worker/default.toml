@@ -29,6 +29,8 @@ always_include = ["players.db", "vehicles.db", "thumb.png"]
 # When Windows change tracking is unavailable, read file contents and compare
 # them with the previous backup. Keep true to detect edits even when file sizes
 # and timestamps stay the same. This reads more data and can make backups slower.
+# On a local NTFS drive, files last written well before the previous backup began
+# are not read again: there, every write moves a file's timestamps.
 # false checks only names, sizes, timestamps and other file information; it can
 # miss content changes. Files in always_include are still copied either way.
 # A file with no previous comparison hash is copied once to establish a baseline.

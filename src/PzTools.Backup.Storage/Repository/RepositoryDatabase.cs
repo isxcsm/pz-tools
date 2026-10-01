@@ -417,6 +417,31 @@ public sealed partial class RepositoryDatabase
         return new SourceState(sourceId, reader.GetInt64(0), checkpoint);
     }
 
+    /// <summary>
+    /// When the run that made the source's newest revision started; null without a revision. The current
+    /// catalog reflects every write to the source before that moment. Maintenance runs share the runs
+    /// table, so this is deliberately taken from the revision, not from the newest run.
+    /// </summary>
+    public async Task<DateTimeOffset?> ReadLatestRevisionRunStartAsync(
+        long sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT run.started_utc FROM revisions AS revision
+            JOIN runs AS run ON run.run_index = revision.run_index
+            WHERE revision.source_id = $sourceId
+            ORDER BY revision.revision DESC LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$sourceId", sourceId);
+        return await command.ExecuteScalarAsync(cancellationToken) is string started
+            && DateTimeOffset.TryParse(started, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var value)
+            ? value : null;
+    }
+
     public async Task<SqliteConnection> OpenConnectionAsync(
         CancellationToken cancellationToken = default)
     {
