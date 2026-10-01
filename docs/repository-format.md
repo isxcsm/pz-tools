@@ -24,7 +24,6 @@ publish the app and the workers together, so that they agree on the version.
 ```text
 repository/
   repository.db
-  repository.schema5.db   (only after an upgrade from schema 5)
   telemetry.db
   .pztools/<component>/telemetry.db
   packs/
@@ -34,9 +33,7 @@ repository/
 
 | Item | What it holds |
 | --- | --- |
-| `repository.db` | The authoritative record: [sources](glossary.md#source), [revisions](glossary.md#revision-backup), checkpoints, object locations and the [catalog](glossary.md#catalog) |
-| `repository.schema5.db` | A copy of `repository.db` taken just before it was upgraded from schema 5; see [below](#upgrading-from-schema-5) |
-| `telemetry.db`, `.pztools/<component>/telemetry.db` | Diagnostics ([telemetry](glossary.md#telemetry)). Losing them does not remove any revision. |
+| `repository.db` | The authoritative record: [sources](glossary.md#source), [revisions](glossary.md#revision-backup), checkpoints, object locations and the [catalog](glossary.md#catalog) || `telemetry.db`, `.pztools/<component>/telemetry.db` | Diagnostics ([telemetry](glossary.md#telemetry)). Losing them does not remove any revision. |
 | `packs/` | The [pack](glossary.md#pack) files holding the stored file contents; see [pack format](pack-format.md) |
 | `staging/` | Temporary files while a pack is being written |
 | `.writer.lock` | The [writer lock](glossary.md#writer-lock) |
@@ -54,19 +51,19 @@ view gives what `runs` used to: the run of the backup worker's stage, or of the
 maintenance worker's when no backup shares the run, with its status in the five values
 telemetry uses.
 
-A schema 5 repository is upgraded the first time this build opens it:
+A schema 5 repository is upgraded the first time this build opens it, in one
+transaction:
 
-1. `repository.db` is copied to `repository.schema5.db` (once; an existing copy is kept).
-2. In one transaction, any run that only `runs` recorded gets a workflow and a
-   backup-worker stage. Revisions and packs are rebuilt with the new references, and
-   `runs` is dropped.
-3. Every reference is checked before the commit. If anything fails, nothing is
-   changed and the repository stays schema 5.
+1. Any run that only `runs` recorded gets a workflow and a backup-worker stage.
+2. Revisions and packs are rebuilt with the new references, and `runs` is dropped.
+3. Every reference is checked before the commit. If anything fails, or the process
+   stops part way, nothing is changed and the repository stays schema 5.
 
 Processes that open the repository at the same moment wait for the first upgrade and
-then find it done. The previous app version refuses an upgraded repository. To go back
-to it, replace `repository.db` with the copy straight away: backups made after the
-upgrade, and packs that maintenance removes later, are not in the copy.
+then find it done. No copy of the old database is kept: the transaction already makes
+the upgrade all or nothing, and a copy would take as much disk as the catalog, which
+grows with every save file and backup. The previous app version refuses an upgraded
+repository.
 
 ## When a backup folder is refused
 

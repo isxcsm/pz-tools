@@ -10,9 +10,6 @@ namespace PzTools.Backup.Storage.Repository;
 /// </summary>
 internal static class RepositorySchemaUpgrade
 {
-    /// <summary>Copy of the schema 5 database, taken before the first upgrade; never overwritten.</summary>
-    public const string PreUpgradeCopyName = "repository.schema5.db";
-
     // Rows of runs without a workflow or a worker stage are copied there first, so that no revision, pack
     // or history entry loses its run. Run statuses are a subset of workflow statuses.
     private static readonly string Upgrade =
@@ -68,8 +65,9 @@ internal static class RepositorySchemaUpgrade
         }.ToString());
         await connection.OpenAsync(cancellationToken);
         await ExecuteAsync(connection, null, "PRAGMA busy_timeout = 30000;", cancellationToken);
-        await CopyBeforeUpgradeAsync(connection, repositoryPath, cancellationToken);
 
+        // No copy is kept: the transaction is the safety. A copy would cost as much disk as the
+        // catalog, which grows with every save file and backup, and would go stale with the next one.
         using var transaction = connection.BeginTransaction(deferred: false);
         if (await ReadSchemaVersionAsync(connection, transaction, cancellationToken) != RepositorySchema.UpgradableVersion)
             return false;
@@ -98,29 +96,6 @@ internal static class RepositorySchemaUpgrade
         }
         transaction.Commit();
         return true;
-    }
-
-    // A rollback point for the user: the app before this schema cannot open an upgraded repository.
-    // Taken once; a later upgrade attempt after a failure keeps the first copy.
-    private static async Task CopyBeforeUpgradeAsync(
-        SqliteConnection connection, string repositoryPath, CancellationToken cancellationToken)
-    {
-        var copy = Path.Combine(repositoryPath, PreUpgradeCopyName);
-        if (File.Exists(copy)) return;
-        // Two processes may open the repository at once: each writes its own file, the first to finish wins.
-        var partial = $"{copy}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            await using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "VACUUM INTO $path;";
-                command.Parameters.AddWithValue("$path", partial);
-                await command.ExecuteNonQueryAsync(cancellationToken);
-            }
-            try { File.Move(partial, copy, overwrite: false); }
-            catch (IOException) when (File.Exists(copy)) { }
-        }
-        finally { File.Delete(partial); }
     }
 
     private static async Task<int> ReadSchemaVersionAsync(

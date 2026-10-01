@@ -26,6 +26,7 @@ public sealed class RepositorySchemaUpgradeTests
         using var temp = new TempDirectory();
         var path = ExtractFixture(temp);
         var before = await ReadRowsAsync(path, "SELECT run_index, status, started_utc FROM runs ORDER BY run_index;");
+        var databases = Directory.GetFiles(path, "*.db").Order().ToArray();
 
         var repository = await RepositoryDatabase.OpenExistingAsync(path);
 
@@ -39,11 +40,8 @@ public sealed class RepositorySchemaUpgradeTests
         // The worker history answers what runs did, with the same times.
         Assert.Equal(before, await ReadRowsAsync(path, "SELECT run_index, status, started_utc FROM worker_runs ORDER BY run_index;"));
         await AssertBackupsRestoreAsync(temp, repository, 3);
-
-        // The pre-upgrade copy is still schema 5, for going back to the previous app.
-        var copy = Path.Combine(path, "repository.schema5.db");
-        Assert.Equal("5", await ScalarAsync(path, "SELECT schema_version FROM repository_info;", copy));
-        Assert.Equal("3", await ScalarAsync(path, "SELECT COUNT(*) FROM runs;", copy));
+        // The catalog is not copied: the folder holds the same databases as before.
+        Assert.Equal(databases, Directory.GetFiles(path, "*.db").Order());
 
         await using (var lease = RepositoryWriterLease.Acquire(path))
         {
@@ -119,7 +117,6 @@ public sealed class RepositorySchemaUpgradeTests
 
         Assert.All(opened, repository => Assert.Equal(6, repository.Identity.SchemaVersion));
         Assert.Equal("1", await ScalarAsync(path, "SELECT COUNT(*) FROM schema_migrations WHERE version=6;"));
-        Assert.Empty(Directory.GetFiles(path, "*.tmp"));
         await AssertBackupsRestoreAsync(temp, opened[0], 3);
     }
 
@@ -144,10 +141,10 @@ public sealed class RepositorySchemaUpgradeTests
     }
 
     // References are not enforced, so a test can damage the fixture on purpose.
-    private static SqliteConnection Open(string repositoryPath, string? database = null) =>
+    private static SqliteConnection Open(string repositoryPath) =>
         new(new SqliteConnectionStringBuilder
         {
-            DataSource = database ?? Path.Combine(repositoryPath, RepositoryDatabase.DatabaseFileName),
+            DataSource = Path.Combine(repositoryPath, RepositoryDatabase.DatabaseFileName),
             Pooling = false,
             ForeignKeys = false,
         }.ToString());
@@ -161,12 +158,12 @@ public sealed class RepositorySchemaUpgradeTests
         await command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<string?> ScalarAsync(string repositoryPath, string sql, string? database = null) =>
-        (await ReadRowsAsync(repositoryPath, sql, database)).SingleOrDefault();
+    private static async Task<string?> ScalarAsync(string repositoryPath, string sql) =>
+        (await ReadRowsAsync(repositoryPath, sql)).SingleOrDefault();
 
-    private static async Task<List<string>> ReadRowsAsync(string repositoryPath, string sql, string? database = null)
+    private static async Task<List<string>> ReadRowsAsync(string repositoryPath, string sql)
     {
-        await using var connection = Open(repositoryPath, database);
+        await using var connection = Open(repositoryPath);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
