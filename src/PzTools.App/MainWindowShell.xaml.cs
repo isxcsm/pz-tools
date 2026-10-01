@@ -2143,7 +2143,7 @@ public sealed partial class MainWindowShell : UserControl
             {
                 choice = new RadioButtons();
                 foreach (var character in characters)
-                    choice.Items.Add(FormatCharacterChoice(character));
+                    choice.Items.Add(CreateCharacterChoice(character));
                 // The dead character is the likelier one to revive; the user can change it.
                 choice.SelectedIndex = Math.Max(0, characters.ToList().FindIndex(character => character.Dead));
                 void ShowChosen() => body.Text = Localizer.Format("ConfirmHealCharacterBody",
@@ -2196,13 +2196,34 @@ public sealed partial class MainWindowShell : UserControl
     private static string NameOrUnknown(string name) =>
         string.IsNullOrWhiteSpace(name) ? Localizer.Get("CharacterNameUnknown") : name;
 
-    private static string FormatCharacterChoice(LocalCharacter character)
+    // The name on its own line; death as the skull the version list uses; survival time below, secondary.
+    private static RadioButton CreateCharacterChoice(LocalCharacter character)
     {
-        var parts = new List<string> { NameOrUnknown(character.Name) };
-        if (character.Dead) parts.Add(Localizer.Get("CharacterDead"));
-        if (character.HoursSurvived is { } hours and >= 0)
-            parts.Add(Localizer.Format("VersionSurvivalFormat", SaveVersionUiItem.FormatSurvivalHours(hours)));
-        return string.Join(" · ", parts);
+        var name = NameOrUnknown(character.Name);
+        var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        title.Children.Add(new TextBlock { Text = name, TextWrapping = TextWrapping.Wrap });
+        if (character.Dead)
+            title.Children.Add(new Image
+            {
+                Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center,
+                Source = new SvgImageSource(new Uri("ms-appx:///Assets/Navigation/skull.svg")),
+            });
+        var content = new StackPanel { Spacing = 2 };
+        content.Children.Add(title);
+        var survival = character.HoursSurvived is { } hours and >= 0
+            ? Localizer.Format("VersionSurvivalFormat", SaveVersionUiItem.FormatSurvivalHours(hours))
+            : null;
+        if (survival is not null)
+            content.Children.Add(new TextBlock
+            {
+                Text = survival, FontSize = 12, TextWrapping = TextWrapping.Wrap,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            });
+        var choice = new RadioButton { Content = content };
+        // Read aloud as one item; the skull alone says nothing to a screen reader.
+        AutomationProperties.SetName(choice, string.Join(", ",
+            new[] { name, character.Dead ? Localizer.Get("CharacterDead") : null, survival }.OfType<string>()));
+        return choice;
     }
 
     private async void ManualBackupButton_Click(object sender, RoutedEventArgs e)
