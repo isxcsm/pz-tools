@@ -44,8 +44,11 @@ The packaged defaults are the starting point for each
   state.db                            # current game and save state
   scheduler.db                        # schedule and command inbox
   logs.db                             # logs shown in the app
+  save-versions.json                  # last game version seen per save
+  .pztools\<scheduler.db|state.db>\<component>\ # scheduler and state-pipeline telemetry
   operations\<component>\<operation>\ # temporary operation telemetry
   profiles\                           # performance recordings, one file each
+  crash\                              # error reports, newest 20 kept
   cache\
   temp\
 ```

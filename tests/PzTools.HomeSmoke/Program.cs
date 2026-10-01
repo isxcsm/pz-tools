@@ -51,12 +51,21 @@ internal sealed class SmokeApp(string outputDirectory, bool visible) : Applicati
 
     private static readonly (string Name, HomeDestination Destination)[] Actions =
     [
-        ("OpenSavesButton", HomeDestination.Saves),
-        ("AutomaticBackupButton", HomeDestination.Settings),
-        ("RestoreButton", HomeDestination.Saves),
+        ("GameStatusButton", HomeDestination.Saves),
+        ("SaveStatusButton", HomeDestination.Saves),
+        ("ExtensionStatusButton", HomeDestination.Extensions),
+        ("BackupButton", HomeDestination.Saves),
         ("CharacterRecoveryButton", HomeDestination.Saves),
+        ("ProfilerButton", HomeDestination.Profiler),
         ("GameExtensionsButton", HomeDestination.Extensions),
     ];
+
+    // A filled-in state for the tiles, as the shell would pass it: a game running, a save backed up, extensions on.
+    private static readonly HomeStatus Sample = new(HomeGameState.Playing, "2026-09-27_04-34-39", false, true,
+        "2026-09-27_04-34-39", "Sandbox", DateTimeOffset.UtcNow.AddMinutes(-12), true, true, false, 3);
+    // And a quiet one: no game, a save never backed up (the warning line), extensions off.
+    private static readonly HomeStatus Idle = new(HomeGameState.NotPlaying, null, false, true,
+        "2026-09-21_22-10-59", "Survivor", null, true, false, false, 3);
 
     private readonly List<object> captures = [];
     private Window? window;
@@ -99,7 +108,7 @@ internal sealed class SmokeApp(string outputDirectory, bool visible) : Applicati
                     if (!visible) window.AppWindow.Hide();
                     await RunAsync(host);
                     File.WriteAllText(Path.Combine(outputDirectory, "result.txt"),
-                        "PASS: 4 viewport/theme combinations, 20 CTA invokes, 4 navigation SVG loads/renders; " +
+                        "PASS: 4 viewport/theme combinations, 28 CTA invokes, 4 navigation SVG loads/renders; " +
                         "18 live language switches, localized text/accessibility, 36 localized layout renders; no AppHost/game/save/settings access.");
                 }
                 catch (Exception error) { WriteFailure(error); }
@@ -138,6 +147,8 @@ internal sealed class SmokeApp(string outputDirectory, bool visible) : Applicati
             var navigation = new List<HomeDestination>();
             page.NavigationRequested += (_, destination) => navigation.Add(destination);
             host.Children.Add(page);
+            // Light runs show a game being played, dark runs a quiet state with a warning.
+            page.ShowStatus(theme == ElementTheme.Light ? Sample : Idle);
             var scale = host.XamlRoot.RasterizationScale;
             window!.AppWindow.Resize(new SizeInt32(
                 (int)Math.Ceiling(viewport.Width * scale) + 32,
@@ -162,7 +173,7 @@ internal sealed class SmokeApp(string outputDirectory, bool visible) : Applicati
                 Check(Math.Abs(introductionOrigin.Y) < 1, "Wide Home title must align with other page headers.");
             }
             var version = page.FindName("HomeVersion") as TextBlock;
-            Check(version is { Text: "v0.1.0", IsTextSelectionEnabled: true }
+            Check(version is { Text: "v0.2.0", IsTextSelectionEnabled: true }
                 && version.ActualWidth > 0 && version.ActualHeight > 0 && !version.IsTextTrimmed,
                 "Home footer must display the selectable app version.");
 
@@ -232,23 +243,26 @@ internal sealed class SmokeApp(string outputDirectory, bool visible) : Applicati
         host.RequestedTheme = ElementTheme.Light;
         var page = new HomePage();
         host.Children.Add(page);
+        page.ShowStatus(Sample);
+        // Descriptions carry word joiners between Korean syllables; compare without them.
         var localizedText = new Dictionary<string, string>
         {
             ["HomeDescription"] = "Home.Description",
-            ["HomeOpenSaves"] = "SavesNavigation.Content",
             ["HomeFeaturesHeading"] = "Home.FeaturesHeading",
             ["HomeBackupTitle"] = "Home.BackupTitle",
             ["HomeBackupDescription"] = "Home.BackupDescription",
-            ["HomeBackupAction"] = "Home.BackupAction",
-            ["HomeRestoreTitle"] = "Home.RestoreTitle",
-            ["HomeRestoreDescription"] = "Home.RestoreDescription",
-            ["HomeRestoreAction"] = "Home.RestoreAction",
+            ["HomeBackupAction"] = "SavesNavigation.Content",
             ["HomeRecoveryTitle"] = "Home.RecoveryTitle",
             ["HomeRecoveryDescription"] = "Home.RecoveryDescription",
             ["HomeRecoveryAction"] = "SavesNavigation.Content",
-            ["HomeExtensionsTitle"] = "Extension.VehicleDrivetrain.Title",
+            ["HomeProfilerTitle"] = "ProfilerNavigation",
+            ["HomeProfilerDescription"] = "Home.ProfilerDescription",
+            ["HomeProfilerAction"] = "ProfilerNavigation",
+            ["HomeExtensionsTitle"] = "GameExtensions.Title",
             ["HomeExtensionsDescription"] = "Home.ExtensionsDescription",
             ["HomeExtensionsAction"] = "GameExtensions.Title",
+            ["GameStatusValue"] = "Home.GamePlaying",
+            ["ExtensionStatusValue"] = "Home.VehicleOn",
             ["HomeUnofficialNotice"] = "Home.UnofficialNotice",
         };
         foreach (var language in LanguageCatalog.All)
@@ -258,14 +272,13 @@ internal sealed class SmokeApp(string outputDirectory, bool visible) : Applicati
             Check(page.Language == language.Tag, "Home retained the previous language.");
             Check(!string.IsNullOrWhiteSpace(Localizer.Get("HomeNavigation.Content")), "Home menu translation missing.");
             foreach (var (name, key) in localizedText)
-                Check(((TextBlock)page.FindName(name)).Text == Localizer.Get(key), language.Tag + ": stale " + name);
+                Check(((TextBlock)page.FindName(name)).Text.Replace("⁠", "") == Localizer.Get(key), language.Tag + ": stale " + name);
             Check(Equals(((HyperlinkButton)page.FindName("ReportIssueButton")).Content, Localizer.Get("Home.ReportIssue")),
                 language.Tag + ": issue link retained the previous language.");
             foreach (var (name, key) in new[]
             {
-                ("OpenSavesButton", "SavesNavigation.Content"), ("AutomaticBackupButton", "Home.BackupAction"),
-                ("RestoreButton", "Home.RestoreAction"), ("CharacterRecoveryButton", "SavesNavigation.Content"),
-                ("GameExtensionsButton", "GameExtensions.Title"),
+                ("BackupButton", "Home.BackupTitle"), ("CharacterRecoveryButton", "Home.RecoveryTitle"),
+                ("ProfilerButton", "ProfilerNavigation"), ("GameExtensionsButton", "GameExtensions.Title"),
             })
                 Check(AutomationProperties.GetName(FindButton(page, name)) == Localizer.Get(key),
                     language.Tag + ": stale accessible name for " + name);

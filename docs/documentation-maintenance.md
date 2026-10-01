@@ -89,7 +89,9 @@ Current facts should be checked against their source, not copied from an old REA
 | UI languages and default name prefixes | [Language catalog](../src/PzTools.Process.Contracts/Localization/languages.tsv) |
 | Runtime requirement and publishing behavior | [Publish script](../scripts/publish-app.ps1) |
 | Administrator request | [App manifest](../src/PzTools.App/app.manifest) |
-| Backup defaults | [App settings](../src/PzTools.App.Core/AppSettings.cs) |
+| Backup interval and retention defaults | [App settings](../src/PzTools.App.Core/AppSettings.cs) |
+| Backup worker defaults | [Backup worker template](../config/defaults/backup-worker/default.toml) |
+| Version shown in the app | [Home page](../src/PzTools.App/HomePage.xaml) footer |
 | Game and recovery limits | [Save bridge](save-bridge.md), [character recovery](character-recovery.md) |
 | Storage compatibility | [Repository format](repository-format.md) and [schema](../src/PzTools.Backup.Storage/Repository/RepositorySchema.cs) |
 

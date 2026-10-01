@@ -195,28 +195,29 @@ public sealed partial class GameSaveClientTests
     public async Task TwoContinuousModulesShareOneLease_AndAreAppliedUpdatedAndRetiredIndependently()
     {
         using var temp = new TempDirectory();
-        var bridge = ContinuousFixtureBridge(temp);
+        var bridge = ContinuousFixtureBridge(temp, withSecondModule: true);
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         await using var watch = new RuntimeWatchCapture(game.Pid, bridge);
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await using var lease = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
         var vehicle = lease.Module(ExtensionIds.VehicleDrivetrain);
-        var look = lease.Module(ExtensionIds.ScreenLook);
+        // A module that exists only for this test: the transport runs any catalogued continuous module.
+        var second = lease.Module(SecondModule);
         Task<RuntimeExtensionStatus> Apply(GameExtensionModule module, long expected, long revision, string value) =>
             module.ApplyAsync(ready.ProcessSession, ready.WorldSession, expected, revision, module.ModuleId, false,
                 new Dictionary<string, string> { ["fixture_value"] = value }, deadline.Token);
 
         Assert.Equal(RuntimeExtensionState.Pending, (await Apply(vehicle, -1, 1, "drive")).State);
-        Assert.Equal(RuntimeExtensionState.Pending, (await Apply(look, -1, 2, "look")).State);
+        Assert.Equal(RuntimeExtensionState.Pending, (await Apply(second, -1, 2, "second")).State);
         var driving = await AwaitContinuousState(vehicle, s => s.State == RuntimeExtensionState.Active && FixtureCount(s, "fixtureFrames") >= 3, deadline.Token);
-        var looking = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.Active && FixtureCount(s, "lookFrames") >= 3, deadline.Token);
-        Assert.Equal((1L, 2L), (driving.AppliedRevision, looking.AppliedRevision));
-        Assert.NotEqual(driving.Generation, looking.Generation);
+        var secondActive = await AwaitContinuousState(second, s => s.State == RuntimeExtensionState.Active && FixtureCount(s, "secondFrames") >= 3, deadline.Token);
+        Assert.Equal((1L, 2L), (driving.AppliedRevision, secondActive.AppliedRevision));
+        Assert.NotEqual(driving.Generation, secondActive.Generation);
         Assert.Contains("fixtureValue=drive", driving.Diagnostics);
-        Assert.Contains("lookValue=look", looking.Diagnostics);
+        Assert.Contains("secondValue=second", secondActive.Diagnostics);
         // A command must name the module it means.
-        await Assert.ThrowsAsync<ArgumentException>(() => look.ApplyAsync(ready.ProcessSession, ready.WorldSession, 2, 3,
+        await Assert.ThrowsAsync<ArgumentException>(() => second.ApplyAsync(ready.ProcessSession, ready.WorldSession, 2, 3,
             ExtensionIds.VehicleDrivetrain, false, new Dictionary<string, string>(), deadline.Token));
 
         // With the game paused nothing can be applied on the game thread. A new settings revision that
@@ -226,37 +227,37 @@ public sealed partial class GameSaveClientTests
         await watch.WaitAsync(s => s.Pause == GamePause.Paused);
         var unchanged = await Apply(vehicle, 1, 3, "drive");
         Assert.Equal((RuntimeExtensionState.Active, 3L, driving.Generation), (unchanged.State, unchanged.AppliedRevision, unchanged.Generation));
-        var waiting = await Apply(look, 2, 3, "stronger");
+        var waiting = await Apply(second, 2, 3, "stronger");
         Assert.Equal((RuntimeExtensionState.Pending, 2L), (waiting.State, waiting.AppliedRevision));
         Assert.Equal(RuntimeExtensionState.Active, (await vehicle.PingAsync(deadline.Token)).State);
         await File.WriteAllTextAsync(temp.GetPath("resume-game"), "resume", deadline.Token);
         await watch.WaitAsync(s => s.Pause == GamePause.Running);
-        var updated = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 3, deadline.Token);
-        Assert.Contains("lookValue=stronger", updated.Diagnostics);
-        Assert.Equal(looking.Generation, updated.Generation);
+        var updated = await AwaitContinuousState(second, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 3, deadline.Token);
+        Assert.Contains("secondValue=stronger", updated.Diagnostics);
+        Assert.Equal(secondActive.Generation, updated.Generation);
 
         // One module faults on its own; the other does not notice.
-        await look.ApplyAsync(ready.ProcessSession, ready.WorldSession, 3, 4, look.ModuleId, false,
+        await second.ApplyAsync(ready.ProcessSession, ready.WorldSession, 3, 4, second.ModuleId, false,
             new Dictionary<string, string> { ["fixture_fail"] = "true" }, deadline.Token);
-        var faulted = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.FaultedPassThrough, deadline.Token);
+        var faulted = await AwaitContinuousState(second, s => s.State == RuntimeExtensionState.FaultedPassThrough, deadline.Token);
         Assert.Equal("provider-failed:fixture-failed", faulted.Reason);
         var still = await vehicle.PingAsync(deadline.Token);
         Assert.Equal((RuntimeExtensionState.Active, driving.Generation), (still.State, still.Generation));
         Assert.Equal(RuntimeExtensionState.Disabled, (await lease.StatusAsync(deadline.Token)).State);
 
         // Turning one off leaves the other running on the same lease.
-        Assert.Equal(RuntimeExtensionState.Disabled, (await look.DisableAsync(deadline.Token)).State);
+        Assert.Equal(RuntimeExtensionState.Disabled, (await second.DisableAsync(deadline.Token)).State);
         var frames = FixtureCount(await vehicle.PingAsync(deadline.Token), "fixtureFrames");
         var later = await AwaitContinuousState(vehicle, s => FixtureCount(s, "fixtureFrames") > frames, deadline.Token);
         Assert.Equal((RuntimeExtensionState.Active, driving.Generation, 3L), (later.State, later.Generation, later.AppliedRevision));
-        Assert.Equal(RuntimeExtensionState.Pending, (await Apply(look, -1, 5, "again")).State);
-        var again = await AwaitContinuousState(look, s => s.State == RuntimeExtensionState.Active, deadline.Token);
-        Assert.NotEqual(looking.Generation, again.Generation);
+        Assert.Equal(RuntimeExtensionState.Pending, (await Apply(second, -1, 5, "again")).State);
+        var again = await AwaitContinuousState(second, s => s.State == RuntimeExtensionState.Active, deadline.Token);
+        Assert.NotEqual(secondActive.Generation, again.Generation);
 
         // OFF without a module is the whole host.
         Assert.Equal(RuntimeExtensionState.Disabled, (await lease.DisableAsync(deadline.Token)).State);
         Assert.Equal(RuntimeExtensionState.Disabled, (await vehicle.StatusAsync(deadline.Token)).State);
-        Assert.Equal(RuntimeExtensionState.Disabled, (await look.StatusAsync(deadline.Token)).State);
+        Assert.Equal(RuntimeExtensionState.Disabled, (await second.StatusAsync(deadline.Token)).State);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
     }
 
@@ -264,7 +265,9 @@ public sealed partial class GameSaveClientTests
         status.Diagnostics?.Split(';').Select(field => field.Split('='))
             .Where(pair => pair.Length == 2 && pair[0] == key).Select(pair => int.Parse(pair[1])).FirstOrDefault(-1) ?? -1;
 
-    private static string ContinuousFixtureBridge(TempDirectory temp)
+    private const string SecondModule = "pztools.second-module";
+
+    private static string ContinuousFixtureBridge(TempDirectory temp, bool withSecondModule = false)
     {
         var bridge = temp.GetPath("continuous-bridge");
         foreach (var source in Directory.EnumerateFiles(RuntimeBridgeDirectory(), "*", SearchOption.AllDirectories))
@@ -275,9 +278,15 @@ public sealed partial class GameSaveClientTests
         var fixture = Environment.GetEnvironmentVariable("PZTOOLS_CONTINUOUS_FIXTURE_JAR")
             ?? throw new InvalidOperationException("Continuous fixture must be prepared.");
         File.Copy(fixture, Path.Combine(bridge, "extensions", "pztools-vehicle-drivetrain.jar"), true);
-        // The second synthetic module is built beside the first.
-        File.Copy(Path.Combine(Path.GetDirectoryName(fixture)!, "screen-fixture.jar"),
-            Path.Combine(bridge, "extensions", "pztools-screen-look.jar"), true);
+        if (withSecondModule)
+        {
+            // The second synthetic module is built beside the first and catalogued only in this copy.
+            File.Copy(Path.Combine(Path.GetDirectoryName(fixture)!, "second-fixture.jar"),
+                Path.Combine(bridge, "extensions", "pztools-second-module.jar"), true);
+            File.AppendAllText(Path.Combine(bridge, "extensions", "catalog.tsv"),
+                SecondModule + "\t0.1.0\tpztools.extensions.second\tpztools.extensions.second.SecondModuleProvider\tpztools-second-module.jar"
+                + "\tMajor\t42\t42\tExtension.Second.Title\tExtension.Second.Description\tvehicle.drivetrain.v1\n");
+        }
         return bridge;
     }
 

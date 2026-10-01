@@ -60,13 +60,16 @@ Freeing space inside partly used data files is a further step; see
 
 ## Settings
 
-The options are in `config/defaults/maintenance-worker/default.toml`; see
-[configuration](configuration.md) for how component settings are layered. Build and
+Edit `config/maintenance-worker/default.toml` under `%LOCALAPPDATA%\PzTools`; the
+packaged defaults come from `config/defaults/maintenance-worker/default.toml` in the
+source tree. See [configuration](configuration.md) for how component settings are layered. Build and
 publish the app and workers together, and do not use new configuration keys with an
 older worker.
 
 | Key | Default | Range | What it controls |
 | --- | --- | --- | --- |
+| `retain_latest_revisions` | 100 | 1 or more | Automatic backups kept when maintenance runs without the app; the app passes its own retention count instead |
+| `writer_retry_delay_ms` | 200 | 50–5000 | Wait before retrying when another operation holds the repository writer |
 | `revision_batch_size` | 20 | 1–1000 | Deleted backups reclaimed per save in one pass; a full batch starts at once |
 | `revision_compaction_max_delay_minutes` | 60 | 0–10080 | How long a smaller batch waits |
 | `history_retention_days` | 90 | 0–3650 | Minimum age of execution history before it is trimmed; 0 turns trimming off |

@@ -431,6 +431,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileEmpty" xml:space="preserve"><value>Ainda não há gravações.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Não foi possível abrir esta gravação. O arquivo está danificado ou foi criado por uma versão mais recente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar o conteúdo exibido como texto</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Os resultados de desempenho foram copiados.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Abra o jogo para gravar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} não foi iniciado porque o jogo não está em execução.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} não foi iniciado porque há mais de um jogo em execução.</value></data>
@@ -474,6 +476,13 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileColumnsTip" xml:space="preserve"><value>Próprio: tempo gasto diretamente nessa função. Total: inclui também as funções que ela chamou.</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Participação por thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Esperas e pausas longas</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>Item</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>Tempo do trecho</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>Parcela de execução</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Quanto do trecho selecionado este script estava em execução. Inclui o tempo das funções do jogo que o script chamou.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Quanto do tempo de execução do código do jogo no trecho selecionado ficou com este item. Funções do jogo chamadas por scripts Lua contam aqui como 'Jogo base'. Esperas e travamentos longos mostram uma contagem em vez de uma parcela.</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0} vezes</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>O jogo não está em execução. Abra o jogo e tente de novo.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Há mais de um jogo em execução, então não é possível escolher o alvo.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Não foi possível conectar ao jogo. Se você atualizou o jogo ou o PZ Tools, reinicie o jogo.</value></data>
@@ -550,27 +559,15 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>O jogo não está em execução</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>O personagem está dormindo</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Melhorias na condução</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Melhora separadamente a aceleração para a frente e as trocas de marcha, a ré e a direção pelo teclado. Experimental; apenas para um jogador.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Melhora separadamente a aceleração para a frente e as trocas de marcha, a ré e a direção pelo teclado, e ilumina ao redor do veículo com os faróis acesos. Experimental; apenas para um jogador.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Aceleração e trocas de marcha naturais</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Ajusta a aceleração para a frente à rotação do motor e à marcha.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Ré suave</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Suaviza a arrancada em ré e limita sua velocidade.</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Direção precisa</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Torna graduais a direção pelo teclado e o retorno ao centro.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Direção precisa pelo teclado</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Vira exatamente o quanto você segura a tecla, mesmo com a taxa de quadros instável.</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Luz ao redor do veículo</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Ilumina a área ao redor do veículo em que você está enquanto os faróis estão acesos. Precisa de faróis funcionando e bateria carregada, e nada é gravado no seu save.</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Visual da tela</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Ajusta as cores e a nitidez da imagem do jogo. Nenhum arquivo do jogo é alterado, e basta desligar a chave para desativar.</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>Clima</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Escolha o estilo geral da imagem.</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Realista</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Vívido</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Cinematográfico</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>Intensidade</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>O quanto o clima escolhido é aplicado.</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Cores das estações</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Muda um pouco as cores das áreas externas durante o dia conforme a estação. Noites e interiores ficam como estão.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Cada opção é salva separadamente. O estado confirmado pelo jogo aparece abaixo.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Aplicado no jogo · Experimental</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Aguardando aplicação no jogo</value></data>
@@ -602,17 +599,31 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Nenhum registro corresponde aos filtros selecionados.</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>Ver todos os registros</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>Início</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>Backups, recuperação de personagens e extensões para Project Zomboid.</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Gerencia backups, recuperação do personagem, análise de desempenho e extensões do jogo para Project Zomboid.</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>Principais recursos</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>Backups automáticos e manuais</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>Compacta e faz backup apenas dos arquivos alterados. Permite definir o intervalo dos backups automáticos e quantos manter. Os backups manuais ficam fora dessa contagem.</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>Configurar backups</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>Restaurar e exportar backups</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>Restaura a partida ao estado salvo no backup. Permite exportar partidas e backups em ZIP e importar arquivos ZIP.</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>Lista de backups</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>Backup e restauração</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>Faz backup automático ou manual só dos arquivos alterados, compactados. Restaure um backup ou exporte-o como ZIP.</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>Recuperação do personagem</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>Cura ou ressuscita o personagem da partida atual, preservando traços e habilidades. Não está disponível enquanto você joga essa partida.</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Ajusta a aceleração, as trocas de marcha, a ré e o controle da direção pelo teclado. Cada recurso pode ser ativado ou desativado separadamente, sem instalar mods.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Adiciona recursos ao jogo sem um mod separado. No momento oferece melhorias na condução (aceleração, troca de marchas, ré, direção, luz ao redor do veículo).</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>Verificando o jogo</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>Verificando partidas</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>Verificando extensões do jogo</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>Melhorias na condução ativadas</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>Melhorias na condução desativadas</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>Melhorias na condução aguardando</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Versão do jogo não compatível</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Relatar um problema</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Ferramenta não oficial para Project Zomboid</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Grava o desempenho enquanto o jogo roda e mostra o tempo de scripts de cada mod.</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>Jogo em execução</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>Jogo fora de execução</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>Nenhuma partida</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>Último backup {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>Nenhum backup</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>Opções: {0}</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>agora mesmo</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>há {0} min</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>há {0} h</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>há {0} d</value></data>
 </root>

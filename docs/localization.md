@@ -95,7 +95,7 @@ python scripts/check-documentation.py
 On a configured Windows build machine, run the resource, message and setting regressions:
 
 ```powershell
-dotnet test tests/PzTools.Backup.Tests -c Release --filter "FullyQualifiedName~LocalizationTests|FullyQualifiedName~UserFacingMessageTests|FullyQualifiedName~SaveActionTooltipTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~BackupConfigurationTests"
+dotnet test tests/PzTools.Backup.Tests -c Release --filter "FullyQualifiedName~LocalizationTests|FullyQualifiedName~UserFacingMessageTests|FullyQualifiedName~BackupKindTests|FullyQualifiedName~BackupConfigurationTests"
 ```
 
 The [localization smoke project](../tests/PzTools.LocalizationSmoke) runs the real WinUI

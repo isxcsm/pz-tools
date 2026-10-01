@@ -77,7 +77,6 @@ public sealed class ExtensionSettingsStore
             try { ExtensionIds.Validate(id); }
             catch (ArgumentException exception) { throw new InvalidDataException("Invalid extension identifier.", exception); }
             if (preference is null) throw new InvalidDataException("Missing extension preference.");
-            preference.ScreenLook?.Validate();
         }
     }
 }

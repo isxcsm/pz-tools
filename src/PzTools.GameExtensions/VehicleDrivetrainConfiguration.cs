@@ -34,7 +34,7 @@ public static class VehicleDrivetrainConfiguration
     private static readonly IReadOnlyDictionary<string, bool> Booleans = new Dictionary<string, bool>(StringComparer.Ordinal)
     {
         ["torque_enabled"] = true, ["reverse_enabled"] = true, ["steering_enabled"] = true,
-        ["steering_precise_input"] = true, ["area_light_enabled"] = false,
+        ["steering_precise_input"] = true, ["area_light_enabled"] = true,
         ["low_mode"] = false, ["probe_only"] = false, ["diagnostics_enabled"] = false,
     };
     // Steering now follows the game's own response, so its rates are no longer tunable. An override

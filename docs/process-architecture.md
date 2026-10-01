@@ -20,7 +20,11 @@ BackupScheduler → BackupRunner → Backup worker
 
 StateScheduler  → Collector → Reactor (in the scheduler process)
                 → Scheduler outbox relay
+                → OrphanBackups lane (maintenance worker, detached)
 StateRunner     → Collector worker → Reactor worker (manual/direct calls)
+
+App             → one on-demand worker per operation: restore, archive import/export,
+                  character recovery, performance recording
 ```
 
 Each chain follows the [scheduler, runner, worker](glossary.md#scheduler-runner-worker)
@@ -33,9 +37,10 @@ pattern: the scheduler decides when, the runner takes a
 | BackupRunner | Starts one backup worker safely |
 | MaintenanceRunner | Starts maintenance dispatch, which starts the heavy cleanup children |
 | RevisionReclamation, ArtifactCleanup | Heavy maintenance [lanes](repository-housekeeping.md), each its own process |
-| StateScheduler | Collects the game's state every few seconds and runs the collector and reactor in its own process |
+| StateScheduler | Collects the game's state every few seconds and runs the collector and reactor in its own process; keeps enabled [game extensions](game-extensions.md) in step with the running game and starts the `OrphanBackups` lane ([below](#backups-of-deleted-saves)) |
 | Scheduler outbox relay | Delivers the reactor's commands to the backup scheduler |
 | StateRunner | Runs the collector and reactor as separate workers for manual refreshes and direct calls |
+| On-demand workers | Started by the app for one operation each: restore (`PzTools.Backup.Cli`), archive import and export (`PzTools.Zomboid.Archive.Cli`), [character recovery](character-recovery.md) (`PzTools.Zomboid.Recovery.Cli`) and [performance recording](profiler.md) (`PzTools.Profiler.Cli`). Their telemetry lives under `operations\` in the app data folder |
 
 <a id="game-state-decisions"></a>
 ## How automatic backups follow the game

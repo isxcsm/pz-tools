@@ -23,8 +23,8 @@ Two things happen independently:
 
 The game is reached through the **save bridge**: a small Java component that PZ Tools
 loads into the running game. It asks the game to save before a backup, reports the
-game's state, and hosts the optional **game extensions** (vehicle controls, screen
-look). No game file is edited.
+game's state, and hosts the optional **game extensions** (currently vehicle driving
+improvements). No game file is edited.
 
 ## The pieces
 

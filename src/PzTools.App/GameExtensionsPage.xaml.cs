@@ -79,7 +79,7 @@ public sealed partial class GameExtensionsPage : UserControl
             if (!sections.TryGetValue(id, out var section))
             {
                 section = new ExtensionSettingsSection(id, (setting, value) => SaveEditAsync(id, setting, value),
-                    initiallyExpanded: view.Cards.Count == 1, saveScreenLook: SaveScreenLookAsync);
+                    initiallyExpanded: view.Cards.Count == 1);
                 sections.Add(id, section);
             }
             section.Update(view, card);
@@ -111,23 +111,6 @@ public sealed partial class GameExtensionsPage : UserControl
             // Read the revisioned store, not an async command's potentially older return value.
             ApplyLatestView();
         }
-    }
-
-    private async Task SaveScreenLookAsync(Func<PzTools.GameExtensions.ScreenLookPreference, PzTools.GameExtensions.ScreenLookPreference> change)
-    {
-        if (App.Host is not { } host) { ShowSettingsError(); return; }
-        try
-        {
-            await host.GameExtensions.ApplyScreenLookAsync(change);
-            ErrorInfo.IsOpen = false;
-        }
-        catch (Exception exception) when (IsSettingsError(exception))
-        {
-            ShowSettingsError();
-            try { await host.GameExtensions.RefreshAsync(); }
-            catch (Exception reload) when (IsSettingsError(reload)) { }
-        }
-        finally { ApplyLatestView(); }
     }
 
     private static bool IsSettingsError(Exception exception) =>

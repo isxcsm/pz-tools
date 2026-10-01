@@ -901,8 +901,9 @@ public sealed class LogEntryUiItem
                         id = value.GetString();
                 }
                 catch (JsonException) { }
-            return Localizer.Get(id == PzTools.GameExtensions.ExtensionIds.ScreenLook
-                ? "Extension.ScreenLook.Title" : "Extension.VehicleDrivetrain.Title");
+            // An extension that is no longer part of the app (the retired screen look) keeps a general name.
+            return Localizer.Get(id is null or PzTools.GameExtensions.ExtensionIds.VehicleDrivetrain
+                ? "Extension.VehicleDrivetrain.Title" : "GameExtensions.Title");
         }
     }
     private string? PayloadText(string name)

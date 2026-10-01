@@ -3,7 +3,8 @@
 [Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
 This page is for anyone changing the PZ Tools desktop app's interface: the WinUI 3
-window where saves, backups, settings, logs and game extensions are managed. It lists the
+window where saves, backups, performance recordings, settings, logs and game extensions
+are managed. It lists the
 rules each screen follows: what it shows, when a button is locked, how the progress
 cards behave, and where the data on screen comes from. For how the app fits with the
 background processes, read the [overview](overview.md).
@@ -36,6 +37,27 @@ longer fit in a row.
 
 The Logs page works the same way: side-by-side panels in a wide window, stacked panels
 in a narrow one.
+
+## Home page
+
+The first page shown. It fills the window's width.
+
+- **Title and one line** saying what the app manages, with the illustration at the
+  right. The illustration may hang into the empty end of the *Features* heading line, so
+  it can be large without pushing the cards down.
+- **Three state rows** under the line, each opening its page: whether the game is
+  running (and "automatic backup off" when it is); the save being played, or else the
+  last one played, with the time of its last backup, or a warning-coloured "no backup";
+  the vehicle extension on, off or waiting for a supported game version, with how many
+  of its options are on. The shell builds these from the live views
+  (`HomeStatusSource`); the page itself reads nothing.
+- **Four feature cards**: backup and restore, character recovery, performance and
+  game extensions. Each opens its page.
+- **Footer**: links, the selectable version and the unofficial-tool notice.
+
+Text is plain and factual: what a feature does, and one fact or limit worth knowing.
+Korean text breaks only between words; the page joins the syllables of each word so a
+narrow window never splits one.
 
 ## Settings page
 
@@ -357,12 +379,28 @@ visible one. A marked revision disappears at once from the restore and export ch
 Other saves and previously exported archives are not affected by either kind of
 deletion.
 
+## Performance page
+
+Recording, the frame graph and the results are described in
+[performance recording](profiler.md). The rules that concern the screen:
+
+- The record button is enabled only when exactly one game is running (or the count is
+  not yet known); its tooltip says why otherwise. Pressing it with no game is reported
+  as information, not as a failure.
+- The results list has headings like the table beside it. The heading over the
+  numbers explains, on hover, what they measure; on the Lua tab it carries the total
+  for all scripts. Counts carry a unit so they are not read as shares.
+- The copy button copies what the page shows, as text.
+
 ## Game extensions page
 
-Each extension has an expander. Its extension-wide switch stays at the right of the
-header. In the expanded rows, descriptions are on the left and the independent feature
-switches on the right. Vehicle controls and the version-range override are inline;
-developer tuning stays in TOML. See [game extensions](game-extensions.md).
+Each extension has an expander, expanded at first when it is the only extension. Its
+extension-wide switch stays at the right of the header. In the expanded rows,
+descriptions are on the left and the independent feature switches on the right. The
+vehicle options (acceleration and shifting, reversing, precise keyboard steering, light
+around the vehicle) and the version-range override are inline; the options start on
+while the extension itself starts off. Developer tuning stays in TOML. See
+[game extensions](game-extensions.md).
 
 - Switches show the saved preferences. A separate status says whether the game's JVM
   has applied them (see [settings revision](glossary.md#settings-revision)).

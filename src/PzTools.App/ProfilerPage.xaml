@@ -174,15 +174,52 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <!-- Larger than the tabs beside it; the samples share its baseline. The share is in the list beside. -->
-          <TextBlock x:Name="DetailName" FontSize="18" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+          <!-- The name with the copy button right after it. Left-aligned, this grid is only as wide as both need,
+               so the button follows the name; when space runs short the name's star column shrinks and trims. -->
+          <Grid HorizontalAlignment="Left" ColumnSpacing="4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <!-- Larger than the tabs beside it; the samples share its baseline. The share is in the list beside. -->
+            <TextBlock x:Name="DetailName" FontSize="18" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+            <!-- What the page shows, as text: to paste into a message to a mod's author. -->
+            <Button x:Name="CopyResultsButton" Grid.Column="1" Width="32" Height="32" Padding="0"
+                    VerticalAlignment="Center" Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
+              <FontIcon Glyph="&#xE8C8;" FontSize="16" />
+            </Button>
+          </Grid>
           <TextBlock x:Name="DetailSamples" Grid.Column="1" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
         </Grid>
         <Border x:Name="GroupCard" Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
           <Grid>
-            <ListView x:Name="GroupList" Padding="4" SelectionMode="Single" ItemContainerStyle="{StaticResource ContentListItemStyle}"
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <!-- Column headings like the table beside: what the list holds and what its number is.
+                 The number's meaning differs by tab, so it is explained one hover away. Insets match the rows'. -->
+            <Border Padding="24,12,16,6" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="GroupNameHeading" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                <StackPanel x:Name="GroupShareHeading" Grid.Column="1" Orientation="Horizontal" Spacing="4" Background="Transparent">
+                  <TextBlock x:Name="GroupShareText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="NoWrap" />
+                  <FontIcon Glyph="&#xE946;" FontSize="12" VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  <!-- The scripts' share of the range, all mods together: what the rows below divide among themselves.
+                       In the normal text colour, so the number reads as a value, not as part of the heading. -->
+                  <TextBlock x:Name="GroupShareTotal" Margin="4,0,0,0" TextWrapping="NoWrap" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <ListView x:Name="GroupList" Grid.Row="1" Padding="4" SelectionMode="Single" ItemContainerStyle="{StaticResource ContentListItemStyle}"
                       SelectionChanged="GroupList_SelectionChanged"
                       AutomationProperties.AutomationId="ProfileGroupList">
               <ListView.ItemContainerTransitions>
@@ -190,7 +227,7 @@
               </ListView.ItemContainerTransitions>
             </ListView>
             <!-- The same moving accent bar as the save, backup and log lists. -->
-            <Canvas x:Name="GroupSelectionLayer" IsHitTestVisible="False">
+            <Canvas x:Name="GroupSelectionLayer" Grid.Row="1" IsHitTestVisible="False">
               <Border x:Name="GroupSelectionBar" Width="3" Height="16" Canvas.Left="10"
                       CornerRadius="2" Visibility="Collapsed"
                       Background="{ThemeResource AccentFillColorDefaultBrush}" />

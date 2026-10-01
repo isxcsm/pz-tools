@@ -431,6 +431,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileEmpty" xml:space="preserve"><value>Henüz kayıt yok.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Bu kayıt açılamıyor. Dosya bozuk ya da daha yeni bir sürümle oluşturulmuş.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>Gösterilen içeriği metin olarak kopyala</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Performans sonuçları kopyalandı.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Kayıt için oyunu başlatın.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>Oyun çalışmadığı için {0} başlatılmadı.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>Birden fazla oyun çalıştığı için {0} başlatılmadı.</value></data>
@@ -474,6 +476,13 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileColumnsTip" xml:space="preserve"><value>Kendi: doğrudan o işlevin içinde geçen süre. Toplam: çağırdığı işlevler de dahildir.</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>İş parçacığına göre pay</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Uzun beklemeler ve duraklamalar</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>Öge</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>Aralık süresi</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>Çalışma payı</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Seçili aralığın ne kadarında bu betiğin çalıştığı. Betiğin çağırdığı oyun işlevlerinin süresini de içerir.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Seçili aralıkta oyun kodunun çalışma süresinin ne kadarının bu ögeye gittiği. Lua betiklerinin çağırdığı oyun işlevleri burada 'Ana oyun' içinde sayılır. Uzun beklemeler ve takılmalar pay yerine sayı gösterir.</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0} kez</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Oyun çalışmıyor. Oyunu açıp yeniden deneyin.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Birden fazla oyun çalışıyor, bu yüzden hedef seçilemiyor.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Oyuna bağlanılamadı. Oyunu veya PZ Tools uygulamasını güncellediyseniz oyunu yeniden başlatın.</value></data>
@@ -550,27 +559,15 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Karakter uyuyor</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanma ve vites geçişlerini, geri sürüşü ve klavyeyle direksiyon kontrolünü ayrı ayrı iyileştirir. Deneyseldir; yalnızca tek oyunculu oyun içindir.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanma ve vites geçişlerini, geri sürüşü ve klavyeyle direksiyon kontrolünü ayrı ayrı iyileştirir; farlar açıkken aracın çevresini aydınlatır. Deneyseldir; yalnızca tek oyunculu oyun içindir.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Doğal hızlanma ve vites geçişleri</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>İleri hızlanmayı motor devrine ve vitese göre ayarlar.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Yumuşak geri sürüş</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Geri kalkışı yumuşatır ve geri sürüş hızını sınırlar.</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Hassas direksiyon</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Klavyeyle direksiyon hareketini ve merkeze dönüşü kademeli yapar.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Hassas klavye direksiyonu</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Kare hızı dengesiz olsa bile tuşu ne kadar basılı tutarsanız tam o kadar döner.</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Aracın çevresinde ışık</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Farlar açıkken içinde bulunduğunuz aracın çevresini aydınlatır. Çalışan farlar ve dolu bir akü gerekir; kaydınıza hiçbir şey yazılmaz.</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Ekran görünümü</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Oyun görüntüsünün rengini ve netliğini ayarlar. Oyun dosyaları değiştirilmez ve anahtarla kapatılabilir.</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>Hava</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Görüntünün genel havasını seçin.</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Gerçekçi</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Canlı</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Sinematik</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>Güç</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>Seçilen havanın ne kadar güçlü uygulanacağını belirler.</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>%{0}</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Mevsim renkleri</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Gündüz dış mekân renklerini mevsime göre biraz değiştirir. Geceler ve iç mekânlar olduğu gibi kalır.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Her seçenek ayrı kaydedilir. Oyunun doğruladığı durum aşağıda gösterilir.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Oyunda uygulandı · Deneysel</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Oyunda uygulanması bekleniyor</value></data>
@@ -602,17 +599,31 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="NoFilteredLogs" xml:space="preserve"><value>Seçili filtrelerle eşleşen günlük yok.</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>Tüm günlükleri görüntüle</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>Ana sayfa</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>Project Zomboid için yedekleme, karakter kurtarma ve oyun eklentileri.</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Project Zomboid için yedekleri, karakter kurtarmayı, performans analizini ve oyun eklentilerini yönetir.</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>Temel özellikler</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>Otomatik ve manuel yedekleme</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>Yalnızca değişen dosyaları sıkıştırıp yedekler. Otomatik yedekleme aralığı ve saklanacak yedek sayısı ayarlanabilir. Manuel yedekler bu sınıra dahil değildir.</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>Yedekleme ayarları</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>Yedek geri yükleme ve dışa aktarma</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>Kaydı, yedeğin alındığı andaki durumuna döndürür. Kayıtlar ve yedekler ZIP olarak dışa aktarılabilir. ZIP dosyaları da içe aktarılabilir.</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>Yedek listesi</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>Yedekleme ve geri yükleme</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>Yalnızca değişen dosyaları sıkıştırarak otomatik veya elle yedekler. Bir yedeğe geri dönebilir ya da ZIP olarak dışa aktarabilirsiniz.</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>Karakter kurtarma</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>Mevcut kayıttaki karakteri iyileştirir veya diriltir. Özellikler ve beceriler korunur. Bu kayıtla oynanırken kullanılamaz.</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Aracın hızlanmasını, vites geçişlerini, geri sürüşünü ve klavyeyle direksiyon kontrolünü ayarlar. Her işlev mod kurmadan ayrı ayrı açılıp kapatılabilir.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Ayrı bir mod olmadan oyuna özellik ekler. Şu anda araç sürüşü iyileştirmeleri sunar (hızlanma, vites değiştirme, geri vites, direksiyon, aracın çevresinde ışık).</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>Oyun denetleniyor</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>Kayıtlar denetleniyor</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>Oyun eklentileri denetleniyor</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri açık</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri kapalı</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri bekliyor</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Desteklenmeyen oyun sürümü</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Sorun bildir</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid için resmî olmayan bir araç</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Oyun çalışırken performansı kaydeder ve her modun betik süresini gösterir.</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>Oyun çalışıyor</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>Kayıt yok</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>Son yedek {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>Yedek yok</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>Seçenekler: {0}</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>az önce</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} dk önce</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>{0} sa önce</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>{0} gün önce</value></data>
 </root>

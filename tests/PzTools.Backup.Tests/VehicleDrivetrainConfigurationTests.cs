@@ -23,7 +23,7 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal("true", values["reverse_enabled"]);
         Assert.Equal("true", values["steering_enabled"]);
         Assert.Equal("true", values["steering_precise_input"]);
-        Assert.Equal("false", values["area_light_enabled"]);
+        Assert.Equal("true", values["area_light_enabled"]);
         Assert.Equal("8", values["area_light_radius"]);
         Assert.Equal("0.6", values["area_light_brightness"]);
         Assert.DoesNotContain("steering_full_rate", values.Keys);
@@ -246,9 +246,9 @@ public sealed class VehicleDrivetrainConfigurationTests
         Directory.CreateDirectory(temp.GetPath("runtime/extensions"));
         File.WriteAllText(temp.GetPath("bridge/extensions/vehicle-drivetrain.toml"), "schema_version = 1");
         File.WriteAllText(temp.GetPath("runtime/extensions/vehicle-drivetrain.toml"),
-            "torque_enabled = false\nreverse_enabled = false\nsteering_enabled = false\narea_light_enabled = true\nprobe_only = true\n");
+            "torque_enabled = false\nreverse_enabled = false\nsteering_enabled = false\narea_light_enabled = false\nprobe_only = true\n");
         var defaults = VehicleDrivetrainConfiguration.Load(temp.GetPath("bridge"), temp.GetPath("runtime"));
-        Assert.Equal("false", defaults["area_light_enabled"]);
+        Assert.Equal("true", defaults["area_light_enabled"]);
         Assert.Equal("true", defaults["torque_enabled"]);
         Assert.Equal("true", defaults["reverse_enabled"]);
         Assert.Equal("true", defaults["steering_enabled"]);
@@ -298,7 +298,7 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal(torque ? "true" : "false", values["torque_enabled"]);
         Assert.Equal(reverse ? "true" : "false", values["reverse_enabled"]);
         Assert.Equal(steering ? "true" : "false", values["steering_enabled"]);
-        Assert.Equal("false", values["area_light_enabled"]);
+        Assert.Equal("true", values["area_light_enabled"]);
         Assert.DoesNotContain("probeOnly", File.ReadAllText(store.FilePath));
         Assert.DoesNotContain("lowMode", File.ReadAllText(store.FilePath));
     }
@@ -328,7 +328,11 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal("true", values["area_light_enabled"]);
         Assert.Equal("12", values["area_light_radius"]);
         Assert.Equal("0.35", values["area_light_brightness"]);
-        foreach (var json in new[] { "{}", "{\"steeringEnabled\":true}", "{\"probeOnly\":true,\"areaLightEnabled\":true}" })
+        // On when not written, like the other switches (files from before the light existed lack it);
+        // an old observation-only file still turns it off.
+        foreach (var json in new[] { "{}", "{\"steeringEnabled\":true}" })
+            Assert.True(System.Text.Json.JsonSerializer.Deserialize<VehicleDrivetrainPreference>(json)!.AreaLightEnabled);
+        foreach (var json in new[] { "{\"areaLightEnabled\":false}", "{\"probeOnly\":true}", "{\"probeOnly\":true,\"areaLightEnabled\":true}" })
             Assert.False(System.Text.Json.JsonSerializer.Deserialize<VehicleDrivetrainPreference>(json)!.AreaLightEnabled);
     }
 
@@ -347,7 +351,9 @@ public sealed class VehicleDrivetrainConfigurationTests
         File.WriteAllText(store.FilePath, original);
         var read = store.Read();
         Assert.Equal(7, read.Revision);
-        Assert.Equal(new VehicleDrivetrainPreference(torque, reverse, steering), read.Extensions[ExtensionIds.VehicleDrivetrain].VehicleDrivetrain);
+        // The light was never written by these files: on, unless the file is an old observation-only one.
+        var light = !json.Contains("\"probeOnly\":true", StringComparison.Ordinal);
+        Assert.Equal(new VehicleDrivetrainPreference(torque, reverse, steering, light), read.Extensions[ExtensionIds.VehicleDrivetrain].VehicleDrivetrain);
         Assert.Equal(original, File.ReadAllText(store.FilePath));
     }
 

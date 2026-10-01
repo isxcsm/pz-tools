@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.*;
  */
 final class ContinuousRuntime {
     /** Capabilities that run for as long as they are on, as opposed to once per save. */
-    static final Set<String> CAPABILITIES = Set.of("vehicle.drivetrain.v1", "screen.grade.v1");
+    static final Set<String> CAPABILITIES = Set.of("vehicle.drivetrain.v1");
     private record Definition(String id, String version, String namespace, String entry, String jar, VersionSupport support) { }
     private final Object operations = new Object();
     private final AtomicReference<Generation> current = new AtomicReference<>();

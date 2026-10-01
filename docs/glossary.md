@@ -239,8 +239,8 @@ before saving.
 
 ### Extension, module
 
-An optional feature that runs inside the game, such as vehicle controls or the screen
-look. Each ships as its own archive (the **module**) and is off by default. See
+An optional feature that runs inside the game; vehicle driving improvements is currently
+the only one. Each ships as its own archive (the **module**) and is off by default. See
 [game extensions](game-extensions.md).
 
 ### Catalogue
@@ -250,8 +250,7 @@ supported game versions and capability.
 
 ### Capability
 
-The named contract a module implements, such as `vehicle.drivetrain.v1` or
-`screen.grade.v1`. It decides how the module is started. *Continuous* modules run
+The named contract a module implements, such as `vehicle.drivetrain.v1`. It decides how the module is started. *Continuous* modules run
 for the whole play session; *per-save* modules would act only around a save and none
 is currently shipped.
 
@@ -292,8 +291,7 @@ effect.
 ### Safe boundary
 
 A moment when a change can be applied without disturbing play. For vehicle controls:
-all vehicles stopped, accelerator released and cruise control off. The screen look
-needs no such moment.
+all vehicles stopped, accelerator released and cruise control off.
 
 ### Retire, revoke
 

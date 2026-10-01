@@ -23,6 +23,9 @@ services.
 
 Expected: exit code 0, `PASS` in `result.txt`, and four Home PNGs covering 1280×920 and
 640×720 layout sizes in light/dark themes, plus two navigation SVG test strips.
+The page is given the state the shell would pass it: light runs show a game in play
+with a recent backup and the vehicle extension on; dark runs show no game, a save with
+no backup (the warning) and the extension off.
 The same Home instance is also switched through all 18 supported languages using
 the production Localizer and PRI resources. Text, link labels, accessibility names,
 and the page language are checked after every switch. Each language is rendered at
@@ -32,15 +35,16 @@ a `-bottom.png`. PNG output is normalized to those pixel dimensions; layout uses
 DIPs at the machine's current system text scaling. `layout.json` records actual
 CTA geometry, theme, rasterization scale, scroll height and any trimmed text.
 
-Each of the five production CTA buttons is invoked through its real WinUI
-automation peer in all four combinations, asserting exactly one expected
-`NavigationRequested` event. The narrow viewport must exercise scrolling, and
+Each of the seven production buttons (three status rows and four feature cards) is
+invoked through its real WinUI automation peer in all four combinations, asserting
+exactly one expected `NavigationRequested` event (Saves, Performance or Game extensions). The narrow viewport must exercise scrolling, and
 each CTA is brought fully into view before invocation. Horizontal clipping,
 vertically unreachable CTAs, missing/disabled CTAs, or an
 unloaded bitmap artwork fail the run. The footer must also show the selectable
-app version, independent of the test assembly's version metadata.
+app version (`v0.2.0`, checked as literal text), independent of the test assembly's
+version metadata.
 
-The production Home and Apps SVGs are loaded through `SvgImageSource` into 20 px
+The production `home.svg` and `extensions.svg` navigation icons are loaded through `SvgImageSource` into 20 px
 `ImageIcon` controls in both themes. Each must raise `Opened` and render nontransparent
 pixels; a load failure, timeout or blank icon fails the run. The test strips are
 minimal asset checks, not a complete navigation-shell capture.

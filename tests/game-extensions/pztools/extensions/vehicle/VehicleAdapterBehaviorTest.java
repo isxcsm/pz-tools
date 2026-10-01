@@ -842,11 +842,11 @@ public final class VehicleAdapterBehaviorTest {
     private static void areaLight() throws Throwable {
         try(var e=new Env()) {
             Object cell=e.get(e.world,"currentCell");
-            // Off by default: headlights alone place nothing.
-            VehicleControl off=e.adapter(Map.of("diagnostics_enabled","true"));
+            // Switched off: headlights alone place nothing.
+            VehicleControl off=e.adapter(Map.of("area_light_enabled","false","diagnostics_enabled","true"));
             e.set(e.vehicle,"headlightsOn",true); e.set(e.vehicle,"x",10.7f); e.set(e.vehicle,"y",-3.2f);
             off.gameFrame();
-            near(e.number(cell,"added"),0,"area light is opt-in");
+            near(e.number(cell,"added"),0,"a switched-off area light places nothing");
             check(off.diagnostics().endsWith(";area_light=off"),"disabled light is reported off");
             e.unregister();
 

@@ -125,8 +125,9 @@ partly fails, the event includes a count and up to eight file names.
 A failure payload includes `failureCode`, `exceptionType`, `message` and `hResult`,
 plus, when known, the phase, relative path, save ID, reason and inner exception details.
 A `Win32Exception` also carries `nativeErrorCode`: its `hResult` is only the generic
-`0x80004005`, and the number (5 for access denied) is what says why. A worker the app
-could not start records the same number in its `process-launch` entry.
+`0x80004005`, and the number (5 for access denied) is what says why. When a worker
+cannot be started it records nothing itself, so the app logs that worker's `run.failed`
+entry (`phase` `process-launch`) with the same number.
 
 - Short diagnostic strings are flattened onto one line and capped at 512 characters.
 - Absolute source paths are masked.

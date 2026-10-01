@@ -1,6 +1,0 @@
-# Screen look tuning. The mood, its strength and the seasonal colours are chosen in the app;
-# only these two values are tuned here.
-# Optional overrides: <runtimeRoot>/extensions/screen-look.toml (same flat keys).
-schema_version = 1
-clarity_scale = 1.0              # 0..2; multiplies each mood's sharpening, 0 turns sharpening off
-seasonal_amount = 0.8            # 0..1; how far the seasonal colours go at full daylight outdoors

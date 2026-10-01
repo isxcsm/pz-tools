@@ -1,4 +1,4 @@
-package pztools.extensions.screen;
+package pztools.extensions.second;
 
 import pztools.extensions.api.*;
 import pztools.extensions.runtime.FrameListener;
@@ -7,12 +7,12 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Synthetic second continuous module. It touches no game state; it only records what the host asks of it. */
-public final class ScreenLookProvider implements ContinuousProvider, FrameListener {
+public final class SecondModuleProvider implements ContinuousProvider, FrameListener {
     private final String generation = UUID.randomUUID().toString().replace("-", "");
     private final AtomicInteger frames = new AtomicInteger(), updates = new AtomicInteger();
     private volatile boolean active, failing;
     private volatile String setting = "";
-    public String id() { return "pztools.screen-look"; }
+    public String id() { return "pztools.second-module"; }
     public Support initialize(Instrumentation instrumentation, ClassLoader loader) { return new Support(true, null); }
     public void validateConfig(Map<String, String> config) {
         if ("true".equals(config.get("fixture_reject"))) throw new IllegalArgumentException("fixture-rejected");
@@ -30,7 +30,7 @@ public final class ScreenLookProvider implements ContinuousProvider, FrameListen
     public void deactivate() { active = false; }
     public void close() { deactivate(); }
     public String diagnostics() {
-        return "lookGeneration=" + generation + ";lookActive=" + active + ";lookValue=" + setting
-            + ";lookFrames=" + frames.get() + ";lookUpdates=" + updates.get();
+        return "secondGeneration=" + generation + ";secondActive=" + active + ";secondValue=" + setting
+            + ";secondFrames=" + frames.get() + ";secondUpdates=" + updates.get();
     }
 }

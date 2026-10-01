@@ -8,22 +8,27 @@ saving; no game file is changed. This page is for players who want to know what 
 extensions do, where to switch them on and when a change takes effect. The
 [overview](overview.md) shows how they fit into the rest of PZ Tools.
 
-Two extensions are shipped. Each is a [module](glossary.md#extension-module) of its
-own, with its own archive, [catalogue](glossary.md#catalogue) row, switch,
-supported-version rule, options and tuning file. Both are off by default, and each can
-be on without the other. You find them on the **Game extensions** page of the app.
+One extension is shipped. It is a [module](glossary.md#extension-module) of its own,
+with its own archive, [catalogue](glossary.md#catalogue) row, switch,
+supported-version rule, options and tuning file, and it is off by default. You find it
+on the **Game extensions** page of the app. The runtime can run several modules side by
+side (see [below](#several-modules-on-one-connection)).
+
+Earlier builds also shipped a *screen look* colour grade. It was removed: a filter over
+the finished picture could not give a clear improvement. A setting saved for it is
+ignored.
 
 ## The extensions
 
-### Vehicle Driving Improvements
+### Vehicle driving improvements
 
 Experimental. Its main switch turns the extension on; expanding the card shows four
 independent controls:
 
 - Natural acceleration and shifting
 - Smooth reversing
-- Fine steering control for keyboard input
-- Light around the vehicle (off until you turn it on)
+- Precise keyboard steering: steers exactly as much as a key is held, even when the frame rate is unstable
+- Light around the vehicle
 
 A control that is off keeps the game's original behaviour. The extension adjusts
 driving response and leaves the game's own tyres, suspension and collisions as they
@@ -38,12 +43,6 @@ TOML settings file. See the [vehicle test guide](e2e-vehicle-drivetrain.md) for
 comparisons and status checks, or the [design](vehicle-drivetrain-design.md) for the
 driving model and how it attaches to the game.
 
-### Screen look
-
-Adjusts the colour and clarity of the game picture: a mood (Realistic, Vivid or
-Cinematic), a strength and optional seasonal colours. It changes nothing about
-driving. See [screen look](screen-look.md).
-
 ## When a change takes effect
 
 The switches show your saved choices. You can change them while the game is not
@@ -51,8 +50,7 @@ connected, or while earlier changes are still waiting to apply.
 
 | Extension | Your latest settings apply… |
 | --- | --- |
-| Vehicle Driving Improvements | once the game is running unpaused, the vehicle has stopped, acceleration is released and cruise control is off (the [safe boundary](glossary.md#safe-boundary)) |
-| Screen look | as soon as the game is running, without waiting for a vehicle to stop |
+| Vehicle driving improvements | once the game is running unpaused, the vehicle has stopped, acceleration is released and cruise control is off (the [safe boundary](glossary.md#safe-boundary)) |
 
 Changes never wait for a backup.
 
@@ -143,9 +141,10 @@ picks them up without a restart.
 
 ## Verification
 
-Module independence is tested at three levels: the host with two synthetic module
-archives (`ModuleSlotsTest`), the control channel against a synthetic game JVM, and the
-scheduler's coordinator driving both from saved preferences.
+Module independence is tested at two levels, each with two synthetic modules (one under
+the vehicle's catalogue name, one that exists only for the test): the host
+(`ModuleSlotsTest`) and the control channel against a synthetic game JVM. The
+scheduler's coordinator is tested driving the vehicle module from saved preferences.
 
 Vehicle tests cover the model, configuration, control-session lifecycle and inspected
 bytecode boundaries. Installed-class checks read a local game JAR in an isolated JVM.

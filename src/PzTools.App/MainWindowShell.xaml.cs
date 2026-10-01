@@ -55,6 +55,10 @@ public sealed partial class MainWindowShell : UserControl
     private GameLinkView? gameLink;
     private bool gameLinkDismissed;
     private long logsRevision;
+    private long backupCatalogRevision;
+    private long homeExtensionsRevision;
+    private BackupCatalogView? homeCatalog;
+    private GameExtensionsView? homeExtensions;
     private long selectedDetailRevision;
     private long saveListApplyGeneration;
     private long detailApplyGeneration;
@@ -290,6 +294,15 @@ public sealed partial class MainWindowShell : UserControl
         countdownTimer.Start();
         RefreshChangedViews();
         UpdateCountdown();
+        // The extension settings are read on demand; Home shows them from the start.
+        _ = RefreshExtensionsForHomeAsync(host);
+    }
+
+    private static async Task RefreshExtensionsForHomeAsync(AppHost host)
+    {
+        // A settings file that cannot be read is reported on the extensions page; Home keeps "checking".
+        try { await host.GameExtensions.RefreshAsync(); }
+        catch (Exception) { }
     }
 
     private void UpdateTitleBar()
@@ -379,6 +392,22 @@ public sealed partial class MainWindowShell : UserControl
             LogsUnreadBadge.Visibility = logs.Snapshot.UnreadIssues > 0
                 ? Visibility.Visible : Visibility.Collapsed;
         }
+
+        // Home's state tiles: the saves and schedule above, plus the backups and the extensions.
+        var catalog = host.Views.ReadIfChanged<BackupCatalogView>(ViewKey.BackupCatalog, backupCatalogRevision);
+        if (catalog.Modified && catalog.Snapshot is not null)
+        {
+            backupCatalogRevision = catalog.ViewRevision;
+            homeCatalog = catalog.Snapshot;
+        }
+        var extensions = host.Views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, homeExtensionsRevision);
+        if (extensions.Modified && extensions.Snapshot is not null)
+        {
+            homeExtensionsRevision = extensions.ViewRevision;
+            homeExtensions = extensions.Snapshot;
+        }
+        if (saves.Modified || scheduler.Modified || catalog.Modified || extensions.Modified)
+            HomeRoot.ShowStatus(HomeStatusSource.From(saveListSnapshot, homeCatalog, homeExtensions, schedule));
 
         RefreshSelectedDetail();
     }
@@ -1430,6 +1459,7 @@ public sealed partial class MainWindowShell : UserControl
         {
             HomeDestination.Settings => Navigation.SettingsItem,
             HomeDestination.Extensions => GameExtensionsItem,
+            HomeDestination.Profiler => ProfilerItem,
             _ => SavesItem,
         };
         if (destination == HomeDestination.Saves)

@@ -7,13 +7,12 @@ public static class ExtensionCapabilities
 {
     public const string SavePreparation = "save.prepare.v1";
     public const string VehicleDrivetrain = "vehicle.drivetrain.v1";
-    public const string ScreenGrade = "screen.grade.v1";
 
     public static ExtensionActivationKind Classify(IReadOnlyList<string>? capabilities) =>
         capabilities is not { Count: 1 } ? ExtensionActivationKind.Unsupported : capabilities[0] switch
         {
             SavePreparation => ExtensionActivationKind.PerSave,
-            VehicleDrivetrain or ScreenGrade => ExtensionActivationKind.Continuous,
+            VehicleDrivetrain => ExtensionActivationKind.Continuous,
             _ => ExtensionActivationKind.Unsupported,
         };
 }

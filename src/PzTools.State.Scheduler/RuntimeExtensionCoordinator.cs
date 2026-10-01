@@ -272,11 +272,6 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                     enabled && tuning["reverse_enabled"] == "true", enabled && tuning["steering_enabled"] == "true",
                     enabled && tuning["area_light_enabled"] == "true"));
                 return tuning;
-            case ExtensionIds.ScreenLook:
-                var look = ScreenLookConfiguration.Load(bridgeDirectory, runtimeRoot, preference.ScreenLook);
-                // The acknowledgement record is shared by all modules; this one has no vehicle options to confirm.
-                module.Activation.RecordRequest(revision, new(false, false, false));
-                return look;
             default:
                 throw new InvalidDataException("No configuration is defined for this continuous module.");
         }

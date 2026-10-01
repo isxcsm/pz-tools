@@ -1,11 +1,11 @@
-# Testing the vehicle and screen-look extensions
+# Testing the vehicle extension
 
 [Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
 This is a hands-on procedure for trying the [game extensions](game-extensions.md) in a
-real game: **Vehicle Driving Improvements** 0.2.0 and **Screen look**. It is for
-testers who want to compare them with the original game, check that settings apply as
-expected, and back out safely. Vehicle Driving Improvements is experimental and off by
+real game: **Vehicle driving improvements** 0.2.0. It is for testers who want to
+compare it with the original game, check that settings apply as
+expected, and back out safely. Vehicle driving improvements is experimental and off by
 default.
 
 This page is a test procedure, not a finished driving report. The
@@ -43,19 +43,19 @@ declaring the range does not guarantee every 42.x patch.
 
 ## First comparison
 
-Open **Game extensions → Vehicle Driving Improvements**. The switch for the whole
+Open **Game extensions → Vehicle driving improvements**. The switch for the whole
 extension is on the right of the card header; expand the card to see:
 
 - **Natural acceleration and shifting**
 - **Smooth reversing**
-- **Fine steering control**
+- **Precise keyboard steering**
 - **Light around the vehicle**
 
-The extension itself starts off. Of its options, the three driving ones start on and
-the light starts off. With everything off you have the original game. Preferences saved
+The extension itself starts off; all four options start on, so turning the extension on
+enables everything. With everything off you have the original game. Preferences saved
 by older observation-only versions are read as everything off.
 
-1. Turn on only **Fine steering control**.
+1. Turn on only **Precise keyboard steering**.
 2. Resume the game, stop on level ground, and release acceleration and cruise control
    so the saved settings can apply (the [safe boundary](glossary.md#safe-boundary)).
 3. Compare **off → on → off** with the same vehicle, load, tyres, engine condition,
@@ -133,7 +133,6 @@ original game with the same trait.
 | Input safety | Coast, normal/parking brake, starting, cruise, intoxication delay, unloaded chunks | Lost safety braking or a delayed parking-release ×8 force spike |
 | Side effects | Fuel, sound, zombie attraction, exit/re-entry | Excessive changes or retained driver/vehicle state |
 | Timing | 30/60/high FPS, pause/resume, delayed frames | Catch-up acceleration or sharply increased callback cost |
-| Screen look | Each mood at 0, 50 and 100%; day, dusk, night; indoors and outdoors; each season with seasonal colours on; night vision; drunk; changing graphics options while on; with the vehicle extension on and with it off; switching either extension while the other stays on; extension off, app closed, leaving to the menu | Black or garbled picture, wrong colours after switching off, a visible hitch on every change, the look missing after a graphics option change, any effect on night vision, the look surviving after the app is closed, either extension restarting or pausing when the other is changed |
 | Light around the vehicle | At night: headlights on/off, engine off with headlights on, flat battery, broken bulbs, getting out and back in, driving fast, entering a garage or tunnel, option off while lit, extension off while lit, leaving to the menu and reloading | Light left behind after any of these, light inside closed rooms through walls, visible flicker or stutter while driving, a light present after reloading the save |
 
 ## Lifecycle checks

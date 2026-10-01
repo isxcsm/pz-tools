@@ -62,12 +62,15 @@ public sealed class PublishedDistributionTests
         var bridge = Path.Combine(Root, "save-bridge");
         var extensions = Path.Combine(bridge, "extensions");
         string[] payload = ["pztools-extension-runtime.jar",
-            "pztools-vehicle-drivetrain.jar", "pztools-screen-look.jar", "catalog.tsv", "vehicle-drivetrain.toml", "screen-look.toml"];
+            "pztools-vehicle-drivetrain.jar", "catalog.tsv", "vehicle-drivetrain.toml"];
         foreach (var name in payload) Assert.True(File.Exists(Path.Combine(extensions, name)), name);
         Assert.Equal(payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)).Order(),
             Directory.GetFiles(extensions, "*.jar").Select(Path.GetFileName).Order());
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-seamless-save.jar")));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-test-save.jar")));
+        // The retired screen look ships nothing any more.
+        Assert.False(File.Exists(Path.Combine(extensions, "pztools-screen-look.jar")));
+        Assert.False(File.Exists(Path.Combine(extensions, "screen-look.toml")));
         foreach (var name in payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)))
         {
             using var jar = ZipFile.OpenRead(Path.Combine(extensions, name));
@@ -81,21 +84,8 @@ public sealed class PublishedDistributionTests
         }
         var cataloguePath = Path.Combine(extensions, "catalog.tsv");
         var catalogue = ExtensionCatalog.ReadFile(cataloguePath);
-        Assert.Equal([ExtensionIds.ScreenLook, ExtensionIds.VehicleDrivetrain], catalogue.Select(item => item.Id).Order());
+        Assert.Equal([ExtensionIds.VehicleDrivetrain], catalogue.Select(item => item.Id).Order());
         var vehicle = catalogue.Single(item => item.Id == ExtensionIds.VehicleDrivetrain);
-        // Every catalogued continuous module ships as its own archive with its own entry class and configuration.
-        var look = File.ReadLines(cataloguePath).Single(line => line.StartsWith(ExtensionIds.ScreenLook + "\t", StringComparison.Ordinal)).Split('\t');
-        Assert.Equal(("pztools-screen-look.jar", "screen.grade.v1"), (look[4], look[10]));
-        using (var module = ZipFile.OpenRead(Path.Combine(extensions, look[4])))
-        {
-            Assert.NotNull(module.GetEntry(look[3].Replace('.', '/') + ".class"));
-            Assert.All(module.Entries.Where(entry => entry.FullName.EndsWith(".class", StringComparison.Ordinal)),
-                entry => Assert.StartsWith("pztools/extensions/screen/", entry.FullName));
-        }
-        using (var module = ZipFile.OpenRead(Path.Combine(extensions, "pztools-vehicle-drivetrain.jar")))
-            Assert.DoesNotContain(module.Entries, entry => entry.FullName.Contains("/screen/", StringComparison.Ordinal));
-        using (var temporary = new TempDirectory())
-            Assert.Equal(6, ScreenLookConfiguration.Load(bridge, temporary.Path).Count);
         Assert.Equal("vehicle.drivetrain.v1", Assert.Single(vehicle.Capabilities));
         Assert.Equal(new GameVersionSupport(VersionSupportScope.Major, "42", "42"), vehicle.SupportedVersions);
         var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(ExtensionIds.VehicleDrivetrain + "\t", StringComparison.Ordinal)).Split('\t');

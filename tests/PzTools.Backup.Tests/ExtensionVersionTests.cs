@@ -21,6 +21,31 @@ public sealed class ExtensionVersionTests
         Assert.Throws<InvalidDataException>(() => new GameVersionSupport(VersionSupportScope.All, "42").Validate());
     }
 
+    [Fact]
+    public void SettingsSavedForTheRetiredScreenLook_AreReadAndLeftBehindOnTheNextWrite()
+    {
+        using var temp = new TempDirectory();
+        var file = Path.Combine(temp.Path, "extensions", "settings.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        // What an earlier build wrote with the screen look on.
+        File.WriteAllText(file, """
+            {
+              "schemaVersion": 1,
+              "revision": 7,
+              "extensions": {
+                "pztools.screen-look": { "enabled": true, "forceVersion": false, "screenLook": { "preset": "vivid", "strength": 80, "seasonal": true } },
+                "pztools.vehicle-drivetrain": { "enabled": true, "forceVersion": false }
+              }
+            }
+            """);
+        var service = new GameExtensionService(new ExtensionSettingsStore(temp.Path), () => "42.21");
+        var card = Assert.Single(service.ReadCards());
+        Assert.Equal((ExtensionIds.VehicleDrivetrain, true, 7L), (card.Definition.Id, card.Enabled, card.SettingsRevision));
+
+        Assert.False(Assert.Single(service.SetEnabled(ExtensionIds.VehicleDrivetrain, false, 7)).Enabled);
+        Assert.DoesNotContain("screenLook", File.ReadAllText(file), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("42.0", true)]
     [InlineData("42.19.9", true)]

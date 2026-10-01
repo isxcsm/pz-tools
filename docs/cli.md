@@ -7,7 +7,7 @@ their commands and options, the exit codes they return, and how a restore protec
 save it replaces. It is for scripting, testing and troubleshooting without the app;
 everyday backups and restores go through the app.
 
-Programs come in three kinds
+Programs come in two roles
 ([scheduler, runner, worker](glossary.md#scheduler-runner-worker)):
 
 - **Workers and runners** carry out one operation and exit.
@@ -58,8 +58,10 @@ under [configuration](configuration.md#checking-and-overriding-from-the-command-
 ```text
 PzTools.Backup.Runner --repository <path> --source-id <key> [--run-index <n>]
     [--config <runner.toml>] [--worker-config <backup-worker.toml>]
+    [--control-db <path>] [--worker-directory <path>]
 PzTools.Maintenance.Runner --repository <path> --source-id <numeric-id> [--run-index <n>]
     [--config <runner.toml>] [--worker-config <maintenance-worker.toml>]
+    [--control-db <path>] [--worker-directory <path>]
 PzTools.State.Runner --state-db <path> --saves-root <path> [--run-index <n>]
     [--config <state-runner.toml>]
 PzTools.State.Collector.Cli --state-db <path> --saves-root <path> [--run-index <n>]
@@ -79,9 +81,26 @@ PzTools.State.Scheduler --scheduler-db <path> --state-db <path>
 PzTools.Zomboid.Archive.Cli inspect --archive <file>
 PzTools.Zomboid.Archive.Cli export --repository <path> --source-id <numeric-id>
     --revision <n> --output <file> [--run-index <n>] [--control-db <path>]
+PzTools.Zomboid.Archive.Cli export-live --source <save-path> --save-id <mode/name>
+    --output <file> [--run-index <n>] [--control-db <path>]
 PzTools.Zomboid.Archive.Cli import --archive <file> --saves-root <path>
     [--run-index <n>] [--control-db <path>]
+
+PzTools.Zomboid.Recovery.Cli --repository <path> --saves-root <path> --save-id <mode/name>
+    --run-index <n> --telemetry-identity <path>
+PzTools.Profiler.Cli record --output <file.pzprof> --stop-file <file> --mode general|detailed
+    --run-index <n> --telemetry-identity <path>
+    [--max-seconds <5..>] [--process-id <pid>] [--bridge <save-bridge-dir>]
 ```
+
+- `PzTools.Zomboid.Recovery.Cli` performs [character recovery](character-recovery.md)
+  on a save that is not being played.
+- `PzTools.Profiler.Cli` makes one [performance recording](profiler.md): it records until
+  the stop file appears or `--max-seconds` (default 600) runs out, then converts the
+  result. Without `--process-id` it looks for the single running game.
+- `PzTools.Maintenance.Cli` is the maintenance worker. It is internal: MaintenanceRunner
+  and StateScheduler start it with the options they need (`--lane`,
+  `--dispatch-lanes`, `--saves-root` and others).
 
 - `PzTools.Backup.Scheduler configure` accepts an interval of zero to turn automatic
   backups off. The app's settings store the on/off switch separately from the 1–60
@@ -99,7 +118,7 @@ PzTools.Zomboid.Archive.Cli import --archive <file> --saves-root <path>
 | 0 | Completed successfully |
 | 1 | Backup, restore, repository, or I/O failure |
 | 2 | Cancelled at a safe boundary |
-| 3 | Verification found missing or damaged data |
+| 3 | Verification found missing or damaged data (`verify`), or a runner or maintenance run finished degraded |
 | 4 | Maintenance committed, but some physical files could not be removed |
 | 64 | Invalid command, configuration, or arguments |
 | 75 | Runner mutex or repository writer lease is busy |

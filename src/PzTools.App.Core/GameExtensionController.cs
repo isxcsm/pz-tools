@@ -92,24 +92,6 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
         return service.SetVehicleDrivetrainPreference(options, current.SettingsRevision);
     }
 
-    /// <summary>One edit of the screen look's options, merged into the latest saved preference like any other edit.</summary>
-    public async Task<GameExtensionsView> ApplyScreenLookAsync(Func<ScreenLookPreference, ScreenLookPreference> change,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(change);
-        await gate.WaitAsync(cancellationToken);
-        try
-        {
-            return await Task.Run(() =>
-            {
-                var current = service.ReadCards().SingleOrDefault(card => card.Definition.Id == ExtensionIds.ScreenLook)
-                    ?? throw new InvalidDataException("Unknown extension.");
-                return Publish(service.SetScreenLookPreference(change(current.ScreenLook ?? new ScreenLookPreference()), current.SettingsRevision));
-            }, cancellationToken);
-        }
-        finally { gate.Release(); }
-    }
-
     public async Task RefreshRuntimeAsync(CancellationToken token)
     {
         if (!await gate.WaitAsync(0, token)) return;
@@ -178,7 +160,7 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
                 var x = left[i]; var y = right[i];
                 if (x.Enabled != y.Enabled || x.StatusCode != y.StatusCode || x.SettingsRevision != y.SettingsRevision
                     || x.ForceVersion != y.ForceVersion || x.VersionMatches != y.VersionMatches
-                    || x.GameVersion != y.GameVersion || x.VehicleDrivetrain != y.VehicleDrivetrain || x.ScreenLook != y.ScreenLook)
+                    || x.GameVersion != y.GameVersion || x.VehicleDrivetrain != y.VehicleDrivetrain)
                     return false;
                 var a = x.Definition; var b = y.Definition;
                 // File catalogues are deliberately reread. Their freshly allocated capability lists

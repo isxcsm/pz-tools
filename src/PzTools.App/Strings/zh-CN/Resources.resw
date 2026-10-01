@@ -431,6 +431,8 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>还没有录制记录。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开这条录制。文件已损坏，或由更新的版本创建。</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>将显示的内容复制为文本</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>已复制性能结果。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>启动游戏后即可录制。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>游戏没有运行，未开始{0}。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>有多个游戏在运行，未开始{0}。</value></data>
@@ -474,6 +476,13 @@
   <data name="ProfileColumnsTip" xml:space="preserve"><value>自身：直接花在该函数内的时间。总计：还包括它调用的其他函数。</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各线程占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>长时间等待和停顿</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>模组</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>项目</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>区间时间</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>运行占比</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>所选区间中此脚本正在运行的比例。包括脚本调用的游戏功能的时间。</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>所选区间内游戏代码运行时间中此项目所占的比例。Lua 脚本调用的游戏功能在这里计入“游戏本体”。长时间等待和停顿显示次数而不是占比。</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0} 次</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>游戏没有运行。请启动游戏后重试。</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>有多个游戏正在运行，无法确定目标。</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>无法连接到游戏。如果你更新过游戏或 PZ Tools，请重新启动游戏。</value></data>
@@ -550,27 +559,15 @@
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>游戏未运行</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>角色正在睡眠</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>车辆驾驶优化</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>分别改善前进加速与换挡、倒车和键盘转向。仅限单人游戏的实验性功能。</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>分别改善前进加速与换挡、倒车和键盘转向，并在开启前灯时照亮车辆周围。仅限单人游戏的实验性功能。</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>自然加速与换挡</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>根据发动机转速和挡位调整前进加速。</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>平稳倒车</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>缓和倒车起步并限制倒车速度。</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>精细转向</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>让键盘转向和方向回正的过程更平顺。</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>精确键盘转向</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>即使帧率不稳定，也能按按键时长准确转向。</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>车辆周围照明</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>车头灯亮着时，照亮你所乘车辆的周围。需要车头灯和电瓶正常才会亮起，不会向存档写入任何内容。</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>画面风格</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>调整游戏画面的色彩和清晰度。不会修改任何游戏文件，关闭开关即可恢复原样。</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>氛围</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>选择画面的整体感觉。</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>写实</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>鲜艳</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>电影感</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>强度</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>所选氛围的应用强度。</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>季节色彩</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>随季节略微改变白天室外的色彩。夜晚和室内保持不变。</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>各选项独立保存。下方显示游戏确认的应用状态。</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>已确认在游戏中应用 · 实验性功能</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>已请求开启 · 等待游戏确认</value></data>
@@ -602,17 +599,31 @@
   <data name="NoFilteredLogs" xml:space="preserve"><value>没有符合所选筛选条件的日志。</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>查看全部日志</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>主页</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>提供 Project Zomboid 的存档备份、角色恢复和游戏扩展功能。</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>管理 Project Zomboid 的备份、角色恢复、性能分析和游戏扩展。</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>主要功能</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>自动与手动备份</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>仅压缩并备份有改动的文件。可设置自动备份的间隔和保留数量，手动备份不受此数量限制。</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>备份设置</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>备份恢复与导出</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>将存档恢复到备份时的状态。可将存档和备份导出为 ZIP，也可导入 ZIP 文件。</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>备份列表</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>备份与恢复</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>仅压缩备份已更改的文件，可自动或手动进行。可恢复到某个备份，或将其导出为 ZIP。</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>角色恢复</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>治疗或复活当前存档中的角色，保留特质和技能。游玩该存档时无法使用。</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>调整车辆的加速、换挡、倒车和键盘转向。无需另装模组，可单独开启或关闭各项功能。</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>无需另装模组即可为游戏添加功能。目前提供车辆驾驶优化（加速、换挡、倒车、转向、车辆周围照明）。</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>正在检查游戏状态</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>正在检查存档</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>正在检查游戏扩展</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>车辆驾驶优化 已开启</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>车辆驾驶优化 已关闭</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>车辆驾驶优化 等待中</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>不支持的游戏版本</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>报告问题</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid 非官方工具</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>在游戏运行时录制性能，并显示每个模组的脚本运行时间。</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>游戏运行中</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>游戏未运行</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>没有存档</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>上次备份 {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>没有备份</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>{0} 项功能</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>刚刚</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} 分钟前</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>{0} 小时前</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>{0} 天前</value></data>
 </root>

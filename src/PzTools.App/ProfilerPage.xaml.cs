@@ -47,6 +47,8 @@ public sealed partial class ProfilerPage : UserControl
     private double gripStartY, gripStartHeight;
     private bool resizingChart, updatingGroups;
     private ProfileRange? shown;
+    // The summary above the graph as plain text, for a copy of the page; the line itself changes while hovering.
+    private string rangeSummary = "";
     // A newly opened recording's bars rise from the baseline once, the first time the graph is drawn.
     private bool chartEntrance;
     private List<ResultGroup> luaGroups = [], javaGroups = [], listedGroups = [];
@@ -92,6 +94,8 @@ public sealed partial class ProfilerPage : UserControl
         // How to use the graph, one hover away instead of a line of text under it.
         AppToolTip.SetTip(ChartHelp, string.Join("\n", Localizer.Get("ProfileChartHint").Split(" · ")));
         AutomationProperties.SetName(ChartHelp, Localizer.Get("ProfileChartHelp"));
+        AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
+        AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
@@ -472,6 +476,7 @@ public sealed partial class ProfilerPage : UserControl
             items.Add((Localizer.Get("ProfileStatWorst"), Milliseconds(frames.OnePercentWorstMilliseconds)));
         }
         var lines = SetStats(ChartInfo, items);
+        rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
             lines.Add(Localizer.Format("ProfileSummarySamplesFormat", current.Samples, current.Collections, current.CollectionPauseMilliseconds));
         lines.Add(Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
@@ -746,10 +751,6 @@ public sealed partial class ProfilerPage : UserControl
     {
         shown = range;
         if (HoverLine.Visibility == Visibility.Collapsed) ShowDefaultChartInfo();
-        var luaRecorded = recording?.LuaPeriod > 0;
-        LuaTab.Text = range.LuaSamples > 0 && luaRecorded
-            ? $"{Localizer.Get("ProfileTabLua")} · {Percent(range.LuaShare)}"
-            : Localizer.Get("ProfileTabLua");
         // A handful of samples cannot carry percentages; say so instead of showing confident numbers.
         FewSamplesInfo.IsOpen = range.Samples < 20;
 
@@ -779,6 +780,13 @@ public sealed partial class ProfilerPage : UserControl
             return;
         }
         SetSplitVisible(true);
+        GroupNameHeading.Text = Localizer.Get(java ? "ProfileListJavaOwner" : "ProfileListLuaOwner");
+        GroupShareText.Text = Localizer.Get(java ? "ProfileListJavaShare" : "ProfileListLuaShare");
+        AppToolTip.SetTip(GroupShareHeading, Localizer.Get(java ? "ProfileListJavaShareTip" : "ProfileListLuaShareTip"));
+        // Only the scripts have a whole worth stating, beside the heading: the game code's items always add up to all of it.
+        GroupShareTotal.Text = java ? "" : Percent(range.LuaShare);
+        GroupShareTotal.Visibility = java ? Visibility.Collapsed : Visibility.Visible;
+        AutomationProperties.SetName(GroupShareHeading, java ? GroupShareText.Text : $"{GroupShareText.Text} {GroupShareTotal.Text}");
         // Bars are relative to the largest owner, so the list reads as a ranking; the number is the real share.
         var largest = listedGroups.Max(group => group.Share ?? 0);
         updatingGroups = true;
@@ -816,12 +824,7 @@ public sealed partial class ProfilerPage : UserControl
         item.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         item.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         item.Children.Add(new TextBlock { Text = group.Name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap });
-        var value = new TextBlock
-        {
-            Text = group.Share is { } share ? Percent(share)
-                : group.Kind == DetailKind.Pauses ? group.Pauses.Count.ToString("N0", Localizer.Culture) : "",
-            Foreground = Muted,
-        };
+        var value = new TextBlock { Text = ValueOf(group), Foreground = Muted };
         Grid.SetColumn(value, 1);
         item.Children.Add(value);
         if (group.Share is { } part && largest > 0)
@@ -851,6 +854,11 @@ public sealed partial class ProfilerPage : UserControl
         return item;
     }
 
+    /// <summary>The number beside an owner: its share, or for the pauses how many there were, with a unit so it is not read as a share.</summary>
+    private static string ValueOf(ResultGroup group) =>
+        group.Share is { } share ? Percent(share)
+        : group.Kind == DetailKind.Pauses ? Localizer.Format("ProfilePauseCount", group.Pauses.Count.ToString("N0", Localizer.Culture)) : "";
+
     /// <summary>The right pane: the chosen owner's functions as a table with a heading over every column.</summary>
     private void ShowGroup(ResultGroup group)
     {
@@ -858,11 +866,29 @@ public sealed partial class ProfilerPage : UserControl
         // Its share is not repeated here; the list beside shows it.
         DetailName.Text = group.Name;
         AppToolTip.SetTip(DetailName, group.Name);
-        var total = group.Kind == DetailKind.Lua ? shown?.LuaSamples ?? 0 : shown?.Samples ?? 0;
-        SetStats(DetailSamples, group.Samples > 0
-            ? [(Localizer.Get("ProfileColumnSamples"), $"{group.Samples.ToString("N0", Localizer.Culture)}/{total.ToString("N0", Localizer.Culture)}")]
-            : []);
+        SetStats(DetailSamples, SamplesOf(group) is { } samples ? [(Localizer.Get("ProfileColumnSamples"), samples)] : []);
 
+        var (columns, header, rows) = Table(group);
+        DetailHeader.Child = TableRow(columns, header, header: true);
+        DetailRows.Children.Clear();
+        foreach (var row in rows) DetailRows.Children.Add(TableRow(columns, row, header: false));
+    }
+
+    /// <summary>An owner's samples out of its tab's, such as "9/70", or null for an owner that has none.</summary>
+    private string? SamplesOf(ResultGroup group)
+    {
+        if (group.Samples <= 0) return null;
+        var total = group.Kind == DetailKind.Lua ? shown?.LuaSamples ?? 0 : shown?.Samples ?? 0;
+        return $"{group.Samples.ToString("N0", Localizer.Culture)}/{total.ToString("N0", Localizer.Culture)}";
+    }
+
+    /// <summary>
+    /// One owner's table: its columns, their headings and its rows. A cell's tip is its full text where the
+    /// screen shows less (a method's package, a script's path), which is also what a copy carries.
+    /// </summary>
+    private (GridLength[] Columns, (string Text, string? Tip, bool Right)[] Header, List<(string Text, string? Tip, bool Right)[]> Rows)
+        Table(ResultGroup group)
+    {
         GridLength Star(double weight) => new(weight, GridUnitType.Star);
         GridLength Fixed(double width) => new(width);
         var numbers = new[] { Fixed(64), Fixed(64), Fixed(60) };
@@ -890,9 +916,7 @@ public sealed partial class ProfilerPage : UserControl
                 (Localizer.Get("ProfileColumnKind"), null, false), (Localizer.Get("ProfileColumnDetail"), null, false),
             ],
         };
-        DetailHeader.Child = TableRow(columns, header, header: true);
-
-        DetailRows.Children.Clear();
+        var rows = new List<(string Text, string? Tip, bool Right)[]>();
         if (group.Kind == DetailKind.Pauses)
         {
             foreach (var pause in group.Pauses)
@@ -902,13 +926,13 @@ public sealed partial class ProfilerPage : UserControl
                     pause.Detail is "?" or "" ? null : pause.Detail,
                     pause.Thread >= 0 && recording is not null && pause.Thread < recording.Threads.Count ? recording.Threads[pause.Thread] : null,
                 }.OfType<string>());
-                DetailRows.Children.Add(TableRow(columns,
+                rows.Add(
                 [
                     (Seconds(pause.Time), null, false), (Milliseconds(pause.Duration / 1000.0), null, true),
                     (pause.Kind, null, false), (detail, detail, false),
-                ], header: false));
+                ]);
             }
-            return;
+            return (columns, header, rows);
         }
         foreach (var row in group.Rows)
         {
@@ -918,10 +942,9 @@ public sealed partial class ProfilerPage : UserControl
                 DetailKind.Java => [(ShortMethod(row.Name), row.Name, false)],
                 _ => [(row.Name, row.Name, false)],
             };
-            DetailRows.Children.Add(TableRow(columns,
-                [.. name, (Percent(row.Self), null, true), (Percent(row.Total), null, true), (row.Samples.ToString("N0", Localizer.Culture), null, true)],
-                header: false));
+            rows.Add([.. name, (Percent(row.Self), null, true), (Percent(row.Total), null, true), (row.Samples.ToString("N0", Localizer.Culture), null, true)]);
         }
+        return (columns, header, rows);
     }
 
     private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header)
@@ -943,6 +966,69 @@ public sealed partial class ProfilerPage : UserControl
             row.Children.Add(cell);
         }
         return row;
+    }
+
+    // ---- Copy ----
+
+    /// <summary>
+    /// The page as text, as it reads on screen: the recording, the range, the tab's owners and the chosen
+    /// owner's table. Meant to be pasted into a message, so the table's columns are padded to line up.
+    /// </summary>
+    private void CopyResultsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (recording is null || shown is null) return;
+        var text = new System.Text.StringBuilder();
+        text.AppendLine(string.Join(" · ", new[]
+        {
+            (RecordingList.SelectedItem as RecordingItem)?.Text,
+            Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"),
+            ThreadBox.SelectedItem as string,
+        }.Where(part => !string.IsNullOrEmpty(part))));
+        text.AppendLine(rangeSummary);
+        text.AppendLine();
+        text.AppendLine(JavaShown ? JavaTab.Text : LuaTab.Text);
+        if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);
+        else
+        {
+            // The list as it reads: its headings (with the scripts' total), then each owner.
+            var share = GroupShareTotal.Text.Length > 0 ? $"{GroupShareText.Text} {GroupShareTotal.Text}" : GroupShareText.Text;
+            var list = new List<(string Text, string? Tip, bool Right)[]>
+            {
+                new[] { (GroupNameHeading.Text, (string?)null, false), (share, (string?)null, true) },
+            };
+            list.AddRange(listedGroups.Select(group => new[] { (group.Name, (string?)null, false), (ValueOf(group), (string?)null, true) }));
+            AppendTable(text, list, "  ");
+        }
+        if (GroupList.SelectedIndex >= 0 && GroupList.SelectedIndex < listedGroups.Count)
+        {
+            var group = listedGroups[GroupList.SelectedIndex];
+            var (_, header, rows) = Table(group);
+            text.AppendLine();
+            text.AppendLine(SamplesOf(group) is { } samples ? $"{group.Name}  {Localizer.Get("ProfileColumnSamples")} {samples}" : group.Name);
+            var all = new List<(string Text, string? Tip, bool Right)[]> { header };
+            all.AddRange(rows);
+            AppendTable(text, all, "");
+        }
+        try
+        {
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(text.ToString().TrimEnd());
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            App.ShowSidebarNotification(InfoBarSeverity.Success, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileResultsCopied"));
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+        }
+    }
+
+    /// <summary>Rows of cells as lines of text, each column padded to its widest cell so the columns line up.</summary>
+    private static void AppendTable(System.Text.StringBuilder text, IReadOnlyList<(string Text, string? Tip, bool Right)[]> rows, string indent)
+    {
+        var widths = Enumerable.Range(0, rows[0].Length).Select(column => rows.Max(row => row[column].Text.Length)).ToArray();
+        foreach (var row in rows)
+            text.AppendLine(indent + string.Join("  ", row.Select((cell, column) =>
+                cell.Right ? cell.Text.PadLeft(widths[column]) : cell.Text.PadRight(widths[column]))).TrimEnd());
     }
 
     /// <summary>Grows an element to its full size from <paramref name="from"/> (scale about its CenterPoint).</summary>

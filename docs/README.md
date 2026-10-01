@@ -24,9 +24,8 @@ For people running the app who want more detail than the user guide.
 | [Saving the game before a backup](save-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
 | [Character recovery](character-recovery.md) | What healing, revival and inventory recovery can and cannot do |
 | [Game extensions](game-extensions.md) | What the optional in-game features are and when their settings take effect |
-| [Screen look](screen-look.md) | What the colour-grade moods do and what the feature cannot do |
 | [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares |
-| [Vehicle test guide](e2e-vehicle-drivetrain.md) | How to test the vehicle and screen-look extensions in a real game, tune them and back out |
+| [Vehicle test guide](e2e-vehicle-drivetrain.md) | How to test the vehicle extension in a real game, tune it and back out |
 | [Command line](cli.md) | How to run backup, restore, ZIP and maintenance without the app |
 | [Advanced component settings](runtime-configuration.md) | How to tune the background programs' settings files: timeouts, buffers and polling intervals |
 | [Files and folders](deployment-layout.md) | Which files belong to the app, to you, and to a backup folder, and the limits for importing ZIP files |

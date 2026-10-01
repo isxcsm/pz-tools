@@ -12,8 +12,8 @@ Start the game, press **Start recording**, reproduce the lag, press **Stop recor
 A recording also ends by itself when the game exits or when its time limit is reached
 (30 minutes in Standard mode, 10 minutes in Detailed mode).
 
-**Start recording** is available only while exactly one game is running; the page checks
-every two seconds, and resting the pointer on the button says what is missing. Nothing
+**Start recording** is available while exactly one game is running, or before the first
+check has answered; the page checks every two seconds, and resting the pointer on the button says what is missing. Nothing
 is logged for that. If the game closes just as a recording starts, the recording's card
 says so and the log keeps it as information (`run.unavailable`), not as an error. A
 recording that really fails is logged once, by the recording itself, and its card gives
@@ -53,7 +53,7 @@ vote among many.
 The recording tools share the title line: record, mode, which recording, which thread,
 and a **…** menu with *Open recording*, *Save as*, *Open folder* and *Delete*. In a narrow
 window they move below the title. What the recording is doing appears under that line only
-while it records.
+while a recording starts, runs or is being processed.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
 line above the graph describes the range the results show: its start, end and length,
@@ -65,8 +65,16 @@ the time and frame under it instead. The **?** beside it lists the graph's mouse
 The results are in two tabs, *Scripts (Lua)* and *Game code (Java)*. Each tab is split in
 two: owners on the left (mods, the game's scripts, parts of the game code, with a bar
 relative to the largest), and the chosen owner's functions on the right as a table with a
-heading over every column. Above the table, on the line of the tabs, stand the owner's
-name and its samples out of the tab's, such as *Samples 9/70*. The
+heading over every column. The owner list has headings too, and the one over its numbers
+says what they are when the pointer rests on it: in *Scripts* (*Range time*) the share
+of the range a mod's scripts were running, game functions they called included, with the
+figure for all scripts together beside the heading; in *Game code* (*Run share*) the share of the game
+code's running time, where game functions called from Lua count as the base game. *Long
+waits and pauses* shows a count with its unit instead of a share. Above the table, on the line of the tabs, stand the owner's
+name and its samples out of the tab's, such as *Samples 9/70*. The copy button beside the
+name puts what the page shows on the clipboard as text (the recording, the range,
+the tab's owner list with its headings, and the chosen owner's table, columns lined up), ready to paste into a
+message to a mod's author. The
 chosen owner stays chosen when the range changes, if it is still there. The *Game code*
 tab also lists *Share by thread* (with *All threads*) and *Long waits and pauses*. In a
 narrow window the table moves below the owner list.

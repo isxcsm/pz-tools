@@ -431,6 +431,8 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>Записей пока нет.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не удаётся открыть эту запись. Файл повреждён или создан в более новой версии.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>Скопировать показанное как текст</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Результаты производительности скопированы.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустите игру, чтобы записывать.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не запущено, потому что игра не запущена.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0}: не запущено, потому что запущено больше одной игры.</value></data>
@@ -474,6 +476,13 @@
   <data name="ProfileColumnsTip" xml:space="preserve"><value>Своё: время, потраченное непосредственно в этой функции. Всего: вместе с функциями, которые она вызвала.</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Доля по потокам</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Долгие ожидания и паузы</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>Мод</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>Элемент</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>Время отрезка</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>Доля работы</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Какую часть выбранного отрезка выполнялся этот скрипт. Включает время игровых функций, вызванных скриптом.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Какая часть времени работы игрового кода в выбранном отрезке пришлась на этот элемент. Игровые функции, вызванные скриптами Lua, здесь относятся к «Базовая игра». Для долгих ожиданий и остановок показано количество, а не доля.</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0} раз</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Игра не запущена. Запустите игру и попробуйте снова.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Запущено несколько копий игры, поэтому не удаётся выбрать нужную.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Не удалось подключиться к игре. Если вы обновили игру или PZ Tools, перезапустите игру.</value></data>
@@ -550,27 +559,15 @@
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Игра не запущена</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Персонаж спит</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Улучшенное управление автомобилем</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Независимо улучшает разгон вперёд, переключение передач, задний ход и управление с клавиатуры. Экспериментально; только для одиночной игры.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Независимо улучшает разгон вперёд, переключение передач, задний ход и управление с клавиатуры, а при включённых фарах освещает пространство вокруг машины. Экспериментально; только для одиночной игры.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Естественный разгон и переключение передач</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Настраивает разгон вперёд в зависимости от оборотов двигателя и передачи.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Плавный задний ход</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Смягчает начало движения назад и ограничивает его скорость.</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Точное рулевое управление</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Делает поворот колёс с клавиатуры и возврат к центру постепенными.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Точное управление с клавиатуры</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Поворачивает ровно настолько, сколько удерживается клавиша, даже при нестабильной частоте кадров.</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Свет вокруг машины</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Освещает пространство вокруг машины, в которой вы находитесь, пока включены фары. Нужны исправные фары и заряженный аккумулятор; в сохранение ничего не записывается.</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Вид изображения</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Настраивает цвета и чёткость игровой картинки. Файлы игры не изменяются, а эффект отключается переключателем.</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>Настроение</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Выберите общий характер картинки.</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Реалистичное</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Яркое</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Кинематографичное</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>Сила</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>Насколько сильно применяется выбранное настроение.</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Сезонные цвета</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Слегка меняет дневные цвета на улице в зависимости от времени года. Ночь и помещения остаются прежними.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Каждый параметр сохраняется отдельно. Ниже показано состояние, подтверждённое игрой.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Применено в игре · Экспериментально</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Запрошено включение · Ожидание подтверждения игры</value></data>
@@ -602,17 +599,31 @@
   <data name="NoFilteredLogs" xml:space="preserve"><value>Нет записей, соответствующих выбранным фильтрам.</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>Показать все записи</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>Главная</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>Резервные копии, восстановление персонажей и расширения для Project Zomboid.</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Управляет резервными копиями, восстановлением персонажа, анализом производительности и расширениями игры для Project Zomboid.</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>Основные функции</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>Автоматические и ручные копии</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>Сжимает и копирует только изменённые файлы. Интервал и число хранимых автоматических копий можно настроить. Лимит не распространяется на ручные копии.</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>Настройки копирования</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>Восстановление и экспорт копий</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>Возвращает сохранение к состоянию на момент создания копии. Сохранения и копии можно экспортировать в ZIP. Также можно импортировать ZIP-файлы.</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>Список копий</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>Копирование и восстановление</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>Автоматически или вручную копирует только изменённые файлы в сжатом виде. Восстановите копию или экспортируйте её в ZIP.</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>Восстановление персонажа</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>Лечит или воскрешает персонажа в текущем сохранении, сохраняя черты и навыки. Недоступно, пока это сохранение открыто в игре.</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Настраивает разгон, переключение передач, задний ход и управление автомобилем с клавиатуры. Каждую функцию можно включать и отключать отдельно без установки мода.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Добавляет в игру функции без отдельного мода. Сейчас доступно улучшенное управление автомобилем (разгон, переключение передач, задний ход, руление, свет вокруг машины).</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>Проверка игры</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>Проверка сохранений</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>Проверка расширений игры</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>Улучшенное управление автомобилем включено</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>Улучшенное управление автомобилем выключено</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>Улучшенное управление автомобилем ожидает</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Неподдерживаемая версия игры</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Сообщить о проблеме</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Неофициальный инструмент для Project Zomboid</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Записывает производительность во время игры и показывает время скриптов каждого мода.</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>Игра запущена</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>Игра не запущена</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>Нет сохранений</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>Последняя копия {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>Нет копий</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>Опции: {0}</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>только что</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} мин назад</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>{0} ч назад</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>{0} дн. назад</value></data>
 </root>

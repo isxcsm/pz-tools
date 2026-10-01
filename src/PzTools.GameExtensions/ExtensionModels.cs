@@ -11,7 +11,6 @@ public sealed record ExtensionDefinition(string Id, string Version, string Title
 public static partial class ExtensionIds
 {
     public const string VehicleDrivetrain = "pztools.vehicle-drivetrain";
-    public const string ScreenLook = "pztools.screen-look";
     public static void Validate(string id)
     {
         if (id is null || id.Length > 80 || !ValidId().IsMatch(id))
@@ -22,22 +21,16 @@ public static partial class ExtensionIds
 }
 
 [System.Text.Json.Serialization.JsonConverter(typeof(VehicleDrivetrainPreferenceConverter))]
-// The light is an addition to the game rather than a correction of its driving, so it starts off.
+// The light is an addition to the game rather than a correction of its driving, so it has its own
+// switch apart from the three driving options. Like them it starts on.
 public sealed record VehicleDrivetrainPreference(bool TorqueEnabled = true, bool ReverseEnabled = true, bool SteeringEnabled = true,
-    bool AreaLightEnabled = false);
-/// <summary>The screen look extension's own options. Whether it is on is the extension's switch, like any other.</summary>
-public sealed record ScreenLookPreference(string Preset = "realistic", int Strength = 60, bool Seasonal = false)
-{
-    public static IReadOnlyList<string> Presets { get; } = ["realistic", "vivid", "cinematic"];
-    public void Validate()
-    {
-        if (Preset is null || !Presets.Contains(Preset, StringComparer.Ordinal) || Strength is < 0 or > 100)
-            throw new InvalidDataException("Invalid screen look preference.");
-    }
-}
-/// <summary>One extension's saved request. Each options property belongs to the extension of that name and is null for the others.</summary>
+    bool AreaLightEnabled = true);
+/// <summary>
+/// One extension's saved request. Each options property belongs to the extension of that name and is null for the others.
+/// Properties of extensions that no longer exist (an earlier "screenLook") are ignored when read and dropped on the next write.
+/// </summary>
 public sealed record ExtensionPreference(bool Enabled = false, bool ForceVersion = false,
-    VehicleDrivetrainPreference? VehicleDrivetrain = null, ScreenLookPreference? ScreenLook = null);
+    VehicleDrivetrainPreference? VehicleDrivetrain = null);
 public sealed record ExtensionConfiguration(int SchemaVersion, long Revision,
     Dictionary<string, ExtensionPreference> Extensions)
 {
@@ -46,7 +39,7 @@ public sealed record ExtensionConfiguration(int SchemaVersion, long Revision,
 
 public sealed record ExtensionCardView(ExtensionDefinition Definition, bool Enabled,
     string StatusCode, long SettingsRevision, bool ForceVersion = false, bool VersionMatches = true, string? GameVersion = null,
-    VehicleDrivetrainPreference? VehicleDrivetrain = null, ScreenLookPreference? ScreenLook = null)
+    VehicleDrivetrainPreference? VehicleDrivetrain = null)
 {
     public ExtensionCardView WithVersion(string? version)
     {
@@ -79,7 +72,7 @@ public sealed class GameExtensionService(ExtensionSettingsStore settings, Func<s
             return new ExtensionCardView(definition, enabled,
                 !matches && !preference.ForceVersion ? version is null ? "version-unknown" : "version-mismatch"
                     : !enabled ? "disabled" : preference.ForceVersion && !matches ? "forced-version" : definition.ReadinessCode,
-                config.Revision, preference.ForceVersion, matches, version, preference.VehicleDrivetrain, preference.ScreenLook);
+                config.Revision, preference.ForceVersion, matches, version, preference.VehicleDrivetrain);
         }).ToArray();
     }
     public IReadOnlyList<ExtensionCardView> SetPreference(string id, bool enabled, bool forceVersion, long revision)
@@ -87,22 +80,14 @@ public sealed class GameExtensionService(ExtensionSettingsStore settings, Func<s
         var card = ReadCards().Single(item => item.Definition.Id == id);
         if (enabled && !card.SupportsActivation)
             throw new InvalidDataException("Extension capability is unsupported.");
-        settings.SetPreference(id, new(enabled, forceVersion, card.VehicleDrivetrain, card.ScreenLook), revision);
+        settings.SetPreference(id, new(enabled, forceVersion, card.VehicleDrivetrain), revision);
         return ReadCards();
     }
     public IReadOnlyList<ExtensionCardView> SetVehicleDrivetrainPreference(VehicleDrivetrainPreference preference, long revision)
     {
         ArgumentNullException.ThrowIfNull(preference);
         var card = ReadCards().Single(item => item.Definition.Id == ExtensionIds.VehicleDrivetrain);
-        settings.SetPreference(ExtensionIds.VehicleDrivetrain, new(card.Enabled, card.ForceVersion, preference, card.ScreenLook), revision);
-        return ReadCards();
-    }
-    public IReadOnlyList<ExtensionCardView> SetScreenLookPreference(ScreenLookPreference preference, long revision)
-    {
-        ArgumentNullException.ThrowIfNull(preference);
-        preference.Validate();
-        var card = ReadCards().Single(item => item.Definition.Id == ExtensionIds.ScreenLook);
-        settings.SetPreference(ExtensionIds.ScreenLook, new(card.Enabled, card.ForceVersion, card.VehicleDrivetrain, preference), revision);
+        settings.SetPreference(ExtensionIds.VehicleDrivetrain, new(card.Enabled, card.ForceVersion, preference), revision);
         return ReadCards();
     }
     public IReadOnlyList<ExtensionCardView> SetEnabled(string id, bool enabled, long revision)

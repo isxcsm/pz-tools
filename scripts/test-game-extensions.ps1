@@ -14,12 +14,10 @@ $root = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($BridgeDirectory)) { $BridgeDirectory = Join-Path $root "artifacts/save-bridge/$Configuration" }
 & dotnet msbuild (Join-Path $root 'src/PzTools.GameExtensions.VehicleDrivetrain/PzTools.GameExtensions.VehicleDrivetrain.proj') /t:Build "-p:Configuration=$Configuration" "-p:JdkPath=$JdkPath" "-p:SaveBridgeDirectory=$BridgeDirectory" /v:minimal
 if ($LASTEXITCODE -ne 0) { throw 'Vehicle extension build failed.' }
-& dotnet msbuild (Join-Path $root 'src/PzTools.GameExtensions.ScreenLook/PzTools.GameExtensions.ScreenLook.proj') /t:Build "-p:Configuration=$Configuration" "-p:JdkPath=$JdkPath" "-p:SaveBridgeDirectory=$BridgeDirectory" /v:minimal
-if ($LASTEXITCODE -ne 0) { throw 'Screen look extension build failed.' }
 $jars = Join-Path $BridgeDirectory 'extensions'
 $output = Join-Path $root 'artifacts/game-extension-tests'
 New-Item -ItemType Directory -Force $output | Out-Null
-$classpath = (Join-Path $jars 'pztools-extension-runtime.jar') + ';' + (Join-Path $jars 'pztools-vehicle-drivetrain.jar') + ';' + (Join-Path $jars 'pztools-screen-look.jar')
+$classpath = (Join-Path $jars 'pztools-extension-runtime.jar') + ';' + (Join-Path $jars 'pztools-vehicle-drivetrain.jar')
 $sources = @(Get-ChildItem (Join-Path $root 'tests/game-extensions') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
 & (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $classpath -d $output @sources
 if ($LASTEXITCODE -ne 0) { throw 'Extension fixture compilation failed.' }
@@ -47,8 +45,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Vehicle drivetrain model behavior failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Keyboard steering model behavior failed.' }
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.runtime.input.KeyTimelineTest
 if ($LASTEXITCODE -ne 0) { throw 'Key timeline behavior failed.' }
-& (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.screen.ScreenGradeTest
-if ($LASTEXITCODE -ne 0) { throw 'Screen grade behavior failed.' }
 
 $vehicleFixture = Join-Path $output 'vehicle-fixture'
 New-Item -ItemType Directory -Force $vehicleFixture | Out-Null
@@ -69,19 +65,20 @@ $env:PZTOOLS_CONTINUOUS_FIXTURE_JAR = Join-Path $output 'continuous-fixture.jar'
 & (Join-Path $JdkPath 'bin/jar.exe') --create --manifest (Join-Path $output 'fixture-module.mf') --file $env:PZTOOLS_CONTINUOUS_FIXTURE_JAR -C $continuousFixture pztools
 if ($LASTEXITCODE -ne 0) { throw 'Continuous extension transport fixture packaging failed.' }
 
-# A second synthetic continuous module, and both under the names the catalogue gives the real
-# ones: the host then runs two modules through its real loading path.
-$screenFixture = Join-Path $output 'screen-fixture'
-New-Item -ItemType Directory -Force $screenFixture | Out-Null
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp (Join-Path $jars 'pztools-extension-runtime.jar') -d $screenFixture (Join-Path $root 'tests/game-extensions-continuous-fixture/pztools/extensions/screen/ScreenLookProvider.java')
+# A second synthetic continuous module beside one under the vehicle's catalogue name: the host then runs
+# two modules through its real loading path. The second exists only here, with its own catalogue line.
+$secondFixture = Join-Path $output 'second-fixture'
+New-Item -ItemType Directory -Force $secondFixture | Out-Null
+& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp (Join-Path $jars 'pztools-extension-runtime.jar') -d $secondFixture (Join-Path $root 'tests/game-extensions-continuous-fixture/pztools/extensions/second/SecondModuleProvider.java')
 if ($LASTEXITCODE -ne 0) { throw 'Second continuous fixture compilation failed.' }
-& (Join-Path $JdkPath 'bin/jar.exe') --create --manifest (Join-Path $output 'fixture-module.mf') --file (Join-Path $output 'screen-fixture.jar') -C $screenFixture pztools
+& (Join-Path $JdkPath 'bin/jar.exe') --create --manifest (Join-Path $output 'fixture-module.mf') --file (Join-Path $output 'second-fixture.jar') -C $secondFixture pztools
 if ($LASTEXITCODE -ne 0) { throw 'Second continuous fixture packaging failed.' }
 $slots = Join-Path $output 'module-slots'
 New-Item -ItemType Directory -Force $slots | Out-Null
 Copy-Item $env:PZTOOLS_CONTINUOUS_FIXTURE_JAR (Join-Path $slots 'pztools-vehicle-drivetrain.jar') -Force
-Copy-Item (Join-Path $output 'screen-fixture.jar') (Join-Path $slots 'pztools-screen-look.jar') -Force
-Copy-Item (Join-Path $root 'config/game-extensions/catalog.tsv') (Join-Path $slots 'catalog.tsv') -Force
+Copy-Item (Join-Path $output 'second-fixture.jar') (Join-Path $slots 'pztools-second-module.jar') -Force
+$catalogue = [IO.File]::ReadAllText((Join-Path $root 'config/game-extensions/catalog.tsv')).TrimEnd() + "`n" + [IO.File]::ReadAllText((Join-Path $root 'tests/game-extensions/module-slots-second.tsv'))
+[IO.File]::WriteAllText((Join-Path $slots 'catalog.tsv'), $catalogue, [Text.UTF8Encoding]::new($false))
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp ($output + ';' + $classpath) pztools.extensions.runtime.ModuleSlotsTest $slots
 if ($LASTEXITCODE -ne 0) { throw 'Independent module slot behavior failed.' }
 

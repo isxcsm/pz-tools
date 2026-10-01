@@ -430,6 +430,8 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>녹화 기록이 없습니다.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>녹화 파일을 열 수 없습니다. 파일이 손상되었거나 더 새 버전에서 만든 파일입니다.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>휠: 확대·축소 · 드래그: 구간 선택 · 클릭: 프레임 하나 선택 · 오른쪽 버튼 드래그: 이동 · 더블클릭: 전체 보기</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>화면 내용을 텍스트로 복사</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>성능 분석 결과를 복사했습니다.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>게임을 실행하면 녹화할 수 있습니다.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>게임이 실행 중이 아니어서 {0} 작업을 시작하지 않았습니다.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>게임이 둘 이상 실행 중이어서 {0} 작업을 시작하지 않았습니다.</value></data>
@@ -473,6 +475,13 @@
   <data name="ProfileColumnsTip" xml:space="preserve"><value>자체: 그 함수 안에서 직접 쓴 시간. 포함: 그 함수가 부른 다른 함수까지 합친 시간.</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>스레드별 비중</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>긴 대기·멈춤</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>모드</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>항목</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>구간 시간</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>실행 비중</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>선택한 구간 시간 중 이 스크립트가 실행 중이던 비율입니다. 스크립트가 불러 쓴 게임 기능의 시간도 포함합니다.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>선택한 구간에서 게임 코드가 실행된 시간 중 이 항목이 차지한 비율입니다. Lua 스크립트가 불러 쓴 게임 기능은 여기서 '게임 본체'로 잡힙니다. 긴 대기·멈춤은 비율 대신 횟수를 보여 줍니다.</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0}회</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>게임이 실행 중이 아닙니다. 게임을 실행한 뒤 다시 시도해 주세요.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>게임이 둘 이상 실행 중이어서 대상을 정할 수 없습니다.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>게임에 연결하지 못했습니다. 게임이나 PZ Tools를 업데이트했다면 게임을 다시 시작해 보세요.</value></data>
@@ -549,27 +558,15 @@
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>게임이 실행 중이 아닙니다</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>캐릭터 수면 중</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>차량 주행 개선</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>전진 가속·변속, 후진과 키보드 조향을 각각 개선합니다. 싱글플레이용 실험 기능입니다.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>전진 가속·변속, 후진, 키보드 조향을 각각 개선하고, 헤드라이트를 켜면 차량 주변을 밝힙니다. 싱글플레이용 실험 기능입니다.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>자연스러운 가속·변속</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>엔진 회전수와 기어에 맞춰 전진 가속을 조절합니다.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>부드러운 후진</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>후진 출발과 속도를 완만하게 조절합니다.</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>섬세한 스티어링</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>키를 누르고 놓는 동작에 맞춰 조향각과 핸들의 중앙 복귀를 부드럽게 조절합니다.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>정확한 키보드 조향</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>프레임이 불안정해도 키를 누른 만큼 정확하게 조향합니다.</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>차량 주변 조명</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>전조등이 켜져 있는 동안 타고 있는 차량 주변을 밝힙니다. 전조등과 배터리가 정상일 때만 켜지며, 세이브에는 아무것도 저장되지 않습니다.</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>화면 효과</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>게임 화면의 색감과 선명도를 보정합니다. 게임 파일은 바꾸지 않으며, 스위치를 끄면 원래대로 돌아갑니다.</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>분위기</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>화면의 전체적인 느낌을 고릅니다.</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>사실적</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>선명한</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>영화 같은</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>강도</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>고른 분위기를 얼마나 강하게 적용할지 정합니다.</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>계절 색감</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>계절에 따라 낮의 야외 색을 조금씩 바꿉니다. 밤과 실내는 그대로입니다.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>각 옵션은 독립적으로 저장됩니다. 게임에서 확인한 적용 상태는 아래에 표시됩니다.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>게임 적용 확인 · 실험 기능</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>게임에 적용 대기 중</value></data>
@@ -601,17 +598,31 @@
   <data name="NoFilteredLogs" xml:space="preserve"><value>선택한 필터에 맞는 로그가 없습니다.</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>전체 로그 보기</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>홈</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>Project Zomboid의 백업, 캐릭터 회복, 게임 확장을 관리합니다.</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Project Zomboid의 백업, 캐릭터 회복, 성능 분석, 게임 확장을 관리합니다.</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>주요 기능</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>자동·수동 백업</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>변경된 파일만 압축해 백업합니다. 자동 백업의 주기와 보관 개수를 설정할 수 있으며, 수동 백업은 보관 개수 제한을 받지 않습니다.</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>백업 설정</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>백업 복원·내보내기</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>세이브를 백업 당시 상태로 되돌립니다. 세이브와 백업을 ZIP으로 내보내거나 ZIP 파일을 가져올 수 있습니다.</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>백업 목록</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>백업·복원</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>변경된 파일만 압축해 자동·수동으로 백업합니다. 백업 시점으로 복원하거나 ZIP으로 내보낼 수 있습니다.</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>캐릭터 회복</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>현재 세이브의 캐릭터를 치료하거나 부활시킵니다. 특성과 스킬은 유지하며, 플레이 중인 세이브에는 사용할 수 없습니다.</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>차량의 가속·변속·후진·키보드 조향을 조정합니다. 별도 모드 설치 없이 기능별로 켜고 끌 수 있습니다.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>별도 모드 없이 게임에 기능을 추가합니다. 현재 차량 주행 개선(가속·변속·후진·조향·주변 조명)을 제공합니다.</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>게임 상태 확인 중</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>세이브 확인 중</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>게임 확장 확인 중</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>차량 주행 개선 켜짐</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>차량 주행 개선 꺼짐</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>차량 주행 개선 대기 중</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>지원하지 않는 게임 버전</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>문제 신고</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid 비공식 도구</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>게임 실행 중 성능을 녹화해 모드별 스크립트 실행 시간을 보여 줍니다.</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>게임 실행 중</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>게임 실행 중이 아님</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>세이브 없음</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>마지막 백업 {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>백업 없음</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>기능 {0}개</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>방금</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>{0}분 전</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>{0}시간 전</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>{0}일 전</value></data>
 </root>

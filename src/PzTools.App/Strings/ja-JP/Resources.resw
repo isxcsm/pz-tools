@@ -431,6 +431,8 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>記録はまだありません。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>この記録を開けません。ファイルが破損しているか、より新しいバージョンで作成されています。</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>表示中の内容をテキストでコピー</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>パフォーマンスの結果をコピーしました。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>ゲームを起動すると記録できます。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ゲームが起動していないため、{0}を開始しませんでした。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ゲームが複数起動しているため、{0}を開始しませんでした。</value></data>
@@ -474,6 +476,13 @@
   <data name="ProfileColumnsTip" xml:space="preserve"><value>自身: その関数の中で直接かかった時間。合計: その関数が呼び出した関数の時間も含みます。</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>スレッド別の割合</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長い待機と一時停止</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>MOD</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>項目</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>区間時間</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>実行の割合</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>選択した区間のうち、このスクリプトが実行中だった割合です。スクリプトが呼び出したゲーム機能の時間も含みます。</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>選択した区間でゲームコードが実行された時間のうち、この項目が占めた割合です。Lua スクリプトが呼び出したゲーム機能はここでは「ゲーム本体」に含まれます。長い待機・停止は割合ではなく回数を表示します。</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0} 回</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>ゲームが起動していません。ゲームを起動してからもう一度お試しください。</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>ゲームが複数起動しているため、対象を決められません。</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>ゲームに接続できませんでした。ゲームまたは PZ Tools を更新した場合は、ゲームを再起動してください。</value></data>
@@ -550,27 +559,15 @@
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>ゲームが起動していません</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>キャラクターが睡眠中</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>車両の操作性改善</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>前進時の加速・変速、後退、キーボード操舵を個別に改善します。シングルプレイ専用の実験的な機能です。</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>前進時の加速・変速、後退、キーボード操舵を個別に改善し、ヘッドライト点灯中は車両の周囲を照らします。シングルプレイ専用の実験的な機能です。</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>自然な加速・変速</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>エンジン回転数とギアに合わせて前進時の加速を調整します。</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>滑らかな後退</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>後退時の発進を穏やかにし、速度を制限します。</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>細やかなステアリング</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>キーボードでの操舵と中央への戻りを滑らかに調整します。</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>正確なキーボード操舵</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>フレームレートが不安定でも、キーを押した分だけ正確に操舵します。</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>車両周辺のライト</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>ヘッドライトが点灯している間、乗っている車両の周囲を照らします。ヘッドライトとバッテリーが正常なときだけ点灯し、セーブデータには何も書き込まれません。</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>画面の雰囲気</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>ゲーム画面の色合いと鮮明さを調整します。ゲームファイルは変更されず、スイッチをオフにすれば元に戻ります。</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>ムード</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>画面全体の印象を選びます。</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>リアル</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>ビビッド</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>シネマ風</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>強さ</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>選んだムードをどのくらい強くかけるかを決めます。</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>季節の色合い</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>季節に合わせて、昼間の屋外の色を少しだけ変えます。夜と屋内はそのままです。</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>各オプションは個別に保存されます。ゲームで確認した適用状態を下に表示します。</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>ゲームへの適用を確認 · 実験的機能</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>有効化を要求済み · ゲームの確認待ち</value></data>
@@ -602,17 +599,31 @@
   <data name="NoFilteredLogs" xml:space="preserve"><value>選択したフィルターに一致するログはありません。</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>すべてのログを表示</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>ホーム</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>Project Zomboidのバックアップ作成やキャラクターの回復、ゲーム拡張ができます。</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Project Zomboid のバックアップ、キャラクターの回復、パフォーマンス分析、ゲーム拡張を管理します。</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>主な機能</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>自動・手動バックアップ</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>変更されたファイルだけを圧縮してバックアップします。自動バックアップの間隔と保持数を設定でき、手動バックアップはその数に含まれません。</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>バックアップ設定</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>バックアップの復元・エクスポート</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>セーブをバックアップ時点の状態に戻します。セーブとバックアップをZIP形式でエクスポートでき、ZIPファイルのインポートもできます。</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>バックアップ一覧</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>バックアップと復元</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>変更されたファイルだけを圧縮して自動・手動でバックアップします。バックアップ時点に復元したり ZIP に書き出したりできます。</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>キャラクターの回復</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>現在のセーブでキャラクターを治療・蘇生します。特性とスキルは変わりません。プレイ中のセーブには使用できません。</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>車両の加速・変速・後退・キーボードでの操舵を調整します。別途MODを入れずに、機能ごとにオン・オフを切り替えられます。</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>別の MOD なしでゲームに機能を追加します。現在は車両の操作性改善（加速・変速・後退・操舵・車両周辺のライト）を提供しています。</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>ゲームの状態を確認中</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>セーブを確認中</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>ゲーム拡張を確認中</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>車両の操作性改善 オン</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>車両の操作性改善 オフ</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>車両の操作性改善 待機中</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>未対応のゲームバージョン</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>問題を報告</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboidの非公式ツール</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>ゲーム実行中のパフォーマンスを記録し、MOD ごとのスクリプト実行時間を表示します。</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>ゲーム実行中</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>ゲーム未実行</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>セーブなし</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>最終バックアップ {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>バックアップなし</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>機能 {0} 個</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>たった今</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} 分前</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>{0} 時間前</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>{0} 日前</value></data>
 </root>

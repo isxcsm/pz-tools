@@ -17,6 +17,7 @@ separate page: [advanced component settings](runtime-configuration.md).
 | `%LOCALAPPDATA%/PzTools/settings.toml` | The choices you make in the app (UI preferences) |
 | `%LOCALAPPDATA%/PzTools/config/<component>/default.toml` | Advanced settings, one file per [component](glossary.md#component) |
 | `defaults/<component>/default.toml` in the app folder | Packaged defaults, read-only |
+| `%LOCALAPPDATA%/PzTools/extensions/` | Game-extension choices (`settings.json`) and an optional tuning override per extension; packaged defaults are in `save-bridge/extensions/` in the app folder. See [game extensions](game-extensions.md) |
 
 Workflows, schedules and recorded logs are stored in databases, not in these files.
 

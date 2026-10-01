@@ -417,6 +417,13 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Je spuštěno více her najednou, takže nelze určit cíl.</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Hra není spuštěná. Spusťte hru a zkuste to znovu.</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Dlouhá čekání a pauzy</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0}×</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Jakou část doby běhu herního kódu ve vybraném úseku zabrala tato položka. Herní funkce volané skripty Lua se zde počítají do položky Základní hra. Dlouhá čekání a zastavení ukazují počet místo podílu.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Jakou část vybraného úseku tento skript běžel. Zahrnuje i čas herních funkcí, které skript volal. Číslo vedle nadpisu platí pro všechny skripty dohromady.</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>Podíl běhu</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>Čas úseku</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>Položka</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Podíl podle vláken</value></data>
   <data name="ProfileColumnsTip" xml:space="preserve"><value>Vlastní: čas strávený přímo v dané funkci. Celkem: včetně funkcí, které zavolala.</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Vzorky</value></data>
@@ -437,6 +444,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Přiblížit výběr</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>Zkopírovat zobrazený obsah jako text</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Výsledky výkonu byly zkopírovány.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} se nespustilo, protože běží více než jedna hra.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Nahrávat můžete po spuštění hry.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} se nespustilo, protože hra neběží.</value></data>
@@ -550,27 +559,15 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Hra není spuštěna</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Postava spí</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Vylepšení řízení vozidel</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Samostatně vylepšuje zrychlování vpřed, řazení, couvání a řízení klávesnicí. Experimentální; pouze pro jednoho hráče.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Samostatně vylepšuje zrychlování vpřed, řazení, couvání a řízení klávesnicí a při rozsvícených světlech osvětluje okolí vozidla. Experimentální; pouze pro jednoho hráče.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Přirozené zrychlování a řazení</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Přizpůsobuje zrychlování vpřed otáčkám motoru a převodovému stupni.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Plynulé couvání</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Zjemňuje rozjezd při couvání a omezuje jeho rychlost.</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Jemné řízení</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Zajišťuje pozvolné řízení klávesnicí a návrat do středové polohy.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Přesné řízení klávesnicí</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Zatáčí přesně podle toho, jak dlouho držíte klávesu, i při nestabilní snímkové frekvenci.</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Světlo kolem vozidla</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Osvětluje okolí vozidla, ve kterém sedíte, dokud svítí jeho světlomety. Vyžaduje funkční světlomety a nabitou baterii a do uložené hry se nic nezapisuje.</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Podle ročního období lehce mění barvy venku za dne. Noc a interiéry zůstávají beze změny.</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Sezónní barvy</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>Jak výrazně se zvolená nálada projeví.</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>Síla</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Filmová</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Sytá</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Realistická</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Vyberte celkový dojem z obrazu.</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>Nálada</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Vzhled obrazu</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Upravuje barvy a ostrost herního obrazu. Herní soubory se nemění a přepínačem vše zase vypnete.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Každá volba se ukládá samostatně. Níže je stav potvrzený hrou.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Použito ve hře · Experimentální</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Zapnutí vyžádáno · Čeká se na potvrzení hry</value></data>
@@ -602,17 +599,31 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="NoFilteredLogs" xml:space="preserve"><value>Vybraným filtrům neodpovídají žádné záznamy.</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>Zobrazit všechny záznamy</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>Domů</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>Správa záloh, obnova postav a herní rozšíření pro Project Zomboid.</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Spravuje zálohy, obnovu postavy, analýzu výkonu a rozšíření hry pro Project Zomboid.</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>Hlavní funkce</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>Automatické a ruční zálohy</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>Komprimuje a zálohuje pouze změněné soubory. Interval a počet uchovávaných automatických záloh lze nastavit. Ruční zálohy se do tohoto limitu nezapočítávají.</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>Nastavení záloh</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>Obnovení a export záloh</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>Vrátí uloženou hru do stavu v okamžiku vytvoření zálohy. Uložené hry i zálohy lze exportovat do ZIP. Lze také importovat soubory ZIP.</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>Seznam záloh</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>Zálohování a obnova</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>Automaticky i ručně zálohuje jen změněné soubory v komprimované podobě. Hru lze obnovit ze zálohy nebo zálohu exportovat do ZIP.</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>Obnova postavy</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>Vyléčí nebo oživí postavu v aktuální uložené hře. Vlastnosti a dovednosti zůstanou zachovány. Nelze použít během hraní této uložené hry.</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Upravuje zrychlování, řazení, couvání a řízení klávesnicí. Jednotlivé funkce lze zapínat a vypínat bez instalace modu.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Přidává do hry funkce bez instalace samostatného modu. Nyní poskytuje vylepšení řízení vozidel (zrychlení, řazení, couvání, řízení, světlo kolem vozidla).</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Nepodporovaná verze hry</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>Vylepšení řízení vozidel čeká</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>Vylepšení řízení vozidel vypnuto</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>Vylepšení řízení vozidel zapnuto</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>Zjišťují se rozšíření hry</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>Zjišťuje se stav hry</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>Zjišťují se uložené hry</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Nahlásit problém</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Neoficiální nástroj pro Project Zomboid</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>před {0} d</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>před {0} h</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>před {0} min</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>právě teď</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>Možnosti: {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>Žádná záloha</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>Poslední záloha {0}</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>Žádné uložené hry</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>Hra neběží</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>Hra běží</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Za běhu hry nahrává výkon a ukazuje dobu běhu skriptů jednotlivých modů.</value></data>
 </root>

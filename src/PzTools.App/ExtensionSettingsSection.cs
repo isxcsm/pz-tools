@@ -22,10 +22,7 @@ internal sealed class ExtensionSettingsSection
     private readonly SettingToggle enabled;
     private readonly List<SettingRow> options = [];
 
-    private readonly ScreenLookOptions? screenLook;
-
-    public ExtensionSettingsSection(string id, Func<GameExtensionSetting, bool, Task> save, bool initiallyExpanded = false,
-        Func<Func<ScreenLookPreference, ScreenLookPreference>, Task>? saveScreenLook = null)
+    public ExtensionSettingsSection(string id, Func<GameExtensionSetting, bool, Task> save, bool initiallyExpanded = false)
     {
         enabled = new(value => save(GameExtensionSetting.Enabled, value));
         var details = new StackPanel { Spacing = 4 };
@@ -43,12 +40,6 @@ internal sealed class ExtensionSettingsSection
             AddOption(GameExtensionSetting.Steering, "VehicleDrivetrain.Steering", "VehicleDrivetrain.SteeringDescription");
             AddOption(GameExtensionSetting.AreaLight, "VehicleDrivetrain.AreaLight", "VehicleDrivetrain.AreaLightDescription");
         }
-        // An extension whose options are more than switches brings its own editor.
-        if (id == ExtensionIds.ScreenLook && saveScreenLook is not null)
-        {
-            screenLook = new ScreenLookOptions(saveScreenLook);
-            foreach (var card in screenLook.Cards) Control.Items.Add(card);
-        }
         Control.Items.Add(new SettingsCard { Header = statusTitle, Description = details });
         AddOption(GameExtensionSetting.ForceVersion, "GameExtensions.ForceVersion", "GameExtensions.ForceWarning");
         Control.Loaded += CompleteInitialLayout;
@@ -64,7 +55,6 @@ internal sealed class ExtensionSettingsSection
     private static string HeaderGlyph(string id) => id switch
     {
         ExtensionIds.VehicleDrivetrain => "\uE804", // car
-        ExtensionIds.ScreenLook => "\uE790",        // colour palette
         _ => "\uEA86",                              // puzzle piece: an extension
     };
 
@@ -102,7 +92,6 @@ internal sealed class ExtensionSettingsSection
             };
             row.Update(value, activation.CanEditOptions);
         }
-        screenLook?.Update(card.ScreenLook ?? new ScreenLookPreference(), activation.CanEditOptions);
     }
 
     private static string? ActivationHint(GameExtensionsView view, ExtensionCardView card, ExtensionActivationView activation)

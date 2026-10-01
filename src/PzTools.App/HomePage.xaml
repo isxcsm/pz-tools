@@ -24,11 +24,18 @@
       <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
       <Setter Property="Margin" Value="0,4,0,0" />
     </Style>
+    <!-- One line of state: no card, just a quiet row that opens its page. No left padding, so its
+         icon lines up with the title's left edge and nothing reaches past the page's. -->
+    <Style x:Key="HomeStatusRowStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="0,5,8,5" />
+    </Style>
   </UserControl.Resources>
 
   <ScrollViewer VerticalScrollBarVisibility="Auto"
                 HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-    <StackPanel x:Name="HomeContent" MaxWidth="1040" HorizontalAlignment="Left"
+    <StackPanel x:Name="HomeContent"
                 Spacing="20" Padding="0,0,4,16">
       <Grid x:Name="IntroductionGrid" RowSpacing="16">
         <Grid.ColumnDefinitions>
@@ -39,20 +46,58 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <StackPanel x:Name="IntroductionCopy" Grid.Row="1" Spacing="12" VerticalAlignment="Top">
+        <!-- Wide, this column is as tall as the artwork beside it: the title at its top, in line with
+             other pages' titles, and the state rows at its bottom, so both edges meet the artwork's. -->
+        <Grid x:Name="IntroductionCopy" Grid.Row="1" RowSpacing="12">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
           <Grid MinHeight="{StaticResource PageHeaderHeight}">
             <TextBlock Text="PZ Tools" Style="{StaticResource PageTitleTextStyle}"
                        AutomationProperties.HeadingLevel="Level1" />
           </Grid>
-          <TextBlock x:Name="HomeDescription" TextWrapping="Wrap" />
-          <Button x:Name="OpenSavesButton" Click="OpenSaves_Click" HorizontalAlignment="Left"
-                  Style="{StaticResource AccentButtonStyle}" Margin="0,4,0,0"
-                  AutomationProperties.AutomationId="OpenSavesButton">
-            <TextBlock x:Name="HomeOpenSaves" TextWrapping="Wrap" />
-          </Button>
-        </StackPanel>
+          <TextBlock x:Name="HomeDescription" Grid.Row="1" TextWrapping="Wrap" />
+          <!-- What is going on now, read from the app's live views by the shell. -->
+          <StackPanel x:Name="StatusRows" Grid.Row="2" VerticalAlignment="Bottom" Margin="0,4,0,0">
+            <Button x:Name="GameStatusButton" Style="{StaticResource HomeStatusRowStyle}" Click="OpenSaves_Click"
+                    AutomationProperties.AutomationId="GameStatusButton">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Grid Width="16" Margin="0,0,4,0" VerticalAlignment="Center">
+                  <Ellipse Width="8" Height="8" Fill="{ThemeResource TextFillColorTertiaryBrush}" />
+                  <Ellipse x:Name="GameLiveDot" Width="8" Height="8" Visibility="Collapsed"
+                           Fill="{ThemeResource SystemFillColorSuccessBrush}" />
+                </Grid>
+                <TextBlock x:Name="GameStatusValue" />
+                <TextBlock x:Name="GameStatusDetail" Style="{StaticResource SecondaryTextStyle}" TextWrapping="NoWrap" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="SaveStatusButton" Style="{StaticResource HomeStatusRowStyle}" Click="OpenSaves_Click"
+                    AutomationProperties.AutomationId="SaveStatusButton">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE74E;" FontSize="16" Width="16" Margin="0,0,4,0" />
+                <TextBlock x:Name="SaveStatusValue" />
+                <TextBlock x:Name="SaveStatusDetail" Style="{StaticResource SecondaryTextStyle}" TextWrapping="NoWrap" />
+                <!-- A save with nothing to go back to: the one thing here worth a warning colour. -->
+                <TextBlock x:Name="SaveStatusWarning" Visibility="Collapsed"
+                           Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="ExtensionStatusButton" Style="{StaticResource HomeStatusRowStyle}" Click="OpenExtensions_Click"
+                    AutomationProperties.AutomationId="ExtensionStatusButton">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE804;" FontSize="16" Width="16" Margin="0,0,4,0" />
+                <TextBlock x:Name="ExtensionStatusValue" />
+                <TextBlock x:Name="ExtensionStatusDetail" Style="{StaticResource SecondaryTextStyle}" TextWrapping="NoWrap" />
+                <TextBlock x:Name="ExtensionStatusWarning" Visibility="Collapsed"
+                           Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
         <Image x:Name="HomeArtwork" Source="ms-appx:///Assets/Brand/pztools-home.png"
-               Height="128" MaxWidth="192" Stretch="Uniform" HorizontalAlignment="Left"
+               Height="128" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top"
                AutomationProperties.AccessibilityView="Raw" IsHitTestVisible="False" />
       </Grid>
 
@@ -70,8 +115,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <Button x:Name="AutomaticBackupButton" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSettings_Click"
-                  AutomationProperties.AutomationId="AutomaticBackupButton">
+          <Button x:Name="BackupButton" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSaves_Click"
+                  AutomationProperties.AutomationId="BackupButton">
             <Grid ColumnSpacing="16">
               <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
               <SymbolIcon Symbol="Sync" VerticalAlignment="Top" Margin="0,2,0,0"
@@ -83,20 +128,7 @@
               </StackPanel>
             </Grid>
           </Button>
-          <Button x:Name="RestoreButton" Grid.Row="1" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSaves_Click"
-                  AutomationProperties.AutomationId="RestoreButton">
-            <Grid ColumnSpacing="16">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-              <SymbolIcon Symbol="Undo" VerticalAlignment="Top" Margin="0,2,0,0"
-                          AutomationProperties.AccessibilityView="Raw" />
-              <StackPanel Grid.Column="1" Spacing="8">
-                <TextBlock x:Name="HomeRestoreTitle" Style="{StaticResource HomeFeatureTitleStyle}" />
-                <TextBlock x:Name="HomeRestoreDescription" Style="{StaticResource SecondaryTextStyle}" />
-                <TextBlock x:Name="HomeRestoreAction" Style="{StaticResource HomeFeatureActionStyle}" />
-              </StackPanel>
-            </Grid>
-          </Button>
-          <Button x:Name="CharacterRecoveryButton" Grid.Row="2" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSaves_Click"
+          <Button x:Name="CharacterRecoveryButton" Grid.Row="1" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenSaves_Click"
                   AutomationProperties.AutomationId="CharacterRecoveryButton">
             <Grid ColumnSpacing="16">
               <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -106,6 +138,19 @@
                 <TextBlock x:Name="HomeRecoveryTitle" Style="{StaticResource HomeFeatureTitleStyle}" />
                 <TextBlock x:Name="HomeRecoveryDescription" Style="{StaticResource SecondaryTextStyle}" />
                 <TextBlock x:Name="HomeRecoveryAction" Style="{StaticResource HomeFeatureActionStyle}" />
+              </StackPanel>
+            </Grid>
+          </Button>
+          <Button x:Name="ProfilerButton" Grid.Row="2" Style="{StaticResource HomeFeatureCardStyle}" Click="OpenProfiler_Click"
+                  AutomationProperties.AutomationId="ProfilerButton">
+            <Grid ColumnSpacing="16">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <FontIcon Glyph="&#xE9D9;" FontSize="20" VerticalAlignment="Top" Margin="0,2,0,0"
+                        AutomationProperties.AccessibilityView="Raw" />
+              <StackPanel Grid.Column="1" Spacing="8">
+                <TextBlock x:Name="HomeProfilerTitle" Style="{StaticResource HomeFeatureTitleStyle}" />
+                <TextBlock x:Name="HomeProfilerDescription" Style="{StaticResource SecondaryTextStyle}" />
+                <TextBlock x:Name="HomeProfilerAction" Style="{StaticResource HomeFeatureActionStyle}" />
               </StackPanel>
             </Grid>
           </Button>
@@ -131,7 +176,7 @@
                            NavigateUri="https://github.com/isxcsm/pz-tools" />
           <HyperlinkButton x:Name="ReportIssueButton" Padding="0,4"
                            NavigateUri="https://github.com/isxcsm/pz-tools/issues" />
-          <TextBlock x:Name="HomeVersion" Text="v0.1.0" IsTextSelectionEnabled="True"
+          <TextBlock x:Name="HomeVersion" Text="v0.2.0" IsTextSelectionEnabled="True"
                      VerticalAlignment="Center" Style="{StaticResource SecondaryTextStyle}" />
         </StackPanel>
         <TextBlock x:Name="HomeUnofficialNotice" Style="{StaticResource SecondaryTextStyle}" />

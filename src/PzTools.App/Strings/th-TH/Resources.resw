@@ -438,6 +438,8 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>ยังไม่มีการบันทึก</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกนี้ไม่ได้ ไฟล์เสียหายหรือสร้างจากเวอร์ชันที่ใหม่กว่า</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>คัดลอกเนื้อหาที่แสดงเป็นข้อความ</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>คัดลอกผลประสิทธิภาพแล้ว</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>เปิดเกมเพื่อเริ่มบันทึก</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะเกมไม่ได้เปิดอยู่</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะมีเกมเปิดอยู่มากกว่าหนึ่งเกม</value></data>
@@ -481,6 +483,13 @@
   <data name="ProfileColumnsTip" xml:space="preserve"><value>เฉพาะตัว: เวลาที่ใช้ในฟังก์ชันนั้นโดยตรง รวม: นับรวมฟังก์ชันที่มันเรียกใช้ด้วย</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>สัดส่วนตามเธรด</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>การรอและการหยุดชะงักนาน ๆ</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>ม็อด</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>รายการ</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>เวลาช่วง</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>สัดส่วนการทำงาน</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>สัดส่วนของช่วงที่เลือกที่สคริปต์นี้กำลังทำงาน รวมเวลาของฟังก์ชันเกมที่สคริปต์เรียกใช้ด้วย</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>สัดส่วนของเวลาทำงานของโค้ดเกมในช่วงที่เลือกที่เป็นของรายการนี้ ฟังก์ชันเกมที่สคริปต์ Lua เรียกใช้จะนับเป็น 'เกมหลัก' ที่นี่ การรอและการหยุดนิ่งนาน ๆ จะแสดงเป็นจำนวนครั้งแทนสัดส่วน</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0} ครั้ง</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>เกมไม่ได้เปิดอยู่ เปิดเกมแล้วลองอีกครั้ง</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>มีเกมเปิดอยู่มากกว่าหนึ่งตัว จึงเลือกเป้าหมายไม่ได้</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ หากคุณเพิ่งอัปเดตเกมหรือ PZ Tools ให้เปิดเกมใหม่</value></data>
@@ -557,27 +566,15 @@
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>เกมไม่ได้กำลังทำงาน</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>ตัวละครกำลังนอนหลับ</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>ปรับปรุงการขับขี่ยานพาหนะ</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>ปรับการเร่งและเปลี่ยนเกียร์เดินหน้า การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ดแยกกัน ฟีเจอร์ทดลองสำหรับผู้เล่นคนเดียวเท่านั้น</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>ปรับการเร่งและเปลี่ยนเกียร์เดินหน้า การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ดแยกกัน และส่องสว่างรอบตัวรถเมื่อเปิดไฟหน้า ฟีเจอร์ทดลองสำหรับผู้เล่นคนเดียวเท่านั้น</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>เร่งและเปลี่ยนเกียร์อย่างเป็นธรรมชาติ</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>ปรับการเร่งเดินหน้าตามรอบเครื่องยนต์และเกียร์</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>ถอยหลังอย่างนุ่มนวล</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>ทำให้ออกตัวถอยหลังนุ่มนวลขึ้นและจำกัดความเร็วถอยหลัง</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>บังคับเลี้ยวอย่างละเอียด</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>ปรับการเลี้ยวด้วยคีย์บอร์ดและการคืนล้อสู่แนวตรงให้ค่อยเป็นค่อยไป</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>บังคับเลี้ยวด้วยคีย์บอร์ดอย่างแม่นยำ</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>เลี้ยวตรงตามที่กดปุ่มไว้อย่างแม่นยำ แม้เฟรมเรตจะไม่คงที่</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>แสงรอบตัวรถ</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>ส่องสว่างบริเวณรอบรถที่คุณนั่งอยู่ขณะเปิดไฟหน้า ต้องมีไฟหน้าที่ใช้งานได้และแบตเตอรี่ที่มีไฟ และจะไม่มีการเขียนอะไรลงในเซฟของคุณ</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>โทนภาพหน้าจอ</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>ปรับสีและความคมชัดของภาพในเกม ไม่มีการแก้ไขไฟล์เกม และปิดได้ด้วยสวิตช์</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>บรรยากาศ</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>เลือกอารมณ์โดยรวมของภาพ</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>สมจริง</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>สีสด</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>แบบภาพยนตร์</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>ความเข้ม</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>กำหนดว่าจะใช้บรรยากาศที่เลือกเข้มแค่ไหน</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>สีตามฤดูกาล</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>ปรับสีกลางแจ้งตอนกลางวันเล็กน้อยตามฤดูกาล ส่วนกลางคืนและในอาคารยังคงเหมือนเดิม</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>แต่ละตัวเลือกจะบันทึกแยกกัน สถานะที่เกมยืนยันจะแสดงด้านล่าง</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>ใช้ในเกมแล้ว · ฟีเจอร์ทดลอง</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>ขอเปิดแล้ว · รอการยืนยันจากเกม</value></data>
@@ -609,17 +606,31 @@
   <data name="NoFilteredLogs" xml:space="preserve"><value>ไม่มีบันทึกที่ตรงกับตัวกรองที่เลือก</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>ดูบันทึกทั้งหมด</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>หน้าแรก</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>เครื่องมือสำรองเซฟ ฟื้นฟูตัวละคร และจัดการส่วนขยายสำหรับ Project Zomboid</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>จัดการการสำรองข้อมูล การฟื้นฟูตัวละคร การวิเคราะห์ประสิทธิภาพ และส่วนขยายเกมของ Project Zomboid</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>ฟีเจอร์หลัก</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>สำรองข้อมูลอัตโนมัติและด้วยตนเอง</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>บีบอัดและสำรองเฉพาะไฟล์ที่เปลี่ยนแปลง ตั้งช่วงเวลาสำรองอัตโนมัติและจำนวนชุดที่เก็บไว้ได้ โดยไม่นับชุดที่สำรองด้วยตนเอง</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>ตั้งค่าการสำรองข้อมูล</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>กู้คืนและส่งออกข้อมูลสำรอง</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>กู้คืนเซฟกลับไปยังตอนที่สำรองไว้ ส่งออกเซฟและข้อมูลสำรองเป็นไฟล์ ZIP หรือนำเข้าไฟล์ ZIP ได้</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>รายการข้อมูลสำรอง</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>สำรองและกู้คืน</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>สำรองเฉพาะไฟล์ที่เปลี่ยนแปลงแบบบีบอัด ทั้งอัตโนมัติและด้วยตนเอง กู้คืนจากข้อมูลสำรองหรือส่งออกเป็น ZIP ได้</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>ฟื้นฟูตัวละคร</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>รักษาหรือชุบชีวิตตัวละครในเซฟปัจจุบัน โดยคงคุณลักษณะและทักษะไว้ ใช้กับเซฟที่กำลังเล่นอยู่ไม่ได้</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>ปรับการเร่งความเร็ว การเปลี่ยนเกียร์ การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ด เปิดหรือปิดแต่ละฟีเจอร์ได้โดยไม่ต้องติดตั้งม็อดแยก</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>เพิ่มฟีเจอร์ให้เกมโดยไม่ต้องติดตั้งม็อดแยก ขณะนี้มีการปรับปรุงการขับขี่ยานพาหนะ (การเร่ง การเปลี่ยนเกียร์ การถอย การเลี้ยว แสงรอบตัวรถ)</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>กำลังตรวจสอบเกม</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>กำลังตรวจสอบเซฟ</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>กำลังตรวจสอบส่วนขยายเกม</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>ปรับปรุงการขับขี่ยานพาหนะ เปิด</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>ปรับปรุงการขับขี่ยานพาหนะ ปิด</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>ปรับปรุงการขับขี่ยานพาหนะ รออยู่</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>เวอร์ชันเกมที่ไม่รองรับ</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>รายงานปัญหา</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>เครื่องมือที่ไม่เป็นทางการสำหรับ Project Zomboid</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>บันทึกประสิทธิภาพขณะเกมทำงาน และแสดงเวลาที่สคริปต์ของแต่ละม็อดใช้</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>เกมกำลังทำงาน</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>เกมไม่ได้ทำงาน</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>ไม่มีเซฟ</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>สำรองล่าสุด {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>ยังไม่มีข้อมูลสำรอง</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>ตัวเลือก {0} รายการ</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>เมื่อสักครู่</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} นาทีที่แล้ว</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>{0} ชั่วโมงที่แล้ว</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>{0} วันที่แล้ว</value></data>
 </root>

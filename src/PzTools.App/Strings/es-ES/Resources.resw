@@ -431,6 +431,8 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileEmpty" xml:space="preserve"><value>Aún no hay grabaciones.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>No se puede abrir esta grabación. El archivo está dañado o se creó con una versión más reciente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un intervalo · Clic: seleccionar un fotograma · Arrastrar con el botón derecho: mover · Doble clic: ver todo</value></data>
+  <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar lo que se muestra como texto</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Se han copiado los resultados de rendimiento.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Inicia el juego para grabar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} no se inició porque el juego no está en ejecución.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} no se inició porque hay más de un juego en ejecución.</value></data>
@@ -474,6 +476,13 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileColumnsTip" xml:space="preserve"><value>Propio: tiempo empleado directamente en esa función. Total: incluye también las funciones a las que llamó.</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Reparto por hilo</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Esperas y pausas largas</value></data>
+  <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
+  <data name="ProfileListJavaOwner" xml:space="preserve"><value>Elemento</value></data>
+  <data name="ProfileListLuaShare" xml:space="preserve"><value>Tiempo del tramo</value></data>
+  <data name="ProfileListJavaShare" xml:space="preserve"><value>Parte de ejecución</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Qué parte del tramo seleccionado estuvo ejecutándose este script. Incluye el tiempo de las funciones del juego que llamó el script.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Qué parte del tiempo de ejecución del código del juego en el tramo seleccionado correspondió a este elemento. Las funciones del juego llamadas por scripts Lua cuentan aquí como «Juego base». Las esperas y paradas largas muestran un recuento en lugar de una parte.</value></data>
+  <data name="ProfilePauseCount" xml:space="preserve"><value>{0} veces</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>El juego no está en ejecución. Inicia el juego y vuelve a intentarlo.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Hay más de un juego en ejecución, así que no se puede elegir el objetivo.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>No se pudo conectar con el juego. Si has actualizado el juego o PZ Tools, reinicia el juego.</value></data>
@@ -550,27 +559,15 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>El juego no está en ejecución</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>El personaje está durmiendo</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Mejoras de conducción</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Mejora por separado la aceleración hacia delante y los cambios de marcha, la marcha atrás y la dirección con teclado. Experimental; solo para un jugador.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Mejora por separado la aceleración hacia delante y los cambios de marcha, la marcha atrás y la dirección con teclado, e ilumina alrededor del vehículo con los faros encendidos. Experimental; solo para un jugador.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Aceleración y cambios de marcha naturales</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Ajusta la aceleración hacia delante al régimen del motor y a la marcha.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Marcha atrás suave</value></data>
   <data name="VehicleDrivetrain.ReverseDescription" xml:space="preserve"><value>Suaviza el arranque marcha atrás y limita su velocidad.</value></data>
-  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Dirección precisa</value></data>
-  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Hace graduales la dirección con teclado y el retorno al centro.</value></data>
+  <data name="VehicleDrivetrain.Steering" xml:space="preserve"><value>Dirección precisa con teclado</value></data>
+  <data name="VehicleDrivetrain.SteeringDescription" xml:space="preserve"><value>Gira exactamente lo que mantienes la tecla, incluso con una tasa de fotogramas inestable.</value></data>
   <data name="VehicleDrivetrain.AreaLight" xml:space="preserve"><value>Luz alrededor del vehículo</value></data>
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Ilumina la zona alrededor del vehículo en el que estás mientras los faros están encendidos. Necesita faros en buen estado y batería cargada, y no se guarda nada en tu partida.</value></data>
-  <data name="Extension.ScreenLook.Title" xml:space="preserve"><value>Aspecto de la imagen</value></data>
-  <data name="Extension.ScreenLook.Description" xml:space="preserve"><value>Ajusta el color y la nitidez de la imagen del juego. No se modifica ningún archivo del juego y se desactiva con el interruptor.</value></data>
-  <data name="ScreenLook.Preset" xml:space="preserve"><value>Ambiente</value></data>
-  <data name="ScreenLook.PresetDescription" xml:space="preserve"><value>Elige el estilo general de la imagen.</value></data>
-  <data name="ScreenLook.PresetRealistic" xml:space="preserve"><value>Realista</value></data>
-  <data name="ScreenLook.PresetVivid" xml:space="preserve"><value>Vívido</value></data>
-  <data name="ScreenLook.PresetCinematic" xml:space="preserve"><value>Cinematográfico</value></data>
-  <data name="ScreenLook.Strength" xml:space="preserve"><value>Intensidad</value></data>
-  <data name="ScreenLook.StrengthDescription" xml:space="preserve"><value>Con cuánta fuerza se aplica el ambiente elegido.</value></data>
-  <data name="ScreenLook.StrengthValue" xml:space="preserve"><value>{0}%</value></data>
-  <data name="ScreenLook.Seasonal" xml:space="preserve"><value>Colores de temporada</value></data>
-  <data name="ScreenLook.SeasonalDescription" xml:space="preserve"><value>Cambia ligeramente los colores de exteriores durante el día según la estación. Las noches y los interiores no cambian.</value></data>
   <data name="VehicleDrivetrain.Experimental" xml:space="preserve"><value>Cada opción se guarda por separado. El estado confirmado por el juego aparece abajo.</value></data>
   <data name="VehicleDrivetrain.Active" xml:space="preserve"><value>Aplicado en el juego · Experimental</value></data>
   <data name="VehicleDrivetrain.Pending" xml:space="preserve"><value>Esperando a que se aplique en el juego</value></data>
@@ -602,17 +599,31 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="NoFilteredLogs" xml:space="preserve"><value>No hay registros que coincidan con los filtros seleccionados.</value></data>
   <data name="LogShowAll" xml:space="preserve"><value>Ver todos los registros</value></data>
   <data name="HomeNavigation.Content" xml:space="preserve"><value>Inicio</value></data>
-  <data name="Home.Description" xml:space="preserve"><value>Copias de seguridad, recuperación de personajes y extensiones para Project Zomboid.</value></data>
+  <data name="Home.Description" xml:space="preserve"><value>Gestiona copias de seguridad, recuperación del personaje, análisis de rendimiento y extensiones del juego para Project Zomboid.</value></data>
   <data name="Home.FeaturesHeading" xml:space="preserve"><value>Funciones principales</value></data>
-  <data name="Home.BackupTitle" xml:space="preserve"><value>Copias automáticas y manuales</value></data>
-  <data name="Home.BackupDescription" xml:space="preserve"><value>Comprime y copia solo los archivos modificados. Permite elegir cada cuánto se crean copias automáticas y cuántas se conservan. Las copias manuales no cuentan para este límite.</value></data>
-  <data name="Home.BackupAction" xml:space="preserve"><value>Configurar copias</value></data>
-  <data name="Home.RestoreTitle" xml:space="preserve"><value>Restaurar y exportar copias</value></data>
-  <data name="Home.RestoreDescription" xml:space="preserve"><value>Restaura la partida al estado guardado en la copia. Permite exportar partidas y copias en ZIP e importar archivos ZIP.</value></data>
-  <data name="Home.RestoreAction" xml:space="preserve"><value>Lista de copias</value></data>
+  <data name="Home.BackupTitle" xml:space="preserve"><value>Copia y restauración</value></data>
+  <data name="Home.BackupDescription" xml:space="preserve"><value>Copia de forma automática o manual solo los archivos modificados, comprimidos. Restaura una copia o expórtala como ZIP.</value></data>
   <data name="Home.RecoveryTitle" xml:space="preserve"><value>Recuperación del personaje</value></data>
   <data name="Home.RecoveryDescription" xml:space="preserve"><value>Cura o resucita al personaje de la partida actual conservando sus rasgos y habilidades. No está disponible mientras juegas a esa partida.</value></data>
-  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Permite ajustar la aceleración, el cambio de marchas, la marcha atrás y la dirección con el teclado. Cada función se puede activar o desactivar por separado, sin instalar mods.</value></data>
+  <data name="Home.ExtensionsDescription" xml:space="preserve"><value>Añade funciones al juego sin un mod aparte. Ahora ofrece mejoras de conducción (aceleración, cambios, marcha atrás, dirección, luz alrededor del vehículo).</value></data>
+  <data name="Home.GameChecking" xml:space="preserve"><value>Comprobando el juego</value></data>
+  <data name="Home.SaveChecking" xml:space="preserve"><value>Comprobando partidas</value></data>
+  <data name="Home.ExtensionChecking" xml:space="preserve"><value>Comprobando extensiones del juego</value></data>
+  <data name="Home.VehicleOn" xml:space="preserve"><value>Mejoras de conducción activadas</value></data>
+  <data name="Home.VehicleOff" xml:space="preserve"><value>Mejoras de conducción desactivadas</value></data>
+  <data name="Home.VehicleWaiting" xml:space="preserve"><value>Mejoras de conducción en espera</value></data>
+  <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Versión del juego no compatible</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Informar de un problema</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Herramienta no oficial para Project Zomboid</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Graba el rendimiento mientras el juego se ejecuta y muestra el tiempo de scripts de cada mod.</value></data>
+  <data name="Home.GamePlaying" xml:space="preserve"><value>Juego en ejecución</value></data>
+  <data name="Home.GameNotPlaying" xml:space="preserve"><value>Juego sin ejecutar</value></data>
+  <data name="Home.NoSave" xml:space="preserve"><value>Sin partidas</value></data>
+  <data name="Home.LastBackup" xml:space="preserve"><value>Última copia {0}</value></data>
+  <data name="Home.NoBackup" xml:space="preserve"><value>Sin copias</value></data>
+  <data name="Home.ExtensionFeatures" xml:space="preserve"><value>Opciones: {0}</value></data>
+  <data name="Home.AgoNow" xml:space="preserve"><value>ahora mismo</value></data>
+  <data name="Home.AgoMinutes" xml:space="preserve"><value>hace {0} min</value></data>
+  <data name="Home.AgoHours" xml:space="preserve"><value>hace {0} h</value></data>
+  <data name="Home.AgoDays" xml:space="preserve"><value>hace {0} d</value></data>
 </root>

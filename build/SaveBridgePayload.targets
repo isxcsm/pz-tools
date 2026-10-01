@@ -16,11 +16,10 @@
                Link="save-bridge\pztools-attach-bootstrap.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <!-- Build outputs may also contain fixtures or retired modules. Ship only
            the runtime and provider built for the bundled catalogue. -->
-      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar;$(BridgeOutputPath)\extensions\pztools-screen-look.jar" />
+      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar" />
       <Content Include="@(_BridgeExtension)" Link="save-bridge\extensions\%(_BridgeExtension.Filename)%(_BridgeExtension.Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(SaveBridgeRepositoryRoot)\config\game-extensions\catalog.tsv" Link="save-bridge\extensions\catalog.tsv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(SaveBridgeRepositoryRoot)\config\game-extensions\vehicle-drivetrain.toml" Link="save-bridge\extensions\vehicle-drivetrain.toml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-      <Content Include="$(SaveBridgeRepositoryRoot)\config\game-extensions\screen-look.toml" Link="save-bridge\extensions\screen-look.toml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <!-- Import libraries are for linking native programs, not running the bridge. -->
       <_BridgeRuntime Include="$(BridgeOutputPath)\runtime\**\*"
                       Exclude="$(BridgeOutputPath)\runtime\lib\jvm.lib" />

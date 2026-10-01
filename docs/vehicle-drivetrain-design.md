@@ -2,16 +2,16 @@
 
 [Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-**Vehicle Driving Improvements** (`pztools.vehicle-drivetrain`, version 0.2.0) is an
+**Vehicle driving improvements** (`pztools.vehicle-drivetrain`, version 0.2.0) is an
 experimental [game extension](game-extensions.md), off by default. It has four options,
 each with its own switch:
 
 - **Natural acceleration and shifting**: smoother pull-away, re-acceleration and gear
   changes going forward
 - **Smooth reversing**: a gentler reverse launch and a cleaner change of direction
-- **Fine keyboard steering**: steering that follows how long a key is actually held
+- **Precise keyboard steering**: steering that follows how long a key is actually held
 - **Light around the vehicle**: a glow on the ground around the vehicle while its
-  headlights are on (off until you turn it on)
+  headlights are on
 
 This page explains how each works and how the extension attaches to the game. To try
 it in a real game, use the [vehicle test guide](e2e-vehicle-drivetrain.md).
@@ -384,8 +384,8 @@ withdraws that light with `removeLamppost` and registers one on the new tile. Th
 extension does the same with its own light object and touches nothing else: no
 headlight part, no vehicle script, no lighting native.
 
-This adds something the game does not otherwise do, so it is off by default and
-separate from the three driving options.
+This adds something the game does not otherwise do, so it has its own switch, separate
+from the three driving options. Like them it starts on.
 
 - **When.** Once per game frame, the module looks at the vehicle the local player is
   in. It does this from the frame callback, not the physics hook, which stops firing
@@ -420,9 +420,10 @@ the app and the extension check a fixed copy of the settings before applying it;
 code running in the game never reads the file.
 
 The four switches in the app override the file's defaults, even before they are first
-saved. The extension itself starts off; the three driving options start on and the
-light starts off. An older saved preference `probeOnly=true` is read as every option
-off, and the file is not rewritten just because it was read. Low-gear mode,
+saved. The extension itself starts off; all four options start on. A saved preference
+without the light's switch (written before the light existed) reads it as on, like any
+other unwritten switch. An older saved preference `probeOnly=true` is read as every
+option off, and the file is not rewritten just because it was read. Low-gear mode,
 observation, diagnostics and numeric tuning are developer options in the file only.
 
 What you saved and what the game is running are tracked separately (see

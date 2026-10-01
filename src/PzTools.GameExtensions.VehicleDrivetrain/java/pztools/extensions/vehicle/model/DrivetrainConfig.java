@@ -108,7 +108,7 @@ public final class DrivetrainConfig {
         if (launchRpm > minimumRedline * upshiftRpmFraction / Math.sqrt(gearRatioSpan) + 1.0e-9)
             throw new IllegalArgumentException("launch_rpm exceeds the lowest post-upshift RPM of the supported profiles");
         lowMode = flag(values, "low_mode", false);
-        areaLightEnabled = flag(values, "area_light_enabled", false);
+        areaLightEnabled = flag(values, "area_light_enabled", true);
         areaLightRadius = (int) Math.round(number(values, "area_light_radius", 8.0, 3.0, 20.0));
         areaLightBrightness = number(values, "area_light_brightness", 0.6, 0.1, 1.0);
     }

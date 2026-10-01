@@ -9,11 +9,11 @@ namespace PzTools.Backup.Tests;
 public sealed partial class GameSaveClientTests
 {
     /// <summary>
-    /// The scheduler's coordinator against a synthetic game and two synthetic modules: saved
-    /// preferences in, one lease, per-module statuses out.
+    /// The scheduler's coordinator against a synthetic game and a synthetic module: saved
+    /// preferences in, one lease, the module's status out. A rejected configuration turns it off.
     /// </summary>
     [BridgeFact]
-    public async Task Coordinator_RunsEachModuleFromItsOwnPreference_AndAFailureTurnsOffOnlyThatModule()
+    public async Task Coordinator_RunsTheModuleFromItsPreference_AndARejectedConfigurationTurnsItOff()
     {
         using var temp = new TempDirectory();
         var bridge = ContinuousFixtureBridge(temp);
@@ -50,55 +50,33 @@ public sealed partial class GameSaveClientTests
                 await Task.Delay(50);
             }
         }
-        const string vehicle = ExtensionIds.VehicleDrivetrain, look = ExtensionIds.ScreenLook;
+        const string vehicle = ExtensionIds.VehicleDrivetrain;
         try
         {
-            // Nothing asked for: both modules are confirmed off, on one lease.
+            // Nothing asked for: the module is confirmed off.
             await Until(vehicle, s => s.State == RuntimeExtensionState.Disabled && s.ControlReady, "vehicle confirmed off");
-            await Until(look, s => s.State == RuntimeExtensionState.Disabled && s.ControlReady, "look confirmed off");
 
-            // Only the look is switched on. The vehicle module stays off and is not touched.
-            Assert.Equal(1, settings.SetEnabled(look, true, 0).Revision);
-            var looking = await Until(look, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 1, "look active");
-            var idle = await Until(vehicle, s => s.RequestedRevision == 1, "vehicle saw the new revision");
-            Assert.Equal(RuntimeExtensionState.Disabled, idle.State);
-
-            // The vehicle is switched on as well. For the look this is a new revision of the same
-            // configuration: it follows the revision and keeps its generation.
-            Assert.Equal(2, settings.SetEnabled(vehicle, true, 1).Revision);
-            var driving = await Until(vehicle, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 2, "vehicle active");
-            var same = await Until(look, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 2, "look follows the revision");
-            Assert.Equal(looking.Generation, same.Generation);
-            Assert.Equal(0, FixtureCount(same, "lookUpdates"));
-            Assert.NotEqual(driving.Generation, same.Generation);
+            // Switched on: active at the saved revision, with the options it was asked for.
+            Assert.Equal(1, settings.SetEnabled(vehicle, true, 0).Revision);
+            var driving = await Until(vehicle, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 1, "vehicle active");
             Assert.NotNull(driving.AppliedVehicleOptions);
 
-            // The look's options change. It is updated; the vehicle only follows the revision.
-            Assert.Equal(3, settings.SetPreference(look, new(true, false, null, new ScreenLookPreference("vivid", 80, true)), 2).Revision);
-            var restyled = await Until(look, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 3, "look updated");
-            Assert.Equal(1, FixtureCount(restyled, "lookUpdates"));
-            Assert.Equal(looking.Generation, restyled.Generation);
-            var undisturbed = await Until(vehicle, s => s.AppliedRevision == 3, "vehicle follows the revision");
-            Assert.Equal((RuntimeExtensionState.Active, driving.Generation), (undisturbed.State, undisturbed.Generation));
+            // Its options change: applied to the running generation, not a new one.
+            Assert.Equal(2, settings.SetPreference(vehicle, new(true, false, new VehicleDrivetrainPreference(TorqueEnabled: false)), 1).Revision);
+            var retuned = await Until(vehicle, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 2, "vehicle options applied");
+            Assert.Equal(driving.Generation, retuned.Generation);
 
-            // The look's tuning file becomes invalid. Its next request is rejected before it reaches the
-            // game: the look is turned off, in the game and in the saved preferences. The vehicle stays on.
+            // Its tuning file becomes invalid. The next request is rejected before it reaches the game:
+            // the module is turned off, in the game and in the saved preferences, which keep its options.
             Directory.CreateDirectory(Path.Combine(runtimeRoot, "extensions"));
-            await File.WriteAllTextAsync(Path.Combine(runtimeRoot, "extensions", "screen-look.toml"), "clarity_scale = 9\n");
-            Assert.Equal(4, settings.SetPreference(look, new(true, false, null, new ScreenLookPreference("vivid", 70, true)), 3).Revision);
-            var rejected = await Until(look, s => s.State == RuntimeExtensionState.Unsupported && s.Reason == "configuration-rejected", "look rejected");
+            await File.WriteAllTextAsync(Path.Combine(runtimeRoot, "extensions", "vehicle-drivetrain.toml"), "area_light_radius = 999\n");
+            Assert.Equal(3, settings.SetPreference(vehicle, new(true, false, new VehicleDrivetrainPreference(ReverseEnabled: false)), 2).Revision);
+            var rejected = await Until(vehicle, s => s.State == RuntimeExtensionState.Unsupported && s.Reason == "configuration-rejected", "vehicle rejected");
             Assert.False(rejected.ControlReady);
             var after = settings.Read();
-            Assert.Equal(5, after.Revision);
-            Assert.False(after.Extensions[look].Enabled);
-            Assert.Equal(new ScreenLookPreference("vivid", 70, true), after.Extensions[look].ScreenLook);
-            Assert.True(after.Extensions[vehicle].Enabled);
-            var surviving = await Until(vehicle, s => s.AppliedRevision == 5, "vehicle outlives the other module's failure");
-            Assert.Equal((RuntimeExtensionState.Active, driving.Generation), (surviving.State, surviving.Generation));
-
-            // The vehicle is switched off by the user; it is retired on the lease that is still open.
-            Assert.Equal(6, settings.SetEnabled(vehicle, false, 5).Revision);
-            await Until(vehicle, s => s.State == RuntimeExtensionState.Disabled && s.RequestedRevision == 6 && s.ControlReady, "vehicle off");
+            Assert.Equal(4, after.Revision);
+            Assert.False(after.Extensions[vehicle].Enabled);
+            Assert.Equal(new VehicleDrivetrainPreference(ReverseEnabled: false), after.Extensions[vehicle].VehicleDrivetrain);
         }
         finally
         {
@@ -108,7 +86,6 @@ public sealed partial class GameSaveClientTests
         }
         // Without a coordinator nothing is known about any module.
         Assert.Equal("observer-disconnected", published.Read(vehicle).Reason);
-        Assert.Equal("observer-disconnected", published.Read(look).Reason);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
     }
 

@@ -1,8 +1,8 @@
 # PZ Tools
 
-Incremental backups and character recovery for Project Zomboid on Windows.
+Incremental backups, character recovery, performance recording and game extensions for Project Zomboid on Windows.
 
-Create backups, browse save history, and heal or revive characters in supported saves. PZ Tools is unofficial and is not affiliated with The Indie Stone.
+Create backups, browse save history, heal or revive characters in supported saves, find which mods slow the game down, and turn on vehicle driving improvements without installing a mod. PZ Tools is unofficial and is not affiliated with The Indie Stone.
 
 <a id="features"></a>
 ## Features
@@ -12,10 +12,10 @@ Create backups, browse save history, and heal or revive characters in supported 
 - **Automatic backup timing** that follows the active save and can pause the countdown while the game is paused or your character is asleep.
 - **Save before backup**, with an optional in-game countdown and completion notice.
 - **ZIP import/export** and offline character healing, revival and inventory recovery.
-- **Optional vehicle controls** for acceleration, shifting, reversing and keyboard steering, plus an optional light around the vehicle while its headlights are on.
-- **Optional screen look**: a colour grade for the game picture with three moods, a strength and seasonal colours. No game files are changed.
+- **Performance recording** of the running game, showing frame times and the script time of each mod.
+- **Optional vehicle controls** for acceleration, shifting, reversing and keyboard steering, plus a light around the vehicle while its headlights are on. The extension starts off; each of its four options can be switched separately.
 
-Includes 18 interface languages, themes, tray mode, progress cards and filtered logs. Documentation is English-only.
+The Home page shows whether the game is running, the latest save's last backup and the vehicle extension's state. Includes 18 interface languages, themes, tray mode, progress cards and filtered logs. Documentation is English-only.
 
 <a id="getting-started"></a>
 ## Get started
@@ -27,7 +27,9 @@ WinUI components and the Java Attach runtime are included; no separate Java inst
 2. Open Settings, choose your language and check the save and backup folders. Keep those folders separate.
 3. Create a manual backup and confirm it completes. Automatic backups default to **every 5 minutes**, keeping **20 automatic backups**.
 
-To update, close the app and extract the new package into a fresh folder. Do not mix builds. Your settings live under `%LOCALAPPDATA%\PzTools`; saves and backups stay in their configured folders. See [settings and paths](docs/configuration.md).
+To update, close the app and extract the new package into a fresh folder. Do not mix builds. Your settings live under `%LOCALAPPDATA%\PzTools`; saves and backups stay in their configured folders, and a newer version keeps using them: a backup folder is brought up to date in place the first time the new version opens it. See [settings and paths](docs/configuration.md).
+
+Updating from 0.1.0: the vehicle extension's new *Light around the vehicle* option starts on, so if the extension was on, the light comes on with headlights. Switch it off on the Game extensions page if you do not want it.
 
 <a id="backups-and-retention"></a>
 ## Backup history
@@ -66,7 +68,7 @@ Recovery works on the current save while it is not being played. It can heal or 
 
 The Performance page records the running game while you reproduce a lag, then shows a zoomable frame-time graph. Drag a range (or click one frame) to see where the time went, grouped by base game, each mod and the Java runtime, with the number of samples behind every figure. Nothing is measured unless a recording is running. Standard mode has almost no effect on the game; Detailed mode samples more often and also records waits and pauses.
 
-Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. See [performance recording](docs/profiler.md).
+Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The copy button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/profiler.md).
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-safeguards"></a>
