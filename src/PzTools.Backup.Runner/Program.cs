@@ -17,21 +17,20 @@ static async Task<int> RunAsync(string[] arguments)
     var ownsWorkflow = false;
     try
     {
-        var repository = Value(arguments, "--repository", required: true)!;
-        runIndex = ParseLong(Value(arguments, "--run-index", false));
-        if (runIndex is <= 0) throw new ArgumentOutOfRangeException("--run-index");
-        var runnerConfiguration = Value(arguments, "--config", false);
-        var workerConfiguration = Value(arguments, "--worker-config", false);
-        var workerDirectory = Value(arguments, "--worker-directory", false) ?? AppContext.BaseDirectory;
+        var repository = CommandLine.Required(arguments, "--repository");
+        runIndex = CommandLine.OptionalInt64(CommandLine.Optional(arguments, "--run-index"), "--run-index");
+        var runnerConfiguration = CommandLine.Optional(arguments, "--config");
+        var workerConfiguration = CommandLine.Optional(arguments, "--worker-config");
+        var workerDirectory = CommandLine.Optional(arguments, "--worker-directory") ?? AppContext.BaseDirectory;
         var worker = Path.Combine(Path.GetFullPath(workerDirectory), "PzTools.Backup.Cli.exe");
-        var forwarded = RemoveRunnerOptions(
+        var forwarded = CommandLine.Without(
             arguments, "--worker-directory", "--config", "--worker-config", "--control-db");
 
         if (runIndex is null)
         {
             repositoryDatabase = await RepositoryDatabase.CreateOrOpenAsync(repository);
             runIndex = await new RunIndexAllocator(
-                Value(arguments, "--control-db", false)).AllocateAsync();
+                CommandLine.Optional(arguments, "--control-db")).AllocateAsync();
             var workflow = await repositoryDatabase.ReserveWorkflowAsync(
                 "backup", sourceId: null, "backup-worker", null, runIndex.Value);
             runIndex = workflow.RunIndex;
@@ -150,38 +149,3 @@ static WorkflowStatus ToWorkflowStatus(ProcessOutcome outcome) => outcome switch
     ProcessOutcome.Cancelled => WorkflowStatus.Cancelled,
     _ => WorkflowStatus.Failed,
 };
-
-static List<string> RemoveRunnerOptions(string[] arguments, params string[] optionNames)
-{
-    var names = new HashSet<string>(optionNames, StringComparer.Ordinal);
-    var forwarded = new List<string>();
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        if (!names.Contains(arguments[index]))
-        {
-            forwarded.Add(arguments[index]);
-            continue;
-        }
-
-        if (++index >= arguments.Length)
-            throw new ArgumentException($"{arguments[index - 1]} requires a value.");
-    }
-    return forwarded;
-}
-
-static string? Value(string[] arguments, string name, bool required)
-{
-    var matches = arguments
-        .Select((value, index) => (value, index))
-        .Where(item => item.value == name)
-        .Select(item => item.index)
-        .ToArray();
-    if (matches.Length > 1) throw new ArgumentException($"{name} may be specified only once.");
-    if (matches.Length == 1 && matches[0] + 1 < arguments.Length)
-        return arguments[matches[0] + 1];
-    return required ? throw new ArgumentException($"{name} is required.") : null;
-}
-
-static long? ParseLong(string? value) => value is null
-    ? null
-    : long.Parse(value, System.Globalization.CultureInfo.InvariantCulture);

@@ -47,38 +47,6 @@ public sealed class GameExtensionTests
     }
 
     [Fact]
-    public async Task UnsupportedProviderFallsBackBeforeStartingExactlyOnce()
-    {
-        var standard = new Provider("standard");
-        var module = new Provider("module", supported: false);
-        var result = await new GameSaveProviderRouter(standard, module).PrepareAsync("save", true);
-        Assert.Equal(1, standard.Executions);
-        Assert.Equal(0, module.Executions);
-        Assert.Equal(SaveCompletionKind.StandardCallReturned, result.Completion);
-        Assert.Equal("unsupported-build", result.FallbackReason);
-    }
-
-    [Fact]
-    public async Task ProviderFailureAfterAdmissionNeverReplaysStandardSave()
-    {
-        var standard = new Provider("standard");
-        var module = new Provider("module", failure: new IOException("commit outcome unknown"));
-        await Assert.ThrowsAsync<IOException>(() => new GameSaveProviderRouter(standard, module).PrepareAsync("save", true));
-        Assert.Equal(0, standard.Executions);
-        Assert.Equal(1, module.Executions);
-    }
-
-    [Fact]
-    public async Task DisabledProviderIsNotInspectedOrExecuted()
-    {
-        var module = new Provider("module", failure: new IOException());
-        var result = await new GameSaveProviderRouter(new Provider("standard"), module).PrepareAsync("save", false);
-        Assert.Equal("standard", result.ProviderId);
-        Assert.Equal(0, module.Inspections);
-        Assert.Equal(0, module.Executions);
-    }
-
-    [Fact]
     public void RemovedSavePreferencesDoNotRestoreAnExtensionCardOrChangeVehicleSettings()
     {
         using var temp = new TempDirectory();
@@ -97,23 +65,6 @@ public sealed class GameExtensionTests
         Assert.Equal(original, File.ReadAllText(store.FilePath));
     }
 
-    private sealed class Provider(string id, bool supported = true, Exception? failure = null) : IGameSaveProvider
-    {
-        public string Id => id;
-        public int Inspections { get; private set; }
-        public int Executions { get; private set; }
-        public ValueTask<SaveProviderSupport> InspectAsync(string sourcePath, CancellationToken cancellationToken)
-        {
-            Inspections++;
-            return ValueTask.FromResult(new SaveProviderSupport(supported, supported ? null : "unsupported-build"));
-        }
-        public Task<SavePreparationReceipt> PrepareAsync(string sourcePath, CancellationToken cancellationToken)
-        {
-            Executions++;
-            if (failure is not null) return Task.FromException<SavePreparationReceipt>(failure);
-            return Task.FromResult(new SavePreparationReceipt(id, SaveCompletionKind.StandardCallReturned, "returned"));
-        }
-    }
     private static ExtensionCardView Vehicle(IEnumerable<ExtensionCardView> cards) =>
         cards.Single(card => card.Definition.Id == ExtensionIds.VehicleDrivetrain);
 }

@@ -13,17 +13,17 @@ string? configurationPath = null;
 var hasRunIndex = false;
 try
 {
-    var values = Parse(args);
-    statePath = Required(values, "--state-db");
+    var values = CommandLine.Parse(args, ["--state-db", "--saves-root", "--run-index", "--config", "--control-db"]);
+    statePath = CommandLine.Required(values, "--state-db");
     configurationPath = values.GetValueOrDefault("--config");
     var database = await StateDatabase.CreateOrOpenAsync(statePath);
     runIndex = values.TryGetValue("--run-index", out var run)
-        ? long.Parse(run)
+        ? CommandLine.Int64(run, "--run-index")
         : await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync();
     if (runIndex <= 0) throw new ArgumentOutOfRangeException("--run-index");
     hasRunIndex = true;
     var result = await new StateCollector().RunAsync(
-        database, Required(values, "--saves-root"), runIndex);
+        database, CommandLine.Required(values, "--saves-root"), runIndex);
     await TryTelemetryAsync(
         statePath, runIndex, "collector.completed", configurationPath);
     Console.WriteLine(ProcessResultJson.Serialize(
@@ -46,25 +46,6 @@ catch (Exception exception)
             "collector-failed", exception.Message)));
     return 1;
 }
-static Dictionary<string, string> Parse(string[] arguments)
-{
-    var allowed = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "--state-db", "--saves-root", "--run-index", "--config", "--control-db",
-    };
-    var result = new Dictionary<string, string>(StringComparer.Ordinal);
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        var name = arguments[index];
-        if (!allowed.Contains(name)) throw new ArgumentException($"Unknown option '{name}'.");
-        if (++index >= arguments.Length) throw new ArgumentException($"{name} requires a value.");
-        result.Add(name, arguments[index]);
-    }
-    return result;
-}
-static string Required(Dictionary<string, string> values, string name) =>
-    values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
-        ? value : throw new ArgumentException($"{name} is required.");
 static async Task TryTelemetryAsync(
     string identity,
     long run,

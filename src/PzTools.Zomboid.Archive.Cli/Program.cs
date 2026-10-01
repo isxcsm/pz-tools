@@ -226,34 +226,10 @@ static int Help()
     return 0;
 }
 
-static string Required(string[] args, string name)
-{
-    var indexes = args.Select((value, index) => (value, index))
-        .Where(item => item.value == name).Select(item => item.index).ToArray();
-    if (indexes.Length != 1 || indexes[0] + 1 >= args.Length)
-        throw new ArgumentException($"{name} is required exactly once.");
-    return args[indexes[0] + 1];
-}
+static string Required(string[] args, string name) => CommandLine.Required(args, name);
 
-static string? Optional(string[] args, string name)
-{
-    var indexes = args.Select((value, index) => (value, index))
-        .Where(item => item.value == name).Select(item => item.index).ToArray();
-    if (indexes.Length > 1 || indexes.Length == 1 && indexes[0] + 1 >= args.Length)
-        throw new ArgumentException($"{name} may be specified at most once and requires a value.");
-    return indexes.Length == 0 ? null : args[indexes[0] + 1];
-}
+static string? Optional(string[] args, string name) => CommandLine.Optional(args, name);
 
-static long RequiredInt64(string[] args, string name) =>
-    ReadInt64(args, name) ?? throw new ArgumentException($"{name} is required.");
+static long RequiredInt64(string[] args, string name) => CommandLine.Int64(Required(args, name), name);
 
-static long? ReadInt64(string[] args, string name)
-{
-    var index = Array.IndexOf(args, name);
-    if (index < 0) return null;
-    if (index + 1 >= args.Length
-        || !long.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-        || value <= 0)
-        throw new ArgumentException($"{name} must be a positive integer.");
-    return value;
-}
+static long? ReadInt64(string[] args, string name) => CommandLine.OptionalInt64(Optional(args, name), name);

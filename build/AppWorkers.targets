@@ -26,11 +26,10 @@
           Condition="'$(DesignTimeBuild)' != 'true'">
     <ItemGroup>
       <_AppWorkerFile Include="%(_AppWorkerAssembly.RootDir)%(_AppWorkerAssembly.Directory)**\*"
-                      Exclude="%(_AppWorkerAssembly.RootDir)%(_AppWorkerAssembly.Directory)**\*.pdb;%(_AppWorkerAssembly.RootDir)%(_AppWorkerAssembly.Directory)**\pztools-seamless-save.jar" />
+                      Exclude="%(_AppWorkerAssembly.RootDir)%(_AppWorkerAssembly.Directory)**\*.pdb" />
       <_AppWorkerDefault Include="$(MSBuildThisFileDirectory)..\config\defaults\**\*" />
     </ItemGroup>
     <Error Condition="'@(_AppWorkerAssembly)' == ''" Text="Worker build outputs were not resolved." />
-    <Delete Files="$(TargetDir)workers\save-bridge\extensions\pztools-seamless-save.jar" />
     <Copy SourceFiles="@(_AppWorkerFile)"
           DestinationFiles="@(_AppWorkerFile->'$(TargetDir)workers\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />

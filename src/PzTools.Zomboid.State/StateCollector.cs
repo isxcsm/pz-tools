@@ -253,6 +253,22 @@ public sealed class StateCollector(
         long? runIndex = null,
         CancellationToken cancellationToken = default)
     {
+        var seen = await ObserveAsync(savesRoot, cancellationToken);
+        var batch = new CollectionBatch(
+            Guid.NewGuid().ToString("D"),
+            runIndex ?? await database.AllocateRunIndexAsync(cancellationToken),
+            seen.StartedUtc,
+            DateTimeOffset.UtcNow,
+            seen.ElapsedMilliseconds,
+            seen.DiscoveryComplete,
+            seen.Saves);
+        await database.WritePendingBatchAsync(batch, cancellationToken);
+        return new StateCollectionResult(batch, seen.DiscoveryStatus);
+    }
+
+    /// <summary>Looks at the saves without writing anything.</summary>
+    public async Task<StateObservationSet> ObserveAsync(string savesRoot, CancellationToken cancellationToken = default)
+    {
         var started = DateTimeOffset.UtcNow;
         var timer = Stopwatch.StartNew();
         var discovered = discovery.Collect(savesRoot);
@@ -286,15 +302,6 @@ public sealed class StateCollector(
         if (observations.RemoveAll(save => SaveOperationPaths.IsRestoring(save.NormalizedPath)) > 0)
             complete = false;
 
-        var batch = new CollectionBatch(
-            Guid.NewGuid().ToString("D"),
-            runIndex ?? await database.AllocateRunIndexAsync(cancellationToken),
-            started,
-            DateTimeOffset.UtcNow,
-            timer.ElapsedMilliseconds,
-            complete,
-            observations);
-        await database.WritePendingBatchAsync(batch, cancellationToken);
-        return new StateCollectionResult(batch, discovered.Status);
+        return new StateObservationSet(started, timer.ElapsedMilliseconds, complete, observations, discovered.Status);
     }
 }

@@ -121,13 +121,35 @@ public sealed class SchedulerTests
             database,
             TimeSpan.FromSeconds(3),
             _ => Task.FromResult((long)++runs),
-            (_, _) => Task.FromResult(new WorkerInvocation(true, ProcessOutcome.Succeeded)));
+            async (run, token) => { await run(token); return new WorkerInvocation(true, ProcessOutcome.Succeeded); });
 
         Assert.True((await scheduler.TickAsync(now)).Due);
         Assert.True((await scheduler.TickAsync(now.AddSeconds(1), force: true)).Due);
         Assert.False((await scheduler.TickAsync(now.AddSeconds(1))).Due);
         Assert.True((await scheduler.TickAsync(now.AddSeconds(3))).Due);
         Assert.Equal(3, runs);
+    }
+
+    [Fact]
+    public async Task StateChecks_ContinueAfterTheClockIsSetBackOrJumpsAhead()
+    {
+        using var temp = new TempDirectory();
+        var database = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var now = DateTimeOffset.UtcNow;
+        var scheduler = new StateScheduler(database, TimeSpan.FromSeconds(3),
+            _ => Task.FromResult(1L), (_, _) => Task.FromResult(new WorkerInvocation(true, ProcessOutcome.Succeeded)));
+
+        Assert.True((await scheduler.TickAsync(now)).Due);
+        // Set back a day: the stored due time is a day ahead, which must not pause checks for a day.
+        var earlier = now.AddDays(-1);
+        Assert.True((await scheduler.TickAsync(earlier)).Due);
+        Assert.False((await scheduler.TickAsync(earlier.AddSeconds(1))).Due);
+        Assert.True((await scheduler.TickAsync(earlier.AddSeconds(3))).Due);
+        // A month asleep: one check, then a normal interval from there.
+        var later = now.AddDays(30);
+        Assert.True((await scheduler.TickAsync(later)).Due);
+        Assert.False((await scheduler.TickAsync(later.AddSeconds(1))).Due);
+        Assert.True((await scheduler.TickAsync(later.AddSeconds(3))).Due);
     }
 
     [Fact]

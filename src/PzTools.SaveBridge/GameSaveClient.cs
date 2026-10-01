@@ -34,16 +34,12 @@ public sealed class GameSaveClient(string bridgeDirectory,
 
     public async Task<string> SaveRunningGameAsync(string expectedSavePath,
         CancellationToken cancellationToken = default) =>
-        (await RequestRunningGameAsync(expectedSavePath, true, null, false, cancellationToken)).Detail;
-
-    public Task<GameSaveResponse> PrepareRunningGameAsync(string expectedSavePath, string providerId,
-        CancellationToken cancellationToken = default, bool forceVersion = false) =>
-        RequestRunningGameAsync(expectedSavePath, true, providerId, forceVersion, cancellationToken);
+        (await RequestRunningGameAsync(expectedSavePath, true, cancellationToken)).Detail;
 
     public async Task<string> ProbeRunningGameAsync(string expectedSavePath, CancellationToken cancellationToken = default) =>
-        (await RequestRunningGameAsync(expectedSavePath, false, null, false, cancellationToken)).Detail;
+        (await RequestRunningGameAsync(expectedSavePath, false, cancellationToken)).Detail;
 
-    private async Task<GameSaveResponse> RequestRunningGameAsync(string expectedSavePath, bool save, string? providerId, bool forceVersion,
+    private async Task<GameSaveResponse> RequestRunningGameAsync(string expectedSavePath, bool save,
         CancellationToken cancellationToken)
     {
         var games = PzTools.Process.Contracts.GameProcessFinder.Find();
@@ -53,7 +49,7 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 throw new GameSaveException(games.Length == 0 ? "game-not-running" : "multiple-games",
                     games.Length == 0 ? "Start the game and load the selected save first."
                         : "More than one game process is running. No process was selected.");
-            return await RequestCoreAsync(games[0].Id, expectedSavePath, save, providerId, cancellationToken, forceVersion);
+            return await RequestCoreAsync(games[0].Id, expectedSavePath, save, null, cancellationToken);
         }
         finally { foreach (var game in games) game.Dispose(); }
     }
@@ -63,6 +59,8 @@ public sealed class GameSaveClient(string bridgeDirectory,
         CancellationToken cancellationToken = default) =>
         (await RequestCoreAsync(processId, expectedSavePath, save, null, cancellationToken)).Detail;
 
+    // No shipped extension provides saves. The bridge integration tests drive module loading, reload,
+    // notices and live-character checks through a fixture provider, which is why this path remains.
     public Task<GameSaveResponse> RequestProviderAsync(int processId, string expectedSavePath, string providerId,
         CancellationToken cancellationToken = default, bool forceVersion = false) =>
         RequestCoreAsync(processId, expectedSavePath, true, providerId, cancellationToken, forceVersion);

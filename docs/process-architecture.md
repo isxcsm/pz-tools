@@ -72,6 +72,12 @@ recognised game process has exited, it collects twice promptly to confirm the sa
 is inactive; the periodic checks remain the fallback. A manual refresh and a direct
 StateRunner call use separate workers.
 
+A check whose readings match those of a check that changed nothing, with nothing else
+having changed the state since, writes nothing: no batch, no run number and no
+telemetry. While the app sits in the tray, state checks therefore leave the disk alone.
+The due time is kept in memory; the first checks after a start are forced anyway, and a
+clock set back does not pause the checks.
+
 ### From readings to scheduler commands
 
 A failed or unknown activity reading is [stale](glossary.md#observation-fresh-stale).

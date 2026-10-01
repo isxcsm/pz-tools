@@ -5,7 +5,12 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
-/** One owned save: reserve completion capacity before capture, including failure cleanup. */
+/**
+ * One owned save: reserve completion capacity before capture, including failure cleanup.
+ * No shipped extension provides saves (the seamless-save module was dropped). The save-provider path
+ * stays because the resident bootstrap declares its API and the bridge tests drive module loading,
+ * reload and notices through a fixture provider.
+ */
 public final class CheckpointRuntime implements AutoCloseable {
     public enum Phase { CAPTURING, QUEUED, WRITING, COMMITTED, FAILED, CANCELLED }
     public record Result(String requestId, String sessionId, String worldId, Phase phase, Throwable error) { }

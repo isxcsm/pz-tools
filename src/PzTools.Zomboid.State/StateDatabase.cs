@@ -221,6 +221,38 @@ public sealed partial class StateDatabase
         }
     }
 
+    /// <summary>
+    /// What a state check's outcome depends on besides its observations: the state revision, the
+    /// confirmation counters and any batch still waiting. Read-only; equal stamps mean nobody else changed them.
+    /// </summary>
+    public async Task<(string Stamp, bool PendingBatches)> ReadDecisionStampAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction(deferred: true);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            SELECT state_revision, initialized, (SELECT COUNT(*) FROM pending_batches)
+            FROM state_info WHERE singleton=1;
+            SELECT path,confirmed_activity,candidate_activity,consecutive_count
+            FROM save_observation_state ORDER BY path;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var stamp = new System.Text.StringBuilder();
+        long pending = 0;
+        if (await reader.ReadAsync(cancellationToken))
+        {
+            pending = reader.GetInt64(2);
+            stamp.Append(reader.GetInt64(0)).Append('/').Append(reader.GetInt64(1)).Append('/').Append(pending);
+        }
+        await reader.NextResultAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            stamp.Append('|').Append(reader.GetString(0)).Append('=').Append(reader.GetString(1))
+                .Append('/').Append(reader.GetString(2)).Append('/').Append(reader.GetInt64(3));
+        return (stamp.ToString(), pending > 0);
+    }
+
     public async Task<bool> HasPendingBatchesAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);

@@ -147,7 +147,7 @@ public sealed partial class ProfilerPage : UserControl
         var session = service?.Session ?? new ProfileSession(ProfileSessionState.Idle);
         var idle = session.State == ProfileSessionState.Idle;
         RecordText.Text = Localizer.Get(idle ? "ProfileRecordStart" : "ProfileRecordStop");
-        RecordIcon.Glyph = idle ? "" : "";
+        RecordIcon.Glyph = idle ? "\uE7C8" : "\uE71A"; // record : stop
         // Starting needs exactly one game; stopping is possible as soon as the game has confirmed the recording;
         // converting cannot be interrupted.
         RecordButton.IsEnabled = idle ? games is -1 or 1 : session.State == ProfileSessionState.Recording;

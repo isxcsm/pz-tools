@@ -168,6 +168,8 @@ public sealed class TelemetryProjectionHost(
         ? maximumPagesPerProjection
         : throw new ArgumentOutOfRangeException(nameof(maximumPagesPerProjection));
     private readonly TimeSpan staleAfter = heartbeatTimeout ?? TimeSpan.FromSeconds(10);
+    // In memory only, on purpose: each app start replays what the sources retain, because that replay
+    // rebuilds the operation cards and run metrics. Retention bounds it (runs and size per source).
     private readonly Dictionary<string, SourceCursor> cursors =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTimeOffset> initialReadFailures =

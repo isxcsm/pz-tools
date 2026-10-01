@@ -176,6 +176,53 @@ public sealed class GameplayBackgroundTests
     }
 
     [Fact]
+    public async Task InProcessStateCheck_WritesNothingOnceTheSameObservationsChangeNothing()
+    {
+        using var temp = new TempDirectory();
+        var database = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
+        var path = temp.GetPath("saves/Sandbox/World");
+        Directory.CreateDirectory(path);
+        await using (var connection = new SqliteConnection($"Data Source={Path.Combine(path, "players.db")};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TABLE localPlayers(id INTEGER,name TEXT,isDead INTEGER); INSERT INTO localPlayers VALUES(1,'Name',0);";
+            await command.ExecuteNonQueryAsync();
+        }
+        var pipeline = new StateCheckPipeline();
+        long runs = 0;
+        Task<long> Allocate(CancellationToken _) => Task.FromResult(++runs);
+        for (var check = 0; check < 6; check++)
+            Assert.Equal(ProcessOutcome.Succeeded, (await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate)).Outcome);
+        // The first checks record the save; after one that changed nothing, the same view takes no run number.
+        var settledAfter = runs;
+        Assert.InRange(settledAfter, 1, 3);
+        var before = await database.ReadDecisionStampAsync();
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(settledAfter, runs);
+        Assert.Equal(before, await database.ReadDecisionStampAsync());
+
+        // Anyone else changing the state ends the shortcut, and so does a changed save.
+        await database.WritePendingBatchAsync(new CollectionBatch("other", 99, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, 0, false, []));
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(settledAfter + 1, runs);
+        for (var check = 0; check < 4; check++) await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        var resettled = runs;
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(resettled, runs);
+        await using (var connection = new SqliteConnection($"Data Source={Path.Combine(path, "players.db")};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE localPlayers SET isDead=1;";
+            await command.ExecuteNonQueryAsync();
+        }
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(resettled + 1, runs);
+        Assert.False(await database.HasPendingBatchesAsync());
+    }
+
+    [Fact]
     public async Task InProcessStateCheck_RespectsExistingStateRunnerMutex()
     {
         using var temp = new TempDirectory();

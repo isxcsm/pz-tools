@@ -33,13 +33,18 @@ public sealed partial class SchedulerDatabase
     public async Task<RuntimeScheduleStorage> ReadRuntimeScheduleAsync(CancellationToken token = default)
     {
         await using var c = await OpenAsync(token); using var t = c.BeginTransaction(deferred: true);
+        var storage = await ReadRuntimeScheduleCoreAsync(c, t, token);
+        t.Commit();
+        return storage;
+    }
+    private static async Task<RuntimeScheduleStorage> ReadRuntimeScheduleCoreAsync(SqliteConnection c, SqliteTransaction t, CancellationToken token)
+    {
         bool enabled = await RuntimeEnabledAsync(c,t,token);
         await using var q = c.CreateCommand(); q.Transaction = t;
         q.CommandText = "SELECT body FROM runtime_schedule WHERE singleton=1;";
         var saved = await q.ExecuteScalarAsync(token) as string;
         q.CommandText = "SELECT body FROM runtime_facts WHERE singleton=1;";
         var facts = await q.ExecuteScalarAsync(token) as string;
-        t.Commit();
         return new(enabled, saved is null ? null : RuntimeJson.Read<ActiveTimeScheduleState>(saved),
             facts is null ? null : RuntimeJson.Read<RuntimeObservation>(facts));
     }

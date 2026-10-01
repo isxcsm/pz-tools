@@ -28,10 +28,4 @@
                CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
   </Target>
-  <!-- Incremental builds must also remove the retired provider from old outputs. -->
-  <Target Name="RemoveRetiredSaveExtension" BeforeTargets="CopyFilesToOutputDirectory;ComputeFilesToPublish"
-          Condition="'$(DesignTimeBuild)' != 'true'">
-    <Delete Files="$(TargetDir)save-bridge\extensions\pztools-seamless-save.jar" Condition="'$(TargetDir)' != ''" />
-    <Delete Files="$(PublishDir)save-bridge\extensions\pztools-seamless-save.jar" Condition="'$(PublishDir)' != ''" />
-  </Target>
 </Project>

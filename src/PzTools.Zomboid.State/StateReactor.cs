@@ -5,6 +5,8 @@ namespace PzTools.Zomboid.State;
 
 public sealed class StateReactor
 {
+    private readonly DateTimeOffset freshAfter = DateTimeOffset.UtcNow;
+
     public async Task<ReactorResult> RunAsync(
         StateDatabase database,
         CancellationToken cancellationToken = default)
@@ -19,6 +21,8 @@ public sealed class StateReactor
             var applied = new List<string>();
             var transitionCount = 0;
             var outboxCount = 0;
+            // Anything written besides removing the applied batches.
+            var wrote = false;
 
             foreach (var batch in batches)
             {
@@ -51,7 +55,7 @@ public sealed class StateReactor
                         }
                         visibleChanged |= await DeleteCurrentSaveAsync(
                             connection, transaction, observation.NormalizedPath, cancellationToken);
-                        await DeleteObservationStateAsync(
+                        wrote |= await DeleteObservationStateAsync(
                             connection, transaction, observation.NormalizedPath, cancellationToken);
                         continue;
                     }
@@ -86,9 +90,13 @@ public sealed class StateReactor
                         }
                     }
 
-                    await WriteDebounceAsync(
-                        connection, transaction, observation.NormalizedPath,
-                        confirmed, candidate, count, cancellationToken);
+                    if (debounce != new Debounce(confirmed, candidate, count))
+                    {
+                        await WriteDebounceAsync(
+                            connection, transaction, observation.NormalizedPath,
+                            confirmed, candidate, count, cancellationToken);
+                        wrote = true;
+                    }
                     var current = await ReadCurrentSaveAsync(
                         connection, transaction, observation.NormalizedPath, cancellationToken);
                     var previousCharacter = current?.Character ?? CharacterState.Unknown;
@@ -115,10 +123,13 @@ public sealed class StateReactor
                         await UpsertCurrentSaveAsync(
                             connection, transaction, desired, observedUtc, cancellationToken);
                     }
-                    else if (verified)
+                    else if (verified && current!.ObservedUtc < freshAfter)
                     {
                         // Fresh evidence must be persisted even when the semantic revision does
                         // not change (e.g. still playing the same save after restarting the app).
+                        // Once per reactor is enough: readers only ask whether it is newer than
+                        // the app's start, and this reactor started after the app did.
+                        wrote = true;
                         await using var observed = connection.CreateCommand();
                         observed.Transaction = transaction;
                         observed.CommandText = "UPDATE current_save_state SET observed_utc=$time WHERE path=$path;";
@@ -243,6 +254,7 @@ public sealed class StateReactor
 
                 if (visibleChanged)
                 {
+                    wrote = true;
                     stateRevision = nextRevision;
                     await using var update = connection.CreateCommand();
                     update.Transaction = transaction;
@@ -262,7 +274,8 @@ public sealed class StateReactor
             }
 
             transaction.Commit();
-            return new ReactorResult(applied, beforeRevision, stateRevision, transitionCount, outboxCount);
+            return new ReactorResult(applied, beforeRevision, stateRevision, transitionCount, outboxCount,
+                Settled: applied.Count > 0 && !wrote && transitionCount == 0 && outboxCount == 0);
         }
         catch
         {
@@ -440,14 +453,14 @@ public sealed class StateReactor
         return await command.ExecuteNonQueryAsync(token) != 0;
     }
 
-    private static async Task DeleteObservationStateAsync(
+    private static async Task<bool> DeleteObservationStateAsync(
         SqliteConnection connection, SqliteTransaction transaction, string path, CancellationToken token)
     {
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = "DELETE FROM save_observation_state WHERE path=$path;";
         command.Parameters.AddWithValue("$path", path);
-        await command.ExecuteNonQueryAsync(token);
+        return await command.ExecuteNonQueryAsync(token) != 0;
     }
 
     private static async Task<bool> ReconcileMissingSavesAsync(

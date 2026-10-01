@@ -15,14 +15,14 @@ string? configurationPath = null;
 var hasRunIndex = false;
 try
 {
-    var values = Parse(args);
-    stateDb = Required(values, "--state-db");
-    var savesRoot = Required(values, "--saves-root");
+    var values = CommandLine.Parse(args,
+        ["--state-db", "--saves-root", "--run-index", "--worker-directory", "--config", "--control-db"]);
+    stateDb = CommandLine.Required(values, "--state-db");
+    var savesRoot = CommandLine.Required(values, "--saves-root");
     configurationPath = values.GetValueOrDefault("--config");
     if (values.TryGetValue("--run-index", out var run))
     {
-        runIndex = long.Parse(run);
-        if (runIndex <= 0) throw new ArgumentOutOfRangeException("--run-index");
+        runIndex = CommandLine.Int64(run, "--run-index");
     }
     else
     {
@@ -35,7 +35,7 @@ try
     var mutexResult = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {
         var host = new ChildProcessHost();
-        var reactorArguments = new List<string> { "--state-db", stateDb, "--run-index", runIndex.ToString() };
+        var reactorArguments = new List<string> { "--state-db", stateDb, "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) };
         var reactorPath = Path.Combine(Path.GetFullPath(workerDirectory), "PzTools.State.Reactor.Cli.exe");
         var collectorPath = Path.Combine(Path.GetFullPath(workerDirectory), "PzTools.State.Collector.Cli.exe");
         var database = await StateDatabase.CreateOrOpenAsync(stateDb, token);
@@ -45,7 +45,7 @@ try
             ? await RunChildAsync(host, reactorPath, "state-reactor", runIndex, reactorArguments, token)
             : null;
         var collection = await RunChildAsync(host, collectorPath, "state-collector", runIndex,
-            ["--state-db", stateDb, "--saves-root", savesRoot, "--run-index", runIndex.ToString()], token);
+            ["--state-db", stateDb, "--saves-root", savesRoot, "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)], token);
         var applied = await RunChildAsync(
             host, reactorPath, "state-reactor", runIndex, reactorArguments, token);
         return JsonSerializer.Serialize(new { recovery, collection, applied });
@@ -115,27 +115,6 @@ static async Task<string> RunChildAsync(
     return child.StandardOutput.Trim();
 }
 
-static Dictionary<string, string> Parse(string[] arguments)
-{
-    var allowed = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "--state-db", "--saves-root", "--run-index", "--worker-directory",
-        "--config", "--control-db",
-    };
-    var values = new Dictionary<string, string>(StringComparer.Ordinal);
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        var name = arguments[index];
-        if (!allowed.Contains(name)) throw new ArgumentException($"Unknown option '{name}'.");
-        if (++index >= arguments.Length) throw new ArgumentException($"{name} requires a value.");
-        var value = arguments[index];
-        values.Add(name, value);
-    }
-    return values;
-}
-static string Required(Dictionary<string, string> values, string name) =>
-    values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
-        ? value : throw new ArgumentException($"{name} is required.");
 static async Task TryTelemetryAsync(
     string identity,
     long run,

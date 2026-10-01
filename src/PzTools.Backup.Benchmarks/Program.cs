@@ -270,10 +270,10 @@ internal sealed record ProfileSettings(
             switch (args[index])
             {
                 case "--output": output = Path.GetFullPath(value); break;
-                case "--files": files = int.Parse(value); break;
-                case "--bytes": size = int.Parse(value); break;
-                case "--operations": operations = int.Parse(value); break;
-                case "--seed": seed = int.Parse(value); break;
+                case "--files": files = int.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--bytes": size = int.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--operations": operations = int.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "--seed": seed = int.Parse(value, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "--compressible": compressible = bool.Parse(value); break;
                 default: throw new ArgumentException($"Unknown option '{args[index]}'.");
             }

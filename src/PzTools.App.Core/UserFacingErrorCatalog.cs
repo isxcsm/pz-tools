@@ -84,7 +84,8 @@ public static class UserFacingErrorCatalog
     {
         var key = FromException(exception);
         if (key != Generic) return key; // Missing files/permissions are not archive corruption.
-        if (Contains(exception.Message, "unsafe compression ratio")) return "UnsafeArchiveCompression";
+        // Contains, not a prefix: a worker's failure can arrive wrapped in an outer message.
+        if (Contains(exception.Message, "archive-unsafe-ratio:")) return "UnsafeArchiveCompression";
         return exception is InvalidDataException or FormatException ? "InvalidArchiveFormat" : Generic;
     }
 
@@ -109,24 +110,34 @@ public static class UserFacingErrorCatalog
         if (HasCodePrefix(message, "launch-blocked")) return "OperationError.BlockedByPolicy";
         if (HasCodePrefix(message, "repository-reset-required")) return "OperationError.RepositoryIncompatible";
         if (HasCodePrefix(message, "backup-data-damaged")) return "OperationError.BackupDamaged";
-        if (Contains(message, "The current save changed during export")) return "OperationError.ExportSaveChanged";
-        if (Starts(message, "The save is currently in use and cannot be restored")
-            || Starts(message, "The save cannot be opened for an exclusive restore")) return "OperationError.FileInUse";
-        if (Starts(message, "Application workers are missing.") || Starts(message, "The configured worker directory is incomplete:"))
-            return "OperationError.WorkersMissing";
-        if (Starts(message, "Another operation is using ")) return "OperationError.FileInUse";
+        if (HasCodePrefix(message, "export-save-changed")) return "OperationError.ExportSaveChanged";
+        if (HasCodePrefix(message, "save-in-use") || HasCodePrefix(message, "operation-busy")) return "OperationError.FileInUse";
+        if (HasCodePrefix(message, "workers-missing")) return "OperationError.WorkersMissing";
         if (HasCodePrefix(message, "settings-busy")) return "OperationError.SettingsBusy";
         if (HasCodePrefix(message, "settings-invalid") || Starts(message, "Cannot start workers: invalid app runtime configuration."))
             return "OperationError.Configuration";
-        // The same two failures as logged by 0.1.0, which wrote them as Korean sentences.
-        if (Starts(message, "실행 중인 작업과 충돌하여 설정을 적용할 수 없습니다.")) return "OperationError.SettingsBusy";
-        if (Starts(message, "설정 파일을 확인해 주세요:")) return "OperationError.Configuration";
-        if (Contains(message, "could not be captured stably")) return "OperationError.SaveChanged";
+        if (HasCodePrefix(message, "capture-unstable")) return "OperationError.SaveChanged";
+        if (LegacyMessageKey(message) is { } legacy) return legacy;
         if (Contains(message, "access is denied") || Contains(message, "unauthorized")) return "OperationError.AccessDenied";
         if ((Contains(message, "does not exist") || Contains(message, "not found"))
             && (Contains(message, "file") || Contains(message, "directory") || Contains(message, "folder") || Contains(message, "path")))
             return "OperationError.FileMissing";
         return Generic;
+    }
+
+    // The same failures as 0.1.0 logged them, before they carried codes. Only stored logs still read this way.
+    private static string? LegacyMessageKey(string? message)
+    {
+        if (Contains(message, "The current save changed during export")) return "OperationError.ExportSaveChanged";
+        if (Starts(message, "The save is currently in use and cannot be restored")
+            || Starts(message, "The save cannot be opened for an exclusive restore")
+            || Starts(message, "Another operation is using ")) return "OperationError.FileInUse";
+        if (Starts(message, "Application workers are missing.") || Starts(message, "The configured worker directory is incomplete:"))
+            return "OperationError.WorkersMissing";
+        if (Starts(message, "실행 중인 작업과 충돌하여 설정을 적용할 수 없습니다.")) return "OperationError.SettingsBusy";
+        if (Starts(message, "설정 파일을 확인해 주세요:")) return "OperationError.Configuration";
+        if (Contains(message, "could not be captured stably")) return "OperationError.SaveChanged";
+        return null;
     }
 
     // Codes are diagnostic prefixes, not arbitrary substrings of user-chosen paths.

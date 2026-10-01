@@ -68,7 +68,7 @@ public sealed class OperationCoordinator(
             await using var admission = await TryAcquireAsync([
                 (OperationScope.RepositoryWrite, repository.RepositoryPath),
                 (OperationScope.SaveWrite, sourcePath)], cancellationToken);
-            if (admission is null) throw new IOException("Another operation is using this save.");
+            if (admission is null) throw new IOException("operation-busy: Another operation is using this save.");
             var result = await OperationMutexSet.TryRunAsync([
                 new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath),
                 new OperationMutexRequest(OperationMutexScope.SaveWrite, sourcePath)],
@@ -90,7 +90,7 @@ public sealed class OperationCoordinator(
                     return deleted;
                 },
                 cancellationToken);
-            return result.Acquired ? result.Value! : throw new IOException("Another operation is using this save.");
+            return result.Acquired ? result.Value! : throw new IOException("operation-busy: Another operation is using this save.");
         }
         finally { Interlocked.Decrement(ref runningDeletions); }
     }
@@ -102,7 +102,7 @@ public sealed class OperationCoordinator(
         {
             await using var admission = await TryAcquireAsync(
                 [(OperationScope.RepositoryWrite, repository.RepositoryPath)], cancellationToken);
-            if (admission is null) throw new IOException("Another operation is using the backup repository.");
+            if (admission is null) throw new IOException("operation-busy: Another operation is using the backup repository.");
             var result = await OperationMutexSet.TryRunAsync([
                 new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath)],
                 async token =>
@@ -111,7 +111,7 @@ public sealed class OperationCoordinator(
                     await repository.MarkRevisionDeletedAsync(lease, sourceId, revision, cancellationToken: token);
                     return true;
                 }, cancellationToken);
-            if (!result.Acquired) throw new IOException("Another operation is using the backup repository.");
+            if (!result.Acquired) throw new IOException("operation-busy: Another operation is using the backup repository.");
         }
         finally { Interlocked.Decrement(ref runningDeletions); }
     }
@@ -124,7 +124,7 @@ public sealed class OperationCoordinator(
         {
             await using var admission = await TryAcquireAsync(
                 [(OperationScope.RepositoryWrite, repository.RepositoryPath)], cancellationToken);
-            if (admission is null) throw new IOException("Another operation is using the backup repository.");
+            if (admission is null) throw new IOException("operation-busy: Another operation is using the backup repository.");
             var result = await OperationMutexSet.TryRunAsync([
                 new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath)],
                 async token =>
@@ -132,7 +132,7 @@ public sealed class OperationCoordinator(
                     await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
                     return await repository.MarkAllRevisionsDeletedAsync(lease, sourceId, saveId, token);
                 }, cancellationToken);
-            return result.Acquired ? result.Value : throw new IOException("Another operation is using the backup repository.");
+            return result.Acquired ? result.Value : throw new IOException("operation-busy: Another operation is using the backup repository.");
         }
         finally { Interlocked.Decrement(ref runningDeletions); }
     }
@@ -143,7 +143,7 @@ public sealed class OperationCoordinator(
     {
         await using var admission = await TryAcquireAsync(
             [(OperationScope.RepositoryWrite, repository.RepositoryPath)], cancellationToken);
-        if (admission is null) throw new IOException("Another operation is using the backup repository.");
+        if (admission is null) throw new IOException("operation-busy: Another operation is using the backup repository.");
         var result = await OperationMutexSet.TryRunAsync([
             new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath)],
             async token =>
@@ -152,7 +152,7 @@ public sealed class OperationCoordinator(
                 await repository.RenameRevisionAsync(lease, sourceId, revision, displayName, token);
                 return true;
             }, cancellationToken);
-        if (!result.Acquired) throw new IOException("Another operation is using the backup repository.");
+        if (!result.Acquired) throw new IOException("operation-busy: Another operation is using the backup repository.");
     }
 
     public async Task<ArchiveInspection> InspectArchiveAsync(

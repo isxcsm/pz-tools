@@ -219,9 +219,8 @@ public sealed class IncrementalBackupRunner(
             await telemetry.EmitAsync(
                 new TelemetryEvent(TelemetryEventScope.Phase, "capture.started"),
                 cancellationToken);
-            long completedFiles = 0;
-            long completedFileBytes = 0;
-            long lastCopyProgress = 0;
+            var progress = new BackupCaptureProgress(telemetry, workloadItems, workloadBytes,
+                tuning.ProgressIntervalMs, cancellationToken);
             async IAsyncEnumerable<PendingEntry> CaptureEntries(
                 [EnumeratorCancellation] CancellationToken token)
             {
@@ -237,33 +236,11 @@ public sealed class IncrementalBackupRunner(
                     yield return item;
                 }
             }
-            async ValueTask CopyProgress(FileCopyProgress copy)
-            {
-                var now = Stopwatch.GetTimestamp();
-                if (Stopwatch.GetElapsedTime(lastCopyProgress, now)
-                        < TimeSpan.FromMilliseconds(tuning.ProgressIntervalMs)
-                    && !(copy.Attempt > 1 && copy.CopiedBytes == 0))
-                    return;
-                lastCopyProgress = now;
-                await telemetry.EmitAsync(
-                    new TelemetryEvent(
-                        TelemetryEventScope.Phase,
-                        "progress.snapshot",
-                        JsonSerializer.Serialize(new
-                        {
-                            phase = copy.Attempt > 1 ? "copy.retry" : copy.Phase,
-                            completedItems = completedFiles,
-                            totalItems = workloadItems,
-                            completedBytes = completedFileBytes + copy.CopiedBytes,
-                            totalBytes = workloadBytes,
-                            attempt = copy.Attempt,
-                        })), cancellationToken);
-            }
             await foreach (var prepared in FileCapturePipeline.PrepareAsync(
                 CaptureEntries(cancellationToken), fileCapturer as StableFileCapturer,
-                item => ToAbsolutePath(source.RootPath, item.RelativePath),
+                item => BackupRunSteps.ToAbsolutePath(source.RootPath, item.RelativePath),
                 () => packWriter!.CreateCaptureStagingStream(), tuning, storageOptions.ContentDeduplication,
-                item => currentFile = item.RelativePath, CopyProgress, cancellationToken))
+                item => currentFile = item.RelativePath, progress.ReportAsync, cancellationToken))
             {
                 var item = prepared.Entry;
                 currentFile = item.RelativePath;
@@ -271,7 +248,7 @@ public sealed class IncrementalBackupRunner(
                     JsonSerializer.Serialize(new { path = item.RelativePath })), cancellationToken);
                 var stored = await prepared.CaptureAsync(repository, fileCapturer, deduplicatingCapturer,
                     packWriter!, checksum, compression, storageOptions.ContentDeduplication,
-                    cancellationToken, CopyProgress);
+                    cancellationToken, progress.ReportAsync);
                 var captured = stored.Capture;
                 if (!stored.Reused)
                 {
@@ -303,8 +280,7 @@ public sealed class IncrementalBackupRunner(
                             reused = stored.Reused,
                         })),
                     cancellationToken);
-                completedFiles++;
-                completedFileBytes += captured.SourceMetadata.Length;
+                progress.FileDone(captured.SourceMetadata.Length);
                 currentFile = null;
             }
             await telemetry.EmitAsync(
@@ -312,13 +288,7 @@ public sealed class IncrementalBackupRunner(
                 cancellationToken);
 
             failurePhase = "pack";
-            CommittedPack? committedPack = null;
-            if (packWriter is not null && packWriter.ObjectCount > 0)
-            {
-                FailureInjector.ThrowIfRequested(BackupFailurePoint.BeforePackFlush);
-                committedPack = await packWriter.SealAndPromoteAsync(cancellationToken);
-                FailureInjector.ThrowIfRequested(BackupFailurePoint.AfterPackPromotion);
-            }
+            var committedPack = await BackupRunSteps.SealPackAsync(packWriter, FailureInjector, cancellationToken);
 
             failurePhase = "commit";
             FailureInjector.ThrowIfRequested(BackupFailurePoint.BeforeRepositoryCommit);
@@ -359,70 +329,15 @@ public sealed class IncrementalBackupRunner(
                 checkpoint,
                 fullScanReason);
         }
-        catch (SimulatedProcessCrashException)
-        {
-            if (packWriter is not null)
-            {
-                await packWriter.AbandonForCrashSimulationAsync();
-            }
-
-            throw;
-        }
-        catch (BackupPreparationDeferredException exception) when (failurePhase == "source.prepare")
-        {
-            await repository.CompleteRunAsync(lease, run.RunIndex, RunStatus.Cancelled, "source-deferred", CancellationToken.None);
-            await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Run, "run.cancelled",
-                BackupFailureTelemetry.CreateDeferred(source, exception)), CancellationToken.None);
-            await telemetry.CompleteAsync(RunStatus.Cancelled, "source-deferred", CancellationToken.None);
-            throw;
-        }
-        catch (OperationCanceledException exception) when (failurePhase == "source.prepare" && !cancellationToken.IsCancellationRequested)
-        {
-            // Preparation decided against this backup (the world is no longer being played): a skip, not
-            // a cancellation by anyone, and recorded as such so the log does not call it cancelled.
-            packWriter?.Invalidate("backup run was skipped");
-            await CompleteFailedAsync(repository, telemetry, lease, run.RunIndex, RunStatus.Cancelled, "source-skipped",
-                BackupFailureTelemetry.Create(source, RunStatus.Cancelled, "source-skipped", exception, failurePhase, currentFile));
-            throw;
-        }
-        catch (OperationCanceledException exception)
-        {
-            packWriter?.Invalidate("backup run was cancelled");
-            await CompleteFailedAsync(
-                repository,
-                telemetry,
-                lease,
-                run.RunIndex,
-                RunStatus.Cancelled,
-                "cancelled",
-                BackupFailureTelemetry.Create(source, RunStatus.Cancelled,
-                    "cancelled", exception, failurePhase, currentFile));
-            throw;
-        }
         catch (Exception exception)
         {
-            packWriter?.Invalidate("backup run failed");
-            await CompleteFailedAsync(
-                repository,
-                telemetry,
-                lease,
-                run.RunIndex,
-                RunStatus.Failed,
-                exception.GetType().Name,
-                BackupFailureTelemetry.Create(source, RunStatus.Failed,
-                    exception.GetType().Name, exception, failurePhase, currentFile));
+            await BackupRunSteps.RecordEndAsync(exception, repository, telemetry, lease, run.RunIndex, source,
+                packWriter, failurePhase, currentFile, cancellationToken);
             throw;
         }
         finally
         {
-            try
-            {
-                if (deduplicatingCapturer is not null) await deduplicatingCapturer.EndRunAsync();
-            }
-            finally
-            {
-                if (packWriter is not null) await packWriter.DisposeAsync();
-            }
+            await BackupRunSteps.DisposeAsync(deduplicatingCapturer, packWriter);
         }
     }
 
@@ -656,7 +571,7 @@ public sealed class IncrementalBackupRunner(
 
     private PendingEntry? ReadCurrentEntry(string sourceRoot, string relativePath)
     {
-        var absolutePath = ToAbsolutePath(sourceRoot, relativePath);
+        var absolutePath = BackupRunSteps.ToAbsolutePath(sourceRoot, relativePath);
         FileCaptureMetadata metadata;
         try
         {
@@ -735,7 +650,7 @@ public sealed class IncrementalBackupRunner(
         string sourceRoot,
         string relativeRoot)
     {
-        var absolute = ToAbsolutePath(sourceRoot, relativeRoot);
+        var absolute = BackupRunSteps.ToAbsolutePath(sourceRoot, relativeRoot);
         var current = ReadCurrentEntry(sourceRoot, relativeRoot);
         if (current is null || current.Kind != CatalogEntryKind.Directory)
         {
@@ -807,38 +722,6 @@ public sealed class IncrementalBackupRunner(
             state.VolumeSerialNumber.ToString("X16", CultureInfo.InvariantCulture),
             state.JournalId.ToString("X16", CultureInfo.InvariantCulture),
             state.NextUsn);
-
-    private static string ToAbsolutePath(string root, string relativePath) =>
-        Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
-
-    private static async Task CompleteFailedAsync(
-        RepositoryDatabase repository,
-        TelemetryRunSession telemetry,
-        RepositoryWriterLease lease,
-        long runIndex,
-        RunStatus status,
-        string failureCode,
-        string failurePayload)
-    {
-        // Often the repository fails here for the reason the run failed (busy, disk full). The failure
-        // record is still written, as the initial backup does, so the log keeps the real cause.
-        Exception? repositoryFailure = null;
-        try
-        {
-            await repository.CompleteRunAsync(lease, runIndex, status, failureCode);
-        }
-        catch (Exception exception)
-        {
-            repositoryFailure = exception;
-        }
-        await telemetry.EmitAsync(new TelemetryEvent(
-            TelemetryEventScope.Run,
-            status == RunStatus.Cancelled ? "run.cancelled" : "run.failed",
-            failurePayload));
-        await telemetry.CompleteAsync(status, failureCode);
-        if (repositoryFailure is not null)
-            throw new InvalidOperationException($"Could not record terminal state for run {runIndex}.", repositoryFailure);
-    }
 
     private sealed record PendingEntry(
         string RelativePath,

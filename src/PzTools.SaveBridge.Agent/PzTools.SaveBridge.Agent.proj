@@ -48,7 +48,6 @@
     <Touch Files="$(BridgeOutputPath)\runtime-built.txt" AlwaysCreate="true" />
   </Target>
   <Target Name="BuildExtensions" DependsOnTargets="ValidateBridgeToolchain">
-    <Delete Files="$(BridgeOutputPath)\extensions\pztools-seamless-save.jar" />
     <MSBuild Projects="..\PzTools.GameExtensions.VehicleDrivetrain\PzTools.GameExtensions.VehicleDrivetrain.proj" Targets="Build" Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\..\..\config\game-extensions\catalog.tsv;$(MSBuildProjectDirectory)\..\..\config\game-extensions\vehicle-drivetrain.toml"
           DestinationFolder="$(BridgeOutputPath)\extensions" SkipUnchangedFiles="true" />

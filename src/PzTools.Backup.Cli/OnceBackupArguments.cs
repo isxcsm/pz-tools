@@ -22,7 +22,7 @@ internal sealed record OnceBackupArguments(
         var indices = arguments.Select((value, index) => (value, index))
             .Where(item => item.value == "--run-index").Select(item => item.index).ToArray();
         return indices.Length == 1 && indices[0] + 1 < arguments.Length
-            && long.TryParse(arguments[indices[0] + 1], out var value) && value > 0
+            && long.TryParse(arguments[indices[0] + 1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value) && value > 0
                 ? value : null;
     }
 
@@ -112,7 +112,7 @@ internal sealed record OnceBackupArguments(
             {
                 var option = arguments[index];
                 if (++index >= arguments.Length
-                    || !long.TryParse(arguments[index], out var value)
+                    || !long.TryParse(arguments[index], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
                     || value <= 0)
                 {
                     throw new BackupConfigurationException($"{option} requires a positive integer.");

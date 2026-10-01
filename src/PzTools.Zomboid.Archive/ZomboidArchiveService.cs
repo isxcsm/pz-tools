@@ -182,7 +182,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         void ValidateUnchanged()
         {
             if (!original.SequenceEqual(ReadSnapshot(source)))
-                throw new IOException("The current save changed during export. Stop playing and try again.");
+                throw new IOException("export-save-changed: The current save changed during export. Stop playing and try again.");
         }
         // The save is compressed straight into the archive. A private copy first would write every
         // one of its many small files twice, and would add nothing: the save is compared with the
@@ -231,7 +231,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         catch (InvalidDataException exception) when (exception.Message.StartsWith("Archive entry ", StringComparison.Ordinal))
         {
             // A file that grew or shrank after it was listed.
-            throw new IOException("The current save changed during export. Stop playing and try again.", exception);
+            throw new IOException("export-save-changed: The current save changed during export. Stop playing and try again.", exception);
         }
     }
 
@@ -425,7 +425,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                     || (double)entry.Length / Math.Max(1, entry.CompressedLength)
                     > safety.MaximumCompressionRatio))
                 throw new InvalidDataException(
-                    $"Archive entry '{entry.FullName}' has an unsafe compression ratio.");
+                    $"archive-unsafe-ratio: Archive entry '{entry.FullName}' has an unsafe compression ratio.");
         }
         return archive.Entries;
     }

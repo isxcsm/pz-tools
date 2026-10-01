@@ -27,12 +27,8 @@ try
     var database = await SchedulerDatabase.CreateOrOpenAsync(schedulerPath);
     if (command == "configure")
     {
-        var configuredMinutes = long.Parse(
-            options.GetValueOrDefault("--interval-minutes")
-            ?? "5",
-            System.Globalization.CultureInfo.InvariantCulture);
-        if (configuredMinutes is < 0 or > 60)
-            throw new ArgumentOutOfRangeException("--interval-minutes");
+        var configuredMinutes = CommandLine.OptionalInt64(
+            options.GetValueOrDefault("--interval-minutes"), "--interval-minutes", 0, 60) ?? 5;
         var effectiveMinutes = configuredMinutes == 0 ? 5 : configuredMinutes;
         await database.ConfigureBackupAsync(
             Required(options, "--repository"),
@@ -104,32 +100,8 @@ catch (Exception exception)
     return 1;
 }
 
-static Dictionary<string, string?> Parse(string[] arguments)
-{
-    var allowed = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "--scheduler-db", "--repository", "--interval-minutes",
-        "--worker-directory", "--once", "--config", "--control-db",
-    };
-    var result = new Dictionary<string, string?>(StringComparer.Ordinal);
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        var name = arguments[index];
-        if (!allowed.Contains(name))
-            throw new ArgumentException($"Unknown option '{name}'.");
-        if (name == "--once")
-        {
-            result.Add(name, null);
-            continue;
-        }
-        if (++index >= arguments.Length)
-            throw new ArgumentException($"{name} requires a value.");
-        result.Add(name, arguments[index]);
-    }
-    return result;
-}
+static Dictionary<string, string?> Parse(string[] arguments) => CommandLine.Parse(arguments,
+    ["--scheduler-db", "--repository", "--interval-minutes", "--worker-directory", "--config", "--control-db"],
+    ["--once"]);
 
-static string Required(Dictionary<string, string?> values, string name) =>
-    values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
-        ? value
-        : throw new ArgumentException($"{name} is required.");
+static string Required(Dictionary<string, string?> values, string name) => CommandLine.Required(values, name);

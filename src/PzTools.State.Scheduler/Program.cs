@@ -30,10 +30,8 @@ try
     var schedulerDb = await SchedulerDatabase.CreateOrOpenAsync(schedulerPath);
     var stateDb = await StateDatabase.CreateOrOpenAsync(Required(options, "--state-db"));
     var savesRoot = Required(options, "--saves-root");
-    var interval = TimeSpan.FromSeconds(long.Parse(
-        options.GetValueOrDefault("--interval-seconds")
-        ?? settings.IntervalSeconds.ToString(
-            System.Globalization.CultureInfo.InvariantCulture)));
+    var interval = TimeSpan.FromSeconds(CommandLine.OptionalInt64(
+        options.GetValueOrDefault("--interval-seconds"), "--interval-seconds") ?? settings.IntervalSeconds);
     var runtime = new RuntimeSnapshotStore();
     var extensions = new RuntimeExtensionStatusStore();
     bool useRuntime = false;
@@ -120,24 +118,8 @@ catch (Exception exception) when (
 }
 catch (Exception exception) { Console.Error.WriteLine(exception.Message); return 1; }
 
-static Dictionary<string, string?> Parse(string[] arguments)
-{
-    var allowed = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "--scheduler-db", "--state-db", "--saves-root", "--interval-seconds",
-        "--worker-directory", "--once", "--config", "--control-db", "--repository", "--runtime-root",
-    };
-    var result = new Dictionary<string, string?>(StringComparer.Ordinal);
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        var name = arguments[index];
-        if (!allowed.Contains(name)) throw new ArgumentException($"Unknown option '{name}'.");
-        if (name == "--once") { result.Add(name, null); continue; }
-        if (++index >= arguments.Length) throw new ArgumentException($"{name} requires a value.");
-        var value = arguments[index];
-        result.Add(name, value);
-    }
-    return result;
-}
-static string Required(Dictionary<string, string?> values, string name) =>
-    values.TryGetValue(name, out var value) && value is not null ? value : throw new ArgumentException($"{name} is required.");
+static Dictionary<string, string?> Parse(string[] arguments) => CommandLine.Parse(arguments,
+    ["--scheduler-db", "--state-db", "--saves-root", "--interval-seconds",
+        "--worker-directory", "--config", "--control-db", "--repository", "--runtime-root"],
+    ["--once"]);
+static string Required(Dictionary<string, string?> values, string name) => CommandLine.Required(values, name);

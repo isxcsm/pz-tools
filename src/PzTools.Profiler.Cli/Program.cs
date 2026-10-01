@@ -21,14 +21,12 @@ string? recordingPath = null;
 try
 {
     if (args.Length == 0 || args[0] != "record") throw new ArgumentException("Expected: record --output <file> --stop-file <file> --mode general|detailed --run-index <n> --telemetry-identity <path>");
-    runIndex = long.Parse(Required("--run-index"), NumberStyles.None, CultureInfo.InvariantCulture);
-    if (runIndex <= 0) throw new ArgumentException("--run-index must be positive.");
+    runIndex = CommandLine.Int64(Required("--run-index"), "--run-index");
     var output = Path.GetFullPath(Required("--output"));
     var stopFile = Path.GetFullPath(Required("--stop-file"));
     var mode = Required("--mode");
     if (mode is not ("general" or "detailed")) throw new ArgumentException("--mode must be general or detailed.");
-    var maximumSeconds = int.Parse(Optional("--max-seconds") ?? "600", NumberStyles.None, CultureInfo.InvariantCulture);
-    if (maximumSeconds is < 5 or > GameProfileClient.MaximumSeconds) throw new ArgumentException("--max-seconds is out of range.");
+    var maximumSeconds = CommandLine.Int32(Optional("--max-seconds") ?? "600", "--max-seconds", 5, GameProfileClient.MaximumSeconds);
     if (!output.EndsWith(".pzprof", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("--output must end with .pzprof.");
     var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "save-bridge");
     var explicitProcess = Optional("--process-id");
@@ -39,7 +37,7 @@ try
 
     phase = "connect";
     var processId = explicitProcess is null ? GameProfileClient.FindGame()
-        : int.Parse(explicitProcess, NumberStyles.None, CultureInfo.InvariantCulture);
+        : CommandLine.Int32(explicitProcess, "--process-id");
     using var game = System.Diagnostics.Process.GetProcessById(processId);
     var directory = Path.GetDirectoryName(output)!;
     Directory.CreateDirectory(directory);
@@ -194,12 +192,6 @@ void TryDelete(string path)
     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
 }
 
-string Required(string key) => Optional(key) ?? throw new ArgumentException($"{key} is required exactly once.");
+string Required(string key) => CommandLine.Required(args, key);
 
-string? Optional(string key)
-{
-    var matches = args.Select((value, index) => (value, index)).Where(item => item.value == key).ToArray();
-    if (matches.Length > 1 || matches.Length == 1 && matches[0].index + 1 >= args.Length)
-        throw new ArgumentException($"{key} may be given once and needs a value.");
-    return matches.Length == 0 ? null : args[matches[0].index + 1];
-}
+string? Optional(string key) => CommandLine.Optional(args, key);

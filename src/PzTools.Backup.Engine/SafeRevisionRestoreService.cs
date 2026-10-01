@@ -193,11 +193,11 @@ public sealed class SafeRevisionRestoreService
         }
         catch (IOException exception)
         {
-            throw new IOException("The save is currently in use and cannot be restored.", exception);
+            throw new IOException("save-in-use: The save is currently in use and cannot be restored.", exception);
         }
         catch (UnauthorizedAccessException exception)
         {
-            throw new IOException("The save cannot be opened for an exclusive restore.", exception);
+            throw new IOException("save-in-use: The save cannot be opened for an exclusive restore.", exception);
         }
     }
 

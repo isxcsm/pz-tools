@@ -20,9 +20,9 @@ try
         Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "settings.toml"));
     var settings = MaintenanceWorkerOptions.Read(configuration);
     var options = new MaintenanceOptions(
-        checked((int)(OptionalLong(values, "--retain-latest")
+        checked((int)(OptionalLong(values, "--retain-latest", 0)
             ?? settings.RetainLatestRevisions)),
-        checked((int)(OptionalLong(values, "--revision-batch")
+        checked((int)(OptionalLong(values, "--revision-batch", 1)
             ?? settings.RevisionBatchSize)),
         settings.WriterRetryDelayMs)
     {
@@ -47,10 +47,8 @@ try
                 started, orphanRun.Result)));
         return ProcessExitCodes.FromOutcome(orphanRun.Outcome);
     }
-    var sourceId = RequiredLong(values, "--source-id");
-    runIndex = OptionalLong(values, "--run-index") ?? 0;
-    if (sourceId <= 0) throw new ArgumentOutOfRangeException("--source-id");
-    if (runIndex < 0) throw new ArgumentOutOfRangeException("--run-index");
+    var sourceId = RequiredLong(values, "--source-id", 1);
+    runIndex = OptionalLong(values, "--run-index", 0) ?? 0;
     if (values.TryGetValue("--lane", out var lane) && lane is not null)
     {
         var laneRun = await MaintenanceLanePipeline.RunLaneAsync(
@@ -154,29 +152,12 @@ static async Task RecordTelemetryAsync(
         configurationPath);
 }
 
-static Dictionary<string, string?> Parse(string[] arguments)
-{
-    var allowed = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "--repository", "--source-id", "--run-index", "--retain-latest",
-        "--revision-batch", "--config", "--control-db", "--dispatch-lanes", "--lane", "--saves-root",
-    };
-    var values = new Dictionary<string, string?>(StringComparer.Ordinal);
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        var name = arguments[index];
-        if (!allowed.Contains(name)) throw new ArgumentException($"Unknown option '{name}'.");
-        if (!name.StartsWith("--", StringComparison.Ordinal) || ++index >= arguments.Length)
-            throw new ArgumentException($"Option '{name}' requires a value.");
-        values.Add(name, arguments[index]);
-    }
-    return values;
-}
-static string Required(Dictionary<string, string?> values, string name) =>
-    values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
-        ? value : throw new ArgumentException($"{name} is required.");
-static long RequiredLong(Dictionary<string, string?> values, string name) =>
-    long.Parse(Required(values, name), System.Globalization.CultureInfo.InvariantCulture);
-static long? OptionalLong(Dictionary<string, string?> values, string name) =>
-    values.TryGetValue(name, out var value) && value is not null
-        ? long.Parse(value, System.Globalization.CultureInfo.InvariantCulture) : null;
+// --dispatch-lanes takes a value ("true") for compatibility with the runners that pass it.
+static Dictionary<string, string?> Parse(string[] arguments) => CommandLine.Parse(arguments,
+    ["--repository", "--source-id", "--run-index", "--retain-latest",
+        "--revision-batch", "--config", "--control-db", "--dispatch-lanes", "--lane", "--saves-root"]);
+static string Required(Dictionary<string, string?> values, string name) => CommandLine.Required(values, name);
+static long RequiredLong(Dictionary<string, string?> values, string name, long minimum) =>
+    CommandLine.Int64(Required(values, name), name, minimum);
+static long? OptionalLong(Dictionary<string, string?> values, string name, long minimum) =>
+    CommandLine.OptionalInt64(values.GetValueOrDefault(name), name, minimum);

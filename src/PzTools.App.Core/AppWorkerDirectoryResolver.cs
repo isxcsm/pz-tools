@@ -25,12 +25,12 @@ public static class AppWorkerDirectoryResolver
         {
             var explicitPath = Path.GetFullPath(explicitDirectory);
             if (ContainsRequiredTools(explicitPath)) return explicitPath;
-            throw new DirectoryNotFoundException($"The configured worker directory is incomplete: {explicitPath}");
+            throw new DirectoryNotFoundException($"workers-missing: The configured worker directory is incomplete: {explicitPath}");
         }
         var bundled = Path.Combine(start, "workers");
         if (ContainsRequiredTools(bundled)) return bundled;
         if (ContainsRequiredTools(start)) return start;
-        throw new DirectoryNotFoundException($"Application workers are missing. Rebuild or reinstall the complete application: {start}");
+        throw new DirectoryNotFoundException($"workers-missing: Application workers are missing. Rebuild or reinstall the complete application: {start}");
     }
 
     public static bool ContainsRequiredTools(string directory) =>

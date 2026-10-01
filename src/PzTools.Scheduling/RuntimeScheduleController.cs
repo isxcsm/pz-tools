@@ -17,6 +17,7 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
     private ActiveTimeScheduleState? state;
     private long lastPersist;
     private string? lastBoundary;
+    private ActiveTimeScheduleState? lastPersisted;
     private bool recovering;
     private long? unusableSince;
     public RuntimeObservation Observation => runtime.Read();
@@ -26,11 +27,8 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
 
     public async Task<RuntimeAdmissionSelection> PrepareAsync(DateTimeOffset now, TimeSpan lead, CancellationToken token)
     {
-        var storage = await database.ReadRuntimeScheduleAsync(token);
-
-        // Apply/discard pending file-derived commands before reading the current generation.
-        var oneShot = await database.PrepareBackupTickAsync(now, token, lead);
-        var control = await database.ReadBackupStateIfChangedAsync(-1, token);
+        // Applies/discards pending file-derived commands before reading the current generation.
+        var (storage, oneShot, control) = await database.PrepareRuntimeTickAsync(now, lead, token);
         var observation = CommittedObservation(storage);
         if (oneShot?.RuntimeTicket is { IsDeath: true } death)
         {
@@ -84,10 +82,11 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
             admission = new($"{FallbackPrefix}{control.Generation}:{state.Slot}", BackupAdmissionKind.Periodic,
                 fallbackTarget, control.RepositoryPath, fallbackDue, control.Generation, null);
         string boundary = $"{state.Generation}/{state.WorldSession}/{state.ClockIdentity}/{state.EligibilityEpoch}/{state.Hold}/{state.AttemptId}/{state.FallbackDueUtc:O}";
-        if (boundary != lastBoundary || time.GetElapsedTime(lastPersist).TotalSeconds >= 10)
+        // Progress is saved every 10 s while it moves; a state that has not moved is not written again.
+        if (boundary != lastBoundary || time.GetElapsedTime(lastPersist).TotalSeconds >= 10 && state != lastPersisted)
         {
             await database.WriteRuntimeCheckpointAsync(state, token);
-            lastPersist = time.GetTimestamp(); lastBoundary = boundary;
+            lastPersist = time.GetTimestamp(); lastBoundary = boundary; lastPersisted = state;
         }
         return new(true, admission);
     }
@@ -119,7 +118,7 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
         state = state with { Slot = state.Slot + 1, FallbackDueUtc = BackupScheduleTiming.NextDue(
             admission.ScheduledUtc, TimeSpan.FromMilliseconds(state.IntervalMilliseconds), now) };
         await database.WriteRuntimeCheckpointAsync(state, token);
-        lastPersist = time.GetTimestamp(); lastBoundary = null;
+        lastPersist = time.GetTimestamp(); lastBoundary = null; lastPersisted = state;
     }
 
     private RuntimeObservation CommittedObservation(RuntimeScheduleStorage storage)
@@ -157,6 +156,6 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
             };
         state = ActiveTimeSchedulePolicy.Complete(state, disposition);
         await database.WriteRuntimeCheckpointAsync(state, token);
-        lastPersist = time.GetTimestamp(); lastBoundary = null;
+        lastPersist = time.GetTimestamp(); lastBoundary = null; lastPersisted = state;
     }
 }

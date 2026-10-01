@@ -24,6 +24,11 @@ public sealed class UserFacingMessageTests
     [InlineData("Cannot start workers: invalid app runtime configuration. invalid value", "OperationError.Configuration")]
     [InlineData("설정 파일을 확인해 주세요: settings.toml", "OperationError.Configuration")]
     [InlineData("settings-busy: a running operation uses the save or backup folder.", "OperationError.SettingsBusy")]
+    [InlineData("export-save-changed: The current save changed during export. Stop playing and try again.", "OperationError.ExportSaveChanged")]
+    [InlineData("save-in-use: The save is currently in use and cannot be restored.", "OperationError.FileInUse")]
+    [InlineData("operation-busy: Another operation is using this save.", "OperationError.FileInUse")]
+    [InlineData("workers-missing: Application workers are missing. Rebuild or reinstall the complete application: C:\\app", "OperationError.WorkersMissing")]
+    [InlineData("capture-unstable: File 'C:\\save\\map_1_1.bin' could not be captured stably: copy length changed.", "OperationError.SaveChanged")]
     [InlineData("settings-invalid: C:\\settings.toml", "OperationError.Configuration")]
     [InlineData("The source file could not be captured stably after 3 attempts.", "OperationError.SaveChanged")]
     [InlineData("save-edit-recovery-required: access is denied", "RecoveryError.PendingEdit")]
@@ -118,7 +123,8 @@ public sealed class UserFacingMessageTests
         Assert.Equal("OperationError.FileMissing", UserFacingErrorCatalog.FromException(new DirectoryNotFoundException("없음")));
         Assert.Equal("OperationCancelled", UserFacingErrorCatalog.FromArchiveError(new OperationCanceledException()));
         Assert.Equal("InvalidArchiveFormat", UserFacingErrorCatalog.FromArchiveError(new InvalidDataException("Invalid header")));
-        Assert.Equal("UnsafeArchiveCompression", UserFacingErrorCatalog.FromArchiveError(new InvalidDataException("unsafe compression ratio")));
+        Assert.Equal("UnsafeArchiveCompression", UserFacingErrorCatalog.FromArchiveError(
+            new InvalidDataException("archive-unsafe-ratio: Archive entry 'map_1_1.bin' has an unsafe compression ratio.")));
         Assert.Equal(UserFacingErrorCatalog.Generic, UserFacingErrorCatalog.FromArchiveError(new IOException("Unknown read failure")));
     }
 
@@ -132,7 +138,7 @@ public sealed class UserFacingMessageTests
         Assert.Equal("OperationError.Configuration", UserFacingErrorCatalog.FromConfigurationError(new InvalidDataException("ui.language value is invalid")));
         Assert.Equal("OperationError.AccessDenied", UserFacingErrorCatalog.FromConfigurationError(denied));
         Assert.Equal("OperationError.WorkersMissing", UserFacingErrorCatalog.FromException(
-            new DirectoryNotFoundException("The configured worker directory is incomplete: private path")));
+            new DirectoryNotFoundException("workers-missing: The configured worker directory is incomplete: private path")));
     }
 
     [Theory]

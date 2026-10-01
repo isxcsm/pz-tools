@@ -12,7 +12,7 @@ var runIndex = 1L;
 ProcessTelemetrySession? telemetry = null;
 try
 {
-    runIndex = long.Parse(Required("--run-index"), System.Globalization.CultureInfo.InvariantCulture);
+    runIndex = CommandLine.Int64(Required("--run-index"), "--run-index");
     var root = Required("--saves-root");
     var saveId = Required("--save-id");
     telemetry = await ProcessTelemetrySession.StartAsync(Required("--telemetry-identity"), component, runIndex);
@@ -42,10 +42,4 @@ catch (Exception exception)
 }
 finally { if (telemetry is not null) await telemetry.DisposeAsync(); }
 
-string Required(string key)
-{
-    var matches = args.Select((value, index) => (value, index)).Where(x => x.value == key).ToArray();
-    if (matches.Length != 1 || matches[0].index + 1 >= args.Length)
-        throw new ArgumentException($"{key} is required exactly once.");
-    return args[matches[0].index + 1];
-}
+string Required(string key) => CommandLine.Required(args, key);
