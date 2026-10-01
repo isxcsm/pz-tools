@@ -27,8 +27,55 @@ public sealed partial class RepositoryDatabase
     {
         if (lastSeenRevision < -1)
             throw new ArgumentOutOfRangeException(nameof(lastSeenRevision));
+        if (!holdReader)
+        {
+            await using var connection = await OpenConnectionAsync(cancellationToken);
+            return await ReadCatalogIfChangedAsync(connection, lastSeenRevision, metadataFileRelativePath, cancellationToken);
+        }
+        await heldGate.WaitAsync(cancellationToken);
+        try
+        {
+            heldReader ??= await OpenConnectionAsync(cancellationToken);
+            try { return await ReadCatalogIfChangedAsync(heldReader, lastSeenRevision, metadataFileRelativePath, cancellationToken); }
+            catch
+            {
+                // Whatever failed, the next read starts from a fresh connection.
+                heldReader.Dispose();
+                heldReader = null;
+                throw;
+            }
+        }
+        finally { heldGate.Release(); }
+    }
 
-        await using var connection = await OpenConnectionAsync(cancellationToken);
+    // Opt-in, for a process that checks the catalog every second for as long as it runs (the app's
+    // projections). A connection per check made SQLite create the -wal and -shm files on open and delete
+    // them when the last connection closed, every second, each time also scanned by file-system filters.
+    // The check uses a short read transaction, so writers, checkpoints and VACUUM are never held up.
+    private readonly SemaphoreSlim heldGate = new(1, 1);
+    private SqliteConnection? heldReader;
+    private bool holdReader;
+
+    public void HoldReadConnection() => holdReader = true;
+
+    public void ReleaseReadConnection()
+    {
+        heldGate.Wait();
+        try
+        {
+            holdReader = false;
+            heldReader?.Dispose();
+            heldReader = null;
+        }
+        finally { heldGate.Release(); }
+    }
+
+    private static async Task<RepositoryCatalogSnapshot> ReadCatalogIfChangedAsync(
+        SqliteConnection connection,
+        long lastSeenRevision,
+        string? metadataFileRelativePath,
+        CancellationToken cancellationToken)
+    {
         using var transaction = connection.BeginTransaction(deferred: true);
         await using var revisionCommand = connection.CreateCommand();
         revisionCommand.Transaction = transaction;

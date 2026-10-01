@@ -218,6 +218,8 @@ public sealed class AppHost : IAsyncDisposable
                 recovery.Problems.Count == 0 ? "maintenance.recovery.completed" : "maintenance.recovery.failed",
                 System.Text.Json.JsonSerializer.Serialize(recovery));
         }
+        // The backup projection checks its catalog every second as well.
+        repository.HoldReadConnection();
         Repository = repository;
         Operations = new OperationCoordinator(
             repository, paths.WorkerDirectory, TelemetrySources, launcher,
@@ -408,6 +410,7 @@ public sealed class AppHost : IAsyncDisposable
             Telemetry?.Dispose();
             stateDatabase?.ReleaseReadConnection();
             Scheduler?.ReleaseReadConnection();
+            Repository?.ReleaseReadConnection();
         }
     }
 

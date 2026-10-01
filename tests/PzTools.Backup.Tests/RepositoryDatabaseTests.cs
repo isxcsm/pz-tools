@@ -65,6 +65,43 @@ public sealed class RepositoryDatabaseTests
     }
 
     [Fact]
+    public async Task HeldCatalogReader_SeesOtherWritersAndLetsCheckpointsFinish()
+    {
+        using var temp = new TempDirectory();
+        var repositoryPath = temp.GetPath("repository");
+        var reader = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
+        reader.HoldReadConnection();
+        try
+        {
+            var before = await reader.ReadCatalogIfChangedAsync(-1);
+            Assert.False((await reader.ReadCatalogIfChangedAsync(before.RepositoryChangeRevision)).Modified);
+            // Another instance, as a backup worker would be: its commit shows up on the held connection.
+            var writer = await RepositoryDatabase.OpenExistingAsync(repositoryPath);
+            await using (var lease = RepositoryWriterLease.Acquire(repositoryPath))
+            {
+                var source = await writer.AddOrGetSourceAsync(lease, "Sandbox/Save", temp.GetPath("source"));
+                var run = await writer.StartRunAsync(lease, source.SourceId);
+                await writer.CommitRevisionAsync(lease, new RevisionCommitRequest(
+                    run.RunIndex, source.SourceId, null, [], [], [], NameLanguage: SupportedLanguage.English));
+            }
+            var after = await reader.ReadCatalogIfChangedAsync(before.RepositoryChangeRevision);
+            Assert.True(after.Modified);
+            Assert.Single(Assert.Single(after.Sources).Revisions);
+
+            // Between checks the held connection keeps no snapshot, so a full checkpoint completes.
+            await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = reader.DatabasePath, Pooling = false }.ToString());
+            await connection.OpenAsync();
+            await using var checkpoint = connection.CreateCommand();
+            checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+            await using var result = await checkpoint.ExecuteReaderAsync();
+            Assert.True(await result.ReadAsync());
+            Assert.Equal(0, result.GetInt64(0));
+        }
+        finally { reader.ReleaseReadConnection(); }
+    }
+
+    [Fact]
     public async Task ConcurrentWorkflowReservations_GetDistinctDurableIndexes()
     {
         using var temp = new TempDirectory();
