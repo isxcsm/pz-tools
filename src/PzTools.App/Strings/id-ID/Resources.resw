@@ -440,7 +440,9 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileError.Generic" xml:space="preserve"><value>Perekaman gagal. Periksa log untuk detailnya.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan simpanan ini. Berhenti bermain dan tunggu hingga operasi selesai, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Simpanan ini memiliki perubahan yang belum selesai. Keluar dari gim secara normal, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Fitur ini memerlukan simpanan pemain tunggal dengan satu karakter. Simpanan tidak diubah.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Tidak dapat menentukan karakter mana yang dipulihkan. Fitur ini hanya untuk simpanan pemain tunggal, dan jika simpanan memiliki beberapa karakter, salah satunya harus dipilih. Simpanan tidak diubah.</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>Simpanan ini memiliki beberapa karakter. Pilih karakter yang ingin dipulihkan; karakter lain tidak diubah.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Karakter yang dipilih sudah tidak ada di simpanan ini. Simpanan mungkin telah berubah sementara itu; silakan coba lagi. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Simpanan ini tidak dapat disunting dengan aman. Pastikan versi PZ Tools mendukung versi gim Anda. Simpanan asli tidak diubah.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Waktu bertahan hidup tidak tersedia · memeriksa kembali</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan berkas yang diperlukan. Tunggu hingga penyimpanan atau operasi itu selesai, lalu coba lagi.</value></data>

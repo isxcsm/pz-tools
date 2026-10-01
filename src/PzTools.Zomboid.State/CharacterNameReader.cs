@@ -6,9 +6,44 @@ public sealed record CharacterSnapshot(
     string? Name, CharacterState State, double? HoursSurvived = null, bool ReadSucceeded = true,
     string? ReadError = null);
 
+/// <summary>One row of a single-player save's localPlayers table.</summary>
+public sealed record LocalCharacter(long Id, string Name, bool Dead, double? HoursSurvived);
+
 /// <summary>Reads the selected playable character from one players.db snapshot.</summary>
 public sealed class CharacterNameReader
 {
+    /// <summary>
+    /// Every character of a single-player save, by id. Several only with local split screen; the game
+    /// reuses a dead character's row for the next one, so earlier characters are not listed.
+    /// </summary>
+    public async Task<IReadOnlyList<LocalCharacter>> ListLocalAsync(
+        string playersDatabasePath,
+        CancellationToken cancellationToken = default)
+    {
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = playersDatabasePath,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+            DefaultTimeout = 1,
+        }.ToString();
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var query = connection.CreateCommand();
+        query.CommandText = "SELECT id, name, isDead, data, worldversion FROM localPlayers ORDER BY id;";
+        var characters = new List<LocalCharacter>();
+        await using var reader = await query.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            characters.Add(new LocalCharacter(
+                reader.GetInt64(0),
+                reader.IsDBNull(1) ? "" : reader.GetString(1).Trim(),
+                !reader.IsDBNull(2) && reader.GetBoolean(2),
+                reader.IsDBNull(3) || reader.IsDBNull(4)
+                    ? null
+                    : PlayerBlobDurationReader.ReadHoursSurvived(reader.GetFieldValue<byte[]>(3), reader.GetInt64(4))));
+        return characters;
+    }
+
     public async Task<string?> ReadAsync(
         string playersDatabasePath,
         CancellationToken cancellationToken = default) =>

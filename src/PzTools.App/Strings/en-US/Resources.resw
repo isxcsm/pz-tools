@@ -439,7 +439,9 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileRecordStart" xml:space="preserve"><value>Start recording</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or another operation is using this save. Stop playing and wait for the operation to finish, then try again. The original was not changed.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>This save has unfinished changes. Exit the game normally, then try again. The original save was not changed.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>This feature requires a single-player save with one character. Your save was not changed.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Could not tell which character to recover. This works only with single-player saves, and when a save has several characters, one must be chosen. Your save was not changed.</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>This save has several characters. Choose the one to recover; the others are not changed.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>The character you chose is no longer in this save. The save may have changed in the meantime; please try again. Your save was not changed.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>This save cannot be edited safely. Check that your PZ Tools version supports your game version. The original save was not changed.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Survival time unavailable · checking again</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>The game or another operation is using a required file. Wait for saving or that operation to finish, then try again.</value></data>

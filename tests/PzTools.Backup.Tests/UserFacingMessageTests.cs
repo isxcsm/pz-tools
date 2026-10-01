@@ -36,6 +36,7 @@ public sealed class UserFacingMessageTests
     [InlineData("recovery-save-busy: in use", "RecoveryError.Busy")]
     [InlineData("recovery-pending-journal: pending changes", "RecoveryError.Journal")]
     [InlineData("recovery-ambiguous-character: two characters", "RecoveryError.Ambiguous")]
+    [InlineData("recovery-character-missing", "RecoveryError.CharacterChanged")]
     [InlineData("recovery-singleplayer-only", "RecoveryError.Ambiguous")]
     [InlineData("recovery-unsupported-format: unknown version", "RecoveryError.Unsupported")]
     [InlineData("recovery-linked-path: unsafe path", "RecoveryError.Unsupported")]

@@ -2117,30 +2117,61 @@ public sealed partial class MainWindowShell : UserControl
             || !StringComparer.OrdinalIgnoreCase.Equals(current.SaveId, save.SaveId)
             || App.Host?.Operations is null) return;
         var host = App.Host;
-        var confirmation = new ContentDialog
-        {
-            XamlRoot = XamlRoot, Title = Localizer.Get("HealCharacterTitle"),
-            Content = new ScrollViewer
-            {
-                MaxHeight = Math.Max(120, XamlRoot.Size.Height - 240),
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Content = new TextBlock
-                {
-                    Text = Localizer.Format("ConfirmHealCharacterBody", current.CharacterName ?? save.Name),
-                    TextWrapping = TextWrapping.Wrap,
-                },
-            },
-            PrimaryButtonText = Localizer.Get("HealCharacterAction"),
-            CloseButtonText = Localizer.Get("Cancel"), DefaultButton = ContentDialogButton.Close,
-        };
         // Locked from the moment the question is asked, as deletion is: a second click cannot open a
         // second dialog (which throws), and a failure to show it is reported instead of ending the app.
         archiveInteraction = true;
         UpdateOperationActions();
         try
         {
+            // Several characters only with local split screen: the user picks one, and only that one is
+            // changed. If the list cannot be read, recovery itself refuses a save with several.
+            IReadOnlyList<LocalCharacter> characters = [];
+            try
+            {
+                characters = await new CharacterNameReader().ListLocalAsync(Path.Combine(save.SourcePath, "players.db"));
+            }
+            catch (Exception exception) when (exception is Microsoft.Data.Sqlite.SqliteException or IOException
+                or UnauthorizedAccessException) { }
+            var body = new TextBlock
+            {
+                Text = Localizer.Format("ConfirmHealCharacterBody", current.CharacterName ?? save.Name),
+                TextWrapping = TextWrapping.Wrap,
+            };
+            var content = new StackPanel { Spacing = 12 };
+            RadioButtons? choice = null;
+            if (characters.Count > 1)
+            {
+                choice = new RadioButtons();
+                foreach (var character in characters)
+                    choice.Items.Add(FormatCharacterChoice(character));
+                // The dead character is the likelier one to revive; the user can change it.
+                choice.SelectedIndex = Math.Max(0, characters.ToList().FindIndex(character => character.Dead));
+                void ShowChosen() => body.Text = Localizer.Format("ConfirmHealCharacterBody",
+                    NameOrUnknown(characters[Math.Max(0, choice.SelectedIndex)].Name));
+                choice.SelectionChanged += (_, _) => ShowChosen();
+                ShowChosen();
+                content.Children.Add(new TextBlock
+                {
+                    Text = Localizer.Get("HealCharacterChoose"), TextWrapping = TextWrapping.Wrap,
+                });
+                content.Children.Add(choice);
+            }
+            content.Children.Add(body);
+            var confirmation = new ContentDialog
+            {
+                XamlRoot = XamlRoot, Title = Localizer.Get("HealCharacterTitle"),
+                Content = new ScrollViewer
+                {
+                    MaxHeight = Math.Max(120, XamlRoot.Size.Height - 240),
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = content,
+                },
+                PrimaryButtonText = Localizer.Get("HealCharacterAction"),
+                CloseButtonText = Localizer.Get("Cancel"), DefaultButton = ContentDialogButton.Close,
+            };
             if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
+            long? playerId = choice is null ? null : characters[Math.Max(0, choice.SelectedIndex)].Id;
             // Not current.CanHeal: the lock taken above for the dialog has already turned it off. What it
             // stands for is checked again instead, and a refusal is reported rather than doing nothing.
             if (App.Host != host || !ReferenceEquals(SaveList.SelectedItem, save) || !current.IsCurrent) return;
@@ -2149,7 +2180,7 @@ public sealed partial class MainWindowShell : UserControl
                 throw new InvalidOperationException(Localizer.Get(save.Activity == ActivityState.Active
                     ? "StopPlayingToHeal" : "OperationBusy"));
             var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
-            var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(root, save.SaveId, operationId: id));
+            var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(root, save.SaveId, operationId: id, playerId: playerId));
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
             {
                 SetLocalResultMessage(result.OperationId, Localizer.Get("HealCharacterSucceeded"));
@@ -2160,6 +2191,18 @@ public sealed partial class MainWindowShell : UserControl
         }
         catch (Exception exception) { ShowActionError(Localizer.Get("HealCharacterTitle"), exception); }
         finally { archiveInteraction = false; UpdateOperationActions(); }
+    }
+
+    private static string NameOrUnknown(string name) =>
+        string.IsNullOrWhiteSpace(name) ? Localizer.Get("CharacterNameUnknown") : name;
+
+    private static string FormatCharacterChoice(LocalCharacter character)
+    {
+        var parts = new List<string> { NameOrUnknown(character.Name) };
+        if (character.Dead) parts.Add(Localizer.Get("CharacterDead"));
+        if (character.HoursSurvived is { } hours and >= 0)
+            parts.Add(Localizer.Format("VersionSurvivalFormat", SaveVersionUiItem.FormatSurvivalHours(hours)));
+        return string.Join(" · ", parts);
     }
 
     private async void ManualBackupButton_Click(object sender, RoutedEventArgs e)

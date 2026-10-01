@@ -440,7 +440,9 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileError.Generic" xml:space="preserve"><value>La grabación falló. Revisa el registro para ver los detalles.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>El juego u otra operación está utilizando esta partida. Deja de jugar y espera a que termine la operación antes de intentarlo de nuevo. La partida original no se modificó.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Esta partida tiene cambios pendientes. Sal del juego de forma normal y vuelve a intentarlo. La partida original no se modificó.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Esta función requiere una partida individual con un solo personaje. La partida no se modificó.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>No se pudo determinar qué personaje recuperar. Esta función solo admite partidas individuales y, si una partida tiene varios personajes, hay que elegir uno. La partida no se modificó.</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>Esta partida tiene varios personajes. Elige el que quieres recuperar; los demás no se modifican.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>El personaje elegido ya no está en esta partida. Es posible que la partida haya cambiado mientras tanto; inténtalo de nuevo. La partida no se modificó.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>No se puede editar esta partida de forma segura. Verifica que tu versión de PZ Tools sea compatible con la del juego. No se cambió el original.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Tiempo de supervivencia no disponible · comprobando de nuevo</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>El juego u otra operación está usando un archivo necesario. Espera a que termine el guardado o esa operación y vuelve a intentarlo.</value></data>

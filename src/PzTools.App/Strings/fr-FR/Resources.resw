@@ -440,7 +440,9 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileError.Generic" xml:space="preserve"><value>L'enregistrement a échoué. Consultez le journal pour plus de détails.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Le jeu ou une autre opération utilise cette partie. Quittez la partie et attendez la fin de l’opération, puis réessayez. L’original n’a pas été modifié.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Cette partie contient des modifications inachevées. Quittez le jeu normalement, puis réessayez. La partie d’origine n’a pas été modifiée.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Cette fonction nécessite une partie solo contenant un seul personnage. La partie n’a pas été modifiée.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Impossible de déterminer quel personnage rétablir. Cette fonction ne prend en charge que les parties solo et, si une partie contient plusieurs personnages, il faut en choisir un. La partie n’a pas été modifiée.</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>Cette partie contient plusieurs personnages. Choisissez celui à rétablir ; les autres ne sont pas modifiés.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Le personnage choisi ne se trouve plus dans cette partie. Elle a peut-être changé entre-temps ; veuillez réessayer. La partie n’a pas été modifiée.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Cette partie ne peut pas être modifiée en toute sécurité. Vérifiez que votre version de PZ Tools est compatible avec celle du jeu. L’original n’a pas été modifié.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Durée de survie indisponible · nouvelle vérification</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Le jeu ou une autre opération utilise un fichier nécessaire. Attendez la fin de l’enregistrement ou de cette opération, puis réessayez.</value></data>

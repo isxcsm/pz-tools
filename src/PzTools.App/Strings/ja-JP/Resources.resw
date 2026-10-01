@@ -440,7 +440,9 @@
   <data name="ProfileError.Generic" xml:space="preserve"><value>記録に失敗しました。詳しくはログを確認してください。</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>ゲームまたは別の操作がこのセーブを使用中です。プレイを終了してからやり直してください。元のファイルは変更していません。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>このセーブには未完了の変更があります。ゲームを通常の手順で終了してから再試行してください。元のセーブは変更していません。</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>キャラクターが1人のシングルプレイのセーブでのみ使用できます。セーブは変更していません。</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>回復するキャラクターを特定できませんでした。シングルプレイのセーブでのみ使用でき、キャラクターが複数いる場合は1人を選ぶ必要があります。セーブは変更していません。</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>このセーブには複数のキャラクターがいます。回復するキャラクターを選んでください。選ばなかったキャラクターは変更されません。</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>選んだキャラクターがこのセーブにもう存在しません。その間にセーブが変わった可能性があります。もう一度お試しください。セーブは変更していません。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>このセーブを安全に編集できません。PZ Toolsがゲームのバージョンに対応しているか確認してください。元のセーブは変更していません。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>生存時間を読み取れませんでした · 再確認予定</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>ゲームや別の処理が必要なファイルを使用しています。保存や処理が終わってから再試行してください。</value></data>

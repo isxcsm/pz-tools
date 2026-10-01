@@ -440,7 +440,9 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileError.Generic" xml:space="preserve"><value>Nagrywanie nie powiodło się. Szczegóły znajdziesz w dzienniku.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gra lub inna operacja używa tego zapisu. Przestań grać i spróbuj ponownie. Oryginał nie został zmieniony.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Ten zapis gry zawiera niedokończone zmiany. Zamknij grę w zwykły sposób i spróbuj ponownie. Oryginalny zapis nie został zmieniony.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Ta funkcja wymaga zapisu jednoosobowego z jedną postacią. Zapis nie został zmieniony.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Nie udało się ustalić, którą postać przywrócić. Funkcja działa tylko z zapisami jednoosobowymi, a jeśli zapis zawiera kilka postaci, trzeba wybrać jedną. Zapis nie został zmieniony.</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>Ten zapis zawiera kilka postaci. Wybierz postać do przywrócenia; pozostałe nie zostaną zmienione.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Wybranej postaci nie ma już w tym zapisie. Zapis mógł się w międzyczasie zmienić; spróbuj ponownie. Zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Nie można bezpiecznie edytować tego zapisu. Sprawdź, czy wersja PZ Tools obsługuje wersję gry. Oryginał nie został zmieniony.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Czas przetrwania niedostępny · sprawdzanie zostanie powtórzone</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Gra lub inna operacja korzysta z wymaganego pliku. Poczekaj na zakończenie zapisywania lub tej operacji i spróbuj ponownie.</value></data>

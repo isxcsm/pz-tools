@@ -13,7 +13,15 @@ public sealed class CharacterRecoveryService
     /// An exclusive read/write guard rejects a running game and prevents it opening the old DB
     /// during preparation. Each file is atomically replaced; a durable journal coordinates pairs.
     /// </summary>
-    public async Task<CharacterRecoveryResult> RecoverAsync(string savesRoot, string saveId,
+    public Task<CharacterRecoveryResult> RecoverAsync(string savesRoot, string saveId,
+        CancellationToken cancellationToken = default) =>
+        RecoverAsync(savesRoot, saveId, playerId: null, cancellationToken);
+
+    /// <param name="playerId">The localPlayers row to recover. Required when the save holds more than one
+    /// character (local split screen); otherwise the only character is used, whatever its id. The game
+    /// gives a new character the lowest free id and overwrites a dead character's row, so an earlier
+    /// character is never in the table to be chosen.</param>
+    public async Task<CharacterRecoveryResult> RecoverAsync(string savesRoot, string saveId, long? playerId,
         CancellationToken cancellationToken = default)
     {
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(savesRoot));
@@ -71,12 +79,21 @@ public sealed class CharacterRecoveryService
                 byte[] blob; long id; long version;
                 await using (var reader = await query.ExecuteReaderAsync(cancellationToken))
                 {
-                    if (!await reader.ReadAsync(cancellationToken))
-                        throw new InvalidDataException("recovery-no-character");
-                    id = reader.GetInt64(0); name = reader.GetString(1); version = reader.GetInt64(2);
-                    blob = (byte[])reader.GetValue(3); dead = reader.GetBoolean(4);
-                    if (id != 1 || await reader.ReadAsync(cancellationToken))
-                        throw new InvalidDataException("recovery-ambiguous-character");
+                    var rows = 0;
+                    (id, name, version, blob, dead) = (0, "", 0, [], false);
+                    while (await reader.ReadAsync(cancellationToken))
+                    {
+                        rows++;
+                        var rowId = reader.GetInt64(0);
+                        if (playerId is { } chosen ? rowId != chosen : rows > 1) continue;
+                        (id, name, version, blob, dead) = (rowId, reader.GetString(1), reader.GetInt64(2),
+                            (byte[])reader.GetValue(3), reader.GetBoolean(4));
+                    }
+                    if (rows == 0) throw new InvalidDataException("recovery-no-character");
+                    // Without a choice, several characters cannot be told apart.
+                    if (playerId is null && rows > 1) throw new InvalidDataException("recovery-ambiguous-character");
+                    // The chosen character is gone, e.g. the save changed after the list was read.
+                    if (playerId is { } wanted && id != wanted) throw new InvalidDataException("recovery-character-missing");
                 }
                 var healed = PlayerHealthEditor.Heal(blob, version, out var layout);
                 if (dead && ZombieInventoryRecovery.IsEmpty(healed, layout))

@@ -440,7 +440,9 @@
   <data name="ProfileError.Generic" xml:space="preserve"><value>录制失败。详情请查看日志。</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。请停止游玩后重试。原始文件未更改。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档有尚未完成的更改。请正常退出游戏后重试。原存档未被修改。</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>此功能仅支持只有一名角色的单人存档。存档未被修改。</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>无法确定要恢复的角色。此功能仅支持单人存档；存档中有多名角色时，需要选择其中一名。存档未被修改。</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>此存档中有多名角色。请选择要恢复的角色；未选择的角色不会被更改。</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>所选角色已不在此存档中。存档可能在此期间发生了变化，请重试。存档未被修改。</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法安全修改此存档。请确认 PZ Tools 版本支持您的游戏版本。原存档未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>无法读取生存时间 · 将再次检查</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>游戏或其他操作正在使用所需的文件。请等待保存或相关操作结束后重试。</value></data>

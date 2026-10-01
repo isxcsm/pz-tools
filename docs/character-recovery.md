@@ -29,6 +29,21 @@ also when their inventory is empty.
 Symptoms can come back afterwards because of traits, the environment or illnesses
 added by mods.
 
+## Which character
+
+A single-player save normally holds one character, and that one is recovered whatever
+its number in `players.db`. The game numbers characters from 1, but a save whose
+character is not number 1 is just as valid (v0.1.0 refused such saves).
+
+Several characters appear only with local split screen. The confirmation then lists
+them, with name, whether they are dead and how long they survived, and recovers only
+the one you choose; the others are left exactly as they are. If the chosen character is
+no longer there when recovery starts (the save changed in between), nothing is edited.
+
+An earlier character cannot be chosen. When a character dies and you start a new one in
+the same world, the game writes the new character over the dead one's record, so the
+earlier character is no longer in the save to bring back.
+
 ## Getting a dead character's belongings back
 
 This happens only when the dead character's saved inventory is empty. A populated
@@ -71,8 +86,9 @@ recovery stops with `recovery-inventory-unavailable` and the save is not changed
 - **One game format.** Only Build 42 world version **249** is supported. It is checked
   against the locally installed 42.20.4 game classes and the MIT-licensed pzdataspec
   world-249 schemas.
-- **Refused before any edit:** other versions, more than one local character, network
-  players, malformed records, linked paths and pending SQLite journals.
+- **Refused before any edit:** other versions, several local characters with none
+  chosen, a chosen character that is gone, network players, malformed records, linked
+  paths and pending SQLite journals.
 - **Lost items stay lost.** Items that are missing, were dropped elsewhere, looted or
   destroyed are not recreated.
 - **Old saves.** Saves made without hand-item IDs need the items re-equipped by hand.
@@ -160,6 +176,8 @@ backup is kept, and existing backup history is not touched.
 Focused Windows tests cover:
 
 - health and traits
+- a lone character that is not number 1, choosing one of two characters, and a chosen
+  character that is gone
 - inventory recovery without an ID card
 - stamped zombies that have moved
 - hand-item IDs

@@ -447,7 +447,9 @@
   <data name="ProfileError.Generic" xml:space="preserve"><value>บันทึกไม่สำเร็จ ดูรายละเอียดได้ในล็อก</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรือการทำงานอื่นกำลังใช้เซฟนี้ โปรดหยุดเล่นแล้วลองใหม่ ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>เซฟนี้มีการเปลี่ยนแปลงที่ยังไม่เสร็จสมบูรณ์ กรุณาออกจากเกมตามปกติแล้วลองอีกครั้ง เซฟต้นฉบับยังไม่ถูกแก้ไข</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>ใช้ได้กับเซฟผู้เล่นคนเดียวที่มีตัวละครเพียงคนเดียว เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>ไม่สามารถระบุได้ว่าจะฟื้นฟูตัวละครใด ใช้ได้กับเซฟผู้เล่นคนเดียวเท่านั้น และหากเซฟมีตัวละครหลายตัว ต้องเลือกหนึ่งตัว เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>เซฟนี้มีตัวละครหลายตัว เลือกตัวละครที่จะฟื้นฟู ตัวละครอื่นจะไม่ถูกเปลี่ยนแปลง</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>ตัวละครที่เลือกไม่อยู่ในเซฟนี้แล้ว เซฟอาจเปลี่ยนไปในระหว่างนั้น โปรดลองอีกครั้ง เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>ไม่สามารถแก้ไขเซฟนี้ได้อย่างปลอดภัย โปรดตรวจสอบว่า PZ Tools รุ่นที่ใช้รองรับเกมรุ่นนี้ เซฟต้นฉบับไม่ได้ถูกแก้ไข</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านเวลาที่รอดชีวิตไม่ได้ · จะตรวจสอบอีกครั้ง</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ที่จำเป็น รอให้การบันทึกหรืองานนั้นเสร็จแล้วลองอีกครั้ง</value></data>

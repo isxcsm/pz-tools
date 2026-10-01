@@ -440,7 +440,9 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileError.Generic" xml:space="preserve"><value>Kayıt başarısız oldu. Ayrıntılar için günlüğe bakın.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Oyun veya başka bir işlem bu kaydı kullanıyor. Oynamayı bırakın ve işlemin bitmesini bekleyin, ardından tekrar deneyin. Özgün kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Bu oyun kaydında tamamlanmamış değişiklikler var. Oyundan normal şekilde çıkıp yeniden deneyin. Özgün kayıt değiştirilmedi.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Bu özellik, tek karakter içeren tek oyunculu bir kayıt gerektirir. Kayıt değiştirilmedi.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Hangi karakterin kurtarılacağı belirlenemedi. Bu özellik yalnızca tek oyunculu kayıtlarda çalışır; kayıtta birden fazla karakter varsa biri seçilmelidir. Kayıt değiştirilmedi.</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Kurtarılacak karakteri seçin; diğerleri değiştirilmez.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Seçilen karakter artık bu kayıtta yok. Kayıt bu arada değişmiş olabilir; lütfen yeniden deneyin. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Bu kayıt güvenle düzenlenemiyor. PZ Tools sürümünüzün oyun sürümünü desteklediğini kontrol edin. Orijinal kayıt değiştirilmedi.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Hayatta kalma süresi alınamıyor · yeniden denetleniyor</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Oyun veya başka bir işlem gerekli bir dosyayı kullanıyor. Kaydetmenin veya işlemin bitmesini bekleyip yeniden deneyin.</value></data>

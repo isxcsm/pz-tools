@@ -440,7 +440,9 @@
   <data name="ProfileError.Generic" xml:space="preserve"><value>Не удалось выполнить запись. Подробности смотрите в журнале.</value></data>
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Это сохранение используется игрой или другой операцией. Прекратите игру и повторите попытку. Оригинал не изменён.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>В этом сохранении есть незавершённые изменения. Выйдите из игры обычным способом и повторите попытку. Исходное сохранение не изменено.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Эта функция требует сохранения одиночной игры с одним персонажем. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Не удалось определить, какого персонажа восстановить. Функция работает только с сохранениями одиночной игры, а если в сохранении несколько персонажей, нужно выбрать одного. Сохранение не изменено.</value></data>
+  <data name="HealCharacterChoose" xml:space="preserve"><value>В этом сохранении несколько персонажей. Выберите, кого восстановить; остальные не изменятся.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Выбранного персонажа больше нет в этом сохранении. Возможно, сохранение за это время изменилось; попробуйте ещё раз. Сохранение не изменено.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Это сохранение нельзя безопасно изменить. Проверьте совместимость версий PZ Tools и игры. Оригинал не был изменён.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Время выживания недоступно · проверка будет повторена</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Игра или другая операция использует нужный файл. Дождитесь завершения сохранения или операции и повторите попытку.</value></data>
