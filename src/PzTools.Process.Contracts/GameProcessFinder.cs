@@ -12,6 +12,13 @@ public static class GameProcessFinder
     /// <summary>The executable names the game runs under.</summary>
     public static IReadOnlyList<string> Names { get; } = ["ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid"];
 
+    /// <summary>
+    /// How old a shared snapshot may be for loops that only watch for the game to come or go. A snapshot
+    /// costs about 5 ms; noticing a starting game a few seconds later does not matter, as its load takes
+    /// far longer. An exit is not polled for: it is signalled by the process itself.
+    /// </summary>
+    public static readonly TimeSpan WatchSnapshotAge = TimeSpan.FromSeconds(5);
+
     private static readonly object Gate = new();
     private static (long Taken, (int Id, DateTime Started)[] Games)? recent;
 
