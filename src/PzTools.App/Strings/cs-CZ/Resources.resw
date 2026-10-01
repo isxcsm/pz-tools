@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Uvolněno {0:N1} MB nevyužitého místa záloh.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Zaznamenáno: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Kontrola probíhající hry a případné uložení…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Příprava zálohy</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Kontrola, zda je před zálohou potřeba uložit hru.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Krok ukládání ve hře skončil. Zálohování nyní pokračuje.</value></data>

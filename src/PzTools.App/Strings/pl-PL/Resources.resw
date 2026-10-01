@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Odzyskano {0:N1} MB nieużywanego miejsca kopii.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Zarejestrowano: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Sprawdzanie, czy trwa rozgrywka, i zapis w razie potrzeby…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Przygotowywanie kopii zapasowej</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Sprawdzanie, czy przed utworzeniem kopii wymagany jest zapis gry.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Etap zapisywania w grze zakończył się. Tworzenie kopii zapasowej będzie kontynuowane.</value></data>

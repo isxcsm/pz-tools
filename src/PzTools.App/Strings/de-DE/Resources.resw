@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>{0:N1} MB ungenutzter Sicherungsspeicher wurden freigegeben.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Gesichert: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Spielstatus wird geprüft und bei Bedarf gespeichert…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Sicherung wird vorbereitet</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Es wird geprüft, ob das Spiel vor der Sicherung gespeichert werden muss.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Der Speicherschritt im Spiel ist beendet. Die Sicherung wird jetzt fortgesetzt.</value></data>

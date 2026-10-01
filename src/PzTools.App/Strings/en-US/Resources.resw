@@ -338,6 +338,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Reclaimed {0:N1} MB of unused backup space.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Backed up: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Checking play state and saving if needed…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Preparing the backup</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Save game before backup</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Checking whether a game save is needed before backup.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>The game's save step finished. The backup will now continue.</value></data>

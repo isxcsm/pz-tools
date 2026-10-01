@@ -1148,7 +1148,7 @@ public sealed partial class MainWindowShell : UserControl
             if (telemetryUnavailable) phase = Localizer.Get("TelemetryProgressUnavailable");
             else if (byteBased)
             {
-                phase = ProgressPhaseText(operation.Phase);
+                phase = ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup);
                 amount = string.Format(culture, "{0:N1} / {1:N1} MB",
                     operation.CompletedBytes / 1048576.0, operation.TotalBytes!.Value / 1048576.0);
                 percent = string.Format(culture, "{0:N0}%",
@@ -1156,14 +1156,14 @@ public sealed partial class MainWindowShell : UserControl
             }
             else if (operation.TotalItems is > 0 and var total)
             {
-                phase = ProgressPhaseText(operation.Phase);
+                phase = ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup);
                 amount = string.Format(culture, "{0:N0} / {1:N0}", operation.CompletedItems, total);
                 percent = string.Format(culture, "{0:N0}%",
                     Math.Floor(Math.Clamp(100.0 * operation.CompletedItems / total, 0, 100)));
             }
             else phase = operation.CompletedItems > 0
-                ? Localizer.Format("OperationDiscoveredFormat", ProgressPhaseText(operation.Phase), operation.CompletedItems)
-                : ProgressPhaseText(operation.Phase);
+                ? Localizer.Format("OperationDiscoveredFormat", ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup), operation.CompletedItems)
+                : ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup);
         }
         elements.Percent.Text = percent;
         elements.Percent.Visibility = percent.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -1198,7 +1198,7 @@ public sealed partial class MainWindowShell : UserControl
         AppToolTip.SetTip(elements.Message, message.Length == 0 ? null : message);
     }
 
-    private static string ProgressPhaseText(string? phase) => phase switch
+    private static string ProgressPhaseText(string? phase, bool backup) => phase switch
     {
         "maintenance.revisionreclamation" or "maintenance.artifactcleanup" or "maintenance.orphanbackups"
             or "maintenance.packreclamation"
@@ -1224,6 +1224,8 @@ public sealed partial class MainWindowShell : UserControl
         "archive.compress" => Localizer.Get("ArchiveCompressPhase"),
         "archive.finalize" => Localizer.Get("ArchiveFinalizePhase"),
         "import" => Localizer.Get("Importing"),
+        // Before a backup reports its first step: its worker is starting and opening the repository.
+        null when backup => Localizer.Get("BackupPreparingPhase"),
         _ => Localizer.Get("ProcessingNow"),
     };
 

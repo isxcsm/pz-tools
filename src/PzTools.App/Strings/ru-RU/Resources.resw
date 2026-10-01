@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Освобождено {0:N1} МБ неиспользуемого места резервных копий.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Записано: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Проверка активной игры и сохранение при необходимости…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Подготовка резервной копии</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Сохранять игру перед копированием</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Проверяется, нужно ли сохранить игру перед копированием.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Этап сохранения в игре завершён. Резервное копирование продолжится.</value></data>

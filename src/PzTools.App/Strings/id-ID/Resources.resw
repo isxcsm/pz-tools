@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>{0:N1} MB ruang cadangan tak terpakai telah diambil kembali.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Dicadangkan: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Memeriksa apakah gim sedang dimainkan dan menyimpan jika perlu…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Menyiapkan pencadangan</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Simpan gim sebelum pencadangan</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Memeriksa apakah gim perlu disimpan sebelum pencadangan.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Tahap penyimpanan gim selesai. Pencadangan kini akan dilanjutkan.</value></data>

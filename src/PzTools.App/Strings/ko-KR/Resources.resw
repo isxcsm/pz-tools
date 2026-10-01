@@ -338,6 +338,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>사용하지 않는 백업 공간 {0:N1} MB를 회수했습니다.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>백업 시간: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>게임 상태 확인 및 필요 시 저장 중…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>백업 준비 중</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>백업 전 게임 저장</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>백업 전 게임 저장이 필요한지 확인합니다.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>게임 저장 단계가 끝났습니다. 이어서 백업을 진행합니다.</value></data>

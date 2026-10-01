@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>未使用のバックアップ領域 {0:N1} MB を回収しました。</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>記録時刻：{0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>プレイ状態を確認し、必要に応じてゲームを保存中…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>バックアップを準備中</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>バックアップ前にゲームを保存</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>バックアップ前にゲームの保存が必要か確認しています。</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>ゲームの保存処理が終わりました。続いてバックアップを進めます。</value></data>

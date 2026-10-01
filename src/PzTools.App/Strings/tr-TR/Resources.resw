@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>{0:N1} MB kullanılmayan yedek alanı geri kazanıldı.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Yedeklenme: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Oynama durumu denetleniyor ve gerekirse oyun kaydediliyor…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Yedek hazırlanıyor</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Yedeklemeden önce oyunu kaydet</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Yedeklemeden önce oyunun kaydedilmesi gerekip gerekmediği denetleniyor.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Oyunun kaydetme adımı bitti. Yedekleme şimdi devam edecek.</value></data>

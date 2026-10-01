@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Recuperati {0:N1} MB di spazio di backup inutilizzato.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Backup creato: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Verifica della partita in corso e salvataggio se necessario…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Preparazione del backup</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Salva il gioco prima del backup</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Verifica della necessità di salvare il gioco prima del backup.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>La fase di salvataggio del gioco è terminata. Il backup proseguirà ora.</value></data>

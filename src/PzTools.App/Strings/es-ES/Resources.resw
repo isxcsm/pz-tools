@@ -331,6 +331,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Se recuperaron {0:N1} MB de espacio de copias sin usar.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Copia creada: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>Comprobando si se está jugando y guardando si es necesario…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>Preparando la copia de seguridad</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Guardar el juego antes de la copia</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Comprobando si es necesario guardar el juego antes de la copia.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>El paso de guardado del juego ha terminado. Ahora continuará la copia de seguridad.</value></data>

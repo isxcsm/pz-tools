@@ -338,6 +338,7 @@
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>คืนพื้นที่สำรองข้อมูลที่ไม่ได้ใช้แล้ว {0:N1} MB</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>บันทึกเมื่อ: {0}</value></data>
   <data name="BackupGameSavePhase" xml:space="preserve"><value>กำลังตรวจสอบว่ากำลังเล่นอยู่หรือไม่ และบันทึกเกมหากจำเป็น…</value></data>
+  <data name="BackupPreparingPhase" xml:space="preserve"><value>กำลังเตรียมการสำรองข้อมูล</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>กำลังตรวจสอบว่าต้องบันทึกเกมก่อนสำรองหรือไม่</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>ขั้นตอนบันทึกเกมเสร็จแล้ว ระบบจะสำรองข้อมูลต่อ</value></data>
