@@ -22,8 +22,11 @@ closed or a different kind of change happens (it grows, for example): the journa
 the first change of each kind per open. A backup taken in between does not see those
 later writes. The databases the game keeps open, `players.db` and `vehicles.db`, are
 therefore captured every time (`always_include`), and the backup asks the game to save
-first. Whether the game keeps any other save file open between saves has not been
-observed.
+first. They are the only save files the game was seen holding open: sampled with
+Restart Manager every few seconds while paused, while running around writing about
+a thousand map files, and across a save for a backup, a single-player game (build 42.21)
+held only those two databases and their `-journal` files (empty whenever checked).
+Map files were opened, written and closed between samples.
 
 Drives formatted FAT32 or exFAT, such as most USB sticks, have no journal, so every
 backup of a save there is a full scan with content comparison. FAT32 also refuses the
