@@ -445,10 +445,14 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Impossibile stabilire quale personaggio ripristinare. La funzione è disponibile solo per i salvataggi per giocatore singolo e, se un salvataggio contiene più personaggi, bisogna sceglierne uno. Il salvataggio non è stato modificato.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Questo salvataggio contiene più personaggi. Scegli quello da ripristinare; gli altri non vengono modificati.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Ricerca dello zombie o del cadavere del personaggio…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Scegli lo zombie o il cadavere da cui recuperare gli oggetti. Quello scelto scompare dal mondo.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie ({0} oggetti)</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Cadavere ({0} oggetti)</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>A {0} caselle dal luogo della morte</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Scegli da dove recuperare gli oggetti.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Recupera {0} oggetti dallo zombie</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Recupera {0} oggetti dal cadavere</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>Lo zombie scompare dal mondo. A {0} caselle dal luogo della morte</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>Il cadavere scompare dal mondo. A {0} caselle dal luogo della morte</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>Lo zombie resta con gli oggetti</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>Il cadavere resta con gli oggetti</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Zombie e cadaveri restano con gli oggetti</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Rianima senza oggetti</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Nessuno zombie o cadavere di questo personaggio trovato. Verrà rianimato senza oggetti.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Non è stato possibile cercare in anticipo lo zombie o il cadavere del personaggio. Il ripristino lo cercherà di nuovo.</value></data>

@@ -445,10 +445,14 @@
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>无法确定要恢复的角色。此功能仅支持单人存档；存档中有多名角色时，需要选择其中一名。存档未被修改。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>此存档中有多名角色。请选择要恢复的角色；未选择的角色不会被更改。</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>正在寻找该角色的僵尸或尸体…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>请选择要取回物品的僵尸或尸体。所选对象将从世界中移除。</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>僵尸（物品 {0} 件）</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>尸体（物品 {0} 件）</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>距死亡地点 {0} 格</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>请选择从哪里取回物品。</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>从僵尸身上取回 {0} 件物品</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>从尸体上取回 {0} 件物品</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>僵尸将从世界中消失。距死亡地点 {0} 格</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>尸体将从世界中消失。距死亡地点 {0} 格</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>僵尸会带着物品留在原处</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>尸体会带着物品留在原处</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>僵尸和尸体会带着物品留在原处</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>仅复活，不取回物品</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>未找到该角色的僵尸或尸体。将在不取回物品的情况下复活。</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>无法预先寻找僵尸或尸体。恢复时将再次寻找。</value></data>

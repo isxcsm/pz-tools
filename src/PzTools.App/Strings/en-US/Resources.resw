@@ -444,10 +444,14 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Could not tell which character to recover. This works only with single-player saves, and when a save has several characters, one must be chosen. Your save was not changed.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>This save has several characters. Choose the one to recover; the others are not changed.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Looking for the character's zombie or corpse…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Choose the zombie or corpse to take the belongings from. The one you choose is removed from the world.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie ({0} items)</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Corpse ({0} items)</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>{0} tiles from where the character died</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Choose where to take the belongings back from.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Take {0} items back from the zombie</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Take {0} items back from the corpse</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>The zombie disappears from the world. {0} tiles from where the character died</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>The corpse disappears from the world. {0} tiles from where the character died</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>The zombie stays, carrying the belongings</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>The corpse stays, holding the belongings</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>The zombies and corpses stay, with the belongings</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Revive without belongings</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>No zombie or corpse of this character was found. The character will be revived without belongings.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>The character's zombie or corpse could not be looked for in advance. Recovery will look again.</value></data>

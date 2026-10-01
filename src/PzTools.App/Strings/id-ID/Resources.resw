@@ -445,10 +445,14 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Tidak dapat menentukan karakter mana yang dipulihkan. Fitur ini hanya untuk simpanan pemain tunggal, dan jika simpanan memiliki beberapa karakter, salah satunya harus dipilih. Simpanan tidak diubah.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Simpanan ini memiliki beberapa karakter. Pilih karakter yang ingin dipulihkan; karakter lain tidak diubah.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Mencari zombi atau mayat karakter…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Pilih zombi atau mayat tempat barang-barang diambil. Yang dipilih akan hilang dari dunia.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombi ({0} barang)</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Mayat ({0} barang)</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>{0} petak dari tempat karakter mati</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Pilih dari mana barang-barang diambil kembali.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Ambil kembali {0} barang dari zombi</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Ambil kembali {0} barang dari mayat</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>Zombi hilang dari dunia. {0} petak dari tempat karakter mati</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>Mayat hilang dari dunia. {0} petak dari tempat karakter mati</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>Zombi tetap ada dengan membawa barang-barang</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>Mayat tetap ada beserta barang-barang</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Zombi dan mayat tetap ada beserta barang-barang</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Hidupkan kembali tanpa barang</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Zombi atau mayat karakter ini tidak ditemukan. Karakter akan dihidupkan kembali tanpa barang.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Zombi atau mayat karakter tidak dapat dicari sebelumnya. Pemulihan akan mencarinya lagi.</value></data>

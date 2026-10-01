@@ -60,10 +60,11 @@ The search runs when the confirmation opens, before anything is changed, and the
 confirm button waits for it (well under a second on a warm disk; a freshly copied save
 of 930 map files took 1.1 s). What it finds is shown in the confirmation:
 
-- **Remains found:** each one is listed as a zombie or a corpse, with how many items it
-  carries and how far it is from where the character died. The one carrying most is
-  chosen; you can pick another, or **Revive without belongings**. The remains you
-  choose are removed from the world; the others are left as they are.
+- **Remains found:** each option says what it does, then what it leaves in the world:
+  *Take 7 items back from the zombie*, above *The zombie disappears from the world* and
+  how far it is from where the character died. The one carrying most is chosen; you
+  can pick another, or **Revive without belongings**, which says that the zombie (or
+  corpse) stays with them. Remains not chosen are left as they are.
 - **Nothing found:** the confirmation says so, and the character is revived without
   belongings rather than not at all.
 - **The search failed:** the confirmation says so, and recovery looks again on its own.

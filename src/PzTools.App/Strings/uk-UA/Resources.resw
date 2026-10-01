@@ -445,10 +445,14 @@
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Не вдалося визначити, якого персонажа відновити. Функція працює лише зі збереженнями одиночної гри, а якщо у збереженні кілька персонажів, потрібно вибрати одного. Збереження не змінено.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>У цьому збереженні кілька персонажів. Виберіть, кого відновити; інші не зміняться.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Пошук зомбі або трупа персонажа…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Виберіть зомбі або труп, з якого забрати речі. Вибраний зникне зі світу.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Зомбі (предметів: {0})</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Труп (предметів: {0})</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>Відстань від місця смерті: {0} клітинок</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Виберіть, звідки повернути речі.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Забрати в зомбі предмети ({0})</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Забрати з трупа предмети ({0})</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>Зомбі зникне зі світу. Відстань від місця смерті: {0} клітинок</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>Труп зникне зі світу. Відстань від місця смерті: {0} клітинок</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>Зомбі залишиться з речами</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>Труп залишиться з речами</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Зомбі й трупи залишаться з речами</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Воскресити без речей</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Зомбі або труп цього персонажа не знайдено. Персонажа буде воскрешено без речей.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Не вдалося заздалегідь знайти зомбі або труп персонажа. Відновлення пошукає знову.</value></data>

@@ -445,10 +445,14 @@
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>回復するキャラクターを特定できませんでした。シングルプレイのセーブでのみ使用でき、キャラクターが複数いる場合は1人を選ぶ必要があります。セーブは変更していません。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>このセーブには複数のキャラクターがいます。回復するキャラクターを選んでください。選ばなかったキャラクターは変更されません。</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>キャラクターのゾンビや死体を探しています…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>所持品を取り戻すゾンビまたは死体を選んでください。選んだものはワールドから消えます。</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>ゾンビ（所持品 {0} 個）</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>死体（所持品 {0} 個）</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>死亡地点から {0} マス</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>所持品をどこから取り戻すか選んでください。</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>ゾンビから所持品 {0} 個を取り戻す</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>死体から所持品 {0} 個を取り戻す</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>ゾンビはワールドから消えます。死亡地点から {0} マス</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>死体はワールドから消えます。死亡地点から {0} マス</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>ゾンビは所持品を持ったまま残ります</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>死体は所持品を持ったまま残ります</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>ゾンビと死体は所持品を持ったまま残ります</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>所持品なしで復活のみ行う</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>このキャラクターのゾンビや死体が見つかりませんでした。所持品なしで復活します。</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>ゾンビや死体を事前に探せませんでした。回復の際にもう一度探します。</value></data>

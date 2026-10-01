@@ -445,10 +445,14 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Nie udało się ustalić, którą postać przywrócić. Funkcja działa tylko z zapisami jednoosobowymi, a jeśli zapis zawiera kilka postaci, trzeba wybrać jedną. Zapis nie został zmieniony.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Ten zapis zawiera kilka postaci. Wybierz postać do przywrócenia; pozostałe nie zostaną zmienione.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Wyszukiwanie zombie lub zwłok postaci…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Wybierz zombie lub zwłoki, z których mają zostać zabrane rzeczy. Wybrane znikną ze świata.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie (przedmioty: {0})</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Zwłoki (przedmioty: {0})</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>Odległość od miejsca śmierci: {0} pól</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Wybierz, skąd odzyskać rzeczy.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Odzyskaj przedmioty od zombie ({0})</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Odzyskaj przedmioty ze zwłok ({0})</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>Zombie znika ze świata. Odległość od miejsca śmierci: {0} pól</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>Zwłoki znikają ze świata. Odległość od miejsca śmierci: {0} pól</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>Zombie zostaje razem z rzeczami</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>Zwłoki zostają razem z rzeczami</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Zombie i zwłoki zostają razem z rzeczami</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Ożyw bez rzeczy</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Nie znaleziono zombie ani zwłok tej postaci. Postać zostanie ożywiona bez rzeczy.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Nie udało się wcześniej wyszukać zombie ani zwłok postaci. Przywracanie wyszuka je ponownie.</value></data>

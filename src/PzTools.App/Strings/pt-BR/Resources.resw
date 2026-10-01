@@ -445,10 +445,14 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Não foi possível determinar qual personagem recuperar. Este recurso funciona apenas com partidas de um jogador e, se a partida tiver vários personagens, é preciso escolher um. A partida não foi alterada.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Esta partida tem vários personagens. Escolha o que deseja recuperar; os outros não serão alterados.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Procurando o zumbi ou o cadáver do personagem…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Escolha o zumbi ou o cadáver de onde pegar os pertences. O escolhido some do mundo.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zumbi ({0} itens)</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Cadáver ({0} itens)</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>A {0} quadrados do local da morte</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Escolha de onde recuperar os pertences.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Recuperar {0} itens do zumbi</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Recuperar {0} itens do cadáver</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>O zumbi some do mundo. A {0} quadrados do local da morte</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>O cadáver some do mundo. A {0} quadrados do local da morte</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>O zumbi continua com os pertences</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>O cadáver continua com os pertences</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Os zumbis e cadáveres continuam com os pertences</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Reviver sem os pertences</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Nenhum zumbi ou cadáver deste personagem foi encontrado. Ele será revivido sem os pertences.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Não foi possível procurar o zumbi ou o cadáver do personagem antes. A recuperação procurará de novo.</value></data>

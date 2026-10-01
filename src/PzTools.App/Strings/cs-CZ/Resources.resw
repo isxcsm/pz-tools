@@ -448,11 +448,15 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Zombii ani mrtvolu postavy se nepodařilo předem vyhledat. Obnova je vyhledá znovu.</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Zombie ani mrtvola této postavy nebyla nalezena. Postava bude oživena bez věcí.</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Oživit bez věcí</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>Vzdálenost od místa smrti: {0} polí</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Mrtvola (předměty: {0})</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombie (předměty: {0})</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Vzít z mrtvoly zpět předměty ({0})</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Zombie a mrtvoly zůstanou i s věcmi</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>Mrtvola zůstane i s věcmi</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>Zombie zůstane i s věcmi</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>Zombie zmizí ze světa. Vzdálenost od místa smrti: {0} polí</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>Mrtvola zmizí ze světa. Vzdálenost od místa smrti: {0} polí</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Vzít zombii zpět předměty ({0})</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Hledá se zombie nebo mrtvola postavy…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Vyberte zombii nebo mrtvolu, ze které se mají vzít věci. Vybraná zmizí ze světa.</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Vyberte, odkud se mají věci vzít zpět.</value></data>
   <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Vybraná postava už v této uložené hře není. Uložená hra se mezitím mohla změnit; zkuste to prosím znovu. Uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Tuto uloženou hru nelze bezpečně upravit. Ověřte, že vaše verze PZ Tools podporuje verzi hry. Originál nebyl změněn.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Doba přežití není dostupná · kontrola se zopakuje</value></data>

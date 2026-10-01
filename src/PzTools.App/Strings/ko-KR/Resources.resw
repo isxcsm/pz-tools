@@ -444,10 +444,14 @@
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>회복할 캐릭터를 정하지 못했습니다. 싱글플레이 세이브에서만 사용할 수 있으며, 캐릭터가 여럿이면 하나를 골라야 합니다. 세이브는 변경하지 않았습니다.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>이 세이브에는 캐릭터가 여럿 있습니다. 회복할 캐릭터를 고르세요. 고르지 않은 캐릭터는 바뀌지 않습니다.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>캐릭터의 좀비나 시체를 찾는 중…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>소지품을 가져올 좀비나 시체를 고르세요. 고른 쪽은 세계에서 사라집니다.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>좀비 (소지품 {0}개)</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>시체 (소지품 {0}개)</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>사망 위치에서 {0}칸</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>소지품을 어디서 되찾을지 고르세요.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>좀비에게서 소지품 {0}개 되찾기</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>시체에서 소지품 {0}개 되찾기</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>좀비는 세계에서 사라집니다. 사망 위치에서 {0}칸</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>시체는 세계에서 사라집니다. 사망 위치에서 {0}칸</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>좀비는 소지품을 가진 채 남아 있습니다</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>시체는 소지품을 가진 채 남아 있습니다</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>좀비와 시체는 소지품을 가진 채 남아 있습니다</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>소지품 없이 부활만 하기</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>이 캐릭터의 좀비나 시체를 찾지 못했습니다. 소지품 없이 부활합니다.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>좀비나 시체를 미리 찾아보지 못했습니다. 회복할 때 다시 찾습니다.</value></data>

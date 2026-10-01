@@ -445,10 +445,14 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>No se pudo determinar qué personaje recuperar. Esta función solo admite partidas individuales y, si una partida tiene varios personajes, hay que elegir uno. La partida no se ha modificado.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Esta partida tiene varios personajes. Elige el que quieres recuperar; los demás no se modifican.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Buscando el zombi o el cadáver del personaje…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Elige el zombi o el cadáver del que recuperar las pertenencias. El elegido desaparece del mundo.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombi ({0} objetos)</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Cadáver ({0} objetos)</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>A {0} casillas del lugar de la muerte</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Elige de dónde recuperar las pertenencias.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Recuperar {0} objetos del zombi</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Recuperar {0} objetos del cadáver</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>El zombi desaparece del mundo. A {0} casillas del lugar de la muerte</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>El cadáver desaparece del mundo. A {0} casillas del lugar de la muerte</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>El zombi se queda con las pertenencias</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>El cadáver se queda con las pertenencias</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Los zombis y cadáveres se quedan con las pertenencias</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Revivir sin pertenencias</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>No se encontró ningún zombi ni cadáver de este personaje. Se revivirá sin pertenencias.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>No se pudo buscar de antemano el zombi o el cadáver del personaje. La recuperación lo buscará de nuevo.</value></data>

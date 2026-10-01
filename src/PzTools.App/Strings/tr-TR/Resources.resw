@@ -445,10 +445,14 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Hangi karakterin kurtarılacağı belirlenemedi. Bu özellik yalnızca tek oyunculu kayıtlarda çalışır; kayıtta birden fazla karakter varsa biri seçilmelidir. Kayıt değiştirilmedi.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Kurtarılacak karakteri seçin; diğerleri değiştirilmez.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Karakterin zombisi veya cesedi aranıyor…</value></data>
-  <data name="HealRemainsChoose" xml:space="preserve"><value>Eşyaların alınacağı zombiyi veya cesedi seçin. Seçilen dünyadan kaldırılır.</value></data>
-  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombi ({0} eşya)</value></data>
-  <data name="HealRemainsCorpse" xml:space="preserve"><value>Ceset ({0} eşya)</value></data>
-  <data name="HealRemainsDistance" xml:space="preserve"><value>Ölüm yerinden {0} kare uzakta</value></data>
+  <data name="HealRemainsChoose" xml:space="preserve"><value>Eşyaların nereden geri alınacağını seçin.</value></data>
+  <data name="HealRemainsZombie" xml:space="preserve"><value>Zombiden {0} eşyayı geri al</value></data>
+  <data name="HealRemainsCorpse" xml:space="preserve"><value>Cesetten {0} eşyayı geri al</value></data>
+  <data name="HealRemainsZombieEffect" xml:space="preserve"><value>Zombi dünyadan kaybolur. Ölüm yerinden {0} kare uzakta</value></data>
+  <data name="HealRemainsCorpseEffect" xml:space="preserve"><value>Ceset dünyadan kaybolur. Ölüm yerinden {0} kare uzakta</value></data>
+  <data name="HealRemainsNoneZombie" xml:space="preserve"><value>Zombi eşyalarla birlikte kalır</value></data>
+  <data name="HealRemainsNoneCorpse" xml:space="preserve"><value>Ceset eşyalarla birlikte kalır</value></data>
+  <data name="HealRemainsNoneMixed" xml:space="preserve"><value>Zombiler ve cesetler eşyalarla birlikte kalır</value></data>
   <data name="HealRemainsNone" xml:space="preserve"><value>Eşyalar olmadan dirilt</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Bu karakterin zombisi veya cesedi bulunamadı. Karakter eşyaları olmadan diriltilecek.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Karakterin zombisi veya cesedi önceden aranamadı. Kurtarma yeniden arayacak.</value></data>

@@ -66,9 +66,15 @@ internal sealed class RemainsQuestion(string savesRoot, string saveId)
         }
         candidates = preview.Candidates.OrderByDescending(c => c.Items).ThenBy(c => c.Distance).ToArray();
         options = new RadioButtons();
-        foreach (var candidate in candidates) options.Items.Add(Option(candidate));
-        var none = new RadioButton { Content = Localizer.Get("HealRemainsNone") };
-        options.Items.Add(none);
+        // Each option says what it does, then what it leaves in the world: taking the belongings removes
+        // those remains, reviving without them leaves the remains carrying them.
+        foreach (var candidate in candidates)
+            options.Items.Add(Option(
+                Localizer.Format(candidate.Kind == RemainsKind.Zombie ? "HealRemainsZombie" : "HealRemainsCorpse", candidate.Items),
+                Localizer.Format(candidate.Kind == RemainsKind.Zombie ? "HealRemainsZombieEffect" : "HealRemainsCorpseEffect", candidate.Distance)));
+        var kinds = candidates.Select(c => c.Kind).Distinct().ToArray();
+        options.Items.Add(Option(Localizer.Get("HealRemainsNone"), Localizer.Get(kinds.Length > 1 ? "HealRemainsNoneMixed"
+            : kinds[0] == RemainsKind.Zombie ? "HealRemainsNoneZombie" : "HealRemainsNoneCorpse")));
         options.SelectedIndex = 0;
         Panel.Children.Add(Text(Localizer.Get("HealRemainsChoose")));
         Panel.Children.Add(options);
@@ -76,15 +82,13 @@ internal sealed class RemainsQuestion(string savesRoot, string saveId)
 
     public void Stop() { looking?.Cancel(); looking = null; }
 
-    private static RadioButton Option(RemainsCandidate candidate)
+    private static RadioButton Option(string title, string effect)
     {
-        var title = Localizer.Format(candidate.Kind == RemainsKind.Zombie ? "HealRemainsZombie" : "HealRemainsCorpse", candidate.Items);
-        var distance = Localizer.Format("HealRemainsDistance", candidate.Distance);
         var content = new StackPanel { Spacing = 2 };
         content.Children.Add(new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap });
-        content.Children.Add(Secondary(distance));
+        content.Children.Add(Secondary(effect));
         var option = new RadioButton { Content = content };
-        AutomationProperties.SetName(option, title + ", " + distance);
+        AutomationProperties.SetName(option, title + ", " + effect);
         return option;
     }
 
