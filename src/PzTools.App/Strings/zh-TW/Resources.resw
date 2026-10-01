@@ -339,7 +339,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>無法確認遊戲儲存結果，已停止備份。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>備份前儲存遊戲</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>遊戲內儲存倒數</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>儲存前 5 秒起在角色頭頂顯示倒數，結束後顯示儲存結果。關閉後不顯示，直接儲存。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自動備份儲存遊戲前 5 秒起在角色頭頂顯示倒數，結束後顯示儲存結果。在應用程式中開始的備份不顯示，直接儲存。關閉後自動備份也不顯示，直接儲存。</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>備份前先儲存遊戲，把最新進度也包含進去。儲存時遊戲可能會卡頓約 0.5 秒。關閉後，尚未儲存的進度可能不會進入備份，建議保持開啟。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次備份：等待開始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次備份：等待目前作業結束</value></data>

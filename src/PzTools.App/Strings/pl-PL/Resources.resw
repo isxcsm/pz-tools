@@ -339,7 +339,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Przerwano tworzenie kopii, ponieważ nie udało się potwierdzić zapisu gry.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odliczanie zapisu w grze</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Na 5 sekund przed zapisem pokazuje odliczanie nad postacią, a potem wynik zapisu. Po wyłączeniu gra zapisuje bez tej informacji.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Na 5 sekund przed zapisem gry przez automatyczną kopię pokazuje odliczanie nad postacią, a potem wynik zapisu. Kopie uruchomione w aplikacji zapisują od razu, bez tej informacji. Po wyłączeniu automatyczne kopie też zapisują bez niej.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje grę tuż przed utworzeniem kopii, aby zawierała najnowsze postępy. Podczas zapisu gra może zaciąć się na około pół sekundy. Po wyłączeniu niezapisane jeszcze postępy mogą nie trafić do kopii, dlatego zalecamy pozostawienie tej opcji włączonej.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Następna kopia: oczekiwanie na start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Następna kopia: oczekiwanie na zakończenie bieżącej operacji</value></data>

@@ -21,7 +21,7 @@ The [overview](overview.md) shows where it sits.
 | Setting | Default | What it does |
 | --- | --- | --- |
 | **Save game before backup** | On | Asks the game to save before each backup. Off: only what is already on disk is backed up. |
-| **In-game save countdown** | On | Shows notices above your character: a countdown, then *saving*, then done or failed. For a manual backup it also adds a five-second countdown before saving. |
+| **In-game save countdown** | On | Before an automatic backup saves the game, shows notices above your character: a countdown, then *saving*, then done or failed. A backup started from the app saves at once, without notices. |
 
 Both apply from the next backup; one already running keeps the settings it started
 with. Neither affects game-state monitoring or the game extensions. The same choices
@@ -93,8 +93,8 @@ A few more rules:
   add up to a single frozen moment of the whole world, and they do not force data out
   of disk caches onto the hardware.
 - **Not to the second.** Paused frames, the time to attach and a busy disk can delay a
-  save beyond its deadline. Turning notices off removes the manual countdown but does
-  not make periodic backups run earlier.
+  save beyond its deadline. Turning notices off does not make periodic backups run
+  earlier.
 
 See [game-aware timing](runtime-pause-backups.md) for how periodic timing works and
 [character recovery](character-recovery.md) for the identity stamp written before saving.

@@ -189,7 +189,9 @@ internal static class BackupCli
             var gameSave = new BackupGameSave(Path.Combine(AppContext.BaseDirectory, "save-bridge"),
                 options.EffectiveTuning.GameConnectionTimeoutSeconds, options.EffectiveTuning.GameCompletionTimeoutSeconds,
                 options.EffectiveTuning.GameQueueTimeoutSeconds,
-                options.GameSaveCountdown
+                // In-game notices warn a player that the scheduler is about to save. A backup someone starts from
+                // the app is started by someone looking at the app: it saves at once, without notices or delay.
+                options.GameSaveCountdown && (request.RequireActiveGame || request.ScheduledUtc is not null)
                     ? LanguageCatalog.Get(options.NameLanguage).Tag : null, request.ScheduledUtc);
             var timing = new BackupTimingPreparation((path, token) => request.SaveGame && options.SaveGameBeforeBackup
                 ? gameSave.PrepareAsync(path, token) : Task.FromResult(new GameSaveResult("disabled")));

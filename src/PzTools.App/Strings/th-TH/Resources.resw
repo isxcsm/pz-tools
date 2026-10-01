@@ -346,7 +346,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>หยุดการสำรองเนื่องจากยืนยันการบันทึกเกมไม่ได้</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>นับถอยหลังการบันทึกในเกม</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อนบันทึก แล้วแสดงผลการบันทึก หากปิด เกมจะบันทึกโดยไม่แสดง</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อนที่การสำรองอัตโนมัติจะบันทึกเกม แล้วแสดงผลการบันทึก การสำรองที่เริ่มจากแอปจะบันทึกทันทีโดยไม่แสดง หากปิด การสำรองอัตโนมัติก็จะบันทึกโดยไม่แสดงเช่นกัน</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกเกมก่อนสำรองทันทีเพื่อให้รวมความคืบหน้าล่าสุด เกมอาจสะดุดประมาณครึ่งวินาทีขณะบันทึก หากปิด ความคืบหน้าที่ยังไม่ได้บันทึกอาจไม่อยู่ในข้อมูลสำรอง จึงแนะนำให้เปิดไว้</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอเริ่ม</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอให้งานปัจจุบันเสร็จ</value></data>

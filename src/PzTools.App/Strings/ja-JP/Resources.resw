@@ -339,7 +339,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>ゲームの保存を確認できなかったため、バックアップを停止しました。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>バックアップ前にゲームを保存</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>ゲーム内の保存カウントダウン</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>保存の 5 秒前からキャラクターの上にカウントダウンを表示し、終わると保存結果を知らせます。オフにすると表示なしで保存します。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自動バックアップがゲームを保存する 5 秒前からキャラクターの上にカウントダウンを表示し、終わると保存結果を知らせます。アプリから開始したバックアップは表示なしですぐに保存します。オフにすると自動バックアップも表示なしで保存します。</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>バックアップの直前にゲームを保存し、最新の進行状況まで含めます。保存中にゲームが 0.5 秒ほど止まることがあります。オフにすると未保存の進行状況がバックアップに含まれないことがあるため、オンのままにすることをおすすめします。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>次回のバックアップ：開始待ち</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>次回のバックアップ：現在の作業の完了待ち</value></data>

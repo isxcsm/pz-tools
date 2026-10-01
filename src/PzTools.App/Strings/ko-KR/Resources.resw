@@ -346,7 +346,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>게임 저장을 확인하지 못해 백업을 중단했습니다.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>백업 전 게임 저장</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>저장 전 카운트다운</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>저장 5초 전부터 캐릭터 위에 카운트다운을 띄우고, 끝나면 저장 결과를 알려 줍니다. 끄면 표시 없이 저장합니다.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>자동 백업이 게임을 저장하기 5초 전부터 캐릭터 위에 카운트다운을 띄우고, 끝나면 저장 결과를 알려 줍니다. 앱에서 시작한 백업은 표시 없이 바로 저장합니다. 끄면 자동 백업도 표시 없이 저장합니다.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>백업 직전에 게임을 저장해 최신 진행 상황까지 담습니다. 저장하는 동안 게임이 0.5초쯤 멈칫할 수 있습니다. 끄면 아직 저장되지 않은 진행 상황이 백업에서 빠질 수 있어 켜 두기를 권장합니다.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>다음 백업: 시작 대기 중</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>다음 백업: 현재 작업 종료 대기</value></data>

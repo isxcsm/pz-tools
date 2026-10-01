@@ -346,7 +346,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Backup stopped because the game save could not be confirmed.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Save game before backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>In-game save countdown</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Shows a countdown above your character from 5 seconds before saving, then the result. When off, the game saves without it.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Before an automatic backup saves the game, shows a countdown above your character from 5 seconds before, then the result. Backups you start in the app save at once, without it. When off, automatic backups also save without it.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Saves the game right before a backup so it includes your latest progress. The game may hitch for about half a second while saving. When off, progress not yet saved can be missing from the backup, so leaving this on is recommended.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Next backup: waiting to start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Next backup: waiting for the current operation</value></data>

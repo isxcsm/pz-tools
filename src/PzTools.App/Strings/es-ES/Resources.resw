@@ -339,7 +339,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Se ha detenido la copia porque no se ha podido confirmar el guardado del juego.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Guardar el juego antes de la copia</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Cuenta atrás dentro del juego</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Muestra una cuenta atrás sobre tu personaje desde 5 segundos antes de guardar y después el resultado. Si está desactivado, el juego guarda sin mostrarla.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Muestra una cuenta atrás sobre tu personaje desde 5 segundos antes de que una copia automática guarde la partida y después el resultado. Las copias que inicias en la aplicación guardan al momento, sin mostrarla. Si está desactivado, las copias automáticas también guardan sin mostrarla.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Guarda el juego justo antes de una copia para incluir tu progreso más reciente. El juego puede detenerse alrededor de medio segundo mientras guarda. Si está desactivado, el progreso aún no guardado puede faltar en la copia, por lo que se recomienda dejarlo activado.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próxima copia: esperando para iniciar</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próxima copia: esperando a que termine la operación actual</value></data>

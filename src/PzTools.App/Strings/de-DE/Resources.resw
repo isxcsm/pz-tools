@@ -339,7 +339,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Die Sicherung wurde gestoppt, weil die Spielspeicherung nicht bestätigt werden konnte.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Speicher-Countdown im Spiel</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zeigt ab 5 Sekunden vor dem Speichern einen Countdown über deinem Charakter und danach das Ergebnis. Wenn aus, speichert das Spiel ohne Anzeige.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zeigt ab 5 Sekunden, bevor eine automatische Sicherung das Spiel speichert, einen Countdown über deinem Charakter und danach das Ergebnis. In der App gestartete Sicherungen speichern sofort, ohne Anzeige. Wenn aus, speichern auch automatische Sicherungen ohne Anzeige.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Speichert das Spiel direkt vor einer Sicherung, damit sie den neuesten Fortschritt enthält. Beim Speichern kann das Spiel etwa eine halbe Sekunde stocken. Wenn aus, kann noch nicht gespeicherter Fortschritt in der Sicherung fehlen; daher wird empfohlen, dies eingeschaltet zu lassen.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Nächste Sicherung: wartet auf Start</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Nächste Sicherung: wartet auf laufenden Vorgang</value></data>

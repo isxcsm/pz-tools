@@ -17,9 +17,10 @@ format_version = 1
 save_game_before_backup = true
 
 # With pre-backup game saving enabled, show a five-second overhead countdown before
-# saving, then a game-save completion message. Off skips both the messages and the
-# five-second delay, but still saves the game. Applies to the next backup; the app
-# setting takes precedence. Does not announce completion of backup file collection.
+# an automatic backup saves the game, then a game-save completion message. A backup
+# started from the app saves at once, without messages. Off skips the messages but
+# still saves the game. Applies to the next backup; the app setting takes precedence.
+# Does not announce completion of backup file collection.
 game_save_countdown = true
 
 # Always check these files during every backup, even if their timestamps look

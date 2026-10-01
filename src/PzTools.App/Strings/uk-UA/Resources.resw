@@ -339,7 +339,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Копіювання зупинено: збереження гри не вдалося підтвердити.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Зберігати гру перед копіюванням</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Зворотний відлік у грі</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>За 5 секунд до збереження показує над персонажем зворотний відлік, а потім результат. Якщо вимкнути, гра зберігається без нього.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>За 5 секунд до того, як автоматична копія збереже гру, показує над персонажем зворотний відлік, а потім результат. Копії, запущені в застосунку, зберігаються одразу без нього. Якщо вимкнути, автоматичні копії теж зберігаються без нього.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Зберігає гру безпосередньо перед копіюванням, щоб до копії потрапив останній прогрес. Під час збереження гра може завмерти приблизно на пів секунди. Якщо вимкнути, незбережений прогрес може не потрапити до копії, тому радимо залишити ввімкненим.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Наступна копія: очікування запуску</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Наступна копія: очікування завершення поточної операції</value></data>

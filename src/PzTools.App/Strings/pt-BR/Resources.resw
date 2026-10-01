@@ -339,7 +339,7 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>O backup foi interrompido porque não foi possível confirmar o salvamento do jogo.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Salvar o jogo antes do backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Contagem regressiva no jogo</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra uma contagem regressiva acima do personagem a partir de 5 segundos antes de salvar e depois o resultado. Desativado, o jogo salva sem exibi-la.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Antes de um backup automático salvar o jogo, mostra uma contagem regressiva acima do personagem a partir de 5 segundos antes e depois o resultado. Backups iniciados no app salvam na hora, sem ela. Desativado, os backups automáticos também salvam sem exibi-la.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Salva o jogo logo antes de um backup para incluir seu progresso mais recente. O jogo pode travar por cerca de meio segundo ao salvar. Desativado, o progresso ainda não salvo pode ficar fora do backup; por isso, recomenda-se manter ativado.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próximo backup: aguardando início</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próximo backup: aguardando a conclusão da operação atual</value></data>

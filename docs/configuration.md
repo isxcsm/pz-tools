@@ -124,9 +124,11 @@ gets the engine's fallback values instead: `raw` mode, 1,000 runs and 256 MiB. R
 `save_game_before_backup` asks the game to save before files are captured, when the
 game integration is used. Turned off, only data already on disk is backed up.
 
-`game_save_countdown` controls the in-game notices. Turned off, it skips the notices
-and the manual backup's five-second delay, but the game is still asked to save.
-Periodic backups keep their scheduled deadline either way.
+`game_save_countdown` controls the in-game notices before an automatic backup saves the
+game: a countdown, then the result. Automatic backups keep their scheduled deadline
+either way. A backup started from the app shows no notices and saves at once: whoever
+started it is looking at the app, not the game. Turned off, the game is still asked
+to save.
 
 Changes apply from the next backup. The app's own switches for both settings take
 priority; see [save bridge](save-bridge.md#settings).

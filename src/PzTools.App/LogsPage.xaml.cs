@@ -375,6 +375,8 @@ public sealed partial class LogsPage : UserControl
                 || componentCategory != "All");
         LoadingLogs.Visibility = state.Kind == LogListPlaceholder.Loading
             ? Visibility.Visible : Visibility.Collapsed;
+        // Animates only while shown: a hidden indeterminate bar would keep the compositor busy.
+        LoadingLogsProgress.IsIndeterminate = state.Kind == LogListPlaceholder.Loading;
         EmptyLogs.Visibility = state.Kind is LogListPlaceholder.None or LogListPlaceholder.Loading
             ? Visibility.Collapsed : Visibility.Visible;
         ShowAllLogsButton.Visibility = state.ShowAllLogs ? Visibility.Visible : Visibility.Collapsed;
