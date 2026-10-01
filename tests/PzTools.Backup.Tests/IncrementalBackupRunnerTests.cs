@@ -198,6 +198,50 @@ public sealed class IncrementalBackupRunnerTests
         Assert.Equal([9, 9, 9], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_1.bin")));
     }
 
+    [FatVolumeFact]
+    public async Task FullScanOnFat_BacksUpAndCapturesASameSizeRewriteWithItsOldTimeRestored()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = Path.Combine(Environment.GetEnvironmentVariable("PZTOOLS_TEST_FAT_DIR")!, "pz-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sourcePath);
+        try
+        {
+            var path = Path.Combine(sourcePath, "map_1_1.bin");
+            await File.WriteAllBytesAsync(path, [1, 2, 3]);
+            Assert.False(LocalVolume.IsLocalNtfs(sourcePath), "PZTOOLS_TEST_FAT_DIR must not be on NTFS.");
+            // FAT32 refuses the newer file-ID query; reading metadata must still work.
+            Assert.Equal(FileIdentityCodec.EncodedLength, FileIdentityCodec.Encode(new WindowsFileMetadataReader().ReadPath(path).Identity).Length);
+            await using var setup = await CreateInitialAsync(temp, sourcePath);
+            await MoveLatestRevisionRunStartAsync(setup.Repository, TimeSpan.FromMinutes(5));
+            var written = File.GetLastWriteTimeUtc(path);
+            await File.WriteAllBytesAsync(path, [9, 9, 9]);
+            File.SetLastWriteTimeUtc(path, written); // FAT keeps no change time: only the content differs.
+            var runner = CreateIncrementalRunner(new WindowsFileMetadataReader(), new UnavailableJournal());
+
+            var result = await runner.RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry);
+
+            Assert.Equal(2, result.Revision);
+            var restore = temp.GetPath("restore");
+            await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, revision: 2, restore);
+            Assert.Equal([9, 9, 9], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_1.bin")));
+        }
+        finally
+        {
+            Directory.Delete(sourcePath, recursive: true);
+        }
+    }
+
+    private sealed class FatVolumeFactAttribute : FactAttribute
+    {
+        public FatVolumeFactAttribute()
+        {
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PZTOOLS_TEST_FAT_DIR")))
+            {
+                Skip = "Set PZTOOLS_TEST_FAT_DIR to a folder on a FAT32 or exFAT drive.";
+            }
+        }
+    }
+
     private static async Task MoveLatestRevisionRunStartAsync(RepositoryDatabase repository, TimeSpan later)
     {
         await using var connection = await repository.OpenConnectionAsync();

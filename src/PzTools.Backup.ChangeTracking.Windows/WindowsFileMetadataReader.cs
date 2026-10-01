@@ -36,15 +36,7 @@ public sealed class WindowsFileMetadataReader : IConcurrentFileMetadataReader
             throw new ArgumentException("File handle is not open.", nameof(handle));
         }
 
-        if (!NativeMethods.GetFileInformationByHandleEx(
-            handle,
-            FileInfoByHandleClass.FileIdInfo,
-            out FileIdInfo id,
-            (uint)Marshal.SizeOf<FileIdInfo>()))
-        {
-            throw new Win32Exception(Marshal.GetLastWin32Error());
-        }
-
+        var identity = ReadIdentity(handle);
         if (!NativeMethods.GetFileInformationByHandleEx(
             handle,
             FileInfoByHandleClass.FileBasicInfo,
@@ -63,8 +55,6 @@ public sealed class WindowsFileMetadataReader : IConcurrentFileMetadataReader
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
-        var identity = FormattableString.Invariant(
-            $"{id.VolumeSerialNumber:X16}:{id.FileId.HighPart:X16}{id.FileId.LowPart:X16}");
         return new FileCaptureMetadata(
             identity,
             standard.EndOfFile,
@@ -73,6 +63,39 @@ public sealed class WindowsFileMetadataReader : IConcurrentFileMetadataReader
             (FileAttributes)basic.FileAttributes,
             Usn: null);
     }
+
+    // FAT32 refuses FileIdInfo with ERROR_INVALID_PARAMETER (measured on a USB stick). Its 64-bit file
+    // index, from the older call, takes the same identity format. FAT keeps no change time: it reads as zero.
+    private static string ReadIdentity(SafeFileHandle handle)
+    {
+        if (NativeMethods.GetFileInformationByHandleEx(
+            handle,
+            FileInfoByHandleClass.FileIdInfo,
+            out FileIdInfo id,
+            (uint)Marshal.SizeOf<FileIdInfo>()))
+        {
+            return FormattableString.Invariant(
+                $"{id.VolumeSerialNumber:X16}:{id.FileId.HighPart:X16}{id.FileId.LowPart:X16}");
+        }
+
+        var error = Marshal.GetLastWin32Error();
+        if (error is not (ErrorInvalidFunction or ErrorNotSupported or ErrorInvalidParameter))
+        {
+            throw new Win32Exception(error);
+        }
+
+        if (!NativeMethods.GetFileInformationByHandle(handle, out var legacy))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        return FormattableString.Invariant(
+            $"{(ulong)legacy.VolumeSerialNumber:X16}:{0UL:X16}{legacy.FileIndexHigh:X8}{legacy.FileIndexLow:X8}");
+    }
+
+    private const int ErrorInvalidFunction = 1;
+    private const int ErrorNotSupported = 50;
+    private const int ErrorInvalidParameter = 87;
 
     private static DateTimeOffset FromFileTime(long value) =>
         new(DateTime.FromFileTimeUtc(value));
@@ -107,6 +130,21 @@ public sealed class WindowsFileMetadataReader : IConcurrentFileMetadataReader
         public long ChangeTime;
         public uint FileAttributes;
         public uint Reserved;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    private struct ByHandleFileInformation
+    {
+        public uint FileAttributes;
+        public long CreationTime;
+        public long LastAccessTime;
+        public long LastWriteTime;
+        public uint VolumeSerialNumber;
+        public uint FileSizeHigh;
+        public uint FileSizeLow;
+        public uint NumberOfLinks;
+        public uint FileIndexHigh;
+        public uint FileIndexLow;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -159,5 +197,11 @@ public sealed class WindowsFileMetadataReader : IConcurrentFileMetadataReader
             FileInfoByHandleClass fileInformationClass,
             out FileStandardInfo fileInformation,
             uint bufferSize);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetFileInformationByHandle(
+            SafeFileHandle fileHandle,
+            out ByHandleFileInformation fileInformation);
     }
 }

@@ -25,6 +25,12 @@ therefore captured every time (`always_include`), and the backup asks the game t
 first. Whether the game keeps any other save file open between saves has not been
 observed.
 
+Drives formatted FAT32 or exFAT, such as most USB sticks, have no journal, so every
+backup of a save there is a full scan with content comparison. FAT32 also refuses the
+128-bit file-ID query; the file-information reader then uses the older 64-bit file
+index in the same identity format. FAT32 keeps no change time, steps last-write times
+in two seconds, and does not move them for a write that is still being buffered.
+
 The checkpoint is the triple `(volume serial, journal ID, next USN)`. All three are
 checked against the volume before reading.
 
@@ -59,3 +65,6 @@ hard-link path belonging to a file reference stays tracked.
 - The live volume-query and bounded-read tests run only with `PZTOOLS_TEST_USN=1`.
   Without it they report as skipped.
 - The range test also checks file references against `FILE_ID_INFO`.
+- The FAT test runs only when `PZTOOLS_TEST_FAT_DIR` names a folder on a FAT32 or exFAT
+  drive. It backs up a file there and checks that a same-size rewrite with its old time
+  restored is still captured.
