@@ -2141,9 +2141,13 @@ public sealed partial class MainWindowShell : UserControl
         try
         {
             if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
-            if (detailLoading || OtherOperationRunning() || App.Host != host || !current.CanHeal
-                || !ReferenceEquals(SaveList.SelectedItem, save)
-                || save.Activity != ActivityState.Inactive || !save.IsFresh) return;
+            // Not current.CanHeal: the lock taken above for the dialog has already turned it off. What it
+            // stands for is checked again instead, and a refusal is reported rather than doing nothing.
+            if (App.Host != host || !ReferenceEquals(SaveList.SelectedItem, save) || !current.IsCurrent) return;
+            if (detailLoading || OtherOperationRunning() || !save.IsFresh || save.Activity != ActivityState.Inactive
+                || projectorHealth?.IsFaulted("state") == true || projectorHealth?.IsFaulted("backup") == true)
+                throw new InvalidOperationException(Localizer.Get(save.Activity == ActivityState.Active
+                    ? "StopPlayingToHeal" : "OperationBusy"));
             var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(root, save.SaveId, operationId: id));
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
