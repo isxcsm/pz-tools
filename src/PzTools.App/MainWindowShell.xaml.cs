@@ -1042,7 +1042,8 @@ public sealed partial class MainWindowShell : UserControl
         detail.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         detail.Children.Add(phase);
         detail.Children.Add(amount);
-        // When finished: why, in at most two lines; the full text stays one hover away.
+        // When finished: why. Failures and warnings in full; anything else in at most two lines, the full
+        // text one hover away (see where the text is set).
         var message = new TextBlock
         {
             Style = secondary, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis,
@@ -1195,7 +1196,11 @@ public sealed partial class MainWindowShell : UserControl
         elements.Message.Text = message;
         // A plain success says everything in its title and icon; the card is one line.
         elements.Message.Visibility = message.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        AppToolTip.SetTip(elements.Message, message.Length == 0 ? null : message);
+        // A failure or warning is what the user must read, and rarely more than one shows: it is shown
+        // whole, without a hover. Other outcomes keep to two lines with the full text one hover away.
+        var whole = !running && operation.Status is OperationStatus.Failed or OperationStatus.Degraded;
+        elements.Message.MaxLines = whole ? 0 : 2;
+        AppToolTip.SetTip(elements.Message, message.Length == 0 || whole ? null : message);
     }
 
     private static string ProgressPhaseText(string? phase, bool backup) => phase switch
