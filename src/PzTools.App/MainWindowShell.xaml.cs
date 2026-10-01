@@ -115,7 +115,7 @@ public sealed partial class MainWindowShell : UserControl
         ApplyLocalizedText();
         countdownTimer = DispatcherQueue.CreateTimer();
         countdownTimer.Interval = TimeSpan.FromSeconds(1);
-        countdownTimer.Tick += (_, _) => UpdateCountdown();
+        countdownTimer.Tick += (_, _) => UpdateCountdown(tick: true);
         detailProgressDelayTimer = DispatcherQueue.CreateTimer();
         detailProgressDelayTimer.Interval = TimeSpan.FromMilliseconds(runtime.DetailProgressDelayMs);
         detailProgressDelayTimer.IsRepeating = false;
@@ -1450,7 +1450,7 @@ public sealed partial class MainWindowShell : UserControl
     }
     private readonly CountdownDisplayStabilizer countdownStabilizer = new();
 
-    private void UpdateCountdown()
+    private void UpdateCountdown(bool tick = false)
     {
         var now = DateTimeOffset.UtcNow;
         var display = countdownStabilizer.Apply(ScheduleCountdownPresentation.Resolve(schedule, now,
@@ -1462,7 +1462,7 @@ public sealed partial class MainWindowShell : UserControl
             ? Localizer.Format("BackupTimeRemainingFormat", $"{seconds / 60:00}:{seconds % 60:00}") : "");
         var remainingVisibility = display.RemainingSeconds is null ? Visibility.Collapsed : Visibility.Visible;
         if (NextBackupRemainingText.Visibility != remainingVisibility) NextBackupRemainingText.Visibility = remainingVisibility;
-        UpdateCountdownPulse(display.Suspended, display.RemainingSeconds is not null);
+        UpdateCountdownPulse(display.Suspended, display.RemainingSeconds is not null, tick);
 
         static void SetText(TextBlock block, string value)
         {
