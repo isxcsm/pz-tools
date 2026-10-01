@@ -43,7 +43,7 @@ public sealed partial class SettingsPage : UserControl
     {
         // 작은 창에서는 SettingsCard의 기본 세로 배치를 사용하되 입력 영역도 넘치지 않게 합니다.
         var available = Math.Max(160, e.NewSize.Width - 72);
-        SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(420, available);
+        SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(500, available);
         IntervalEditor.Width = RetentionEditor.Width = Math.Min(340, available);
     }
 
@@ -76,6 +76,7 @@ public sealed partial class SettingsPage : UserControl
         BackupPathSettingCard.Header = Localizer.Get("BackupPathSetting.Header");
         SavesBrowseButton.Content = Localizer.Get("Browse.Content");
         BackupBrowseButton.Content = Localizer.Get("Browse.Content");
+        SavesOpenButton.Content = BackupOpenButton.Content = Localizer.Get("AdvancedFiles.OpenFolder");
         BackupSection.Header = Localizer.Get("AutomaticBackupSettings.Header");
         BackupSection.Description = Localizer.Get("AutomaticBackupSection.Description");
         AutomaticBackupSettingCard.Header = Localizer.Get("AutomaticBackupSetting.Header");
@@ -234,6 +235,32 @@ public sealed partial class SettingsPage : UserControl
         finally
         {
             button.IsEnabled = true;
+        }
+    }
+
+    // Opens the folder the box shows, applied or not. A missing folder is reported, not created:
+    // the path may be a typo.
+    private void OpenPathFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = ((sender as Button)?.Tag?.ToString() == "saves" ? SavesPath : BackupPath).Text.Trim();
+        try
+        {
+            if (folder.Length == 0 || !Directory.Exists(folder))
+            {
+                App.ShowSidebarNotification(InfoBarSeverity.Warning,
+                    Localizer.Get("PathSettings.Header"), Localizer.Get("OperationError.FileMissing"));
+                return;
+            }
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
+            {
+                Arguments = $"\"{Path.GetFullPath(folder)}\"",
+                UseShellExecute = false,
+            })?.Dispose();
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error,
+                Localizer.Get("PathSettings.Header"), UserFacingError.FromException(exception));
         }
     }
 
