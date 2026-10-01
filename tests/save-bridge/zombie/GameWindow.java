@@ -109,6 +109,12 @@ public final class GameWindow {
                 zombie.characters.IsoPlayer.inspectHalo(staged);
                 Files.move(staged, Path.of(args[0], "halo-state.txt"), StandardCopyOption.REPLACE_EXISTING);
             }
+            if (consumeSignal(Path.of(args[0], "inspect-stamp"))) {
+                var data = zombie.characters.IsoPlayer.getInstance().getModData();
+                Path staged = Path.of(args[0], "stamp-state.tmp");
+                Files.writeString(staged, data.rawget("pztools.recovery.id") + "\n" + data.rawget("pztools.recovery.primary"));
+                Files.move(staged, Path.of(args[0], "stamp-state.txt"), StandardCopyOption.REPLACE_EXISTING);
+            }
             if (consumeSignal(Path.of(args[0], "inspect-control"))) {
                 String endpoint = System.getProperty("pztools.bridge.control.v1", "");
                 Path staged = Path.of(args[0], "control-state.tmp");

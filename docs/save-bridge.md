@@ -97,7 +97,8 @@ A few more rules:
   earlier.
 
 See [game-aware timing](runtime-pause-backups.md) for how periodic timing works and
-[character recovery](character-recovery.md) for the identity stamp written before saving.
+[character recovery](character-recovery.md) for the identity stamp, written while the
+game is watched and again before saving.
 
 ## How it works inside
 

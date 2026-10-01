@@ -72,8 +72,9 @@ Three kinds of evidence are used, strongest first:
    the game fits to the shorter list of zombie skins (a woman's human skin 4 becomes
    zombie skin 3).
 
-A character who dies before their first backup was never stamped with a recovery ID,
-however new the save, so their remains are found by rules 2 and 3.
+A character who died while PZ Tools was not connected to the game (before it was
+installed, or with versions up to v0.1.0, which stamped only at a backup) has no
+recovery ID, so their remains are found by rules 2 and 3.
 
 A zombie is never chosen just because it is nearby. If no remains can be identified,
 recovery stops with `recovery-inventory-unavailable` and the save is not changed.
@@ -132,8 +133,7 @@ Map files are parsed by their structure, not searched for isolated byte patterns
 ### The identity stamp on future saves
 
 To make later recoveries reliable, the [save bridge](save-bridge.md) writes three
-reserved keys into the player's modData immediately before the game's own
-`GameWindow.save(true)` call on the game thread:
+reserved keys into the player's modData on the game thread:
 
 | Key | Holds |
 | --- | --- |
@@ -141,17 +141,29 @@ reserved keys into the player's modData immediately before the game's own
 | `pztools.recovery.primary` | The instance ID of the item in the primary hand |
 | `pztools.recovery.secondary` | The instance ID of the item in the secondary hand |
 
+They are written at two moments:
+
+- **While the game is being watched.** The runtime observer, which already reads the
+  character each frame for the game-link status, checks every two seconds whether the
+  living player has an ID and writes one if not. A new character therefore has an ID
+  within seconds, long before a death is likely, and no save is needed: the game
+  copies the player's modData to the corpse and the zombie in memory. Hand items are
+  not written here.
+- **Immediately before a backup's `GameWindow.save(true)`.** The ID is kept (or created)
+  and the hand items are recorded, as they are at that save.
+
 The hand keys store item instance IDs, not item types or ordinals. The game carries
 modData over when a player becomes a corpse or a zombie, which is what lets the ID
 find the remains later. When there is no player, or the player is dead, nothing is
-written, so no new identity is created.
+written, so no new identity is created; an existing ID is never replaced.
 
-The stamp is optional metadata; the save itself is still required. If reflection or
-stamping fails, the bridge result reports `recovery-metadata-unavailable`, but
-`save(true)` still runs and backup capture still waits for it to finish. Probe-only
-requests do not stamp. The stamp adds no timer, game-loop hook or thread, and no
-repeated JVM retransformation. Saves that were never stamped keep using the stricter
-rules for older remains described above.
+The stamp is optional metadata. If the observer's write fails, only the ID is missing.
+If stamping before a save fails, the bridge result reports
+`recovery-metadata-unavailable`, but `save(true)` still runs and backup capture still
+waits for it to finish. Probe-only requests do not stamp. The stamp adds no timer,
+thread or JVM retransformation of its own; the observer's check is one clock comparison
+per frame. Characters that were never stamped keep using the stricter rules for older
+remains described above.
 
 ### Writing the changes
 
