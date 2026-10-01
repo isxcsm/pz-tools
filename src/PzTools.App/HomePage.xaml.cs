@@ -86,38 +86,57 @@ public sealed partial class HomePage : UserControl
     {
         status = value;
 
-        GameStatusValue.Text = Localizer.Get(value.Game switch
+        Set(GameStatusValue, Localizer.Get(value.Game switch
         {
             HomeGameState.Playing => "Home.GamePlaying",
             HomeGameState.NotPlaying => "Home.GameNotPlaying",
             _ => "Home.GameChecking",
-        });
-        GameLiveDot.Visibility = value.Game == HomeGameState.Playing ? Visibility.Visible : Visibility.Collapsed;
+        }));
+        Show(GameLiveDot, value.Game == HomeGameState.Playing);
         Detail(GameStatusDetail, value.AutomaticBackupOff ? Localizer.Get("AutomaticBackupOff") : "");
 
-        SaveStatusValue.Text = !value.SavesKnown ? Localizer.Get("Home.SaveChecking")
-            : value.SaveName ?? Localizer.Get("Home.NoSave");
+        Set(SaveStatusValue, !value.SavesKnown ? Localizer.Get("Home.SaveChecking")
+            : value.SaveName ?? Localizer.Get("Home.NoSave"));
         var known = value.SavesKnown && value.SaveName is not null;
         Detail(SaveStatusDetail, known && value.LastBackupUtc is { } last ? Localizer.Format("Home.LastBackup", Ago(last)) : "");
         Detail(SaveStatusWarning, known && value.LastBackupUtc is null ? Localizer.Get("Home.NoBackup") : "");
 
-        ExtensionStatusValue.Text = Localizer.Get(!value.ExtensionsKnown ? "Home.ExtensionChecking"
+        Set(ExtensionStatusValue, Localizer.Get(!value.ExtensionsKnown ? "Home.ExtensionChecking"
             : value.VehicleWaiting ? "Home.VehicleWaiting"
-            : value.VehicleEnabled ? "Home.VehicleOn" : "Home.VehicleOff");
+            : value.VehicleEnabled ? "Home.VehicleOn" : "Home.VehicleOff"));
         Detail(ExtensionStatusDetail, value.ExtensionsKnown && value.VehicleEnabled
             ? Localizer.Format("Home.ExtensionFeatures", value.VehicleFeatures) : "");
         Detail(ExtensionStatusWarning, value.ExtensionsKnown && value.VehicleWaiting ? Localizer.Get("Home.ExtensionUnsupported") : "");
 
-        AutomationProperties.SetName(GameStatusButton, Join(GameStatusValue.Text, GameStatusDetail.Text));
-        AutomationProperties.SetName(SaveStatusButton, Join(SaveStatusValue.Text, SaveStatusDetail.Text, SaveStatusWarning.Text));
-        AutomationProperties.SetName(ExtensionStatusButton, Join(ExtensionStatusValue.Text, ExtensionStatusDetail.Text, ExtensionStatusWarning.Text));
+        SetAutomationName(GameStatusButton, Join(GameStatusValue.Text, GameStatusDetail.Text));
+        SetAutomationName(SaveStatusButton, Join(SaveStatusValue.Text, SaveStatusDetail.Text, SaveStatusWarning.Text));
+        SetAutomationName(ExtensionStatusButton, Join(ExtensionStatusValue.Text, ExtensionStatusDetail.Text, ExtensionStatusWarning.Text));
     }
 
     /// <summary>The part after the value, as "· text"; hidden when there is nothing to add.</summary>
     private static void Detail(TextBlock block, string text)
     {
-        block.Text = text.Length > 0 ? "· " + KeepWords(text) : "";
-        block.Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        Set(block, text.Length > 0 ? "· " + KeepWords(text) : "");
+        Show(block, text.Length > 0);
+    }
+
+    // Only what changed is assigned. This runs every 30 seconds for "N minutes ago", and an assignment,
+    // even of the same text, makes the window draw again (also minimised or in the tray).
+    private static void Set(TextBlock block, string text)
+    {
+        if (!string.Equals(block.Text, text, StringComparison.Ordinal)) block.Text = text;
+    }
+
+    private static void Show(UIElement element, bool visible)
+    {
+        var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (element.Visibility != visibility) element.Visibility = visibility;
+    }
+
+    private static void SetAutomationName(UIElement element, string name)
+    {
+        if (!string.Equals(AutomationProperties.GetName(element), name, StringComparison.Ordinal))
+            AutomationProperties.SetName(element, name);
     }
 
     private static string Join(params string[] parts) =>

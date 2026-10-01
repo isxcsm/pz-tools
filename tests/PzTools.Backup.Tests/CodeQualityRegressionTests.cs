@@ -170,7 +170,7 @@ public sealed class CodeQualityRegressionTests
             catalog.Register(source);
             var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
             var cleanup = new OperationTelemetryCleanup(root);
-            var projection = new TelemetryProjectionHost(catalog, new(), logInbox: inbox, retireSource: cleanup.TryRemove);
+            using var projection = new TelemetryProjectionHost(catalog, new(), logInbox: inbox, retireSource: cleanup.TryRemove);
             await projection.ProjectOnceAsync();
             Assert.True(Directory.Exists(identity));
             Assert.DoesNotContain(id, await inbox.ReadImportedSourcesAsync());

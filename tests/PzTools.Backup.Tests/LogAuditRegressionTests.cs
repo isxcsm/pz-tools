@@ -18,7 +18,7 @@ public sealed class LogAuditRegressionTests
             TelemetryDatabaseKind.Process, true, LogsOnly: true));
         var views = new RevisionedViewStore();
         var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
-        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        using var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
         await projector.ProjectOnceAsync(DateTimeOffset.UtcNow);
         var page = await inbox.ReadPageAsync(new(LogLevel.Warning, "Backup", "42", 0));
         var failure = Assert.Single(page.Entries);
@@ -45,7 +45,7 @@ public sealed class LogAuditRegressionTests
             TelemetryDatabaseKind.Process, true,
             hasWorkflow ? new WorkflowOperation("export", "export", 1, OperationStatus.Running, now) : null));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views, initialReadGrace: TimeSpan.FromSeconds(2));
+        using var projector = new TelemetryProjectionHost(catalog, views, initialReadGrace: TimeSpan.FromSeconds(2));
         await projector.ProjectOnceAsync(now);
         Assert.Equal(TelemetryHealth.Waiting, Health(views));
         Assert.Empty(Logs(views));
@@ -74,7 +74,7 @@ public sealed class LogAuditRegressionTests
             TelemetryDatabaseKind.Process, true,
             new WorkflowOperation("restore", "restore", 1, OperationStatus.Running, now)));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
         await projector.ProjectOnceAsync(now);
         Assert.Equal(TelemetryHealth.Waiting, Health(views));
         store = await ProcessTelemetryStore.CreateForIdentityAsync(temp.Path, "restore-worker");
@@ -101,7 +101,7 @@ public sealed class LogAuditRegressionTests
         catalog.Register(new("a-bad", "fixture", temp.GetPath("bad"), bad.DatabasePath, TelemetryDatabaseKind.Process, true));
         catalog.Register(new("z-good", "fixture", temp.GetPath("good"), good.DatabasePath, TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
         await projector.ProjectOnceAsync();
         var health = views.ReadIfChanged<TelemetrySourcesView>(ViewKey.TelemetrySources, 0).Snapshot!.Sources;
         Assert.Equal(TelemetryHealth.Unreadable, health.Single(x => x.SourceId == "a-bad").Health);
@@ -121,7 +121,7 @@ public sealed class LogAuditRegressionTests
         var catalog = new TelemetrySourceCatalog();
         catalog.Register(new("source", "fixture", temp.Path, store.DatabasePath, TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
         await projector.ProjectOnceAsync(now);
         Assert.Equal(TelemetryHealth.Healthy, Health(views));
         await ExecuteAsync(store.DatabasePath, "DELETE FROM process_telemetry_info;");
@@ -147,7 +147,7 @@ public sealed class LogAuditRegressionTests
         var catalog = new TelemetrySourceCatalog();
         catalog.Register(new("source", "fixture", temp.Path, store.DatabasePath, TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        await new TelemetryProjectionHost(catalog, views).ProjectOnceAsync();
+        await new TelemetryProjectionHost(catalog, views).ProjectOnceThenCloseAsync();
         Assert.Equal(level, Assert.Single(Logs(views)).Level);
         Assert.Equal(status, Assert.Single(views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations).Status);
     }

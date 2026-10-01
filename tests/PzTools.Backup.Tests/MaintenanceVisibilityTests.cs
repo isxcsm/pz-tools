@@ -11,7 +11,7 @@ public sealed class MaintenanceVisibilityTests
     public async Task AnnouncedCleanup_IsShownFromStartToFinish_AndLoggedAsInformation()
     {
         using var temp = new TempDirectory();
-        var fixture = await Fixture.CreateAsync(temp, Lane);
+        using var fixture = await Fixture.CreateAsync(temp, Lane);
         await fixture.Store.RecordAsync(Lane, 5, "maintenance.revisionreclamation.started",
             """{"lane":"RevisionReclamation","planned":true}""");
         await fixture.Store.RecordAsync(Lane, 5, "operation.heartbeat");
@@ -33,7 +33,7 @@ public sealed class MaintenanceVisibilityTests
     public async Task RoutineCheckWithNothingToDo_HasNoCardAndNoInformationLog()
     {
         using var temp = new TempDirectory();
-        var fixture = await Fixture.CreateAsync(temp, "maintenance-lane-ArtifactCleanup");
+        using var fixture = await Fixture.CreateAsync(temp, "maintenance-lane-ArtifactCleanup");
         await fixture.Store.RecordAsync("maintenance-lane-ArtifactCleanup", 6, "maintenance.artifactcleanup.started",
             """{"lane":"ArtifactCleanup","planned":false}""");
         Assert.Empty(await fixture.ProjectAsync()); // Not running long enough to matter yet.
@@ -48,7 +48,7 @@ public sealed class MaintenanceVisibilityTests
     public async Task UnannouncedCleanupThatDidWork_IsLoggedWithoutAPopUpCard()
     {
         using var temp = new TempDirectory();
-        var fixture = await Fixture.CreateAsync(temp, "maintenance-lane-ArtifactCleanup");
+        using var fixture = await Fixture.CreateAsync(temp, "maintenance-lane-ArtifactCleanup");
         await fixture.Store.RecordAsync("maintenance-lane-ArtifactCleanup", 7, "maintenance.artifactcleanup.completed",
             """{"outcome":"Succeeded","planned":false,"AffectedItems":3}""");
 
@@ -60,7 +60,7 @@ public sealed class MaintenanceVisibilityTests
     public async Task CleanupThatYields_IsPostponedNotFailed()
     {
         using var temp = new TempDirectory();
-        var fixture = await Fixture.CreateAsync(temp, Lane);
+        using var fixture = await Fixture.CreateAsync(temp, Lane);
         await fixture.Store.RecordAsync(Lane, 8, "maintenance.revisionreclamation.started", """{"planned":true}""");
         Assert.Single(await fixture.ProjectAsync());
         await fixture.Store.RecordAsync(Lane, 8, "maintenance.revisionreclamation.cancelled", """{"status":"Cancelled"}""");
@@ -73,7 +73,7 @@ public sealed class MaintenanceVisibilityTests
     public async Task FailedCleanup_IsShownEvenIfItWasNeverVisiblyRunning()
     {
         using var temp = new TempDirectory();
-        var fixture = await Fixture.CreateAsync(temp, Lane);
+        using var fixture = await Fixture.CreateAsync(temp, Lane);
         await fixture.Store.RecordAsync(Lane, 9, "maintenance.revisionreclamation.failed", """{"failureCode":"IOException"}""");
 
         Assert.Equal(OperationStatus.Failed, Assert.Single(await fixture.ProjectAsync()).Status);
@@ -84,7 +84,7 @@ public sealed class MaintenanceVisibilityTests
     public async Task ProgressNotesWithoutAStart_NeverAppearAsAWaitingCard()
     {
         using var temp = new TempDirectory();
-        var fixture = await Fixture.CreateAsync(temp, "maintenance-lane-OrphanBackups");
+        using var fixture = await Fixture.CreateAsync(temp, "maintenance-lane-OrphanBackups");
         await fixture.Store.RecordAsync("maintenance-lane-OrphanBackups", 10, "maintenance.recovery.failed", """{"Problems":[]}""");
         await fixture.Store.RecordAsync("maintenance-lane-OrphanBackups", 10, "maintenance.database.completed",
             """{"outcome":"Succeeded","AffectedItems":4}""");
@@ -92,8 +92,10 @@ public sealed class MaintenanceVisibilityTests
         Assert.Empty(await fixture.ProjectAsync());
     }
 
-    private sealed class Fixture(ProcessTelemetryStore store, TelemetryProjectionHost host, RevisionedViewStore views)
+    private sealed class Fixture(ProcessTelemetryStore store, TelemetryProjectionHost host, RevisionedViewStore views) : IDisposable
     {
+        public void Dispose() => host.Dispose();
+
         public ProcessTelemetryStore Store => store;
 
         public static async Task<Fixture> CreateAsync(TempDirectory temp, string component)

@@ -78,7 +78,7 @@ public sealed class ProjectionRuntimeTests
             "archive", "archive-worker", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
         OperationView Read() => Assert.Single(views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations);
 
         await store.RecordAsync("archive-worker", 1, "run.started");
@@ -408,7 +408,7 @@ public sealed class ProjectionRuntimeTests
             "fixture-source", "fixture", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
 
         await projector.ProjectOnceAsync();
 
@@ -441,7 +441,7 @@ public sealed class ProjectionRuntimeTests
             "backup-source", "backup-worker", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
 
         await projector.ProjectOnceAsync();
         var copying = Assert.Single(views.ReadIfChanged<OperationsView>(
@@ -495,7 +495,7 @@ public sealed class ProjectionRuntimeTests
             "backup", "backup-worker", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views,
+        using var projector = new TelemetryProjectionHost(catalog, views,
             maximumPagesPerProjection: 1);
 
         await projector.ProjectOnceAsync();
@@ -512,7 +512,7 @@ public sealed class ProjectionRuntimeTests
             "active", "backup", 9, OperationStatus.Running, DateTimeOffset.UtcNow));
         var activeViews = new RevisionedViewStore();
         await new TelemetryProjectionHost(catalog, activeViews,
-            maximumPagesPerProjection: 1).ProjectOnceAsync();
+            maximumPagesPerProjection: 1).ProjectOnceThenCloseAsync();
         Assert.Contains(activeViews.ReadIfChanged<OperationsView>(
             ViewKey.Operations, 0).Snapshot!.Operations,
             operation => operation.OperationId == "active"
@@ -532,7 +532,7 @@ public sealed class ProjectionRuntimeTests
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
 
-        await new TelemetryProjectionHost(catalog, views).ProjectOnceAsync(
+        await new TelemetryProjectionHost(catalog, views).ProjectOnceThenCloseAsync(
             DateTimeOffset.UtcNow.AddMinutes(1));
 
         Assert.Empty(views.ReadIfChanged<OperationsView>(
@@ -557,7 +557,7 @@ public sealed class ProjectionRuntimeTests
         catalog.Register(new TelemetrySourceRegistration("archive-source", "archive-worker",
             identity, store.DatabasePath, TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        await new TelemetryProjectionHost(catalog, views).ProjectOnceAsync();
+        await new TelemetryProjectionHost(catalog, views).ProjectOnceThenCloseAsync();
 
         var operation = Assert.Single(
             views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations);
@@ -588,7 +588,7 @@ public sealed class ProjectionRuntimeTests
             "fixture-source", "fixture", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
         projector.ConfigureLogs(new LogProjectionOptions(LogLevel.Warning, 100));
 
         await projector.ProjectOnceAsync();
@@ -631,7 +631,7 @@ public sealed class ProjectionRuntimeTests
         catalog.Register(new TelemetrySourceRegistration(
             "fixture", "state-scheduler", identity, store.DatabasePath, TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
 
         await projector.ProjectOnceAsync();
         var visible = views.ReadIfChanged<LogsView>(ViewKey.Logs, 0).Snapshot!.Entries;
@@ -665,7 +665,7 @@ public sealed class ProjectionRuntimeTests
             "maintenance", "maintenance-worker", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        await new TelemetryProjectionHost(catalog, views).ProjectOnceAsync();
+        await new TelemetryProjectionHost(catalog, views).ProjectOnceThenCloseAsync();
 
         var logs = views.ReadIfChanged<LogsView>(ViewKey.Logs, 0).Snapshot!.Entries;
         Assert.Equal(2, logs.Count);
@@ -709,7 +709,7 @@ public sealed class ProjectionRuntimeTests
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
 
-        await new TelemetryProjectionHost(catalog, views).ProjectOnceAsync();
+        await new TelemetryProjectionHost(catalog, views).ProjectOnceThenCloseAsync();
 
         var operation = Assert.Single(
             views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations);
@@ -731,7 +731,7 @@ public sealed class ProjectionRuntimeTests
             "fixture-source", "fixture", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
         await projector.ProjectOnceAsync();
         Assert.Equal(2, views.ReadIfChanged<OperationsView>(
             ViewKey.Operations, 0).Snapshot!.Operations.Count);
@@ -756,7 +756,7 @@ public sealed class ProjectionRuntimeTests
             "source", "fixture", identity, store.DatabasePath,
             TelemetryDatabaseKind.Process, true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
         await projector.ProjectOnceAsync();
 
         var connectionString = new SqliteConnectionStringBuilder
@@ -797,7 +797,7 @@ public sealed class ProjectionRuntimeTests
                 DateTimeOffset.UtcNow)));
         var views = new RevisionedViewStore();
 
-        await new TelemetryProjectionHost(catalog, views).ProjectOnceAsync();
+        await new TelemetryProjectionHost(catalog, views).ProjectOnceThenCloseAsync();
 
         var operation = Assert.Single(
             views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations);
@@ -829,7 +829,7 @@ public sealed class ProjectionRuntimeTests
             TelemetryDatabaseKind.Process, true,
             new WorkflowOperation("export", "export", 1, OperationStatus.Running, now)));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
 
         await projector.ProjectOnceAsync(now);
         Assert.Equal(TelemetryHealth.Waiting, Assert.Single(
@@ -868,7 +868,7 @@ public sealed class ProjectionRuntimeTests
             TelemetryDatabaseKind.Process, true,
             new WorkflowOperation("export", "export", 1, OperationStatus.Running, now)));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
 
         await projector.ProjectOnceAsync(now);
         await projector.ProjectOnceAsync(now.AddSeconds(3));
@@ -923,7 +923,7 @@ public sealed class ProjectionRuntimeTests
         var views = new RevisionedViewStore();
 
         await new TelemetryProjectionHost(
-            catalog, views, TimeSpan.FromSeconds(10)).ProjectOnceAsync(now);
+            catalog, views, TimeSpan.FromSeconds(10)).ProjectOnceThenCloseAsync(now);
 
         var sources = views.ReadIfChanged<TelemetrySourcesView>(
             ViewKey.TelemetrySources, 0).Snapshot!.Sources.ToDictionary(item => item.SourceId);
@@ -950,7 +950,7 @@ public sealed class ProjectionRuntimeTests
         var views = new RevisionedViewStore();
 
         await new TelemetryProjectionHost(
-            catalog, views, TimeSpan.FromSeconds(1)).ProjectOnceAsync(
+            catalog, views, TimeSpan.FromSeconds(1)).ProjectOnceThenCloseAsync(
             DateTimeOffset.UtcNow.AddMinutes(5));
 
         var health = Assert.Single(views.ReadIfChanged<TelemetrySourcesView>(
@@ -987,7 +987,7 @@ public sealed class ProjectionRuntimeTests
             new WorkflowOperation("new-backup", "backup", 2,
                 OperationStatus.Running, now.AddSeconds(-2))));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views,
+        using var projector = new TelemetryProjectionHost(catalog, views,
             TimeSpan.FromSeconds(10));
 
         await projector.ProjectOnceAsync(now);
@@ -1040,7 +1040,7 @@ public sealed class ProjectionRuntimeTests
             new WorkflowOperation("new-run", "backup", 2,
                 OperationStatus.Running, now.AddSeconds(-20))));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views,
+        using var projector = new TelemetryProjectionHost(catalog, views,
             TimeSpan.FromSeconds(10), maximumPagesPerProjection: 1);
 
         await projector.ProjectOnceAsync(now);
@@ -1075,7 +1075,7 @@ public sealed class ProjectionRuntimeTests
                 now.AddSeconds(-10), now.AddSeconds(-6)),
             Transient: true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
 
         await projector.ProjectOnceAsync(now);
 
@@ -1102,7 +1102,7 @@ public sealed class ProjectionRuntimeTests
             new WorkflowOperation("failed-op", "backup", 1, OperationStatus.Failed,
                 now.AddSeconds(-2), now)));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views);
+        using var projector = new TelemetryProjectionHost(catalog, views);
 
         await projector.ProjectOnceAsync(now.AddSeconds(9));
         Assert.Contains(views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot!.Operations,

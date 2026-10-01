@@ -124,6 +124,7 @@ public sealed partial class MainWindowShell : UserControl
             if (detailLoading && hasPresentedDetail)
             {
                 DetailTransitionProgress.Visibility = Visibility.Visible;
+                DetailTransitionProgress.IsIndeterminate = true;
                 UpdateOperationActions();
             }
         };
@@ -229,7 +230,7 @@ public sealed partial class MainWindowShell : UserControl
     {
         hostStartFailed = true;
         UpdateSaveListPlaceholder();
-        LoadingBackups.Visibility = Visibility.Collapsed;
+        ShowLoadingBackups(false);
         LogsRoot.ShowLoadFailure();
         EndDetailLoading();
         ShowSidebarNotification(InfoBarSeverity.Error,
@@ -731,7 +732,7 @@ public sealed partial class MainWindowShell : UserControl
         detailLoading = false;
         detailProgressDelayTimer.Stop();
         DetailTransitionProgress.Visibility = Visibility.Collapsed;
-        LoadingBackups.Visibility = Visibility.Collapsed;
+        ShowLoadingBackups(false);
     }
 
     private void ResetRevisionScroll()
@@ -1123,7 +1124,8 @@ public sealed partial class MainWindowShell : UserControl
         var operation = card.Operation;
         var progress = elements.Progress;
         var display = OperationProgressDisplay.From(operation, projectorHealth?.IsFaulted("telemetry") == true);
-        progress.IsIndeterminate = display.IsIndeterminate;
+        // A hidden indeterminate bar would keep animating on the compositor.
+        progress.IsIndeterminate = display.IsVisible && display.IsIndeterminate;
         progress.Visibility = display.IsVisible ? Visibility.Visible : Visibility.Collapsed;
         var telemetryUnavailable = operation.Kind != "delete-save" && (projectorHealth?.IsFaulted("telemetry") == true
             || operation.TelemetryHealth is TelemetryHealth.Unreadable or TelemetryHealth.UnsupportedSchema
@@ -1439,6 +1441,13 @@ public sealed partial class MainWindowShell : UserControl
             // A recording only watches the game; it holds no save and no repository.
             .Any(operation => operation.Status == OperationStatus.Running && operation.Kind != "profile") == true;
 
+    private void ShowLoadingBackups(bool visible)
+    {
+        LoadingBackups.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        // A collapsed ProgressRing keeps its animation running on the compositor, which then wakes every
+        // display refresh even with the window minimised. It runs only while it can be seen.
+        LoadingBackupsProgress.IsActive = visible;
+    }
     private readonly CountdownDisplayStabilizer countdownStabilizer = new();
 
     private void UpdateCountdown()
@@ -1446,11 +1455,19 @@ public sealed partial class MainWindowShell : UserControl
         var now = DateTimeOffset.UtcNow;
         var display = countdownStabilizer.Apply(ScheduleCountdownPresentation.Resolve(schedule, now,
             projectorHealth?.IsFaulted("scheduler") == true), now);
-        NextBackupText.Text = Localizer.Get(display.MessageKey);
-        NextBackupRemainingText.Text = display.RemainingSeconds is { } seconds
-            ? Localizer.Format("BackupTimeRemainingFormat", $"{seconds / 60:00}:{seconds % 60:00}") : "";
-        NextBackupRemainingText.Visibility = display.RemainingSeconds is null ? Visibility.Collapsed : Visibility.Visible;
+        // Assign only what changed: even an equal string makes the window draw a frame, every second, for as
+        // long as the app runs (also minimised or in the tray).
+        SetText(NextBackupText, Localizer.Get(display.MessageKey));
+        SetText(NextBackupRemainingText, display.RemainingSeconds is { } seconds
+            ? Localizer.Format("BackupTimeRemainingFormat", $"{seconds / 60:00}:{seconds % 60:00}") : "");
+        var remainingVisibility = display.RemainingSeconds is null ? Visibility.Collapsed : Visibility.Visible;
+        if (NextBackupRemainingText.Visibility != remainingVisibility) NextBackupRemainingText.Visibility = remainingVisibility;
         UpdateCountdownPulse(display.Suspended, display.RemainingSeconds is not null);
+
+        static void SetText(TextBlock block, string value)
+        {
+            if (!string.Equals(block.Text, value, StringComparison.Ordinal)) block.Text = value;
+        }
     }
 
     private void Navigation_SelectionChanged(
@@ -1601,7 +1618,7 @@ public sealed partial class MainWindowShell : UserControl
         if (hasPresentedDetail)
         {
             // Keep the previous detail visible until the new thumbnail and metadata are ready.
-            LoadingBackups.Visibility = Visibility.Collapsed;
+            ShowLoadingBackups(false);
             if (DetailTransitionProgress.Visibility != Visibility.Visible)
                 detailProgressDelayTimer.Start();
         }
@@ -1609,7 +1626,7 @@ public sealed partial class MainWindowShell : UserControl
         {
             RevisionList.SelectedItem = null;
             RevisionItems.Clear();
-            LoadingBackups.Visibility = Visibility.Visible;
+            ShowLoadingBackups(true);
             RevisionList.Visibility = Visibility.Collapsed;
             NoBackups.Visibility = Visibility.Collapsed;
         }

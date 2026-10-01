@@ -161,8 +161,14 @@ public sealed class TelemetryProjectionHost(
     TimeSpan? successCardLifetime = null,
     TimeSpan? failureCardLifetime = null,
     Func<TelemetrySourceRegistration, bool>? retireSource = null,
-    int readTimeoutSeconds = 1)
+    int readTimeoutSeconds = 1) : IDisposable
 {
+    // One read-only connection per source, kept open. Opening one costs a schema load on its first
+    // statement, and doing that for every source every second was most of the app's idle CPU. An open
+    // connection also says whether anyone wrote since the last read (PRAGMA data_version) without
+    // reading. It never holds a transaction between reads, so writers and checkpoints are not held up.
+    // Closed when the source goes away and before this host deletes a retired source's files.
+    private readonly Dictionary<string, OpenSource> connections = new(StringComparer.OrdinalIgnoreCase);
     private readonly TimeSpan InitialDatabaseReadGrace = initialReadGrace ?? TimeSpan.FromSeconds(2);
     private readonly int maximumPagesPerProjection = maximumPagesPerProjection > 0
         ? maximumPagesPerProjection
@@ -222,6 +228,8 @@ public sealed class TelemetryProjectionHost(
             cursors.Remove(removed);
             RemoveSourceState(removed);
         }
+        foreach (var removed in connections.Keys.Where(id => !registeredIds.Contains(id)).ToArray())
+            CloseConnection(removed);
         foreach (var removed in initialReadFailures.Keys
                      .Where(id => !registeredIds.Contains(id)).ToArray())
             initialReadFailures.Remove(removed);
@@ -234,6 +242,7 @@ public sealed class TelemetryProjectionHost(
                 && !PzTools.Process.Telemetry.ProcessTelemetryActivity.IsActive(source.Identity, source.Component);
             if (!source.Enabled)
             {
+                CloseConnection(source.SourceId);
                 initialReadFailures.Remove(source.SourceId);
                 healthViews.Add(Health(source, null, TelemetryHealth.Disabled, null, "disabled"));
                 if (completedSource)
@@ -242,6 +251,7 @@ public sealed class TelemetryProjectionHost(
             }
             if (!File.Exists(source.DatabasePath))
             {
+                CloseConnection(source.SourceId);
                 var health = workflowRunning
                     && now - source.CurrentWorkflow!.StartedUtc > staleAfter
                     ? TelemetryHealth.Stale : TelemetryHealth.Waiting;
@@ -252,10 +262,10 @@ public sealed class TelemetryProjectionHost(
 
             try
             {
-                var page = await TelemetryDatabaseReader.ReadAsync(
+                var page = await ReadSourceAsync(
                     source, cursors.GetValueOrDefault(source.SourceId),
                     (int)Math.Min((long)maximumPagesPerProjection * 512, int.MaxValue),
-                    cancellationToken, readTimeoutSeconds);
+                    cancellationToken);
                 initialReadFailures.Remove(source.SourceId);
                 if (page.Reset) RemoveSourceState(source.SourceId);
                 foreach (var telemetryEvent in page.Events)
@@ -703,6 +713,8 @@ public sealed class TelemetryProjectionHost(
             if (workflow.Status is OperationStatus.Running or OperationStatus.Waiting) continue;
             if (!historicalSourcesFullyRead.Contains(source.SourceId)) continue;
             if (!dismiss && !expired) continue;
+            // Its files are about to be deleted: let go of them first.
+            CloseConnection(source.SourceId);
             if (retireSource is not null && (logInbox is null || !retireSource(source))) continue;
             if (retireSource is not null)
                 await logInbox!.ForgetImportedSourceAsync(source.SourceId, cancellationToken);
@@ -725,6 +737,78 @@ public sealed class TelemetryProjectionHost(
             lastSourceHealth.Remove(source.SourceId);
             dismissedOperations.TryRemove(workflow.OperationId, out _);
         }
+    }
+
+    private async Task<TelemetryReadPage> ReadSourceAsync(
+        TelemetrySourceRegistration source, SourceCursor? cursor, int maximumEvents, CancellationToken cancellationToken)
+    {
+        var open = await ConnectionForAsync(source, cancellationToken);
+        try
+        {
+            // Read before the events, so a write that lands during the read is seen as a change next time.
+            var version = await TelemetryDatabaseReader.DataVersionAsync(open.Connection, cancellationToken);
+            if (cursor is not null && !open.HasMore && open.DataVersion == version)
+                // Exactly what reading would have returned: nothing after the cursor.
+                return new TelemetryReadPage(cursor.InstanceId, cursor.EventId, cursor.LastEventUtc,
+                    cursor.MinimumEventId, Reset: false, HasMore: false, RetainedRunIndexes: null, Events: []);
+            var page = await TelemetryDatabaseReader.ReadAsync(open.Connection, source.DatabaseKind, cursor, maximumEvents, cancellationToken);
+            open.DataVersion = version;
+            open.HasMore = page.HasMore;
+            return page;
+        }
+        catch
+        {
+            // Whatever went wrong (locked, initialising, replaced), the next read starts from a new connection.
+            CloseConnection(source.SourceId);
+            throw;
+        }
+    }
+
+    private async Task<OpenSource> ConnectionForAsync(TelemetrySourceRegistration source, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (connections.TryGetValue(source.SourceId, out var open)
+            && StringComparer.OrdinalIgnoreCase.Equals(open.Path, source.DatabasePath))
+            return open;
+        CloseConnection(source.SourceId);
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = source.DatabasePath,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+            // Microsoft.Data.Sqlite retries BUSY independently of PRAGMA busy_timeout. Bound the
+            // provider's timeout so one unavailable source cannot hold the entire progress
+            // projection for its default thirty seconds.
+            DefaultTimeout = readTimeoutSeconds > 0 ? readTimeoutSeconds
+                : throw new ArgumentOutOfRangeException(nameof(readTimeoutSeconds)),
+        }.ToString());
+        try { await connection.OpenAsync(cancellationToken); }
+        catch { await connection.DisposeAsync(); throw; }
+        open = new OpenSource(source.DatabasePath, connection);
+        connections[source.SourceId] = open;
+        return open;
+    }
+
+    private void CloseConnection(string sourceId)
+    {
+        if (connections.Remove(sourceId, out var open)) open.Connection.Dispose();
+    }
+
+    private bool disposed;
+
+    /// <summary>Closes every source's connection. Call after the projection loop has stopped.</summary>
+    public void Dispose()
+    {
+        disposed = true;
+        foreach (var sourceId in connections.Keys.ToArray()) CloseConnection(sourceId);
+    }
+
+    private sealed class OpenSource(string path, SqliteConnection connection)
+    {
+        public string Path { get; } = path;
+        public SqliteConnection Connection { get; } = connection;
+        public long? DataVersion { get; set; }
+        public bool HasMore { get; set; }
     }
 
     private void RemoveSourceState(string sourceId)
@@ -1012,29 +1096,23 @@ public sealed class TelemetryProjectionHost(
 
     private static class TelemetryDatabaseReader
     {
+        public static async Task<long> DataVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA data_version;";
+            return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
         public static async Task<TelemetryReadPage> ReadAsync(
-            TelemetrySourceRegistration source,
+            SqliteConnection connection,
+            TelemetryDatabaseKind kind,
             SourceCursor? cursor,
             int maximumEvents,
-            CancellationToken cancellationToken,
-            int timeoutSeconds)
+            CancellationToken cancellationToken)
         {
-            var connectionString = new SqliteConnectionStringBuilder
-            {
-                DataSource = source.DatabasePath,
-                Mode = SqliteOpenMode.ReadOnly,
-                Pooling = false,
-                DefaultTimeout = timeoutSeconds > 0 ? timeoutSeconds
-                    : throw new ArgumentOutOfRangeException(nameof(timeoutSeconds)),
-            }.ToString();
-            await using var connection = new SqliteConnection(connectionString);
-            await connection.OpenAsync(cancellationToken);
-            // Microsoft.Data.Sqlite retries BUSY independently of PRAGMA busy_timeout.
-            // Bound the provider's timeout so one unavailable source cannot hold the
-            // entire progress projection for its default thirty seconds.
             try
             {
-                return source.DatabaseKind == TelemetryDatabaseKind.Backup
+                return kind == TelemetryDatabaseKind.Backup
                     ? await ReadBackupAsync(connection, cursor, maximumEvents, cancellationToken)
                     : await ReadProcessAsync(connection, cursor, maximumEvents, cancellationToken);
             }

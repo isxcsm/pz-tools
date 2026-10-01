@@ -163,7 +163,7 @@
           </Canvas>
           <StackPanel x:Name="LoadingLogs" Grid.Row="2" HorizontalAlignment="Center"
                       VerticalAlignment="Center" Spacing="12" IsHitTestVisible="False">
-            <ProgressBar Width="220" IsIndeterminate="True" />
+            <ProgressBar x:Name="LoadingLogsProgress" Width="220" IsIndeterminate="False" />
             <TextBlock x:Name="LoadingLogsText" Text="로그를 불러오는 중입니다"
                        HorizontalAlignment="Center"
                        Style="{StaticResource SecondaryTextStyle}" />

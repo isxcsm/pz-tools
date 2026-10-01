@@ -55,4 +55,9 @@
           DestinationFiles="$(PublishDir)$(AssemblyName).pri"
           Condition="Exists('$(TargetDir)$(AssemblyName).pri')" />
   </Target>
+  <ItemGroup>
+    <!-- Long-running and mostly idle: small timer-driven work items wake the pool every second, and a
+         worker spinning for the next item after each one cost more CPU than the work itself. -->
+    <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.UnfairSemaphoreSpinLimit" Value="0" />
+  </ItemGroup>
 </Project>

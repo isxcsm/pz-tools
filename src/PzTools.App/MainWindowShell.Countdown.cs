@@ -48,6 +48,6 @@ public sealed partial class MainWindowShell
             countdownPulse.Dispose();
             countdownPulse = null;
         }
-        NextBackupRemainingText.Opacity = 1;
+        if (NextBackupRemainingText.Opacity != 1) NextBackupRemainingText.Opacity = 1;
     }
 }

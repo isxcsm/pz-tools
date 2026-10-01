@@ -399,6 +399,8 @@ public sealed class AppHost : IAsyncDisposable
             await refreshGate.WaitAsync().ConfigureAwait(false);
             refreshGate.Release();
             await Projections.DisposeAsync().ConfigureAwait(false);
+            // The telemetry connections stay open while the loop runs; with the loop stopped, close them.
+            Telemetry?.Dispose();
         }
     }
 

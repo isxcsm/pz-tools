@@ -142,7 +142,7 @@ public sealed class OneShotBackupServiceTests
             options.RepositoryPath, telemetry.DatabasePath, TelemetryDatabaseKind.Backup, true));
         var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        using var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
         projector.ConfigureRecordingLevel(LogLevel.Warning);
         await projector.ProjectOnceAsync();
         var logged = Assert.Single((await inbox.ReadPageAsync(

@@ -491,7 +491,8 @@
               </Canvas>
               <StackPanel x:Name="LoadingBackups" HorizontalAlignment="Center"
                           VerticalAlignment="Center" Spacing="12" Padding="24,36" IsHitTestVisible="False">
-                <ProgressRing Width="28" Height="28" IsActive="True" />
+                <!-- Active only while its panel shows: a collapsed ring still animates on the compositor. -->
+                <ProgressRing x:Name="LoadingBackupsProgress" Width="28" Height="28" IsActive="False" />
                 <TextBlock x:Name="LoadingBackupsText" Text="세이브 정보를 불러오는 중입니다"
                            Style="{StaticResource SecondaryTextStyle}" />
               </StackPanel>
@@ -537,7 +538,7 @@
           </Border>
         </Grid>
         <ProgressBar x:Name="DetailTransitionProgress" Grid.ColumnSpan="2"
-                     Height="2" VerticalAlignment="Top" IsIndeterminate="True"
+                     Height="2" VerticalAlignment="Top" IsIndeterminate="False"
                      Visibility="Collapsed" Canvas.ZIndex="10" IsHitTestVisible="False" />
       </Grid>
       </ContentControl>
