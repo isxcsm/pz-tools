@@ -7,8 +7,13 @@
   <ItemGroup>
     <JavaSource Include="$(MSBuildProjectDirectory)\java\**\*.java" />
   </ItemGroup>
-  <Target Name="Build" DependsOnTargets="ValidateBridgeToolchain"
-          Inputs="@(JavaSource);$(MSBuildProjectFullPath);$(BridgeJdkPath)\release"
+  <!-- A deleted source changes no timestamp; the list does, so its classes are not left in the JAR. -->
+  <Target Name="ListSources">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\$(Configuration)" />
+    <WriteLinesToFile File="$(MSBuildProjectDirectory)\obj\$(Configuration)\java-sources.txt" Lines="@(JavaSource)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+  <Target Name="Build" DependsOnTargets="ValidateBridgeToolchain;ListSources"
+          Inputs="@(JavaSource);$(MSBuildProjectDirectory)\obj\$(Configuration)\java-sources.txt;$(MSBuildProjectFullPath);$(BridgeJdkPath)\release"
           Outputs="$(ExtensionOutput)\pztools-extension-runtime.jar">
     <RemoveDir Directories="$(Classes)" />
     <MakeDir Directories="$(Classes);$(ExtensionOutput)" />

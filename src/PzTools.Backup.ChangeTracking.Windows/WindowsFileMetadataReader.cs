@@ -5,7 +5,7 @@ using PzTools.Backup.Core.Capture;
 
 namespace PzTools.Backup.ChangeTracking.Windows;
 
-public sealed class WindowsFileMetadataReader : IFileMetadataReader
+public sealed class WindowsFileMetadataReader : IConcurrentFileMetadataReader
 {
     public FileCaptureMetadata ReadPath(string path)
     {

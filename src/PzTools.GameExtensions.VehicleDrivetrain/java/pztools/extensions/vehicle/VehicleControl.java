@@ -61,6 +61,7 @@ final class VehicleControl implements VehicleHooks.Controller {
      */
     void gameFrame() {
         if(Thread.currentThread()!=context.gameThread()) return;
+        keys.retireIfIdle(System.nanoTime());
         Settings current=settings;
         if(!current.areaLight || lightStopped || lightFailed) {
             if(areaLight!=null) removeAreaLight();

@@ -79,6 +79,12 @@ final class ProfileControl {
                         synchronized (ProfileControl.class) { ProfileRecorder.closeQuietly(); releaseFrameHook(); }
                         return;
                     }
+                    // Ended at its maximum duration with no stop request (the recording program may be
+                    // gone): nothing should keep sampling the game or marking its frames.
+                    if (!ProfileRecorder.running()) {
+                        synchronized (ProfileControl.class) { ProfileRecorder.wrapUpIfEnded(); releaseFrameHook(); }
+                        return;
+                    }
                     Thread.sleep(100);
                 }
             } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }

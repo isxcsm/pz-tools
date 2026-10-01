@@ -12,6 +12,23 @@
     <Style x:Key="SuspendedCountdownTextStyle" TargetType="TextBlock" BasedOn="{StaticResource SecondaryTextStyle}">
       <Setter Property="Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
     </Style>
+    <!-- Colours for operation cards built in code. Set through styles, so they follow the window's
+         theme (and its changes) like XAML does; a brush looked up in code follows Windows' theme instead. -->
+    <Style x:Key="OperationCardSecondaryTextStyle" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Style>
+    <Style x:Key="OperationSucceededIconStyle" TargetType="FontIcon">
+      <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}" />
+    </Style>
+    <Style x:Key="OperationFailedIconStyle" TargetType="FontIcon">
+      <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}" />
+    </Style>
+    <Style x:Key="OperationDegradedIconStyle" TargetType="FontIcon">
+      <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}" />
+    </Style>
+    <Style x:Key="OperationNeutralIconStyle" TargetType="FontIcon">
+      <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Style>
   </UserControl.Resources>
   <Grid>
     <Grid.RowDefinitions>
@@ -203,6 +220,11 @@
       </StackPanel>
     </NavigationView.PaneFooter>
     <Grid x:Name="PageContent" Background="Transparent" Padding="{StaticResource PageContentPadding}">
+      <!-- Disabled and hidden from screen readers while another page is shown: the page stays realized
+           (rows, selection, scroll) but its buttons cannot be reached with Tab. See PresentContent. -->
+      <ContentControl x:Name="SavesHost" IsTabStop="False" IsEnabled="False"
+                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                      AutomationProperties.AccessibilityView="Raw">
       <Grid x:Name="SavesRoot" ColumnSpacing="12" SizeChanged="SavesRoot_SizeChanged"
             Opacity="0" IsHitTestVisible="False">
         <Grid.ColumnDefinitions>
@@ -518,6 +540,7 @@
                      Height="2" VerticalAlignment="Top" IsIndeterminate="True"
                      Visibility="Collapsed" Canvas.ZIndex="10" IsHitTestVisible="False" />
       </Grid>
+      </ContentControl>
       <local:HomePage x:Name="HomeRoot" />
       <local:LogsPage x:Name="LogsRoot" Visibility="Collapsed" />
       <local:SettingsPage x:Name="SettingsRoot" Visibility="Collapsed" />

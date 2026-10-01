@@ -360,13 +360,17 @@ public sealed class StableFileCapturer : IStableFileCapturer
 
     private readonly record struct HashedFile(byte[] Hash, long Length);
 
+    // An injected reader may keep state, so calls take turns, unless the reader says it needs no turns:
+    // the Windows reader opens a handle per call, which on a slow disk would hold up every other reader.
     private FileCaptureMetadata ReadPathMetadata(string path)
     {
+        if (metadataReader is IConcurrentFileMetadataReader) return metadataReader.ReadPath(path);
         lock (metadataGate) return metadataReader.ReadPath(path);
     }
 
     private FileCaptureMetadata ReadHandleMetadata(SafeFileHandle handle)
     {
+        if (metadataReader is IConcurrentFileMetadataReader) return metadataReader.ReadHandle(handle);
         lock (metadataGate) return metadataReader.ReadHandle(handle);
     }
 

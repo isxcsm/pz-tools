@@ -115,9 +115,12 @@ public static class UserFacingErrorCatalog
         if (Starts(message, "Application workers are missing.") || Starts(message, "The configured worker directory is incomplete:"))
             return "OperationError.WorkersMissing";
         if (Starts(message, "Another operation is using ")) return "OperationError.FileInUse";
-        if (Starts(message, "실행 중인 작업과 충돌하여 설정을 적용할 수 없습니다.")) return "OperationError.SettingsBusy";
-        if (Starts(message, "Cannot start workers: invalid app runtime configuration.") || Starts(message, "설정 파일을 확인해 주세요:"))
+        if (HasCodePrefix(message, "settings-busy")) return "OperationError.SettingsBusy";
+        if (HasCodePrefix(message, "settings-invalid") || Starts(message, "Cannot start workers: invalid app runtime configuration."))
             return "OperationError.Configuration";
+        // The same two failures as logged by 0.1.0, which wrote them as Korean sentences.
+        if (Starts(message, "실행 중인 작업과 충돌하여 설정을 적용할 수 없습니다.")) return "OperationError.SettingsBusy";
+        if (Starts(message, "설정 파일을 확인해 주세요:")) return "OperationError.Configuration";
         if (Contains(message, "could not be captured stably")) return "OperationError.SaveChanged";
         if (Contains(message, "access is denied") || Contains(message, "unauthorized")) return "OperationError.AccessDenied";
         if ((Contains(message, "does not exist") || Contains(message, "not found"))

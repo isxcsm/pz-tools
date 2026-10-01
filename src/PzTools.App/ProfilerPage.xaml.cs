@@ -64,7 +64,11 @@ public sealed partial class ProfilerPage : UserControl
         ApplyLocalizedText();
         clock.Tick += (_, _) => UpdateSession();
         gameClock.Tick += (_, _) => _ = CheckGamesAsync();
-        Loaded += (_, _) => { Attach(); gameClock.Start(); _ = CheckGamesAsync(); };
+        // The page stays loaded while another page is shown (the shell only collapses it), so the game
+        // check runs only while it is visible: listing processes every two seconds for a hidden page,
+        // all day in the tray, was waste.
+        Loaded += (_, _) => { Attach(); FollowVisibility(); };
+        RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => { if (IsLoaded) FollowVisibility(); });
         Unloaded += (_, _) =>
         {
             clock.Stop();
@@ -113,6 +117,15 @@ public sealed partial class ProfilerPage : UserControl
     {
         Attach();
         RefreshList(loadedPath);
+    }
+
+    private void FollowVisibility()
+    {
+        if (Visibility == Visibility.Visible)
+        {
+            if (!gameClock.IsEnabled) { gameClock.Start(); _ = CheckGamesAsync(); }
+        }
+        else gameClock.Stop();
     }
 
     private void Attach()
@@ -367,9 +380,10 @@ public sealed partial class ProfilerPage : UserControl
             PrimaryButtonText = Localizer.Get("DeleteAction"), CloseButtonText = Localizer.Get("Cancel"),
             DefaultButton = ContentDialogButton.Close,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
         try
         {
+            // Inside the try: showing a dialog throws when another one is open, and this is an async handler.
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             service.Delete(item.File.Path);
             if (item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)) loadedPath = null;
             RefreshList(null);
@@ -548,8 +562,17 @@ public sealed partial class ProfilerPage : UserControl
         start = Math.Clamp(start, 0, recording.Duration - span);
         viewStart = start;
         viewEnd = start + span;
-        RenderChart();
+        // Dragging and the wheel can move the view many times per frame; draw once for the last of them.
+        if (renderQueued) return;
+        renderQueued = DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            renderQueued = false;
+            RenderChart();
+        });
+        if (!renderQueued) RenderChart();
     }
+
+    private bool renderQueued;
 
     private void Chart_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {

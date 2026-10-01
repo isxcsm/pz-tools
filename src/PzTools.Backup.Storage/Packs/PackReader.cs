@@ -59,7 +59,7 @@ public sealed class PackReader : IAsyncDisposable
         try
         {
             stream = OpenFile(absolutePath, sharing);
-            var validation = await ValidateStreamAsync(stream, verifyPayloads: false, cancellationToken);
+            var validation = await ValidateStreamAsync(stream, verifyPayloads: false, cancellationToken, walkObjects: false);
             if (validation.PackId != expectedPackId)
                 throw new PackFormatException("Pack identity does not match repository metadata.");
             var offset = await ReadTrailerAsync(stream, cancellationToken);
@@ -97,7 +97,7 @@ public sealed class PackReader : IAsyncDisposable
     }
 
     private static async Task<PackValidationResult> ValidateStreamAsync(
-        FileStream stream, bool verifyPayloads, CancellationToken cancellationToken)
+        FileStream stream, bool verifyPayloads, CancellationToken cancellationToken, bool walkObjects = true)
     {
         var (packId, runIndex) = await ReadHeaderAsync(stream, cancellationToken);
         var indexOffset = await ReadTrailerAsync(stream, cancellationToken);
@@ -126,17 +126,42 @@ public sealed class PackReader : IAsyncDisposable
             throw new PackFormatException("Pack index length does not match the file length.");
         }
 
-        using var indexHasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        indexHasher.AppendData(indexHeader);
+        // The entries and their checksum in one read: a pack can index thousands of objects.
+        var entriesLength = checked(count * PackFormat.IndexEntrySize);
+        var entries = new byte[entriesLength + PackFormat.IndexChecksumSize];
+        await ReadExactlyAsync(stream, entries, cancellationToken);
+        using (var indexHasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+        {
+            indexHasher.AppendData(indexHeader);
+            indexHasher.AppendData(entries, 0, entriesLength);
+            if (!CryptographicOperations.FixedTimeEquals(
+                    indexHasher.GetHashAndReset(),
+                    entries.AsSpan(entriesLength)))
+            {
+                throw new PackFormatException("Pack index checksum does not match.");
+            }
+        }
+
         var expectedRecordOffset = (long)PackFormat.HeaderSize;
-        var entryBytes = new byte[PackFormat.IndexEntrySize];
         for (var index = 0; index < count; index++)
         {
-            await ReadExactlyAsync(stream, entryBytes, cancellationToken);
-            indexHasher.AppendData(entryBytes);
-            var nextIndexPosition = stream.Position;
-            var objectId = new Guid(entryBytes.AsSpan(0, 16));
-            var recordOffset = PackFormat.ReadInt64(entryBytes.AsSpan(16, 8));
+            var entry = entries.AsSpan(index * PackFormat.IndexEntrySize, PackFormat.IndexEntrySize);
+            var objectId = new Guid(entry[..16]);
+            var recordOffset = PackFormat.ReadInt64(entry.Slice(16, 8));
+            if (!walkObjects)
+            {
+                // Located reads check each record's header, lengths and checksum when they read
+                // it, so opening for them checks only that the index is ordered and in range.
+                if ((index == 0 ? recordOffset != expectedRecordOffset : recordOffset < expectedRecordOffset)
+                    || recordOffset > indexOffset - PackFormat.ObjectHeaderSize)
+                {
+                    throw new PackFormatException("Pack object records are not contiguous and ordered.");
+                }
+
+                expectedRecordOffset = recordOffset + PackFormat.ObjectHeaderSize;
+                continue;
+            }
+
             if (recordOffset != expectedRecordOffset)
             {
                 throw new PackFormatException("Pack object records are not contiguous and ordered.");
@@ -159,21 +184,11 @@ public sealed class PackReader : IAsyncDisposable
 
             expectedRecordOffset = checked(
                 descriptor.PayloadOffset + descriptor.StoredLength);
-            stream.Position = nextIndexPosition;
         }
 
-        if (expectedRecordOffset != indexOffset)
+        if (walkObjects ? expectedRecordOffset != indexOffset : count == 0 && indexOffset != PackFormat.HeaderSize)
         {
             throw new PackFormatException("Pack data area length does not match its index.");
-        }
-
-        var storedChecksum = new byte[PackFormat.IndexChecksumSize];
-        await ReadExactlyAsync(stream, storedChecksum, cancellationToken);
-        if (!CryptographicOperations.FixedTimeEquals(
-                indexHasher.GetHashAndReset(),
-                storedChecksum))
-        {
-            throw new PackFormatException("Pack index checksum does not match.");
         }
 
         return new PackValidationResult(packId, runIndex, count);
@@ -293,118 +308,7 @@ public sealed class PackReader : IAsyncDisposable
         await streamGate.WaitAsync(cancellationToken);
         try
         {
-            stream.Position = descriptor.PayloadOffset;
-            using var bounded = new BoundedReadStream(stream, descriptor.StoredLength);
-            Stream content = bounded;
-            BrotliStream? decompressor = null;
-            if (descriptor.CompressionAlgorithm == CompressionAlgorithm.Brotli)
-            {
-                decompressor = new BrotliStream(bounded, CompressionMode.Decompress, leaveOpen: true);
-                content = decompressor;
-            }
-
-            long length = 0;
-            byte[] actualChecksum;
-            using (var hasher = ContentHasher.Create(descriptor.ChecksumAlgorithm))
-            {
-                try
-                {
-                    var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
-                    try
-                    {
-                        int read;
-                        while ((read = await content.ReadAsync(buffer, cancellationToken)) != 0)
-                        {
-                            hasher.Append(buffer.AsSpan(0, read));
-                            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                            length = checked(length + read);
-                        }
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(buffer);
-                    }
-                }
-                finally
-                {
-                    if (decompressor is not null)
-                    {
-                        await decompressor.DisposeAsync();
-                    }
-                }
-
-                actualChecksum = hasher.Finish();
-            }
-
-            if (length != descriptor.OriginalLength)
-            {
-                throw new PackFormatException(
-                    $"Object {objectId} length is {length}, expected {descriptor.OriginalLength}.");
-            }
-
-            if (!CryptographicOperations.FixedTimeEquals(actualChecksum, descriptor.Checksum))
-            {
-                throw new PackFormatException($"Object {objectId} checksum does not match.");
-            }
-        }
-        finally
-        {
-            streamGate.Release();
-        }
-    }
-
-    public async Task<PackObjectDescriptor> RepackObjectAsync(
-        Guid objectId,
-        PackWriter destination,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(destination);
-        ObjectDisposedException.ThrowIf(disposed, this);
-        if (!objectMap.TryGetValue(objectId, out var sourceDescriptor))
-        {
-            throw new KeyNotFoundException($"Object {objectId} is not present in pack {PackId}.");
-        }
-
-        await streamGate.WaitAsync(cancellationToken);
-        try
-        {
-            stream.Position = sourceDescriptor.PayloadOffset;
-            using var bounded = new BoundedReadStream(stream, sourceDescriptor.StoredLength);
-            Stream content = bounded;
-            BrotliStream? decompressor = null;
-            if (sourceDescriptor.CompressionAlgorithm == CompressionAlgorithm.Brotli)
-            {
-                decompressor = new BrotliStream(bounded, CompressionMode.Decompress, leaveOpen: true);
-                content = decompressor;
-            }
-
-            try
-            {
-                var repacked = await destination.AddObjectAsync(
-                    content,
-                    objectId,
-                    sourceDescriptor.ChecksumAlgorithm,
-                    sourceDescriptor.CompressionAlgorithm,
-                    cancellationToken);
-                if (repacked.OriginalLength != sourceDescriptor.OriginalLength
-                    || !CryptographicOperations.FixedTimeEquals(
-                        repacked.Checksum,
-                        sourceDescriptor.Checksum))
-                {
-                    destination.DiscardLastObject(repacked);
-                    throw new PackFormatException(
-                        $"Object {objectId} changed while it was repacked.");
-                }
-
-                return repacked;
-            }
-            finally
-            {
-                if (decompressor is not null)
-                {
-                    await decompressor.DisposeAsync();
-                }
-            }
+            await CopyDescriptorToAsync(stream, descriptor, destination, cancellationToken);
         }
         finally
         {

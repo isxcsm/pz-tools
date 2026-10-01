@@ -95,6 +95,10 @@ public sealed partial class MainWindowShell : UserControl
     public MainWindowShell()
     {
         InitializeComponent();
+        // A click or a key anywhere closes an open tooltip. Attached here, not by the window, so a shell
+        // that replaces this one (after a data-folder change) has them too.
+        AddHandler(PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
+        AddHandler(KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
         HomeRoot.NavigationRequested += HomeRoot_NavigationRequested;
         var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
         thumbnailLoadGate = new(runtime.ThumbnailReadConcurrency, runtime.ThumbnailReadConcurrency);
@@ -325,6 +329,9 @@ public sealed partial class MainWindowShell : UserControl
         ResetRevisionEntrance();
         ResetRevisionExit();
         localOperationCardTimer.Stop();
+        // A replaced shell must not wake up later and start refreshing cards nobody sees.
+        operationCardExpiryTimer.Stop();
+        operationCardsHoverTimer.Stop();
         StopOperationProgressRefresh();
         viewSubscription?.Dispose();
         viewSubscription = null;
@@ -820,6 +827,8 @@ public sealed partial class MainWindowShell : UserControl
 
     private void RevealRevisionSelectionIfReady()
     {
+        // Called on every layout pass in the window: nothing to do once the bar is shown.
+        if (RevisionSelectionLayer.Visibility == Visibility.Visible) return;
         if (detailLoading || revisionEntranceInProgress
             || RevisionList.Visibility != Visibility.Visible
             || RevisionList.SelectedItem is not { } selected
@@ -871,15 +880,18 @@ public sealed partial class MainWindowShell : UserControl
 
     private void ApplyOperations(OperationsView view)
     {
-        foreach (var expired in operationErrors
-                     .Where(item => DateTimeOffset.UtcNow - item.Value.RecordedUtc > TimeSpan.FromMinutes(1))
-                     .Select(item => item.Key).ToArray())
-            operationErrors.Remove(expired);
         var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
         var success = TimeSpan.FromSeconds(runtime.SuccessCardSeconds);
         var failure = TimeSpan.FromSeconds(runtime.FailureCardSeconds);
+        // Kept as long as a failure card can be on screen (its setting allows two minutes, and a pointer
+        // resting on the cards keeps them), so a card never falls back to the generic text while shown.
+        var keep = failure + TimeSpan.FromMinutes(5);
         var now = DateTimeOffset.UtcNow;
-        retiredLocalWork.RemoveAll(work => now - work.RetiredUtc > TimeSpan.FromMinutes(1));
+        foreach (var expired in operationErrors
+                     .Where(item => now - item.Value.RecordedUtc > keep)
+                     .Select(item => item.Key).ToArray())
+            operationErrors.Remove(expired);
+        retiredLocalWork.RemoveAll(work => now - work.RetiredUtc > keep);
         notices.RemoveAll(notice => now - notice.ShownUtc > OperationCardLifetime.Of(notice.Status, false, success, failure));
         var cards = OperationCardStack.Build(
             OperationCardStack.Visible(view, retiredLocalWork, now, success, failure),
@@ -1002,10 +1014,10 @@ public sealed partial class MainWindowShell : UserControl
     private OperationCardElements CreateOperationCard()
     {
         // Hierarchy by colour, not weight: Malgun Gothic has no semibold, so SemiBold drew a heavy Bold title.
-        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        var secondary = (Style)Resources["OperationCardSecondaryTextStyle"];
         var icon = new FontIcon { FontSize = 14, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 3, 0, 0) };
         var title = new TextBlock { TextWrapping = TextWrapping.Wrap };
-        var percent = new TextBlock { Foreground = secondary, VerticalAlignment = VerticalAlignment.Top };
+        var percent = new TextBlock { Style = secondary, VerticalAlignment = VerticalAlignment.Top };
         Grid.SetColumn(title, 1);
         Grid.SetColumn(percent, 2);
         var header = new Grid { ColumnSpacing = 8 };
@@ -1020,9 +1032,9 @@ public sealed partial class MainWindowShell : UserControl
         // so the card keeps its height as the numbers change.
         var phase = new TextBlock
         {
-            Foreground = secondary, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis,
+            Style = secondary, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis,
         };
-        var amount = new TextBlock { Foreground = secondary, TextWrapping = TextWrapping.NoWrap };
+        var amount = new TextBlock { Style = secondary, TextWrapping = TextWrapping.NoWrap };
         Grid.SetColumn(amount, 1);
         var detail = new Grid { ColumnSpacing = 8 };
         detail.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1032,7 +1044,7 @@ public sealed partial class MainWindowShell : UserControl
         // When finished: why, in at most two lines; the full text stays one hover away.
         var message = new TextBlock
         {
-            Foreground = secondary, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis,
+            Style = secondary, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis,
         };
         var content = new StackPanel { Spacing = 6 };
         content.Children.Add(header);
@@ -1044,20 +1056,20 @@ public sealed partial class MainWindowShell : UserControl
     }
 
     // Finished work shows its outcome as an icon next to its name; running work has its progress bar instead.
-    private static void ApplyOutcomeIcon(FontIcon icon, OperationStatus status)
+    private void ApplyOutcomeIcon(FontIcon icon, OperationStatus status)
     {
-        (string? glyph, string? brush) = status switch
+        (string? glyph, string? style) = status switch
         {
-            OperationStatus.Succeeded or OperationStatus.NoChange => ("\uE73E", "SystemFillColorSuccessBrush"),
-            OperationStatus.Failed => ("\uE7BA", "SystemFillColorCriticalBrush"),
-            OperationStatus.Degraded => ("\uE7BA", "SystemFillColorCautionBrush"),
-            OperationStatus.Cancelled or OperationStatus.Busy => ("\uE946", "TextFillColorSecondaryBrush"),
+            OperationStatus.Succeeded or OperationStatus.NoChange => ("\uE73E", "OperationSucceededIconStyle"),
+            OperationStatus.Failed => ("\uE7BA", "OperationFailedIconStyle"),
+            OperationStatus.Degraded => ("\uE7BA", "OperationDegradedIconStyle"),
+            OperationStatus.Cancelled or OperationStatus.Busy => ("\uE946", "OperationNeutralIconStyle"),
             _ => (null, null),
         };
         icon.Visibility = glyph is null ? Visibility.Collapsed : Visibility.Visible;
         if (glyph is null) return;
         icon.Glyph = glyph;
-        icon.Foreground = (Brush)Application.Current.Resources[brush!];
+        icon.Style = (Style)Resources[style!];
     }
 
     private static string OperationCardTitle(OperationCard card)
@@ -1418,11 +1430,14 @@ public sealed partial class MainWindowShell : UserControl
         UpdateRevisionActions();
     }
 
-    private bool HasConflictingOperation() =>
-        archiveInteraction || (projectorHealth?.IsFaulted("telemetry") != true
+    private bool HasConflictingOperation() => archiveInteraction || OtherOperationRunning();
+
+    // Work started elsewhere (a scheduled backup, another window's action), apart from this page's own lock.
+    private bool OtherOperationRunning() =>
+        projectorHealth?.IsFaulted("telemetry") != true
         && App.Host?.Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
             // A recording only watches the game; it holds no save and no repository.
-            .Any(operation => operation.Status == OperationStatus.Running && operation.Kind != "profile") == true);
+            .Any(operation => operation.Status == OperationStatus.Running && operation.Kind != "profile") == true;
 
     private readonly CountdownDisplayStabilizer countdownStabilizer = new();
 
@@ -2100,14 +2115,16 @@ public sealed partial class MainWindowShell : UserControl
             PrimaryButtonText = Localizer.Get("HealCharacterAction"),
             CloseButtonText = Localizer.Get("Cancel"), DefaultButton = ContentDialogButton.Close,
         };
-        if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
-        if (detailLoading || HasConflictingOperation() || App.Host != host || !current.CanHeal
-            || !ReferenceEquals(SaveList.SelectedItem, save)
-            || save.Activity != ActivityState.Inactive || !save.IsFresh) return;
+        // Locked from the moment the question is asked, as deletion is: a second click cannot open a
+        // second dialog (which throws), and a failure to show it is reported instead of ending the app.
         archiveInteraction = true;
         UpdateOperationActions();
         try
         {
+            if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
+            if (detailLoading || OtherOperationRunning() || App.Host != host || !current.CanHeal
+                || !ReferenceEquals(SaveList.SelectedItem, save)
+                || save.Activity != ActivityState.Inactive || !save.IsFresh) return;
             var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             var result = await RunWithProgressAsync("character-recovery", id => host.Operations!.RecoverCharacterAsync(root, save.SaveId, operationId: id));
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
@@ -2165,14 +2182,15 @@ public sealed partial class MainWindowShell : UserControl
             CloseButtonText = Localizer.Get("Cancel"),
             DefaultButton = ContentDialogButton.Close,
         };
-        if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
-        if (detailLoading || App.Host != host || HasConflictingOperation()
-            || !ReferenceEquals(SaveList.SelectedItem, save)
-            || !ReferenceEquals(RevisionList.SelectedItem, revision)) return;
+        // Locked while the question is asked: see HealCharacter_Click.
         archiveInteraction = true;
         UpdateOperationActions();
         try
         {
+            if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
+            if (detailLoading || App.Host != host || OtherOperationRunning()
+                || !ReferenceEquals(SaveList.SelectedItem, save)
+                || !ReferenceEquals(RevisionList.SelectedItem, revision)) return;
             var result = await RunWithProgressAsync("restore", id => host.Operations!.RestoreAsync(
                 revision.SourceId.Value, revision.Revision, save.SourcePath, operationId: id));
             ShowOperationResult(result);

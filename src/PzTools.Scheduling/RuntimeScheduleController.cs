@@ -38,7 +38,9 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
                 && StringComparer.OrdinalIgnoreCase.Equals(live.SavePath, oneShot.Target.SourcePath);
             return new(true, valid ? oneShot : null);
         }
-        if (!storage.Enabled) { state = null; return new(false, null); }
+        // Periodic timing without the game: the tick already prepared above is the answer, so the caller
+        // does not prepare (and apply pending commands) a second time in the same second.
+        if (!storage.Enabled) { state = null; return new(false, oneShot); }
         if (state is null)
         {
             recovering = storage.Checkpoint?.AttemptId is not null;

@@ -205,7 +205,10 @@ public sealed class StateReactor
                     .Where(item => item.Activity == ActivityState.Active && !item.Stale)
                     .OrderBy(item => item.NormalizedPath, StringComparer.OrdinalIgnoreCase)
                     .ToArray();
-                if (activeSaves.Length > 1)
+                // Only on entering the ambiguous state: it is stored below, and repeating the command
+                // every collection (every few seconds, for as long as two saves read as open) only
+                // added rows that are never removed.
+                if (activeSaves.Length > 1 && currentGame != GameState.Ambiguous)
                 {
                     var transitionId = Guid.NewGuid().ToString("D");
                     await InsertTransitionAsync(

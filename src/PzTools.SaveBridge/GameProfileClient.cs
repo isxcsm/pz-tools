@@ -34,12 +34,11 @@ public sealed record GameProfileExport(long Samples, long Frames, long LuaSample
 public sealed class GameProfileClient(string bridgeDirectory, int connectionTimeoutSeconds = 30)
 {
     public const int MaximumSeconds = 1800;
-    private static readonly string[] GameProcesses = ["ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid"];
 
     /// <summary>The one running game, or an error that says why there is no single one.</summary>
     public static int FindGame()
     {
-        var games = GameProcesses.SelectMany(DiagnosticsProcess.GetProcessesByName).ToArray();
+        var games = PzTools.Process.Contracts.GameProcessFinder.Find();
         try
         {
             return games.Length == 1 ? games[0].Id

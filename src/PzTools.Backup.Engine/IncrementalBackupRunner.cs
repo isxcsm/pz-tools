@@ -376,6 +376,15 @@ public sealed class IncrementalBackupRunner(
             await telemetry.CompleteAsync(RunStatus.Cancelled, "source-deferred", CancellationToken.None);
             throw;
         }
+        catch (OperationCanceledException exception) when (failurePhase == "source.prepare" && !cancellationToken.IsCancellationRequested)
+        {
+            // Preparation decided against this backup (the world is no longer being played): a skip, not
+            // a cancellation by anyone, and recorded as such so the log does not call it cancelled.
+            packWriter?.Invalidate("backup run was skipped");
+            await CompleteFailedAsync(repository, telemetry, lease, run.RunIndex, RunStatus.Cancelled, "source-skipped",
+                BackupFailureTelemetry.Create(source, RunStatus.Cancelled, "source-skipped", exception, failurePhase, currentFile));
+            throw;
+        }
         catch (OperationCanceledException exception)
         {
             packWriter?.Invalidate("backup run was cancelled");
@@ -811,12 +820,24 @@ public sealed class IncrementalBackupRunner(
         string failureCode,
         string failurePayload)
     {
-        await repository.CompleteRunAsync(lease, runIndex, status, failureCode);
+        // Often the repository fails here for the reason the run failed (busy, disk full). The failure
+        // record is still written, as the initial backup does, so the log keeps the real cause.
+        Exception? repositoryFailure = null;
+        try
+        {
+            await repository.CompleteRunAsync(lease, runIndex, status, failureCode);
+        }
+        catch (Exception exception)
+        {
+            repositoryFailure = exception;
+        }
         await telemetry.EmitAsync(new TelemetryEvent(
             TelemetryEventScope.Run,
             status == RunStatus.Cancelled ? "run.cancelled" : "run.failed",
             failurePayload));
         await telemetry.CompleteAsync(status, failureCode);
+        if (repositoryFailure is not null)
+            throw new InvalidOperationException($"Could not record terminal state for run {runIndex}.", repositoryFailure);
     }
 
     private sealed record PendingEntry(

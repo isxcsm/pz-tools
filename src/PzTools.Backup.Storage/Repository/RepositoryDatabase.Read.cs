@@ -6,6 +6,15 @@ namespace PzTools.Backup.Storage.Repository;
 
 public sealed partial class RepositoryDatabase
 {
+    /// <summary>The counter that moves whenever the backup catalog changes; one row, read without locking writers.</summary>
+    public async Task<long> ReadChangeRevisionAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT repository_change_revision FROM repository_info WHERE singleton=1;";
+        return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+    }
+
     public Task<RepositoryCatalogSnapshot> ReadCatalogIfChangedAsync(
         long lastSeenRevision,
         CancellationToken cancellationToken = default) =>

@@ -227,7 +227,7 @@ public sealed partial class LogsPage
     {
         var flyout = new Flyout { Content = content };
         var timer = DispatcherQueue.CreateTimer();
-        timer.Interval = TimeSpan.FromMilliseconds(250);
+        timer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).LogFilterDebounceMs);
         timer.IsRepeating = false;
         var dirty = false;
         var stopped = false;

@@ -99,6 +99,61 @@ public sealed class PackFormatTests
     }
 
     [Fact]
+    public async Task LocatedOpen_SkipsOtherRecords_ButEachReadAndFullValidationStillCheckThem()
+    {
+        using var temp = new TempDirectory();
+        await using var writer = await PackWriter.CreateAsync(temp.Path, runIndex: 1);
+        var first = await writer.AddObjectAsync(new MemoryStream([1, 2, 3]), ChecksumAlgorithm.Sha256, CompressionAlgorithm.None);
+        var second = await writer.AddObjectAsync(new MemoryStream([4, 5, 6]), ChecksumAlgorithm.Sha256, CompressionAlgorithm.None);
+        var committed = await writer.SealAndPromoteAsync();
+        await using (var file = new FileStream(committed.FullPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            file.Position = second.RecordOffset; // The second record's magic.
+            file.WriteByte(0);
+        }
+
+        await Assert.ThrowsAsync<PackFormatException>(() => PackReader.ValidateAsync(committed.FullPath, verifyPayloads: false));
+        await Assert.ThrowsAsync<PackFormatException>(() => PackReader.OpenForLocatedReadsAsync(committed.FullPath, Guid.NewGuid()));
+        await using var reader = await PackReader.OpenForLocatedReadsAsync(committed.FullPath, committed.PackId);
+        await using var restored = new MemoryStream();
+        await reader.CopyObjectAtAsync(first.ObjectId, first.RecordOffset, restored);
+        Assert.Equal([1, 2, 3], restored.ToArray());
+        await Assert.ThrowsAsync<PackFormatException>(
+            () => reader.CopyObjectAtAsync(second.ObjectId, second.RecordOffset, Stream.Null));
+        await Assert.ThrowsAsync<PackFormatException>(
+            () => reader.CopyObjectAtAsync(first.ObjectId, second.RecordOffset, Stream.Null));
+    }
+
+    [Fact]
+    public async Task LocatedOpen_RejectsAnIndexWhoseRecordsAreOutOfOrder()
+    {
+        using var temp = new TempDirectory();
+        await using var writer = await PackWriter.CreateAsync(temp.Path, runIndex: 1);
+        await writer.AddObjectAsync(new MemoryStream([1, 2, 3]), ChecksumAlgorithm.Sha256, CompressionAlgorithm.None);
+        await writer.AddObjectAsync(new MemoryStream([4, 5, 6]), ChecksumAlgorithm.Sha256, CompressionAlgorithm.None);
+        var committed = await writer.SealAndPromoteAsync();
+        await using (var file = new FileStream(committed.FullPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            // Swap the two index entries and rewrite the index checksum, so only the order is wrong.
+            const int trailerSize = 16, indexHeaderSize = 12, entrySize = 24;
+            var bytes = new byte[file.Length];
+            file.ReadExactly(bytes);
+            var indexOffset = BitConverter.ToInt64(bytes, bytes.Length - trailerSize + 8);
+            var entries = (int)indexOffset + indexHeaderSize;
+            var firstEntry = bytes.AsSpan(entries, entrySize).ToArray();
+            bytes.AsSpan(entries + entrySize, entrySize).CopyTo(bytes.AsSpan(entries));
+            firstEntry.CopyTo(bytes.AsSpan(entries + entrySize));
+            var indexLength = indexHeaderSize + 2 * entrySize;
+            System.Security.Cryptography.SHA256.HashData(bytes.AsSpan((int)indexOffset, indexLength))
+                .CopyTo(bytes.AsSpan((int)indexOffset + indexLength));
+            file.Position = 0;
+            file.Write(bytes);
+        }
+
+        await Assert.ThrowsAsync<PackFormatException>(() => PackReader.OpenForLocatedReadsAsync(committed.FullPath, committed.PackId));
+    }
+
+    [Fact]
     public async Task CancelledSeal_LeavesNoTemporaryOrCommittedPack()
     {
         using var temp = new TempDirectory();

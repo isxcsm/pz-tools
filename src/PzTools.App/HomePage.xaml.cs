@@ -148,7 +148,7 @@ public sealed partial class HomePage : UserControl
             result.Append(text[index]);
             if (index + 1 < text.Length && !char.IsWhiteSpace(text[index]) && !char.IsWhiteSpace(text[index + 1])
                 && (Hangul(text[index]) || Hangul(text[index + 1])))
-                result.Append('⁠');
+                result.Append('\u2060'); // WORD JOINER
         }
         return result.ToString();
     }

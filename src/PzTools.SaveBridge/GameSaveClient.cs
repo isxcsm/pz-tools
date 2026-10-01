@@ -46,8 +46,7 @@ public sealed class GameSaveClient(string bridgeDirectory,
     private async Task<GameSaveResponse> RequestRunningGameAsync(string expectedSavePath, bool save, string? providerId, bool forceVersion,
         CancellationToken cancellationToken)
     {
-        var games = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
-            .SelectMany(DiagnosticsProcess.GetProcessesByName).ToArray();
+        var games = PzTools.Process.Contracts.GameProcessFinder.Find();
         try
         {
             if (games.Length != 1)

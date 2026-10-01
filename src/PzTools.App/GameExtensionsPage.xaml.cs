@@ -52,7 +52,8 @@ public sealed partial class GameExtensionsPage : UserControl
             await host.GameExtensions.RefreshAsync();
             ApplyLatestView();
         }
-        catch (Exception exception) when (IsSettingsError(exception)) { ShowSettingsError(); }
+        // Called from the Loaded handler: nothing may escape it.
+        catch (Exception) { ShowSettingsError(); }
         finally { refreshing = false; LoadingIndicator.IsActive = false; LoadingIndicator.Visibility = Visibility.Collapsed; }
     }
 
@@ -105,6 +106,12 @@ public sealed partial class GameExtensionsPage : UserControl
             // A concurrent external writer may have won. Reflect committed data, never replay a stale snapshot.
             try { await host.GameExtensions.RefreshAsync(); }
             catch (Exception reload) when (IsSettingsError(reload)) { }
+        }
+        catch (Exception)
+        {
+            // Anything else (the host being replaced while the switch was saving, for one) is reported the
+            // same way: a switch is driven by an async event handler, where an escaping exception ends the app.
+            ShowSettingsError();
         }
         finally
         {

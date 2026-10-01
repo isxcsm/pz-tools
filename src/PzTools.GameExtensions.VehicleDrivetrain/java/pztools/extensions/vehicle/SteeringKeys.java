@@ -30,8 +30,22 @@ final class SteeringKeys {
 
     SteeringKeys(VehicleAccess access,Platform injected) { this.access=access; this.injected=injected; }
 
+    /**
+     * The measuring thread polls about once a millisecond. Once nothing has asked for a reading for
+     * this long (out of the vehicle, in a menu, paused), it is stopped; the next reading starts a new
+     * one, and its first update is steered the ordinary way, as after any gap.
+     */
+    private static final long IDLE_NANOS=2_000_000_000L;
+    private long lastRead;
+
+    /** Game thread, every frame: stops a timeline nobody has read for a while. */
+    void retireIfIdle(long now) {
+        if(timeline!=null && now-lastRead>IDLE_NANOS) retire("idle");
+    }
+
     /** True when {@link #reading} now holds current totals for the bound keys. */
     boolean read() {
+        lastRead=System.nanoTime();
         try {
             if(stopped || platformFailed) return false;
             if(!access.steeringKeys(bindings)) { retire("bindings-unavailable"); return false; }

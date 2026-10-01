@@ -51,6 +51,7 @@ try
             options.GetValueOrDefault("--control-db"), cleanupInterval) : null;
     using var cancellation = new CancellationTokenSource();
     Console.CancelKeyPress += (_, eventArgs) => { eventArgs.Cancel = true; cancellation.Cancel(); };
+    using var stopRequest = ProcessStopSignal.Listen(cancellation);
     var mutex = NamedMutexRunner.CreateName("StateScheduler", schedulerDb.DatabasePath + "|" + stateDb.DatabasePath);
     var result = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {

@@ -90,7 +90,9 @@ public sealed class ChildProcessHost
         {
             try
             {
-                if (!process.HasExited && process.CloseMainWindow())
+                // Workers have no window: a stop is asked for through their stop event. One that does
+                // not listen is ended at once, as before.
+                if (!process.HasExited && shutdownGraceMs > 0 && ProcessStopSignal.TryRequest(process.Id))
                 {
                     using var grace = new CancellationTokenSource(TimeSpan.FromMilliseconds(shutdownGraceMs));
                     await process.WaitForExitAsync(grace.Token).ConfigureAwait(false);

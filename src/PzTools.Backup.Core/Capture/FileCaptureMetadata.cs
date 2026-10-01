@@ -16,3 +16,6 @@ public interface IFileMetadataReader
 
     FileCaptureMetadata ReadHandle(SafeFileHandle handle);
 }
+
+/// <summary>A reader with no state of its own, safe to call from several capture readers at once.</summary>
+public interface IConcurrentFileMetadataReader : IFileMetadataReader;

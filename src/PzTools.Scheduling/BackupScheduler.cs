@@ -19,6 +19,11 @@ public sealed class BackupScheduler(
 {
     private readonly HashSet<string> recoveredRepositories = (
         new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    // A busy repository (an export or a restore holds it) keeps the backup due. Without a pause the
+    // next one-second tick would allocate a run, reserve a workflow and start a runner only to hear
+    // "busy" again, for as long as the export lasts.
+    private static readonly TimeSpan BusyRetry = TimeSpan.FromSeconds(10);
+    private DateTimeOffset busyRetryAt = DateTimeOffset.MinValue;
 
     public async Task<BackupTickResult> TickAsync(
         DateTimeOffset now,
@@ -26,7 +31,8 @@ public sealed class BackupScheduler(
     {
         var selection = runtimeSchedule is null ? new RuntimeAdmissionSelection(false, null)
             : await runtimeSchedule.PrepareAsync(now, preparationLead ?? TimeSpan.Zero, cancellationToken);
-        var admission = selection.Enabled ? selection.Admission : await schedulerDatabase.PrepareBackupTickAsync(
+        // With a runtime controller the tick is prepared there either way; only without one is it done here.
+        var admission = runtimeSchedule is not null ? selection.Admission : await schedulerDatabase.PrepareBackupTickAsync(
             now, cancellationToken, preparationLead);
         if (admission is null || (!selection.Enabled || RuntimeScheduleController.IsFallback(admission))
             && (isTargetActive is not null && !isTargetActive(admission.Target) || WaitsForNewCharacter(admission)))
@@ -34,6 +40,8 @@ public sealed class BackupScheduler(
             return new BackupTickResult(
                 false, null, null, null, null, ProcessOutcome.Skipped);
         }
+        if (now < busyRetryAt)
+            return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
 
         var repository = await RepositoryDatabase.CreateOrOpenAsync(
             admission.RepositoryPath, cancellationToken);
@@ -100,6 +108,7 @@ public sealed class BackupScheduler(
             // A stop/interval change can arrive while repository admission or yield is awaited.
             var currentSelection = runtimeSchedule is null ? new RuntimeAdmissionSelection(false, null)
                 : await runtimeSchedule.PrepareAsync(DateTimeOffset.UtcNow, preparationLead ?? TimeSpan.Zero, cancellationToken);
+            // Rechecked at the tick's own time (not the controller's clock read above), as when admitted.
             var currentAdmission = currentSelection.Enabled ? currentSelection.Admission
                 : await schedulerDatabase.PrepareBackupTickAsync(now, cancellationToken, preparationLead);
             bool valid = currentAdmission?.AdmissionId == admission.AdmissionId
@@ -220,6 +229,7 @@ public sealed class BackupScheduler(
         }
         finally
         {
+            busyRetryAt = outcome == ProcessOutcome.Busy ? now + BusyRetry : DateTimeOffset.MinValue;
             // An error before the worker was dispatched (for example a busy scheduler database)
             // means no save was requested: keep the slot instead of treating its outcome as unknown.
             if (runtimeSchedule is not null && admission.RuntimeTicket is not null)

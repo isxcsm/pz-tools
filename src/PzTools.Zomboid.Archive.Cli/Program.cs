@@ -19,6 +19,7 @@ static async Task<int> RunAsync(string[] args)
         eventArgs.Cancel = true;
         cancellation.Cancel();
     };
+    using var stopRequest = ProcessStopSignal.Listen(cancellation);
     var started = DateTimeOffset.UtcNow;
     var runIndex = 1L;
     var operation = args.Length == 0 ? "unknown" : args[0];

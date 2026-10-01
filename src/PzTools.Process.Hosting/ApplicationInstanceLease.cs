@@ -58,7 +58,9 @@ public static class ApplicationActivationSignal
     {
         public void Dispose()
         {
-            registration.Unregister(null);
+            // Wait until the pool lets go of the event; otherwise a launch right after closing could still open it.
+            using var released = new ManualResetEvent(false);
+            if (registration.Unregister(released)) released.WaitOne(TimeSpan.FromSeconds(5));
             signal.Dispose();
         }
     }

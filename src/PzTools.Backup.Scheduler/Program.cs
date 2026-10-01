@@ -65,6 +65,7 @@ try
         eventArgs.Cancel = true;
         cancellation.Cancel();
     };
+    using var stopRequest = ProcessStopSignal.Listen(cancellation);
     var mutex = NamedMutexRunner.CreateName(
         "BackupScheduler", database.DatabasePath);
     var result = await NamedMutexRunner.TryRunAsync(mutex, async token =>

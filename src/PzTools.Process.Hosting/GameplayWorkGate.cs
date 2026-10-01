@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using DiagnosticsProcess = System.Diagnostics.Process;
 
 namespace PzTools.Process.Hosting;
 
@@ -10,13 +9,9 @@ public static class GameplayWorkGate
     {
         try
         {
-            foreach (var name in new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" })
-            {
-                var processes = DiagnosticsProcess.GetProcessesByName(name);
-                try { if (processes.Any(process => !process.HasExited)) return true; }
-                finally { foreach (var process in processes) process.Dispose(); }
-            }
-            return false;
+            var processes = PzTools.Process.Contracts.GameProcessFinder.Find();
+            try { return processes.Any(process => !process.HasExited); }
+            finally { foreach (var process in processes) process.Dispose(); }
         }
         catch (Exception exception) when (exception is Win32Exception or InvalidOperationException or UnauthorizedAccessException)
         {

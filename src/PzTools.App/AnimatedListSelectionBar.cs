@@ -43,9 +43,19 @@ internal sealed class AnimatedListSelectionBar
             if (!scrollHooked) scrollHooked = HookScrollViewer(list);
             Update();
         };
-        list.LayoutUpdated += (_, _) => Update();
+        // LayoutUpdated fires for every layout pass anywhere in the window (a countdown tick, a
+        // progress card), several times a frame. One follow-up per dispatcher turn is enough to catch
+        // a selected row that moved; selection and scrolling still update at once.
+        list.LayoutUpdated += (_, _) =>
+        {
+            if (layoutQueued) return;
+            layoutQueued = list.DispatcherQueue.TryEnqueue(
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; Update(); });
+        };
         surface.SizeChanged += (_, _) => Update();
     }
+
+    private bool layoutQueued;
 
     private void Update()
     {

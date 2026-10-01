@@ -16,6 +16,7 @@ var phase = "arguments";
 ProcessTelemetrySession? telemetry = null;
 using var cancellation = new CancellationTokenSource();
 Console.CancelKeyPress += (_, eventArgs) => { eventArgs.Cancel = true; cancellation.Cancel(); };
+using var stopRequest = PzTools.Process.Hosting.ProcessStopSignal.Listen(cancellation);
 string? recordingPath = null;
 try
 {
@@ -79,7 +80,7 @@ try
     if (endedBy != "game-exit")
     {
         // Stopping is owed even when this run was cancelled: the game must not keep recording for nobody.
-        try { await WhenFreeAsync(() => client.StopAsync(processId, CancellationToken.None)); }
+        try { await WhenFreeAsync(() => client.StopAsync(processId, CancellationToken.None), patienceSeconds: 180); }
         catch (GameSaveException gone) when (gone.Code is "not-recording" or "game-not-running" or "attach-failed" or "connection-timeout")
         {
             if (!File.Exists(recordingPath)) throw;
@@ -161,12 +162,15 @@ catch (Exception exception)
 finally { if (telemetry is not null) await telemetry.DisposeAsync(); }
 
 // A backup's save request may hold the game's request channel for a while; recording control simply waits its turn.
-async Task<GameProfileStatus> WhenFreeAsync(Func<Task<GameProfileStatus>> request)
+// Starting gives up after 20 seconds. Stopping waits out a whole game save (a backup allows it 150 seconds by default):
+// giving up there would leave the game recording for nobody until its limit.
+async Task<GameProfileStatus> WhenFreeAsync(Func<Task<GameProfileStatus>> request, int patienceSeconds = 20)
 {
-    for (var attempt = 0; ; attempt++)
+    var waited = System.Diagnostics.Stopwatch.StartNew();
+    while (true)
     {
         try { return await request(); }
-        catch (GameSaveException busy) when (busy.Code == "busy" && attempt < 40)
+        catch (GameSaveException busy) when (busy.Code == "busy" && waited.Elapsed.TotalSeconds < patienceSeconds)
         {
             await Task.Delay(500);
         }

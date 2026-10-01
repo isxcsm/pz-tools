@@ -101,6 +101,8 @@ public static class ProfileAnalysis
         var ownerTotal = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var luaCount = 0;
         var owners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Worked out once per function, not once per sample and depth.
+        var ownerOf = new string?[recording.LuaFunctions.Count];
         for (var index = luaFirst; index < lua.Length && lua[index].Time < end; index++)
         {
             var stack = recording.LuaStacks[lua[index].Stack];
@@ -112,7 +114,7 @@ public static class ProfileAnalysis
             {
                 var function = stack[depth].Function;
                 if (seen.Add(function)) functionTotal[function] = functionTotal.GetValueOrDefault(function) + 1;
-                var owner = OwnerOf(recording.LuaFunctions[function].File);
+                var owner = ownerOf[function] ??= OwnerOf(recording.LuaFunctions[function].File);
                 if (depth == 0) ownerSelf[owner] = ownerSelf.GetValueOrDefault(owner) + 1;
                 if (owners.Add(owner)) ownerTotal[owner] = ownerTotal.GetValueOrDefault(owner) + 1;
             }

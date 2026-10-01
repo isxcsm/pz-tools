@@ -439,7 +439,13 @@ public sealed class SchedulerTests
         Assert.Equal(ProcessOutcome.Busy, (await scheduler.TickAsync(due)).Outcome);
         Assert.Equal(due, (await database.ReadBackupStateIfChangedAsync(-1)).NextDueUtc);
 
-        var retry = await scheduler.TickAsync(due.AddSeconds(1));
+        // A busy repository is not asked again every second: no run, no runner, the backup stays due.
+        var waiting = await scheduler.TickAsync(due.AddSeconds(1));
+        Assert.False(waiting.Due);
+        Assert.Equal(1, attempts);
+        Assert.Equal(due, (await database.ReadBackupStateIfChangedAsync(-1)).NextDueUtc);
+
+        var retry = await scheduler.TickAsync(due.AddSeconds(10));
         Assert.True(retry.Due);
         Assert.Equal(ProcessOutcome.NoChange, retry.Outcome);
         Assert.Equal(2, attempts);

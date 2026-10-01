@@ -486,7 +486,9 @@ public sealed partial class SchedulerDatabase
         CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
+        // Only reads: a deferred transaction gives a consistent snapshot without taking the write
+        // lock that the schedulers and the app would otherwise wait on every second.
+        using var transaction = connection.BeginTransaction(deferred: true);
         var revision = await ReadRevisionAsync(connection, transaction, cancellationToken);
         if (revision == lastSeenRevision)
         {

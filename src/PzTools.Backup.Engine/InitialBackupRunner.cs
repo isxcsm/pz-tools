@@ -280,6 +280,14 @@ public sealed class InitialBackupRunner(
             await telemetry.CompleteAsync(RunStatus.Cancelled, "source-deferred", CancellationToken.None);
             throw;
         }
+        catch (OperationCanceledException exception) when (failurePhase == "source.prepare" && !cancellationToken.IsCancellationRequested)
+        {
+            // Preparation decided against this backup (the world is no longer being played): a skip, not a cancellation.
+            packWriter?.Invalidate("backup run was skipped");
+            await TryCompleteFailedRunAsync(repository, telemetry, lease, run.RunIndex, RunStatus.Cancelled, "source-skipped",
+                BackupFailureTelemetry.Create(source, RunStatus.Cancelled, "source-skipped", exception, failurePhase, currentFile));
+            throw;
+        }
         catch (OperationCanceledException exception)
         {
             packWriter?.Invalidate("backup run was cancelled");

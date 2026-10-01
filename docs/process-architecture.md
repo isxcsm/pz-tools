@@ -135,8 +135,8 @@ to BackupRunner.
 
 - **Backups come first.** Heavy maintenance yields when a backup becomes due.
 - **A busy repository keeps its place.** If the repository is busy, the due time is
-  kept for the next tick. A pending attempt is used up only when a backup worker
-  actually starts.
+  kept and the scheduler tries again about 10 seconds later. A pending attempt is used
+  up only when a backup worker actually starts.
 - **Maintenance follows a backup.** After a successful or unchanged backup the
   scheduler waits for the lightweight maintenance dispatch. The heavy maintenance
   children then continue on their own, with their own run indices and
@@ -156,10 +156,11 @@ separate cleanup lanes.
 
 ### Backups of deleted saves
 
-StateScheduler dispatches the `OrphanBackups` lane about once a minute when it has been
-given a repository and a saves root, even with automatic backups turned off. It also
-dispatches the lane immediately when the game exits, and the app dispatches one more
-pass as it closes.
+StateScheduler dispatches the `OrphanBackups` lane when it has been given a repository
+and a saves root, even with automatic backups turned off. It checks about once a minute,
+but skips the pass while neither the repository's backups nor the list of save folders
+has changed; it rechecks anyway once an hour. It also dispatches the lane immediately
+when the game exits, and the app dispatches one more pass as it closes.
 
 - Heavy cleanup waits while the game process is running, while the game is in its
   menus, and while its status is uncertain.
@@ -217,6 +218,11 @@ the mutex once. If the mutex is taken it returns `Busy` without launching a work
 Ordinary child processes belong to a Windows Job Object that kills them when it is
 closed. Their stdout and stderr are drained concurrently. Heavy maintenance children
 are explicitly detached, so they are not part of that job.
+
+Cancelling a child first asks it to stop through a named event
+(`Local\PzTools-Stop-<pid>`). The CLIs listen for it and stop at their next
+cancellation point, so a run can record its own cancellation. A child that does not
+stop within about 2 seconds, or does not listen, is ended.
 
 ### Which database holds what
 

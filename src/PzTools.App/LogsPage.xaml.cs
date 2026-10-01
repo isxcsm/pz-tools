@@ -92,7 +92,9 @@ public sealed partial class LogsPage : UserControl
         if (latest != liveLatestIndex)
         {
             liveLatestIndex = latest;
-            if (hasLoadedLogs && pageIndex == 0)
+            // A hidden page is reloaded when it is shown (RefreshForNavigation); rebuilding a page
+            // nobody sees for every new log was work for nothing.
+            if (hasLoadedLogs && pageIndex == 0 && Visibility == Visibility.Visible)
                 _ = LoadPageAsync(resetSnapshot: true, scrollToTop: false,
                     animateNewRows: true);
         }
@@ -968,6 +970,10 @@ public sealed class LogEntryUiItem
         "run.failed" when Diagnostics?.Phase == "source.prepare" =>
             Localizer.Get("LogEvent.GameSaveFailed"),
         "run.failed" => ActivityMessage("LogEvent.RunFailed"),
+        // Preparation decided against an automatic backup (the world stopped being played, or the game
+        // could not take the save now): nobody cancelled anything.
+        "run.cancelled" when Diagnostics?.FailureCode is "source-skipped" or "source-deferred" =>
+            Localizer.Get("LogEvent.BackupSkipped"),
         "run.cancelled" => ActivityMessage("LogEvent.RunCancelled"),
         "run.unavailable" when Diagnostics?.FailureCode == "profile-multiple-games" => ActivityMessage("LogEvent.RunMultipleGames"),
         "run.unavailable" => ActivityMessage("LogEvent.RunGameNotRunning"),

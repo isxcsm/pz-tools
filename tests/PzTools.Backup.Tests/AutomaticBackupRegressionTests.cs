@@ -49,6 +49,37 @@ public sealed class AutomaticBackupRegressionTests
         }
     }
 
+    [Fact]
+    public async Task TwoOpenSaves_SuspendOnceWhileTheyStayOpen_AndAgainOnlyAfterLeavingThatState()
+    {
+        using var temp = new TempDirectory();
+        var state = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
+        var first = temp.GetPath("first");
+        var second = temp.GetPath("second");
+        var now = DateTimeOffset.UtcNow;
+        var run = 0;
+        for (var i = 0; i < 6; i++) await ObserveAsync(ActivityState.Active, ActivityState.Active);
+        Assert.Equal(1, await SuspensionsAsync());   // Not one per collection.
+        for (var i = 0; i < 3; i++) await ObserveAsync(ActivityState.Active, ActivityState.Inactive);
+        for (var i = 0; i < 3; i++) await ObserveAsync(ActivityState.Active, ActivityState.Active);
+        Assert.Equal(2, await SuspensionsAsync());   // Entering the state again is a new suspension.
+
+        async Task<int> SuspensionsAsync() =>
+            (await state.ReadPendingOutboxAsync()).Count(message => message.Command == "SuspendAmbiguous");
+        async Task ObserveAsync(ActivityState firstActivity, ActivityState secondActivity)
+        {
+            run++;
+            await state.WritePendingBatchAsync(new(Guid.NewGuid().ToString("D"), run, now, now, 0, true,
+            [
+                new SaveObservation(first, "Sandbox", "First", true, false, firstActivity, CharacterState.Alive,
+                    LaneStatus.Succeeded, LaneStatus.Succeeded),
+                new SaveObservation(second, "Sandbox", "Second", true, false, secondActivity, CharacterState.Alive,
+                    LaneStatus.Succeeded, LaneStatus.Succeeded),
+            ]));
+            await new StateReactor().RunAsync(state);
+        }
+    }
+
     [Theory]
     [InlineData("Limited", 1)]
     [InlineData("Ambiguous", 0)]

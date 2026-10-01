@@ -132,6 +132,20 @@ final class ProfileRecorder {
         return result;
     }
 
+    /**
+     * The flight recorder ended the recording by itself at its maximum duration, and nobody has asked
+     * for it to stop (the recording program may have ended). Stop what this class added around it:
+     * the Lua sampler, the per-frame events and the raised timer resolution. The recording itself
+     * stays, so a later stop request still reports it as finished.
+     */
+    static synchronized void wrapUpIfEnded() {
+        Recording current = recording;
+        if (!active || current == null || current.getState() == RecordingState.RUNNING) return;
+        active = false; open = null;
+        stopLua();
+        TimerResolution.restore();
+    }
+
     /** {@code state;elapsedMillis;frames;mode;lua} - fixed fields, no free text. */
     static synchronized String status() {
         boolean running = recording != null && recording.getState() == RecordingState.RUNNING;
@@ -216,8 +230,6 @@ final class ProfileRecorder {
                     wait.pause(periodNanos);
                     if (stopped) break;
                     taken++;
-                    // The recording ended by itself: stop reading the game for nobody.
-                    if ((taken & 255) == 0 && !ProfileRecorder.running()) break;
                     text.setLength(0);
                     try { read(text); } catch (Throwable racing) { text.setLength(0); }
                     if (text.length() != 0) {
@@ -229,6 +241,10 @@ final class ProfileRecorder {
                     long now = System.nanoTime();
                     if (now - lastReport >= 1_000_000_000L) {
                         report(taken, inLua); taken = inLua = 0; lastReport = now;
+                        // The recording ended by itself: stop reading the game for nobody. Checked once
+                        // a second; counting samples for this missed it in Standard mode, where the
+                        // count is reset before it gets that far.
+                        if (!ProfileRecorder.running()) break;
                     }
                 }
                 report(taken, inLua);

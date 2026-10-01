@@ -144,15 +144,52 @@ public sealed class GameActivityLane(Func<RuntimeObservation?>? runtime = null)
 
 public sealed class CharacterStateLane
 {
+    // Collection runs every few seconds over every save, most of them untouched for months. Whether a
+    // character is dead changes only when players.db does, and the game writes to its -wal file first,
+    // so an answer read while both files were exactly as they are now is still the answer.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string,
+        ((DateTime, long, DateTime, long) Stamp, (CharacterState, LaneStatus, string?) Result)> Known =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public async Task<(CharacterState State, LaneStatus Status, string? ErrorCode)> CollectAsync(
         string playersDatabasePath,
         CancellationToken cancellationToken = default)
     {
         if (!File.Exists(playersDatabasePath))
         {
+            Known.TryRemove(playersDatabasePath, out _);
             return (CharacterState.Unknown, LaneStatus.Unavailable, "players-db-missing");
         }
+        var stamp = Stamp(playersDatabasePath);
+        if (stamp is { } current && Known.TryGetValue(playersDatabasePath, out var known) && known.Stamp == current)
+            return known.Result;
+        var result = await ReadAsync(playersDatabasePath, cancellationToken);
+        // Only definite answers are kept; a failed read is tried again next time.
+        if (stamp is { } read && result.Item2 is LaneStatus.Succeeded or LaneStatus.Unsupported)
+            Known[playersDatabasePath] = (read, result);
+        else Known.TryRemove(playersDatabasePath, out _);
+        return result;
+    }
 
+    private static (DateTime, long, DateTime, long)? Stamp(string path)
+    {
+        try
+        {
+            var main = new FileInfo(path);
+            var wal = new FileInfo(path + "-wal");
+            return (main.LastWriteTimeUtc, main.Length,
+                wal.Exists ? wal.LastWriteTimeUtc : default, wal.Exists ? wal.Length : -1);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static async Task<(CharacterState State, LaneStatus Status, string? ErrorCode)> ReadAsync(
+        string playersDatabasePath,
+        CancellationToken cancellationToken)
+    {
         try
         {
             var connectionString = new SqliteConnectionStringBuilder

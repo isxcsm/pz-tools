@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using DiagnosticsProcess = System.Diagnostics.Process;
 
 namespace PzTools.Zomboid.State;
 
@@ -11,12 +10,9 @@ public static class AutomaticBackupActivity
         var running = false;
         try
         {
-            foreach (var name in new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" })
-            {
-                var processes = DiagnosticsProcess.GetProcessesByName(name);
-                try { running |= processes.Any(process => !process.HasExited); }
-                finally { foreach (var process in processes) process.Dispose(); }
-            }
+            var processes = PzTools.Process.Contracts.GameProcessFinder.Find();
+            try { running = processes.Any(process => !process.HasExited); }
+            finally { foreach (var process in processes) process.Dispose(); }
         }
         catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
         {

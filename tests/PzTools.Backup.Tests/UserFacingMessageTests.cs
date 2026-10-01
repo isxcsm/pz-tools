@@ -23,6 +23,8 @@ public sealed class UserFacingMessageTests
     [InlineData("실행 중인 작업과 충돌하여 설정을 적용할 수 없습니다.", "OperationError.SettingsBusy")]
     [InlineData("Cannot start workers: invalid app runtime configuration. invalid value", "OperationError.Configuration")]
     [InlineData("설정 파일을 확인해 주세요: settings.toml", "OperationError.Configuration")]
+    [InlineData("settings-busy: a running operation uses the save or backup folder.", "OperationError.SettingsBusy")]
+    [InlineData("settings-invalid: C:\\settings.toml", "OperationError.Configuration")]
     [InlineData("The source file could not be captured stably after 3 attempts.", "OperationError.SaveChanged")]
     [InlineData("save-edit-recovery-required: access is denied", "RecoveryError.PendingEdit")]
     [InlineData("recovery-inventory-unavailable: missing candidate", "RecoveryError.Inventory")]

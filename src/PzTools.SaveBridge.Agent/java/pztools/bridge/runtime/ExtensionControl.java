@@ -7,6 +7,8 @@ import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Field;
 import java.net.*;
 import java.nio.*;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -35,10 +37,15 @@ public final class ExtensionControl {
                 if (!AgentEntry.acquireLifecycle(owner, owner::poll)) throw new IllegalStateException("Lifecycle already owned");
                 ByteBuffer buffer = ByteBuffer.allocate(8192);
                 var line = new StringBuilder();
+                // Wait for data instead of polling: the thread wakes when a command arrives, and at
+                // least every 250 ms to notice an expired lease or a reload request.
+                Selector selector = Selector.open();
+                channel.register(selector, SelectionKey.OP_READ);
+                try (selector) {
                 while (!AgentEntry.runtimeReloadRequested() && !owner.expired()) {
                     int read = channel.read(buffer);
                     if (read < 0) break;
-                    if (read == 0) { LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(5)); continue; }
+                    if (read == 0) { selector.select(250); selector.selectedKeys().clear(); continue; }
                     buffer.flip();
                     while (buffer.hasRemaining()) {
                         int value = buffer.get() & 255;
@@ -51,6 +58,7 @@ public final class ExtensionControl {
                         }
                     }
                     buffer.clear();
+                }
                 }
             }
         } catch (Exception | LinkageError failure) {

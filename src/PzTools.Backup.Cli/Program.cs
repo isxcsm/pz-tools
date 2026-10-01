@@ -29,6 +29,8 @@ internal static class BackupCli
             eventArgs.Cancel = true;
             cancellationSource.Cancel();
         };
+        // The app asks a worker to stop the same way: it ends at a safe point instead of being killed.
+        using var stopRequest = ProcessStopSignal.Listen(cancellationSource);
 
         try
         {

@@ -24,10 +24,18 @@ internal sealed class AnimatedSelectorBarIndicator
         this.surface = surface;
         this.indicator = indicator;
         tabs.SelectionChanged += (_, _) => Update();
-        // A tab's text can change width (a share appears in it), and the tabs appear only with a recording.
-        tabs.LayoutUpdated += (_, _) => Update();
+        // A tab's text changes width with the language, and the tabs appear only with a recording.
+        // LayoutUpdated fires for every layout pass in the window, so it is followed once per turn.
+        tabs.LayoutUpdated += (_, _) =>
+        {
+            if (layoutQueued) return;
+            layoutQueued = tabs.DispatcherQueue.TryEnqueue(
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; Update(); });
+        };
         surface.SizeChanged += (_, _) => Update();
     }
+
+    private bool layoutQueued;
 
     private void Update()
     {

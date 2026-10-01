@@ -78,4 +78,21 @@ public sealed partial class GameSaveClientTests
         Assert.True((await client.StartAsync(game.Pid, temp.GetPath("again.pzprof.jfr"), false, 60)).Recording);
         await client.StopAsync(game.Pid);
     }
+
+    [BridgeFact]
+    public async Task ProfileRecording_InStandardMode_StopsTouchingTheGameAtItsLimitWithoutAStopRequest()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        await client.StartAsync(game.Pid, temp.GetPath("standard.pzprof.jfr"), detailed: false, 5);
+        // As if the recording program had gone: nobody sends a stop.
+        await Task.Delay(7000);
+        var ended = await client.StatusAsync(game.Pid);
+        Assert.Equal("finished", ended.State);
+        await Task.Delay(1000);
+        // Frames are no longer marked: the frame hook, the Lua sampler and the timer were released.
+        Assert.Equal(ended.Frames, (await client.StatusAsync(game.Pid)).Frames);
+        Assert.Equal("finished", (await client.StopAsync(game.Pid)).State);
+    }
 }

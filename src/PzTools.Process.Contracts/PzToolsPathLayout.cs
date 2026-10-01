@@ -47,6 +47,6 @@ public sealed record PzToolsPathLayout(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value, parameter);
         if (value is "." or ".." || value.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            throw new ArgumentException("경로 구분자로 사용할 수 없는 값입니다.", parameter);
+            throw new ArgumentException("The value cannot be used as a path separator.", parameter);
     }
 }

@@ -33,8 +33,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
             {
                 // A shared read-only runtime feed serves pause policy and extension metadata.
                 // Disabling pause-aware scheduling does not disable other consumers or create a second watcher.
-                games = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
-                    .SelectMany(System.Diagnostics.Process.GetProcessesByName).ToArray();
+                games = GameProcessFinder.Find();
                 if (games.Length != 1)
                 {
                     extensions.Publish(new(RuntimeExtensionState.Disabled, games.Length == 0 ? "no-game-process" : "multiple-games"));
@@ -75,8 +74,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                         {
                             lastConfigurationCheck = Stopwatch.GetTimestamp();
 
-                            var currentGames = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
-                                .SelectMany(System.Diagnostics.Process.GetProcessesByName).ToArray();
+                            var currentGames = GameProcessFinder.Find();
                             try
                             {
                                 if (currentGames.Length != 1 || currentGames[0].Id != game.Id)

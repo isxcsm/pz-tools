@@ -124,7 +124,7 @@ public sealed class AppSettingsService
         var root = Path.GetFullPath(ConfigurationRoot);
         if (!StringComparer.OrdinalIgnoreCase.Equals(
             Path.GetDirectoryName(root), RuntimeRoot))
-            throw new InvalidOperationException("설정 폴더 경로가 앱 데이터 폴더를 벗어났습니다.");
+            throw new InvalidOperationException("The settings folder is outside the app data folder.");
         var backups = Path.Combine(RuntimeRoot, "config-backups");
         var archived = Path.Combine(backups,
             $"config-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
@@ -166,13 +166,13 @@ public sealed class AppSettingsService
             try
             {
                 _ = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(path))
-                    ?? throw new InvalidDataException("파일이 비어 있습니다.");
+                    ?? throw new InvalidDataException("The file is empty.");
                 _ = ComponentConfiguration.Load(RuntimeRoot, Path.GetFileName(directory),
                     appSettingsPath: SettingsPath, configurationRoot: ConfigurationRoot);
             }
             catch (Exception exception) when (exception is TomlException or InvalidDataException)
             {
-                throw new InvalidDataException($"설정 파일을 확인해 주세요: {path}", exception);
+                throw new InvalidDataException($"settings-invalid: {path}", exception);
             }
         }
         var settings = Load();
@@ -196,11 +196,11 @@ public sealed class AppSettingsService
     {
         var model = File.Exists(SettingsPath)
             ? TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(SettingsPath))
-                ?? throw new InvalidDataException("앱 설정 파일이 비어 있습니다.")
+                ?? throw new InvalidDataException("The app settings file is empty.")
             : new TomlTable();
         var logging = File.Exists(LoggingConfigurationPath)
             ? TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(LoggingConfigurationPath))
-                ?? throw new InvalidDataException("로그 설정 파일이 비어 있습니다.")
+                ?? throw new InvalidDataException("The log settings file is empty.")
             : model;
         if (File.Exists(LoggingConfigurationPath)) ValidateLoggingDocument(logging);
         var defaults = AppSettings.CreateDefault();
@@ -209,7 +209,7 @@ public sealed class AppSettingsService
             configuredBackupRoot, "backup-worker", ConfigurationRoot);
         var backupConfig = File.Exists(backupConfigPath)
             ? TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(backupConfigPath))
-                ?? throw new InvalidDataException("백업 설정 파일이 비어 있습니다.")
+                ?? throw new InvalidDataException("The backup settings file is empty.")
             : model;
         var (automaticEnabled, intervalMinutes) = ReadBackupSchedule(model, defaults);
         var loaded = new AppSettings(
@@ -278,7 +278,7 @@ public sealed class AppSettingsService
             || !StringComparer.OrdinalIgnoreCase.Equals(current.SavesRoot, settings.SavesRoot)
             || !StringComparer.OrdinalIgnoreCase.Equals(current.BackupRoot, settings.BackupRoot);
         if (requiresIdle && hasConflictingOperation())
-            throw new InvalidOperationException("실행 중인 작업과 충돌하여 설정을 적용할 수 없습니다.");
+            throw new InvalidOperationException("settings-busy: a running operation uses the save or backup folder.");
         var effectiveBackupRoot = appliedBackupRoot ?? settings.BackupRoot;
         Directory.CreateDirectory(RuntimeRoot);
         var backupConfigurationPath = ComponentRuntimePaths.GetIdentityDefaultPath(
@@ -400,7 +400,7 @@ public sealed class AppSettingsService
         if (!Section(root, "logs").TryGetValue("record_minimum_level", out var value))
             return fallback;
         return value is string text ? ParseLogLevel(text)
-            : throw new InvalidDataException("logs.record_minimum_level은 문자열이어야 합니다.");
+            : throw new InvalidDataException("logs.record_minimum_level must be a string.");
     }
 
     private static int GetLogMaxEntries(TomlTable root, int fallback)
@@ -408,7 +408,7 @@ public sealed class AppSettingsService
         if (!Section(root, "logs").TryGetValue("max_entries", out var value)) return fallback;
         return value is long number && number is >= 10000 and <= 500000
             ? checked((int)number)
-            : throw new InvalidDataException("logs.max_entries는 10000~500000 사이의 정수여야 합니다.");
+            : throw new InvalidDataException("logs.max_entries must be an integer from 10000 to 500000.");
     }
 
     private static void ValidateLoggingDocument(TomlTable root)
@@ -416,7 +416,7 @@ public sealed class AppSettingsService
         if (root.Keys.Any(key => key is not ("logs" or "runtime")))
             throw new InvalidDataException("App advanced settings support only [logs] and [runtime].");
         if (!root.TryGetValue("logs", out var section) || section is not TomlTable logs)
-            throw new InvalidDataException("앱 고급 설정에 [logs] 섹션이 필요합니다.");
+            throw new InvalidDataException("The app's advanced settings need a [logs] section.");
         if (logs.Keys.Any(key => key is not ("record_minimum_level" or "max_entries")))
             throw new InvalidDataException(
                 "[logs]에 알 수 없는 항목이 있습니다. record_minimum_level과 max_entries만 사용할 수 있습니다.");

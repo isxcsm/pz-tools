@@ -162,7 +162,10 @@ public sealed class GameExtensionClient : IGameExtensionSession
             ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             var command = Guid.NewGuid().ToString("N");
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-            deadline.CancelAfter(TimeSpan.FromSeconds(3));
+            // Applying or retiring a module can rightly take longer than a status check: the game waits
+            // up to 5 seconds for running callbacks to finish, then retransforms classes. An unanswered
+            // command ends the lease, which switches the extension off, so it must not come too soon.
+            deadline.CancelAfter(TimeSpan.FromSeconds(verb is "APPLY" or "OFF" ? 15 : 3));
             await writer.WriteLineAsync(($"{verb}\t{command}\t{epoch}" + (suffix is null ? "" : "\t" + suffix)).AsMemory(), deadline.Token);
             return RuntimeExtensionStatus.ParseWire(await ReadLineAsync(reader, deadline.Token), command);
         }

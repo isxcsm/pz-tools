@@ -47,6 +47,35 @@ public sealed class GameplayBackgroundTests
     }
 
     [Fact]
+    public async Task OrphanDispatch_SkipsAPassWhenNeitherSavesNorCatalogChanged()
+    {
+        using var temp = new TempDirectory();
+        await PzTools.Backup.Storage.Repository.RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repo"));
+        Directory.CreateDirectory(temp.GetPath("saves", "Sandbox", "First"));
+        var launches = 0;
+        var dispatcher = new OrphanCleanupDispatcher(temp.GetPath("repo"), temp.GetPath("saves"),
+            temp.GetPath("workers"), shouldDefer: () => false, startDetached: (_, _, _) => launches++);
+        var now = DateTimeOffset.UtcNow;
+
+        await dispatcher.TickAsync(now);
+        Assert.Equal(1, launches);
+        await dispatcher.TickAsync(now.AddMinutes(2));   // Nothing changed: no new pass.
+        Assert.Equal(1, launches);
+
+        Directory.CreateDirectory(temp.GetPath("saves", "Sandbox", "Second"));
+        await dispatcher.TickAsync(now.AddMinutes(4));   // A save appeared.
+        Assert.Equal(2, launches);
+        await dispatcher.TickAsync(now.AddMinutes(6));
+        Assert.Equal(2, launches);
+
+        await dispatcher.TickAsync(now.AddMinutes(70));  // Unchanged, but an hour has passed.
+        Assert.Equal(3, launches);
+        dispatcher.RequestNow();                         // The game exited: always a pass.
+        await dispatcher.TickAsync(now.AddMinutes(71));
+        Assert.Equal(4, launches);
+    }
+
+    [Fact]
     public async Task GameplayWatch_CancelsExistingMaintenanceWhenGameStarts()
     {
         using var cancellation = new CancellationTokenSource();

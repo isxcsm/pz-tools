@@ -22,7 +22,7 @@ public final class VehicleAdapterBehaviorTest {
         scriptReverseLimitAndOverrides(); invalidReverseLimitIsolation(); reverseNativeEnvelope(); forwardTraitNativeLimits();
         resolvedInputSentinels(); cellReplacement(); nativeObservationIsolation();
         independentToggleMatrix(); steeringBehavior(); steeringCurrentKeyboardRelease(); steeringInputDeadZone(); steeringDuplicateFrames(); steeringDuplicateInvalidation();
-        steeringGuardsAndResets(); steeringPhaseFailure(); steeringDirectKeys(); steeringMeasuredKeys(); steeringMeasurementFallbacks();
+        steeringGuardsAndResets(); steeringPhaseFailure(); steeringDirectKeys(); steeringMeasuredKeys(); steeringIdleTimelineStops(); steeringMeasurementFallbacks();
         areaLight(); areaLightLifecycle();
         System.out.println("PASS vehicle adapter: "+groups+" groups (synthetic classes only)");
     }
@@ -727,6 +727,24 @@ public final class VehicleAdapterBehaviorTest {
                 e.set(owner,gate,gate.equals("operational")); run(keys,16); e.tick();
                 check(control.diagnostics().contains("steering_timing=direct"),"gate "+gate+" reopens");
             }
+        } finally { for(var source:sources) source.finish(); }
+        groups++;
+    }
+    /** The measuring thread polls about once a millisecond: it stops when steering has not read it for a while. */
+    private static void steeringIdleTimelineStops() throws Throwable {
+        var sources=new ArrayList<ScriptedKeys>();
+        try(var e=new Env()) {
+            e.bind("Left",LEFT,0,false); e.bind("Right",RIGHT,0,false);
+            VehicleControl control=e.adapter(toggles(false,false,true),scripted(sources));
+            e.tick(); near(sources.size(),1,"steering starts a timeline"); var first=sources.get(0); first.started();
+            control.gameFrame();
+            check(!first.released,"a timeline in use is kept");
+            Thread.sleep(2100);
+            control.gameFrame(); first.finish();
+            for(int i=0;i<500 && !first.released;i++) Thread.sleep(10);
+            check(first.released,"an unread timeline is stopped after two seconds");
+            e.tick(); near(sources.size(),2,"the next steering starts a new one"); sources.get(1).started();
+            check(control.diagnostics().contains("steering_precise=false"),"its first update is the game's own step");
         } finally { for(var source:sources) source.finish(); }
         groups++;
     }

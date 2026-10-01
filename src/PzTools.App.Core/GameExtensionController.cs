@@ -19,9 +19,29 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
 {
     public static ViewKey ViewKey { get; } = new("game-extensions");
     private readonly GameExtensionService service = new(new ExtensionSettingsStore(runtimeRoot), gameVersion,
-        cataloguePath is null ? null : () => ExtensionCatalog.ReadFile(cataloguePath));
+        cataloguePath is { } catalogue ? () => ExtensionCatalog.ReadFile(catalogue) : null);
+    private readonly string settingsPath = new ExtensionSettingsStore(runtimeRoot).FilePath;
     private IReadOnlyList<ExtensionCardView>? cachedCards;
+    // What the cards are read from. The runtime refresh runs every second for the life of the app;
+    // while the settings file, the catalogue and the game version are as they were, the cards are too.
+    private (DateTime, long, DateTime, long, string?)? cardInputs;
     private readonly SemaphoreSlim gate = new(1, 1);
+
+    private (DateTime, long, DateTime, long, string?)? CardInputs()
+    {
+        try
+        {
+            var settings = new FileInfo(settingsPath);
+            var catalogue = cataloguePath is null ? null : new FileInfo(cataloguePath);
+            return (settings.Exists ? settings.LastWriteTimeUtc : default, settings.Exists ? settings.Length : -1,
+                catalogue is { Exists: true } ? catalogue.LastWriteTimeUtc : default, catalogue is { Exists: true } ? catalogue.Length : -1,
+                gameVersion?.Invoke());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     public async Task<GameExtensionsView> RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -107,8 +127,13 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
             }
             // The controller is not the only settings writer: the runtime owner rolls back
             // definitively rejected requests with a revision-checked write. Never keep that
-            // newer committed state hidden behind the UI's previous preference cache.
-            Publish(await Task.Run(service.ReadCards, token));
+            // newer committed state hidden behind the UI's previous preference cache: any change to
+            // the file is read again.
+            var inputs = CardInputs();
+            if (inputs is not null && inputs == cardInputs) { Publish(cachedCards!); return; }
+            var cards = await Task.Run(service.ReadCards, token);
+            cardInputs = inputs;
+            Publish(cards);
         }
         finally { gate.Release(); }
     }

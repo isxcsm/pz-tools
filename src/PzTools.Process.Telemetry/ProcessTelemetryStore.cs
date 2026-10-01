@@ -22,14 +22,29 @@ public sealed class ProcessTelemetryStore
 
     public string DatabasePath { get; }
 
+    // Databases this process has already created or migrated. A scheduler records an event every few
+    // seconds; preparing the schema again each time rewrote the table for nothing. A file that has been
+    // removed since (operation telemetry is deleted when retired) is prepared again.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> Prepared =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public static async Task<ProcessTelemetryStore> CreateForIdentityAsync(
         string identity,
         string component,
         CancellationToken cancellationToken = default)
     {
         var directory = ComponentRuntimePaths.GetComponentDirectory(identity, component);
+        var path = Path.Combine(directory, "telemetry.db");
+        var store = new ProcessTelemetryStore(path);
+        if (Prepared.ContainsKey(path) && File.Exists(path))
+        {
+            // The one-row header is still checked: another process may have created the file and not
+            // finished it. That is cheap; the table-wide migration below is what is skipped.
+            await using var prepared = await store.OpenAsync(cancellationToken);
+            await EnsureMetadataAsync(prepared, component, cancellationToken);
+            return store;
+        }
         Directory.CreateDirectory(directory);
-        var store = new ProcessTelemetryStore(Path.Combine(directory, "telemetry.db"));
         await using var connection = await store.OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText =
@@ -60,6 +75,7 @@ public sealed class ProcessTelemetryStore
         await command.ExecuteNonQueryAsync(cancellationToken);
         await store.MigrateVersionOneAsync(connection, cancellationToken);
         await EnsureMetadataAsync(connection, component, cancellationToken);
+        Prepared[path] = true;
         return store;
     }
 
@@ -276,7 +292,9 @@ public sealed class ProcessTelemetryStore
         {
             await connection.OpenAsync(token);
             await using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA busy_timeout=1000; PRAGMA journal_mode=WAL;";
+            // Diagnostics, not authority: in WAL mode NORMAL can lose only the last commits on power loss,
+            // and spares a disk flush on every write.
+            command.CommandText = "PRAGMA busy_timeout=1000; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
             await command.ExecuteNonQueryAsync(token);
             return connection;
         }
@@ -291,11 +309,12 @@ public sealed class ProcessTelemetryStore
         SqliteConnection connection,
         CancellationToken cancellationToken)
     {
+        int current;
         await using (var version = connection.CreateCommand())
         {
             version.CommandText =
                 "SELECT schema_version FROM process_telemetry_info WHERE singleton=1;";
-            var current = Convert.ToInt32(
+            current = Convert.ToInt32(
                 await version.ExecuteScalarAsync(cancellationToken),
                 System.Globalization.CultureInfo.InvariantCulture);
             if (current > 3)
@@ -322,11 +341,20 @@ public sealed class ProcessTelemetryStore
             await using var alter = connection.CreateCommand();
             alter.CommandText = $"ALTER TABLE telemetry_events ADD COLUMN {name} {definition};";
             await alter.ExecuteNonQueryAsync(cancellationToken);
+            current = Math.Min(current, 2);
         }
 
         await using var normalize = connection.CreateCommand();
-        normalize.CommandText =
-            """
+        // Rows only need numbering in a database from before version 3; a current one just gets
+        // its indexes checked, instead of every row being rewritten.
+        normalize.CommandText = current >= 3
+            ? """
+              CREATE UNIQUE INDEX IF NOT EXISTS ux_process_telemetry_identity
+                  ON telemetry_events(scope_id,run_index,component,event_sequence);
+              CREATE INDEX IF NOT EXISTS ix_telemetry_component_run
+                  ON telemetry_events(component,run_index,event_id);
+              """
+            : """
             UPDATE telemetry_events
             SET scope_id=CASE WHEN scope_id='' THEN component ELSE scope_id END;
             WITH numbered AS (
@@ -379,7 +407,8 @@ public sealed class ProcessTelemetryStore
                 telemetry_instance_id=COALESCE(telemetry_instance_id,$instance),
                 producer=COALESCE(producer,$producer),
                 created_utc=COALESCE(created_utc,$created)
-            WHERE singleton=1;
+            WHERE singleton=1 AND (schema_version<>3 OR telemetry_instance_id IS NULL
+                OR producer IS NULL OR created_utc IS NULL);
             """;
         update.Parameters.AddWithValue("$instance", Guid.NewGuid().ToString("D"));
         update.Parameters.AddWithValue("$producer", component);
@@ -411,6 +440,15 @@ public sealed record ProcessTelemetryWrite(
 
 public static class BestEffortProcessTelemetry
 {
+    // Settings take effect when the app restarts its workers, so one read per process is enough.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        (string Identity, string Component, string? Path), ProcessTelemetrySettings> Settings = new();
+    // Trimming scans the table; a long-running scheduler records every few seconds, so trim at most
+    // once a minute per database instead of after every event.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> LastTrim =
+        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly long TrimInterval = Stopwatch.Frequency * 60;
+
     public static async Task TryRecordAsync(
         string identity,
         string component,
@@ -422,8 +460,8 @@ public static class BestEffortProcessTelemetry
     {
         try
         {
-            var settings = effectiveSettings ?? LoadSettings(
-                identity, component, configurationPath);
+            var settings = effectiveSettings ?? Settings.GetOrAdd((identity, component, configurationPath),
+                key => LoadSettings(key.Identity, key.Component, key.Path));
             if (!settings.Enabled) return;
             var store = await ProcessTelemetryStore.CreateForIdentityAsync(identity, component);
             await store.RecordAsync(
@@ -432,6 +470,9 @@ public static class BestEffortProcessTelemetry
                 eventName,
                 payloadJson,
                 cancellationToken: CancellationToken.None);
+            var now = Stopwatch.GetTimestamp();
+            if (LastTrim.TryGetValue(store.DatabasePath, out var last) && now - last < TrimInterval) return;
+            LastTrim[store.DatabasePath] = now;
             await store.TrimAsync(
                 component, settings.RetainRuns, settings.MaxDatabaseMib,
                 CancellationToken.None);

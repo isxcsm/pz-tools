@@ -57,6 +57,10 @@ public sealed partial class MainWindowShell
         var saves = page == SavesRoot;
         SavesRoot.Opacity = saves ? 1 : 0;
         SavesRoot.IsHitTestVisible = saves;
+        // Transparent is not gone: without this its buttons stayed in the Tab order and the screen reader's view.
+        SavesHost.IsEnabled = saves;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(SavesHost,
+            saves ? Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Content : Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
         if (refresh && page == SettingsRoot) SettingsRoot.CompleteInitialLayout();
         if (refresh && page == GameExtensionsRoot) _ = GameExtensionsRoot.RefreshForNavigationAsync();
         if (refresh && page == LogsRoot) LogsRoot.RefreshForNavigation();

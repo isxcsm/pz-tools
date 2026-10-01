@@ -130,7 +130,8 @@ starts.
 game to stop (`PROFILE_STOP`) and converts the flight recording with the bundled Java
 runtime, outside the game. The app only starts this worker and reads the finished file.
 If the app or the worker is closed mid-recording, the game stops recording at the time
-limit, and the next recording ends any leftover first.
+limit and also stops sampling Lua and timing frames, so an abandoned recording costs
+nothing afterwards. The next recording ends any leftover first.
 
 ## Limits
 
