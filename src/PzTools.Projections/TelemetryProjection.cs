@@ -249,7 +249,9 @@ public sealed class TelemetryProjectionHost(
                     historicalSourcesFullyRead.Add(source.SourceId);
                 continue;
             }
-            if (!File.Exists(source.DatabasePath))
+            // An open connection already proves the file is there; checking costs a file-system call per
+            // source every second.
+            if (!connections.ContainsKey(source.SourceId) && !File.Exists(source.DatabasePath))
             {
                 CloseConnection(source.SourceId);
                 var health = workflowRunning

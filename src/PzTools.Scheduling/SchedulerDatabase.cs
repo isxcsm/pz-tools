@@ -509,11 +509,61 @@ public sealed partial class SchedulerDatabase
         }
     }
 
-    public async Task<BackupSchedulerState> ReadBackupStateIfChangedAsync(
-        long lastSeenRevision,
-        CancellationToken cancellationToken = default)
+    // Opt-in, for a process that reads this database every second for as long as it runs (the app's
+    // projections). A connection per read made SQLite create the -wal and -shm files on open and delete
+    // them when the last connection closed, every second, each time also scanned by file-system filters.
+    // Reads still use short transactions, so writers and checkpoints are never held up.
+    private readonly SemaphoreSlim heldGate = new(1, 1);
+    private SqliteConnection? heldReader;
+    private bool holdReader;
+
+    public void HoldReadConnection() => holdReader = true;
+
+    public void ReleaseReadConnection()
     {
-        await using var connection = await OpenAsync(cancellationToken);
+        heldGate.Wait();
+        try
+        {
+            holdReader = false;
+            heldReader?.Dispose();
+            heldReader = null;
+        }
+        finally { heldGate.Release(); }
+    }
+
+    private async Task<T> ReadAsync<T>(Func<SqliteConnection, Task<T>> read, CancellationToken cancellationToken)
+    {
+        if (!holdReader)
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            return await read(connection);
+        }
+        await heldGate.WaitAsync(cancellationToken);
+        try
+        {
+            heldReader ??= await OpenAsync(cancellationToken);
+            try { return await read(heldReader); }
+            catch
+            {
+                // Whatever failed, the next read starts from a fresh connection.
+                heldReader.Dispose();
+                heldReader = null;
+                throw;
+            }
+        }
+        finally { heldGate.Release(); }
+    }
+
+    public Task<BackupSchedulerState> ReadBackupStateIfChangedAsync(
+        long lastSeenRevision,
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(connection => ReadBackupStateIfChangedAsync(connection, lastSeenRevision, cancellationToken), cancellationToken);
+
+    private static async Task<BackupSchedulerState> ReadBackupStateIfChangedAsync(
+        SqliteConnection connection,
+        long lastSeenRevision,
+        CancellationToken cancellationToken)
+    {
         // Only reads: a deferred transaction gives a consistent snapshot without taking the write
         // lock that the schedulers and the app would otherwise wait on every second.
         using var transaction = connection.BeginTransaction(deferred: true);

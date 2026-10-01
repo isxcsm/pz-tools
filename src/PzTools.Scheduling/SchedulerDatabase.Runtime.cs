@@ -30,13 +30,14 @@ public sealed partial class SchedulerDatabase
         q.Parameters.AddWithValue("$enabled", enabled ? 1 : 0); await q.ExecuteNonQueryAsync(token);
         return true;
     }
-    public async Task<RuntimeScheduleStorage> ReadRuntimeScheduleAsync(CancellationToken token = default)
-    {
-        await using var c = await OpenAsync(token); using var t = c.BeginTransaction(deferred: true);
-        var storage = await ReadRuntimeScheduleCoreAsync(c, t, token);
-        t.Commit();
-        return storage;
-    }
+    public Task<RuntimeScheduleStorage> ReadRuntimeScheduleAsync(CancellationToken token = default) =>
+        ReadAsync(async c =>
+        {
+            using var t = c.BeginTransaction(deferred: true);
+            var storage = await ReadRuntimeScheduleCoreAsync(c, t, token);
+            t.Commit();
+            return storage;
+        }, token);
     private static async Task<RuntimeScheduleStorage> ReadRuntimeScheduleCoreAsync(SqliteConnection c, SqliteTransaction t, CancellationToken token)
     {
         bool enabled = await RuntimeEnabledAsync(c,t,token);

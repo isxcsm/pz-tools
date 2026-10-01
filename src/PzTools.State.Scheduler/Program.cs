@@ -29,6 +29,9 @@ try
     var cleanupInterval = settings.CleanupIntervalSeconds;
     var schedulerDb = await SchedulerDatabase.CreateOrOpenAsync(schedulerPath);
     var stateDb = await StateDatabase.CreateOrOpenAsync(Required(options, "--state-db"));
+    // This process reads both every second for as long as it runs.
+    schedulerDb.HoldReadConnection();
+    stateDb.HoldReadConnection();
     var savesRoot = Required(options, "--saves-root");
     var interval = TimeSpan.FromSeconds(CommandLine.OptionalInt64(
         options.GetValueOrDefault("--interval-seconds"), "--interval-seconds") ?? settings.IntervalSeconds);

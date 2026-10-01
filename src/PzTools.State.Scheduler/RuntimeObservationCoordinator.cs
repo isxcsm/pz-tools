@@ -33,7 +33,8 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
             {
                 // A shared read-only runtime feed serves pause policy and extension metadata.
                 // Disabling pause-aware scheduling does not disable other consumers or create a second watcher.
-                games = GameProcessFinder.Find();
+                // Polled every second while no game runs; the exit watcher lists processes as often.
+                games = GameProcessFinder.Find(TimeSpan.FromSeconds(2));
                 if (games.Length != 1)
                 {
                     extensions.Publish(new(RuntimeExtensionState.Disabled, games.Length == 0 ? "no-game-process" : "multiple-games"));

@@ -15,7 +15,8 @@ public sealed class GameProcessExitWatcher : IDisposable
     public void Refresh()
     {
         DiagnosticsProcess[] processes;
-        try { processes = PzTools.Process.Contracts.GameProcessFinder.Find(); }
+        // Called every wake-up; the runtime observer lists processes as often, so share its recent list.
+        try { processes = PzTools.Process.Contracts.GameProcessFinder.Find(TimeSpan.FromSeconds(2)); }
         catch (Exception exception) when (
             exception is InvalidOperationException or Win32Exception)
         { return; }

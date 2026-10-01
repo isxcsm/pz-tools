@@ -34,6 +34,9 @@ public sealed class RuntimeExtensionStatusStore(TimeProvider? timeProvider = nul
 
     public RuntimeExtensionStatus Read() => Aged(Volatile.Read(ref current).Everything);
 
+    /// <summary>Changes, by reference, whenever something is published.</summary>
+    internal object Version => Volatile.Read(ref current);
+
     public RuntimeExtensionStatus Read(string moduleId)
     {
         var state = Volatile.Read(ref current);

@@ -225,9 +225,12 @@ public sealed partial class StateDatabase
     /// What a state check's outcome depends on besides its observations: the state revision, the
     /// confirmation counters and any batch still waiting. Read-only; equal stamps mean nobody else changed them.
     /// </summary>
-    public async Task<(string Stamp, bool PendingBatches)> ReadDecisionStampAsync(CancellationToken cancellationToken = default)
+    public Task<(string Stamp, bool PendingBatches)> ReadDecisionStampAsync(CancellationToken cancellationToken = default) =>
+        ReadAsync(connection => ReadDecisionStampAsync(connection, cancellationToken), cancellationToken);
+
+    private static async Task<(string Stamp, bool PendingBatches)> ReadDecisionStampAsync(
+        SqliteConnection connection, CancellationToken cancellationToken)
     {
-        await using var connection = await OpenAsync(cancellationToken);
         using var transaction = connection.BeginTransaction(deferred: true);
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -273,10 +276,13 @@ public sealed partial class StateDatabase
         return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
     }
 
-    public async Task<IReadOnlyList<SchedulerOutboxMessage>> ReadPendingOutboxAsync(
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<SchedulerOutboxMessage>> ReadPendingOutboxAsync(
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(connection => ReadPendingOutboxAsync(connection, cancellationToken), cancellationToken);
+
+    private static async Task<IReadOnlyList<SchedulerOutboxMessage>> ReadPendingOutboxAsync(
+        SqliteConnection connection, CancellationToken cancellationToken)
     {
-        await using var connection = await OpenAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
@@ -308,11 +314,61 @@ public sealed partial class StateDatabase
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task<CurrentStateSnapshot> ReadCurrentStateIfChangedAsync(
-        long lastSeenRevision,
-        CancellationToken cancellationToken = default)
+    // Opt-in, for a process that reads this database every second for as long as it runs (the app's
+    // projections). A connection per read made SQLite create the -wal and -shm files on open and delete
+    // them when the last connection closed, every second, each time also scanned by file-system filters.
+    // Reads still use short transactions, so writers and checkpoints are never held up.
+    private readonly SemaphoreSlim heldGate = new(1, 1);
+    private SqliteConnection? heldReader;
+    private bool holdReader;
+
+    public void HoldReadConnection() => holdReader = true;
+
+    public void ReleaseReadConnection()
     {
-        await using var connection = await OpenAsync(cancellationToken);
+        heldGate.Wait();
+        try
+        {
+            holdReader = false;
+            heldReader?.Dispose();
+            heldReader = null;
+        }
+        finally { heldGate.Release(); }
+    }
+
+    private async Task<T> ReadAsync<T>(Func<SqliteConnection, Task<T>> read, CancellationToken cancellationToken)
+    {
+        if (!holdReader)
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            return await read(connection);
+        }
+        await heldGate.WaitAsync(cancellationToken);
+        try
+        {
+            heldReader ??= await OpenAsync(cancellationToken);
+            try { return await read(heldReader); }
+            catch
+            {
+                // Whatever failed, the next read starts from a fresh connection.
+                heldReader.Dispose();
+                heldReader = null;
+                throw;
+            }
+        }
+        finally { heldGate.Release(); }
+    }
+
+    public Task<CurrentStateSnapshot> ReadCurrentStateIfChangedAsync(
+        long lastSeenRevision,
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(connection => ReadCurrentStateIfChangedAsync(connection, lastSeenRevision, cancellationToken), cancellationToken);
+
+    private static async Task<CurrentStateSnapshot> ReadCurrentStateIfChangedAsync(
+        SqliteConnection connection,
+        long lastSeenRevision,
+        CancellationToken cancellationToken)
+    {
         // A projection is a read snapshot, not a writer. IMMEDIATE transactions here
         // needlessly compete with the collector/reactor during startup and UI polling.
         using var transaction = connection.BeginTransaction(deferred: true);

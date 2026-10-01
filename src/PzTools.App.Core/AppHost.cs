@@ -120,6 +120,7 @@ public sealed class AppHost : IAsyncDisposable
     public string? ActiveSavesRoot { get; private set; }
     public OperationCoordinator? Operations { get; private set; }
     public TelemetryProjectionHost? Telemetry { get; private set; }
+    private StateDatabase? stateDatabase;
     public LogInboxStore? LogInbox { get; private set; }
     public ThumbnailCache Thumbnails { get; }
 
@@ -142,6 +143,10 @@ public sealed class AppHost : IAsyncDisposable
         var state = await StateDatabase.CreateOrOpenAsync(paths.StateDatabasePath, cancellationToken);
         var scheduler = await SchedulerDatabase.CreateOrOpenAsync(
             paths.SchedulerDatabasePath, cancellationToken);
+        // The projections read both every second for as long as the app runs.
+        state.HoldReadConnection();
+        scheduler.HoldReadConnection();
+        stateDatabase = state;
         Scheduler = scheduler;
         var settings = Settings.Load();
         foreach (var (identity, component) in new[]
@@ -399,8 +404,10 @@ public sealed class AppHost : IAsyncDisposable
             await refreshGate.WaitAsync().ConfigureAwait(false);
             refreshGate.Release();
             await Projections.DisposeAsync().ConfigureAwait(false);
-            // The telemetry connections stay open while the loop runs; with the loop stopped, close them.
+            // The connections the projections keep open; with the loop stopped, close them.
             Telemetry?.Dispose();
+            stateDatabase?.ReleaseReadConnection();
+            Scheduler?.ReleaseReadConnection();
         }
     }
 
