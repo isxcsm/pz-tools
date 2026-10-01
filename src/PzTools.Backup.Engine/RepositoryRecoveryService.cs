@@ -35,7 +35,6 @@ public sealed class RepositoryRecoveryService
         ArgumentNullException.ThrowIfNull(telemetry);
         ArgumentNullException.ThrowIfNull(lease);
         var abandoned = await repository.RecoverAbandonedRunsAsync(lease, cancellationToken);
-        await repository.RecoverAbandonedWorkflowStagesAsync("backup-worker", cancellationToken);
         Exception? telemetryFailure = telemetry.Failure;
         if (telemetry.IsAvailable)
         {

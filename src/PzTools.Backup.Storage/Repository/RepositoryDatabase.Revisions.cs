@@ -89,7 +89,7 @@ public sealed partial class RepositoryDatabase
             """
             SELECT state.current_revision
             FROM source_state AS state
-            JOIN runs AS run ON run.source_id = state.source_id
+            JOIN worker_runs AS run ON run.source_id = state.source_id
             WHERE state.source_id = $sourceId
               AND run.run_index = $runIndex
               AND run.status = 'Running';
@@ -252,22 +252,7 @@ public sealed partial class RepositoryDatabase
         CancellationToken cancellationToken,
         WorkflowStatus workflowStatus = WorkflowStatus.Succeeded)
     {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText =
-            """
-            UPDATE runs
-            SET status = 'Succeeded', completed_utc = $completedUtc
-            WHERE run_index = $runIndex AND status = 'Running';
-            """;
-        command.Parameters.AddWithValue("$completedUtc", DateTimeOffset.UtcNow.ToString("O"));
-        command.Parameters.AddWithValue("$runIndex", runIndex);
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
-        {
-            throw new InvalidOperationException($"Run {runIndex} is not Running.");
-        }
-
-        await CompleteLegacyWorkflowInTransactionAsync(
+        await CompleteBackupStageInTransactionAsync(
             connection,
             transaction,
             runIndex,

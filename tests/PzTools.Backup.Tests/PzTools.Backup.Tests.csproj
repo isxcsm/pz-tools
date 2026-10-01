@@ -43,4 +43,7 @@
   <ItemGroup><Compile Include="..\..\src\PzTools.State.Scheduler\RuntimeExtensionCoordinator.cs" Link="Scheduler\RuntimeExtensionCoordinator.cs" /></ItemGroup>
 
   <ItemGroup><None Include="..\game-extensions\version-support.tsv" Link="version-support.tsv" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+
+  <!-- A repository made by the schema 5 build (52511b6): three manual backups of a small save. -->
+  <ItemGroup><None Update="Fixtures\repository-schema5.zip" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

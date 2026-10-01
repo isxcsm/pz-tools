@@ -14,7 +14,7 @@ refused. For where the repository sits among the other parts, see the
 | Version | Current |
 | --- | --- |
 | Repository format | **2** |
-| Repository schema | **5** |
+| Repository schema | **6** (schema 5 is upgraded when opened) |
 
 This page is the one place these numbers are recorded; other pages link here. Build and
 publish the app and the workers together, so that they agree on the version.
@@ -24,6 +24,7 @@ publish the app and the workers together, so that they agree on the version.
 ```text
 repository/
   repository.db
+  repository.schema5.db   (only after an upgrade from schema 5)
   telemetry.db
   .pztools/<component>/telemetry.db
   packs/
@@ -34,6 +35,7 @@ repository/
 | Item | What it holds |
 | --- | --- |
 | `repository.db` | The authoritative record: [sources](glossary.md#source), [revisions](glossary.md#revision-backup), checkpoints, object locations and the [catalog](glossary.md#catalog) |
+| `repository.schema5.db` | A copy of `repository.db` taken just before it was upgraded from schema 5; see [below](#upgrading-from-schema-5) |
 | `telemetry.db`, `.pztools/<component>/telemetry.db` | Diagnostics ([telemetry](glossary.md#telemetry)). Losing them does not remove any revision. |
 | `packs/` | The [pack](glossary.md#pack) files holding the stored file contents; see [pack format](pack-format.md) |
 | `staging/` | Temporary files while a pack is being written |
@@ -43,14 +45,37 @@ Editable settings are not kept in the repository. They live centrally in
 `%LOCALAPPDATA%/PzTools/config/<component>/default.toml`; see
 [configuration](configuration.md).
 
+## Upgrading from schema 5
+
+Schema 5 kept every worker run twice: in `runs`, and in `workflow_runs` with its
+`workflow_stages`. Each writer kept the two in step by hand. Schema 6 keeps only the
+workflow tables. Revisions and packs refer to `workflow_runs`, and the `worker_runs`
+view gives what `runs` used to: the run of the backup worker's stage, or of the
+maintenance worker's when no backup shares the run, with its status in the five values
+telemetry uses.
+
+A schema 5 repository is upgraded the first time this build opens it:
+
+1. `repository.db` is copied to `repository.schema5.db` (once; an existing copy is kept).
+2. In one transaction, any run that only `runs` recorded gets a workflow and a
+   backup-worker stage. Revisions and packs are rebuilt with the new references, and
+   `runs` is dropped.
+3. Every reference is checked before the commit. If anything fails, nothing is
+   changed and the repository stays schema 5.
+
+Processes that open the repository at the same moment wait for the first upgrade and
+then find it done. The previous app version refuses an upgraded repository. To go back
+to it, replace `repository.db` with the copy straight away: backups made after the
+upgrade, and packs that maintenance removes later, are not in the copy.
+
 ## When a backup folder is refused
 
-Older formats and schemas have no migration and no compatibility reader. When the
-backup folder already has a non-empty `repository.db`, its format and schema are checked
-before anything is written to it. If either differs from the current version, or the
-recorded schema and the migration table disagree, it is refused with
-`repository-reset-required` and left unmodified. The app shows this as an incompatible
-backup folder. PZ Tools does not convert or erase it.
+Formats and schemas other than the current one and schema 5 have no migration and no
+compatibility reader. When the backup folder already has a non-empty `repository.db`,
+its format and schema are checked before anything is written to it. If either is
+unsupported, or the recorded schema and the migration table disagree, it is refused
+with `repository-reset-required` and left unmodified. The app shows this as an
+incompatible backup folder. PZ Tools does not convert or erase it.
 
 A `repository.db` that is not a PZ Tools repository at all (it has no repository
 identity) fails with an ordinary error instead.
@@ -63,9 +88,10 @@ a reset target.
 
 ### Stored representation
 
-A new database is created at the current schema and records version 5 in
-`schema_migrations`. An existing database must match the supported format and schema.
-Repository connections turn on foreign keys.
+A new database is created at the current schema and records version 6 in
+`schema_migrations`. An existing database must match the supported format and schema,
+or be [upgraded from schema 5](#upgrading-from-schema-5). Repository connections turn
+on foreign keys.
 
 | Data | Representation |
 |---|---|

@@ -246,7 +246,7 @@ public sealed class IncrementalBackupRunnerTests
     {
         await using var connection = await repository.OpenConnectionAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = "UPDATE runs SET started_utc=$started WHERE run_index=(SELECT MAX(run_index) FROM revisions);";
+        command.CommandText = "UPDATE workflow_stages SET started_utc=$started WHERE producer='backup-worker' AND run_index=(SELECT MAX(run_index) FROM revisions);";
         command.Parameters.AddWithValue("$started", DateTimeOffset.UtcNow.Add(later).ToString("O"));
         Assert.Equal(1, await command.ExecuteNonQueryAsync());
     }

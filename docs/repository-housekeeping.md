@@ -165,10 +165,10 @@ cleanup deletes. After it, only the emptied packs remain, for GC.
 
 ### Completed execution history
 
-The repository keeps a record of past jobs (`runs` and
-[workflows](glossary.md#workflow) in `workflow_runs`). By default at least 90 days of
-completed history and the newest 1,000 IDs from each of `runs` and `workflow_runs` are
-kept. Only older, unreferenced records are eligible.
+The repository keeps a record of past jobs ([workflows](glossary.md#workflow) in
+`workflow_runs`, with their stages in `workflow_stages`). By default at least 90 days of
+completed history and the newest 1,000 workflow IDs are kept. Only older, unreferenced
+records are eligible.
 
 These are always protected:
 

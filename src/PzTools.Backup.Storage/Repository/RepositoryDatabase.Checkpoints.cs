@@ -27,7 +27,7 @@ public sealed partial class RepositoryDatabase
                         next_usn = $nextUsn
                     WHERE source_id = $sourceId
                       AND EXISTS (
-                          SELECT 1 FROM runs
+                          SELECT 1 FROM worker_runs
                           WHERE run_index = $runIndex
                             AND source_id = $sourceId
                             AND status = 'Running'

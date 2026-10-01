@@ -151,10 +151,10 @@ public sealed class TelemetryStore
         command.CommandText = """
             UPDATE telemetry_runs AS target
             SET (status, completed_utc, failure_code) = (
-                SELECT status, completed_utc, failure_code FROM authority.runs
+                SELECT status, completed_utc, failure_code FROM authority.worker_runs
                 WHERE run_index = target.run_index)
             WHERE EXISTS (
-                SELECT 1 FROM authority.runs AS source
+                SELECT 1 FROM authority.worker_runs AS source
                 WHERE source.run_index = target.run_index
                   AND (source.status IS NOT target.status
                     OR source.completed_utc IS NOT target.completed_utc

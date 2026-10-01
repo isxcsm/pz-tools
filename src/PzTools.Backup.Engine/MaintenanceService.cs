@@ -69,7 +69,7 @@ public sealed class MaintenanceService
                 $"Workflow {workflow.RunIndex} is not a running workflow for source {sourceId}.");
         }
 
-        var ownsLegacyRun = await repository.StartMaintenanceStageAsync(
+        await repository.StartMaintenanceStageAsync(
             lease, sourceId, workflow.RunIndex, cancellationToken);
         var lanes = new List<MaintenanceLaneResult>();
         var failedFiles = new List<string>();
@@ -146,7 +146,7 @@ public sealed class MaintenanceService
                 ? WorkflowStatus.Succeeded
                 : WorkflowStatus.Degraded;
             await repository.CompleteMaintenanceStageAsync(
-                lease, workflow.RunIndex, ownsLegacyRun, status,
+                lease, workflow.RunIndex, status,
                 failedFiles.Count == 0 ? null : "artifact-cleanup-incomplete",
                 CancellationToken.None);
             return new MaintenanceResult(workflow.RunIndex, sourceId, lanes, failedFiles);
@@ -154,14 +154,14 @@ public sealed class MaintenanceService
         catch (OperationCanceledException)
         {
             await repository.CompleteMaintenanceStageAsync(
-                lease, workflow.RunIndex, ownsLegacyRun, WorkflowStatus.Cancelled,
+                lease, workflow.RunIndex, WorkflowStatus.Cancelled,
                 "cancelled", CancellationToken.None);
             throw;
         }
         catch
         {
             await repository.CompleteMaintenanceStageAsync(
-                lease, workflow.RunIndex, ownsLegacyRun, WorkflowStatus.Failed,
+                lease, workflow.RunIndex, WorkflowStatus.Failed,
                 "maintenance-failed", CancellationToken.None);
             throw;
         }

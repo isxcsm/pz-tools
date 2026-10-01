@@ -6,13 +6,101 @@ internal sealed record RepositoryMigration(int Version, string Name, string Sql)
 
 internal static class RepositorySchema
 {
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
-    // Fresh format 2 / schema 5 repositories only. Older schemas have no upgrade path.
+    /// <summary>The oldest schema that is upgraded in place; see <see cref="RepositorySchemaUpgrade"/>.</summary>
+    public const int UpgradableVersion = 5;
+
+    // Backups and the packs they wrote belong to a workflow run. Shared by the fresh baseline and the
+    // schema 5 upgrade, which rebuilds both tables because their run references changed.
+    public const string RevisionsTable =
+        """
+        CREATE TABLE revisions (
+            source_id INTEGER NOT NULL REFERENCES sources(source_id),
+            revision INTEGER NOT NULL CHECK (revision >= 1),
+            run_index INTEGER NOT NULL UNIQUE REFERENCES workflow_runs(run_index),
+            created_utc TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'Active' CHECK (state IN ('Active', 'Deleted')),
+            deleted_utc TEXT NULL,
+            delete_reason TEXT NULL,
+            display_name TEXT NOT NULL DEFAULT '',
+            character_name TEXT NULL,
+            character_state TEXT NULL CHECK (character_state IN ('Unknown', 'Alive', 'Dead')),
+            backup_kind TEXT NOT NULL DEFAULT 'Unknown' CHECK (backup_kind IN ('Unknown', 'Manual', 'Automatic')),
+            hours_survived REAL NULL,
+            character_metadata_read INTEGER NOT NULL DEFAULT 0 CHECK (character_metadata_read IN (0, 1)),
+            character_metadata_error TEXT NULL,
+            logical_size INTEGER NOT NULL DEFAULT 0 CHECK (logical_size >= 0),
+            file_count INTEGER NOT NULL DEFAULT 0 CHECK (file_count >= 0),
+            game_version TEXT NULL,
+            PRIMARY KEY (source_id, revision)
+        ) STRICT;
+        """;
+
+    public const string RevisionsColumns =
+        "source_id, revision, run_index, created_utc, state, deleted_utc, delete_reason, display_name, "
+        + "character_name, character_state, backup_kind, hours_survived, character_metadata_read, "
+        + "character_metadata_error, logical_size, file_count, game_version";
+
+    public const string RevisionsIndexes =
+        """
+        CREATE INDEX ix_revisions_active
+            ON revisions(source_id, revision DESC)
+            WHERE state = 'Active';
+
+        CREATE INDEX ix_revisions_automatic_active
+            ON revisions(source_id, revision DESC)
+            WHERE state = 'Active' AND backup_kind = 'Automatic';
+
+        CREATE INDEX ix_revisions_pending_character ON revisions(source_id, revision)
+            WHERE state = 'Active' AND character_metadata_read = 0;
+        """;
+
+    public const string PacksTable =
+        """
+        CREATE TABLE packs (
+            pack_id BLOB NOT NULL CHECK (pack_id IS NULL OR length(pack_id)=16) PRIMARY KEY,
+            relative_path TEXT NOT NULL UNIQUE,
+            format_version INTEGER NOT NULL,
+            byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
+            status TEXT NOT NULL CHECK (status IN ('Committed', 'Superseded')),
+            created_run_index INTEGER NOT NULL REFERENCES workflow_runs(run_index),
+            created_utc TEXT NOT NULL
+        ) STRICT;
+        """;
+
+    public const string PacksColumns =
+        "pack_id, relative_path, format_version, byte_length, status, created_run_index, created_utc";
+
+    // The run of the worker stage that writes the repository: the backup worker's, or the
+    // maintenance worker's when no backup shares the run. Statuses use the five values of
+    // telemetry runs, which reconcile against this view.
+    public const string WorkerRunsView =
+        """
+        CREATE VIEW worker_runs AS
+        SELECT stage.run_index, workflow.source_id,
+               CASE stage.status
+                   WHEN 'Running' THEN 'Running'
+                   WHEN 'Succeeded' THEN 'Succeeded'
+                   WHEN 'NoChange' THEN 'Succeeded'
+                   WHEN 'Cancelled' THEN 'Cancelled'
+                   WHEN 'Abandoned' THEN 'Abandoned'
+                   ELSE 'Failed'
+               END AS status,
+               stage.started_utc, stage.completed_utc, stage.failure_code
+        FROM workflow_stages AS stage
+        JOIN workflow_runs AS workflow ON workflow.run_index = stage.run_index
+        WHERE stage.producer = 'backup-worker'
+           OR (stage.producer = 'maintenance-worker' AND NOT EXISTS (
+                SELECT 1 FROM workflow_stages AS backup
+                WHERE backup.run_index = stage.run_index AND backup.producer = 'backup-worker'));
+        """;
+
+    // Fresh repositories start at the current schema; schema 5 ones are upgraded when opened.
     public static IReadOnlyList<RepositoryMigration> Migrations { get; } =
     [
-        new RepositoryMigration(CurrentVersion, "bounded version and path inspection",
-            """
+        new RepositoryMigration(CurrentVersion, "single run history",
+            $$"""
             CREATE TABLE repository_info (
                 singleton INTEGER NOT NULL PRIMARY KEY CHECK (singleton = 1),
                 repository_id BLOB NOT NULL CHECK (repository_id IS NULL OR length(repository_id)=16),
@@ -44,47 +132,9 @@ internal static class RepositorySchema
                 )
             ) STRICT;
 
-            CREATE TABLE runs (
-                run_index INTEGER NOT NULL PRIMARY KEY,
-                source_id INTEGER NOT NULL REFERENCES sources(source_id),
-                status TEXT NOT NULL CHECK (
-                    status IN ('Running', 'Succeeded', 'Failed', 'Cancelled', 'Abandoned')
-                ),
-                started_utc TEXT NOT NULL,
-                completed_utc TEXT NULL,
-                failure_code TEXT NULL
-            ) STRICT;
+            {{RevisionsTable}}
 
-            CREATE TABLE revisions (
-                source_id INTEGER NOT NULL REFERENCES sources(source_id),
-                revision INTEGER NOT NULL CHECK (revision >= 1),
-                run_index INTEGER NOT NULL UNIQUE REFERENCES runs(run_index),
-                created_utc TEXT NOT NULL,
-                state TEXT NOT NULL DEFAULT 'Active' CHECK (state IN ('Active', 'Deleted')),
-                deleted_utc TEXT NULL,
-                delete_reason TEXT NULL,
-                display_name TEXT NOT NULL DEFAULT '',
-                character_name TEXT NULL,
-                character_state TEXT NULL CHECK (character_state IN ('Unknown', 'Alive', 'Dead')),
-                backup_kind TEXT NOT NULL DEFAULT 'Unknown' CHECK (backup_kind IN ('Unknown', 'Manual', 'Automatic')),
-                hours_survived REAL NULL,
-                character_metadata_read INTEGER NOT NULL DEFAULT 0 CHECK (character_metadata_read IN (0, 1)),
-                character_metadata_error TEXT NULL,
-                logical_size INTEGER NOT NULL DEFAULT 0 CHECK (logical_size >= 0),
-                file_count INTEGER NOT NULL DEFAULT 0 CHECK (file_count >= 0),
-                game_version TEXT NULL,
-                PRIMARY KEY (source_id, revision)
-            ) STRICT;
-
-            CREATE TABLE packs (
-                pack_id BLOB NOT NULL CHECK (pack_id IS NULL OR length(pack_id)=16) PRIMARY KEY,
-                relative_path TEXT NOT NULL UNIQUE,
-                format_version INTEGER NOT NULL,
-                byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
-                status TEXT NOT NULL CHECK (status IN ('Committed', 'Superseded')),
-                created_run_index INTEGER NOT NULL REFERENCES runs(run_index),
-                created_utc TEXT NOT NULL
-            ) STRICT;
+            {{PacksTable}}
 
             CREATE TABLE stored_objects (
                 object_id BLOB NOT NULL CHECK (object_id IS NULL OR length(object_id)=16) PRIMARY KEY,
@@ -223,9 +273,6 @@ internal static class RepositorySchema
                 ON entry_versions(object_id)
                 WHERE object_id IS NOT NULL;
 
-            CREATE INDEX ix_runs_source
-                ON runs(source_id, run_index);
-
             CREATE INDEX ix_entry_versions_current_file_reference
                 ON entry_versions(
                     source_id,
@@ -237,19 +284,12 @@ internal static class RepositorySchema
                 WHERE valid_to_revision IS NULL AND tombstone = 0
                   AND (file_id IS NULL OR parent_file_id IS NULL);
 
-            CREATE INDEX ix_revisions_active
-                ON revisions(source_id, revision DESC)
-                WHERE state = 'Active';
+            {{RevisionsIndexes}}
 
             CREATE INDEX ix_workflow_runs_source
                 ON workflow_runs(source_id, run_index);
 
-            CREATE INDEX ix_revisions_automatic_active
-                ON revisions(source_id, revision DESC)
-                WHERE state = 'Active' AND backup_kind = 'Automatic';
-
-            CREATE INDEX ix_revisions_pending_character ON revisions(source_id, revision)
-                WHERE state = 'Active' AND character_metadata_read = 0;
+            {{WorkerRunsView}}
 
             -- Keep current-only scans on the narrow live index even after adding
             -- revision-maintenance indexes. Historical queries use entry_catalog.

@@ -398,7 +398,7 @@ public sealed class OneShotBackupServiceTests
         var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
         await using var connection = await repository.OpenConnectionAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM runs;";
+        command.CommandText = "SELECT COUNT(*) FROM worker_runs;";
         Assert.Equal(0L, await command.ExecuteScalarAsync());
     }
 

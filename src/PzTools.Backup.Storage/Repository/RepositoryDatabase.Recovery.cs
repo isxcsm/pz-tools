@@ -4,6 +4,8 @@ namespace PzTools.Backup.Storage.Repository;
 
 public sealed partial class RepositoryDatabase
 {
+    // Whoever holds the writer lease is the only worker that may write: any other worker stage
+    // still marked Running was interrupted.
     public async Task<int> RecoverAbandonedRunsAsync(
         RepositoryWriterLease lease,
         CancellationToken cancellationToken = default)
@@ -13,10 +15,10 @@ public sealed partial class RepositoryDatabase
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
-            UPDATE runs
+            UPDATE workflow_stages
             SET status = 'Abandoned', completed_utc = $completedUtc,
                 failure_code = 'process-interrupted'
-            WHERE status = 'Running';
+            WHERE producer IN ('backup-worker', 'maintenance-worker') AND status = 'Running';
             """;
         command.Parameters.AddWithValue("$completedUtc", DateTimeOffset.UtcNow.ToString("O"));
         return await command.ExecuteNonQueryAsync(cancellationToken);
@@ -30,7 +32,8 @@ public sealed partial class RepositoryDatabase
         command.CommandText =
             """
             SELECT run_index, source_id, status, started_utc, completed_utc, failure_code
-            FROM runs
+            FROM worker_runs
+            WHERE source_id IS NOT NULL
             ORDER BY run_index;
             """;
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);

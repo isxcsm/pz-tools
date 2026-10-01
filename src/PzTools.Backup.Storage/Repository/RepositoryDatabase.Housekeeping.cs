@@ -23,7 +23,7 @@ public sealed record RepositoryHousekeepingOptions(
     }
 }
 
-public sealed record CompletedHistoryCleanup(int Runs, int Workflows, int Stages);
+public sealed record CompletedHistoryCleanup(int Workflows, int Stages);
 public sealed record RepositoryVacuumResult(string Status, long BeforeBytes, long AfterBytes, bool CheckpointCompleted = false);
 
 public sealed partial class RepositoryDatabase
@@ -81,7 +81,7 @@ public sealed partial class RepositoryDatabase
     }
 
     // Run IDs are retained by repository_info, not recycled from deleted history.
-    // Keep the newest IDs of BOTH histories and every revision/pack/live-stage owner.
+    // Keep the newest IDs and every revision/pack/live-stage owner.
     public async Task<CompletedHistoryCleanup> PruneCompletedHistoryAsync(
         RepositoryWriterLease lease, DateTimeOffset completedBefore,
         int minimumRetainedRuns = 1000, int maximumRuns = 1000,
@@ -98,8 +98,6 @@ public sealed partial class RepositoryDatabase
             """
             CREATE TEMP TABLE housekeeping_recent(run_index INTEGER PRIMARY KEY);
             INSERT OR IGNORE INTO housekeeping_recent
-                SELECT run_index FROM runs ORDER BY run_index DESC LIMIT $keep;
-            INSERT OR IGNORE INTO housekeeping_recent
                 SELECT run_index FROM workflow_runs ORDER BY run_index DESC LIMIT $keep;
             CREATE TEMP TABLE housekeeping_workflows(run_index INTEGER PRIMARY KEY);
             INSERT INTO housekeeping_workflows
@@ -113,10 +111,6 @@ public sealed partial class RepositoryDatabase
                       SELECT 1 FROM workflow_stages AS stage WHERE stage.run_index=workflow.run_index
                         AND (stage.status='Running' OR julianday(stage.completed_utc) IS NULL
                              OR julianday(stage.completed_utc)>=julianday($cutoff)))
-                  AND NOT EXISTS (
-                      SELECT 1 FROM runs AS run WHERE run.run_index=workflow.run_index
-                        AND (run.status='Running' OR julianday(run.completed_utc) IS NULL
-                             OR julianday(run.completed_utc)>=julianday($cutoff)))
                 ORDER BY workflow.run_index LIMIT $limit;
             """;
         command.Parameters.AddWithValue("$keep", minimumRetainedRuns);
@@ -127,22 +121,9 @@ public sealed partial class RepositoryDatabase
         var stages = await command.ExecuteNonQueryAsync(cancellationToken);
         command.CommandText = "DELETE FROM workflow_runs WHERE run_index IN (SELECT run_index FROM housekeeping_workflows);";
         var workflows = await command.ExecuteNonQueryAsync(cancellationToken);
-        command.CommandText =
-            """
-            DELETE FROM runs WHERE run_index IN (
-                SELECT run.run_index FROM runs AS run
-                WHERE run.status!='Running' AND julianday(run.completed_utc)<julianday($cutoff)
-                  AND NOT EXISTS (SELECT 1 FROM housekeeping_recent AS recent WHERE recent.run_index=run.run_index)
-                  AND NOT EXISTS (SELECT 1 FROM workflow_runs WHERE run_index=run.run_index)
-                  AND NOT EXISTS (SELECT 1 FROM revisions WHERE run_index=run.run_index)
-                  AND NOT EXISTS (SELECT 1 FROM packs WHERE created_run_index=run.run_index)
-                ORDER BY run.run_index LIMIT $limit
-            );
-            """;
-        var runs = await command.ExecuteNonQueryAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
-        return new CompletedHistoryCleanup(runs, workflows, stages);
+        return new CompletedHistoryCleanup(workflows, stages);
     }
 
     // Opportunistic, bounded-size work on a private connection, never a file swap.
@@ -183,7 +164,7 @@ public sealed partial class RepositoryDatabase
                 return new("below-threshold", before, before);
             command.CommandText =
                 """
-                SELECT EXISTS(SELECT 1 FROM runs WHERE status='Running' AND run_index!=$run)
+                SELECT EXISTS(SELECT 1 FROM worker_runs WHERE status='Running' AND run_index!=$run)
                     OR EXISTS(SELECT 1 FROM workflow_runs WHERE status='Running' AND run_index!=$run
                               AND pipeline NOT IN ('maintenance','maintenance-lane'));
                 """;
