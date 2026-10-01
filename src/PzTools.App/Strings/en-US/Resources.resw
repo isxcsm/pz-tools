@@ -286,7 +286,7 @@
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Delete all {1} backups of ‘{0}’?
 
 The current save files will remain. Deleted backups will disappear from the list immediately and can no longer be restored or exported. The space they used will be cleaned up later. This action cannot be undone.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>All backups of the selected save were deleted. The current save was kept.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Backups deleted. The save itself was kept.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Delete save {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Delete {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Delete the save ‘{0}’?
@@ -330,7 +330,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools has to close because of an unexpected error. Error report: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>A Windows security policy (such as Smart App Control) blocked a PZ Tools component. Check Windows Security → App &amp; browser control.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Cleaning up backups</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Backup cleanup was postponed for a backup or the game.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Cleanup postponed for a backup or the game.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Removing old backups</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Removing temporary files</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Removing backups of deleted saves</value></data>
@@ -354,7 +354,9 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="HealCharacterAction" xml:space="preserve"><value>Heal character</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Heal or revive character</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Heal {0}?&#xA;&#xA;Restore health and treat injuries and other conditions. If dead, revive the character and recover available belongings. The zombie or corpse the belongings are recovered from will be removed.&#xA;&#xA;Traits, skills, XP and position are kept. Some mod effects may remain.&#xA;&#xA;Create a backup before continuing. This action does not create one for you.&#xA;&#xA;Applies to the selected single-player save after you stop playing.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Character recovery completed. Traits, skills and XP were preserved.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Character healed.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Character revived.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Character revived. Items recovered: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Recovery stopped because belongings could not be recovered safely. Your save was not changed.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>A previous save update needs to finish. Reopen PZ Tools before loading this save in the game.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Character recovery</value></data>

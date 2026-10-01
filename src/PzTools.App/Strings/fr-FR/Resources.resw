@@ -165,7 +165,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>{0:N0} de plus</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Informations techniques</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Copier les détails</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Les détails du journal ont été copiés dans le presse-papiers.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Détails copiés dans le presse-papiers.</value></data>
   <data name="Close" xml:space="preserve"><value>Fermer</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Enregistrement brut</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Chargement des journaux…</value></data>
@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Supprimer toutes les sauvegardes de « {0} »</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Supprimer toutes les sauvegardes</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Supprimer les {1} sauvegardes de « {0} » ?&#xA;&#xA;Les fichiers de la partie actuelle seront conservés. Les sauvegardes supprimées disparaîtront immédiatement de la liste et ne pourront plus être restaurées ni exportées. L’espace qu’elles occupaient sera libéré ultérieurement. Cette action est irréversible.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Toutes les sauvegardes de la partie sélectionnée ont été supprimées. La partie actuelle a été conservée.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Sauvegardes supprimées. Partie conservée.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Supprimer la partie {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Supprimer {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Supprimer la partie « {0} » ?&#xA;&#xA;Cible : {1}&#xA;Le dossier de partie sélectionné et tous ses fichiers seront définitivement supprimés, ainsi que toutes les sauvegardes de cette partie. Ni la Corbeille ni un dossier de récupération ne seront utilisés. Cette action est irréversible. Les sauvegardes supprimées ne pourront plus être restaurées ni exportées ; l’espace qu’elles occupaient sera libéré ultérieurement.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools doit se fermer à cause d’une erreur inattendue. Rapport d’erreur : {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Une stratégie de sécurité Windows (par exemple Smart App Control) a bloqué un composant de PZ Tools. Vérifiez Sécurité Windows → Contrôle des applications et du navigateur.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Nettoyage des sauvegardes</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Le nettoyage des sauvegardes a été reporté pour une sauvegarde ou pour le jeu.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Nettoyage reporté pour sauvegarde ou jeu.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Suppression des anciennes sauvegardes</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Suppression des fichiers temporaires</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Suppression des sauvegardes de parties supprimées</value></data>
@@ -355,7 +355,9 @@ Les traits, compétences, l’XP et la position sont conservés. Certains effets
 Créez une sauvegarde avant de continuer. Cette opération n’en crée pas automatiquement.
 
 S’applique à la partie solo sélectionnée après avoir quitté la partie.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Le personnage a été rétabli. Ses traits, compétences et points d’expérience ont été conservés.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Personnage soigné.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Personnage ranimé.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Ranimé. Objets récupérés : {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>La récupération a été arrêtée car les affaires ne pouvaient pas être récupérées en toute sécurité. La partie n’a pas été modifiée.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Une modification précédente de la partie doit être terminée. Rouvrez PZ Tools avant de charger cette partie dans le jeu.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Rétablissement du personnage</value></data>

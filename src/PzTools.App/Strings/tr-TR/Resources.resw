@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>“{0}” kaydının tüm yedeklerini sil</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Tüm yedekleri sil</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>“{0}” kaydının {1} yedeğinin tümü silinsin mi?&#xA;&#xA;Geçerli oyun kayıt dosyaları korunur. Silinen yedekler listeden hemen kaybolur ve artık geri yüklenemez veya dışa aktarılamaz. Kapladıkları alan daha sonra temizlenir. Bu işlem geri alınamaz.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Seçilen oyun kaydının tüm yedekleri silindi. Geçerli oyun kaydı korundu.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Yedekler silindi. Oyun kaydı korundu.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>{0} oyun kaydını sil</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>{0} öğesini sil</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>“{0}” oyun kaydı silinsin mi?&#xA;&#xA;Hedef: {1}&#xA;Seçilen kayıt klasörü ve içindeki tüm dosyalar, bu kaydın bütün yedekleriyle birlikte kalıcı olarak silinir. Geri Dönüşüm Kutusu veya kurtarma klasörleri kullanılmaz. Bu işlem geri alınamaz. Silinen yedekler geri yüklenemez veya dışa aktarılamaz; kapladıkları alan daha sonra temizlenir.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools beklenmeyen bir hata nedeniyle kapatılacak. Hata raporu: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Bir Windows güvenlik ilkesi (örneğin Akıllı Uygulama Denetimi) bir PZ Tools bileşenini engelledi. Windows Güvenliği → Uygulama ve tarayıcı denetimi bölümünü kontrol edin.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Yedekler temizleniyor</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Yedek temizliği, bir yedekleme veya oyun için ertelendi.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Temizlik, yedek veya oyun için ertelendi.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Eski yedekler kaldırılıyor</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Geçici dosyalar kaldırılıyor</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Silinmiş kayıtların yedekleri kaldırılıyor</value></data>
@@ -355,7 +355,9 @@ Sağlığı yeniler, yaraları ve diğer rahatsızlıkları iyileştirir. Karakt
 Devam etmeden önce bir yedek oluşturun. Bu işlem otomatik olarak yedek oluşturmaz.
 
 Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Karakter kurtarma tamamlandı. Özellikler, beceriler ve deneyim korundu.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Karakter iyileştirildi.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Karakter diriltildi.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Diriltildi. Geri alınan eşya: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Eşyalar güvenli biçimde geri alınamadığı için kurtarma durduruldu. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Önceki kayıt değişikliği tamamlanmalı. Bu kaydı oyunda açmadan önce PZ Tools&apos;u yeniden açın.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Karakter kurtarma</value></data>

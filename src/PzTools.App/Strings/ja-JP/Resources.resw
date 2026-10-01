@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>「{0}」のバックアップをすべて削除</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>全バックアップを削除</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>「{0}」のバックアップ {1} 件をすべて削除しますか？&#xA;&#xA;現在のセーブファイルは保持されます。削除したバックアップは直ちに一覧から消え、復元もエクスポートもできなくなります。使用していた容量は後で解放されます。この操作は取り消せません。</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>選択したセーブのバックアップをすべて削除しました。現在のセーブは保持されています。</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>全バックアップを削除しました。セーブは残ります。</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>セーブ {0} を削除</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>{0} を削除</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>セーブ「{0}」を削除しますか？&#xA;&#xA;対象：{1}&#xA;選択したセーブフォルダーとその中の全ファイル、およびこのセーブの全バックアップを完全に削除します。ごみ箱や復旧用フォルダーは使用しません。この操作は取り消せません。削除したバックアップは復元もエクスポートもできなくなり、使用していた容量は後で解放されます。</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>予期しないエラーのため PZ Tools を終了します。エラー記録: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Windows のセキュリティ ポリシー（スマート アプリ コントロールなど）が PZ Tools のコンポーネントをブロックしました。Windows セキュリティ → アプリとブラウザー コントロールを確認してください。</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>バックアップをクリーンアップ中</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>バックアップまたはゲームの実行を優先するため、バックアップのクリーンアップを延期しました。</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>バックアップかゲームのため整理を延期しました。</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>古いバックアップを削除</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>一時ファイルを削除</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>削除済みセーブのバックアップを削除</value></data>
@@ -355,7 +355,9 @@
 プレイを終了した状態で、選択したシングルプレイのセーブに適用します。
 
 続行する前にバックアップを作成してください。この処理ではバックアップを自動作成しません。</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>キャラクターの回復が完了しました。特性・スキル・経験値は保持されています。</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>キャラクターを回復しました。</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>キャラクターが復活しました。</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>復活しました。所持品 {0} 個を回収しました。</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>所持品を安全に回収できないため、回復を中止しました。セーブは変更していません。</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>前回のセーブ変更を完了する必要があります。このセーブをゲームで読み込む前にPZ Toolsを再起動してください。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>キャラクターの回復</value></data>

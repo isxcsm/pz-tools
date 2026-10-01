@@ -355,7 +355,9 @@
 結束遊玩後，套用至選取的單人存檔。
 
 請先建立備份，再繼續操作。此作業不會自動建立備份。</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>角色恢復完成。特質、技能和經驗值已保留。</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>角色已恢復。</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>角色已復活。</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>已復活，取回物品 {0} 件。</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>無法安全取回物品，已停止恢復。存檔未被修改。</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>上一次存檔修改尚未完成。請先重新開啟 PZ Tools，再在遊戲中載入此存檔。</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>角色恢復</value></data>

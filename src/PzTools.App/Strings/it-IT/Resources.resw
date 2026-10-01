@@ -108,7 +108,7 @@
   <data name="ExportArchiveTitle" xml:space="preserve"><value>Esporta ZIP</value></data>
   <data name="OperationSucceeded" xml:space="preserve"><value>Completato.</value></data>
   <data name="OperationNoChange" xml:space="preserve"><value>Nessun file modificato.</value></data>
-  <data name="OperationBusy" xml:space="preserve"><value>Operazione saltata: è in corso un’altra operazione.</value></data>
+  <data name="OperationBusy" xml:space="preserve"><value>Saltata: è in corso un’altra operazione.</value></data>
   <data name="OperationFailed" xml:space="preserve"><value>Operazione non riuscita.</value></data>
   <data name="NoPlayHistory" xml:space="preserve"><value>Nessuna partita precedente</value></data>
   <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Informazioni sul prossimo backup non disponibili.</value></data>
@@ -165,7 +165,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>Altre {0:N0}</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Informazioni tecniche</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Copia dettagli</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>I dettagli del registro sono stati copiati negli appunti.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Dettagli copiati negli appunti.</value></data>
   <data name="Close" xml:space="preserve"><value>Chiudi</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Registrazione originale</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Caricamento dei registri…</value></data>
@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Elimina tutti i backup di «{0}»</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Elimina tutti i backup</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Eliminare tutti i {1} backup di «{0}»?&#xA;&#xA;I file del salvataggio attuale saranno conservati. I backup eliminati spariranno subito dall’elenco e non potranno più essere ripristinati o esportati. Lo spazio occupato sarà liberato in seguito. Questa azione è irreversibile.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Tutti i backup del salvataggio selezionato sono stati eliminati. Il salvataggio attuale è stato conservato.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Backup eliminati. Il salvataggio resta.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Elimina salvataggio {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Elimina {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Eliminare il salvataggio «{0}»?&#xA;&#xA;Destinazione: {1}&#xA;La cartella selezionata e tutti i suoi file saranno eliminati definitivamente, insieme a ogni backup di questo salvataggio. Non verranno utilizzati il Cestino o cartelle di recupero. Questa azione è irreversibile. I backup eliminati non potranno essere ripristinati o esportati; lo spazio occupato sarà liberato in seguito.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools verrà chiuso a causa di un errore imprevisto. Rapporto di errore: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Un criterio di sicurezza di Windows (ad esempio Smart App Control) ha bloccato un componente di PZ Tools. Controlla Sicurezza di Windows → Controllo delle app e del browser.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Pulizia dei backup in corso</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>La pulizia dei backup è stata rimandata per un backup o per il gioco.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Pulizia rimandata per un backup o il gioco.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Rimozione dei backup vecchi</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Rimozione dei file temporanei</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Rimozione dei backup di salvataggi eliminati</value></data>
@@ -355,7 +355,9 @@ Tratti, abilità, esperienza e posizione vengono conservati. Alcuni effetti dell
 Crea un backup prima di continuare. Questa operazione non ne crea uno automaticamente.
 
 Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di giocare.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Recupero del personaggio completato. Tratti, abilità ed esperienza sono stati conservati.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Personaggio curato.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Personaggio rianimato.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Rianimato. Oggetti recuperati: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Il recupero è stato interrotto perché non è possibile recuperare gli oggetti in sicurezza. Il salvataggio non è stato modificato.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Occorre completare una modifica precedente al salvataggio. Riapri PZ Tools prima di caricarlo nel gioco.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Recupero del personaggio</value></data>
@@ -381,7 +383,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossibile aprire questa registrazione. Il file è danneggiato o è stato creato con una versione più recente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Rotellina: zoom · Trascina: seleziona un intervallo · Clic: seleziona un frame · Trascina con il tasto destro: sposta · Doppio clic: mostra tutto</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copia il contenuto mostrato come testo</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>I risultati delle prestazioni sono stati copiati.</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Risultati copiati.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Avvia il gioco per registrare.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} non è stato avviato perché il gioco non è in esecuzione.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} non è stato avviato perché è in esecuzione più di un gioco.</value></data>

@@ -122,6 +122,13 @@ A zombie is never chosen just because it is nearby.
 - **Refused before any edit:** other versions, several local characters with none
   chosen, a chosen character that is gone, chosen remains that changed since the list,
   network players, malformed records, linked paths and pending SQLite journals.
+- **Split screen gets no recovery ID.** The runtime observer reads the character only
+  when the game has exactly one player, and the save-time stamp writes only player one.
+  Split-screen characters are therefore matched by name, death position and appearance
+  (rules 2 to 4). Two of them made from the same preset can each see the other's zombie
+  offered as a candidate; the choice in the confirmation still lets the user pick.
+  Recovery itself handles split-screen saves: the confirmation asks which character,
+  then looks for that character's remains, again whenever the choice changes.
 - **Lost items stay lost.** Items that are missing, were dropped elsewhere, looted or
   destroyed are not recreated.
 - **Old saves.** Saves made without hand-item IDs need the items re-equipped by hand.

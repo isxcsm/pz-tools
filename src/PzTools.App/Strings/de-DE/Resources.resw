@@ -165,7 +165,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>{0:N0} weitere</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Technische Informationen</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Details kopieren</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Die Protokolldetails wurden in die Zwischenablage kopiert.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Details in die Zwischenablage kopiert.</value></data>
   <data name="Close" xml:space="preserve"><value>Schließen</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Rohdatensatz</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Protokolle werden geladen…</value></data>
@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Alle Sicherungen von „{0}“ löschen</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Alle Sicherungen löschen</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Alle {1} Sicherungen von „{0}“ löschen?&#xA;&#xA;Die aktuellen Spielstanddateien bleiben erhalten. Gelöschte Sicherungen verschwinden sofort aus der Liste und können weder wiederhergestellt noch exportiert werden. Ihr Speicherplatz wird später freigegeben. Dies kann nicht rückgängig gemacht werden.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Alle Sicherungen des ausgewählten Spielstands wurden gelöscht. Der aktuelle Spielstand blieb erhalten.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Sicherungen gelöscht. Der Spielstand bleibt.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Spielstand {0} löschen</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>{0} löschen</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Spielstand „{0}“ löschen?&#xA;&#xA;Ziel: {1}&#xA;Der ausgewählte Spielstandordner samt aller Dateien und sämtlicher Sicherungen dieses Spielstands wird dauerhaft gelöscht. Papierkorb und Wiederherstellungsordner werden nicht verwendet. Dies kann nicht rückgängig gemacht werden. Gelöschte Sicherungen können weder wiederhergestellt noch exportiert werden; ihr Speicherplatz wird später freigegeben.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools wird wegen eines unerwarteten Fehlers beendet. Fehlerbericht: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Eine Windows-Sicherheitsrichtlinie (z. B. Smart App Control) hat eine PZ Tools-Komponente blockiert. Prüfen Sie Windows-Sicherheit → App- und Browsersteuerung.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Sicherungen werden bereinigt</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Die Sicherungsbereinigung wurde für eine Sicherung oder das Spiel verschoben.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Bereinigung verschoben: Sicherung oder Spiel.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Alte Sicherungen entfernen</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Temporäre Dateien entfernen</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Sicherungen gelöschter Spielstände entfernen</value></data>
@@ -355,7 +355,9 @@ Eigenschaften, Fähigkeiten, EP und Position bleiben erhalten. Manche Mod-Effekt
 Erstellen Sie vor dem Fortfahren eine Sicherung. Dieser Vorgang erstellt keine Sicherung für Sie.
 
 Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das Spielen beendet haben.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Der Charakter wurde wiederhergestellt. Eigenschaften, Fähigkeiten und EP blieben erhalten.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Charakter geheilt.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Charakter wiederbelebt.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Wiederbelebt. Gegenstände zurück: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Die Wiederherstellung wurde gestoppt, da Gegenstände nicht sicher zurückgeholt werden konnten. Ihr Spielstand wurde nicht verändert.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Eine vorherige Änderung des Spielstands muss abgeschlossen werden. Öffnen Sie PZ Tools erneut, bevor Sie diesen Spielstand im Spiel laden.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Wiederherstellung des Charakters</value></data>

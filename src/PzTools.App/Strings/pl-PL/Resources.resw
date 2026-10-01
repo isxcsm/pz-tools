@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Usuń wszystkie kopie „{0}”</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Usuń wszystkie kopie</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Usunąć wszystkie kopie „{0}” ({1})?&#xA;&#xA;Pliki bieżącego zapisu gry zostaną zachowane. Usunięte kopie od razu znikną z listy i nie będzie można ich przywrócić ani wyeksportować. Zajmowane przez nie miejsce zostanie zwolnione później. Tej operacji nie można cofnąć.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Usunięto wszystkie kopie wybranego zapisu gry. Bieżący zapis gry został zachowany.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Kopie usunięte. Zapis gry pozostał.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Usuń zapis gry {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Usuń {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Usunąć zapis gry „{0}”?&#xA;&#xA;Cel: {1}&#xA;Wybrany folder zapisu gry i wszystkie jego pliki zostaną trwale usunięte wraz ze wszystkimi kopiami tego zapisu. Kosz ani foldery odzyskiwania nie będą używane. Tej operacji nie można cofnąć. Usuniętych kopii nie będzie można przywrócić ani wyeksportować; zajmowane przez nie miejsce zostanie zwolnione później.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools zostanie zamknięty z powodu nieoczekiwanego błędu. Raport o błędzie: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Zasady zabezpieczeń systemu Windows (np. Inteligentna kontrola aplikacji) zablokowały składnik PZ Tools. Sprawdź Zabezpieczenia Windows → Kontrola aplikacji i przeglądarki.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Porządkowanie kopii</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Porządkowanie kopii odłożono ze względu na tworzenie kopii lub grę.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Porządki odłożone przez kopię lub grę.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Usuwanie starych kopii</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Usuwanie plików tymczasowych</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Usuwanie kopii usuniętych zapisów</value></data>
@@ -355,7 +355,9 @@ Cechy, umiejętności, doświadczenie i pozycja zostają zachowane. Niektóre ef
 Dotyczy wybranego zapisu gry jednoosobowej po zakończeniu rozgrywki.
 
 Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automatycznie.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Odzyskiwanie postaci ukończone. Zachowano cechy, umiejętności i doświadczenie.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Postać uleczona.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Postać ożywiona.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Ożywiono. Odzyskane przedmioty: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Przerwano odzyskiwanie, ponieważ nie można bezpiecznie odzyskać przedmiotów. Zapis nie został zmieniony.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Poprzednia zmiana zapisu wymaga dokończenia. Otwórz ponownie PZ Tools przed wczytaniem tego zapisu w grze.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Odzyskiwanie postaci</value></data>

@@ -108,7 +108,7 @@
   <data name="ExportArchiveTitle" xml:space="preserve"><value>Exportar ZIP</value></data>
   <data name="OperationSucceeded" xml:space="preserve"><value>Concluído.</value></data>
   <data name="OperationNoChange" xml:space="preserve"><value>Nenhum arquivo alterado.</value></data>
-  <data name="OperationBusy" xml:space="preserve"><value>Ignorado porque outra operação está em andamento.</value></data>
+  <data name="OperationBusy" xml:space="preserve"><value>Ignorado: outra operação em andamento.</value></data>
   <data name="OperationFailed" xml:space="preserve"><value>A operação falhou.</value></data>
   <data name="NoPlayHistory" xml:space="preserve"><value>Sem histórico de jogo</value></data>
   <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Informações do próximo backup indisponíveis.</value></data>
@@ -165,7 +165,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>Mais {0:N0}</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Informações técnicas</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Copiar detalhes</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Os detalhes do registro foram copiados para a área de transferência.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Detalhes copiados.</value></data>
   <data name="Close" xml:space="preserve"><value>Fechar</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Registro bruto</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Carregando registros…</value></data>
@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Excluir todos os backups de “{0}”</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Excluir todos os backups</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Excluir todos os {1} backups de “{0}”?&#xA;&#xA;Os arquivos da partida atual serão mantidos. Os backups excluídos desaparecerão da lista imediatamente e não poderão mais ser restaurados nem exportados. O espaço que ocupavam será liberado depois. Esta ação não pode ser desfeita.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Todos os backups da partida selecionada foram excluídos. A partida atual foi mantida.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Backups excluídos. A partida foi mantida.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Excluir partida {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Excluir {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Excluir a partida “{0}”?&#xA;&#xA;Destino: {1}&#xA;A pasta selecionada e todos os seus arquivos serão excluídos permanentemente, junto com todos os backups dessa partida. A Lixeira e pastas de recuperação não serão usadas. Não é possível desfazer esta ação. Os backups excluídos não poderão ser restaurados nem exportados; o espaço que ocupavam será liberado depois.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>O PZ Tools será fechado devido a um erro inesperado. Relatório de erro: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Uma política de segurança do Windows (como o Smart App Control) bloqueou um componente do PZ Tools. Verifique Segurança do Windows → Controle de aplicativos e do navegador.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Limpando backups</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>A limpeza de backups foi adiada por causa de um backup ou do jogo.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Limpeza adiada por um backup ou pelo jogo.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Removendo backups antigos</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Removendo arquivos temporários</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Removendo backups de partidas excluídas</value></data>
@@ -355,7 +355,9 @@ Traços, habilidades, XP e posição são mantidos. Alguns efeitos de mods podem
 Faça um backup antes de continuar. Esta operação não cria um backup automaticamente.
 
 Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>A recuperação do personagem foi concluída. Traços, habilidades e XP foram preservados.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Personagem curado.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Personagem revivido.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Revivido. Itens recuperados: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>A recuperação foi interrompida porque os pertences não puderam ser recuperados com segurança. A partida não foi alterada.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Uma alteração anterior da partida precisa ser concluída. Reabra o PZ Tools antes de carregar essa partida no jogo.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Recuperação do personagem</value></data>

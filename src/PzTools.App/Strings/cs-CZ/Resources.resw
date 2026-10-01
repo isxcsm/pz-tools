@@ -165,7 +165,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>Další: {0:N0}</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Technické informace</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Kopírovat podrobnosti</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Podrobnosti záznamu byly zkopírovány do schránky.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Podrobnosti zkopírovány do schránky.</value></data>
   <data name="Close" xml:space="preserve"><value>Zavřít</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Nezpracovaný záznam</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Načítání protokolů…</value></data>
@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Odstranit všechny zálohy „{0}“</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Smazat všechny zálohy</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Odstranit všechny zálohy „{0}“ ({1})?&#xA;&#xA;Soubory aktuální uložené hry zůstanou zachovány. Odstraněné zálohy ihned zmizí ze seznamu a nebude je možné obnovit ani exportovat. Jejich místo na disku bude uvolněno později. Tuto akci nelze vrátit zpět.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Všechny zálohy vybrané uložené hry byly odstraněny. Aktuální uložená hra byla zachována.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Zálohy odstraněny. Uložená hra zůstala.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Odstranit uloženou hru {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Odstranit {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Odstranit uloženou hru „{0}“?&#xA;&#xA;Cíl: {1}&#xA;Vybraná složka uložené hry i všechny její soubory budou trvale odstraněny spolu se všemi jejími zálohami. Koš ani složky pro obnovení se nepoužívají. Tuto akci nelze vrátit zpět. Odstraněné zálohy nebude možné obnovit ani exportovat; jejich místo na disku bude uvolněno později.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools se kvůli neočekávané chybě ukončí. Záznam chyby: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Zásada zabezpečení Windows (například Inteligentní řízení aplikací) zablokovala součást PZ Tools. Zkontrolujte Zabezpečení Windows → Řízení aplikací a prohlížečů.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Úklid záloh</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Úklid záloh byl odložen kvůli zálohování nebo hře.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Úklid odložen kvůli zálohování nebo hře.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Odstraňování starých záloh</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Odstraňování dočasných souborů</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Odstraňování záloh smazaných her</value></data>
@@ -355,7 +355,9 @@ Vlastnosti, dovednosti, zkušenosti a poloha zůstanou zachovány. Některé ú�
 Použije se na vybranou uloženou hru pro jednoho hráče po ukončení hraní.
 
 Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Obnova postavy dokončena. Vlastnosti, dovednosti a zkušenosti byly zachovány.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Postava byla vyléčena.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Postava byla oživena.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Postava oživena. Získané předměty: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Obnova byla zastavena, protože předměty nelze bezpečně získat zpět. Uložená hra nebyla změněna.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Je třeba dokončit předchozí úpravu uložené hry. Před jejím načtením ve hře znovu otevřete PZ Tools.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Obnova postavy</value></data>

@@ -227,8 +227,13 @@ and the next-backup line always stay.
   sign for failure or a partial result, an information sign for cancelled, postponed or
   skipped work. A plain success is that one line and nothing more. Any other outcome, and
   a success that has something specific to say, adds a line below.
-- That line shows at most two lines of text; the full text appears when the pointer rests
-  on it, and in the logs.
+- For a failure, a partial result, or work that could not run because something else was
+  busy, that line is shown in full: it is what the user has to read, and rarely more than
+  one such card is up. For any other outcome it shows at most two lines; the full text
+  appears when the pointer rests on it, and in the logs. Such messages are worded to fit
+  those two lines in every language, and say what happened rather than repeat what the
+  user was told before confirming (a revival reports *Character revived. Items recovered:
+  7.*, not that traits were kept).
 - When a card expires, its temporary telemetry sources are unregistered.
 
 ### Background cleanup card

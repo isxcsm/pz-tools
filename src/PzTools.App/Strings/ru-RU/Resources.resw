@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Удалить все копии «{0}»</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Удалить все копии</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Удалить все копии «{0}» ({1})?&#xA;&#xA;Файлы текущего сохранения останутся. Удалённые копии сразу исчезнут из списка; их больше нельзя будет восстановить или экспортировать. Занимаемое ими место будет освобождено позже. Это действие нельзя отменить.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Все копии выбранного сохранения удалены. Текущее сохранение оставлено.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Копии удалены. Сохранение осталось.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Удалить сохранение {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Удалить {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Удалить сохранение «{0}»?&#xA;&#xA;Объект: {1}&#xA;Выбранная папка сохранения и все её файлы будут безвозвратно удалены вместе со всеми копиями этого сохранения. Корзина и папки восстановления не используются. Это действие нельзя отменить. Удалённые копии нельзя будет восстановить или экспортировать; занимаемое ими место будет освобождено позже.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools будет закрыт из-за непредвиденной ошибки. Отчёт об ошибке: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Политика безопасности Windows (например, интеллектуальное управление приложениями) заблокировала компонент PZ Tools. Проверьте «Безопасность Windows» → «Управление приложениями и браузером».</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Очистка копий</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Очистка копий отложена ради резервного копирования или игры.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Очистка отложена ради копии или игры.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Удаление старых копий</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Удаление временных файлов</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Удаление копий удалённых сохранений</value></data>
@@ -355,7 +355,9 @@
 Применяется к выбранному сохранению одиночной игры после выхода из мира.
 
 Перед продолжением создайте резервную копию. Эта операция не создаёт её автоматически.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Восстановление персонажа завершено. Черты, навыки и опыт сохранены.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Персонаж вылечен.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Персонаж воскрешён.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Воскрешён. Возвращено предметов: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Восстановление остановлено: вещи нельзя вернуть безопасно. Сохранение не изменено.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Нужно завершить предыдущее изменение сохранения. Откройте PZ Tools заново, прежде чем загружать это сохранение в игре.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Восстановление персонажа</value></data>

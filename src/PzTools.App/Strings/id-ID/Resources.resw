@@ -108,7 +108,7 @@
   <data name="ExportArchiveTitle" xml:space="preserve"><value>Ekspor ZIP</value></data>
   <data name="OperationSucceeded" xml:space="preserve"><value>Selesai.</value></data>
   <data name="OperationNoChange" xml:space="preserve"><value>Tidak ada berkas yang berubah.</value></data>
-  <data name="OperationBusy" xml:space="preserve"><value>Dilewati karena operasi lain sedang berlangsung.</value></data>
+  <data name="OperationBusy" xml:space="preserve"><value>Dilewati: ada operasi lain berjalan.</value></data>
   <data name="OperationFailed" xml:space="preserve"><value>Operasi gagal.</value></data>
   <data name="NoPlayHistory" xml:space="preserve"><value>Belum ada riwayat bermain</value></data>
   <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Informasi cadangan berikutnya tidak tersedia.</value></data>
@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Hapus semua cadangan “{0}”</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Hapus semua cadangan</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Hapus seluruh {1} cadangan “{0}”?&#xA;&#xA;Berkas simpanan saat ini tetap disimpan. Cadangan yang dihapus langsung hilang dari daftar dan tidak dapat lagi dipulihkan atau diekspor. Ruang yang digunakannya akan dibersihkan nanti. Tindakan ini tidak dapat dibatalkan.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Semua cadangan dari simpanan yang dipilih telah dihapus. Simpanan saat ini tetap disimpan.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Cadangan dihapus. Simpanan tetap ada.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Hapus simpanan {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Hapus {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Hapus simpanan “{0}”?&#xA;&#xA;Target: {1}&#xA;Folder simpanan yang dipilih beserta seluruh berkasnya akan dihapus permanen, bersama semua cadangan simpanan ini. Keranjang Sampah dan folder pemulihan tidak digunakan. Tindakan ini tidak dapat dibatalkan. Cadangan yang dihapus tidak dapat dipulihkan atau diekspor; ruang yang digunakannya akan dibersihkan nanti.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools akan ditutup karena kesalahan tak terduga. Laporan kesalahan: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Kebijakan keamanan Windows (misalnya Smart App Control) memblokir komponen PZ Tools. Periksa Keamanan Windows → Kontrol aplikasi &amp; browser.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Membersihkan cadangan</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Pembersihan cadangan ditunda demi pencadangan atau gim.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Pembersihan ditunda demi cadangan atau gim.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Menghapus cadangan lama</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Menghapus berkas sementara</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Menghapus cadangan dari simpanan yang dihapus</value></data>
@@ -355,7 +355,9 @@ Sifat, keterampilan, XP, dan posisi tetap dipertahankan. Beberapa efek mod mungk
 Buat cadangan sebelum melanjutkan. Operasi ini tidak membuat cadangan secara otomatis.
 
 Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Pemulihan karakter selesai. Sifat, keterampilan, dan XP tetap dipertahankan.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Karakter dipulihkan.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Karakter dihidupkan kembali.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Hidup kembali. Barang didapat: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Pemulihan dihentikan karena barang tidak dapat diambil kembali dengan aman. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Perubahan sebelumnya pada simpanan perlu diselesaikan. Buka kembali PZ Tools sebelum memuat simpanan ini di gim.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Pemulihan karakter</value></data>

@@ -1042,8 +1042,8 @@ public sealed partial class MainWindowShell : UserControl
         detail.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         detail.Children.Add(phase);
         detail.Children.Add(amount);
-        // When finished: why. Failures and warnings in full; anything else in at most two lines, the full
-        // text one hover away (see where the text is set).
+        // When finished: why. Failures, warnings and work that could not run in full; anything else in at
+        // most two lines, the full text one hover away (see where the text is set).
         var message = new TextBlock
         {
             Style = secondary, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis,
@@ -1196,9 +1196,10 @@ public sealed partial class MainWindowShell : UserControl
         elements.Message.Text = message;
         // A plain success says everything in its title and icon; the card is one line.
         elements.Message.Visibility = message.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        // A failure or warning is what the user must read, and rarely more than one shows: it is shown
-        // whole, without a hover. Other outcomes keep to two lines with the full text one hover away.
-        var whole = !running && operation.Status is OperationStatus.Failed or OperationStatus.Degraded;
+        // A failure, a warning, or why something could not run now is what the user must read, and rarely
+        // more than one shows: it is shown whole, without a hover. A success or other outcome keeps to two
+        // lines, with the full text one hover away; its wording is kept short enough not to need it.
+        var whole = !running && operation.Status is OperationStatus.Failed or OperationStatus.Degraded or OperationStatus.Busy;
         elements.Message.MaxLines = whole ? 0 : 2;
         AppToolTip.SetTip(elements.Message, message.Length == 0 || whole ? null : message);
     }
@@ -2201,14 +2202,33 @@ public sealed partial class MainWindowShell : UserControl
                 root, save.SaveId, operationId: id, playerId: playerId, remains: remainsChoice));
             if (result.Outcome == PzTools.Process.Contracts.ProcessOutcome.Succeeded)
             {
-                SetLocalResultMessage(result.OperationId, Localizer.Get("HealCharacterSucceeded"));
+                var done = HealedMessage(result.Result);
+                SetLocalResultMessage(result.OperationId, done);
                 await RefreshAfterMutationAsync(host, Localizer.Get("HealCharacterTitle"),
-                    Localizer.Get("HealCharacterSucceeded"), collectState: true, showSuccessNotification: false);
+                    done, collectState: true, showSuccessNotification: false);
             }
             else ShowOperationResult(result);
         }
         catch (Exception exception) { ShowActionError(Localizer.Get("HealCharacterTitle"), exception); }
         finally { archiveInteraction = false; UpdateOperationActions(); }
+    }
+
+    // What happened, not what was kept (the confirmation already said that): revived or healed, and how
+    // many belongings came back. Short enough for the card's two lines.
+    private static string HealedMessage(System.Text.Json.JsonElement result)
+    {
+        bool? revived = null;
+        var items = 0;
+        if (result.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            if (result.TryGetProperty("resurrected", out var value) && value.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False)
+                revived = value.GetBoolean();
+            if (result.TryGetProperty("recoveredItems", out var count) && count.TryGetInt32(out var number))
+                items = number;
+        }
+        return revived != true ? Localizer.Get("HealCharacterSucceeded")
+            : items > 0 ? Localizer.Format("HealCharacterRevivedWithItems", items)
+            : Localizer.Get("HealCharacterRevived");
     }
 
     private static string NameOrUnknown(string name) =>

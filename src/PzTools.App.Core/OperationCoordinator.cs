@@ -20,7 +20,9 @@ public sealed record AppOperationResult(
     ProcessOutcome Outcome,
     int? ExitCode,
     string? Error,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    // The worker's own result, when it has one worth showing (for example what a revival recovered).
+    JsonElement Result = default);
 
 public sealed class OperationCoordinator(
     RepositoryDatabase repository,
@@ -489,7 +491,7 @@ public sealed class OperationCoordinator(
             finalStatus = ToOperationStatus(outcome);
             return new AppOperationResult(
                 operationId, runIndex, outcome, execution.ExitCode,
-                execution.Error, execution.ErrorMessage);
+                execution.Error, execution.ErrorMessage, execution.Result);
         }
         catch (OperationCanceledException)
         {

@@ -165,7 +165,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>Ще {0:N0}</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Технічні відомості</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Копіювати відомості</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Відомості про запис скопійовано до буфера обміну.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Відомості скопійовано.</value></data>
   <data name="Close" xml:space="preserve"><value>Закрити</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Початковий запис</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Завантаження журналів…</value></data>
@@ -284,7 +284,7 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Видалити всі копії «{0}»</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Видалити всі копії</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Видалити всі копії «{0}» ({1})?&#xA;&#xA;Файли поточного збереження залишаться. Видалені копії відразу зникнуть зі списку; їх більше не можна буде відновити або експортувати. Зайняте ними місце буде звільнено пізніше. Цю дію неможливо скасувати.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Усі копії вибраного збереження видалено. Поточне збереження залишено.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Копії видалено. Збереження залишилось.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Видалити збереження {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Видалити {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Видалити збереження «{0}»?&#xA;&#xA;Об’єкт: {1}&#xA;Вибрану папку збереження та всі її файли буде остаточно видалено разом з усіма копіями цього збереження. Кошик і папки відновлення не використовуються. Цю дію неможливо скасувати. Видалені копії не можна буде відновити або експортувати; зайняте ними місце буде звільнено пізніше.</value></data>
@@ -323,7 +323,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools буде закрито через неочікувану помилку. Звіт про помилку: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Політика безпеки Windows (наприклад, інтелектуальне керування програмами) заблокувала компонент PZ Tools. Перевірте «Безпека Windows» → «Керування програмами й браузером».</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Очищення копій</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Очищення копій відкладено заради резервного копіювання або гри.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Очищення відкладено заради копії або гри.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Видалення старих копій</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Видалення тимчасових файлів</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Видалення копій видалених збережень</value></data>
@@ -355,7 +355,9 @@
 Застосовується до вибраного збереження одиночної гри після виходу зі світу.
 
 Перед продовженням створіть резервну копію. Ця операція не створює її автоматично.</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Відновлення персонажа завершено. Риси, навички та досвід збережено.</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>Персонажа вилікувано.</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>Персонажа воскрешено.</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Воскрешено. Повернуто предметів: {0}.</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>Відновлення зупинено: речі неможливо повернути безпечно. Збереження не змінено.</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Потрібно завершити попередню зміну збереження. Знову відкрийте PZ Tools, перш ніж завантажувати це збереження у грі.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Відновлення персонажа</value></data>

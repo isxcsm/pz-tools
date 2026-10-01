@@ -286,7 +286,7 @@
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>ลบข้อมูลสำรองทั้ง {1} รายการของ “{0}” หรือไม่?
 
 ไฟล์เซฟปัจจุบันจะยังคงอยู่ ข้อมูลสำรองที่ลบจะหายจากรายการทันทีและไม่สามารถกู้คืนหรือส่งออกได้อีก พื้นที่ที่ใช้จะว่างลงภายหลัง การกระทำนี้ย้อนกลับไม่ได้</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>ลบข้อมูลสำรองทั้งหมดของเซฟที่เลือกแล้ว เซฟปัจจุบันยังคงอยู่</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>ลบข้อมูลสำรองแล้ว เซฟยังอยู่</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>ลบเซฟ {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>ลบ {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>ลบเซฟ “{0}” หรือไม่?
@@ -330,7 +330,7 @@
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools จะปิดเนื่องจากข้อผิดพลาดที่ไม่คาดคิด บันทึกข้อผิดพลาด: {0}</value></data>
   <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>นโยบายความปลอดภัยของ Windows (เช่น Smart App Control) บล็อกคอมโพเนนต์ของ PZ Tools โปรดตรวจสอบ ความปลอดภัยของ Windows → การควบคุมแอปและเบราว์เซอร์</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>กำลังล้างข้อมูลสำรอง</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>เลื่อนการล้างข้อมูลสำรองออกไปเพื่อการสำรองข้อมูลหรือตัวเกม</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>เลื่อนการล้างเพื่อการสำรองหรือตัวเกม</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>ลบข้อมูลสำรองเก่า</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>ลบไฟล์ชั่วคราว</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>ลบข้อมูลสำรองของเซฟที่ถูกลบ</value></data>
@@ -362,7 +362,9 @@
 ใช้กับเซฟผู้เล่นคนเดียวที่เลือก หลังจากหยุดเล่นแล้ว
 
 กรุณาสร้างข้อมูลสำรองก่อนดำเนินการต่อ การฟื้นฟูนี้จะไม่สร้างข้อมูลสำรองให้โดยอัตโนมัติ</value></data>
-  <data name="HealCharacterSucceeded" xml:space="preserve"><value>ฟื้นฟูตัวละครเสร็จแล้ว คุณลักษณะ ทักษะ และค่าประสบการณ์ยังคงอยู่</value></data>
+  <data name="HealCharacterSucceeded" xml:space="preserve"><value>รักษาตัวละครแล้ว</value></data>
+  <data name="HealCharacterRevived" xml:space="preserve"><value>ตัวละครฟื้นคืนชีพแล้ว</value></data>
+  <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>ฟื้นคืนชีพแล้ว ได้ไอเทมคืน {0} ชิ้น</value></data>
   <data name="RecoveryError.Inventory" xml:space="preserve"><value>หยุดการฟื้นฟูเพราะไม่สามารถนำสิ่งของกลับมาได้อย่างปลอดภัย เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
   <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>ต้องดำเนินการแก้ไขเซฟครั้งก่อนให้เสร็จ โปรดเปิด PZ Tools ใหม่ก่อนโหลดเซฟนี้ในเกม</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>การฟื้นฟูตัวละคร</value></data>
