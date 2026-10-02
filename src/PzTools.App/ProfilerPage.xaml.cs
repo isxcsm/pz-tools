@@ -209,9 +209,11 @@ public sealed partial class ProfilerPage : UserControl
     {
         var rolling = service?.Rolling ?? new ProfileRolling();
         var minutes = rolling.Wanted ? rolling.Minutes
-            : App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.RollingMinutes ?? 1;
+            : App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.RollingMinutes ?? AppSettings.DefaultRollingMinutes;
         var key = App.HotKeys?.TextOf(HotKeyAction.SaveLast);
         var label = Localizer.Format(rolling.Saving ? "ProfileRollingSavingFormat" : "ProfileRollingSaveFormat", minutes);
+        // Detailed slows the game for as long as it is kept: said on the button, so it is not forgotten on.
+        if (rolling.Wanted && rolling.Detailed) label += " · " + Localizer.Get("ProfileModeDetailed");
         SaveLastText.Text = key is null ? label : $"{label} ({key})";
         SaveLastButton.IsEnabled = CanSaveLastMinute(rolling, idle);
         var tip = RollingState(rolling, idle);
@@ -1643,10 +1645,23 @@ public sealed partial class ProfilerPage : UserControl
         var (columns, header, rows) = Table(group);
         DetailHeader.Child = TableRow(columns, header, header: true);
         DetailRows.Children.Clear();
-        foreach (var line in rows)
-            DetailRows.Children.Add(line.Tree is { } item ? TreeRow(columns, group, line, item)
-                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta));
+        // The gauges fill in as a new table appears: another range, tab, owner, or list for tree. Opening a row,
+        // searching or comparing redraws the same table, and its gauges stand still.
+        var table = $"{shown?.Start}|{shown?.End}|{Tab}|{group.Kind}|{group.Key}|{callTree}";
+        var grow = Motion && table != grownTable;
+        grownTable = table;
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var line = rows[index];
+            var growIndex = grow && index < GrownRows ? index : -1;
+            DetailRows.Children.Add(line.Tree is { } item ? TreeRow(columns, group, line, item, growIndex)
+                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta, growIndex));
+        }
     }
+
+    // The table whose gauges last filled in, and how many rows do: those a screen holds; the rest appear as they are.
+    private string? grownTable;
+    private const int GrownRows = 30;
 
     /// <summary>
     /// One line of a table: its cells as text (what a copy carries), how full the bar behind its total is (0..1, or none),
@@ -1823,9 +1838,9 @@ public sealed partial class ProfilerPage : UserControl
         return line with { Bar = null, SelfBar = null };
     }
 
-    private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TableLine line, TreeItem item)
+    private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TableLine line, TreeItem item, int growIndex = -1)
     {
-        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta);
+        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta, growIndex);
         // The name cell gives way to an indented one with the open/close arrow in front.
         row.Children.RemoveAt(0);
         var name = new Grid { Margin = new Thickness(item.Depth * 16, 0, 0, 0), ColumnSpacing = 2 };
@@ -2105,7 +2120,7 @@ public sealed partial class ProfilerPage : UserControl
     /// <param name="bar">How full the gauge behind the total is (0..1), for a script function; none elsewhere.</param>
     /// <param name="selfBar">How full the gauge behind the self figure is: the line's own part of its total.</param>
     private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header,
-        double? bar = null, double? selfBar = null, double? delta = null)
+        double? bar = null, double? selfBar = null, double? delta = null, int growIndex = -1)
     {
         var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(0, header ? 0 : 5, 0, header ? 0 : 5) };
         foreach (var width in columns) row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
@@ -2134,16 +2149,30 @@ public sealed partial class ProfilerPage : UserControl
                 cell.Padding = new Thickness(0, 0, 6, 0);
                 var color = index == TotalColumn ? (BarsPath.Fill as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.SteelBlue
                     : (Muted as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.Gray;
+                var fill = new Border
+                {
+                    Width = Math.Clamp(fraction, 0, 1) * columns[index].Value, HorizontalAlignment = HorizontalAlignment.Left,
+                    CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(color) { Opacity = 0.3 },
+                };
                 var track = new Border
                 {
                     Margin = new Thickness(0, -3, 0, -3), CornerRadius = new CornerRadius(3),
                     Background = new SolidColorBrush(color) { Opacity = 0.07 },
-                    Child = new Border
-                    {
-                        Width = Math.Clamp(fraction, 0, 1) * columns[index].Value, HorizontalAlignment = HorizontalAlignment.Left,
-                        CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(color) { Opacity = 0.3 },
-                    },
+                    Child = fill,
                 };
+                // Fills from the left, a row shortly after the one above, as the owner list's bars do: a scale on the
+                // compositor, which costs no layout and no frame on this thread, once.
+                if (growIndex >= 0)
+                {
+                    var grown = false;
+                    var delay = TimeSpan.FromMilliseconds(Math.Min(growIndex, 12) * 25);
+                    fill.Loaded += (_, _) =>
+                    {
+                        if (grown) return;
+                        grown = true;
+                        Grow(fill, new Vector3(0, 1, 1), delay);
+                    };
+                }
                 Grid.SetColumn(track, index);
                 row.Children.Add(track);
             }

@@ -31,10 +31,13 @@ public sealed record AppSettings(
     // The game keeps its last minutes for a save right after a stutter, in this mode, this many minutes long.
     bool RollingEnabled = false,
     bool RollingDetailed = false,
-    int RollingMinutes = 1,
+    int RollingMinutes = AppSettings.DefaultRollingMinutes,
     HotKeySettings? HotKeys = null)
 {
     public HotKeySettings Keys => HotKeys ?? new();
+
+    /// <summary>How many minutes the game keeps at first: enough to hold the stutter and what led to it.</summary>
+    public const int DefaultRollingMinutes = 2;
 
     public static AppSettings CreateDefault()
     {
@@ -254,7 +257,7 @@ public sealed class AppSettingsService
             ReadPausePolicy(model, defaults.PausePeriodicDuringGame),
             GetBoolean(model, "profiler", "rolling_enabled", false),
             GetBoolean(model, "profiler", "rolling_detailed", false),
-            Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", 1)), 1, 10),
+            Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)), 1, 10),
             ReadHotKeys(model));
         // 기존 설정의 추적 표시값은 새 기록 하한보다 낮을 수 있습니다.
         return (loaded with { LogMinimumLevel =

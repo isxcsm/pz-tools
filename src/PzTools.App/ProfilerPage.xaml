@@ -60,44 +60,49 @@
            instead of their boxes being centred on the taller title. -->
       <TextBlock x:Name="PageTitle" Style="{StaticResource PageTitleTextStyle}" TextWrapping="NoWrap" VerticalAlignment="Top"
                  Margin="0,3,0,0" AutomationProperties.HeadingLevel="Level1" />
+      <!-- Two groups, set apart by thin lines: saving the last minutes the game keeps, and a recording with its mode. -->
       <Grid x:Name="Toolbar" Grid.Column="1" ColumnSpacing="12" VerticalAlignment="Top" Margin="0,9,0,0">
         <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <!-- A disabled button shows no tooltip; its holder says why recording cannot start. -->
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Grid x:Name="RecordHost" Background="Transparent">
-            <Button x:Name="RecordButton" MinWidth="120" Click="RecordButton_Click"
-                    AutomationProperties.AutomationId="ProfileRecordButton">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon x:Name="RecordIcon" FontSize="14" Glyph="&#xE7C8;" />
-                <TextBlock x:Name="RecordText" />
-              </StackPanel>
-            </Button>
-          </Grid>
-          <!-- Saves the last minutes the game keeps (Settings > Performance), right after a stutter. Its holder carries
-               the tip, which says why when it cannot. -->
-          <Grid x:Name="SaveLastHost" Background="Transparent">
-            <Button x:Name="SaveLastButton" Click="SaveLastButton_Click" AutomationProperties.AutomationId="ProfileSaveLastButton">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon FontSize="14" Glyph="&#xE81C;" />
-                <TextBlock x:Name="SaveLastText" />
-              </StackPanel>
-            </Button>
-          </Grid>
-        </StackPanel>
-        <ToggleSwitch x:Name="ModeSwitch" Grid.Column="1" VerticalAlignment="Center" MinWidth="0" Toggled="ModeSwitch_Toggled"
+        <!-- Saves the last minutes the game keeps (Settings > Performance), right after a stutter. A disabled button
+             shows no tooltip; its holder carries it, which says why when it cannot. -->
+        <Grid x:Name="SaveLastHost" Background="Transparent">
+          <Button x:Name="SaveLastButton" Click="SaveLastButton_Click" AutomationProperties.AutomationId="ProfileSaveLastButton">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon FontSize="14" Glyph="&#xE81C;" />
+              <TextBlock x:Name="SaveLastText" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <Rectangle Grid.Column="1" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+        <!-- The recording and the mode it records in belong together, between the two lines. Its holder says why
+             recording cannot start. -->
+        <Grid x:Name="RecordHost" Grid.Column="2" Background="Transparent">
+          <Button x:Name="RecordButton" MinWidth="120" Click="RecordButton_Click"
+                  AutomationProperties.AutomationId="ProfileRecordButton">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon x:Name="RecordIcon" FontSize="14" Glyph="&#xE7C8;" />
+              <TextBlock x:Name="RecordText" />
+            </StackPanel>
+          </Button>
+        </Grid>
+        <ToggleSwitch x:Name="ModeSwitch" Grid.Column="3" VerticalAlignment="Center" MinWidth="0" Toggled="ModeSwitch_Toggled"
                       AutomationProperties.AutomationId="ProfileModeSwitch" />
-        <ComboBox x:Name="RecordingList" Grid.Column="2" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+        <Rectangle Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+        <ComboBox x:Name="RecordingList" Grid.Column="5" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   SelectionChanged="RecordingList_SelectionChanged"
                   AutomationProperties.AutomationId="ProfileRecordingList" />
-        <ComboBox x:Name="ThreadBox" Grid.Column="3" MinWidth="130" VerticalAlignment="Center"
+        <ComboBox x:Name="ThreadBox" Grid.Column="6" MinWidth="130" VerticalAlignment="Center"
                   SelectionChanged="ThreadBox_SelectionChanged" />
-        <Button x:Name="MoreButton" Grid.Column="4" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+        <Button x:Name="MoreButton" Grid.Column="7" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
                 Style="{StaticResource SubtleButtonStyle}">
           <FontIcon Glyph="&#xE712;" FontSize="16" />
           <Button.Flyout>

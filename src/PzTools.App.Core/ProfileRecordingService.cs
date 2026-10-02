@@ -18,7 +18,7 @@ public sealed record ProfileFile(string Path, string Name, DateTimeOffset Create
 /// way, <see cref="Saving"/> while a save is; <see cref="Error"/> is why the game is not keeping it, until it is.
 /// </summary>
 public sealed record ProfileRolling(bool Wanted = false, bool Detailed = false, bool On = false, bool OnDetailed = false,
-    bool Busy = false, bool Saving = false, string? Error = null, int Minutes = 1, int OnMinutes = 0);
+    bool Busy = false, bool Saving = false, string? Error = null, int Minutes = AppSettings.DefaultRollingMinutes, int OnMinutes = 0);
 
 /// <summary>
 /// Recordings of the running game: one worker process per recording, one file per recording.
@@ -157,7 +157,7 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
     /// if a game is running, otherwise as soon as one is, and again after each recording and each restart of the game.
     /// Returns the start's result when it ran now.
     /// </summary>
-    public async Task<AppOperationResult?> StartRollingAsync(bool detailed, int minutes = 1)
+    public async Task<AppOperationResult?> StartRollingAsync(bool detailed, int minutes = AppSettings.DefaultRollingMinutes)
     {
         SetRolling(state => state with { Wanted = true, Detailed = detailed, Minutes = minutes, Error = null });
         lock (gate) rollingBlocked = false;

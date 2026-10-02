@@ -74,9 +74,12 @@ it, start or stop simply waits for it.
 
 A stutter is often over before a recording could be started. **Keep the last minutes**,
 under *Settings > Performance*, has the game record all the time and hold only its last
-few minutes: 1 to 10 of them, in Standard or Detailed mode, both set there. **Save last
-2 min** (with the number set) stands next to **Start recording**: press it right after a
-stutter, and those minutes become a recording like any other, listed and opened at once.
+few minutes: 1 to 10 of them (2 at first), in Standard or Detailed mode, both set there.
+**Save last 2 min** (with the number set) stands at the left of the toolbar, set apart by
+a thin line from **Start recording** and its mode switch, which apply to recordings only.
+Press it right after a stutter, and those minutes become a recording like any other,
+listed and opened at once. While Detailed is kept, the button says so (*Save last 2 min ·
+Detailed*), as that mode slows the game for as long as it is on.
 The game goes on keeping the next ones. Changing the mode or the length restarts the
 keeping that way; the button's tip says which mode is kept, or why there is nothing yet
 (the setting is off, no game, the game's bridge needs a restart). With a key set for it

@@ -91,7 +91,7 @@ public sealed class AppCoreTests
         var service = new AppSettingsService(temp.GetPath("runtime"), () => busy);
         // Off at first, one key: saving the last minutes.
         var defaults = service.Load();
-        Assert.Equal((false, false, 1, "Ctrl+Shift+F9", ""), (defaults.RollingEnabled, defaults.RollingDetailed, defaults.RollingMinutes,
+        Assert.Equal((false, false, 2, "Ctrl+Shift+F9", ""), (defaults.RollingEnabled, defaults.RollingDetailed, defaults.RollingMinutes,
             defaults.Keys.SaveLast, defaults.Keys.ManualBackup));
         var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
         var initial = AppSettings.CreateDefault() with { SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups") };

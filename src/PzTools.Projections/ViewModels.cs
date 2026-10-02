@@ -102,7 +102,7 @@ public sealed record SettingsView(
     bool PausePeriodicDuringGame = true,
     bool RollingEnabled = false,
     bool RollingDetailed = false,
-    int RollingMinutes = 1,
+    int RollingMinutes = 2,
     HotKeySettings? HotKeys = null);
 
 public sealed record ProjectorHealthView(IReadOnlyList<ProjectorStatus> Projectors)

@@ -157,15 +157,21 @@
               </toolkit:SettingsCard>
               <toolkit:SettingsCard x:Name="RollingModeSettingCard" Header="기록 방식">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Setting" /></toolkit:SettingsCard.HeaderIcon>
-                <ComboBox x:Name="RollingModeCombo" MinWidth="160" SelectionChanged="RollingSettingChanged">
-                  <ComboBoxItem x:Name="RollingModeGeneralItem" Tag="general" />
-                  <ComboBoxItem x:Name="RollingModeDetailedItem" Tag="detailed" />
-                </ComboBox>
+                <!-- Off is Standard, on is Detailed, as the Performance page's own switch. -->
+                <ToggleSwitch x:Name="RollingModeToggle" Toggled="RollingSettingChanged" />
               </toolkit:SettingsCard>
               <toolkit:SettingsCard x:Name="RollingMinutesSettingCard" Header="기록 길이">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
-                <NumberBox x:Name="RollingMinutesNumber" Minimum="1" Maximum="10" MinWidth="120"
-                           SpinButtonPlacementMode="Inline" ValueChanged="RollingMinutesNumber_ValueChanged" />
+                <Grid x:Name="RollingMinutesEditor" Width="340" ColumnSpacing="16">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="120" />
+                  </Grid.ColumnDefinitions>
+                  <Slider x:Name="RollingMinutesSlider" Minimum="1" Maximum="10"
+                          StepFrequency="1" ValueChanged="RollingMinutesSlider_ValueChanged" />
+                  <NumberBox x:Name="RollingMinutesNumber" Grid.Column="1" Minimum="1" Maximum="10"
+                             SpinButtonPlacementMode="Inline" ValueChanged="RollingMinutesNumber_ValueChanged" />
+                </Grid>
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>

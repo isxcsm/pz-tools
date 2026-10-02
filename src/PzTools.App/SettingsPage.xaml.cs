@@ -51,7 +51,7 @@ public sealed partial class SettingsPage : UserControl
         // 작은 창에서는 SettingsCard의 기본 세로 배치를 사용하되 입력 영역도 넘치지 않게 합니다.
         var available = Math.Max(160, e.NewSize.Width - 72);
         SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(500, available);
-        IntervalEditor.Width = RetentionEditor.Width = Math.Min(340, available);
+        IntervalEditor.Width = RetentionEditor.Width = RollingMinutesEditor.Width = Math.Min(340, available);
     }
 
     internal void ApplyLocalizedText()
@@ -105,15 +105,13 @@ public sealed partial class SettingsPage : UserControl
         RollingSettingCard.Description = Localizer.Get("RollingSetting.Description");
         RollingModeSettingCard.Header = Localizer.Get("RollingModeSetting.Header");
         RollingModeSettingCard.Description = Localizer.Get("RollingModeSetting.Description");
-        Synchronize(() => ComboBoxLocalization.UpdateLabels(RollingModeCombo, () =>
-        {
-            RollingModeGeneralItem.Content = Localizer.Get("ProfileModeGeneral");
-            RollingModeDetailedItem.Content = Localizer.Get("ProfileModeDetailed");
-        }));
+        RollingModeToggle.OffContent = Localizer.Get("ProfileModeGeneral");
+        RollingModeToggle.OnContent = Localizer.Get("ProfileModeDetailed");
         RollingMinutesSettingCard.Header = Localizer.Get("RollingMinutesSetting.Header");
         RollingMinutesSettingCard.Description = Localizer.Get("RollingMinutesSetting.Description");
         SetInputName(RollingToggle, RollingSettingCard.Header);
-        SetInputName(RollingModeCombo, RollingModeSettingCard.Header);
+        SetInputName(RollingModeToggle, RollingModeSettingCard.Header);
+        SetInputName(RollingMinutesSlider, RollingMinutesSettingCard.Header);
         SetInputName(RollingMinutesNumber, RollingMinutesSettingCard.Header);
         HotKeySection.Header = Localizer.Get("HotKeysTitle");
         HotKeySection.Description = Localizer.Get("HotKeySettings.Description");
@@ -253,8 +251,8 @@ public sealed partial class SettingsPage : UserControl
     private void LoadProfilerSettings(SettingsView value)
     {
         RollingToggle.IsOn = value.RollingEnabled;
-        SelectTag(RollingModeCombo, value.RollingDetailed ? "detailed" : "general");
-        RollingMinutesNumber.Value = value.RollingMinutes;
+        RollingModeToggle.IsOn = value.RollingDetailed;
+        RollingMinutesSlider.Value = RollingMinutesNumber.Value = value.RollingMinutes;
         hotKeySettings = value.HotKeys ?? new();
         UpdateHotKeyCards();
     }
@@ -273,10 +271,18 @@ public sealed partial class SettingsPage : UserControl
 
     private void RollingSettingChanged(object sender, object e) => ScheduleApply();
 
+    private void RollingMinutesSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (loading) return;
+        Synchronize(() => RollingMinutesNumber.Value = Math.Clamp(Math.Round(e.NewValue), 1, 10));
+        ScheduleApply();
+    }
+
     private void RollingMinutesNumber_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (loading || double.IsNaN(args.NewValue)) return;
-        Synchronize(() => RollingMinutesNumber.Value = Math.Clamp(Math.Round(args.NewValue), 1, 10));
+        var minutes = Math.Clamp(Math.Round(args.NewValue), 1, 10);
+        Synchronize(() => RollingMinutesSlider.Value = RollingMinutesNumber.Value = minutes);
         ScheduleApply();
     }
 
@@ -499,7 +505,7 @@ public sealed partial class SettingsPage : UserControl
         AutomaticBackupToggle.IsOn,
         PausePeriodicToggle.IsOn,
         RollingToggle.IsOn,
-        SelectedTag(RollingModeCombo) == "detailed",
+        RollingModeToggle.IsOn,
         checked((int)Math.Clamp(double.IsNaN(RollingMinutesNumber.Value) ? 1 : RollingMinutesNumber.Value, 1, 10)),
         hotKeySettings);
     }
