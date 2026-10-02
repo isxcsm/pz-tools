@@ -42,18 +42,21 @@ internal sealed class GlobalHotKeys : IDisposable
         if (disposed) return [];
         if (!subclassed) subclassed = SetWindowSubclass(hwnd, callback, SubclassId, 0);
         var refused = new List<HotKeyAction>();
+        // Everything that changes is released first: a combination moved from one action to another is then free
+        // when the second takes it, whichever comes first.
+        foreach (var (action, current) in registered.ToArray())
+        {
+            if (wanted.TryGetValue(action, out var keep) && keep == current) continue;
+            var id = FirstId + (int)action;
+            UnregisterHotKey(hwnd, id);
+            registered.Remove(action);
+            byId.Remove(id);
+        }
         foreach (var action in Enum.GetValues<HotKeyAction>())
         {
             var id = FirstId + (int)action;
-            var want = wanted.TryGetValue(action, out var gesture) ? gesture : (HotKeyGesture?)null;
-            if (registered.TryGetValue(action, out var current))
-            {
-                if (want == current) continue;
-                UnregisterHotKey(hwnd, id);
-                registered.Remove(action);
-                byId.Remove(id);
-            }
-            if (want is not { } next || !subclassed) continue;
+            if (registered.ContainsKey(action)) continue;
+            if (!wanted.TryGetValue(action, out var next) || !subclassed) continue;
             if (RegisterHotKey(hwnd, id, Modifiers(next.Modifiers) | ModNoRepeat, (uint)next.Key))
             {
                 registered[action] = next;

@@ -275,6 +275,17 @@ public final class AgentEntry {
         owner = null;
     }
     public static void observe(Runnable observer) { observerCallback = observer; }
+    /**
+     * Sets the per-frame callback only if it is still {@code expected}: the profiler takes the free slot and gives
+     * back only its own, so it never overwrites the state observer's or clears it.
+     */
+    public static boolean observeIf(Runnable expected, Runnable observer) {
+        synchronized (AgentEntry.class) {
+            if (observerCallback != expected) return false;
+            observerCallback = observer;
+            return true;
+        }
+    }
     public static synchronized boolean acquireLifecycle(Object candidate, Runnable poll) {
         if (lifecycleOwner != null) return false;
         lifecycleOwner = candidate; lifecycleCallback = poll; return true;

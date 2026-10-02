@@ -28,8 +28,9 @@ final class ProfileFrames {
 
     /** Game thread, once per frame. Two reads while no recording runs and no note waits. */
     static void tick() {
-        // A note over the player for the app; it never throws into the frame.
-        GameNotices.tick();
+        // A note over the player for the app. Whatever it throws, even on loading its class, stays here: the state
+        // observer calls this first in the same frame and would be dropped with it.
+        try { GameNotices.tick(); } catch (Throwable ignored) { }
         Runnable current = mark;
         if (current == null) return;
         try { current.run(); }

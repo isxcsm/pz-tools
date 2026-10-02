@@ -123,6 +123,8 @@ public sealed class ProfileRecording
         var luaAllocations = new Dictionary<long, long>();
         var gameAllocations = new List<ProfileAllocationReading>();
         long luaPeriod = 0, records = 0;
+        // The Lua sampler's reports: when, and how many ticks it took since the one before.
+        var luaReports = new List<(long Time, long Taken)>();
 
         while (reader.ReadLine() is { } line)
         {
@@ -151,7 +153,10 @@ public sealed class ProfileRecording
                     break;
                 case "L" when fields.Length == 3: luaSamples.Add(new(Number(fields[1]), Index(fields[2]))); break;
                 case "LA" when fields.Length == 3: luaAllocations[Number(fields[1])] = Math.Max(0, Number(fields[2])); break;
-                case "LH" when fields.Length == 5: luaPeriod = Math.Max(luaPeriod, Number(fields[4])); break;
+                case "LH" when fields.Length == 5:
+                    luaPeriod = Math.Max(luaPeriod, Number(fields[4]));
+                    luaReports.Add((Number(fields[1]), Math.Max(0, Number(fields[2]))));
+                    break;
                 case "GA" when fields.Length == 3: gameAllocations.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
                 case "G" when fields.Length == 5:
                     collections.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], fields[4]));
@@ -246,7 +251,7 @@ public sealed class ProfileRecording
             Duration = end,
             JavaPeriod = EffectivePeriod(orderedSamples, threads.Length, false, Setting("javaPeriodMicros", detailed ? 1_000 : 10_000)),
             NativePeriod = EffectivePeriod(orderedSamples, threads.Length, true, Setting("nativePeriodMicros", detailed ? 10_000 : 20_000)),
-            LuaPeriod = EffectiveLuaPeriod(orderedLua, luaPeriod),
+            LuaPeriod = EffectiveLuaPeriod(luaReports, luaPeriod),
         };
     }
 
@@ -273,19 +278,25 @@ public sealed class ProfileRecording
         return Math.Clamp(gaps[gaps.Count / 2], requested, requested * 4);
     }
 
-    /// <summary>The same correction for the Lua sampler, whose wait is also longer than asked for.</summary>
-    private static long EffectiveLuaPeriod(ProfileLuaSample[] samples, long requested)
+    /// <summary>
+    /// What one Lua sample stands for: the time between the sampler's reports over the ticks it took in it. Its
+    /// samples are only those taken in Lua, so the gaps between them were no measure: Lua that runs a few milliseconds
+    /// a frame leaves gaps of several periods, and read as the period that inflated every Lua figure up to fourfold.
+    /// With too few reports to tell, the requested period.
+    /// </summary>
+    private static long EffectiveLuaPeriod(List<(long Time, long Taken)> reports, long requested)
     {
         if (requested <= 0) return 0;
-        var gaps = new List<long>();
-        for (var index = 1; index < samples.Length; index++)
+        reports.Sort((left, right) => left.Time.CompareTo(right.Time));
+        long span = 0, taken = 0;
+        // Each report counts the ticks since the one before; the first one's began before anything here.
+        for (var index = 1; index < reports.Count; index++)
         {
-            var gap = samples[index].Time - samples[index - 1].Time;
-            if (gap <= requested * 4) gaps.Add(gap);
+            span += reports[index].Time - reports[index - 1].Time;
+            taken += reports[index].Taken;
         }
-        if (gaps.Count < 50) return requested;
-        gaps.Sort();
-        return Math.Clamp(gaps[gaps.Count / 2], requested, requested * 4);
+        if (taken < 50 || span <= 0) return requested;
+        return Math.Clamp(span / taken, requested, requested * 4);
     }
 
     /// <summary>

@@ -77,13 +77,16 @@ public final class ProfileExport {
         }
         // The recording asked for and the rolling one may run together, and the flight recorder samples then for the
         // finer of their modes; their files also share chunks, so each holds the other's events of the time they
-        // overlapped. A file is taken back to its own mode: samples thinned to its period, per thread and kind, and
-        // in Standard mode without the waits only Detailed mode records. Without a mode, nothing is changed.
+        // overlapped. A file is taken back to its own mode, as if a sampler of its period had run: for Java and native
+        // samples one sampling round in each slice of its period (see SamplingRounds), for Lua one tick in as many as
+        // its period holds of the one in force. In Standard mode the waits only Detailed mode records are left out.
+        // Without a mode, nothing is changed.
         String mode = information.get("mode");
         boolean modeKnown = "general".equals(mode) || "detailed".equals(mode), detailedMode = "detailed".equals(mode);
         long javaTarget = !modeKnown ? 0 : detailedMode ? 1_000 : 10_000, nativeTarget = !modeKnown ? 0 : detailedMode ? 10_000 : 20_000;
         long luaTarget = javaTarget;
-        var lastKept = new HashMap<Long, Long>();
+        var javaRounds = new SamplingRounds(javaTarget);
+        var nativeRounds = new SamplingRounds(nativeTarget);
         long carriedAllocation = 0;
         var periods = new HashMap<String, Long>();
         var eventNames = new HashMap<Long, String>();
@@ -121,7 +124,7 @@ public final class ProfileExport {
                         if (thread == null || trace == null) break;
                         long id = thread.getJavaThreadId();
                         boolean nativeSample = type.equals("jdk.NativeMethodSample");
-                        if (thinned(lastKept, id * 2 + (nativeSample ? 1 : 0), time, nativeSample ? nativeTarget : javaTarget)) break;
+                        if (!(nativeSample ? nativeRounds : javaRounds).keep(time)) break;
                         threads.putIfAbsent(id, name(thread));
                         int stack = stack(trace, methods, stacks, tables);
                         body.append("S\t").append(time).append('\t').append(id).append('\t').append(stack).append('\t')
@@ -138,7 +141,7 @@ public final class ProfileExport {
                         String text = event.getString("stack");
                         if (text == null || text.isEmpty()) break;
                         // A sample left out still counted what the game thread allocated: the next one kept carries it.
-                        if (thinned(lastKept, -1L, time, luaTarget)) { carriedAllocation += Math.max(0, allocated(event)); break; }
+                        if (!luaTickKept(event, luaTarget)) { carriedAllocation += Math.max(0, allocated(event)); break; }
                         Integer known = luaStacks.get(text);
                         if (known == null) {
                             known = luaStacks.size();
@@ -172,10 +175,11 @@ public final class ProfileExport {
                         luaSamples++;
                     }
                     case "pztools.LuaSampler" -> {
-                        // The sampler ran at the finer mode's period while both recordings did; this file's samples
-                        // were thinned to its own.
-                        body.append("LH\t").append(time).append('\t').append(event.getLong("taken")).append('\t')
-                            .append(event.getLong("inLua")).append('\t').append(Math.max(event.getLong("periodMicros"), luaTarget)).append('\n');
+                        // The sampler ran at the finer mode's period while both recordings did, and this file keeps
+                        // one of its ticks in so many: its counts are said at its own period.
+                        long period = event.getLong("periodMicros"), scale = period > 0 && luaTarget > period ? luaTarget / period : 1;
+                        body.append("LH\t").append(time).append('\t').append(event.getLong("taken") / scale).append('\t')
+                            .append(event.getLong("inLua") / scale).append('\t').append(Math.max(period, luaTarget)).append('\n');
                         long allocated = allocated(event);
                         if (allocated >= 0) body.append("GA\t").append(time).append('\t').append(allocated).append('\n');
                     }
@@ -218,16 +222,41 @@ public final class ProfileExport {
     }
 
     /**
-     * Whether a sample is left out: one of the same kind and thread was kept less than this recording's period
-     * before it (with a little room, as the recorder's own spacing jitters). Samples come in time order per kind, as
-     * one thread writes them; one out of order only starts the count again.
+     * The flight recorder samples in rounds: each period, a few threads one after the other, microseconds apart. Of
+     * a kind's samples (one thread writes them, in time order) those closer than ROUND_GAP belong to one round. While
+     * rounds come clearly faster than this file's period (another recording asked for a finer one), only the first
+     * round in each slice of the period is kept, all its samples: a thread then shows in it as often as in a sampler
+     * of the period, by what it was doing at that moment. At the file's own pace every round is kept.
      */
-    private static boolean thinned(Map<Long, Long> lastKept, long key, long time, long period) {
-        if (period <= 0) return false;
-        Long previous = lastKept.get(key);
-        if (previous != null && Math.abs(time - previous) < period * 95 / 100) return true;
-        lastKept.put(key, time);
-        return false;
+    private static final class SamplingRounds {
+        private static final long ROUND_GAP = 300;
+        private final long period;
+        private long previous = Long.MIN_VALUE, roundStart = Long.MIN_VALUE, slice = Long.MIN_VALUE;
+        private boolean keeping = true;
+        SamplingRounds(long period) { this.period = period; }
+
+        boolean keep(long time) {
+            if (period <= 0) return true;
+            if (previous == Long.MIN_VALUE || time - previous > ROUND_GAP || time < previous) {
+                long current = Math.floorDiv(time, period);
+                boolean faster = roundStart != Long.MIN_VALUE && time > roundStart && time - roundStart < period * 3 / 4;
+                keeping = !faster || current != slice;
+                if (keeping) slice = current;
+                roundStart = time;
+            }
+            previous = time;
+            return keeping;
+        }
+    }
+
+    /**
+     * Whether a Lua sample stays: the sampler numbers its ticks and says its period, and while that period is finer
+     * than this file's (another recording asked for it) one tick in so many is kept. Older recordings say neither.
+     */
+    private static boolean luaTickKept(RecordedEvent event, long target) {
+        if (target <= 0 || !event.hasField("tick") || !event.hasField("periodMicros")) return true;
+        long period = event.getLong("periodMicros");
+        return period <= 0 || period >= target || event.getLong("tick") % (target / period) == 0;
     }
 
     private static void period(RecordedEvent event, Map<Long, String> eventNames, Map<String, Long> periods) {

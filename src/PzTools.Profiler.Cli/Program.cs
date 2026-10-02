@@ -269,13 +269,15 @@ async Task<GameProfileStatus> WhenFreeAsync(Func<Task<GameProfileStatus>> reques
     }
 }
 
-// Raw recordings of runs that never finished. They are large and hold full file paths, so they are not kept.
+// Raw recordings of runs that never finished. They are large and hold full file paths, so they are not kept. Only
+// ones an hour old: a save of the last minutes may be converting its raw file in the same folder right now.
 void RemoveLeftovers(string directory, string current)
 {
     try
     {
+        var before = DateTime.UtcNow.AddHours(-1);
         foreach (var file in Directory.EnumerateFiles(directory, "*.pzprof.jfr"))
-            if (!file.Equals(current, StringComparison.OrdinalIgnoreCase)) TryDelete(file);
+            if (!file.Equals(current, StringComparison.OrdinalIgnoreCase) && File.GetLastWriteTimeUtc(file) < before) TryDelete(file);
     }
     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
 }

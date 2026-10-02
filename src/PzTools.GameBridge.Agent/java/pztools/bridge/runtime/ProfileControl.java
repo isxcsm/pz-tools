@@ -88,7 +88,8 @@ final class ProfileControl {
         try {
             Class<?> window = AgentEntry.ensureGameHook();
             game = window.getClassLoader();
-            if (!RuntimeObserver.running()) { AgentEntry.observe(ProfileFrames::tick); ownsFrameHook = true; }
+            // The free slot only: a state observer's calls the relay itself, and is never replaced.
+            if (!RuntimeObserver.running() && (ownsFrameHook || AgentEntry.observeIf(null, RELAY))) ownsFrameHook = true;
             // The recording holds the relay now; a note's own claim on it ends with it.
             noticeHook = false;
         } catch (Exception | LinkageError unavailable) { frames = "no-frames"; }
@@ -97,32 +98,55 @@ final class ProfileControl {
 
     private static Path path(String encoded) { return Path.of(new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8)); }
 
+    // The relay this class puts in the per-frame slot; one instance, so it gives back only its own.
+    private static final Runnable RELAY = ProfileFrames::tick;
+
     /**
-     * RuntimeObserver gave up the per-frame slot; keep frame marks flowing if a recording marks them. Asks the relay,
-     * not the recorder, so stopping the observer never loads the flight recorder.
+     * RuntimeObserver gave up the per-frame slot, and with it whatever this class held: keep frame marks flowing if
+     * a recording marks them. Asks the relay, not the recorder, so stopping the observer never loads the flight
+     * recorder.
      */
     static synchronized void observerStopped() {
-        if (ProfileFrames.attached()) { AgentEntry.observe(ProfileFrames::tick); ownsFrameHook = true; }
+        ownsFrameHook = false;
+        noticeHook = false;
+        if (ProfileFrames.attached() && AgentEntry.observeIf(null, RELAY)) ownsFrameHook = true;
     }
 
     private static void releaseFrameHook() {
-        if (ownsFrameHook && !RuntimeObserver.running()) AgentEntry.observe(null);
+        // Only the relay itself: a state observer that took the slot since keeps it.
+        if (ownsFrameHook) AgentEntry.observeIf(RELAY, null);
         ownsFrameHook = false;
         noticeHook = false;
     }
 
     // The per-frame relay also shows the app's notes over the player. With no state observer to call it, a note
-    // installs it, and the next command after the note had its time takes it away again (unless a recording uses it).
+    // installs it, and gives it back once the note had its time (unless a recording uses it), or at once when the
+    // payload is being replaced: the bootstrap waits for the slot to be free.
     private static boolean noticeHook;
     private static long noticeHookSince;
+    private static Thread noticeWatch;
 
     static synchronized void hookForNotice() {
         releaseIdleNoticeHook();
-        if (RuntimeObserver.running() || ownsFrameHook) return;
-        AgentEntry.observe(ProfileFrames::tick);
+        if (RuntimeObserver.running() || ownsFrameHook || !AgentEntry.observeIf(null, RELAY)) return;
         ownsFrameHook = true;
         noticeHook = true;
         noticeHookSince = System.nanoTime();
+        if (noticeWatch != null) return;
+        noticeWatch = new Thread(() -> {
+            try {
+                while (true) {
+                    Thread.sleep(200);
+                    synchronized (ProfileControl.class) {
+                        if (noticeHook && AgentEntry.runtimeReloadRequested()) releaseFrameHook();
+                        releaseIdleNoticeHook();
+                        if (!noticeHook) { noticeWatch = null; return; }
+                    }
+                }
+            } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+        }, "PzTools-notice-relay");
+        noticeWatch.setDaemon(true);
+        noticeWatch.start();
     }
 
     private static void releaseIdleNoticeHook() {
@@ -131,25 +155,36 @@ final class ProfileControl {
 
     // A replaced payload must not leave its recording, sampler or frame callback behind: the
     // bootstrap waits for every callback of the old generation to go before loading the new one.
+    // Whether it goes on is decided under this class's lock, where a recording starts: one started as the
+    // monitor ends always gets a new one.
     private static void startMonitor() {
-        if (monitor != null && monitor.isAlive()) return;
+        if (monitor != null) return;
         monitor = new Thread(() -> {
             try {
-                while (ProfileRecorder.active()) {
-                    if (AgentEntry.runtimeReloadRequested()) {
-                        synchronized (ProfileControl.class) { ProfileRecorder.closeQuietly(); releaseFrameHook(); }
-                        return;
-                    }
-                    // The recording asked for ended at its maximum duration with no stop request (the recording
-                    // program may be gone): it should no longer set the Lua sampler's pace, and with no rolling
-                    // recording beside it, nothing should keep sampling the game or marking its frames.
+                while (true) {
                     synchronized (ProfileControl.class) {
+                        if (AgentEntry.runtimeReloadRequested()) {
+                            ProfileRecorder.closeQuietly();
+                            releaseFrameHook();
+                            monitor = null;
+                            return;
+                        }
+                        // The recording asked for ended at its maximum duration with no stop request (the recording
+                        // program may be gone): it should no longer set the Lua sampler's pace, and with no rolling
+                        // recording beside it, nothing should keep sampling the game or marking its frames.
                         ProfileRecorder.wrapUpIfEnded();
-                        if (!ProfileRecorder.active()) { releaseFrameHook(); return; }
+                        if (!ProfileRecorder.active()) {
+                            if (!noticeHook) releaseFrameHook();
+                            monitor = null;
+                            return;
+                        }
                     }
                     Thread.sleep(100);
                 }
-            } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+            } catch (InterruptedException interrupted) {
+                synchronized (ProfileControl.class) { monitor = null; }
+                Thread.currentThread().interrupt();
+            }
         }, "PzTools-profile-monitor");
         monitor.setDaemon(true);
         monitor.start();

@@ -336,14 +336,23 @@ public sealed partial class SettingsPage : UserControl
         // While a key is chosen the app gives every combination back, so the one pressed reaches this page.
         App.HotKeys?.Suspend();
         capturing = action;
+        // Leaving the window (to the game, to the tray) raises no LostFocus: without this every key stayed off.
+        App.MainWindow.Activated -= MainWindow_Activated;
+        App.MainWindow.Activated += MainWindow_Activated;
         UpdateHotKeyCards();
     }
 
     private void StopCapture()
     {
         capturing = null;
+        App.MainWindow.Activated -= MainWindow_Activated;
         App.HotKeys?.Resume();
         UpdateHotKeyCards();
+    }
+
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState == WindowActivationState.Deactivated && capturing is not null) StopCapture();
     }
 
     private void CaptureKey(HotKeyAction action, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs args)
@@ -377,6 +386,7 @@ public sealed partial class SettingsPage : UserControl
             return;
         }
         capturing = null;
+        App.MainWindow.Activated -= MainWindow_Activated;
         SetHotKey(action, gesture.ToString());
         App.HotKeys?.Resume();
     }

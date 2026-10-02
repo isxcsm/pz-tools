@@ -35,6 +35,12 @@ final class ProfileRecorder {
     static final class LuaSampleEvent extends Event {
         @Label("Stack") String stack;
         @Label("Allocated since the previous sample") @DataAmount long allocated;
+        /**
+         * The sampler's tick, counted from its start, and its period then: a recording of a coarser mode running
+         * beside one of a finer mode keeps one tick in so many (see ProfileExport).
+         */
+        @Label("Tick") long tick;
+        @Label("Period in microseconds") long periodMicros;
     }
 
     @Name("pztools.LuaSampler") @Label("Lua sampler") @Category("PZ Tools") @StackTrace(false)
@@ -209,6 +215,8 @@ final class ProfileRecorder {
         Slot slot = new Slot(next, detailedMode, frames);
         if (keepsRolling) rolling = slot; else asked = slot;
         long period = samplingPeriod();
+        // A sampler that ended by itself (its recording had ended) is not reused: a new one starts.
+        if (lua != null && (luaThread == null || !luaThread.isAlive())) stopLua();
         if (lua != null) lua.periodNanos = period;
         else {
             LuaSampler sampler = null;
@@ -370,7 +378,7 @@ final class ProfileRecorder {
         }
 
         @Override public void run() {
-            long taken = 0, inLua = 0, lastReport = System.nanoTime();
+            long taken = 0, inLua = 0, ticks = 0, lastReport = System.nanoTime();
             // What the game thread allocated, by its JVM counter: the bytes since the previous look go to the Lua
             // function found running now, the same vote a sample casts for time.
             ThreadAllocation allocation;
@@ -383,9 +391,11 @@ final class ProfileRecorder {
             String previousStack = "";
             try {
                 while (!stopped) {
-                    wait.pause(periodNanos);
+                    long period = periodNanos;
+                    wait.pause(period);
                     if (stopped) break;
                     taken++;
+                    ticks++;
                     long allocated = -1;
                     Thread game = gameThread;
                     if (allocation != null && game != null) {
@@ -402,6 +412,8 @@ final class ProfileRecorder {
                         LuaSampleEvent event = new LuaSampleEvent();
                         event.stack = previousStack;
                         event.allocated = allocated;
+                        event.tick = ticks;
+                        event.periodMicros = period / 1000;
                         event.commit();
                     }
                     long now = System.nanoTime();

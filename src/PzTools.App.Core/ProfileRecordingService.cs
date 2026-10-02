@@ -104,6 +104,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         finally
         {
             TryDelete(stop);
+            ReleasePath(output);
             lock (gate) { session = new(ProfileSessionState.Idle); stopFile = null; running = null; }
             completion.TrySetResult();
             Changed?.Invoke();
@@ -145,7 +146,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     {
         Task? task;
         lock (gate) task = running;
-        var rollingStop = Rolling is { Wanted: false, On: false } ? Task.CompletedTask : StopRollingAsync();
+        var rollingStop = Rolling is { Wanted: false, On: false } && !RollingMaybeOn ? Task.CompletedTask : StopRollingAsync();
         if (task is null && rollingStop.IsCompleted) return;
         Stop();
         await Task.WhenAny(Task.WhenAll(task ?? Task.CompletedTask, rollingStop), Task.Delay(patience)).ConfigureAwait(false);
@@ -161,8 +162,20 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     private ProfileRolling rolling = new();
     private CancellationTokenSource? rollingWake;
     private Task? rollingLoop;
-    // A failed start is not retried for the same game: an old bridge or a refused attach would only fail again.
+    // A start the bridge cannot do is not retried for the same game: an old bridge or a refused attach would only fail
+    // again. Others are, after a wait that grows with each failure in a row.
     private bool rollingBlocked;
+    private int rollingFailures;
+    private DateTime rollingRetryAt = DateTime.MinValue;
+    // A start was sent to this game and no stop since: on stop and at shutdown, the game is told to stop even when the
+    // start's answer never came.
+    private bool rollingMaybeOn;
+
+    private static bool IsLasting(string? error) => error is "profile-restart-required" or "profile-unsupported-protocol"
+        or "profile-unsupported-runtime" or "profile-bridge-not-built" or PzTools.Process.Hosting.LaunchFailure.Blocked;
+
+    // Another game, or other settings: a clean slate.
+    private void ResetRollingRetries() { lock (gate) { rollingBlocked = false; rollingFailures = 0; rollingRetryAt = DateTime.MinValue; } }
 
     public ProfileRolling Rolling { get { lock (gate) return rolling; } }
 
@@ -175,7 +188,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     public async Task<AppOperationResult?> StartRollingAsync(bool detailed, int minutes = AppSettings.DefaultRollingMinutes)
     {
         SetRolling(state => state with { Wanted = true, Detailed = detailed, Minutes = minutes, Error = null });
-        lock (gate) rollingBlocked = false;
+        ResetRollingRetries();
         // Armed here first, so the caller hears how the start went; the loop then keeps it armed.
         var result = await EnsureRollingAsync().ConfigureAwait(false);
         lock (gate) if (rolling.Wanted) rollingLoop ??= Task.Run(RollingLoopAsync);
@@ -190,7 +203,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     {
         if (!enabled)
         {
-            if (Rolling is { Wanted: false, On: false }) return;
+            if (Rolling is { Wanted: false, On: false } && !RollingMaybeOn) return;
             _ = StopRollingAsync();
             return;
         }
@@ -201,7 +214,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             if (changed)
             {
                 rolling = rolling with { Wanted = true, Detailed = detailed, Minutes = minutes, Error = null };
-                rollingBlocked = false;
+                rollingBlocked = false; rollingFailures = 0; rollingRetryAt = DateTime.MinValue;
             }
             rollingLoop ??= Task.Run(RollingLoopAsync);
         }
@@ -216,7 +229,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         await rollingLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (!Rolling.On || operations() is not { } coordinator) return;
+            if (!Rolling.On && !RollingMaybeOn || operations() is not { } coordinator) return;
             SetRolling(state => state with { Busy = true });
             // Whatever the answer, the app no longer counts on it; a game that has gone took it along.
             try { await coordinator.RollProfileAsync("roll-stop", false, 0).ConfigureAwait(false); }
@@ -224,10 +237,13 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         }
         finally
         {
+            lock (gate) rollingMaybeOn = false;
             SetRolling(state => state with { On = false, Busy = false });
             rollingLock.Release();
         }
     }
+
+    private bool RollingMaybeOn { get { lock (gate) return rollingMaybeOn; } }
 
     /// <summary>
     /// Saves the last minute the game kept as a recording, and returns its file or the reason there is none. The
@@ -246,13 +262,17 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             SetRolling(state => state with { Busy = true, Saving = true });
             System.IO.Directory.CreateDirectory(Directory);
             var output = NextPath(DateTime.Now);
-            var result = await coordinator.RollProfileAsync("roll-save", Rolling.OnDetailed, Math.Max(1, Rolling.OnMinutes) * 60, output,
-                cancellationToken).ConfigureAwait(false);
-            // The game was not keeping it after all (the bridge was replaced, the game restarted): start it again.
-            if (result.Error == "profile-not-rolling") SetRolling(state => state with { On = false });
-            var written = result.Outcome == ProcessOutcome.Succeeded && File.Exists(output);
-            if (written) Saved?.Invoke(output);
-            return (written ? output : null, result);
+            try
+            {
+                var result = await coordinator.RollProfileAsync("roll-save", Rolling.OnDetailed, Math.Max(1, Rolling.OnMinutes) * 60, output,
+                    cancellationToken).ConfigureAwait(false);
+                // The game was not keeping it after all (the bridge was replaced, the game restarted): start it again.
+                if (result.Error == "profile-not-rolling") SetRolling(state => state with { On = false });
+                var written = result.Outcome == ProcessOutcome.Succeeded && File.Exists(output);
+                if (written) Saved?.Invoke(output);
+                return (written ? output : null, result);
+            }
+            finally { ReleasePath(output); }
         }
         finally
         {
@@ -275,16 +295,20 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             if (!state.Wanted) return null;
             if (countGames() != 1)
             {
-                // The game it was armed in has gone: the next one gets a fresh try.
-                lock (gate) rollingBlocked = false;
+                // The game it was armed in has gone, and took the recording along: the next one gets a fresh try.
+                ResetRollingRetries();
+                lock (gate) rollingMaybeOn = false;
                 if (state.On) SetRolling(current => current with { On = false });
                 return null;
             }
             bool blocked;
-            lock (gate) blocked = rollingBlocked;
-            if (blocked || state.On && state.OnDetailed == state.Detailed && state.OnMinutes == state.Minutes
+            DateTime retryAt;
+            lock (gate) (blocked, retryAt) = (rollingBlocked, rollingRetryAt);
+            if (blocked || DateTime.UtcNow < retryAt || state.On && state.OnDetailed == state.Detailed && state.OnMinutes == state.Minutes
                 || operations() is not { } coordinator) return null;
             SetRolling(current => current with { Busy = true });
+            // Asked of the game from here on, whatever the answer: a stop is owed even if it never says yes.
+            lock (gate) rollingMaybeOn = true;
             AppOperationResult result;
             try
             {
@@ -296,12 +320,19 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
                 result = new AppOperationResult("", 0, ProcessOutcome.Failed, null, "profile-failed", exception.Message);
             }
             var armed = result.Outcome == ProcessOutcome.Succeeded;
-            // A recording asked for in the meantime is not something to keep trying against.
-            lock (gate) rollingBlocked = !armed && result.Outcome != ProcessOutcome.Busy;
-            SetRolling(current => current with
+            lock (gate)
             {
-                On = armed, OnDetailed = state.Detailed, OnMinutes = state.Minutes, Error = armed ? null : result.Error ?? "profile-failed",
-            });
+                // A bridge that cannot do it waits for another game or other settings. Anything else (the channel held
+                // by a backup's save, a game still starting) is tried again, less often each time.
+                rollingBlocked = !armed && IsLasting(result.Error);
+                rollingFailures = armed ? 0 : rollingFailures + 1;
+                rollingRetryAt = armed ? DateTime.MinValue
+                    : DateTime.UtcNow + TimeSpan.FromSeconds(Math.Min(300, 5 << Math.Min(6, rollingFailures)));
+            }
+            // A failed change of mode or length leaves the game keeping what it kept: still there to save.
+            SetRolling(current => armed
+                ? current with { On = true, OnDetailed = state.Detailed, OnMinutes = state.Minutes, Error = null }
+                : current with { Error = result.Error ?? "profile-failed" });
             return result;
         }
         finally
@@ -325,6 +356,8 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             catch (Exception exception) when (exception is not OutOfMemoryException) { }
             try { await Task.Delay(RollingCheck, wake.Token).ConfigureAwait(false); }
             catch (OperationCanceledException) { }
+            // Woken by a caller's cancel, the rest runs on that caller's thread; leave it at once.
+            await Task.Yield();
             lock (gate) if (ReferenceEquals(rollingWake, wake)) rollingWake = null;
             wake.Dispose();
         }
@@ -333,10 +366,10 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     // Checks now instead of at the next interval: a recording ended, a save failed, the mode changed.
     private void WakeRolling()
     {
-        lock (gate)
-        {
-            try { rollingWake?.Cancel(); } catch (ObjectDisposedException) { }
-        }
+        // Cancelled outside the lock: the loop's next pass would otherwise run inline here, holding it.
+        CancellationTokenSource? wake;
+        lock (gate) wake = rollingWake;
+        try { wake?.Cancel(); } catch (ObjectDisposedException) { }
     }
 
     private void SetRolling(Func<ProfileRolling, ProfileRolling> change)
@@ -512,14 +545,25 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         _ => "ProfileError.Generic",
     };
 
+    // Files handed out and not yet written: a recording's exists only once it is converted, minutes later, and a save
+    // of the last minutes may start in the same second beside it.
+    private readonly HashSet<string> reservedPaths = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A free name for a new recording, held until <see cref="ReleasePath"/>.</summary>
     private string NextPath(DateTime now)
     {
         var name = "profile-" + now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var path = System.IO.Path.Combine(Directory, name + ProfileRecording.Extension);
-        for (var suffix = 2; File.Exists(path); suffix++)
-            path = System.IO.Path.Combine(Directory, $"{name}-{suffix}{ProfileRecording.Extension}");
-        return path;
+        lock (gate)
+        {
+            var path = System.IO.Path.Combine(Directory, name + ProfileRecording.Extension);
+            for (var suffix = 2; File.Exists(path) || reservedPaths.Contains(path); suffix++)
+                path = System.IO.Path.Combine(Directory, $"{name}-{suffix}{ProfileRecording.Extension}");
+            reservedPaths.Add(path);
+            return path;
+        }
     }
+
+    private void ReleasePath(string path) { lock (gate) reservedPaths.Remove(path); }
 
     private static void TryDelete(string path)
     {

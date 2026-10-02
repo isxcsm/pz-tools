@@ -111,9 +111,12 @@ injection, and no fallback that edits game files.
 
 The game's Java misreads a path with letters outside ASCII for the two files handed to it
 by path at attach, the native helper and the bootstrap. With the app in such a folder
-(a Korean folder name was reported), those two are copied once, by their content, to
-`%ProgramData%\PzTools\attach\` and handed over from there; everything else is read
-from the app folder as it is.
+(a Korean folder name was reported), those two are copied once, by their content, and
+handed over from there; everything else is read from the app folder as it is. The game
+runs them as code, so the copy goes where only you can change it: your temporary folder
+(`%TEMP%\PzTools\attach\`) if its path is ASCII, else a folder of your own under
+`%ProgramData%\PzTools\attach\` that is made writable by you alone. A folder or copy there
+that someone else could change is not used.
 
 The bridge then calls the game's original `GameWindow.save(true)` on the game thread.
 

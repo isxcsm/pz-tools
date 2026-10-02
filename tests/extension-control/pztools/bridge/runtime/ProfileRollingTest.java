@@ -64,7 +64,8 @@ public final class ProfileRollingTest {
             // Each file back at its own mode: the general one's busy samples a period apart, the detailed one's closer.
             long[] general = gaps(ProfileExport.export(both, folder.resolve("both.pzprof"), new HashMap<>(Map.of("mode", "general"))), folder.resolve("both.pzprof"));
             long[] detailed = gaps(ProfileExport.export(asked, folder.resolve("asked.pzprof"), new HashMap<>(Map.of("mode", "detailed"))), folder.resolve("asked.pzprof"));
-            check(general[0] >= 20 && general[1] >= 9_500, "General samples of the busy thread: " + general[0] + ", closest " + general[1] + " us apart");
+            // A second and a half of busy code: about 150 samples at 10 ms, as a Standard recording alone would have.
+            check(general[0] >= 90 && general[0] <= 200, "General samples of the busy thread: " + general[0]);
             check(detailed[0] > general[0] * 3, "Detailed " + detailed[0] + " against general " + general[0] + " busy samples");
             check(information(folder.resolve("both.pzprof"), "javaPeriodMicros").equals("10000"), "General period");
             check(information(folder.resolve("asked.pzprof"), "javaPeriodMicros").equals("1000"), "Detailed period");

@@ -64,6 +64,21 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void LuaPeriod_IsTheSamplersOwn_WhenLuaRunsOnlyNowAndThen()
+    {
+        // Ten seconds of a 10 ms sampler finding Lua on one tick in three, as for scripts that run a few milliseconds
+        // a frame: the gaps between Lua samples are 30 ms, but each still stands for 10 ms.
+        var lines = new List<string> { "PZPROF|1", "LM|0|tick|media/lua/client/Tick.lua", "LK|0|0:1", "F|0|10000000" };
+        for (var tick = 0; tick < 1000; tick += 3) lines.Add($"L|{tick * 10_000}|0");
+        for (var second = 0; second <= 10; second++) lines.Add($"LH|{second * 1_000_000}|100|33|10000");
+        var recording = Load(string.Join('\n', lines));
+        Assert.Equal(10_000, recording.LuaPeriod);
+        // And a third of the ten seconds is what the scripts took.
+        var range = ProfileAnalysis.Analyze(recording, 0, recording.Duration, -1);
+        Assert.InRange(range.LuaShare, 0.30, 0.37);
+    }
+
+    [Fact]
     public void Analyze_SplitsARangeByWhereTheCodeComesFrom()
     {
         var recording = Load(Sample);

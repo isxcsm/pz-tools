@@ -6,6 +6,7 @@ import java.net.*;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.nio.file.attribute.*;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Base64;
@@ -80,26 +81,76 @@ public final class AttachMain {
      * copied once, under its content's digest, to a folder whose path is plain ASCII, and handed over from there.
      * Everything after (the payload, the extensions) is read by Java from its own path and needs nothing of this.
      * With no such folder to be had, the file's own path is tried as before.
+     *
+     * <p>The game loads what it is handed as code, so the copy must be one no other user can change: the user's
+     * temporary folder if its path is ASCII (a user named in Korean has one that is not), else a folder of this user's
+     * own under ProgramData. ProgramData lets every user create in it, so that folder is made writable by this user
+     * alone, and an existing one, or an existing copy, is used only if this user owns it and no one else may write it.
      */
     static Path attachable(Path file) throws Exception {
         if (ascii(file.toString())) return file;
         byte[] content = Files.readAllBytes(file);
         String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content)).substring(0, 16);
-        for (String root : new String[] { System.getenv("ProgramData"), System.getProperty("java.io.tmpdir"), System.getenv("PUBLIC") }) {
+        String account = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+            .digest(System.getProperty("user.name", "").getBytes(StandardCharsets.UTF_8))).substring(0, 12);
+        UserPrincipal self = null;
+        for (String root : new String[] { System.getProperty("java.io.tmpdir"), System.getenv("ProgramData") }) {
             if (root == null || root.isEmpty() || !ascii(root)) continue;
-            Path directory = Path.of(root, "PzTools", "attach", digest);
-            Path staged = directory.resolve(file.getFileName().toString());
             try {
+                if (self == null) self = currentUser();
+                Path base = Path.of(root, "PzTools", "attach", "u-" + account);
+                if (!privateDirectory(base, self)) continue;
+                Path directory = base.resolve(digest);
+                Path staged = directory.resolve(file.getFileName().toString());
+                if (!Files.isDirectory(directory)) Files.createDirectory(directory);
+                if (!writableOnlyBy(directory, self)) continue;
                 // A copy a running game holds open is already the same bytes, and is used as it is.
-                if (Files.isRegularFile(staged) && Arrays.equals(Files.readAllBytes(staged), content)) return staged;
-                Files.createDirectories(directory);
+                if (Files.isRegularFile(staged, LinkOption.NOFOLLOW_LINKS) && writableOnlyBy(staged, self)
+                        && Arrays.equals(Files.readAllBytes(staged), content)) return staged;
                 Path partial = Files.createTempFile(directory, "staging", ".tmp");
-                Files.write(partial, content);
-                Files.move(partial, staged, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-                return staged;
-            } catch (IOException | SecurityException unusable) { }
+                try {
+                    Files.write(partial, content);
+                    Files.move(partial, staged, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } finally { Files.deleteIfExists(partial); }
+                if (writableOnlyBy(staged, self)) return staged;
+            } catch (IOException | SecurityException | UnsupportedOperationException unusable) { }
         }
         return file;
+    }
+
+    // Who this helper runs as: the owner of a file it creates.
+    private static UserPrincipal currentUser() throws IOException {
+        Path probe = Files.createTempFile("pztools-owner", ".tmp");
+        try { return Files.getOwner(probe); } finally { Files.deleteIfExists(probe); }
+    }
+
+    /** Makes the folder this user's alone, or checks that an existing one already is. */
+    private static boolean privateDirectory(Path directory, UserPrincipal self) throws IOException {
+        if (Files.isSymbolicLink(directory)) return false;
+        if (!Files.isDirectory(directory)) {
+            Files.createDirectories(directory.getParent());
+            Files.createDirectory(directory);
+            var acl = Files.getFileAttributeView(directory, AclFileAttributeView.class);
+            if (acl == null) return false;
+            acl.setAcl(java.util.List.of(AclEntry.newBuilder().setType(AclEntryType.ALLOW).setPrincipal(self)
+                .setPermissions(java.util.EnumSet.allOf(AclEntryPermission.class))
+                .setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.DIRECTORY_INHERIT).build()));
+        }
+        return writableOnlyBy(directory, self);
+    }
+
+    private static final java.util.Set<AclEntryPermission> WRITES = java.util.EnumSet.of(AclEntryPermission.WRITE_DATA,
+        AclEntryPermission.APPEND_DATA, AclEntryPermission.WRITE_ACL, AclEntryPermission.WRITE_OWNER, AclEntryPermission.DELETE,
+        AclEntryPermission.DELETE_CHILD, AclEntryPermission.WRITE_ATTRIBUTES, AclEntryPermission.WRITE_NAMED_ATTRS);
+
+    /** Owned by this user, with no one else allowed to change it or what is in it. */
+    private static boolean writableOnlyBy(Path path, UserPrincipal self) throws IOException {
+        var view = Files.getFileAttributeView(path, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+        if (view == null || !self.equals(view.getOwner())) return false;
+        for (AclEntry entry : view.getAcl())
+            if (entry.type() == AclEntryType.ALLOW && !self.equals(entry.principal())
+                    && entry.permissions().stream().anyMatch(WRITES::contains)) return false;
+        return true;
     }
 
     private static boolean ascii(String text) {
