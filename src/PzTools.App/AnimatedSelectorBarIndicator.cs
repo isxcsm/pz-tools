@@ -28,14 +28,18 @@ internal sealed class AnimatedSelectorBarIndicator
         // LayoutUpdated fires for every layout pass in the window, so it is followed once per turn.
         tabs.LayoutUpdated += (_, _) =>
         {
-            if (layoutQueued) return;
+            if (layoutQueued || unloaded) return;
             layoutQueued = tabs.DispatcherQueue.TryEnqueue(
-                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; Update(); });
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; if (!unloaded) Update(); });
         };
+        // Closing the window unloads the tabs and then runs what is still queued: by then the tabs are torn down,
+        // and reading them fails with E_UNEXPECTED, which ends the process on the way out.
+        tabs.Loaded += (_, _) => unloaded = false;
+        tabs.Unloaded += (_, _) => unloaded = true;
         surface.SizeChanged += (_, _) => Update();
     }
 
-    private bool layoutQueued;
+    private bool layoutQueued, unloaded;
 
     private void Update()
     {

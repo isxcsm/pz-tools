@@ -40,6 +40,7 @@ public sealed partial class ProfilerPage : UserControl
     private readonly AnimatedSelectorBarIndicator tabIndicator;
     private readonly Windows.UI.ViewManagement.UISettings uiSettings = new();
     private ProfileRecordingService? service;
+    private Microsoft.UI.Windowing.AppWindow? watchedWindow;
     private ProfileRecording? recording;
     private string? loadedPath;
     private long viewStart, viewEnd;
@@ -75,8 +76,9 @@ public sealed partial class ProfilerPage : UserControl
         Loaded += (_, _) =>
         {
             Attach();
-            App.MainWindow.AppWindow.Changed -= AppWindow_Changed;
-            App.MainWindow.AppWindow.Changed += AppWindow_Changed;
+            if (watchedWindow is not null) watchedWindow.Changed -= AppWindow_Changed;
+            watchedWindow = App.MainWindow.AppWindow;
+            watchedWindow.Changed += AppWindow_Changed;
             FollowVisibility();
             if (App.HotKeys is { } keys) { keys.Changed -= HotKeys_Changed; keys.Changed += HotKeys_Changed; }
         };
@@ -85,7 +87,9 @@ public sealed partial class ProfilerPage : UserControl
         {
             clock.Stop();
             gameClock.Stop();
-            App.MainWindow.AppWindow.Changed -= AppWindow_Changed;
+            // On the way out the window is already closed and gives no AppWindow; the one listened to is kept.
+            if (watchedWindow is not null) watchedWindow.Changed -= AppWindow_Changed;
+            watchedWindow = null;
             if (service is not null) { service.Changed -= Session_Changed; service.Saved -= Profiles_Saved; }
             service = null;
             if (App.HotKeys is { } keys) keys.Changed -= HotKeys_Changed;
