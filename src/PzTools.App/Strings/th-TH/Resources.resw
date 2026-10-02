@@ -457,6 +457,7 @@
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>เมื่อวาน {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>เปลี่ยนชื่อ</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>หยุดการสำรองอัตโนมัติชั่วคราว</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>ทำต่อเลย</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>ปุ่มลัด</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>ใช้ได้ในเกมด้วย ขณะที่ PZ Tools ทำงาน ปุ่มที่ตั้งไว้ที่นี่จะใช้กับโปรแกรมอื่นไม่ได้ แต่ละปุ่มจะตอบด้วยเสียงและข้อความเหนือหัวตัวละคร</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>บันทึกนาทีล่าสุด</value></data>

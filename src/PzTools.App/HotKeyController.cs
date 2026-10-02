@@ -203,8 +203,9 @@ internal sealed class HotKeyController : IDisposable
             return;
         }
         Sound(SystemSound.Accepted);
-        // Before the backup asks the game to save: the note would otherwise wait for the save to finish.
-        await host.NotifyGameAsync(["backup-started"]);
+        // Before the backup asks the game to save: the note would otherwise wait for the save to finish. Not for
+        // long, though: a game that does not answer must not hold the backup up.
+        await Task.WhenAny(host.NotifyGameAsync(["backup-started"]), Task.Delay(TimeSpan.FromSeconds(3)));
         var result = await operations.BackupAsync(saveId, source);
         if (result.Outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange)
         {
@@ -229,7 +230,8 @@ internal sealed class HotKeyController : IDisposable
             Note(host, "backups-off");
             return;
         }
-        if (schedule?.PausedUntilUtc is { } until && until > now)
+        // The stored pause, not the view of it: a second press before the view caught up paused again.
+        if (await host.ReadBackupPauseAsync() is { } until && until > now)
         {
             await host.ResumeBackupsAsync();
             Sound(SystemSound.Accepted);

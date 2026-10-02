@@ -450,6 +450,7 @@
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Вчера {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Переименовать</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Автоматическое копирование приостановлено</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Возобновить сейчас</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Горячие клавиши</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Работают и в игре. Пока PZ Tools запущен, заданные здесь клавиши недоступны другим программам. Каждая отвечает звуком и сообщением над головой вашего персонажа.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Сохранить последние минуты</value></data>

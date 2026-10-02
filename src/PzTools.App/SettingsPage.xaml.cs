@@ -251,6 +251,7 @@ public sealed partial class SettingsPage : UserControl
     private void LoadProfilerSettings(SettingsView value)
     {
         RollingToggle.IsOn = value.RollingEnabled;
+        rollingEditedHere = false;
         RollingModeToggle.IsOn = value.RollingDetailed;
         RollingMinutesSlider.Value = RollingMinutesNumber.Value = value.RollingMinutes;
         hotKeySettings = value.HotKeys ?? new();
@@ -263,13 +264,27 @@ public sealed partial class SettingsPage : UserControl
     {
         DispatcherQueue.TryEnqueue(() =>
         {
-            if (applying || completedApply < requestedApply || capturing is not null) return;
             if (App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot is not { } value) return;
+            if (applying || completedApply < requestedApply || capturing is not null)
+            {
+                // An edit here waits to be applied, and would write the page's values over what the hotkey just did:
+                // the hotkey's own switch is taken into the page, unless it is the one being edited.
+                if (!rollingEditedHere && RollingToggle.IsOn != value.RollingEnabled)
+                    Synchronize(() => RollingToggle.IsOn = value.RollingEnabled);
+                return;
+            }
             Synchronize(() => LoadProfilerSettings(value));
         });
     }
 
-    private void RollingSettingChanged(object sender, object e) => ScheduleApply();
+    // Whether the last minutes' switch was changed on this page since the settings were last shown.
+    private bool rollingEditedHere;
+
+    private void RollingSettingChanged(object sender, object e)
+    {
+        if (ReferenceEquals(sender, RollingToggle) && !loading) rollingEditedHere = true;
+        ScheduleApply();
+    }
 
     private void RollingMinutesSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
     {

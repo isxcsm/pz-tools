@@ -516,6 +516,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Save last minutes</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>They work in the game too. While PZ Tools runs, the keys set here are taken from all other programs. Each answers with a sound and a note over your character's head.</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatic backups paused</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Resume now</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Hotkeys</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last minute once the game is running.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last minute…</value></data>

@@ -450,6 +450,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Wczoraj {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Zmień nazwę</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatyczne kopie wstrzymane</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Wznów teraz</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Skróty klawiszowe</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Działają też w grze. Gdy PZ Tools jest uruchomiony, ustawione tu klawisze nie są dostępne dla innych programów. Każdy odpowiada dźwiękiem i komunikatem nad głową postaci.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Zapisz ostatnie minuty</value></data>

@@ -112,8 +112,9 @@ The game has the keyboard when it stutters, so the app's actions can have keys, 
 switch the next recording between Standard and Detailed (the same choice as on the page;
 one under way keeps its mode, and the note says *Next recording: Detailed*), turn the
 last minutes on or off, back up the save being played, pause automatic backups (press
-again to resume; they resume by themselves after 30 minutes, which the card states as
-set, and a backup on death is never held), and show the status. Only saving the last minutes has a key at
+again to resume, or press *Resume now* under the countdown in the sidebar; they resume
+by themselves after 30 minutes, which the card states as set, and a backup on death is
+never held), and show the status. Only saving the last minutes has a key at
 first, Ctrl+Shift+F9. While the app runs, Windows gives each set combination to it alone,
 so a key another program uses is refused when it is chosen, and one taken later is
 marked on its card. A letter or digit needs Ctrl or Alt with it; function keys may stand
@@ -417,10 +418,12 @@ their date). What a recording is lies inside it, its length at its very end, so 
 read once in the background and kept in `%LOCALAPPDATA%\PzTools\profiles-index.json`, by
 file name, size and time; until then it is listed by its time. The pencil right beside the
 list renames the selected recording in place: type over the name, Enter or clicking
-elsewhere keeps it, Esc does not, and an empty name gives the saved one back. The name
+elsewhere keeps it, Esc does not, and an empty name gives it an automatic name again, from
+when the file was written. The name
 is the file's, so whoever is sent the file sees it too, ahead of the rest: *mod A added ·
 Recording 3 min · Today 3:43 PM*. Characters a file name cannot hold become `_`, and a
-name already taken gets a number.
+name already taken gets a number: *mine (2)* for a name of yours, *profile-…-2* for an
+automatic one, which stays known as automatic.
 *Open recording* copies a `.pzprof` file from elsewhere into that folder, keeping its
 time, and lists it with the others; a file that is not a readable recording is refused
 and nothing is copied. *Save as* copies the selected recording to a place you choose.

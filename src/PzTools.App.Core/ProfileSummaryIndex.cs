@@ -43,23 +43,38 @@ internal sealed class ProfileSummaryIndex
             entries[file.Name] = new(file.Length, file.LastWriteTimeUtc.Ticks, summary.Rolling, summary.Detailed, summary.DurationMicros);
     }
 
+    /// <summary>Forgets a recording, as one renamed is known by its new name now.</summary>
+    public void Remove(string fileName)
+    {
+        lock (gate) entries.Remove(fileName);
+    }
+
+    // One writer at a time: the summaries read in the background and a rename on the page both save.
+    private readonly object saveGate = new();
+
     /// <summary>Writes the index, without the recordings no longer in <paramref name="directory"/>.</summary>
     public void Save(string path, string? directory = null)
     {
-        string json;
-        lock (gate)
+        lock (saveGate)
         {
-            if (directory is not null)
-                foreach (var name in entries.Keys.ToArray())
-                    if (!File.Exists(Path.Combine(directory, name))) entries.Remove(name);
-            json = JsonSerializer.Serialize(entries);
+            string json;
+            lock (gate)
+            {
+                if (directory is not null)
+                    foreach (var name in entries.Keys.ToArray())
+                        if (!File.Exists(Path.Combine(directory, name))) entries.Remove(name);
+                json = JsonSerializer.Serialize(entries);
+            }
+            var staged = $"{path}.{Environment.ProcessId}.tmp";
+            try
+            {
+                File.WriteAllText(staged, json);
+                File.Move(staged, path, overwrite: true);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                try { File.Delete(staged); } catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException) { }
+            }
         }
-        try
-        {
-            var staged = path + ".tmp";
-            File.WriteAllText(staged, json);
-            File.Move(staged, path, overwrite: true);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
     }
 }

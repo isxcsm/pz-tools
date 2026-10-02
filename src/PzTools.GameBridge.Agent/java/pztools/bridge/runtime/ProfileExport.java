@@ -68,8 +68,11 @@ public final class ProfileExport {
      */
     static long[] export(Path input, Path output, Map<String, String> information) throws IOException {
         String keep = information.remove("keepLastSeconds");
-        Instant cutoff = null;
-        if (keep != null) {
+        // Or where the window begins, said by the caller, who knows when it asked for the save: no first pass to
+        // find the recording's end, which for a long Detailed dump is a whole read of it.
+        String keepFrom = information.remove("keepFromEpochMillis");
+        Instant cutoff = keepFrom != null ? Instant.ofEpochMilli(Long.parseLong(keepFrom)) : null;
+        if (keep != null && cutoff == null) {
             long seconds = Long.parseLong(keep);
             if (seconds <= 0) throw new IllegalArgumentException("Invalid keepLastSeconds");
             Instant end = latest(input);
@@ -97,7 +100,9 @@ public final class ProfileExport {
         var threads = new HashMap<Long, String>();
         var body = new StringBuilder(1 << 20);
         var tables = new StringBuilder(1 << 16);
-        long samples = 0, frames = 0, luaSamples = 0, last = 0;
+        long samples = 0, frames = 0, luaSamples = 0;
+        // The span the reader rebases to and measures: samples, frames and Lua samples, as it reads them.
+        long earliest = Long.MAX_VALUE, latest = Long.MIN_VALUE;
         long gameThread = -1;
         Instant origin = null;
         try (RecordingFile reader = new RecordingFile(input);
@@ -116,7 +121,6 @@ public final class ProfileExport {
                 if (origin == null) origin = event.getStartTime();
                 // Events are not stored in time order, so a time may be negative; the reader sorts and rebases.
                 long time = micros(origin, event.getStartTime());
-                last = Math.max(last, time + Math.max(0, event.getDuration().toNanos() / 1000));
                 switch (type) {
                     case "jdk.ExecutionSample", "jdk.NativeMethodSample" -> {
                         RecordedThread thread = event.getThread("sampledThread");
@@ -130,12 +134,14 @@ public final class ProfileExport {
                         body.append("S\t").append(time).append('\t').append(id).append('\t').append(stack).append('\t')
                             .append(nativeSample ? 'N' : 'J').append('\n');
                         samples++;
+                        earliest = Math.min(earliest, time); latest = Math.max(latest, time);
                     }
                     case "pztools.Frame" -> {
                         RecordedThread thread = event.getThread();
                         if (thread != null) { gameThread = thread.getJavaThreadId(); threads.putIfAbsent(gameThread, name(thread)); }
                         body.append("F\t").append(time).append('\t').append(event.getDuration().toNanos() / 1000).append('\n');
                         frames++;
+                        earliest = Math.min(earliest, time); latest = Math.max(latest, time + event.getDuration().toNanos() / 1000);
                     }
                     case "pztools.LuaSample" -> {
                         String text = event.getString("stack");
@@ -173,6 +179,7 @@ public final class ProfileExport {
                             carriedAllocation = 0;
                         }
                         luaSamples++;
+                        earliest = Math.min(earliest, time); latest = Math.max(latest, time);
                     }
                     case "pztools.LuaSampler" -> {
                         // The sampler ran at the finer mode's period while both recordings did, and this file keeps
@@ -212,13 +219,14 @@ public final class ProfileExport {
             // With a mode, its own periods: the settings in the file may be the other recording's.
             writer.write("I\tjavaPeriodMicros\t" + (modeKnown ? javaTarget : periods.getOrDefault("jdk.ExecutionSample", 0L)) + "\n");
             writer.write("I\tnativePeriodMicros\t" + (modeKnown ? nativeTarget : periods.getOrDefault("jdk.NativeMethodSample", 0L)) + "\n");
-            writer.write("I\tdurationMicros\t" + last + "\n");
+            long duration = latest == Long.MIN_VALUE ? 0 : latest - earliest;
+            writer.write("I\tdurationMicros\t" + duration + "\n");
             writer.write("I\tstartEpochMillis\t" + (origin == null ? 0 : origin.toEpochMilli()) + "\n");
             writer.write("I\tsamples\t" + samples + "\n");
             writer.write("I\tframes\t" + frames + "\n");
             writer.write("I\tluaSamples\t" + luaSamples + "\n");
         }
-        return new long[] { samples, frames, luaSamples, last };
+        return new long[] { samples, frames, luaSamples, latest == Long.MIN_VALUE ? 0 : latest - earliest };
     }
 
     /**

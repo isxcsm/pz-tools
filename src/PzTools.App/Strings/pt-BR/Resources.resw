@@ -450,6 +450,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Ontem {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Renomear</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Backup automático pausado</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Retomar agora</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Teclas de atalho</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Também funcionam no jogo. Enquanto o PZ Tools estiver aberto, as teclas definidas aqui ficam indisponíveis para outros programas. Cada uma responde com um som e um aviso acima da cabeça do seu personagem.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Salvar últimos minutos</value></data>

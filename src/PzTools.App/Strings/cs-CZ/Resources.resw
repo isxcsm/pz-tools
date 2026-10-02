@@ -539,6 +539,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Uložit poslední minuty</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Fungují i ve hře. Dokud PZ Tools běží, nastavené klávesy nemohou používat jiné programy. Každá odpoví zvukem a zprávou nad hlavou vaší postavy.</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatické zálohování je pozastaveno</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Obnovit hned</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Klávesové zkratky</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Ukončit porovnání</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Řádek {0}</value></data>

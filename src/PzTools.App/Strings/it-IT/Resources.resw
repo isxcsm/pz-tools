@@ -450,6 +450,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Ieri {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Rinomina</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Backup automatici in pausa</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Riprendi ora</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Tasti di scelta rapida</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Funzionano anche nel gioco. Finché PZ Tools è in esecuzione, i tasti impostati qui non sono disponibili per gli altri programmi. Ognuno risponde con un suono e un messaggio sopra la testa del personaggio.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Salva gli ultimi minuti</value></data>

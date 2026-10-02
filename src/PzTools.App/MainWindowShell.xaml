@@ -214,6 +214,9 @@
               <TextBlock x:Name="NextBackupRemainingText" Visibility="Collapsed"
                          FontSize="12" FontWeight="Normal" TextWrapping="NoWrap"
                          Style="{StaticResource SecondaryTextStyle}" />
+              <!-- While a hotkey has paused automatic backups: they can be resumed here too, not only by the key. -->
+              <HyperlinkButton x:Name="ResumeBackupsButton" Visibility="Collapsed" Padding="0" FontSize="12"
+                               Click="ResumeBackupsButton_Click" AutomationProperties.AutomationId="ResumeBackupsButton" />
             </StackPanel>
           </Grid>
         </Border>

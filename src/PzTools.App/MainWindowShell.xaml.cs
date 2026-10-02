@@ -1471,10 +1471,25 @@ public sealed partial class MainWindowShell : UserControl
         var remainingVisibility = display.RemainingSeconds is null ? Visibility.Collapsed : Visibility.Visible;
         if (NextBackupRemainingText.Visibility != remainingVisibility) NextBackupRemainingText.Visibility = remainingVisibility;
         UpdateCountdownPulse(display.Suspended, display.RemainingSeconds is not null, tick);
+        var resumeVisibility = display.MessageKey == "AutomaticBackupPausedUntil" ? Visibility.Visible : Visibility.Collapsed;
+        if (ResumeBackupsButton.Visibility != resumeVisibility) ResumeBackupsButton.Visibility = resumeVisibility;
+        // In the language now, which may have changed while it showed.
+        if (resumeVisibility == Visibility.Visible && ResumeBackupsButton.Content as string != Localizer.Get("AutomaticBackupResume"))
+            ResumeBackupsButton.Content = Localizer.Get("AutomaticBackupResume");
 
         static void SetText(TextBlock block, string value)
         {
             if (!string.Equals(block.Text, value, StringComparison.Ordinal)) block.Text = value;
+        }
+    }
+
+    private async void ResumeBackupsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Host is not { } host) return;
+        try { await host.ResumeBackupsAsync(); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("AutomaticBackupResume"), UserFacingError.FromException(exception));
         }
     }
 

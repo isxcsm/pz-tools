@@ -451,11 +451,12 @@ public sealed class AppHost : IAsyncDisposable
         {
             var processId = await Task.Run(GameProfileClient.FindGame, cancellationToken).ConfigureAwait(false);
             var client = new GameProfileClient(Path.Combine(paths.WorkerDirectory, "game-bridge"), connectionTimeoutSeconds: 10);
-            // A save or another short request may hold the channel for a moment: wait a little for it, not long.
+            // A save or another short request may hold the channel for a moment: wait a little for it, not long. Each
+            // try starts a helper process, and a note that comes after a whole game save has missed its moment.
             for (var attempt = 0; ; attempt++)
             {
                 try { return await client.NotifyAsync(processId, language, items, cancellationToken).ConfigureAwait(false); }
-                catch (GameSaveException busy) when (busy.Code == "busy" && attempt < 10)
+                catch (GameSaveException busy) when (busy.Code == "busy" && attempt < 3)
                 {
                     await Task.Delay(500, cancellationToken).ConfigureAwait(false);
                 }
@@ -474,6 +475,10 @@ public sealed class AppHost : IAsyncDisposable
 
     public Task ResumeBackupsAsync(CancellationToken cancellationToken = default) =>
         (Scheduler ?? throw new InvalidOperationException("The app host is not ready.")).ResumeBackupsAsync(cancellationToken);
+
+    /// <summary>Until when periodic backups are paused, as stored now; null when they are not.</summary>
+    public Task<DateTimeOffset?> ReadBackupPauseAsync(CancellationToken cancellationToken = default) =>
+        (Scheduler ?? throw new InvalidOperationException("The app host is not ready.")).ReadBackupPauseAsync(cancellationToken);
 
     public void PublishSettings(AppSettings settings)
     {

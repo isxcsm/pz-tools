@@ -218,7 +218,15 @@ async Task<int> RollAsync(string command)
             phase = "save";
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             recordingPath = output + ".jfr";
-            var status = await WhenFreeAsync(() => client.SaveRollingAsync(processId, recordingPath, cancellation.Token), patienceSeconds: 60);
+            // The game writes what it holds when asked, so the window ends no earlier than this: it begins this long
+            // before, and the converter cuts there without reading the file to find its end.
+            var asked = DateTimeOffset.UtcNow;
+            var status = await WhenFreeAsync(() =>
+            {
+                // Each try: a wait for the channel is not part of the window.
+                asked = DateTimeOffset.UtcNow;
+                return client.SaveRollingAsync(processId, recordingPath, cancellation.Token);
+            }, patienceSeconds: 60);
             var lua = status.Lua.StartsWith("unavailable", StringComparison.Ordinal) ? "unavailable" : status.Lua;
             phase = "convert";
             telemetry.SetProgress("profile.converting", 0, 0, 0, 0, null);
@@ -229,7 +237,7 @@ async Task<int> RollAsync(string command)
                 ["hasFrames"] = status.HasFrames ? "true" : "false",
                 ["endedBy"] = "rolling",
                 ["toolVersion"] = typeof(GameProfileClient).Assembly.GetName().Version?.ToString() ?? "0",
-            }, cancellation.Token, keepSeconds);
+            }, cancellation.Token, keepFrom: asked.AddSeconds(-keepSeconds));
             TryDelete(recordingPath);
             result = new
             {

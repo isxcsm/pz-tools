@@ -450,6 +450,7 @@
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>昨天 {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>重新命名</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>自動備份已暫停</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>立即恢復</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>快速鍵</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>在遊戲中也能使用。PZ Tools 執行期間，這裡設定的按鍵其他程式無法使用。按下後會以音效和角色頭上的提示告知。</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>儲存最近幾分鐘</value></data>

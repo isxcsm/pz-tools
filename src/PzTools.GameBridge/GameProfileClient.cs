@@ -198,10 +198,12 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
     /// <summary>
     /// Converts a finished flight recording, outside the game, with the bundled runtime. With
     /// <paramref name="keepLastSeconds"/>, only that many seconds before its end are kept: a rolling recording's save
-    /// holds more than its window.
+    /// holds more than its window. With <paramref name="keepFrom"/> instead, what began from then on: the converter
+    /// need not read the file once more to find its end.
     /// </summary>
     public async Task<GameProfileExport> ExportAsync(string recordingPath, string outputPath,
-        IReadOnlyDictionary<string, string>? information = null, CancellationToken cancellationToken = default, int keepLastSeconds = 0)
+        IReadOnlyDictionary<string, string>? information = null, CancellationToken cancellationToken = default, int keepLastSeconds = 0,
+        DateTimeOffset? keepFrom = null)
     {
         if (keepLastSeconds < 0) throw new ArgumentOutOfRangeException(nameof(keepLastSeconds));
         var (java, jar) = Locate();
@@ -212,7 +214,8 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
             start.ArgumentList.Add(argument);
         foreach (var (key, value) in information ?? new Dictionary<string, string>())
             start.ArgumentList.Add(key + "=" + value);
-        if (keepLastSeconds > 0) start.ArgumentList.Add("keepLastSeconds=" + keepLastSeconds.ToString(CultureInfo.InvariantCulture));
+        if (keepFrom is { } from) start.ArgumentList.Add("keepFromEpochMillis=" + from.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture));
+        else if (keepLastSeconds > 0) start.ArgumentList.Add("keepLastSeconds=" + keepLastSeconds.ToString(CultureInfo.InvariantCulture));
         using var process = DiagnosticsProcess.Start(start) ?? throw new IOException("Could not start the recording converter.");
         try
         {

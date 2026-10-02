@@ -450,6 +450,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Gestern {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Umbenennen</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatische Sicherung pausiert</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Jetzt fortsetzen</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Tastenkürzel</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Sie funktionieren auch im Spiel. Solange PZ Tools läuft, stehen die hier festgelegten Tasten anderen Programmen nicht zur Verfügung. Jede antwortet mit einem Ton und einer Meldung über dem Kopf Ihres Charakters.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Letzte Minuten speichern</value></data>

@@ -28,6 +28,7 @@ public final class ProfileRollingTest {
             Thread.sleep(1500);
             for (int index = 0; index < 5; index++) { ProfileRecorder.frame(); Thread.sleep(20); }
             Path saved = folder.resolve("saved.jfr");
+            long savedAt = System.currentTimeMillis();
             status = ProfileRecorder.save(saved);
             check(status.startsWith("rolling;"), "A save ended the rolling recording: " + status);
             check(Files.size(saved) > 0, "The save wrote nothing");
@@ -40,6 +41,11 @@ public final class ProfileRollingTest {
             check(last[1] == 4, "Last second: " + last[1] + " frames");
             check(!information.containsKey("keepLastSeconds"), "The window was written as information");
             check(last[3] < 1_100_000, "The cut save is " + last[3] + " us long");
+            // The same window from when the save was asked for, without a pass to find the end.
+            var from = new HashMap<>(Map.of("mode", "general", "keepFromEpochMillis", Long.toString(savedAt - 1000)));
+            long[] fromAsked = ProfileExport.export(saved, folder.resolve("from.pzprof"), from);
+            check(fromAsked[1] == 4, "From when asked: " + fromAsked[1] + " frames");
+            check(!from.containsKey("keepFromEpochMillis"), "The window's start was written as information");
 
             // A recording asked for runs beside the rolling one, here in the finer mode: each reports itself, a save
             // takes the rolling one, and stopping either leaves the other.

@@ -450,6 +450,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Dün {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Yeniden adlandır</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Otomatik yedekleme duraklatıldı</value></data>
+  <data name="AutomaticBackupResume" xml:space="preserve"><value>Şimdi sürdür</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Kısayol tuşları</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Oyunda da çalışır. PZ Tools çalıştığı sürece burada atanan tuşlar başka programlarca kullanılamaz. Her biri bir ses ve karakterinizin başının üstünde bir notla yanıt verir.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Son dakikaları kaydet</value></data>

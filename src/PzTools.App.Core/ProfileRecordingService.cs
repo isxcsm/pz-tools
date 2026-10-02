@@ -48,7 +48,6 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     public event Action? Changed;
     /// <summary>Raised on any thread with each recording written, a recording's or a save of the last minutes.</summary>
     public event Action<string>? Saved;
-    /// <summary>The mode the Performance page's switch is set to; a recording started from a hotkey takes it.</summary>
     /// <summary>
     /// The mode the next recording asked for takes, chosen on the page or by its hotkey, for as long as the app runs.
     /// A recording under way keeps the mode it started in.
@@ -442,9 +441,10 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     }, cancellationToken);
 
     /// <summary>
-    /// Gives a listed recording a name of its own, or its saved name back when <paramref name="name"/> is empty, and
-    /// returns where it now is. The name is the file's: whoever is sent the file sees it too. Characters a file name
-    /// cannot hold are replaced; a name already taken gets a number.
+    /// Gives a listed recording a name of its own, or an automatic name (from when it was written) when
+    /// <paramref name="name"/> is empty, and returns where it now is. The name is the file's: whoever is sent the file
+    /// sees it too. Characters a file name cannot hold are replaced; a name already taken gets a number, the way the
+    /// app numbers its own names for an automatic one, so it is still known as one.
     /// </summary>
     public string Rename(string path, string name)
     {
@@ -453,7 +453,8 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             || !full.EndsWith(ProfileRecording.Extension, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
             throw new ArgumentException("Not a recording in the recordings folder.", nameof(path));
         var clean = CleanName(name);
-        if (clean.Length == 0)
+        var automatic = clean.Length == 0;
+        if (automatic)
         {
             var current = System.IO.Path.GetFileNameWithoutExtension(full);
             if (IsAutomaticName(current)) return full;
@@ -463,15 +464,15 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         if (string.Equals(target, full, StringComparison.Ordinal)) return full;
         // Only the letters' case differs: the same file, renamed in place.
         if (!string.Equals(target, full, StringComparison.OrdinalIgnoreCase))
-            for (var suffix = 2; File.Exists(target); suffix++)
-                target = System.IO.Path.Combine(Directory, $"{clean} ({suffix}){ProfileRecording.Extension}");
-        var summary = Summaries().Find(new FileInfo(full));
+            for (var suffix = 2; File.Exists(target) || IsReserved(target); suffix++)
+                target = System.IO.Path.Combine(Directory, automatic ? $"{clean}-{suffix}{ProfileRecording.Extension}"
+                    : $"{clean} ({suffix}){ProfileRecording.Extension}");
+        var index = Summaries();
+        var summary = index.Find(new FileInfo(full));
         File.Move(full, target);
-        if (summary is not null)
-        {
-            Summaries().Set(new FileInfo(target), summary);
-            Summaries().Save(SummaryIndexPath);
-        }
+        index.Remove(System.IO.Path.GetFileName(full));
+        if (summary is not null) index.Set(new FileInfo(target), summary);
+        index.Save(SummaryIndexPath);
         return target;
     }
 
@@ -564,6 +565,8 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     }
 
     private void ReleasePath(string path) { lock (gate) reservedPaths.Remove(path); }
+
+    private bool IsReserved(string path) { lock (gate) return reservedPaths.Contains(path); }
 
     private static void TryDelete(string path)
     {
