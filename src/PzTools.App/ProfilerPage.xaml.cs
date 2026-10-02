@@ -810,8 +810,7 @@ public sealed partial class ProfilerPage : UserControl
             GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 0.5, Opacity = 0.6 });
             // A scale value an FPS name would cover gives way to it; the floor needs no "0 ms" to be read.
             if (fpsLines.Any(line => Math.Abs(line.Y - y) < 14)) continue;
-            // Half of a fine step can have a decimal (7.5 ms); whole numbers stay whole.
-            GridCanvas.Children.Add(ScaleLabel(Units.Milliseconds((top * fraction).ToString("0.#", Localizer.Culture)), 11, Math.Max(-6, y - 8)));
+            GridCanvas.Children.Add(ScaleLabel(ScaleTime(top * fraction), 11, Math.Max(-6, y - 8)));
         }
         foreach (var fraction in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
         {
@@ -1067,6 +1066,29 @@ public sealed partial class ProfilerPage : UserControl
     /// </summary>
     private void RenderMemoryPanel()
     {
+        DrawMemoryPanel();
+        FitScaleMargin();
+    }
+
+    // The graphs' left margin as set in the page; wider only while a scale value or an FPS name needs it.
+    private const double ScaleMargin = 44;
+
+    /// <summary>
+    /// Widens both graphs' left margin, together so their times stay under each other, when a value standing in it is
+    /// wider than it: a value cut at the card's edge read as another ("1500 ms" as "500 ms").
+    /// </summary>
+    private void FitScaleMargin()
+    {
+        var overhang = GridCanvas.Children.Concat(ReferenceCanvas.Children).Concat(MemoryCanvas.Children)
+            .Select(child => -Canvas.GetLeft(child)).DefaultIfEmpty(0).Max();
+        var left = Math.Max(ScaleMargin, Math.Ceiling(overhang) + 2);
+        foreach (var surface in new[] { ChartSurface, MemorySurface })
+            if (surface.Margin.Left != left)
+                surface.Margin = new Thickness(left, surface.Margin.Top, surface.Margin.Right, surface.Margin.Bottom);
+    }
+
+    private void DrawMemoryPanel()
+    {
         MemoryCanvas.Children.Clear();
         MemoryNames.Children.Clear();
         if (recording is null || MemoryBorder.Visibility != Visibility.Visible || MemorySurface.ActualWidth < 4) return;
@@ -1161,7 +1183,7 @@ public sealed partial class ProfilerPage : UserControl
                     bars.Children.Add(new RectangleGeometry { Rect = new Rect(column, top + inner - tallest[column], widest[column], tallest[column]) });
             MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = Muted, Opacity = labels ? 1 : 0.7 });
             // Zero as the frame graph writes it. Under the heap the scale is the heap's; the pauses are on the line above.
-            if (labels) Labels(Milliseconds(longest / 1000.0), "0 ms", top, inner);
+            if (labels) Labels(ScaleTime(longest / 1000.0), "0 ms", top, inner);
         }
 
         // The highlighted mod's allocations, one bar per three pixels, against the most it allocated in one of them.
@@ -1294,6 +1316,12 @@ public sealed partial class ProfilerPage : UserControl
         : Milliseconds(milliseconds);
 
     private static string Milliseconds(double value) => Units.Milliseconds(value.ToString("0.0", Localizer.Culture));
+
+    // A time on a graph's scale. From a second up it is written in seconds ("1.5 s"), as a stall that long is read, and
+    // short enough for the margin. Half of a fine step can have a decimal (7.5 ms); whole numbers stay whole.
+    private static string ScaleTime(double milliseconds) => milliseconds >= 1000
+        ? Units.Seconds((milliseconds / 1000).ToString("0.##", Localizer.Culture))
+        : Units.Milliseconds(milliseconds.ToString("0.#", Localizer.Culture));
 
     private static double NiceCeiling(double value)
     {
