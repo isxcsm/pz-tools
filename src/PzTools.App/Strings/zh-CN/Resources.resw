@@ -422,13 +422,12 @@
   <data name="ProfileTabJava" xml:space="preserve"><value>游戏代码 (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>内存分配</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>调用树</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>按调用路径分组显示此所属方的函数：最外层的函数（如事件处理函数）在上，展开后显示它调用的函数。只统计结束于此所属方函数的样本。样本：经过该行的样本数。最重的路径会自动展开。</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>按调用路径分组显示此所属方的函数：最外层的函数（如事件处理函数）在上，展开后显示它调用的函数。只统计结束于此所属方函数的样本。关闭后显示函数列表。</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展开</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>折叠</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>分配量</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>在所选范围内，此模组的脚本运行时游戏线程分配的内存，包括脚本调用的游戏功能的分配。分配越多，内存清理（GC）越频繁。与时间一样，是根据样本得出的估计值。</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>整个游戏线程（含脚本以外）：{0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>自身：该函数本身运行时分配的量。总计：还包括它调用的函数运行时分配的量。</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>此范围内没有记录到脚本的分配。</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>图表使用方法</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>性能录制</value></data>
@@ -449,7 +448,16 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>自身</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>总计</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>样本</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>自身：直接花在该函数内的时间。总计：还包括它调用的其他函数。</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>自身：直接在该函数中花费的时间。</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>总计：还包括它调用的函数。</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>自身：此所属方的时间中直接花在该函数里的比例。所属方整体为 100%，将指针悬停在数字上可查看占整个范围的值。</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>总计：此所属方的时间中花在该函数及其调用的函数上的比例。所属方整体为 100%，将指针悬停在数字上可查看占整个范围的值。</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>自身：该函数本身运行时分配的量。</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>总计：还包括它调用的函数运行时分配的量。</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>样本：经过该行的样本数。</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>样本：结束于该函数的样本数。</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>占整个范围的 {0}，约 {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>占此所属方分配量的 {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各线程占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>长时间等待和停顿</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>模组</value></data>

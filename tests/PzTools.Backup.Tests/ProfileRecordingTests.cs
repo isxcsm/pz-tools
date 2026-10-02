@@ -127,6 +127,21 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void FunctionsIn_AddsUpATreesPaths_CountingARecursiveCallOnce()
+    {
+        // A third sample of the mod: slow calling itself, under OnTick.
+        var recording = Load(Sample + "\nLK|3|0:1 0:2 1:80\nL|1046000|3");
+        var tree = ProfileAnalysis.Analyze(recording, 10_000, 50_000, 0).LuaCallTrees["SlowMod"];
+        Assert.Equal(3, tree.Samples);
+
+        var functions = ProfileAnalysis.FunctionsIn(tree);
+        // slow ended all three samples; the recursive one passed through it twice but counts once.
+        Assert.Equal([("slow", 3, 3), ("OnTick", 0, 3)], functions.Select(row => (row.Name, row.SelfSamples, row.Samples)));
+        // So the list's parts of the owner match the tree's: its self samples add up to the owner.
+        Assert.Equal(tree.Samples, functions.Sum(row => row.SelfSamples));
+    }
+
+    [Fact]
     public void Read_ShortensTopLevelCodeNamedAfterAFullPath_InRecordingsThatStillHaveIt()
     {
         // Recorded before the recorder shortened such names: the full path, user folder included.

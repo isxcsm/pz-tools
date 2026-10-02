@@ -376,8 +376,17 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Položka</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Podíl podle vláken</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Vlastní: čas strávený přímo v dané funkci. Celkem: včetně funkcí, které zavolala.</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Vzorky</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} alokací tohoto vlastníka</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} celého úseku, asi {1}</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Vzorky: kolik vzorků skončilo ve funkci.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Vzorky: kolik vzorků prošlo řádkem.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Celkem: i když běžely funkce, které volala.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Vlastní: alokováno, když běžela samotná funkce.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Celkem: část času tohoto vlastníka strávená v dané funkci a ve funkcích, které volala. Vlastník je 100 %; po najetí myší na číslo se ukáže jeho část celého úseku.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Vlastní: část času tohoto vlastníka strávená přímo v dané funkci. Vlastník je 100 %; po najetí myší na číslo se ukáže jeho část celého úseku.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Vlastní: čas strávený přímo v dané funkci.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Celkem: včetně funkcí, které volala.</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Celkem</value></data>
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Vlastní</value></data>
   <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Skripty neznámého původu</value></data>
@@ -432,14 +441,13 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileChartHelp" xml:space="preserve"><value>Jak používat graf</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kód hry (Java)</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>V tomto úseku nebyly zaznamenány žádné alokace skriptů.</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Vlastní: alokováno, když běžela samotná funkce. Celkem: i když běžely funkce, které volala.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Celé herní vlákno, se skripty i bez nich: {0}</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Paměť, kterou herní vlákno alokovalo, zatímco ve vybraném úseku běžely skripty tohoto modu, včetně herních funkcí, které volaly. Čím víc se alokuje, tím častěji probíhá úklid paměti (GC). Odhad ze vzorků, stejně jako čas.</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokace paměti</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Sbalit</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozbalit</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Strom volání</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Seskupí funkce tohoto vlastníka podle cest volání, které k nim vedly: nahoře nejvnější funkce, například obsluha události, uvnitř to, co volala. Počítají se jen vzorky, které skončily ve funkcích tohoto vlastníka. Vzorky: ty, které prošly řádkem. Nejtěžší cesta se otevře sama.</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Seskupí funkce tohoto vlastníka podle cest volání, které k nim vedly: nahoře nejvnější funkce, například obsluha události, uvnitř to, co volala. Počítají se jen vzorky, které skončily ve funkcích tohoto vlastníka. Vypnuto: prostý seznam funkcí.</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>

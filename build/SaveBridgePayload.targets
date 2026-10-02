@@ -1,5 +1,19 @@
 <Project>
   <Import Project="SaveBridge.props" />
+  <!-- Visual Studio skips a project its fast up-to-date check finds current, and that check knows nothing of the
+       bridge's Java and native sources: a change to them alone left the old bridge in the F5 build. Compared with
+       the jars they build, not with this project's assembly, which a bridge-only change does not rewrite. -->
+  <ItemGroup>
+    <!-- The agent jar is rebuilt from its own sources and from the extension runtime it compiles against. -->
+    <UpToDateCheckInput Include="$(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Agent\**\*.java;
+                                 $(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Agent\MANIFEST.MF;
+                                 $(SaveBridgeRepositoryRoot)\src\PzTools.GameExtensions.Java\**\*.java" Set="SaveBridgeAgent" />
+    <UpToDateCheckBuilt Include="$(BridgeOutputPath)\pztools-save-bridge.jar" Set="SaveBridgeAgent" />
+    <UpToDateCheckInput Include="$(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Native\**\*.cpp" Set="SaveBridgeNative" />
+    <UpToDateCheckBuilt Include="$(BridgeOutputPath)\pztools-attach-bootstrap.dll" Set="SaveBridgeNative" />
+    <UpToDateCheckInput Include="$(SaveBridgeRepositoryRoot)\src\PzTools.GameExtensions.VehicleDrivetrain\**\*.java" Set="SaveBridgeDrivetrain" />
+    <UpToDateCheckBuilt Include="$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar" Set="SaveBridgeDrivetrain" />
+  </ItemGroup>
   <Target Name="BuildSaveBridge" BeforeTargets="PrepareForBuild" DependsOnTargets="ValidateBridgeToolchain" Condition="'$(DesignTimeBuild)' != 'true'">
     <MSBuild Projects="$(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Agent\PzTools.SaveBridge.Agent.proj" Targets="Build"
              Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />

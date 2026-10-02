@@ -421,13 +421,12 @@
   <data name="ProfileTabJava" xml:space="preserve"><value>게임 코드 (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>메모리 할당</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>호출 트리</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>이 모드의 함수를 호출된 경로대로 묶어 보여줍니다. 이벤트 처리 함수처럼 가장 바깥 함수가 맨 위에 있고, 펼치면 그 함수가 부른 함수가 나옵니다. 이 모드의 함수에서 끝난 샘플만 셉니다. 샘플: 그 줄을 지나간 샘플 수. 가장 무거운 경로는 처음부터 펼쳐져 있습니다.</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>이 모드의 함수를 호출된 경로대로 묶어 보여줍니다. 이벤트 처리 함수처럼 가장 바깥 함수가 맨 위에 있고, 펼치면 그 함수가 부른 함수가 나옵니다. 이 모드의 함수에서 끝난 샘플만 셉니다. 끄면 함수 목록으로 봅니다.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>펼치기</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>접기</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>할당량</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>선택한 구간에서 이 모드의 스크립트가 실행 중일 때 게임 스레드가 할당한 메모리입니다. 스크립트가 불러 쓴 게임 기능의 할당도 포함합니다. 많이 할당할수록 메모리 정리(GC)가 자주 일어납니다. 시간처럼 샘플에서 나온 추정치입니다.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>게임 스레드 전체(스크립트 밖 포함): {0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>자체: 그 함수가 직접 실행 중일 때 할당된 양. 포함: 그 함수가 부른 다른 함수까지 합친 양.</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>이 구간에서 할당이 기록된 스크립트가 없습니다.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>그래프 사용법</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>성능 녹화</value></data>
@@ -448,7 +447,16 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>자체</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>포함</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>샘플</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>자체: 그 함수 안에서 직접 쓴 시간. 포함: 그 함수가 부른 다른 함수까지 합친 시간.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>자체: 그 함수 안에서 직접 쓴 시간.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>포함: 그 함수가 부른 다른 함수까지 합친 시간.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>자체: 이 모드의 시간 중 그 함수 안에서 직접 쓴 비율입니다. 이 모드 전체가 100%이고, 숫자에 마우스를 올리면 구간 전체 대비 값이 나옵니다.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>포함: 이 모드의 시간 중 그 함수와 그 함수가 부른 함수에 쓴 비율입니다. 이 모드 전체가 100%이고, 숫자에 마우스를 올리면 구간 전체 대비 값이 나옵니다.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>자체: 그 함수가 직접 실행 중일 때 할당된 양.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>포함: 그 함수가 부른 다른 함수까지 합친 양.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>샘플: 그 줄을 지나간 샘플 수.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>샘플: 그 함수에서 끝난 샘플 수.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>구간 전체의 {0}, 약 {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>이 모드 할당량의 {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>스레드별 비중</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>긴 대기·멈춤</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>모드</value></data>

@@ -422,13 +422,12 @@
   <data name="ProfileTabJava" xml:space="preserve"><value>Код гри (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Виділення пам'яті</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Дерево викликів</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вибірки: ті, що пройшли через рядок. Найважчий шлях розгорнуто одразу.</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вимкнено: простий список функцій.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Розгорнути</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Згорнути</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Виділено</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Пам'ять, яку ігровий потік виділив, поки у вибраному діапазоні працювали скрипти цього мода, включно з викликаними ними функціями гри. Що більше виділяється, то частіше відбувається очищення пам'яті (GC). Оцінка за вибірками, як і час.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Увесь ігровий потік, зі скриптами й без: {0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Власне: виділено, поки працювала сама функція. Усього: також поки працювали викликані нею функції.</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>У цьому діапазоні виділення пам'яті скриптами не записано.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Як користуватися графіком</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Запис продуктивності</value></data>
@@ -449,7 +448,16 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Власний</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Загалом</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Семпли</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Власний: час, витрачений безпосередньо в цій функції. Загалом: разом із функціями, які вона викликала.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Власне: час безпосередньо в цій функції.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Усього: включно з функціями, які вона викликала.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Власне: частка часу цього власника безпосередньо в цій функції. Власник — 100%; під час наведення на число видно його частку всього діапазону.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Усього: частка часу цього власника в цій функції та викликаних нею функціях. Власник — 100%; під час наведення на число видно його частку всього діапазону.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Власне: виділено, поки працювала сама функція.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Усього: також поки працювали викликані нею функції.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Вибірки: скільки пройшло через рядок.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Вибірки: скільки завершилося у функції.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} усього діапазону, близько {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} виділень цього власника</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Частка за потоками</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Довгі очікування та паузи</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Мод</value></data>

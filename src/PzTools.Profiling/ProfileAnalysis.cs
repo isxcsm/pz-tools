@@ -70,6 +70,13 @@ public sealed class ProfileCallNode
     }
 }
 
+/// <summary>
+/// One function of a call tree, its paths added up: <see cref="SelfSamples"/> ended in it, <see cref="Samples"/> passed
+/// through it (a recursive call counted once per sample). The same samples as the tree, so the same whole.
+/// </summary>
+public sealed record ProfileFunctionTotal(int Function, string Name, string File, int SelfSamples, int Samples,
+    long AllocatedSelf, long AllocatedTotal);
+
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
 
@@ -266,6 +273,36 @@ public static class ProfileAnalysis
             LuaAllocated = luaAllocated,
             GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
         };
+    }
+
+    /// <summary>
+    /// A call tree's functions, each once, its paths added up: the list beside the tree, from the same samples. A function
+    /// that calls itself counts a sample once, at its outermost call.
+    /// </summary>
+    public static IReadOnlyList<ProfileFunctionTotal> FunctionsIn(ProfileCallNode tree)
+    {
+        var totals = new Dictionary<int, ProfileFunctionTotal>();
+        var onPath = new HashSet<int>();
+        void Walk(ProfileCallNode node)
+        {
+            foreach (var child in node.Children)
+            {
+                var outermost = onPath.Add(child.Function);
+                var total = totals.GetValueOrDefault(child.Function) ?? new(child.Function, child.Name, child.File, 0, 0, 0, 0);
+                totals[child.Function] = total with
+                {
+                    SelfSamples = total.SelfSamples + child.SelfSamples,
+                    AllocatedSelf = total.AllocatedSelf + child.AllocatedSelf,
+                    Samples = total.Samples + (outermost ? child.Samples : 0),
+                    AllocatedTotal = total.AllocatedTotal + (outermost ? child.AllocatedTotal : 0),
+                };
+                Walk(child);
+                if (outermost) onPath.Remove(child.Function);
+            }
+        }
+        Walk(tree);
+        return totals.Values.OrderByDescending(row => row.SelfSamples).ThenByDescending(row => row.Samples)
+            .ThenBy(row => row.Name, StringComparer.Ordinal).ToArray();
     }
 
     /// <summary>

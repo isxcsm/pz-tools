@@ -422,13 +422,12 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileTabJava" xml:space="preserve"><value>Código do jogo (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alocação de memória</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Árvore de chamadas</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa as funções deste dono pelos caminhos de chamada que levaram a elas: no topo a função mais externa, como um tratador de evento, e dentro o que ela chamou. Só contam as amostras que terminaram em funções deste dono. Amostras: as que passaram pela linha. O caminho mais pesado abre sozinho.</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa as funções deste dono pelos caminhos de chamada que levaram a elas: no topo a função mais externa, como um tratador de evento, e dentro o que ela chamou. Só contam as amostras que terminaram em funções deste dono. Desligado: uma lista simples das funções.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Recolher</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alocado</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memória que a thread do jogo alocou enquanto os scripts deste mod rodavam no intervalo selecionado, incluindo as funções do jogo que eles chamaram. Quanto mais se aloca, mais vezes a memória é limpa (GC). Uma estimativa a partir das amostras, como o tempo.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Toda a thread do jogo, com ou sem scripts: {0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Próprio: alocado enquanto a própria função rodava. Total: também enquanto rodavam as funções que ela chamou.</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>Nenhuma alocação de script foi registrada neste intervalo.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Como usar o gráfico</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Gravação de desempenho</value></data>
@@ -449,7 +448,16 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Próprio</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Amostras</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Próprio: tempo gasto diretamente nessa função. Total: inclui também as funções que ela chamou.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Próprio: tempo gasto diretamente nessa função.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Total: inclui também as funções que ela chamou.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Próprio: a parte do tempo deste dono gasta diretamente nessa função. O dono é 100%; passe o ponteiro sobre um número para ver a parte dele no intervalo inteiro.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Total: a parte do tempo deste dono gasta nessa função e nas que ela chamou. O dono é 100%; passe o ponteiro sobre um número para ver a parte dele no intervalo inteiro.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Próprio: alocado enquanto a própria função rodava.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Total: também enquanto rodavam as funções que ela chamou.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Amostras: quantas passaram pela linha.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Amostras: quantas terminaram na função.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} do intervalo inteiro, cerca de {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} das alocações deste dono</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Participação por thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Esperas e pausas longas</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>

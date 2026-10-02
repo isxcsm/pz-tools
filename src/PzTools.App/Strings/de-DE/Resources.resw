@@ -422,13 +422,12 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileTabJava" xml:space="preserve"><value>Spielcode (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Speicherbelegung</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Aufrufbaum</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Stichproben: die durch die Zeile gingen. Der schwerste Pfad ist von selbst geöffnet.</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Aus: eine einfache Liste der Funktionen.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Aufklappen</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Zuklappen</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Belegt</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Speicher, den der Spiel-Thread im gewählten Bereich belegt hat, während die Skripte dieses Mods liefen, einschließlich der von ihnen aufgerufenen Spielfunktionen. Je mehr belegt wird, desto öfter wird der Speicher bereinigt (GC). Eine Schätzung aus den Stichproben, wie die Zeit.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Ganzer Spiel-Thread, mit und ohne Skripte: {0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Selbst: belegt, während die Funktion selbst lief. Gesamt: auch, während die von ihr aufgerufenen Funktionen liefen.</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>In diesem Bereich wurde keine Speicherbelegung durch Skripte aufgezeichnet.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>So bedienst du das Diagramm</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Leistungsaufnahme</value></data>
@@ -449,7 +448,16 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Selbst</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Gesamt</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Samples</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Selbst: Zeit, die direkt in dieser Funktion verbracht wurde. Gesamt: einschließlich der von ihr aufgerufenen Funktionen.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Selbst: Zeit direkt in dieser Funktion.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Gesamt: einschließlich der Funktionen, die sie aufgerufen hat.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Selbst: der Teil der Zeit dieses Besitzers, der direkt in der Funktion verging. Der Besitzer ist 100 %; beim Daraufzeigen auf eine Zahl erscheint ihr Teil am ganzen Bereich.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Gesamt: der Teil der Zeit dieses Besitzers in der Funktion und den von ihr aufgerufenen Funktionen. Der Besitzer ist 100 %; beim Daraufzeigen auf eine Zahl erscheint ihr Teil am ganzen Bereich.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Selbst: belegt, während die Funktion selbst lief.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Gesamt: auch, während die von ihr aufgerufenen Funktionen liefen.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Stichproben: wie viele durch die Zeile gingen.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Stichproben: wie viele in der Funktion endeten.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} des ganzen Bereichs, etwa {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} der Belegung dieses Besitzers</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Anteil pro Thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Lange Wartezeiten und Pausen</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>

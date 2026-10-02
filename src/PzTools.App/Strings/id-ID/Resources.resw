@@ -422,13 +422,12 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileTabJava" xml:space="preserve"><value>Kode game (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokasi memori</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Pohon panggilan</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Sampel: yang melewati baris itu. Jalur terberat terbuka dengan sendirinya.</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Mati: daftar fungsi biasa.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Bentangkan</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Ciutkan</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Dialokasikan</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memori yang dialokasikan thread game selama skrip mod ini berjalan dalam rentang yang dipilih, termasuk fungsi game yang dipanggilnya. Makin banyak alokasi, makin sering memori dibersihkan (GC). Perkiraan dari sampel, seperti waktunya.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Seluruh thread game, skrip maupun bukan: {0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Sendiri: dialokasikan saat fungsi itu sendiri berjalan. Total: juga saat fungsi yang dipanggilnya berjalan.</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>Tidak ada alokasi skrip yang tercatat dalam rentang ini.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Cara menggunakan grafik</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Rekaman performa</value></data>
@@ -449,7 +448,16 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Sendiri</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Sampel</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Sendiri: waktu yang dihabiskan langsung di fungsi itu. Total: termasuk fungsi-fungsi yang dipanggilnya.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Sendiri: waktu yang dihabiskan langsung di fungsi itu.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Total: termasuk fungsi yang dipanggilnya.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Sendiri: bagian waktu pemilik ini yang dihabiskan langsung di fungsi itu. Pemilik adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh rentang.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Total: bagian waktu pemilik ini yang dihabiskan di fungsi itu dan fungsi yang dipanggilnya. Pemilik adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh rentang.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Sendiri: dialokasikan saat fungsi itu sendiri berjalan.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Total: juga saat fungsi yang dipanggilnya berjalan.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Sampel: berapa sampel yang melewati baris itu.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Sampel: berapa sampel yang berakhir di fungsi itu.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} dari seluruh rentang, sekitar {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} dari alokasi pemilik ini</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Porsi per thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Waktu tunggu dan jeda yang lama</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>

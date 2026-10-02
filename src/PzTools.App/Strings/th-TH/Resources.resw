@@ -429,13 +429,12 @@
   <data name="ProfileTabJava" xml:space="preserve"><value>โค้ดเกม (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>การจัดสรรหน่วยความจำ</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>ต้นไม้การเรียก</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>จัดกลุ่มฟังก์ชันของเจ้าของนี้ตามเส้นทางการเรียกที่นำมาถึง: ฟังก์ชันชั้นนอกสุด เช่น ตัวจัดการอีเวนต์ อยู่ด้านบน และสิ่งที่มันเรียกอยู่ด้านใน นับเฉพาะตัวอย่างที่จบในฟังก์ชันของเจ้าของนี้ ตัวอย่าง: จำนวนที่ผ่านแถวนั้น เส้นทางที่หนักที่สุดจะเปิดไว้ให้เอง</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>จัดกลุ่มฟังก์ชันของเจ้าของนี้ตามเส้นทางการเรียกที่นำมาถึง: ฟังก์ชันชั้นนอกสุด เช่น ตัวจัดการอีเวนต์ อยู่ด้านบน และสิ่งที่มันเรียกอยู่ด้านใน นับเฉพาะตัวอย่างที่จบในฟังก์ชันของเจ้าของนี้ ปิด: รายการฟังก์ชันแบบธรรมดา</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>ขยาย</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>ยุบ</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>จัดสรรแล้ว</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>หน่วยความจำที่เธรดของเกมจัดสรรขณะที่สคริปต์ของม็อดนี้ทำงานในช่วงที่เลือก รวมถึงฟังก์ชันของเกมที่สคริปต์เรียกใช้ ยิ่งจัดสรรมาก ยิ่งล้างหน่วยความจำ (GC) บ่อย เป็นค่าประมาณจากตัวอย่างเช่นเดียวกับเวลา</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>ทั้งเธรดของเกม ทั้งในและนอกสคริปต์: {0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>เฉพาะตัว: จัดสรรขณะที่ฟังก์ชันนั้นทำงานเอง รวม: รวมถึงขณะที่ฟังก์ชันที่มันเรียกทำงานด้วย</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>ไม่มีการจัดสรรของสคริปต์ที่บันทึกไว้ในช่วงนี้</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>วิธีใช้กราฟ</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>บันทึกประสิทธิภาพ</value></data>
@@ -456,7 +455,16 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>เฉพาะตัว</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>รวม</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>ตัวอย่าง</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>เฉพาะตัว: เวลาที่ใช้ในฟังก์ชันนั้นโดยตรง รวม: นับรวมฟังก์ชันที่มันเรียกใช้ด้วย</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>เฉพาะตัว: เวลาที่ใช้ในฟังก์ชันนั้นโดยตรง</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>รวม: รวมถึงฟังก์ชันที่มันเรียกด้วย</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>เฉพาะตัว: ส่วนของเวลาของเจ้าของนี้ที่ใช้ในฟังก์ชันนั้นโดยตรง เจ้าของคือ 100% ชี้เมาส์ที่ตัวเลขเพื่อดูส่วนของทั้งช่วง</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>รวม: ส่วนของเวลาของเจ้าของนี้ที่ใช้ในฟังก์ชันนั้นและฟังก์ชันที่มันเรียก เจ้าของคือ 100% ชี้เมาส์ที่ตัวเลขเพื่อดูส่วนของทั้งช่วง</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>เฉพาะตัว: จัดสรรขณะที่ฟังก์ชันนั้นทำงานเอง</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>รวม: รวมถึงขณะที่ฟังก์ชันที่มันเรียกทำงานด้วย</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>ตัวอย่าง: จำนวนที่ผ่านแถวนั้น</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>ตัวอย่าง: จำนวนที่จบในฟังก์ชันนั้น</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} ของทั้งช่วง ประมาณ {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} ของการจัดสรรของเจ้าของนี้</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>สัดส่วนตามเธรด</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>การรอและการหยุดชะงักนาน ๆ</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>ม็อด</value></data>

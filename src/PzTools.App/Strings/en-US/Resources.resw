@@ -375,8 +375,17 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileListJavaShareTip" xml:space="preserve"><value>How much of the game code's running time in the selected range went to this item. Game functions called by Lua scripts count as 'Base game' here. Long waits and stalls show a count instead of a share.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0}×</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Share by thread</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Self: time spent directly in that function. Total: also includes the functions it called.</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Samples</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Self: time spent directly in that function.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Total: also includes the functions it called.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Self: the part of this owner's time spent directly in that function. The owner is 100%; resting the pointer on a number gives its part of the whole range.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Total: the part of this owner's time spent in that function and the functions it called. The owner is 100%; resting the pointer on a number gives its part of the whole range.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Self: allocated while that function itself was running.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Total: also while the functions it called were running.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Samples: how many samples passed through the line.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Samples: how many samples ended in the function.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} of the whole range, about {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} of this owner's allocations</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Self</value></data>
   <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Scripts of unknown origin</value></data>
@@ -434,13 +443,12 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileTabJava" xml:space="preserve"><value>Game code (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Memory allocation</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Call tree</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Groups this owner's functions by the call paths that led to them: the outermost function, such as an event handler, on top, and what it called inside. Only samples that ended in this owner's functions count. Samples: those that passed through the row. The heaviest path opens by itself.</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Groups this owner's functions by the call paths that led to them: the outermost function, such as an event handler, on top, and what it called inside. Only samples that ended in this owner's functions count. Off: a plain list of the functions.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Expand</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Collapse</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Allocated</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memory the game thread allocated while this mod's scripts were running in the selected range, including game functions they called. The more is allocated, the more often memory is cleaned up (GC). An estimate from the samples, like the time.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Whole game thread, scripts or not: {0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Self: allocated while that function itself was running. Total: also while the functions it called were running.</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>No script allocations were recorded in this range.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>How to use the graph</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Performance recording</value></data>

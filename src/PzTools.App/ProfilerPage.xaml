@@ -231,8 +231,10 @@
             <!-- Larger than the tabs beside it; the samples share its baseline. The share is in the list beside. -->
             <TextBlock x:Name="DetailName" FontSize="18" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
             <!-- What the page shows, as text: to paste into a message to a mod's author. -->
-            <Button x:Name="CopyResultsButton" Grid.Column="1" Height="32" Padding="8,0,10,0"
-                    VerticalAlignment="Center" Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
+            <!-- Set on the line's baseline like the name and the samples: a 32-pixel button centres its text 7 pixels
+                 above the bottom edge a text line sits on, so it hangs that far below. -->
+            <Button x:Name="CopyResultsButton" Grid.Column="1" Height="32" Padding="8,0,10,0" Margin="0,0,0,-7"
+                    VerticalAlignment="Bottom" Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <FontIcon Glyph="&#xE8C8;" FontSize="14" VerticalAlignment="Center" />
                 <TextBlock x:Name="CopyResultsText" VerticalAlignment="Center" />
@@ -240,7 +242,7 @@
             </Button>
           </Grid>
           <!-- The scripts' functions as a list, or as the call paths that led to them. -->
-          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="1" MinWidth="0" VerticalAlignment="Center" Visibility="Collapsed"
+          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="1" MinWidth="0" Margin="0,0,0,-7" VerticalAlignment="Bottom" Visibility="Collapsed"
                         Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
           <TextBlock x:Name="DetailSamples" Grid.Column="2" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
         </Grid>

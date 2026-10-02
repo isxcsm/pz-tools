@@ -128,15 +128,23 @@ owner's name turns it into a plain list of functions and back. The tree shows th
 by the path that led to them: the outermost Lua function on top (an event
 handler, or the game's script that called into the mod), and under each function what it
 called, indented, with an arrow to open or close it (a click anywhere on the row does the
-same). Only samples that ended in the chosen owner's functions count, so the top rows add
-up to the owner's figure in the list; a row's *Samples* are those that passed through it.
-The heaviest path is open the first time an owner is shown; what is opened or closed stays
-so for other ranges of the same recording. In *Memory allocation* the paths are ranked by
-bytes and those that allocated nothing are left out. The choice of list or tree holds
-while the app runs, and a copy carries the tree as indented text. A path deeper than the
-24 innermost functions the recorder keeps starts at the 24th. The list is still the way
-to see a helper that many paths call: the tree splits its cost among them, the list adds
-it up.
+same). The tree starts closed; what is opened or closed stays so for other ranges of the
+same recording. In *Memory allocation* the paths are ranked by bytes and those that
+allocated nothing are left out. The choice of list or tree holds while the app runs, and
+a copy carries the tree as indented text. A path deeper than the 24 innermost functions
+the recorder keeps starts at the 24th. The list is still the way to see a helper that
+many paths call: the tree splits its cost among them, the list adds it up.
+
+Tree and list count the same samples, those that ended in the chosen owner's functions,
+and their percentages are parts of the owner, the owner being 100%: the question there is
+where inside it the time went, and parts of a long range shrank to 0.0%. The top rows of
+the tree add up to 100%, and so do the list's *Self* figures. A faint bar behind each
+*Total* shows the same part at a glance. Resting the pointer on a number gives its part
+of the whole range and the time it stands for (*2.1% of the whole range, about 1.14 s*),
+so a large part of a light owner is not mistaken for a heavy one; in *Memory allocation*
+the bytes stay and the pointer gives their part of the owner. *Samples* in the tree are
+those that passed through the row, in the list those that ended in the function. Each
+heading says what its column means when the pointer rests on it.
 
 - **Frame graph.** One bar per slice of time, as tall as the slowest frame in that slice,
   so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per

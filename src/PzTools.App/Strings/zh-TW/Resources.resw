@@ -422,13 +422,12 @@
   <data name="ProfileTabJava" xml:space="preserve"><value>遊戲程式碼 (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>記憶體配置</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>呼叫樹</value></data>
-  <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。樣本：經過該列的樣本數。最重的路徑會自動展開。</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>摺疊</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>配置量</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>在所選範圍內，此模組的腳本執行時遊戲執行緒配置的記憶體，包括腳本呼叫的遊戲功能的配置。配置越多，記憶體清理（GC）越頻繁。與時間一樣，是根據樣本得出的估計值。</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>整個遊戲執行緒（含腳本以外）：{0}</value></data>
-  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>自身：該函式本身執行時配置的量。總計：還包括它呼叫的函式執行時配置的量。</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>此範圍內沒有記錄到腳本的配置。</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>圖表使用方式</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>效能錄製</value></data>
@@ -449,7 +448,16 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>自身</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>總計</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>樣本</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>自身：直接花在該函式內的時間。總計：還包含它呼叫的其他函式。</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>自身：直接在該函式中花費的時間。</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>總計：還包括它呼叫的函式。</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>自身：此擁有者的時間中直接花在該函式裡的比例。擁有者整體為 100%，將游標停在數字上可查看占整個範圍的值。</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>總計：此擁有者的時間中花在該函式及其呼叫的函式上的比例。擁有者整體為 100%，將游標停在數字上可查看占整個範圍的值。</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>自身：該函式本身執行時配置的量。</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>總計：還包括它呼叫的函式執行時配置的量。</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>樣本：經過該列的樣本數。</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>樣本：結束於該函式的樣本數。</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>占整個範圍的 {0}，約 {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>占此擁有者配置量的 {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各執行緒占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長時間等待和停頓</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>模組</value></data>
