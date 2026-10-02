@@ -456,12 +456,14 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Speichert die Minuten, die das Spiel behalten hat, als Aufnahme.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Aufnahme starten/beenden</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Startet eine Aufnahme im Modus, der auf der Seite „Leistung“ eingestellt ist; erneut drücken beendet sie.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Aufnahmemodus wechseln (Standard/Detailliert)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Wechselt den Modus der nächsten Aufnahme zwischen Standard und Detailliert, wie auf der Seite „Leistung“. Eine laufende Aufnahme behält ihren Modus.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Letzte Minuten behalten an/aus</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Schaltet „Letzte Minuten behalten“ oben ein oder aus.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Manuelle Sicherung</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Sichert den Spielstand, den Sie gerade spielen, sofort.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Automatische Sicherung pausieren</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Hält die automatischen Sicherungen eine Weile an; erneut drücken setzt sie fort. Nach Ablauf der Zeit laufen sie von selbst weiter. Sicherungen beim Tod werden nicht angehalten.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Hält die automatischen Sicherungen {0} Minuten an. Erneut drücken oder nach {0} Minuten laufen sie weiter. Sicherungen beim Tod laufen weiter.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Status anzeigen</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Zeigt über Ihrem Charakter die Zeit bis zur nächsten Sicherung, die letzte Sicherung und was gerade aufgezeichnet wird.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Ein anderes Programm belegt diese Taste, daher bewirkt sie nichts.</value></data>

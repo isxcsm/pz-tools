@@ -502,13 +502,15 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="HotKeyTaken" xml:space="preserve"><value>Another program holds this key, so it does nothing.</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Shows the time to the next backup, the last backup and what is being recorded, over your character.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Show status</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Holds automatic backups for a while; press again to resume. They resume by themselves when the time is up. Backups on death are not held.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Holds automatic backups for {0} minutes. Press again, or wait the {0} minutes, and they resume. Backups on death go on.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pause automatic backups</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Backs up the save you are playing, right away.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Manual backup</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Turns "Keep the last minutes" above on or off.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Keep last minutes on/off</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Starts a recording in the mode set on the Performance page; press again to stop it.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Switch recording mode (Standard/Detailed)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Switches the next recording between Standard and Detailed, as on the Performance page. A recording under way keeps its mode.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Start/stop performance recording</value></data>
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Saves the minutes the game has kept as a recording.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Save last minutes</value></data>

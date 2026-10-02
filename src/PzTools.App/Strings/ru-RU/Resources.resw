@@ -456,12 +456,14 @@
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Сохраняет как запись минуты, которые хранила игра.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Начать/остановить запись</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Начинает запись в режиме, выбранном на странице «Производительность»; повторное нажатие останавливает её.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Переключить режим записи (обычный/подробный)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Переключает режим следующей записи между обычным и подробным, как на странице «Производительность». Идущая запись сохраняет свой режим.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Хранение минут вкл./выкл.</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Включает или выключает «Хранить последние минуты» выше.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Копия вручную</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Сразу создаёт копию сохранения, в которое вы играете.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Пауза автоматических копий</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Приостанавливает автоматические копии на время; повторное нажатие возобновляет их. Когда время истечёт, они возобновятся сами. Копии при смерти персонажа не приостанавливаются.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Приостанавливает автоматические копии на {0} мин. Нажмите ещё раз или подождите {0} мин, и они возобновятся. Копии при смерти персонажа продолжаются.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Показать состояние</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Показывает над персонажем время до следующей копии, последнюю копию и то, что сейчас записывается.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Эту клавишу занимает другая программа, поэтому она не работает.</value></data>

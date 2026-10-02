@@ -380,6 +380,7 @@ public sealed class AppSettingsService
         + $"[hotkeys]{Environment.NewLine}"
         + $"save_last = {Quote(value.Keys.SaveLast)}{Environment.NewLine}"
         + $"record = {Quote(value.Keys.Record)}{Environment.NewLine}"
+        + $"record_mode = {Quote(value.Keys.RecordMode)}{Environment.NewLine}"
         + $"rolling_toggle = {Quote(value.Keys.RollingToggle)}{Environment.NewLine}"
         + $"manual_backup = {Quote(value.Keys.ManualBackup)}{Environment.NewLine}"
         + $"backup_pause = {Quote(value.Keys.BackupPause)}{Environment.NewLine}"
@@ -492,12 +493,13 @@ public sealed class AppSettingsService
     {
         var defaults = new HotKeySettings();
         var keys = new HotKeySettings(
-            GetString(root, "hotkeys", "save_last", defaults.SaveLast),
-            GetString(root, "hotkeys", "record", defaults.Record),
-            GetString(root, "hotkeys", "rolling_toggle", defaults.RollingToggle),
-            GetString(root, "hotkeys", "manual_backup", defaults.ManualBackup),
-            GetString(root, "hotkeys", "backup_pause", defaults.BackupPause),
-            GetString(root, "hotkeys", "status", defaults.Status)).Normalized();
+            SaveLast: GetString(root, "hotkeys", "save_last", defaults.SaveLast),
+            Record: GetString(root, "hotkeys", "record", defaults.Record),
+            RecordMode: GetString(root, "hotkeys", "record_mode", defaults.RecordMode),
+            RollingToggle: GetString(root, "hotkeys", "rolling_toggle", defaults.RollingToggle),
+            ManualBackup: GetString(root, "hotkeys", "manual_backup", defaults.ManualBackup),
+            BackupPause: GetString(root, "hotkeys", "backup_pause", defaults.BackupPause),
+            Status: GetString(root, "hotkeys", "status", defaults.Status)).Normalized();
         var seen = new HashSet<HotKeyGesture>();
         foreach (var action in Enum.GetValues<HotKeyAction>())
             if (HotKeyGesture.Parse(keys.Get(action)) is { } gesture && !seen.Add(gesture)) keys = keys.With(action, "");

@@ -456,12 +456,14 @@
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>ゲームが保持している直前の数分を記録として保存します。</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>パフォーマンス記録の開始/停止</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>パフォーマンス画面で選んだモードで記録を開始し、もう一度押すと停止します。</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>記録モードの切り替え (標準/詳細)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>次の記録のモードを標準と詳細で切り替えます。パフォーマンス画面での選択と同じです。記録中のものは開始時のモードのままです。</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>直前の記録のオン/オフ</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>上の「直前の数分を記録し続ける」をオン/オフします。</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>手動バックアップ</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>プレイ中のセーブをすぐにバックアップします。</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>自動バックアップを一時停止</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>自動バックアップをしばらく止め、もう一度押すと再開します。時間が来ると自動的に再開します。死亡時のバックアップは止まりません。</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>自動バックアップを {0} 分間止めます。もう一度押すか {0} 分たつと再開します。死亡時のバックアップは続きます。</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>状態を表示</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>次のバックアップまでの時間、前回のバックアップ、記録中の内容をキャラクターの頭上に表示します。</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>ほかのプログラムがこのキーを使っているため、動作しません。</value></data>

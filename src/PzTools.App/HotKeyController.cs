@@ -84,6 +84,7 @@ internal sealed class HotKeyController : IDisposable
             {
                 case HotKeyAction.SaveLast: await SaveLastAsync(host); break;
                 case HotKeyAction.Record: await RecordAsync(host); break;
+                case HotKeyAction.RecordMode: ToggleMode(host); break;
                 case HotKeyAction.RollingToggle: await ToggleRollingAsync(host); break;
                 case HotKeyAction.ManualBackup: await BackupAsync(host); break;
                 case HotKeyAction.BackupPause: await PauseAsync(host); break;
@@ -160,6 +161,15 @@ internal sealed class HotKeyController : IDisposable
         }
         Sound(SystemSound.Done);
         Note(host, "recording-saved");
+    }
+
+    // Standard or Detailed for the next recording; one under way keeps its own, so the note names the next.
+    private void ToggleMode(AppHost host)
+    {
+        var profiles = host.Profiles;
+        profiles.PreferDetailed = !profiles.PreferDetailed;
+        Sound(SystemSound.Accepted);
+        Note(host, profiles.PreferDetailed ? "next-recording-detailed" : "next-recording-standard");
     }
 
     private async Task ToggleRollingAsync(AppHost host)
@@ -246,8 +256,9 @@ internal sealed class HotKeyController : IDisposable
         var home = HomeStatusSource.From(saves, catalog, null, schedule);
         if (home.LastBackupUtc is { } last) items.Add($"last-backup:{(int)Math.Max(0, (now - last).TotalMinutes)}");
         else if (home.SavesKnown) items.Add("last-backup-none");
+        // Both, as the last minutes are kept through a recording.
         if (host.Profiles.Session.State == ProfileSessionState.Recording) items.Add("recording-now");
-        else if (host.Profiles.Rolling is { On: true } rolling) items.Add($"rolling-on:{Math.Max(1, rolling.OnMinutes)}");
+        if (host.Profiles.Rolling is { On: true } rolling) items.Add($"rolling-on:{Math.Max(1, rolling.OnMinutes)}");
         Sound(SystemSound.Accepted);
         if (items.Count > 0) Note(host, [.. items.Take(GameNoticeLimit)]);
         return Task.CompletedTask;

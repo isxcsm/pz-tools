@@ -49,7 +49,20 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     /// <summary>Raised on any thread with each recording written, a recording's or a save of the last minutes.</summary>
     public event Action<string>? Saved;
     /// <summary>The mode the Performance page's switch is set to; a recording started from a hotkey takes it.</summary>
-    public bool PreferDetailed { get; set; }
+    /// <summary>
+    /// The mode the next recording asked for takes, chosen on the page or by its hotkey, for as long as the app runs.
+    /// A recording under way keeps the mode it started in.
+    /// </summary>
+    public bool PreferDetailed
+    {
+        get { lock (gate) return preferDetailed; }
+        set
+        {
+            lock (gate) { if (preferDetailed == value) return; preferDetailed = value; }
+            Changed?.Invoke();
+        }
+    }
+    private bool preferDetailed;
     public string Directory { get; } = Path.GetFullPath(directory);
     public ProfileSession Session { get { lock (gate) return session; } }
 

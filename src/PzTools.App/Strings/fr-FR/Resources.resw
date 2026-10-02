@@ -456,12 +456,14 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Enregistre sous forme d’enregistrement les minutes gardées par le jeu.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Démarrer/arrêter l’enregistrement</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Démarre un enregistrement dans le mode choisi sur la page Performances ; appuyez de nouveau pour l’arrêter.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Changer le mode d’enregistrement (Standard/Détaillé)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Fait passer le prochain enregistrement de Standard à Détaillé ou l’inverse, comme sur la page Performances. Un enregistrement en cours garde son mode.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Activer/désactiver la conservation</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Active ou désactive « Garder les dernières minutes » ci-dessus.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Sauvegarde manuelle</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Sauvegarde immédiatement la partie en cours.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Suspendre les sauvegardes automatiques</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Suspend les sauvegardes automatiques pendant un moment ; appuyez de nouveau pour les reprendre. Elles reprennent d’elles-mêmes une fois le délai écoulé. Les sauvegardes à la mort du personnage ne sont pas suspendues.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Suspend les sauvegardes automatiques pendant {0} minutes. Appuyez de nouveau, ou attendez les {0} minutes, pour les reprendre. Les sauvegardes à la mort du personnage continuent.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Afficher l’état</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Affiche au-dessus de votre personnage le temps avant la prochaine sauvegarde, la dernière sauvegarde et ce qui est en cours d’enregistrement.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Un autre programme utilise cette touche, elle est donc sans effet.</value></data>

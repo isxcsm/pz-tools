@@ -456,12 +456,14 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Menyimpan menit-menit terakhir yang ditahan game sebagai rekaman.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Mulai/hentikan rekaman</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Memulai rekaman dengan mode yang diatur di halaman Performa; tekan lagi untuk menghentikannya.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Ganti mode rekaman (Standar/Terperinci)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Mengganti mode rekaman berikutnya antara Standar dan Terperinci, sama seperti di halaman Performa. Rekaman yang sedang berjalan tetap dengan modenya.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Aktifkan/nonaktifkan menit terakhir</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Mengaktifkan atau menonaktifkan “Simpan menit-menit terakhir terus-menerus” di atas.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Pencadangan manual</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Langsung mencadangkan simpanan yang sedang dimainkan.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Jeda pencadangan otomatis</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Menahan pencadangan otomatis untuk sementara; tekan lagi untuk melanjutkan. Pencadangan berlanjut sendiri saat waktunya habis. Pencadangan saat karakter mati tidak ditahan.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Menahan pencadangan otomatis selama {0} menit. Tekan lagi, atau tunggu {0} menit, untuk melanjutkan. Pencadangan saat karakter mati tetap berjalan.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Tampilkan status</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Menampilkan waktu hingga pencadangan berikutnya, pencadangan terakhir, dan apa yang sedang direkam di atas karakter.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Program lain memakai tombol ini, jadi tombol ini tidak berfungsi.</value></data>

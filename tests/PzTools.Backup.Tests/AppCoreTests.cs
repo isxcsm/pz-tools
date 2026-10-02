@@ -103,13 +103,13 @@ public sealed class AppCoreTests
         var changed = initial with
         {
             RollingEnabled = true, RollingDetailed = true, RollingMinutes = 3,
-            HotKeys = new HotKeySettings(SaveLast: "ctrl+f9", ManualBackup: "Ctrl+Alt+B", Status: ""),
+            HotKeys = new HotKeySettings(SaveLast: "ctrl+f9", RecordMode: "ctrl+shift+f10", ManualBackup: "Ctrl+Alt+B", Status: ""),
         };
         await service.SaveAndApplyAsync(changed, scheduler);
         var loaded = new AppSettingsService(service.RuntimeRoot).Load();
         Assert.Equal((true, true, 3), (loaded.RollingEnabled, loaded.RollingDetailed, loaded.RollingMinutes));
         // Written in one form, read back as written.
-        Assert.Equal(new HotKeySettings(SaveLast: "Ctrl+F9", ManualBackup: "Ctrl+Alt+B", Status: ""), loaded.Keys);
+        Assert.Equal(new HotKeySettings(SaveLast: "Ctrl+F9", RecordMode: "Ctrl+Shift+F10", ManualBackup: "Ctrl+Alt+B", Status: ""), loaded.Keys);
         Assert.Equal(before, await scheduler.ReadBackupStateIfChangedAsync(-1));
         var views = new RevisionedViewStore();
         new SettingsProjector(views).Project(loaded);

@@ -456,12 +456,14 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Oyunun tuttuğu dakikaları bir kayıt olarak kaydeder.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Performans kaydını başlat/durdur</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Performans sayfasında seçili modda bir kayıt başlatır; durdurmak için tekrar basın.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Kayıt modunu değiştir (Standart/Ayrıntılı)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Sonraki kaydın modunu Performans sayfasındaki gibi Standart ile Ayrıntılı arasında değiştirir. Süren kayıt kendi modunda kalır.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Son dakikaları tut aç/kapat</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Yukarıdaki “Son dakikaları tut” seçeneğini açar veya kapatır.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Elle yedekleme</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Oynadığınız kaydı hemen yedekler.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Otomatik yedeklemeyi duraklat</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Otomatik yedeklemeyi bir süre durdurur; devam ettirmek için tekrar basın. Süre dolunca kendiliğinden devam eder. Karakter ölünce alınan yedekler durdurulmaz.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Otomatik yedeklemeyi {0} dakika durdurur. Tekrar basın ya da {0} dakika bekleyin, devam eder. Karakter ölünce alınan yedekler sürer.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Durumu göster</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Sonraki yedeğe kalan süreyi, son yedeği ve neyin kaydedildiğini karakterinizin üstünde gösterir.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Bu tuşu başka bir program kullanıyor, bu yüzden bir işe yaramıyor.</value></data>

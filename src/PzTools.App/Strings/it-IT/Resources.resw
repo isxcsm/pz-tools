@@ -456,12 +456,14 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Salva come registrazione i minuti conservati dal gioco.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Avvia/ferma registrazione</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Avvia una registrazione nella modalità impostata nella pagina Prestazioni; premi di nuovo per fermarla.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Cambia modalità di registrazione (Standard/Dettagliata)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Passa la prossima registrazione da Standard a Dettagliata o viceversa, come nella pagina Prestazioni. Una registrazione in corso mantiene la sua modalità.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Attiva/disattiva ultimi minuti</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Attiva o disattiva «Conserva gli ultimi minuti» qui sopra.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Backup manuale</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Crea subito un backup del salvataggio a cui stai giocando.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Sospendi backup automatici</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Sospende per un po' i backup automatici; premi di nuovo per riprenderli. Riprendono da soli allo scadere del tempo. I backup alla morte del personaggio non vengono sospesi.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Sospende i backup automatici per {0} minuti. Premi di nuovo, o attendi i {0} minuti, per riprenderli. I backup alla morte del personaggio continuano.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Mostra stato</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Mostra sopra il personaggio il tempo al prossimo backup, l'ultimo backup e cosa si sta registrando.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Un altro programma usa questo tasto, quindi non fa nulla.</value></data>

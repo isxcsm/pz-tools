@@ -456,12 +456,14 @@
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>將遊戲保留的最近幾分鐘儲存為一段錄製。</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>開始/停止效能錄製</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>依效能分析頁面所選的模式開始錄製，再按一次停止。</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>切換錄製模式（標準/詳細）</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>在標準與詳細之間切換下一次錄製的模式，與效能分析頁面中的選擇相同。進行中的錄製維持開始時的模式。</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>開關最近記錄</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>開啟或關閉上方的「持續保留最近幾分鐘」。</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>手動備份</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>立即備份正在遊玩的存檔。</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>暫停自動備份</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>暫時停止自動備份，再按一次恢復。時間到後會自動恢復。死亡時的備份不會暫停。</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>暫停自動備份 {0} 分鐘。再按一次或 {0} 分鐘後恢復。死亡時的備份照常進行。</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>顯示狀態</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>在角色頭上顯示距離下次備份的時間、上次備份以及正在錄製的內容。</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>其他程式佔用了此按鍵，因此無效。</value></data>

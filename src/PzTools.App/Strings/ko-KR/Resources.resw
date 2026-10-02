@@ -455,12 +455,14 @@
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>게임이 기록해 둔 직전 몇 분을 녹화로 저장합니다.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>성능 녹화 시작/중지</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>성능 분석 화면의 일반/상세 선택대로 녹화를 시작하고, 다시 누르면 끝냅니다.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>녹화 모드 전환 (일반/상세)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>다음 녹화의 모드를 일반과 상세 사이에서 바꿉니다. 성능 분석 화면의 선택과 같습니다. 진행 중인 녹화는 시작할 때의 모드를 유지합니다.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>직전 기록 켜기/끄기</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>위의 '직전 기록 계속하기'를 켜고 끕니다.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>수동 백업</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>지금 플레이 중인 세이브를 바로 백업합니다.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>자동 백업 잠시 멈춤</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>자동 백업을 잠시 멈추고, 다시 누르면 재개합니다. 시간이 지나면 저절로 재개됩니다. 사망 시 백업은 멈추지 않습니다.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>누르면 자동 백업을 {0}분 동안 멈춥니다. 다시 누르거나 {0}분이 지나면 재개됩니다. 사망 시 백업은 계속됩니다.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>상태 보기</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>다음 백업까지 남은 시간, 마지막 백업, 기록 상태를 캐릭터 머리 위에 보여 줍니다.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>다른 프로그램이 이 키를 쓰고 있어 동작하지 않습니다.</value></data>

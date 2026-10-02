@@ -456,12 +456,14 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Guarda como grabación los minutos que conservó el juego.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Iniciar/detener grabación</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Inicia una grabación en el modo elegido en la página Rendimiento; presiona de nuevo para detenerla.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Cambiar modo de grabación (Estándar/Detallado)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Cambia el modo de la próxima grabación entre Estándar y Detallado, como en la página Rendimiento. Una grabación en curso conserva su modo.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Activar/desactivar últimos minutos</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Activa o desactiva «Conservar los últimos minutos», más arriba.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Copia manual</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Crea de inmediato una copia de la partida que estás jugando.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pausar copias automáticas</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Detiene las copias automáticas por un tiempo; presiona de nuevo para reanudarlas. Se reanudan solas cuando se acaba el tiempo. Las copias al morir el personaje no se detienen.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Detiene las copias automáticas por {0} minutos. Presiona de nuevo, o espera los {0} minutos, y se reanudan. Las copias al morir el personaje continúan.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Mostrar estado</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Muestra sobre tu personaje el tiempo hasta la próxima copia, la última copia y lo que se está grabando.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Otro programa usa esta tecla, así que no hace nada.</value></data>

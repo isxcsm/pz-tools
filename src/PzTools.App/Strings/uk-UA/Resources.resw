@@ -456,12 +456,14 @@
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Зберігає як запис хвилини, які зберігала гра.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Почати/зупинити запис</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Починає запис у режимі, вибраному на сторінці «Продуктивність»; повторне натискання зупиняє його.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Перемкнути режим запису (звичайний/докладний)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Перемикає режим наступного запису між звичайним і докладним, як на сторінці «Продуктивність». Запис, що триває, зберігає свій режим.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Зберігання хвилин увімк./вимк.</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Вмикає або вимикає «Зберігати останні хвилини» вище.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Копія вручну</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Одразу створює копію збереження, у яке ви граєте.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Пауза автоматичних копій</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Призупиняє автоматичні копії на деякий час; повторне натискання відновлює їх. Коли час мине, вони відновляться самі. Копії після смерті персонажа не призупиняються.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Призупиняє автоматичні копії на {0} хв. Натисніть ще раз або зачекайте {0} хв, і вони відновляться. Копії після смерті персонажа тривають.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Показати стан</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Показує над персонажем час до наступної копії, останню копію і те, що зараз записується.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Цю клавішу займає інша програма, тому вона не працює.</value></data>

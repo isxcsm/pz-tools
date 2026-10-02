@@ -456,12 +456,14 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Salva como gravação os minutos que o jogo manteve.</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>Iniciar/parar gravação</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>Inicia uma gravação no modo definido na página Desempenho; pressione de novo para parar.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Alternar modo de gravação (Padrão/Detalhado)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Alterna o modo da próxima gravação entre Padrão e Detalhado, como na página Desempenho. Uma gravação em andamento mantém seu modo.</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Ligar/desligar últimos minutos</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Liga ou desliga “Manter os últimos minutos”, acima.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Backup manual</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Faz na hora um backup da partida que você está jogando.</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pausar backups automáticos</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Suspende os backups automáticos por um tempo; pressione de novo para retomar. Eles voltam sozinhos quando o tempo acaba. Backups na morte do personagem não são suspensos.</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Suspende os backups automáticos por {0} minutos. Pressione de novo, ou espere os {0} minutos, para retomar. Backups na morte do personagem continuam.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Mostrar status</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Mostra acima do seu personagem o tempo até o próximo backup, o último backup e o que está sendo gravado.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Outro programa está usando esta tecla, então ela não faz nada.</value></data>

@@ -463,12 +463,14 @@
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>บันทึกช่วงนาทีที่เกมเก็บไว้เป็นการบันทึกหนึ่งรายการ</value></data>
   <data name="HotKey.Record.Header" xml:space="preserve"><value>เริ่ม/หยุดบันทึกประสิทธิภาพ</value></data>
   <data name="HotKey.Record.Description" xml:space="preserve"><value>เริ่มบันทึกตามโหมดที่ตั้งไว้ในหน้าประสิทธิภาพ กดอีกครั้งเพื่อหยุด</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>สลับโหมดบันทึก (มาตรฐาน/ละเอียด)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>สลับโหมดของการบันทึกครั้งถัดไประหว่างมาตรฐานและละเอียด เหมือนในหน้าประสิทธิภาพ การบันทึกที่กำลังทำอยู่ใช้โหมดเดิม</value></data>
   <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>เปิด/ปิดการเก็บนาทีล่าสุด</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>เปิดหรือปิด “เก็บนาทีล่าสุดไว้ตลอด” ด้านบน</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>สำรองเซฟที่กำลังเล่นอยู่ทันที</value></data>
   <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>พักการสำรองอัตโนมัติ</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>พักการสำรองอัตโนมัติไว้สักพัก กดอีกครั้งเพื่อทำต่อ เมื่อหมดเวลาจะทำต่อเอง การสำรองเมื่อตัวละครเสียชีวิตจะไม่ถูกพัก</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>พักการสำรองอัตโนมัติ {0} นาที กดอีกครั้งหรือรอ {0} นาทีเพื่อทำต่อ การสำรองเมื่อตัวละครเสียชีวิตยังทำตามปกติ</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>แสดงสถานะ</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>แสดงเวลาที่เหลือก่อนการสำรองครั้งถัดไป การสำรองล่าสุด และสิ่งที่กำลังบันทึกไว้เหนือตัวละคร</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>โปรแกรมอื่นใช้ปุ่มนี้อยู่ จึงไม่มีผล</value></data>
