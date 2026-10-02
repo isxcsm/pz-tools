@@ -399,6 +399,12 @@
   <data name="ProfileStatHeap" xml:space="preserve"><value>ヒープ</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>メモリ</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>ヒープ使用量</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Java ヒープの使用量: ゲームの Java コードが使っているメモリです。目盛りは表示範囲の最小から最大までです。</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC 停止時間</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>棒 1 本がメモリの整理 (GC) 1 回です。幅と高さはその間ゲームが止まった時間で、いちばん高い棒が表示範囲で最も長い停止です。</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>ゲームがグラフィックカード上に確保しているメモリです。目盛りは表示範囲の最小から最大までです。</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回、停止 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>関数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ファイル</value></data>

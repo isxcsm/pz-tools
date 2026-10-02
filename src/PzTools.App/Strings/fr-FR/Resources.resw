@@ -399,6 +399,12 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileStatHeap" xml:space="preserve"><value>Tas</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>Mémoire</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Tas utilisé</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Tas Java utilisé : la mémoire que tient le code Java du jeu. L’échelle va de la valeur la plus basse à la plus haute de la plage affichée.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Pauses du GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Chaque barre est un nettoyage de la mémoire (GC). Sa largeur et sa hauteur montrent combien de temps le jeu s’est arrêté ; la barre la plus haute est la plus longue pause de la plage affichée.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Mémoire que le jeu occupe sur la carte graphique. L’échelle va de la valeur la plus basse à la plus haute de la plage affichée.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} fois, pause de {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fonction</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Fichier</value></data>

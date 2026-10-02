@@ -399,6 +399,12 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileStatHeap" xml:space="preserve"><value>Sterta</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>Pamięć</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Użycie sterty</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Użycie sterty Javy: pamięć zajmowana przez kod gry w Javie. Skala obejmuje od najniższej do najwyższej wartości w widocznym zakresie.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Przerwy GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Każdy słupek to jedno czyszczenie pamięci (GC). Jego szerokość i wysokość pokazują, jak długo gra przez nie stała; najwyższy słupek to najdłuższa przerwa w widocznym zakresie.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Pamięć zajmowana przez grę na karcie graficznej. Skala obejmuje od najniższej do najwyższej wartości w widocznym zakresie.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} razy, wstrzymanie {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funkcja</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Plik</value></data>

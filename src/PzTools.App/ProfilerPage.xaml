@@ -175,6 +175,8 @@
               <Rectangle x:Name="MemoryHoverLine" Width="1" Visibility="Collapsed" Opacity="0.5"
                          Fill="{ThemeResource TextFillColorPrimaryBrush}" />
             </Canvas>
+            <!-- The rows' names, on top; only the names take the pointer, for their tips. -->
+            <Canvas x:Name="MemoryNames" />
           </Grid>
         </Border>
         <!-- Drag to give the graph or the results more room. -->

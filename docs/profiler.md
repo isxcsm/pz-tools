@@ -116,8 +116,10 @@ narrow window the table moves below the owner list.
   fitted one shows small changes. Each collection is a bar as long as it paused the game
   (at least two pixels) and as tall as that pause against the longest one in view, so a
   frame spike above a tall bar is a frame the game spent collecting; the bars are drawn as
-  one shape, as a game may collect several times a second. The ends of each row's scale
-  stand at the left in the row's colour. The panel shares the frame graph's margins and
+  one shape, as a game may collect several times a second. Each row's name stands at its
+  top left in the row's colour (*Heap in use*, *GC pauses*, *VRAM*), and resting the
+  pointer on the name says how to read the row; the ends of its scale stand at the left
+  of the graph. The panel shares the frame graph's margins and
   time axis: zoom, scrolling, the selection and the pointer line move both, and a range
   can be dragged on either. It stays open or shut while the app runs. Closed, it takes no
   room.

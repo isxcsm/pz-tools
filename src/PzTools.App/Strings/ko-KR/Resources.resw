@@ -398,6 +398,12 @@
   <data name="ProfileStatHeap" xml:space="preserve"><value>힙</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>메모리</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>힙 사용량</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>자바 힙 사용량: 게임의 자바 코드가 쓰고 있는 메모리입니다. 눈금은 보이는 구간의 최저에서 최고까지입니다.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC 멈춘 시간</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>막대 하나가 메모리 정리(GC) 한 번입니다. 폭과 높이는 그동안 게임이 멈춘 시간이고, 가장 높은 막대가 보이는 구간에서 가장 길게 멈춘 것입니다.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>게임이 그래픽카드에 올려 둔 메모리입니다. 눈금은 보이는 구간의 최저에서 최고까지입니다.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}회, 멈춤 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>함수</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>파일</value></data>

@@ -399,6 +399,12 @@
   <data name="ProfileStatHeap" xml:space="preserve"><value>堆積</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>顯示記憶體</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>記憶體</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>堆積使用量</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Java 堆積使用量：遊戲的 Java 程式碼占用的記憶體。刻度為可見範圍內的最低值到最高值。</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC 暫停時間</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>每根長條代表一次記憶體清理（GC）。寬度和高度表示遊戲因此暫停的時間，最高的長條是可見範圍內最長的暫停。</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>顯示記憶體</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>遊戲在顯示卡上占用的記憶體。刻度為可見範圍內的最低值到最高值。</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停頓 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函式</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>檔案</value></data>

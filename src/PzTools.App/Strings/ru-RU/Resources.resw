@@ -399,6 +399,12 @@
   <data name="ProfileStatHeap" xml:space="preserve"><value>Куча</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>Память</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Занято в куче</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Занятая куча Java: память, которую держит Java-код игры. Шкала идёт от наименьшего до наибольшего значения в видимом диапазоне.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Паузы GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Каждый столбец — одна очистка памяти (GC). Его ширина и высота показывают, сколько игра из-за неё стояла; самый высокий столбец — самая долгая пауза в видимом диапазоне.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Память, которую игра занимает на видеокарте. Шкала идёт от наименьшего до наибольшего значения в видимом диапазоне.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} раз, пауза {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функция</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>

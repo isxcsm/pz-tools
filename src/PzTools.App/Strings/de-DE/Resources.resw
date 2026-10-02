@@ -399,6 +399,12 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>Speicher</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Heap-Nutzung</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Belegter Java-Heap: der Speicher, den der Java-Code des Spiels hält. Die Skala reicht vom niedrigsten bis zum höchsten Wert im sichtbaren Bereich.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC-Pausen</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Jeder Balken ist eine Speicherbereinigung (GC). Breite und Höhe zeigen, wie lange das Spiel dafür stand; der höchste Balken ist die längste Pause im sichtbaren Bereich.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Speicher, den das Spiel auf der Grafikkarte belegt. Die Skala reicht vom niedrigsten bis zum höchsten Wert im sichtbaren Bereich.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}-mal, {1} pausiert</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funktion</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Datei</value></data>

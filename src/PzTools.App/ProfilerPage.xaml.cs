@@ -462,10 +462,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             var y = height - fraction * height;
             GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 0.5, Opacity = 0.6 });
-            var label = new TextBlock { Text = (top * fraction).ToString("0", Localizer.Culture) + " ms", FontSize = 11, Foreground = brush };
-            Canvas.SetLeft(label, -42);
-            Canvas.SetTop(label, Math.Max(-6, y - 8));
-            GridCanvas.Children.Add(label);
+            GridCanvas.Children.Add(ScaleLabel((top * fraction).ToString("0", Localizer.Culture) + " ms", 11, Math.Max(-6, y - 8)));
         }
         foreach (var fraction in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
         {
@@ -587,14 +584,17 @@ public sealed partial class ProfilerPage : UserControl
     private void RenderMemoryPanel()
     {
         MemoryCanvas.Children.Clear();
+        MemoryNames.Children.Clear();
         if (recording is null || MemoryBorder.Visibility != Visibility.Visible || MemorySurface.ActualWidth < 4) return;
         var width = MemorySurface.ActualWidth;
-        var rows = new List<Action<double, double>>();
+        var rows = new List<(Action<double, double> Draw, string Name, Brush Brush)>();
         if (recording.Heap.Count > 0)
-            rows.Add((top, inner) => DrawLine(Visible(recording.Heap.Select(item => (item.Time, item.Used))), HeapBrush, top, inner));
-        if (recording.Collections.Count > 0) rows.Add(DrawCollections);
+            rows.Add(((top, inner) => DrawLine(Visible(recording.Heap.Select(item => (item.Time, item.Used))), HeapBrush, top, inner),
+                "ProfileMemoryHeapRow", HeapBrush));
+        if (recording.Collections.Count > 0) rows.Add((DrawCollections, "ProfileMemoryCollectionsRow", Muted));
         if (recording.VideoMemory.Count > 0)
-            rows.Add((top, inner) => DrawLine(Visible(recording.VideoMemory.Select(item => (item.Time, item.Dedicated))), VideoBrush, top, inner));
+            rows.Add(((top, inner) => DrawLine(Visible(recording.VideoMemory.Select(item => (item.Time, item.Dedicated))), VideoBrush, top, inner),
+                "ProfileMemoryVideoRow", VideoBrush));
         // Rows apart by a gap, so one row's lowest label and the next one's highest do not meet.
         var rowHeight = (MemorySurface.ActualHeight - MemoryRowGap * (rows.Count - 1)) / Math.Max(1, rows.Count);
         for (var row = 0; row < rows.Count; row++)
@@ -606,7 +606,9 @@ public sealed partial class ProfilerPage : UserControl
                 MemoryCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = Muted, StrokeThickness = 0.5, Opacity = 0.6 });
             }
             // The drawing keeps clear of the row's edges by half a label, so each label centres on its end.
-            rows[row](rowTop + 6, Math.Max(1, rowHeight - 12));
+            var (draw, name, brush) = rows[row];
+            draw(rowTop + 6, Math.Max(1, rowHeight - 12));
+            Name(name, brush, rowTop);
         }
         UpdateSelectionRectangle();
 
@@ -620,7 +622,7 @@ public sealed partial class ProfilerPage : UserControl
             foreach (var (time, value) in points)
                 line.Points.Add(new Windows.Foundation.Point(XAt(time), top + (1 - (value - low) / (double)span) * inner));
             MemoryCanvas.Children.Add(line);
-            Labels(Bytes(high), Bytes(low), stroke, top, inner);
+            Labels(Bytes(high), Bytes(low), top, inner);
         }
 
         // Each collection as long as it paused the game and as tall as that pause against the longest one in view, so
@@ -642,18 +644,38 @@ public sealed partial class ProfilerPage : UserControl
             }
             MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = Muted });
             // Zero as the frame graph writes it.
-            Labels(Milliseconds(longest / 1000.0), "0 ms", Muted, top, inner);
+            Labels(Milliseconds(longest / 1000.0), "0 ms", top, inner);
         }
 
-        void Labels(string high, string low, Brush brush, double top, double inner)
+        // What the row is, as a small chip at its top left: a dot in the row's colour and the name in secondary text,
+        // on an opaque background so a line passing under it does not cross the words. Resting the pointer on it says
+        // how to read the row; presses and moves on it bubble to the graph, so a range can be dragged from it too.
+        void Name(string key, Brush brush, double rowTop)
+        {
+            var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
+            content.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = brush, VerticalAlignment = VerticalAlignment.Center });
+            content.Children.Add(new TextBlock
+            {
+                Text = Localizer.Get(key), FontSize = 11,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            });
+            var chip = new Border
+            {
+                Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"],
+                BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 0, 7, 1), Child = content,
+            };
+            AppToolTip.SetTip(chip, Localizer.Get($"{key}Tip"));
+            Canvas.SetLeft(chip, 4);
+            Canvas.SetTop(chip, rowTop - 2);
+            MemoryNames.Children.Add(chip);
+        }
+
+        // The scale's ends in the margin, set against the graph like the frame graph's.
+        void Labels(string high, string low, double top, double inner)
         {
             foreach (var (text, y) in new[] { (high, top - 7), (low, top + inner - 7) })
-            {
-                var label = new TextBlock { Text = text, FontSize = 10, Foreground = brush, Opacity = 0.8 };
-                Canvas.SetLeft(label, -42);
-                Canvas.SetTop(label, y);
-                MemoryCanvas.Children.Add(label);
-            }
+                MemoryCanvas.Children.Add(ScaleLabel(text, 10, y));
         }
 
         // The readings in view, with the last one before and the first one after, so the line meets both edges.
@@ -664,6 +686,16 @@ public sealed partial class ProfilerPage : UserControl
             var last = list.FindIndex(point => point.Time >= viewEnd);
             return list.GetRange(first, (last < 0 ? list.Count - 1 : last) - first + 1).ToArray();
         }
+    }
+
+    // A scale value in the graphs' left margin, its right edge a few pixels from the graph so values of any width line up.
+    private TextBlock ScaleLabel(string text, double size, double top)
+    {
+        var label = new TextBlock { Text = text, FontSize = size, Foreground = Muted };
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(label, -6 - label.DesiredSize.Width);
+        Canvas.SetTop(label, top);
+        return label;
     }
 
     private static string Bytes(long bytes) => bytes >= 1L << 30

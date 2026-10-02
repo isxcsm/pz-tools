@@ -399,6 +399,12 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>Memori</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Heap terpakai</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Heap Java terpakai: memori yang dipegang kode Java game. Skala berjalan dari nilai terendah ke tertinggi dalam rentang yang terlihat.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Jeda GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Setiap batang adalah satu pembersihan memori (GC). Lebar dan tingginya menunjukkan berapa lama game berhenti karenanya; batang tertinggi adalah jeda terlama dalam rentang yang terlihat.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memori yang dipegang game di kartu grafis. Skala berjalan dari nilai terendah ke tertinggi dalam rentang yang terlihat.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kali, terjeda {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fungsi</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>

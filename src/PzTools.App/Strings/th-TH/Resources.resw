@@ -406,6 +406,12 @@
   <data name="ProfileStatHeap" xml:space="preserve"><value>ฮีป</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>หน่วยความจำ</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>ฮีปที่ใช้</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>ฮีป Java ที่ใช้อยู่: หน่วยความจำที่โค้ด Java ของเกมถือไว้ สเกลเริ่มจากค่าต่ำสุดถึงสูงสุดในช่วงที่มองเห็น</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>เวลาหยุดของ GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>แต่ละแท่งคือการล้างหน่วยความจำ (GC) หนึ่งครั้ง ความกว้างและความสูงแสดงเวลาที่เกมหยุดไป แท่งที่สูงที่สุดคือการหยุดนานที่สุดในช่วงที่มองเห็น</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>หน่วยความจำที่เกมใช้บนการ์ดจอ สเกลเริ่มจากค่าต่ำสุดถึงสูงสุดในช่วงที่มองเห็น</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} ครั้ง หยุดชะงัก {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>ฟังก์ชัน</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ไฟล์</value></data>
