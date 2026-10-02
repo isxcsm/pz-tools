@@ -118,6 +118,33 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
+    public async Task RollingRecording_EndsWhenTheAppThatAskedForItHasGone()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
+        // A stand-in for the app: a process that waits until it is ended, as a crash or a kill would end the app.
+        using var app = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c pause")
+            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true })!;
+        try
+        {
+            Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10, ownerProcessId: app.Id)).Rolling);
+            await Task.Delay(1500);
+            Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+            app.Kill(entireProcessTree: true);
+            await app.WaitForExitAsync();
+            var stopped = false;
+            for (var attempt = 0; attempt < 30 && !stopped; attempt++)
+            {
+                await Task.Delay(200);
+                stopped = (await client.StatusAsync(game.Pid)).State == "idle";
+            }
+            Assert.True(stopped, "The game kept the rolling recording after the app had gone.");
+        }
+        finally { if (!app.HasExited) app.Kill(entireProcessTree: true); }
+    }
+
+    [BridgeFact]
     public async Task TheAppInAFolderNamedInKorean_StillAttaches()
     {
         using var temp = new TempDirectory();

@@ -73,14 +73,18 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
     /// either is converted back to its own mode's sampling by <see cref="ExportAsync"/> given its mode.
     /// </summary>
     /// <param name="maxMegabytes">The most the game holds on disk; 0 for the game's own default.</param>
+    /// <param name="ownerProcessId">The app keeping it: the game ends it once that process has ended, so an app that
+    /// crashed does not leave the game recording. 0 for none.</param>
     public Task<GameProfileStatus> StartRollingAsync(int processId, bool detailed, int keepSeconds,
-        CancellationToken cancellationToken = default, int maxMegabytes = 0)
+        CancellationToken cancellationToken = default, int maxMegabytes = 0, int ownerProcessId = 0)
     {
         if (keepSeconds is < MinimumRollingSeconds or > MaximumRollingSeconds) throw new ArgumentOutOfRangeException(nameof(keepSeconds));
         if (maxMegabytes != 0 && maxMegabytes is < MinimumRollingMegabytes or > MaximumRollingMegabytes)
             throw new ArgumentOutOfRangeException(nameof(maxMegabytes));
+        if (ownerProcessId < 0) throw new ArgumentOutOfRangeException(nameof(ownerProcessId));
         var command = string.Join('\t', "PROFILE_ROLL_START", detailed ? "detailed" : "general", keepSeconds.ToString(CultureInfo.InvariantCulture));
-        if (maxMegabytes != 0) command += "\t" + maxMegabytes.ToString(CultureInfo.InvariantCulture);
+        if (maxMegabytes != 0 || ownerProcessId != 0) command += "\t" + maxMegabytes.ToString(CultureInfo.InvariantCulture);
+        if (ownerProcessId != 0) command += "\t" + ownerProcessId.ToString(CultureInfo.InvariantCulture);
         return RequestAsync(processId, command, cancellationToken);
     }
 

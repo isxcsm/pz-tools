@@ -455,7 +455,9 @@ public sealed class OperationCoordinator(
         var seconds = keepSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
         string[] arguments = command switch
         {
+            // The app's own process: the game ends the rolling recording once it has gone, whatever way it went.
             "roll-start" => ["roll-start", "--mode", detailed ? "detailed" : "general", "--seconds", seconds,
+                "--owner-pid", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 .. maxMegabytes > 0 ? ["--max-megabytes", maxMegabytes.ToString(System.Globalization.CultureInfo.InvariantCulture)] : Array.Empty<string>()],
             "roll-save" => ["roll-save", "--output", Path.GetFullPath(outputPath ?? throw new ArgumentNullException(nameof(outputPath))), "--seconds", seconds],
             "roll-stop" => ["roll-stop"],

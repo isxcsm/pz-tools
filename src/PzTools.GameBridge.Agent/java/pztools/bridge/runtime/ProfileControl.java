@@ -12,6 +12,12 @@ import pztools.bridge.AgentEntry;
  */
 final class ProfileControl {
     private static Thread monitor;
+    // The app that asked for the rolling recording, and when that process began: it keeps the recording only while
+    // the app runs, so an app that crashed or was killed does not leave the game recording, sampling Lua and with its
+    // timer raised until it exits. The start time tells the app from a later process given the same number.
+    private static ProcessHandle rollingOwner;
+    private static java.time.Instant rollingOwnerStarted;
+    private static long ownerChecked;
     private static boolean ownsFrameHook;
     // Whether the rolling recording marks frames, said again with each save.
     private static String rollingFrames = "frames";
@@ -35,14 +41,20 @@ final class ProfileControl {
                 }
                 // Keeps only the last stretch, for as long as the app wants it, until a save takes what it holds.
                 case "PROFILE_ROLL_START" -> {
-                    // An optional fourth field: the most the game may hold on disk, in megabytes.
-                    if (command.length < 3 || command.length > 4 || !(command[1].equals("general") || command[1].equals("detailed")))
+                    // Optional: the most the game may hold on disk, in megabytes (0 for the default), then the app's
+                    // process, whose end ends the rolling recording (see rollingOwner).
+                    if (command.length < 3 || command.length > 5 || !(command[1].equals("general") || command[1].equals("detailed")))
                         return error("protocol", "Invalid rolling start request");
                     int seconds = Integer.parseInt(command[2]);
-                    int megabytes = command.length == 4 ? Integer.parseInt(command[3]) : ProfileRecorder.DEFAULT_ROLLING_MEGABYTES;
+                    int megabytes = command.length >= 4 && Integer.parseInt(command[3]) > 0 ? Integer.parseInt(command[3])
+                        : ProfileRecorder.DEFAULT_ROLLING_MEGABYTES;
+                    ProcessHandle owner = command.length == 5 ? ProcessHandle.of(Long.parseLong(command[4])).orElse(null) : null;
+                    if (command.length == 5 && owner == null) return error("profile-failed", "The app that asked is not running");
                     Hook hook = hookFrames();
                     String status = ProfileRecorder.startRolling(command[1].equals("detailed"), seconds, megabytes, hook.game());
                     rollingFrames = hook.frames();
+                    rollingOwner = owner;
+                    rollingOwnerStarted = owner == null ? null : owner.info().startInstant().orElse(null);
                     startMonitor();
                     return ok(status + ";" + rollingFrames);
                 }
@@ -53,6 +65,7 @@ final class ProfileControl {
                 case "PROFILE_ROLL_STOP" -> {
                     if (command.length != 1) return error("protocol", "Invalid rolling stop request");
                     String status = ProfileRecorder.stopRolling();
+                    rollingOwner = null;
                     if (!ProfileRecorder.active()) releaseFrameHook();
                     return ok(status);
                 }
@@ -173,6 +186,13 @@ final class ProfileControl {
                         // program may be gone): it should no longer set the Lua sampler's pace, and with no rolling
                         // recording beside it, nothing should keep sampling the game or marking its frames.
                         ProfileRecorder.wrapUpIfEnded();
+                        if (rollingOwner != null && System.nanoTime() - ownerChecked > 1_000_000_000L) {
+                            ownerChecked = System.nanoTime();
+                            if (!ownerRuns()) {
+                                ProfileRecorder.stopRolling();
+                                rollingOwner = null;
+                            }
+                        }
                         if (!ProfileRecorder.active()) {
                             if (!noticeHook) releaseFrameHook();
                             monitor = null;
@@ -188,6 +208,12 @@ final class ProfileControl {
         }, "PzTools-profile-monitor");
         monitor.setDaemon(true);
         monitor.start();
+    }
+
+    private static boolean ownerRuns() {
+        if (!rollingOwner.isAlive()) return false;
+        var started = rollingOwner.info().startInstant().orElse(null);
+        return rollingOwnerStarted == null || started == null || started.equals(rollingOwnerStarted);
     }
 
     static String ok(String detail) { return "OK\t" + encode(detail); }

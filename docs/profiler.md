@@ -93,7 +93,8 @@ and after it. The two may be in different modes. While either is in Detailed mod
 game is sampled at Detailed's pace; each file is taken back to its own mode as it is
 converted, so a Standard one reads as if it had run alone. The setting is kept, so it
 starts again with the app; it ends when switched off, and while the app is closed nothing
-records the game.
+records the game: the game checks once a second that the app which asked is still running,
+so an app that crashed or was ended from the Task Manager does not leave it recording.
 
 The cost is that of a recording that never ends. Standard mode is light; Detailed mode
 costs the game frame rate for as long as it is on (roughly 10% in a synthetic test), so
