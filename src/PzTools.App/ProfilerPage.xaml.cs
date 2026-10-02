@@ -110,6 +110,9 @@ public sealed partial class ProfilerPage : UserControl
         CallTreeToggle.OnContent = CallTreeToggle.OffContent = Localizer.Get("ProfileCallTree");
         AutomationProperties.SetName(CallTreeToggle, Localizer.Get("ProfileCallTree"));
         CopyResultsText.Text = Localizer.Get("ProfileCopyText");
+        // Set here too, not only when a recording opens: a language changed with a recording open kept the old word.
+        MemoryToggleText.Text = Localizer.Get("ProfileMemory");
+        AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
         if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");

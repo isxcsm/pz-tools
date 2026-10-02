@@ -82,7 +82,7 @@ Recovery works on the current save while it is not being played. It can heal or 
 
 The Performance page records the running game while you reproduce a lag, then shows a zoomable frame-time graph with 60 and 30 FPS lines. Drag a range (or click one frame) to see where the time went, grouped by base game, each mod and the Java runtime, with the number of samples behind every figure. Each mod's functions open as a call tree (from the event handler down to what it called) or as a plain list. Under the graph, a memory panel shows the Java heap, garbage collections and the game's video memory on the same time axis, and the *Memory allocation* tab ranks mods by the memory their scripts allocate, which is what makes collections frequent. To measure loading, start a recording at the main menu, then load a save or reload the mods. Nothing is measured unless a recording is running. Standard mode has almost no effect on the game; Detailed mode samples more often and also records waits and pauses.
 
-![A performance recording: a range is selected over the frame graph and the memory panel, then the game code, each mod's memory allocation and a mod's call tree are opened](docs/media/profiler.webp)
+![A performance recording: a range of frames is selected, then the game code, each mod's memory allocation and a mod's call tree are opened](docs/media/profiler.webp)
 
 Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The *Copy text* button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/profiler.md).
 
