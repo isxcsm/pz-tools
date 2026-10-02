@@ -705,5 +705,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="LoadFailed.Details" xml:space="preserve"><value>Dettagli salvataggio non disponibili</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Nuovo tentativo in corso.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Cerca aggiornamenti</value></data>
-  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Apri la pagina di download</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Pagina di download</value></data>
+  <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Apri la pagina di download</value></data>
+  <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Apri</value></data>
 </root>

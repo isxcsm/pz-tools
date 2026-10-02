@@ -47,10 +47,16 @@
                 </StackPanel>
               </toolkit:SettingsCard>
               <!-- Where the newest version is downloaded, in the browser, whatever the last check found. -->
-              <toolkit:SettingsCard x:Name="UpdateReleasePageCard" Header="다운로드 페이지 열기" IsClickEnabled="True"
-                                    Click="UpdateReleasePage_Click" AutomationProperties.AutomationId="UpdateReleasePageCard">
-                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE774;" /></toolkit:SettingsCard.HeaderIcon>
-                <toolkit:SettingsCard.ActionIcon><FontIcon Glyph="&#xE8A7;" /></toolkit:SettingsCard.ActionIcon>
+              <toolkit:SettingsCard x:Name="UpdateReleasePageCard" Header="다운로드 페이지">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE896;" /></toolkit:SettingsCard.HeaderIcon>
+                <!-- A button like its neighbours', with the mark of a page that opens outside the app. -->
+                <Button x:Name="UpdateReleasePageButton" Click="UpdateReleasePage_Click"
+                        AutomationProperties.AutomationId="UpdateReleasePageButton">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock x:Name="UpdateReleasePageButtonText" VerticalAlignment="Center" />
+                    <FontIcon Glyph="&#xE8A7;" FontSize="12" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
               </toolkit:SettingsCard>
               <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="새 버전 알림">
                 <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xEA8F;" /></toolkit:SettingsCard.HeaderIcon>

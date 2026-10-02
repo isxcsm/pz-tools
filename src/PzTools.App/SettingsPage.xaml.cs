@@ -69,7 +69,8 @@ public sealed partial class SettingsPage : UserControl
         UpdateSection.Header = Localizer.Get("UpdateSection.Header");
         UpdateCheckCard.Header = Localizer.Get("UpdateCheckSetting.Header");
         UpdateReleasePageCard.Header = Localizer.Get("UpdateReleasePage.Header");
-        SetInputName(UpdateReleasePageCard, UpdateReleasePageCard.Header);
+        UpdateReleasePageButtonText.Text = Localizer.Get("UpdateReleasePage.Open");
+        SetInputName(UpdateReleasePageButton, Localizer.Get("UpdateReleasePage.Name"));
         UpdateAutoSettingCard.Header = Localizer.Get("UpdateAutoSetting.Header");
         UpdateAutoSettingCard.Description = Localizer.Get("UpdateAutoSetting.Description");
         UpdateCheckButton.Content = Localizer.Get("UpdateCheckNow");

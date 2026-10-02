@@ -705,5 +705,7 @@
   <data name="LoadFailed.Details" xml:space="preserve"><value>Не удалось загрузить сведения о сохранении</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Повторная попытка.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Проверка обновлений</value></data>
-  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Открыть страницу загрузки</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Страница загрузки</value></data>
+  <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Открыть страницу загрузки</value></data>
+  <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Открыть</value></data>
 </root>

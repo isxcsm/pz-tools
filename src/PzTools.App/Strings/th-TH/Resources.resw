@@ -712,5 +712,7 @@
   <data name="LoadFailed.Details" xml:space="preserve"><value>โหลดข้อมูลเซฟไม่ได้</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>กำลังลองอีกครั้ง</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>ตรวจหาอัปเดต</value></data>
-  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>เปิดหน้าดาวน์โหลด</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>หน้าดาวน์โหลด</value></data>
+  <data name="UpdateReleasePage.Name" xml:space="preserve"><value>เปิดหน้าดาวน์โหลด</value></data>
+  <data name="UpdateReleasePage.Open" xml:space="preserve"><value>เปิด</value></data>
 </root>

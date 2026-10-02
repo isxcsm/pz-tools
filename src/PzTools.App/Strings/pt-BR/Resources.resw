@@ -705,5 +705,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="LoadFailed.Details" xml:space="preserve"><value>Falha ao carregar os detalhes da partida</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Tentando novamente.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Verificar atualizações</value></data>
-  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Abrir a página de download</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Página de download</value></data>
+  <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Abrir a página de download</value></data>
+  <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Abrir</value></data>
 </root>
