@@ -36,7 +36,6 @@
     <!-- Theme colours for what code draws, resolved here in the page's own theme: the app's resources follow Windows'
          theme, not the one chosen in PZ Tools, and gave light colours on a dark page. Never shown. -->
     <StackPanel x:Name="ThemeProbes" Visibility="Collapsed">
-      <Border x:Name="CardProbe" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
       <Border x:Name="SolidBaseProbe" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
       <Border x:Name="CardStrokeProbe" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
       <Border x:Name="SecondaryTextProbe" Background="{ThemeResource TextFillColorSecondaryBrush}" />

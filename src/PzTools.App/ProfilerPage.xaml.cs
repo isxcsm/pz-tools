@@ -91,7 +91,7 @@ public sealed partial class ProfilerPage : UserControl
             if (App.HotKeys is { } keys) keys.Changed -= HotKeys_Changed;
         };
         // Text and grid lines drawn in code hold the brush of the theme they were drawn in.
-        ActualThemeChanged += (_, _) => { RenderChart(); ShowComparison(); if (shown is not null) ShowRange(shown); };
+        ActualThemeChanged += (_, _) => { if (shown is not null) ShowRange(shown); else { ShowComparison(); QueueRender(); } };
         // Escape closes the search; the box's own text field handles the key first, so handled keys are heard too.
         DetailSearch.AddHandler(KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(DetailSearch_KeyDown), true);
     }
@@ -125,7 +125,6 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(ChartHelp, Localizer.Get("ProfileChartHelp"));
         AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
         CopyResultsText.Text = Localizer.Get("ProfileCopyText");
-        AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
@@ -159,14 +158,25 @@ public sealed partial class ProfilerPage : UserControl
         updatingThreads = false;
         UpdateSession();
         // The graph's scale is drawn in code with the language's number format.
-        if (IsLoaded) { RefreshList(loadedPath); RenderChart(); if (shown is not null) ShowRange(shown); }
+        if (IsLoaded)
+        {
+            RefreshList(loadedPath);
+            // The compared recording's name is the list's, in the new language now.
+            if (RecordingList.Items.OfType<RecordingItem>().FirstOrDefault(item => item.File.Path.Equals(baselinePath, StringComparison.OrdinalIgnoreCase)) is { } compared)
+                baselineName = compared.Text;
+            QueueRender();
+            if (shown is not null) ShowRange(shown); else ShowComparison();
+        }
     }
 
     internal void RefreshForNavigation()
     {
         Attach();
-        RefreshList(loadedPath);
+        // A recording that could not be opened stays the one chosen, rather than the newest taking its place.
+        RefreshList(loadedPath ?? failedPath);
     }
+
+    private string? failedPath;
 
     private void FollowVisibility()
     {
@@ -524,6 +534,9 @@ public sealed partial class ProfilerPage : UserControl
     private async Task LoadAsync(string path)
     {
         var version = ++loadVersion;
+        // The previous recording's analysis is of no use any more.
+        analysisCancel?.Cancel();
+        analysisCancel = null;
         loadedPath = path;
         recording = null;
         shown = null;
@@ -538,7 +551,8 @@ public sealed partial class ProfilerPage : UserControl
         if (version != loadVersion) return;
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
-        if (loaded is null || loaded.Duration <= 0) { loadedPath = null; Clear(Localizer.Get("ProfileLoadFailed")); return; }
+        if (loaded is null || loaded.Duration <= 0) { loadedPath = null; failedPath = path; Clear(Localizer.Get("ProfileLoadFailed")); return; }
+        failedPath = null;
         recording = loaded;
         CompareButton.IsEnabled = true;
         // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
@@ -551,14 +565,18 @@ public sealed partial class ProfilerPage : UserControl
         wholeRanges.Clear();
         EmptyPanel.Visibility = Visibility.Collapsed;
         ChartPanel.Visibility = ResultsGrid.Visibility = Visibility.Visible;
+        // A recording without a game thread can only count all of them; the choice made for others comes back with
+        // the next that has one. Neither is a change to analyse for: the analysis below takes the thread it can.
         ThreadBox.IsEnabled = loaded.GameThread >= 0;
-        if (loaded.GameThread < 0) ThreadBox.SelectedIndex = 1;
+        updatingThreads = true;
+        ThreadBox.SelectedIndex = loaded.GameThread < 0 ? 1 : chosenThread;
+        updatingThreads = false;
         chartEntrance = Motion;
         AllocationTab.Visibility = loaded.HasLuaAllocations ? Visibility.Visible : Visibility.Collapsed;
         if (!loaded.HasLuaAllocations && ReferenceEquals(ResultTabs.SelectedItem, AllocationTab)) ResultTabs.SelectedItem = LuaTab;
         ApplyLayout(ActualWidth);
         ApplyMemoryPanel();
-        RenderChart();
+        QueueRender();
         Analyze();
     }
 
@@ -856,7 +874,8 @@ public sealed partial class ProfilerPage : UserControl
             ViewScroll.Value = viewStart / 1000.0;
             updatingScroll = false;
         }
-        if (HoverLine.Visibility == Visibility.Collapsed) ShowDefaultChartInfo();
+        // Before the first analysis only: after it, the line is the results' and is written with them.
+        if (HoverLine.Visibility == Visibility.Collapsed && shown is null) ShowDefaultChartInfo();
     }
 
     // Above the graph: the range the results describe. Its samples, collections and the recording mode
@@ -869,13 +888,7 @@ public sealed partial class ProfilerPage : UserControl
         var lines = ShowRangeLine(start, end, frames, out var compared);
         // Collections stop the game without leaving samples, so the tables cannot show them. They and the
         // memory peaks stand on the memory panel's line under the bars, and in the copied text, which starts with this line.
-        var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
-            : ProfileAnalysis.CollectionsIn(recording, start, end);
-        var (heapPeak, videoPeak) = ProfileAnalysis.MemoryPeaksIn(recording, start, end);
-        var lanes = SetLaneInfo(collections > 0 ? CollectionText(collections, paused) : null,
-            heapPeak is { } heap ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heap)}" : null,
-            videoPeak is { } video ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(video)}" : null);
-        lines.AddRange(lanes);
+        lines.AddRange(ShowRangeLanes(start, end));
         rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
         {
@@ -972,7 +985,8 @@ public sealed partial class ProfilerPage : UserControl
     private static bool memoryOpen;
 
     // Each row can be put away by its figure on the panel's line, for as long as the app runs. The collections ride on
-    // the heap's row, whose drops they are; while that row is away they mark the frame graph's floor instead.
+    // the heap's row, whose drops they are, or have a row of their own without heap readings; the ones that paused the
+    // game long enough to feel are also marked on the frame graph, and their figure puts those marks away too.
     private static bool heapRow = true, videoRow = true, collectionMarks = true;
 
     // Whether the recording has anything for the panel: its line stays, so a row put away can be brought back.
@@ -1021,8 +1035,8 @@ public sealed partial class ProfilerPage : UserControl
     {
         memoryOpen = !memoryOpen;
         ApplyMemoryPanel();
-        // The collections move between the panel and the frame graph's floor.
-        RenderChart();
+        // The frame graph does not change with it: only the panel is drawn.
+        RenderMemoryPanel();
     }
 
     private void MemoryFigure_Tapped(object sender, TappedRoutedEventArgs e)
@@ -1034,7 +1048,9 @@ public sealed partial class ProfilerPage : UserControl
         if (!memoryOpen && (ReferenceEquals(sender, HeapValue) ? heapRow : ReferenceEquals(sender, VideoValue) ? videoRow : false))
             memoryOpen = true;
         ApplyMemoryPanel();
-        RenderChart();
+        // The pause marks on the frame graph go with the collections' figure; the rows are the panel's alone.
+        if (ReferenceEquals(sender, HeapValue) || ReferenceEquals(sender, VideoValue)) RenderMemoryPanel();
+        else QueueRender();
     }
 
     private void MemorySurface_SizeChanged(object sender, SizeChangedEventArgs e) => RenderMemoryPanel();
@@ -1122,16 +1138,23 @@ public sealed partial class ProfilerPage : UserControl
             var visible = recording.Collections.Where(item => item.Time < viewEnd && item.Time + item.Duration >= viewStart).ToArray();
             if (visible.Length == 0) return;
             var longest = Math.Max(1, visible.Max(item => item.Duration));
-            // One shape for all bars: a game that allocates a lot collects many times a second.
-            var bars = new GeometryGroup { FillRule = FillRule.Nonzero };
+            // One shape for all bars, and at most one bar per pixel column, the tallest there: a game that allocates a
+            // lot collects many times a second, thousands in a long recording seen whole.
+            var columns = Math.Max(1, (int)Math.Ceiling(width));
+            var tallest = new double[columns];
+            var widest = new double[columns];
             foreach (var collection in visible)
             {
                 var left = Math.Clamp(XAt(collection.Time), 0, Math.Max(0, width - 2));
+                var column = Math.Min(columns - 1, (int)left);
                 // A pause of a few milliseconds is far narrower than a pixel at most zooms: keep it visible.
-                var barWidth = Math.Max(2, XAt(collection.Time + collection.Duration) - left);
-                var barHeight = Math.Max(2, collection.Duration / (double)longest * inner);
-                bars.Children.Add(new RectangleGeometry { Rect = new Rect(left, top + inner - barHeight, barWidth, barHeight) });
+                widest[column] = Math.Max(widest[column], Math.Max(2, XAt(collection.Time + collection.Duration) - left));
+                tallest[column] = Math.Max(tallest[column], Math.Max(2, collection.Duration / (double)longest * inner));
             }
+            var bars = new GeometryGroup { FillRule = FillRule.Nonzero };
+            for (var column = 0; column < columns; column++)
+                if (tallest[column] > 0)
+                    bars.Children.Add(new RectangleGeometry { Rect = new Rect(column, top + inner - tallest[column], widest[column], tallest[column]) });
             MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = Muted, Opacity = labels ? 1 : 0.7 });
             // Zero as the frame graph writes it. Under the heap the scale is the heap's; the pauses are on the line above.
             if (labels) Labels(Milliseconds(longest / 1000.0), "0 ms", top, inner);
@@ -1483,11 +1506,17 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is null || !selecting || selectionStart is not { } dragStart || selectionEnd is not { } dragEnd) return;
         ShowRangeLine(dragStart, dragEnd, ProfileAnalysis.FrameStatistics(recording, dragStart, dragEnd), out _);
         // The memory panel's line too: the range's collections and peaks, as it will read once let go.
-        var (dragCollections, dragPaused) = ProfileAnalysis.CollectionsIn(recording, dragStart, dragEnd);
-        var (dragHeap, dragVideo) = ProfileAnalysis.MemoryPeaksIn(recording, dragStart, dragEnd);
-        SetLaneInfo(dragCollections > 0 ? CollectionText(dragCollections, dragPaused) : null,
-            dragHeap is { } heapPeak ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heapPeak)}" : null,
-            dragVideo is { } videoPeak ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(videoPeak)}" : null);
+        ShowRangeLanes(dragStart, dragEnd);
+    }
+
+    /// <summary>The memory panel's line for a range: its collections and the peaks of memory in it.</summary>
+    private List<string> ShowRangeLanes(long start, long end)
+    {
+        var (collections, paused) = ProfileAnalysis.CollectionsIn(recording!, start, end);
+        var (heapPeak, videoPeak) = ProfileAnalysis.MemoryPeaksIn(recording!, start, end);
+        return SetLaneInfo(collections > 0 ? CollectionText(collections, paused) : null,
+            heapPeak is { } heap ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heap)}" : null,
+            videoPeak is { } video ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(video)}" : null);
     }
 
     /// <summary>Back to the whole recording: the results describe all of it again. The view keeps its zoom.</summary>
@@ -1633,10 +1662,14 @@ public sealed partial class ProfilerPage : UserControl
     private void ResultTabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) => ShowTab();
 
     private bool updatingThreads;
+    // The thread the user chose, the game's or all: kept while a recording without a game thread shows all.
+    private int chosenThread;
 
     private void ThreadBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!updatingThreads && recording is not null && ThreadBox.SelectedIndex >= 0) { Analyze(); _ = AnalyzeBaselineAsync(); }
+        if (updatingThreads || ThreadBox.SelectedIndex < 0) return;
+        chosenThread = ThreadBox.SelectedIndex;
+        if (recording is not null) { Analyze(); _ = AnalyzeBaselineAsync(); }
     }
 
     // The whole recording's analysis by thread (-1 for all), kept from the first time: clearing a selection goes back to
@@ -1670,10 +1703,9 @@ public sealed partial class ProfilerPage : UserControl
     private void ShowRange(ProfileRange range)
     {
         shown = range;
-        if (HoverLine.Visibility == Visibility.Collapsed) ShowDefaultChartInfo();
         // A handful of samples cannot carry percentages; say so instead of showing confident numbers.
         FewSamplesInfo.IsOpen = range.Samples < 20;
-        // The range's trees are new; the comparison's frames are the range's.
+        // The range's trees are new; the comparison's frames are the range's. It also writes the line above the graph.
         baselineMatches.Clear();
         ShowComparison();
 
@@ -1711,10 +1743,14 @@ public sealed partial class ProfilerPage : UserControl
             // The tab before may have drawn an owner over the graph and a mod's row in the memory panel.
             previewGroup = null;
             ApplyMemoryPanel();
-            RenderChart();
+            QueueRender();
             return;
         }
         SetSplitVisible(true);
+        // The bars fill in for a new list (another range, tab or thread), not when the same one is drawn again.
+        var listKey = $"{range.Start}|{range.End}|{tab}|{ThreadBox.SelectedIndex}";
+        growList = Motion && listKey != grownList;
+        grownList = listKey;
         GroupNameHeading.Text = Localizer.Get(java ? "ProfileListJavaOwner" : "ProfileListLuaOwner");
         GroupShareText.Text = Localizer.Get(tab switch
         {
@@ -1762,8 +1798,11 @@ public sealed partial class ProfilerPage : UserControl
         ShowGroup(listedGroups[index]);
         // Each tab has its own highlight, or none, and with it the memory panel's mod row.
         ApplyMemoryPanel();
-        RenderChart();
+        QueueRender();
     }
+
+    private bool growList;
+    private string? grownList;
 
     private void GroupList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -1794,7 +1833,8 @@ public sealed partial class ProfilerPage : UserControl
     private string? baselinePath, baselineName;
     private ProfileRecording? baseline;
     private ProfileRange? baselineRange;
-    private int baselineVersion;
+    private int baselineVersion, baselineLoadVersion;
+    private CancellationTokenSource? baselineCancel;
     // Matched once per tree shown: the current tree's nodes to the baseline's, and the baseline's functions' parts.
     private readonly Dictionary<ProfileCallNode, IReadOnlyDictionary<ProfileCallNode, ProfileCallNode>> baselineMatches =
         new(ReferenceEqualityComparer.Instance);
@@ -1830,11 +1870,13 @@ public sealed partial class ProfilerPage : UserControl
 
     private async Task SetBaselineAsync(string path, string name)
     {
-        var version = ++baselineVersion;
+        // Loading has its own count: a thread changed meanwhile analyses the old baseline again, which must not make
+        // this newer choice look outdated.
+        var version = ++baselineLoadVersion;
         ProfileRecording? loaded = null;
         try { loaded = await Task.Run(() => ProfileRecording.Load(path)); }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) { }
-        if (version != baselineVersion) return;
+        if (version != baselineLoadVersion) return;
         if (loaded is null || loaded.Duration <= 0)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileLoadFailed"));
@@ -1850,9 +1892,19 @@ public sealed partial class ProfilerPage : UserControl
         if (baseline is not { } other) return;
         var version = ++baselineVersion;
         var thread = ThreadBox.SelectedIndex == 1 || other.GameThread < 0 ? -1 : other.GameThread;
+        // An analysis a newer one replaces is stopped, not left to finish a whole recording on a worker.
+        baselineCancel?.Cancel();
+        var cancel = baselineCancel = new CancellationTokenSource();
         ProfileRange range;
-        try { range = await Task.Run(() => ProfileAnalysis.Analyze(other, 0, other.Duration, thread, MaximumGroupRows)); }
-        catch (Exception) { return; }
+        try { range = await Task.Run(() => ProfileAnalysis.Analyze(other, 0, other.Duration, thread, MaximumGroupRows, cancel.Token), cancel.Token); }
+        catch (OperationCanceledException) { return; }
+        catch (Exception)
+        {
+            // Nothing to compare with after all: the old figures must not stay on screen as if they were.
+            if (version == baselineVersion && ReferenceEquals(other, baseline)) ClearBaseline();
+            return;
+        }
+        finally { if (ReferenceEquals(baselineCancel, cancel)) baselineCancel = null; cancel.Dispose(); }
         if (version != baselineVersion || !ReferenceEquals(other, baseline)) return;
         baselineRange = range;
         baselineMatches.Clear();
@@ -1864,6 +1916,8 @@ public sealed partial class ProfilerPage : UserControl
     private void ClearBaseline()
     {
         baselineVersion++;
+        baselineLoadVersion++;
+        baselineCancel?.Cancel();
         (baselinePath, baselineName, baseline, baselineRange) = (null, null, null, null);
         baselineMatches.Clear();
         baselineShares.Clear();
@@ -2048,7 +2102,7 @@ public sealed partial class ProfilerPage : UserControl
             var fill = new Rectangle { Fill = BarsPath.Fill, Opacity = 0.7, RadiusX = 1.5, RadiusY = 1.5 };
             // Each bar fills from the left when the list appears, one shortly after another.
             // Once: a row scrolled out of view and back is loaded again and must not fill again.
-            var grown = !Motion;
+            var grown = !growList;
             fill.Loaded += (_, _) =>
             {
                 if (grown) return;
