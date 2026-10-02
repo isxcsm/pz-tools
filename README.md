@@ -4,6 +4,8 @@ Incremental backups, character recovery, performance recording and game extensio
 
 Create backups, browse save history, heal or revive characters in supported saves, find which mods slow the game down, and turn on vehicle driving improvements without installing a mod. PZ Tools is unofficial and is not affiliated with The Indie Stone.
 
+![A manual backup: the progress card, then the new backup at the top of the save's history](docs/media/backup.webp)
+
 <a id="features"></a>
 ## Features
 
@@ -45,6 +47,10 @@ When your character dies, periodic backups stop until you play a new character, 
 
 The optional game bridge asks the game to save before reading its files. No Workshop mod or game installation edits are needed. It uses a runtime hook to run the game's normal save operation, which can briefly pause gameplay. The integration targets the inspected Build 42 / Java 25 single-player game.
 
+![The in-game countdown above the character before an automatic backup saves the game](docs/media/countdown.webp)
+
+*Before an automatic backup, a countdown above your character says when the game will save.*
+
 If PZ Tools cannot connect to the running game (for example after a game update), backups continue at the set interval with the files already on disk, and the app says so; features that need the game are locked until the connection returns.
 
 Game saving and in-game notices have separate switches. **Game-save completion is not backup completion**: file copying and compression happen afterward. Turning saving off backs up only data already written to disk. Game-state monitoring and vehicle controls can remain active. See [game integration and compatibility](docs/save-bridge.md).
@@ -61,6 +67,12 @@ Export a current save or backup to ZIP for an independent copy, or import one in
 
 Recovery works on the current save while it is not being played. It can heal or revive a supported character while preserving positive and negative traits, skills and progress. When death emptied the inventory, it can recover belongings from an identifiable zombie or corpse; missing items are not generated.
 
+![Reviving a character: the confirmation offers the zombie carrying their belongings, and the card reports what came back](docs/media/revive-app.webp)
+
+![The character dies to a zombie; after recovery the same character is back on their feet in the same place](docs/media/revive-game.webp)
+
+*The confirmation shows which zombie or corpse the belongings come from, and what happens to it. Reviving without them is always an option.*
+
 **Create a backup first.** Recovery does not make an extra copy automatically. See [supported formats and recovery limits](docs/character-recovery.md).
 
 <a id="performance-recording"></a>
@@ -68,7 +80,22 @@ Recovery works on the current save while it is not being played. It can heal or 
 
 The Performance page records the running game while you reproduce a lag, then shows a zoomable frame-time graph. Drag a range (or click one frame) to see where the time went, grouped by base game, each mod and the Java runtime, with the number of samples behind every figure. Nothing is measured unless a recording is running. Standard mode has almost no effect on the game; Detailed mode samples more often and also records waits and pauses.
 
+![A performance recording: a range of frames is selected, then each mod's script time is opened](docs/media/profiler.webp)
+
 Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The copy button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/profiler.md).
+
+<a id="vehicle-controls"></a>
+## Vehicle controls
+
+The optional vehicle extension changes how vehicles drive while the game runs, without a Workshop mod: acceleration, shifting, reversing, keyboard steering and a light around the vehicle while its headlights are on. It starts off, and each option can be switched separately on the Game extensions page. See [game extensions](docs/game-extensions.md).
+
+![The same road driven with the vehicle extension off and on](docs/media/steering.webp)
+
+*Keyboard steering with the extension off (left) and on (right).*
+
+![At night, the headlights switched off and on; the light around the truck comes and goes with them](docs/media/lights.webp)
+
+*The light around the vehicle follows its headlights.*
 
 <a id="backup-engine"></a>
 <a id="compatibility-and-safeguards"></a>
