@@ -143,7 +143,9 @@ Past the first 20 rows of a level (30 in the list) the rest are gathered into on
 row, *N more*, that carries their sum, so the rows on screen visibly add up; open it for
 the rest. Behind each *Total* a gauge shows the same part at a glance: a faint track the
 width of the column, so the number always sits in it, and a fill in exact proportion to
-the table's largest total. Resting the pointer on a number gives its part
+the table's largest total. Behind each *Self* a grey gauge measures something else: the
+row's own work as a part of its own total, full for a function that did the work itself
+and empty for one whose time went into what it called. Resting the pointer on a number gives its part
 of the whole range and the time it stands for (*2.1% of the whole range, about 1.14 s*),
 so a large part of a light owner is not mistaken for a heavy one; in *Memory allocation*
 the bytes stay and the pointer gives their part of the owner. *Samples* in the tree are

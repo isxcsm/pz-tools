@@ -1192,14 +1192,16 @@ public sealed partial class ProfilerPage : UserControl
         DetailHeader.Child = TableRow(columns, header, header: true);
         DetailRows.Children.Clear();
         foreach (var line in rows)
-            DetailRows.Children.Add(line.Tree is { } item ? TreeRow(columns, group, line, item) : TableRow(columns, line.Cells, header: false, line.Bar));
+            DetailRows.Children.Add(line.Tree is { } item ? TreeRow(columns, group, line, item)
+                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar));
     }
 
     /// <summary>
     /// One line of a table: its cells as text (what a copy carries), how full the bar behind its total is (0..1, or none),
     /// and for a call tree the node it shows.
     /// </summary>
-    private sealed record TableLine((string Text, string? Tip, bool Right)[] Cells, double? Bar = null, TreeItem? Tree = null);
+    private sealed record TableLine((string Text, string? Tip, bool Right)[] Cells, double? Bar = null, TreeItem? Tree = null,
+        double? SelfBar = null);
 
     // ---- Call tree ----
 
@@ -1293,13 +1295,15 @@ public sealed partial class ProfilerPage : UserControl
         }
         var whole = allocation ? owner.AllocatedTotal : owner.Samples;
         var filled = allocation ? allocatedTotal : samples;
+        // How much of the line's own total is its own work, the rest being what it called: 100% is a leaf's.
+        double own = allocation ? allocatedSelf : selfSamples, all = allocation ? allocatedTotal : samples;
         // Its share of the owner for now; the table scales the bars to its largest line once all are known.
         return new TableLine(
         [
             (indent + name, name, false), (LuaFileName(file), file, false),
             Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
             (shownSamples.ToString("N0", Localizer.Culture), null, true),
-        ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree);
+        ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0);
     }
 
     /// <summary>
@@ -1312,13 +1316,13 @@ public sealed partial class ProfilerPage : UserControl
         var line = FunctionLine(owner, allocation, Localizer.Format("ProfileRestFormat", count.ToString("N0", Localizer.Culture)), "",
             selfSamples, samples, shownSamples, allocatedSelf, allocatedTotal, indent, tree);
         if (!totals) line.Cells[TotalColumn] = ("", null, true);
-        // No bar: a sum of many is no line of its own to compare.
-        return line with { Bar = null };
+        // No bars: a sum of many is no line of its own to compare.
+        return line with { Bar = null, SelfBar = null };
     }
 
     private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TableLine line, TreeItem item)
     {
-        var row = TableRow(columns, line.Cells, header: false, line.Bar);
+        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar);
         // The name cell gives way to an indented one with the open/close arrow in front.
         row.Children.RemoveAt(0);
         var name = new Grid { Margin = new Thickness(item.Depth * 16, 0, 0, 0), ColumnSpacing = 2 };
@@ -1490,8 +1494,10 @@ public sealed partial class ProfilerPage : UserControl
         return (columns, header, rows);
     }
 
-    /// <param name="bar">How full the bar behind the total is (0..1), for a script function; none elsewhere.</param>
-    private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header, double? bar = null)
+    /// <param name="bar">How full the gauge behind the total is (0..1), for a script function; none elsewhere.</param>
+    /// <param name="selfBar">How full the gauge behind the self figure is: the line's own part of its total.</param>
+    private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header,
+        double? bar = null, double? selfBar = null)
     {
         var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(0, header ? 0 : 5, 0, header ? 0 : 5) };
         foreach (var width in columns) row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
@@ -1505,17 +1511,20 @@ public sealed partial class ProfilerPage : UserControl
                 TextAlignment = right ? TextAlignment.Right : TextAlignment.Left,
             };
             if (header) cell.Foreground = Muted;
-            // A script table's total heading stands over its numbers, which sit inset in their bars.
-            if (header && cells.Count == 5 && index == TotalColumn) cell.Padding = new Thickness(0, 0, 6, 0);
+            // A script table's number headings stand over their numbers, which sit inset in their gauges.
+            if (header && cells.Count == 5 && index is SelfColumn or TotalColumn) cell.Padding = new Thickness(0, 0, 6, 0);
             if (tip is { Length: > 0 } && (header || tip != text)) AppToolTip.SetTip(cell, tip);
             Grid.SetColumn(cell, index);
-            // The total's share as a gauge behind its number: a faint track the width of the column, so the number always
-            // sits in it, and a fill in exact proportion. Heavy lines stand out before any number is read. (A fill never
-            // shorter than its number made a thousandth look like the whole.)
-            if (bar is { } fraction && index == TotalColumn && columns[index].IsAbsolute)
+            // Gauges behind the numbers: a faint track the width of the column, so the number always sits in it, and a
+            // fill in exact proportion (a fill never shorter than its number made a thousandth look like the whole).
+            // The total's is its part against the table's largest, so heavy lines stand out before any number is read;
+            // the self figure's, muted as it measures something else, is the line's own work against its total.
+            var gauge = index switch { TotalColumn => bar, SelfColumn => selfBar, _ => null };
+            if (gauge is { } fraction && columns[index].IsAbsolute)
             {
                 cell.Padding = new Thickness(0, 0, 6, 0);
-                var color = (BarsPath.Fill as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.SteelBlue;
+                var color = index == TotalColumn ? (BarsPath.Fill as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.SteelBlue
+                    : (Muted as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.Gray;
                 var track = new Border
                 {
                     Margin = new Thickness(0, -3, 0, -3), CornerRadius = new CornerRadius(3),
@@ -1534,8 +1543,8 @@ public sealed partial class ProfilerPage : UserControl
         return row;
     }
 
-    // The total's place in a script function's line: name, file, self, total, samples.
-    private const int TotalColumn = 3;
+    // The numbers' places in a script function's line: name, file, self, total, samples.
+    private const int SelfColumn = 2, TotalColumn = 3;
 
     // ---- Copy ----
 
