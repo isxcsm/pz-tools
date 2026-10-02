@@ -25,7 +25,7 @@ The Home page shows whether the game is running, the latest save's last backup a
 Requires **Windows x64** and the **[.NET 10 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)**. The app requests administrator permission for NTFS change tracking.
 WinUI components and the Java Attach runtime are included; no separate Java installation is needed.
 
-1. Get a runnable package from [Releases](https://github.com/isxcsm/pz-tools/releases), or build from source below. Extract the whole package and run `PzTools.App.exe`; GitHub's source ZIP is not a runnable app.
+1. Get a runnable package from [Releases](https://github.com/isxcsm/pz-tools/releases), or build from source below. Extract the whole package and run `PzTools.App.exe`; GitHub's source ZIP is not a runnable app. Any folder works, including one with Korean or other non-English letters in its path; up to 0.2.1 the app could not connect to the game from such a folder, which is fixed (two small files are then copied to a folder of yours, see [files and folders](docs/deployment-layout.md)).
 2. Open Settings, choose your language and check the save and backup folders. Keep those folders separate.
 3. Create a manual backup and confirm it completes. Automatic backups default to **every 5 minutes**, keeping **20 automatic backups**.
 
