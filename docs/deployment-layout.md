@@ -25,7 +25,7 @@ or next to archives you import. Development runs use the same layout for app dat
 <app folder>\                          # for example C:\Program Files\PzTools\
   PzTools.App.exe and worker executables
   defaults\<component>\default.toml    # read-only packaged defaults
-  save-bridge\                         # the save bridge, its attach runtime, extensions
+  game-bridge\                         # the game bridge, its attach runtime, extensions
 ```
 
 The packaged defaults are the starting point for each

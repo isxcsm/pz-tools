@@ -21,7 +21,7 @@ Two things happen independently:
    played and whether the game is paused, asleep or showing a death screen. That is
    what lets backup timing follow real play.
 
-The game is reached through the **save bridge**: a small Java component that PZ Tools
+The game is reached through the **game bridge**: a small Java component that PZ Tools
 loads into the running game. It asks the game to save before a backup, reports the
 game's state, and hosts the optional **game extensions** (currently vehicle driving
 improvements). No game file is edited.
@@ -36,7 +36,7 @@ PzTools.App (window, settings, cards)
  │                                                             │  save request
  ├─ State scheduler ──► state collector / reactor              │
  │    │                                                        ▼
- │    ├─ game-state stream (WATCH) ◄──────────── save bridge inside the game
+ │    ├─ game-state stream (WATCH) ◄──────────── game bridge inside the game
  │    └─ extension control ────────────────────► extension modules inside the game
  │
  └─ one-off workers: restore, ZIP import/export, character recovery, profiler
@@ -50,7 +50,7 @@ PzTools.App (window, settings, cards)
 | Backup worker | Optionally asks the game to save, finds changed files, stores them, commits a revision. | [Stable capture](stable-capture.md), [repository format](repository-format.md) |
 | Maintenance | Trims old automatic backups and reclaims disk space later, out of the way of backups. | [Housekeeping](repository-housekeeping.md) |
 | State scheduler | Finds the active save, reads the game's live state, runs the extension controller. | [Game-aware timing](runtime-pause-backups.md) |
-| Save bridge | Java code loaded into the running game. Saves on request, streams state, hosts extensions. | [Save bridge](save-bridge.md) |
+| Game bridge | Java code loaded into the running game. Saves on request, streams state, hosts extensions. | [Game bridge](game-bridge.md) |
 | Extension modules | Optional features that run inside the game. Each one is separate and off by default. | [Game extensions](game-extensions.md) |
 | One-off workers | Restore, ZIP import/export, character recovery, performance recording. | [CLI](cli.md), [character recovery](character-recovery.md), [profiler](profiler.md) |
 
@@ -96,7 +96,7 @@ See [deployment layout](deployment-layout.md) for the full list and
    game-aware timing, paused and sleeping time does not count.
 2. The backup runner takes the next run index and the repository's lock. If another
    job holds the lock, the backup waits for the next check instead of running twice.
-3. The backup worker asks the save bridge to save the game, if that option is on.
+3. The backup worker asks the game bridge to save the game, if that option is on.
    The game saves in the normal way; PZ Tools only triggers it.
 4. The worker finds which files changed, using Windows' change journal (**USN**)
    where it can and file comparison where it cannot. Each file is checked after
@@ -114,8 +114,8 @@ A finished game save is not a finished backup: steps 4–6 come after it.
 Two sources are combined:
 
 - **Files.** The state scheduler checks every few seconds which save's files the game
-  has locked. This works without the save bridge and decides which save is active.
-- **The game itself.** Through the save bridge, the game streams its state: which
+  has locked. This works without the game bridge and decides which save is active.
+- **The game itself.** Through the game bridge, the game streams its state: which
   world is loaded, paused or not, asleep or not, character alive or dead. This is
   what pauses the backup countdown and triggers death backups.
 
@@ -125,7 +125,7 @@ game-dependent feature stops on its own, and the app shows which one. See
 
 ## Code inside the running game
 
-The save bridge is loaded with Java's standard attach mechanism. It is split in
+The game bridge is loaded with Java's standard attach mechanism. It is split in
 layers so that most of it can be updated while the game keeps running:
 
 | Layer | Can it be replaced without restarting the game? |
@@ -135,7 +135,7 @@ layers so that most of it can be updated while the game keeps running:
 | **Extension runtime** and **modules** | Yes, each on its own. |
 
 The bridge accepts a fixed set of commands from PZ Tools only. It does not run
-arbitrary scripts. See [save bridge](save-bridge.md) and
+arbitrary scripts. See [game bridge](game-bridge.md) and
 [component updates](module-reload.md).
 
 ## Where to read next
@@ -145,6 +145,6 @@ arbitrary scripts. See [save bridge](save-bridge.md) and
 | What a setting does | [Configuration](configuration.md), [advanced runtime settings](runtime-configuration.md) |
 | Why a backup did or did not run | [Game-aware timing](runtime-pause-backups.md), [death backups](runtime-character-death.md) |
 | How backups are stored | [Repository format](repository-format.md), then [packs](pack-format.md) |
-| How the game is saved and what can go wrong | [Save bridge](save-bridge.md) |
+| How the game is saved and what can go wrong | [Game bridge](game-bridge.md) |
 | How extensions work, or how to add one | [Game extensions](game-extensions.md) |
 | How to build and test | [Development and validation](development.md) |

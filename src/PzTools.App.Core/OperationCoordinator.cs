@@ -438,7 +438,7 @@ public sealed class OperationCoordinator(
                 "record", "--output", Path.GetFullPath(outputPath), "--stop-file", Path.GetFullPath(stopFile),
                 "--mode", detailed ? "detailed" : "general",
                 "--max-seconds", maximumSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                "--bridge", Path.Combine(workerDirectory, "save-bridge"),
+                "--bridge", Path.Combine(workerDirectory, "game-bridge"),
             ], cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId,
             line => { if (line.StartsWith("PROFILE\t", StringComparison.Ordinal)) progress?.Invoke(line["PROFILE\t".Length..]); });
 
@@ -461,7 +461,7 @@ public sealed class OperationCoordinator(
             _ => throw new ArgumentOutOfRangeException(nameof(command)),
         };
         return RunArchiveAsync(command == "roll-save" ? "profile" : "profile-roll", Path.Combine(operationsRoot, "profiler"),
-            OperationScope.SaveWrite, [.. arguments, "--bridge", Path.Combine(workerDirectory, "save-bridge")],
+            OperationScope.SaveWrite, [.. arguments, "--bridge", Path.Combine(workerDirectory, "game-bridge")],
             cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId);
     }
 

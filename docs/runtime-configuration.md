@@ -58,10 +58,10 @@ have separate timeouts for waiting in the game's queue and for waiting for the s
 finish. Only a save that is still queued can be cancelled safely. A save the game has
 already started is not interrupted. When it is unknown whether a save finished, the
 backup does not capture files and does not retry automatically. See
-[when the game is not saved](save-bridge.md#admission-and-failures).
+[when the game is not saved](game-bridge.md#admission-and-failures).
 
 **New timeouts may need a game restart.** The configured deadlines are sent to the
-[save bridge](glossary.md#save-bridge) in the game. A compatible [payload](glossary.md#payload)
+[game bridge](glossary.md#game-bridge) in the game. A compatible [payload](glossary.md#payload)
 update is picked up at an idle moment; an incompatible [bootstrap](glossary.md#bootstrap)
 still loaded in the game needs a game restart. See [component updates](module-reload.md).
 

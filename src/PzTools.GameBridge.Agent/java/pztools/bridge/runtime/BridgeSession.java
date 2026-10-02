@@ -17,8 +17,12 @@ import java.util.Base64;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
-/** Game-thread save bridge. Game installation files are never rewritten. */
-public final class SaveBridge {
+/**
+ * One request from the app: a save or probe queued for the game thread, or a profile or notice command answered at
+ * once. Game installation files are never rewritten. Reached through {@link SaveBridge}, the name the bootstrap
+ * loads the payload by.
+ */
+public final class BridgeSession {
     private static final AtomicReference<Request> pending = new AtomicReference<>();
     private static volatile boolean installed;
     private static Class<?> window;
@@ -83,7 +87,7 @@ public final class SaveBridge {
                     throw new BridgeFailure("protocol", "Invalid request timeouts");
                 String expected = new String(Base64.getDecoder().decode(command[1]), StandardCharsets.UTF_8);
                 if (!Path.of(expected).isAbsolute()) throw new BridgeFailure("protocol", "An absolute save path is required");
-                if (!AgentEntry.acquire(owner, SaveBridge::poll))
+                if (!AgentEntry.acquire(owner, BridgeSession::poll))
                     throw new BridgeFailure("busy", "Another bridge session is still active");
                 acquired = true;
                 if (!legacyRetired) {
@@ -132,7 +136,7 @@ public final class SaveBridge {
             }
         } catch (Throwable exception) {
             // No callback connection means no command is accepted and no save is queued.
-            System.err.println("[PzTools save bridge] " + describe(exception));
+            System.err.println("[PzTools bridge] " + describe(exception));
         } finally {
             if (request != null) {
                 request.cancelBeforeSave();
@@ -213,7 +217,7 @@ public final class SaveBridge {
     private static synchronized void install(Instrumentation instrumentation) throws Exception {
         if (installed) return;
         if (Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
-            throw new BridgeFailure("unsupported-runtime", "This save bridge requires Java 25 and class retransformation");
+            throw new BridgeFailure("unsupported-runtime", "This bridge requires Java 25 and class retransformation");
         window = AgentEntry.ensureGameHook();
         gameLoader = window.getClassLoader();
         if (Class.forName(AgentEntry.class.getName(), false, gameLoader) != AgentEntry.class)
@@ -402,7 +406,7 @@ public final class SaveBridge {
     private static String validateWorld(String expected) throws Exception {
         if (boolField("zombie.network.GameClient", "client") || boolField("zombie.network.GameClient", "clientSave")
                 || boolField("zombie.network.GameServer", "server"))
-            throw new BridgeFailure("multiplayer", "This save bridge supports local single-player saves only");
+            throw new BridgeFailure("multiplayer", "This bridge saves local single-player games only");
         Object states = window.getField("states").get(null);
         Object state = states.getClass().getField("current").get(states);
         if (!gameClass("zombie.gameStates.IngameState").isInstance(state))

@@ -446,7 +446,7 @@ separate; each continuous module has its own slot on the shared
 
 The module ships as `pztools-vehicle-drivetrain.jar` with capability
 `vehicle.drivetrain.v1`. The version numbers it depends on are listed in the
-[compatibility table](save-bridge.md#compatibility-and-lifecycle). The optional save
+[compatibility table](game-bridge.md#compatibility-and-lifecycle). The optional save
 extension is not distributed; a backup's game save always goes through
 `GameWindow.save(true)`.
 

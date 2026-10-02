@@ -1,6 +1,6 @@
 using PzTools.Process.Contracts.GameRuntime;
 
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 /// <summary>A single authenticated continuous-control lease; independent of WATCH and save requests.</summary>
 public interface IGameExtensionSession : IAsyncDisposable

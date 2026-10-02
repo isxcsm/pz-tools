@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-PZ Tools puts some of its code into the running game: the [save bridge](save-bridge.md)
+PZ Tools puts some of its code into the running game: the [game bridge](game-bridge.md)
 and the [game extensions](game-extensions.md). When PZ Tools is updated while the game
 is still running, that code is usually updated too, without restarting the game. This
 page explains when that works, when a restart is needed, and what is kept safe during
@@ -15,7 +15,7 @@ the switch.
 - Work that is already running is never interrupted. A save in progress finishes on
   the old code; the new code is loaded afterwards.
 - Only an incompatible **bootstrap**, the small part that stays in the game for its
-  whole session, needs a game restart. The [compatibility table](save-bridge.md#compatibility-and-lifecycle)
+  whole session, needs a game restart. The [compatibility table](game-bridge.md#compatibility-and-lifecycle)
   lists the current versions.
 - The app itself may still need a restart to use its own updated files.
 
@@ -42,7 +42,7 @@ settings you saved yet.
 **Saves.** A save the game has accepted belongs to the request that started it until
 the game's save call returns, even if the connection drops. A replacement never
 starts that save again. Queueing, cancellation and deadlines are described under
-[when the game is not saved](save-bridge.md#admission-and-failures).
+[when the game is not saved](game-bridge.md#admission-and-failures).
 
 **The state stream.** Replacing a module or the extension runtime leaves the
 [WATCH](glossary.md#watch) stream running. Replacing the payload briefly ends it, and

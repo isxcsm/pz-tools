@@ -2,7 +2,7 @@ using System.Diagnostics;
 using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 

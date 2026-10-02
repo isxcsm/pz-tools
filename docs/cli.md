@@ -41,7 +41,7 @@ diff <source> <catalog.json>
 
 | Option of `backup` | Effect |
 | --- | --- |
-| `--save-game` | Asks the matching running single-player world to save first ([save bridge](save-bridge.md)) |
+| `--save-game` | Asks the matching running single-player world to save first ([game bridge](game-bridge.md)) |
 | `--require-active-game` | Skips automatic work if that world stops before files are captured |
 | `--scheduled-utc` | Allows preparation in advance, but no saving or capture before the scheduled time |
 | `--game-version` | Records the running game's version with the new backup. The app and the scheduler pass it while the game has that save loaded. |
@@ -90,7 +90,7 @@ PzTools.Zomboid.Recovery.Cli --repository <path> --saves-root <path> --save-id <
     --run-index <n> --telemetry-identity <path>
 PzTools.Profiler.Cli record --output <file.pzprof> --stop-file <file> --mode general|detailed
     --run-index <n> --telemetry-identity <path>
-    [--max-seconds <5..>] [--process-id <pid>] [--bridge <save-bridge-dir>]
+    [--max-seconds <5..>] [--process-id <pid>] [--bridge <game-bridge-dir>]
 ```
 
 - `PzTools.Zomboid.Recovery.Cli` performs [character recovery](character-recovery.md)

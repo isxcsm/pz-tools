@@ -20,7 +20,7 @@ To build, install:
 The projects restore the Windows App SDK and the managed dependencies themselves. The
 game's trimmed Java runtime cannot be used as a build JDK. For the native build
 requirements, and how `JdkPath`, `JAVA_HOME` and bundled toolchains are chosen, see
-[bridge build prerequisites](save-bridge.md#building-and-publishing).
+[bridge build prerequisites](game-bridge.md#building-and-publishing).
 
 To run the published app, end users need the
 [.NET 10 runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0),
@@ -60,7 +60,7 @@ that folder first and then run `publish-app.ps1` on the same, now nonempty, fold
 
 - **The output folder must be new or empty.** Use another `-Output` for the next
   publication. The scripts do not erase an existing installation or user settings.
-- **Use a fresh `-SaveBridgeOutput` folder for a release** as well, so the Java payload
+- **Use a fresh `-GameBridgeOutput` folder for a release** as well, so the Java payload
   does not reuse files from earlier development builds.
 
 ## Build a release
@@ -151,7 +151,7 @@ on different values for them, use a separate PowerShell session.
 ## Synthetic game integration and opt-in tests
 
 ```powershell
-pwsh scripts/test-save-bridge.ps1 -JdkPath $jdk
+pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 ```
 
 This script runs against an isolated synthetic JVM, not a real running game.

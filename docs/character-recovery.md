@@ -166,7 +166,7 @@ Map files are parsed by their structure, not searched for isolated byte patterns
 
 ### The identity stamp on future saves
 
-To make later recoveries reliable, the [save bridge](save-bridge.md) writes three
+To make later recoveries reliable, the [game bridge](game-bridge.md) writes three
 reserved keys into the player's modData on the game thread:
 
 | Key | Holds |

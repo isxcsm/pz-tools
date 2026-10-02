@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using PzTools.Profiling;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 namespace PzTools.Backup.Tests;
 
@@ -12,7 +12,7 @@ public sealed partial class GameSaveClientTests
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         await File.WriteAllTextAsync(temp.GetPath("busy-game"), "busy");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
         var raw = temp.GetPath("recording.pzprof.jfr");
 
         Assert.Equal("idle", (await client.StatusAsync(game.Pid)).State);
@@ -79,7 +79,7 @@ public sealed partial class GameSaveClientTests
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
         Assert.Equal("not-rolling",
             (await Assert.ThrowsAsync<GameSaveException>(() => client.SaveRollingAsync(game.Pid, temp.GetPath("none.jfr")))).Code);
 
@@ -116,7 +116,7 @@ public sealed partial class GameSaveClientTests
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
 
         Assert.True(await client.NotifyAsync(game.Pid, "ko-KR", ["saved-last:2", "next-backup:5"]));
         var notices = temp.GetPath("notices.txt");
@@ -139,7 +139,7 @@ public sealed partial class GameSaveClientTests
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
         var raw = temp.GetPath("limit.pzprof.jfr");
         await client.StartAsync(game.Pid, raw, detailed: true, 5);
         await Task.Delay(7000);
@@ -160,7 +160,7 @@ public sealed partial class GameSaveClientTests
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
         await client.StartAsync(game.Pid, temp.GetPath("standard.pzprof.jfr"), detailed: false, 5);
         // As if the recording program had gone: nobody sends a stop.
         await Task.Delay(7000);

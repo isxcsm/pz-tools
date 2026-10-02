@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using PzTools.Process.Contracts;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 using PzTools.Zomboid.Backup;
 using PzTools.Backup.Core.Configuration;
 using PzTools.Backup.ChangeTracking.Windows;
@@ -33,7 +33,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         foreach (var language in LanguageCatalog.All)
         {
-            await new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+            await new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
                 notificationLanguage: language.Tag, scheduledSaveUtc: DateTimeOffset.UtcNow.AddSeconds(-1))
                 .RequestAsync(game.Pid, temp.Path, true);
             var latest = File.ReadAllLines(temp.GetPath("notices.txt")).TakeLast(2)
@@ -49,7 +49,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         var due = DateTimeOffset.UtcNow.AddSeconds(8);
-        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
             completionTimeoutSeconds: 30, queueTimeoutSeconds: 10,
             notificationLanguage: "en", scheduledSaveUtc: due);
         await client.RequestAsync(game.Pid, temp.Path, true);
@@ -73,13 +73,13 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         var due = DateTimeOffset.UtcNow.AddSeconds(4);
-        await new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+        await new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
             scheduledSaveUtc: due).RequestAsync(game.Pid, temp.Path, true);
         Assert.False(File.Exists(temp.GetPath("notices.txt")));
         Assert.InRange(long.Parse(await File.ReadAllTextAsync(temp.GetPath("save-time.txt")))
             - due.ToUnixTimeMilliseconds(), 0, 1500);
         var clock = Stopwatch.StartNew();
-        await new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+        await new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
             notificationLanguage: "en", scheduledSaveUtc: due.AddSeconds(-10))
             .RequestAsync(game.Pid, temp.Path, true);
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(4));
@@ -94,7 +94,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         await using var game = await FakeGame.StartAsync(temp.Path, "normal", legacy: true);
         var bridge = temp.GetPath("bridge");
         Directory.CreateDirectory(bridge);
-        var original = Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!;
+        var original = Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!;
         // Only the payload changes; retain the same private runtime/native bootstrap.
         foreach (var source in Directory.EnumerateFiles(original, "*", SearchOption.AllDirectories))
         {
@@ -108,7 +108,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         {
             await client.RequestAsync(game.Pid, temp.Path, true);
             await AssertIdleAsync(temp);
-            var payload = Path.Combine(bridge, "pztools-save-bridge.jar");
+            var payload = Path.Combine(bridge, "pztools-game-bridge.jar");
             var replacement = payload + ".new";
             using (var archive = System.IO.Compression.ZipFile.OpenRead(payload))
             using (var rebuilt = System.IO.Compression.ZipFile.Open(replacement, System.IO.Compression.ZipArchiveMode.Create))
@@ -331,7 +331,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
             notificationLanguage: "ko");
         await client.RequestAsync(game.Pid, temp.Path, save: false);
         Assert.False(File.Exists(temp.GetPath("notices.txt")));
@@ -352,7 +352,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
             notificationLanguage: "en");
         var request = client.RequestAsync(game.Pid, temp.Path, true);
         await WaitForNoticeAsync(temp);
@@ -368,7 +368,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
             notificationLanguage: "en");
         using var cancel = new CancellationTokenSource();
         var request = client.RequestAsync(game.Pid, temp.Path, true, cancel.Token);
@@ -390,7 +390,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         {
             using var temp = new TempDirectory();
             await using var game = await FakeGame.StartAsync(temp.Path, mode);
-            var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+            var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
                 notificationLanguage: "en");
             if (mode == "notice-error")
             {
@@ -448,7 +448,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "stalled");
-        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!,
+        var client = new GameSaveClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!,
             connectionTimeoutSeconds: 30, completionTimeoutSeconds: 40, queueTimeoutSeconds: 1);
         var clock = Stopwatch.StartNew();
         var error = await Assert.ThrowsAsync<GameSaveException>(() => client.RequestAsync(game.Pid, temp.Path, true));
@@ -483,13 +483,13 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
     }
 
     private static string Encode(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
-    private static GameSaveClient Client() => new(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+    private static GameSaveClient Client() => new(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
 
     private sealed class BridgeFactAttribute : FactAttribute
     {
         public BridgeFactAttribute()
         {
-            if (new[] { "PZTOOLS_SAVE_BRIDGE_DIR", "PZTOOLS_BRIDGE_TEST_JAVA", "PZTOOLS_BRIDGE_TEST_CLASSES" }
+            if (new[] { "PZTOOLS_GAME_BRIDGE_DIR", "PZTOOLS_BRIDGE_TEST_JAVA", "PZTOOLS_BRIDGE_TEST_CLASSES" }
                 .Any(key => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key))))
                 Skip = "Build the Java fixture and set the bridge integration environment variables.";
         }
@@ -499,7 +499,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
     {
         public LiveProbeFactAttribute()
         {
-            if (new[] { "PZTOOLS_SAVE_BRIDGE_DIR", "PZTOOLS_LIVE_PROBE_PID", "PZTOOLS_LIVE_PROBE_SAVE" }
+            if (new[] { "PZTOOLS_GAME_BRIDGE_DIR", "PZTOOLS_LIVE_PROBE_PID", "PZTOOLS_LIVE_PROBE_SAVE" }
                 .Any(key => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key))))
                 Skip = "Live game probes require explicit PID and save path. Never calls save.";
         }

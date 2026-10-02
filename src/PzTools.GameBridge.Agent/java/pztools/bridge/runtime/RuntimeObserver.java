@@ -106,7 +106,7 @@ public final class RuntimeObserver {
         if (previous != null) {
             previous.active = false;
             LiveCharacter.disconnect();
-            SaveBridge.cancelObserver(previous.observer);
+            BridgeSession.cancelObserver(previous.observer);
         }
         AgentEntry.observe(null);
         context = null;

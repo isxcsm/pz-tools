@@ -21,7 +21,7 @@ For people running the app who want more detail than the user guide.
 | [Configuration](configuration.md) | What each setting does, where settings are stored, and how backup limits work |
 | [Game-aware backup timing](runtime-pause-backups.md) | Why the countdown paused, or why a backup ran without a game save |
 | [Death backups](runtime-character-death.md) | When a death backup is made, why periodic backups stop after a death, and what the last-save report shows |
-| [Saving the game before a backup](save-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
+| [Saving the game before a backup](game-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
 | [Character recovery](character-recovery.md) | What healing, revival and inventory recovery can and cannot do |
 | [Game extensions](game-extensions.md) | What the optional in-game features are and when their settings take effect |
 | [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares |

@@ -18,7 +18,7 @@
     <Using Include="Xunit" />
     <ProjectReference Include="../PzTools.CrashFixture/PzTools.CrashFixture.csproj" />
     <ProjectReference Include="..\..\src\PzTools.Zomboid.Recovery\PzTools.Zomboid.Recovery.csproj" />
-    <ProjectReference Include="..\..\src\PzTools.SaveBridge\PzTools.SaveBridge.csproj" />
+    <ProjectReference Include="..\..\src\PzTools.GameBridge\PzTools.GameBridge.csproj" />
     <ProjectReference Include="..\..\src\PzTools.Zomboid.Backup\PzTools.Zomboid.Backup.csproj" />
   </ItemGroup>
 

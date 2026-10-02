@@ -35,7 +35,7 @@ public final class AttachMain {
                     // Embedded Windows launchers need their own jli.dll, not our helper's.
                     if (System.getProperty("os.name").startsWith("Windows"))
                         vm.loadAgentPath(payload.getParent().resolve("pztools-attach-bootstrap.dll").toString());
-                    vm.loadAgent(payload.getParent().resolve("pztools-save-bootstrap.jar").toString(), "BOOTSTRAP1:" + encoded);
+                    vm.loadAgent(payload.getParent().resolve("pztools-game-bootstrap.jar").toString(), "BOOTSTRAP1:" + encoded);
                     endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
                 }
                 if (!"10".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))

@@ -11,8 +11,8 @@ if (-not [string]::IsNullOrWhiteSpace($GameOverrides) -and [string]::IsNullOrWhi
     throw 'GameOverrides requires InstalledGameJar.'
 }
 $root = Split-Path -Parent $PSScriptRoot
-if ([string]::IsNullOrWhiteSpace($BridgeDirectory)) { $BridgeDirectory = Join-Path $root "artifacts/save-bridge/$Configuration" }
-& dotnet msbuild (Join-Path $root 'src/PzTools.GameExtensions.VehicleDrivetrain/PzTools.GameExtensions.VehicleDrivetrain.proj') /t:Build "-p:Configuration=$Configuration" "-p:JdkPath=$JdkPath" "-p:SaveBridgeDirectory=$BridgeDirectory" /v:minimal
+if ([string]::IsNullOrWhiteSpace($BridgeDirectory)) { $BridgeDirectory = Join-Path $root "artifacts/game-bridge/$Configuration" }
+& dotnet msbuild (Join-Path $root 'src/PzTools.GameExtensions.VehicleDrivetrain/PzTools.GameExtensions.VehicleDrivetrain.proj') /t:Build "-p:Configuration=$Configuration" "-p:JdkPath=$JdkPath" "-p:GameBridgeDirectory=$BridgeDirectory" /v:minimal
 if ($LASTEXITCODE -ne 0) { throw 'Vehicle extension build failed.' }
 $jars = Join-Path $BridgeDirectory 'extensions'
 $output = Join-Path $root 'artifacts/game-extension-tests'

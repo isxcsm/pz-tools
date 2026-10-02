@@ -1,4 +1,4 @@
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 public enum GameSaveCompletion
 {

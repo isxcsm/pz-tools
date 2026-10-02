@@ -11,7 +11,7 @@ using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Backup.ChangeTracking.Windows;
 using PzTools.Zomboid.Backup;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 using PzTools.Process.Contracts.GameRuntime;
 
 // Launch check only: proves Windows allows this executable to start. No work, no output.
@@ -186,7 +186,7 @@ internal static class BackupCli
             {
                 runIndex = requestedRunIndex.Value;
             }
-            var gameSave = new BackupGameSave(Path.Combine(AppContext.BaseDirectory, "save-bridge"),
+            var gameSave = new BackupGameSave(Path.Combine(AppContext.BaseDirectory, "game-bridge"),
                 options.EffectiveTuning.GameConnectionTimeoutSeconds, options.EffectiveTuning.GameCompletionTimeoutSeconds,
                 options.EffectiveTuning.GameQueueTimeoutSeconds,
                 // In-game notices warn a player that the scheduler is about to save. A backup someone starts from
@@ -203,7 +203,7 @@ internal static class BackupCli
             } : null;
             if (request.RuntimeTicket is not null)
             {
-                var guarded = new GuardedGamePreparation(new GameSaveClient(Path.Combine(AppContext.BaseDirectory, "save-bridge"),
+                var guarded = new GuardedGamePreparation(new GameSaveClient(Path.Combine(AppContext.BaseDirectory, "game-bridge"),
                     options.EffectiveTuning.GameConnectionTimeoutSeconds, options.EffectiveTuning.GameCompletionTimeoutSeconds,
                     options.EffectiveTuning.GameQueueTimeoutSeconds,
                     options.GameSaveCountdown ? LanguageCatalog.Get(options.NameLanguage).Tag : null,

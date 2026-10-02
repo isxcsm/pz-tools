@@ -412,7 +412,7 @@ public sealed class ProfileRecordingTests
     public void AttachRefusals_SayRestartWhenTheGameRunsABootstrapThisBuildCannotUse(string helperOutput, string error, string key)
     {
         // What the recording worker reports for the attach helper's words, and what the card then says.
-        var code = "profile-" + (PzTools.SaveBridge.GameSaveException.NamesRestart(helperOutput) ? "restart-required" : "attach-failed");
+        var code = "profile-" + (PzTools.GameBridge.GameSaveException.NamesRestart(helperOutput) ? "restart-required" : "attach-failed");
         Assert.Equal(error, code);
         Assert.Equal(key, PzTools.App.Core.ProfileRecordingService.ErrorKey(code));
     }

@@ -1,0 +1,46 @@
+<Project>
+  <Import Project="GameBridge.props" />
+  <!-- Visual Studio skips a project its fast up-to-date check finds current, and that check knows nothing of the
+       bridge's Java and native sources: a change to them alone left the old bridge in the F5 build. Compared with
+       the jars they build, not with this project's assembly, which a bridge-only change does not rewrite. -->
+  <ItemGroup>
+    <!-- The agent jar is rebuilt from its own sources and from the extension runtime it compiles against. -->
+    <UpToDateCheckInput Include="$(GameBridgeRepositoryRoot)\src\PzTools.GameBridge.Agent\**\*.java;
+                                 $(GameBridgeRepositoryRoot)\src\PzTools.GameBridge.Agent\MANIFEST.MF;
+                                 $(GameBridgeRepositoryRoot)\src\PzTools.GameBridge.Agent\notices.tsv;
+                                 $(GameBridgeRepositoryRoot)\src\PzTools.GameExtensions.Java\**\*.java" Set="GameBridgeAgent" />
+    <UpToDateCheckBuilt Include="$(BridgeOutputPath)\pztools-game-bridge.jar" Set="GameBridgeAgent" />
+    <UpToDateCheckInput Include="$(GameBridgeRepositoryRoot)\src\PzTools.GameBridge.Native\**\*.cpp" Set="GameBridgeNative" />
+    <UpToDateCheckBuilt Include="$(BridgeOutputPath)\pztools-attach-bootstrap.dll" Set="GameBridgeNative" />
+    <UpToDateCheckInput Include="$(GameBridgeRepositoryRoot)\src\PzTools.GameExtensions.VehicleDrivetrain\**\*.java" Set="GameBridgeDrivetrain" />
+    <UpToDateCheckBuilt Include="$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar" Set="GameBridgeDrivetrain" />
+  </ItemGroup>
+  <Target Name="BuildGameBridge" BeforeTargets="PrepareForBuild" DependsOnTargets="ValidateBridgeToolchain" Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="$(GameBridgeRepositoryRoot)\src\PzTools.GameBridge.Agent\PzTools.GameBridge.Agent.proj" Targets="Build"
+             Properties="Configuration=$(Configuration);GameBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
+  </Target>
+  <!-- Evaluate the runtime files after generation, including on a clean checkout. -->
+  <Target Name="IncludeGameBridgePayload" BeforeTargets="AssignTargetPaths" DependsOnTargets="BuildGameBridge"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <Content Include="$(BridgeOutputPath)\pztools-game-bridge.jar"
+               Link="game-bridge\pztools-game-bridge.jar" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <Content Include="$(BridgeOutputPath)\pztools-game-bootstrap.jar"
+               Link="game-bridge\pztools-game-bootstrap.jar" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <Content Include="$(BridgeOutputPath)\pztools-attach-bootstrap.dll"
+               Link="game-bridge\pztools-attach-bootstrap.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <!-- Build outputs may also contain fixtures or retired modules. Ship only
+           the runtime and provider built for the bundled catalogue. -->
+      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar" />
+      <Content Include="@(_BridgeExtension)" Link="game-bridge\extensions\%(_BridgeExtension.Filename)%(_BridgeExtension.Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <Content Include="$(GameBridgeRepositoryRoot)\config\game-extensions\catalog.tsv" Link="game-bridge\extensions\catalog.tsv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <Content Include="$(GameBridgeRepositoryRoot)\config\game-extensions\vehicle-drivetrain.toml" Link="game-bridge\extensions\vehicle-drivetrain.toml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <!-- Import libraries are for linking native programs, not running the bridge. -->
+      <_BridgeRuntime Include="$(BridgeOutputPath)\runtime\**\*"
+                      Exclude="$(BridgeOutputPath)\runtime\lib\jvm.lib" />
+      <Content Include="@(_BridgeRuntime)"
+               Link="game-bridge\runtime\%(_BridgeRuntime.RecursiveDir)%(_BridgeRuntime.Filename)%(_BridgeRuntime.Extension)"
+               CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -112,7 +112,7 @@ Start-Process -FilePath $smoke -ArgumentList @("`"$strings`"", "`"$result`"") -W
 Get-Content -LiteralPath $result
 ```
 
-The [bridge test script](../scripts/test-save-bridge.ps1) runs an isolated synthetic JVM.
+The [bridge test script](../scripts/test-game-bridge.ps1) runs an isolated synthetic JVM.
 Its tests cover the shared in-game notices as well as timing, game-thread execution,
 failure and [payload](glossary.md#payload) replacement. They do not replace opt-in tests
 in the real game.

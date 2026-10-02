@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using PzTools.Process.Contracts.GameRuntime;
 
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 /// <summary>Owns a read-only stream, never takes GameSaveClient's request gate.</summary>
 public sealed class GameRuntimeClient(string bridgeDirectory)
@@ -16,7 +16,7 @@ public sealed class GameRuntimeClient(string bridgeDirectory)
     {
         if (processId <= 0) throw new ArgumentOutOfRangeException(nameof(processId));
         var java = Path.Combine(bridgeDirectory, "runtime", "bin", "java.exe");
-        var jar = Path.Combine(bridgeDirectory, "pztools-save-bridge.jar");
+        var jar = Path.Combine(bridgeDirectory, "pztools-game-bridge.jar");
         if (!File.Exists(java) || !File.Exists(jar)) throw new GameSaveException("bridge-not-built", "Runtime observer is not included in this build.");
         var listener = new TcpListener(IPAddress.Loopback, 0);
         System.Diagnostics.Process? helper = null;

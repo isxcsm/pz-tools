@@ -5,7 +5,7 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Projections;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 
@@ -102,7 +102,7 @@ public sealed class AppHost : IAsyncDisposable
         GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
             () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
-            Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"),
+            Path.Combine(this.paths.WorkerDirectory, "game-bridge", "extensions", "catalog.tsv"),
             () => { var o = runtimeSnapshot.Read(); var s = o.Snapshot; var result = s?.LastSave;
                 return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; },
             moduleId => ExtensionActivationView.SelectCurrentStatus(runtimeSnapshot.Read(), moduleId),
@@ -450,7 +450,7 @@ public sealed class AppHost : IAsyncDisposable
         try
         {
             var processId = await Task.Run(GameProfileClient.FindGame, cancellationToken).ConfigureAwait(false);
-            var client = new GameProfileClient(Path.Combine(paths.WorkerDirectory, "save-bridge"), connectionTimeoutSeconds: 10);
+            var client = new GameProfileClient(Path.Combine(paths.WorkerDirectory, "game-bridge"), connectionTimeoutSeconds: 10);
             // A save or another short request may hold the channel for a moment: wait a little for it, not long.
             for (var attempt = 0; ; attempt++)
             {

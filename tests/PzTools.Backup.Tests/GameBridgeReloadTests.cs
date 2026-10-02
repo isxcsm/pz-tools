@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using PzTools.Process.Contracts.GameRuntime;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 namespace PzTools.Backup.Tests;
 
@@ -48,7 +48,7 @@ public sealed partial class GameSaveClientTests
             var updated = new GameSaveClient(moved);
             var relocated = await updated.RequestProviderAsync(game.Pid, temp.Path, "pztools.test-save");
             Assert.Equal(two.ProviderId, relocated.ProviderId); // Same bytes, new folder.
-            ChangeReloadArchive(Path.Combine(moved, "pztools-save-bridge.jar"), "bridge-two");
+            ChangeReloadArchive(Path.Combine(moved, "pztools-game-bridge.jar"), "bridge-two");
             // A no-save probe drives a compatible payload update. Nothing replays as a save.
             await updated.RequestAsync(game.Pid, temp.Path, false);
             Assert.False(File.Exists(temp.GetPath("calls.txt")));

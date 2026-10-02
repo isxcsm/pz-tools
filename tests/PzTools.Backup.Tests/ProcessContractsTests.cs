@@ -92,7 +92,7 @@ public sealed class ProcessContractsTests
     {
         const string source = "C:\\private\\save";
         var diagnostics = source + "\n" + new string('x', 7000);
-        var error = new PzTools.SaveBridge.GameSaveException("extension-save-failed", "short failure", diagnostics);
+        var error = new PzTools.GameBridge.GameSaveException("extension-save-failed", "short failure", diagnostics);
         using var json = JsonDocument.Parse(FailureTelemetry.FromException("save-failed", error, redactPathPrefix: source));
         var root = json.RootElement;
         Assert.Equal("[extension-save-failed] short failure", root.GetProperty("message").GetString());

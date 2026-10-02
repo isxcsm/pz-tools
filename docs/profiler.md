@@ -29,7 +29,7 @@ recording that really fails is logged once, by the recording itself, and its car
 the reason. When the game still runs a bridge bootstrap from before an update that this
 build cannot use, the card says plainly that the game needs one restart to record, rather
 than the general "could not connect"; an update that keeps the bootstrap compatible needs
-no restart at all (see [compatibility](save-bridge.md#compatibility-and-lifecycle)).
+no restart at all (see [compatibility](game-bridge.md#compatibility-and-lifecycle)).
 
 | Mode | Java samples | Lua samples | Extra |
 | --- | --- | --- | --- |
@@ -455,7 +455,7 @@ the settings change; the button's tip gives the reason.
 
 A hotkey's note is one more short command, sent by the app itself:
 `NOTICE <language> <item> ...`, each item a key of the game's own list of notes
-(`src/PzTools.SaveBridge.Agent/notices.tsv`, compiled into the bridge), optionally with
+(`src/PzTools.GameBridge.Agent/notices.tsv`, compiled into the bridge), optionally with
 `:number`. The game refuses any other key, a number where the note has none, or none
 where it has one, and answers at once; the note is shown on the game thread through the
 same per-frame relay the recording uses.
@@ -463,7 +463,7 @@ same per-frame relay the recording uses.
 ## Limits
 
 - Only a local game process started normally is supported; the recorder attaches the
-  same way the save bridge does. See [game-save bridge](save-bridge.md).
+  same way the game bridge does. See [game bridge](game-bridge.md).
 - Time spent inside native code (rendering driver, physics, sound) is attributed to the
   Java method that called it, not to anything inside the native library.
 - A thread that is asleep or waiting produces no samples. In Detailed mode long waits are

@@ -59,7 +59,7 @@ try
         using var runtimeCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         var runtimeFeed = RuntimeStateFeed.ServeAsync(schedulerPath, runtime, runtimeCancellation.Token, extensions);
         var observation = new RuntimeObservationCoordinator(stateDb, schedulerDb, savesRoot,
-            Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "save-bridge"), runtime,
+            Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "game-bridge"), runtime,
             options.GetValueOrDefault("--runtime-root") ?? Path.GetDirectoryName(Path.GetFullPath(schedulerPath))!, extensions,
             settings.Extensions);
         var runtimeObservation = observation.RunAsync(runtimeCancellation.Token);

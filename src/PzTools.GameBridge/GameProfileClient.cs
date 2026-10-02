@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using DiagnosticsProcess = System.Diagnostics.Process;
 
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 /// <summary>What the game's recorder reports: fixed fields, no free text.</summary>
 public sealed record GameProfileStatus(string State, long ElapsedMilliseconds, long Frames, string Mode, string Lua, bool HasFrames)
@@ -232,9 +232,9 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
     private (string Java, string Jar) Locate()
     {
         var java = Path.Combine(bridgeDirectory, "runtime", "bin", "java.exe");
-        var jar = Path.Combine(bridgeDirectory, "pztools-save-bridge.jar");
+        var jar = Path.Combine(bridgeDirectory, "pztools-game-bridge.jar");
         if (!File.Exists(java) || !File.Exists(jar)
-            || !File.Exists(Path.Combine(bridgeDirectory, "pztools-save-bootstrap.jar"))
+            || !File.Exists(Path.Combine(bridgeDirectory, "pztools-game-bootstrap.jar"))
             || !File.Exists(Path.Combine(bridgeDirectory, "pztools-attach-bootstrap.dll")))
             throw new GameSaveException("bridge-not-built", "The game bridge is not included in this build.");
         return (java, jar);

@@ -61,36 +61,36 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.Zomboid.Archive.Cli
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.Control", "src\PzTools.Control\PzTools.Control.csproj", "{A3710085-30F2-45E0-8195-F37868617338}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.SaveBridge", "src\PzTools.SaveBridge\PzTools.SaveBridge.csproj", "{64DAA736-707E-4484-9FEC-2D325006F8EB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.GameBridge", "src\PzTools.GameBridge\PzTools.GameBridge.csproj", "{64DAA736-707E-4484-9FEC-2D325006F8EB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.Zomboid.Backup", "src\PzTools.Zomboid.Backup\PzTools.Zomboid.Backup.csproj", "{0C8701F0-C79D-4379-8D52-3FE9700EDF83}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Save bridge", "Save bridge", "{FE0F6C79-4886-4FB3-919A-D64124E5F6D0}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Game bridge", "Game bridge", "{FE0F6C79-4886-4FB3-919A-D64124E5F6D0}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.SaveBridge.Agent", "PzTools.SaveBridge.Agent", "{506F49FB-A1E7-4165-B1F1-56C5B16487A6}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.GameBridge.Agent", "PzTools.GameBridge.Agent", "{506F49FB-A1E7-4165-B1F1-56C5B16487A6}"
 	ProjectSection(SolutionItems) = preProject
-		src\PzTools.SaveBridge.Agent\PzTools.SaveBridge.Agent.proj = src\PzTools.SaveBridge.Agent\PzTools.SaveBridge.Agent.proj
-		src\PzTools.SaveBridge.Agent\MANIFEST.MF = src\PzTools.SaveBridge.Agent\MANIFEST.MF
-		src\PzTools.SaveBridge.Agent\java\pztools\bridge\AttachMain.java = src\PzTools.SaveBridge.Agent\java\pztools\bridge\AttachMain.java
-		src\PzTools.SaveBridge.Agent\java\pztools\bridge\AgentEntry.java = src\PzTools.SaveBridge.Agent\java\pztools\bridge\AgentEntry.java
-		src\PzTools.SaveBridge.Agent\java\pztools\bridge\runtime\SaveBridge.java = src\PzTools.SaveBridge.Agent\java\pztools\bridge\runtime\SaveBridge.java
-		src\PzTools.SaveBridge.Agent\java\pztools\bridge\runtime\SaveNotice.java = src\PzTools.SaveBridge.Agent\java\pztools\bridge\runtime\SaveNotice.java
-		src\PzTools.SaveBridge.Agent\java\pztools\bridge\runtime\LegacyBridgeRetirement.java = src\PzTools.SaveBridge.Agent\java\pztools\bridge\runtime\LegacyBridgeRetirement.java
+		src\PzTools.GameBridge.Agent\PzTools.GameBridge.Agent.proj = src\PzTools.GameBridge.Agent\PzTools.GameBridge.Agent.proj
+		src\PzTools.GameBridge.Agent\MANIFEST.MF = src\PzTools.GameBridge.Agent\MANIFEST.MF
+		src\PzTools.GameBridge.Agent\java\pztools\bridge\AttachMain.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\AttachMain.java
+		src\PzTools.GameBridge.Agent\java\pztools\bridge\AgentEntry.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\AgentEntry.java
+		src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\BridgeSession.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\BridgeSession.java
+		src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\SaveNotice.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\SaveNotice.java
+		src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\LegacyBridgeRetirement.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\LegacyBridgeRetirement.java
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.SaveBridge.Native", "PzTools.SaveBridge.Native", "{70EBAAB9-DA9E-49D4-A6FD-A23628EDAE6E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.GameBridge.Native", "PzTools.GameBridge.Native", "{70EBAAB9-DA9E-49D4-A6FD-A23628EDAE6E}"
 	ProjectSection(SolutionItems) = preProject
-		src\PzTools.SaveBridge.Native\PzTools.SaveBridge.Native.proj = src\PzTools.SaveBridge.Native\PzTools.SaveBridge.Native.proj
-		src\PzTools.SaveBridge.Native\bootstrap.cpp = src\PzTools.SaveBridge.Native\bootstrap.cpp
+		src\PzTools.GameBridge.Native\PzTools.GameBridge.Native.proj = src\PzTools.GameBridge.Native\PzTools.GameBridge.Native.proj
+		src\PzTools.GameBridge.Native\bootstrap.cpp = src\PzTools.GameBridge.Native\bootstrap.cpp
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{B2F4076F-A680-4279-AAC2-103C930E43A4}"
 	ProjectSection(SolutionItems) = preProject
-		build\SaveBridge.props = build\SaveBridge.props
-		build\SaveBridgePayload.targets = build\SaveBridgePayload.targets
-		scripts\build-save-bridge.ps1 = scripts\build-save-bridge.ps1
-		scripts\build-save-bridge-native.ps1 = scripts\build-save-bridge-native.ps1
-		scripts\build-save-bridge-native.cmd = scripts\build-save-bridge-native.cmd
+		build\GameBridge.props = build\GameBridge.props
+		build\GameBridgePayload.targets = build\GameBridgePayload.targets
+		scripts\build-game-bridge.ps1 = scripts\build-game-bridge.ps1
+		scripts\build-game-bridge-native.ps1 = scripts\build-game-bridge-native.ps1
+		scripts\build-game-bridge-native.cmd = scripts\build-game-bridge-native.cmd
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.Zomboid.Recovery", "src\PzTools.Zomboid.Recovery\PzTools.Zomboid.Recovery.csproj", "{A1478F6D-38BD-4151-BC89-55CD48FB527F}"

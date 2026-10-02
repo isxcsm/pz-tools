@@ -1,13 +1,13 @@
 <Project>
   <PropertyGroup>
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
-    <SaveBridgeRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</SaveBridgeRepositoryRoot>
-    <SaveBridgeDirectory Condition="'$(SaveBridgeDirectory)' == ''">$(SaveBridgeRepositoryRoot)\artifacts\save-bridge\$(Configuration)</SaveBridgeDirectory>
-    <BridgeOutputPath>$([MSBuild]::NormalizePath('$(SaveBridgeRepositoryRoot)', '$(SaveBridgeDirectory)'))</BridgeOutputPath>
+    <GameBridgeRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</GameBridgeRepositoryRoot>
+    <GameBridgeDirectory Condition="'$(GameBridgeDirectory)' == ''">$(GameBridgeRepositoryRoot)\artifacts\game-bridge\$(Configuration)</GameBridgeDirectory>
+    <BridgeOutputPath>$([MSBuild]::NormalizePath('$(GameBridgeRepositoryRoot)', '$(GameBridgeDirectory)'))</BridgeOutputPath>
     <JdkPath Condition="'$(JdkPath)' == ''">$(JAVA_HOME)</JdkPath>
   </PropertyGroup>
   <ItemGroup Condition="'$(JdkPath)' == ''">
-    <_BridgeJdkRelease Include="$(SaveBridgeRepositoryRoot)\artifacts\toolchains\jdk-25*\release" />
+    <_BridgeJdkRelease Include="$(GameBridgeRepositoryRoot)\artifacts\toolchains\jdk-25*\release" />
   </ItemGroup>
   <Target Name="ValidateBridgeToolchain">
     <PropertyGroup Condition="'$(JdkPath)' == '' and '@(_BridgeJdkRelease->Count())' == '1'">

@@ -10,7 +10,7 @@ expected, or why a backup ran without a game save.
 
 The setting is **Delay scheduled backups while paused or asleep**
 (`[backup].pause_periodic_during_game`), on by default. PZ Tools reads pause and sleep
-from the running game through the [save bridge](glossary.md#save-bridge); it does not
+from the running game through the [game bridge](glossary.md#game-bridge); it does not
 guess them from which files the game has open.
 
 ## What you see
@@ -42,7 +42,7 @@ remaining value, and its display follows the system's animation preference.
 - **Turning Save game before backup off** also leaves that reading on. A pause-aware
   periodic backup then uses a guarded check to confirm the backup is allowed
   ([admission](glossary.md#admission)) without saving the game. See
-  [saving the game before a backup](save-bridge.md).
+  [saving the game before a backup](game-bridge.md).
 - **Automatic backups switched off** wins over either timing choice. Manual and death
   backups follow their own rules.
 - **Changing the interval or the timing setting** starts a new interval. Restarting
@@ -94,7 +94,7 @@ remaining time. The uncertain result survives a scheduler restart.
 
 **Not unknown.** An error before any worker was dispatched, a worker that did nothing
 (`Skipped`), and a reservation that never reached its worker keep the slot, and it is
-tried again. See [save-bridge behaviour](save-bridge.md#admission-and-failures).
+tried again. See [game-bridge behaviour](game-bridge.md#admission-and-failures).
 
 **Background processes.** Extension control runs beside the game-state reading and
 cannot end it. An extension-controller failure is reported and retried on its own. With
@@ -136,7 +136,7 @@ anchored again.
 | Layer | Responsibility |
 | --- | --- |
 | Java adapter and observer | Read game state, maintain world/clock identity and cumulative active time |
-| SaveBridge / State.Scheduler | Authenticate the stream, reconnect and publish observations |
+| GameBridge / State.Scheduler | Authenticate the stream, reconnect and publish observations |
 | Zomboid.State | Commit semantic transitions and an idempotent [outbox](glossary.md#collector-reactor-projection-outbox) |
 | Scheduling | Own remaining time, policy generation and admission tickets |
 | Projections / WinUI | Display immutable status without controlling admission |

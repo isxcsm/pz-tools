@@ -37,7 +37,7 @@ $app = Join-Path $releaseDirectory 'PzTools'
 Write-Host "== Publishing PZ Tools $version ($commit)"
 # A fresh Java build folder, so the payload reuses nothing from earlier development builds.
 & (Join-Path $PSScriptRoot 'publish-app.ps1') -Configuration Release -JdkPath $JdkPath -Output (Join-Path $relative 'PzTools') `
-    -SaveBridgeOutput (Join-Path $relative 'save-bridge-build')
+    -GameBridgeOutput (Join-Path $relative 'game-bridge-build')
 if ($LASTEXITCODE -ne 0) { throw 'Publishing failed.' }
 $published = (Get-Item -LiteralPath (Join-Path $app 'PzTools.App.exe')).VersionInfo.ProductVersion
 if ($published.Split('+')[0] -ne $version) { throw "The published app says $published, not $version." }

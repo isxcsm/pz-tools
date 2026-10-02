@@ -26,7 +26,7 @@ GUIDE_SECTIONS = (
 )
 GUIDE_REFERENCES = (
     'docs/README.md', 'docs/development.md', 'docs/configuration.md',
-    'docs/repository-housekeeping.md', 'docs/save-bridge.md', 'docs/character-recovery.md',
+    'docs/repository-housekeeping.md', 'docs/game-bridge.md', 'docs/character-recovery.md',
 )
 GUIDE_FACT_TOKENS = (
     'PzTools.App.exe', '.NET 10', 'Windows x64', 'Java 25', 'global.json',

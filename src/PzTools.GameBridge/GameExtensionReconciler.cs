@@ -1,6 +1,6 @@
 using PzTools.Process.Contracts.GameRuntime;
 
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 /// <summary>
 /// Tracks accepted requests separately from applied state and rejected desired revisions.

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using PzTools.Process.Contracts;
 using PzTools.Process.Telemetry;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 // Launch check only: proves Windows allows this executable to start. No work, no output.
 if (args is ["--probe"]) return 0;
@@ -34,7 +34,7 @@ try
     if (mode is not ("general" or "detailed")) throw new ArgumentException("--mode must be general or detailed.");
     var maximumSeconds = CommandLine.Int32(Optional("--max-seconds") ?? "600", "--max-seconds", 5, GameProfileClient.MaximumSeconds);
     if (!output.EndsWith(".pzprof", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("--output must end with .pzprof.");
-    var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "save-bridge");
+    var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "game-bridge");
     var explicitProcess = Optional("--process-id");
 
     telemetry = await ProcessTelemetrySession.StartAsync(Required("--telemetry-identity"), component, runIndex);
@@ -188,7 +188,7 @@ async Task<int> RollAsync(string command)
     if (mode is not (null or "general" or "detailed")) throw new ArgumentException("--mode must be general or detailed.");
     var output = command == "roll-save" ? Path.GetFullPath(Required("--output")) : null;
     if (output is not null && !output.EndsWith(".pzprof", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("--output must end with .pzprof.");
-    var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "save-bridge");
+    var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "game-bridge");
     var explicitProcess = Optional("--process-id");
     var operation = command == "roll-save" ? "profile" : "profile-roll";
 

@@ -1,6 +1,6 @@
 using PzTools.Process.Contracts.GameRuntime;
 
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 /// <summary>
 /// Single-owner management state. Applied feature values require a matching JVM acknowledgement.

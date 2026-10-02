@@ -11,7 +11,7 @@ The save is the game's own: the same one it makes when you save from the menu. T
 game may pause briefly while it saves, as it always does. Nothing has to be installed
 for this: no Workshop mod, no launch option, and no change to game files.
 
-The part of PZ Tools that talks to the game is the **save bridge**. Besides saving,
+The part of PZ Tools that talks to the game is the **game bridge**. Besides saving,
 it streams the game's state (pause, sleep, character death), hosts the optional
 [game extensions](game-extensions.md) and records [performance profiles](profiler.md).
 The [overview](overview.md) shows where it sits.
@@ -37,7 +37,7 @@ comes afterwards, and the app's progress card shows when the backup itself is do
 
 1. The backup worker takes the repository's [writer lock](glossary.md#writer-lock), so
    no other job can change the backup folder meanwhile.
-2. It connects to the save bridge in the game, loading it first if this is the first
+2. It connects to the game bridge in the game, loading it first if this is the first
    request since the game started.
 3. The bridge checks that the request fits the game: the right game process, a loaded
    world, the save that is to be backed up, and, for a periodic backup, that the game
@@ -146,15 +146,22 @@ A compatible update of the payload or a module is picked up at an idle moment,
 including after the app has been moved to another folder. Use app and worker files
 from the same build.
 
+The bridge was first called the save bridge, and one name of that time stays: the
+bootstrap loads a payload's request entry as `pztools.bridge.runtime.SaveBridge`, and a
+bootstrap from an earlier version is still in any game it was attached to. That class
+only hands each request to `BridgeSession`, which does the work. The `SAVE` request kind
+on the control connection is kept for the same reason, though it carries the profile
+and notice commands too.
+
 ### Code
 
 | Component | Responsibility |
 | --- | --- |
-| `PzTools.SaveBridge` | Finding the game, authenticated requests, deadlines, reading results |
+| `PzTools.GameBridge` | Finding the game, authenticated requests, deadlines, reading results |
 | `PzTools.Zomboid.Backup` | Deciding whether and how to prepare a backup (the table above) |
-| `PzTools.SaveBridge.Agent` | Attach entry point, game adapter, code that runs in the game |
-| `PzTools.SaveBridge.Native` | Windows native bootstrap (JVMTI) |
-| `build/SaveBridgePayload.targets` | Build and deployment integration |
+| `PzTools.GameBridge.Agent` | Attach entry point, game adapter, code that runs in the game |
+| `PzTools.GameBridge.Native` | Windows native bootstrap (JVMTI) |
+| `build/GameBridgePayload.targets` | Build and deployment integration |
 
 The general backup engine knows nothing about the game: it receives a preparation
 step to run before capture. The game extensions use a separate control connection
@@ -169,7 +176,7 @@ game's own trimmed Java runtime cannot be used to build.
 ```powershell
 $jdk = 'C:\path\to\jdk-25'
 dotnet build src/PzTools.Backup.Cli/PzTools.Backup.Cli.csproj -p:JdkPath="$jdk"
-pwsh scripts/test-save-bridge.ps1 -JdkPath $jdk
+pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
@@ -178,9 +185,9 @@ pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 - The normal worker build also produces the Java and native parts of the bridge and a
   reduced Java runtime for attaching. Game JARs are not needed to build and are never
   distributed.
-- Bridge output goes to `artifacts/save-bridge/<Configuration>`. If a running game
+- Bridge output goes to `artifacts/game-bridge/<Configuration>`. If a running game
   still holds an older native DLL there, choose another folder with
-  `SaveBridgeDirectory` (MSBuild) or `SaveBridgeOutput` (publishing scripts). Keep
+  `GameBridgeDirectory` (MSBuild) or `GameBridgeOutput` (publishing scripts). Keep
   build output apart from an installed app.
 
 The bridge tests run against a synthetic Java program that imitates the game.

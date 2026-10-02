@@ -3,7 +3,7 @@ using PzTools.Backup.Core.Configuration;
 using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts.GameRuntime;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 namespace PzTools.Backup.Tests;
 
@@ -224,7 +224,7 @@ public sealed partial class GameSaveClientTests
         }
     }
 
-    private static string RuntimeBridgeDirectory() => Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")
+    private static string RuntimeBridgeDirectory() => Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")
         ?? throw new InvalidOperationException("Synthetic bridge fixture was not prepared.");
 
     private static RuntimeSaveTicket Ticket(RuntimeSnapshot state, long ordinal, long delay = 0) =>

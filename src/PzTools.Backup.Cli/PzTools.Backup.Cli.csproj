@@ -20,7 +20,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <Import Project="..\..\build\SaveBridgePayload.targets" />
+  <Import Project="..\..\build\GameBridgePayload.targets" />
   <ItemGroup>
     <ProjectReference Include="..\PzTools.Scheduling\PzTools.Scheduling.csproj" />
     <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md"

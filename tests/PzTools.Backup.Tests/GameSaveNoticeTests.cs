@@ -1,5 +1,5 @@
 using System.Globalization;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 namespace PzTools.Backup.Tests;
 
@@ -148,7 +148,7 @@ public sealed partial class GameSaveClientTests
     private static string CopyNoticeFixtureBridge(TempDirectory temp)
     {
         var bridge = temp.GetPath("bridge");
-        var original = Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!;
+        var original = Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!;
         foreach (var source in Directory.EnumerateFiles(original, "*", SearchOption.AllDirectories))
         {
             var destination = Path.Combine(bridge, Path.GetRelativePath(original, source));

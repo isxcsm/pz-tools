@@ -3,7 +3,7 @@
 [Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
 Game extensions are optional features that run inside Project Zomboid while you play.
-PZ Tools loads them through the same [save bridge](glossary.md#save-bridge) it uses for
+PZ Tools loads them through the same [game bridge](glossary.md#game-bridge) it uses for
 saving; no game file is changed. This page is for players who want to know what the
 extensions do, where to switch them on and when a change takes effect. The
 [overview](overview.md) shows how they fit into the rest of PZ Tools.
@@ -61,7 +61,7 @@ another or closing the game turns them off and on again by themselves, and the l
 as information, not as a warning. The other way round, the extensions do not affect
 backups: saving before a backup and the in-game save notices have their own settings,
 and the vehicle controls do not change them. See
-[saving the game before a backup](save-bridge.md).
+[saving the game before a backup](game-bridge.md).
 
 The vehicle card shows what the game is actually doing:
 
@@ -87,7 +87,7 @@ structural, [admission](glossary.md#admission) and cleanup checks still apply, a
 setting does not turn the extension on by itself.
 
 Use app, worker and JAR files from the same build. The
-[save-bridge compatibility table](save-bridge.md#compatibility-and-lifecycle) defines
+[game-bridge compatibility table](game-bridge.md#compatibility-and-lifecycle) defines
 the runtime requirements, and [component updates](module-reload.md) explains compatible
 updates, which never change the repository or save formats.
 
@@ -100,7 +100,7 @@ updates, which never change the repository or save formats.
 | WinUI | Inline expandable settings rows |
 | App.Core | Projects your preferences and the results actually applied in the game |
 | GameExtensions | Configuration and version rules |
-| Save bridge | Authentication and admission |
+| Game bridge | Authentication and admission |
 | Vehicle module | Driving model, adapter for the inspected build, and code transforms |
 
 The general backup engine has no module-specific branch.

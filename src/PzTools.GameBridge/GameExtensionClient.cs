@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using PzTools.Process.Contracts.GameRuntime;
 
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 /// <summary>One module on a shared lease. Disposing it does nothing: the lease belongs to the client.</summary>
 public sealed class GameExtensionModule : IGameExtensionSession
@@ -60,7 +60,7 @@ public sealed class GameExtensionClient : IGameExtensionSession
         if (connectTimeout < TimeSpan.FromSeconds(5) || connectTimeout > TimeSpan.FromSeconds(60))
             throw new ArgumentOutOfRangeException(nameof(connectTimeout), "Extension connection timeout must be between 5 and 60 seconds.");
         var java = Path.Combine(bridgeDirectory, "runtime", "bin", "java.exe");
-        var jar = Path.Combine(bridgeDirectory, "pztools-save-bridge.jar");
+        var jar = Path.Combine(bridgeDirectory, "pztools-game-bridge.jar");
         if (!File.Exists(java) || !File.Exists(jar))
             throw new GameSaveException("bridge-not-built", "Continuous extensions are not included in this build.");
         var listener = new TcpListener(IPAddress.Loopback, 0);

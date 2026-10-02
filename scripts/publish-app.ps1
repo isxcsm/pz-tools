@@ -4,7 +4,7 @@
     [string] $Output = 'artifacts/app',
     [string] $DotNetPath = 'C:\Program Files\dotnet\dotnet.exe',
     [string] $JdkPath,
-    [string] $SaveBridgeOutput
+    [string] $GameBridgeOutput
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,15 +17,15 @@ if (-not (Test-Path -LiteralPath $DotNetPath -PathType Leaf)) {
 }
 
 & (Join-Path $PSScriptRoot 'publish-tools.ps1') `
-    -Configuration $Configuration -Output $Output -DotNetPath $DotNetPath -JdkPath $JdkPath -SaveBridgeOutput $SaveBridgeOutput
+    -Configuration $Configuration -Output $Output -DotNetPath $DotNetPath -JdkPath $JdkPath -GameBridgeOutput $GameBridgeOutput
 if ($LASTEXITCODE -ne 0) { throw 'worker 게시에 실패했습니다.' }
 
 # Forward the same toolchain/output selection used by workers into the App dependency graph.
 $publishProperties = @()
 if (-not [string]::IsNullOrWhiteSpace($JdkPath)) { $publishProperties += "-p:JdkPath=$JdkPath" }
-if (-not [string]::IsNullOrWhiteSpace($SaveBridgeOutput)) {
-    $bridgePath = [IO.Path]::GetFullPath((Join-Path $repositoryRoot $SaveBridgeOutput))
-    $publishProperties += "-p:SaveBridgeDirectory=$bridgePath"
+if (-not [string]::IsNullOrWhiteSpace($GameBridgeOutput)) {
+    $bridgePath = [IO.Path]::GetFullPath((Join-Path $repositoryRoot $GameBridgeOutput))
+    $publishProperties += "-p:GameBridgeDirectory=$bridgePath"
 }
 & $DotNetPath publish `
     (Join-Path $repositoryRoot 'src/PzTools.App/PzTools.App.csproj') `

@@ -7,7 +7,7 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
 using DiagnosticsProcess = System.Diagnostics.Process;
 
-namespace PzTools.SaveBridge;
+namespace PzTools.GameBridge;
 
 public sealed class GameSaveException(string code, string message, string? diagnostics = null)
     : Exception($"[{code}] {message}"), IFailureDiagnostics
@@ -99,11 +99,11 @@ public sealed class GameSaveClient(string bridgeDirectory,
         try
         {
             var java = Path.Combine(bridgeDirectory, "runtime", "bin", "java.exe");
-            var jar = Path.Combine(bridgeDirectory, "pztools-save-bridge.jar");
+            var jar = Path.Combine(bridgeDirectory, "pztools-game-bridge.jar");
             if (!File.Exists(java) || !File.Exists(jar)
-                || !File.Exists(Path.Combine(bridgeDirectory, "pztools-save-bootstrap.jar"))
+                || !File.Exists(Path.Combine(bridgeDirectory, "pztools-game-bootstrap.jar"))
                 || !File.Exists(Path.Combine(bridgeDirectory, "pztools-attach-bootstrap.dll")))
-                throw new GameSaveException("bridge-not-built", "The game save bridge is not included in this build.");
+                throw new GameSaveException("bridge-not-built", "The game bridge is not included in this build.");
             listener.Start(1);
             var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
             var start = new ProcessStartInfo(java)
