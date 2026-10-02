@@ -521,14 +521,14 @@ public sealed class ProfileRecordingTests
         // Each line the sample passed counts it once, and the innermost runs it: 14 only called, and the lines' self
         // samples add up to slow's own.
         Assert.Equal([(12, 4, 4, 6700L, 6700L), (14, 0, 1, 0L, 700L)],
-            ProfileAnalysis.LinesIn(recording, 0, 50_000, "SlowMod", 0)
+            LinesIn(recording, 0, 50_000, "SlowMod", 0)
                 .Select(line => (line.Line, line.SelfSamples, line.Samples, line.AllocatedSelf, line.AllocatedTotal)));
         var range = ProfileAnalysis.Analyze(recording, 0, 50_000, recording.GameThread);
         Assert.Equal(range.LuaGroups.Single(group => group.Key == "SlowMod").Samples,
-            ProfileAnalysis.LinesIn(recording, 0, 50_000, "SlowMod", 0).Sum(line => line.SelfSamples));
+            LinesIn(recording, 0, 50_000, "SlowMod", 0).Sum(line => line.SelfSamples));
         // The analysis counts the same lines for every owner's functions as it goes.
-        Assert.Equal(ProfileAnalysis.LinesIn(recording, 0, 50_000, "SlowMod", 0), range.LuaLines["SlowMod"][0]);
-        Assert.Equal(ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.GameOwner, 1), range.LuaLines[ProfileAnalysis.GameOwner][1]);
+        Assert.Equal(LinesIn(recording, 0, 50_000, "SlowMod", 0), range.LuaLines["SlowMod"][0]);
+        Assert.Equal(LinesIn(recording, 0, 50_000, ProfileAnalysis.GameOwner, 1), range.LuaLines[ProfileAnalysis.GameOwner][1]);
         // In the tree each node has its own frame's lines, which add up to the node: OnTick at 80; slow at 12 (twice on
         // its own, once calling itself) and 14; the inner slow at 12.
         var onTick = Assert.Single(range.LuaCallTrees["SlowMod"].Children);
@@ -541,13 +541,13 @@ public sealed class ProfileRecordingTests
         // once at 14 and once at 12, the lower line first when they tie.
         Assert.Equal((0, 80, 12), (onTick.CalledFromLine, slow.CalledFromLine, Assert.Single(slow.Children).CalledFromLine));
         // slow called helper at 13, a sample the unknown owner's: counted there, as a total only.
-        Assert.Equal([(13, 0, 1)], ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.UnknownOwner, 0)
+        Assert.Equal([(13, 0, 1)], LinesIn(recording, 0, 50_000, ProfileAnalysis.UnknownOwner, 0)
             .Select(line => (line.Line, line.SelfSamples, line.Samples)));
         // OnTick in the game's samples only: at 81 on its own; its calls at 80 ended in other owners.
-        Assert.Equal([(81, 1, 1)], ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.GameOwner, 1)
+        Assert.Equal([(81, 1, 1)], LinesIn(recording, 0, 50_000, ProfileAnalysis.GameOwner, 1)
             .Select(line => (line.Line, line.SelfSamples, line.Samples)));
         // Only the range's samples.
-        Assert.Equal(1, ProfileAnalysis.LinesIn(recording, 0, 20_000, "SlowMod", 0).Single().Samples);
+        Assert.Equal(1, LinesIn(recording, 0, 20_000, "SlowMod", 0).Single().Samples);
     }
 
     [Fact]
@@ -569,6 +569,34 @@ public sealed class ProfileRecordingTests
         using (var gzip = new GZipStream(buffer, CompressionMode.Compress, leaveOpen: true))
             gzip.Write(Encoding.UTF8.GetBytes(string.Join('\n', lines)));
         return buffer.ToArray();
+    }
+
+    /// <summary>
+    /// An owner's lines of one function counted sample by sample, apart from the analysis, to check its figures
+    /// against: each line a function was at counts a sample once, a recursion passing it again included, and the
+    /// innermost frame is the line being run.
+    /// </summary>
+    private static IReadOnlyList<ProfileLineTotal> LinesIn(ProfileRecording recording, long start, long end, string owner, int function)
+    {
+        var lines = new Dictionary<int, (int Self, int Samples, long AllocatedSelf, long AllocatedTotal)>();
+        foreach (var sample in recording.LuaSamples.Where(sample => sample.Time >= start && sample.Time < end))
+        {
+            var stack = recording.LuaStacks[sample.Stack];
+            if (stack.Length == 0 || !ProfileAnalysis.OwnerOf(recording.LuaFunctions[stack[0].Function].File)
+                    .Equals(owner, StringComparison.OrdinalIgnoreCase)) continue;
+            var seen = new HashSet<(int, int)>();
+            var bytes = Math.Max(0, sample.Allocated);
+            for (var depth = 0; depth < stack.Length; depth++)
+            {
+                var frame = stack[depth];
+                if (!seen.Add((frame.Function, frame.Line)) || frame.Function != function) continue;
+                var count = lines.GetValueOrDefault(frame.Line);
+                lines[frame.Line] = (count.Self + (depth == 0 ? 1 : 0), count.Samples + 1,
+                    count.AllocatedSelf + (depth == 0 ? bytes : 0), count.AllocatedTotal + bytes);
+            }
+        }
+        return lines.Select(item => new ProfileLineTotal(item.Key, item.Value.Self, item.Value.Samples, item.Value.AllocatedSelf, item.Value.AllocatedTotal))
+            .OrderByDescending(line => line.Samples).ThenByDescending(line => line.SelfSamples).ThenBy(line => line.Line).ToArray();
     }
 
     private static ProfileRecording Load(string text)
