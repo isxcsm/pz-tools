@@ -63,9 +63,30 @@ that folder first and then run `publish-app.ps1` on the same, now nonempty, fold
 - **Use a fresh `-SaveBridgeOutput` folder for a release** as well, so the Java payload
   does not reuse files from earlier development builds.
 
+## Build a release
+
+Raise `<Version>` in [`Directory.Build.props`](../Directory.Build.props) (every assembly
+and executable carries it, and the Home page shows it), commit, then run:
+
+```powershell
+pwsh scripts/build-release.ps1 -JdkPath $jdk
+```
+
+[`build-release.ps1`](../scripts/build-release.ps1) does the steps below in one go and
+writes to `artifacts/release/v<version>/`, which must not exist yet:
+
+1. refuses uncommitted changes, so the package matches a commit
+2. publishes the app into `PzTools/`, with a fresh Java build folder beside it, and
+   checks that the published app carries the version
+3. runs the tests that need a published folder (`PublishedDistributionTests` and the
+   published-worker checks)
+4. packages it as `PzTools-v<version>-win-x64.zip` with its `.sha256`, as below
+
+Attach those two files to the GitHub release.
+
 ## Package a release
 
-After testing the published folder, create the release archive:
+`build-release.ps1` runs this step itself. On its own, after testing a published folder:
 
 ```powershell
 pwsh scripts/package-release.ps1 -PublishDirectory artifacts/app-local -OutputArchive artifacts/PzTools-preview-win-x64.zip
