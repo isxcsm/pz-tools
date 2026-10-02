@@ -300,6 +300,28 @@ public sealed class AppHost : IAsyncDisposable
     }
 
     /// <summary>
+    /// The characters of a single-player save, for choosing which one to heal or revive. Empty when the save
+    /// cannot be read; recovery itself then refuses a save with several characters.
+    /// </summary>
+    public async Task<IReadOnlyList<LocalCharacter>> ListSaveCharactersAsync(string savePath,
+        CancellationToken cancellationToken = default)
+    {
+        try { return await new CharacterNameReader().ListLocalAsync(Path.Combine(savePath, "players.db"), cancellationToken); }
+        catch (Exception exception) when (exception is Microsoft.Data.Sqlite.SqliteException or IOException
+            or UnauthorizedAccessException) { return []; }
+    }
+
+    /// <summary>
+    /// What healing or reviving a character of the active saves folder would do, read without changing or
+    /// locking the save: for one who is dead with nothing on them, the zombies and corpses that may hold their
+    /// belongings. The edit itself runs in its worker (<see cref="OperationCoordinator.RecoverCharacterAsync"/>).
+    /// </summary>
+    public Task<PzTools.Zomboid.Recovery.CharacterRecoveryPreview> PreviewCharacterRecoveryAsync(string saveId,
+        long? playerId, CancellationToken cancellationToken = default) =>
+        new PzTools.Zomboid.Recovery.CharacterRecoveryService().PreviewAsync(
+            ActiveSavesRoot ?? throw new InvalidOperationException("host-not-ready"), saveId, playerId, cancellationToken);
+
+    /// <summary>
     /// The game version of a save as it is now: the running game's while it has the save loaded, otherwise
     /// the last one this app saw it loaded with. A save file records no version of its own.
     /// </summary>

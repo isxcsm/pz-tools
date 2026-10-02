@@ -57,6 +57,27 @@ PzTools.App (window, settings, cards)
 Every background program is also a command-line tool, so it can be run and tested
 without the app; see [CLI commands](cli.md).
 
+### The interface is a replaceable head
+
+Only `PzTools.App` uses WinUI. What the window does goes through `PzTools.App.Core`
+(the host, operations and the views it reads), which has no interface code, so another
+interface could sit on the same core. The interface may use the core's view and contract
+types, but does not call the libraries below it to do work.
+
+The shared libraries target plain `net10.0`, not Windows, so they build for any
+system. Building is not running, though: no other system is built or tested, and
+these parts are written for Windows only:
+
+| Part | Windows feature | Elsewhere today |
+| --- | --- | --- |
+| NTFS change tracking (`Backup.ChangeTracking.Windows`) | USN journal | Backups fall back to a full scan |
+| File identity and times (`WindowsFileMetadataReader`) | Win32 file information | Needs another reader behind the same interface |
+| Process hosting (`Process.Hosting`) | Job objects, named mutexes and events, detached launch | Activation and polite stop report "not available"; the rest needs a replacement |
+| Game attach (`pztools-attach-bootstrap.dll`) | Native Windows DLL | Needs a native attach for that system |
+
+The executables (app, schedulers, runners and workers) still target Windows, as the
+release is Windows x64.
+
 ## Where things are stored
 
 | Place | Contents |

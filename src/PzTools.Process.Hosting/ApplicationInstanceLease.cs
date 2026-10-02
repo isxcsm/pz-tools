@@ -46,6 +46,8 @@ public static class ApplicationActivationSignal
     public static bool TrySignal(string dataRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dataRoot);
+        // Opening a named event exists only on Windows; elsewhere the second launch simply finds no listener.
+        if (!OperatingSystem.IsWindows()) return false;
         try
         {
             if (!EventWaitHandle.TryOpenExisting(Name(dataRoot), out var signal)) return false;
