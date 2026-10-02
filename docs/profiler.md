@@ -211,12 +211,16 @@ a copy carries the tree as indented text. A path deeper than the 24 innermost fu
 the recorder keeps starts at the 24th. The list is still the way to see a helper that
 many paths call: the tree splits its cost among them, the list adds it up.
 
-In the list each function opens into its lines, the line it was at when sampled, most
-samples first (in *Memory allocation*, most bytes): what to change, not only where. A
-line's *Total* counts the samples that found the function there, whatever it had called
-from that line; its *Self* those where it was running the line itself. A recursive
-function is counted at its outermost call. *Line unknown* is a frame the game gave no
-line for.
+The *File* column names the function's heaviest line too, as `Client.lua:125`: the line
+it was at in most samples (in *Memory allocation*, where it allocated most). Each function
+opens into all its lines, most samples first: what to change, not only where. In the list,
+a function's row opens into them; in the tree, a node opens into its lines on that path
+(when it was at more than one) above what it called. A line's *Total* counts the samples
+that found the function there, whatever it had called from that line, once per sample
+even if a recursion passed the line again; its *Self* those where it was running the
+line itself. So in the list a function's lines' *Samples*, those that ended there, add up
+to the function's, and in the tree a node's lines' samples add up to the node's. *Line
+unknown* is a frame the game gave no line for.
 
 The **search** box beside the owner's name narrows the table to the rows whose name or
 file holds the text, in any case; in the tree it keeps the paths that lead to a match,

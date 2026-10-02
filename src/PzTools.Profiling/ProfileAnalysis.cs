@@ -52,10 +52,18 @@ public sealed class ProfileCallNode
         return byFunction[function] = new ProfileCallNode(function, source.Name, source.File);
     }
 
-    internal void Count(bool self, long allocated)
+    /// <summary>
+    /// The lines the function was at on this path, most samples first: each sample through the node was at one of
+    /// them, so their samples add up to the node's. Empty for the root.
+    /// </summary>
+    public IReadOnlyList<ProfileLineTotal> Lines { get; private set; } = [];
+    private Dictionary<int, ProfileLineTotal>? lineCounts;
+
+    internal void Count(bool self, long allocated, int line = -1)
     {
         Samples++;
         if (self) SelfSamples++;
+        if (line >= 0) (lineCounts ??= []).Add(line, self, allocated);
         if (allocated < 0) return;
         AllocatedTotal += allocated;
         if (self) AllocatedSelf += allocated;
@@ -66,8 +74,25 @@ public sealed class ProfileCallNode
         Total = Math.Min(1, Samples * perSample);
         Self = Math.Min(1, SelfSamples * perSample);
         children = byFunction.Values.OrderByDescending(node => node.Samples).ThenBy(node => node.Name, StringComparer.Ordinal).ToArray();
+        if (lineCounts is not null) Lines = ProfileLineTotals.Ordered(lineCounts.Values);
+        lineCounts = null;
         foreach (var child in children) child.Finish(perSample);
     }
+}
+
+internal static class ProfileLineTotals
+{
+    /// <summary>One more sample at <paramref name="line"/>; <paramref name="self"/> when it was running the line itself.</summary>
+    public static void Add(this Dictionary<int, ProfileLineTotal> lines, int line, bool self, long allocated)
+    {
+        var bytes = Math.Max(0, allocated);
+        var total = lines.GetValueOrDefault(line) ?? new(line, 0, 0, 0, 0);
+        lines[line] = new(line, total.SelfSamples + (self ? 1 : 0), total.Samples + 1,
+            total.AllocatedSelf + (self ? bytes : 0), total.AllocatedTotal + bytes);
+    }
+
+    public static ProfileLineTotal[] Ordered(IEnumerable<ProfileLineTotal> lines) =>
+        lines.OrderByDescending(line => line.Samples).ThenByDescending(line => line.SelfSamples).ThenBy(line => line.Line).ToArray();
 }
 
 /// <summary>
@@ -78,9 +103,10 @@ public sealed record ProfileFunctionTotal(int Function, string Name, string File
     long AllocatedSelf, long AllocatedTotal);
 
 /// <summary>
-/// One line of a Lua function: <see cref="Samples"/> found it at that line, whatever it had called from there (a
-/// recursive call counted once, at its outermost call); <see cref="SelfSamples"/> found it running that line itself.
-/// Line 0 is a frame the interpreter gave no line for.
+/// One line of a Lua function: <see cref="Samples"/> found it at that line, whatever it had called from there (once
+/// per sample, however often a recursion passed the line); <see cref="SelfSamples"/> found it running that line
+/// itself, the innermost frame, so a function's lines' self samples add up to its own. Line 0 is a frame the
+/// interpreter gave no line for.
 /// </summary>
 public sealed record ProfileLineTotal(int Line, int SelfSamples, int Samples, long AllocatedSelf, long AllocatedTotal);
 
@@ -118,6 +144,12 @@ public sealed record ProfileRange(
     /// tree under a root: its outermost functions sum to the owner's own samples, as its row in the list does.
     /// </summary>
     public IReadOnlyDictionary<string, ProfileCallNode> LuaCallTrees { get; init; } = new Dictionary<string, ProfileCallNode>();
+    /// <summary>
+    /// Per owner, the same samples by each function's lines, as <see cref="ProfileAnalysis.LinesByFunction"/> counts them:
+    /// the list's functions open into these, and each shows its heaviest.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<int, IReadOnlyList<ProfileLineTotal>>> LuaLines { get; init; } =
+        new Dictionary<string, IReadOnlyDictionary<int, IReadOnlyList<ProfileLineTotal>>>();
 }
 
 /// <summary>Answers "what was the game doing between these two moments" from a loaded recording.</summary>
@@ -231,6 +263,8 @@ public static class ProfileAnalysis
         var allocatedTotal = new Dictionary<int, long>();
         long luaAllocated = 0;
         var callTrees = new Dictionary<string, ProfileCallNode>(StringComparer.OrdinalIgnoreCase);
+        var lineCounts = new Dictionary<string, Dictionary<int, Dictionary<int, ProfileLineTotal>>>(StringComparer.OrdinalIgnoreCase);
+        var seenLines = new HashSet<(int Function, int Line)>();
         for (var index = luaFirst; index < lua.Length && lua[index].Time < end; index++)
         {
             if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
@@ -260,13 +294,22 @@ public static class ProfileAnalysis
             }
             // The sample's path, outermost first, in the tree of the owner whose function it ended in.
             var innermostOwner = ownerOf[stack[0].Function]!;
+            if (!lineCounts.TryGetValue(innermostOwner, out var ownerLines)) lineCounts[innermostOwner] = ownerLines = [];
+            seenLines.Clear();
+            for (var depth = 0; depth < stack.Length; depth++)
+            {
+                var frame = stack[depth];
+                if (!seenLines.Add((frame.Function, frame.Line))) continue;
+                if (!ownerLines.TryGetValue(frame.Function, out var lines)) ownerLines[frame.Function] = lines = [];
+                lines.Add(frame.Line, depth == 0, allocated);
+            }
             if (!callTrees.TryGetValue(innermostOwner, out var node))
                 callTrees[innermostOwner] = node = new ProfileCallNode(-1, innermostOwner, "");
             node.Count(false, allocated);
             for (var depth = stack.Length - 1; depth >= 0; depth--)
             {
                 node = node.Child(stack[depth].Function, recording);
-                node.Count(depth == 0, allocated);
+                node.Count(depth == 0, allocated, stack[depth].Line);
             }
         }
         // Lua rows are shares of the whole range, so a mod's row reads directly as "this much of the time".
@@ -314,6 +357,10 @@ public static class ProfileAnalysis
         {
             LuaAllocationGroups = allocationGroups,
             LuaCallTrees = callTrees,
+            LuaLines = lineCounts.ToDictionary(owner => owner.Key,
+                owner => (IReadOnlyDictionary<int, IReadOnlyList<ProfileLineTotal>>)owner.Value.ToDictionary(
+                    function => function.Key, function => (IReadOnlyList<ProfileLineTotal>)ProfileLineTotals.Ordered(function.Value.Values)),
+                StringComparer.OrdinalIgnoreCase),
             WaitingSamples = waiting,
             LuaAllocated = luaAllocated,
             GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
@@ -427,33 +474,40 @@ public static class ProfileAnalysis
     }
 
     /// <summary>
-    /// One function's lines in a range, counting the samples that ended in <paramref name="owner"/>'s functions, as the
-    /// owner's table does: where in the function the time (and the bytes) went. Most samples first.
+    /// Every function's lines in a range, in one pass, counting the samples that ended in <paramref name="owner"/>'s
+    /// functions, as the owner's table does: where in each function the time (and the bytes) went. Most samples first.
     /// </summary>
-    public static IReadOnlyList<ProfileLineTotal> LinesIn(ProfileRecording recording, long start, long end, string owner, int function)
+    public static IReadOnlyDictionary<int, IReadOnlyList<ProfileLineTotal>> LinesByFunction(ProfileRecording recording, long start,
+        long end, string owner, CancellationToken cancellation = default)
     {
-        var lines = new Dictionary<int, ProfileLineTotal>();
+        var counts = new Dictionary<int, Dictionary<int, ProfileLineTotal>>();
+        var seen = new HashSet<(int Function, int Line)>();
+        var ownerOf = new string?[recording.LuaFunctions.Count];
         var lua = recording.LuaSamples;
         for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
         {
+            if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
             var stack = recording.LuaStacks[lua[index].Stack];
-            if (stack.Length == 0 || !OwnerOf(recording.LuaFunctions[stack[0].Function].File).Equals(owner, StringComparison.OrdinalIgnoreCase))
-                continue;
-            // The function's outermost call on the stack: the line it was at, whatever it had called from there.
-            var depth = stack.Length - 1;
-            while (depth >= 0 && stack[depth].Function != function) depth--;
-            if (depth < 0) continue;
-            // Running the line itself, the outer call being innermost; a line that called anything, itself included, is
-            // only the total's, so a line's self never exceeds its total.
-            var allocated = Math.Max(0, lua[index].Allocated);
-            var own = depth == 0;
-            var at = stack[depth].Line;
-            var total = lines.GetValueOrDefault(at) ?? new(at, 0, 0, 0, 0);
-            lines[at] = new(at, total.SelfSamples + (own ? 1 : 0), total.Samples + 1,
-                total.AllocatedSelf + (own ? allocated : 0), total.AllocatedTotal + allocated);
+            if (stack.Length == 0) continue;
+            var innermost = ownerOf[stack[0].Function] ??= OwnerOf(recording.LuaFunctions[stack[0].Function].File);
+            if (!innermost.Equals(owner, StringComparison.OrdinalIgnoreCase)) continue;
+            // Each line a function was at counts the sample once, a recursion passing it again included; the innermost
+            // frame is the line being run.
+            seen.Clear();
+            for (var depth = 0; depth < stack.Length; depth++)
+            {
+                var frame = stack[depth];
+                if (!seen.Add((frame.Function, frame.Line))) continue;
+                if (!counts.TryGetValue(frame.Function, out var lines)) counts[frame.Function] = lines = [];
+                lines.Add(frame.Line, depth == 0, lua[index].Allocated);
+            }
         }
-        return lines.Values.OrderByDescending(line => line.Samples).ThenByDescending(line => line.SelfSamples).ThenBy(line => line.Line).ToArray();
+        return counts.ToDictionary(item => item.Key, item => (IReadOnlyList<ProfileLineTotal>)ProfileLineTotals.Ordered(item.Value.Values));
     }
+
+    /// <summary>One function's lines; see <see cref="LinesByFunction"/>.</summary>
+    public static IReadOnlyList<ProfileLineTotal> LinesIn(ProfileRecording recording, long start, long end, string owner, int function) =>
+        LinesByFunction(recording, start, end, owner).GetValueOrDefault(function) ?? [];
 
     /// <summary>
     /// What the game thread allocated in the range, in Lua or not; null without readings. Each reading covers the time

@@ -1729,10 +1729,21 @@ public sealed partial class ProfilerPage : UserControl
 
     /// <summary>
     /// A line of the tree: a node, or (with <see cref="Rest"/>) the siblings past the first few, gathered and summed;
-    /// opened, they follow it one level deeper.
+    /// opened, they follow it one level deeper. With <see cref="Line"/>, one of the lines of <see cref="LineOf"/>.
     /// </summary>
     private sealed record TreeItem(ProfileCallNode? Node, int Depth, string Path, bool HasChildren, bool Open,
-        IReadOnlyList<ProfileCallNode>? Rest = null);
+        IReadOnlyList<ProfileCallNode>? Rest = null, ProfileLineTotal? Line = null, ProfileCallNode? LineOf = null);
+
+    // A function's lines as a table shows them: in the allocation tab only those that allocated, the most bytes first.
+    private static IReadOnlyList<ProfileLineTotal> ShownLines(IReadOnlyList<ProfileLineTotal> lines, bool allocation) =>
+        allocation ? lines.Where(line => line.AllocatedTotal > 0).OrderByDescending(line => line.AllocatedTotal).ToArray() : lines;
+
+    // The line a function spent the most at, shown beside its file; 0 when the game gave none.
+    private static int MainLine(IReadOnlyList<ProfileLineTotal>? lines, bool allocation) =>
+        lines is null ? 0 : ShownLines(lines, allocation).FirstOrDefault(line => line.Line > 0)?.Line ?? 0;
+
+    private static string LineName(ProfileLineTotal line) =>
+        line.Line > 0 ? Localizer.Format("ProfileLineFormat", line.Line.ToString(Localizer.Culture)) : Localizer.Get("ProfileLineUnknown");
 
     private ProfileCallNode? TreeOf(ResultGroup group) =>
         group.Kind is DetailKind.Lua or DetailKind.Allocation && shown?.LuaCallTrees.TryGetValue(group.Key, out var tree) == true ? tree : null;
@@ -1786,10 +1797,20 @@ public sealed partial class ProfilerPage : UserControl
         {
             if (rows.Count >= MaximumTreeRows) return;
             var childPath = path + "/" + child.Function;
-            var hasChildren = Shown(child).Any();
-            var isOpen = hasChildren && (filtering || open.Contains(childPath));
+            // A node opens into its lines (when it was at more than one) and what it called. A search opens the paths
+            // to its matches, not every line on the way.
+            var lines = ShownLines(child.Lines, allocation);
+            var calls = Shown(child).Any();
+            var hasChildren = calls || lines.Count >= 2;
+            var opened = open.Contains(childPath);
+            var isOpen = hasChildren && (opened || filtering && calls);
             rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen));
-            if (isOpen) Walk(child, depth + 1, childPath);
+            if (!isOpen) return;
+            // Where on this path the function's time went, before what it called from those lines.
+            if (opened && lines.Count >= 2)
+                foreach (var line in lines.Take(MaximumSiblings))
+                    rows.Add(new TreeItem(null, depth + 1, $"line/{childPath}/{line.Line}", false, false, Line: line, LineOf: child));
+            Walk(child, depth + 1, childPath);
         }
         void Walk(ProfileCallNode node, int depth, string path)
         {
@@ -1813,8 +1834,11 @@ public sealed partial class ProfilerPage : UserControl
     /// is one hover away, so a large part of a light owner is not mistaken for a heavy one.
     /// </summary>
     private TableLine FunctionLine(ProfileCallNode owner, bool allocation, string name, string file, int selfSamples, int samples,
-        int shownSamples, long allocatedSelf, long allocatedTotal, string indent = "", TreeItem? tree = null, double? delta = null)
+        int shownSamples, long allocatedSelf, long allocatedTotal, string indent = "", TreeItem? tree = null, double? delta = null,
+        int line = 0)
     {
+        // The file with a line: the function's heaviest, or the line a line row stands for.
+        var at = line > 0 ? ":" + line.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
         (string, string?, bool) Part(int part, long bytes)
         {
             if (allocation)
@@ -1836,7 +1860,7 @@ public sealed partial class ProfilerPage : UserControl
         // Its share of the owner for now; the table scales the bars to its largest line once all are known.
         return new TableLine(
         [
-            (indent + name, name, false), (LuaFileName(file), file, false),
+            (indent + name, name, false), (LuaFileName(file) is { Length: > 0 } fileName ? fileName + at : "", file + at, false),
             Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
             (shownSamples.ToString("N0", Localizer.Culture), null, true),
         ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0, delta);
@@ -2008,7 +2032,10 @@ public sealed partial class ProfilerPage : UserControl
                             totals: true, indent, item));
                     else if (item.Node is { } node)
                         rows.Add(FunctionLine(tree, allocation, node.Name, node.File, node.SelfSamples, node.Samples, node.Samples,
-                            node.AllocatedSelf, node.AllocatedTotal, indent, item, NodeDelta(node)));
+                            node.AllocatedSelf, node.AllocatedTotal, indent, item, NodeDelta(node), MainLine(node.Lines, allocation)));
+                    else if (item is { Line: { } line, LineOf: { } of })
+                        rows.Add(FunctionLine(tree, allocation, LineName(line), of.File, line.SelfSamples, line.Samples, line.Samples,
+                            line.AllocatedSelf, line.AllocatedTotal, indent, item, line: line.Line));
                 }
             else
             {
@@ -2019,21 +2046,21 @@ public sealed partial class ProfilerPage : UserControl
                 var open = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var opened) ? opened : [];
                 // The list counts the samples that ended in each function, as it always has. Each function opens into
                 // its lines: where in it the time went, what to change.
+                var ownerLines = shown?.LuaLines.GetValueOrDefault(group.Key);
                 void Add(ProfileFunctionTotal row, string indent)
                 {
                     var path = $"lines/{row.Function}";
                     var isOpen = open.Contains(path);
+                    var lines = ShownLines(ownerLines?.GetValueOrDefault(row.Function) ?? [], allocation);
                     rows.Add(FunctionLine(tree, allocation, row.Name, row.File, row.SelfSamples, row.Samples, row.SelfSamples,
-                        row.AllocatedSelf, row.AllocatedTotal, indent, new TreeItem(null, indent.Length / 2, path, true, isOpen), FunctionDelta(row)));
-                    if (!isOpen || shown is not { } range) return;
-                    IEnumerable<ProfileLineTotal> lines = ProfileAnalysis.LinesIn(recording!, range.Start, range.End, group.Key, row.Function);
-                    if (allocation) lines = lines.Where(line => line.AllocatedTotal > 0).OrderByDescending(line => line.AllocatedTotal);
+                        row.AllocatedSelf, row.AllocatedTotal, indent, new TreeItem(null, indent.Length / 2, path, true, isOpen), FunctionDelta(row),
+                        MainLine(lines, allocation)));
+                    if (!isOpen) return;
                     foreach (var line in lines)
-                        rows.Add(FunctionLine(tree, allocation,
-                            line.Line > 0 ? Localizer.Format("ProfileLineFormat", line.Line.ToString(Localizer.Culture)) : Localizer.Get("ProfileLineUnknown"),
-                            // Samples as the list counts them, those that ended there: a function's lines add up to it.
-                            row.File, line.SelfSamples, line.Samples, line.SelfSamples, line.AllocatedSelf, line.AllocatedTotal, indent + "  ",
-                            new TreeItem(null, indent.Length / 2 + 1, $"line/{row.Function}/{line.Line}", false, false)));
+                        // Samples as the list counts them, those that ended there: a function's lines add up to it.
+                        rows.Add(FunctionLine(tree, allocation, LineName(line), row.File, line.SelfSamples, line.Samples, line.SelfSamples,
+                            line.AllocatedSelf, line.AllocatedTotal, indent + "  ",
+                            new TreeItem(null, indent.Length / 2 + 1, $"line/{row.Function}/{line.Line}", false, false), line: line.Line));
                 }
                 foreach (var row in functions.Take(RowsPerGroup)) Add(row, "");
                 if (functions.Count > RowsPerGroup)

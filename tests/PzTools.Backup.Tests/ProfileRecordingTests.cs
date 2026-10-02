@@ -463,13 +463,29 @@ public sealed class ProfileRecordingTests
     [Fact]
     public void LinesIn_SplitsAFunctionByItsLines_ForTheOwnersSamplesOnly()
     {
-        // One more sample, in a recursion: slow at 12 called by slow at 14.
-        var recording = Load(Sample + "\nLK|3|0:12 0:14 1:80\nL|1048000|3\nLA|1015000|1000\nLA|1025000|3000\nLA|1035000|5000\nLA|1045000|200\nLA|1048000|700");
-        // The mod's samples in slow: twice at 12 on their own, once at 12 under itself at 14. The outer call's line
-        // takes it, so the recursion is counted once, and as a call: 14 ran nothing itself.
-        Assert.Equal([(12, 2, 2, 6000L, 6000L), (14, 0, 1, 0L, 700L)],
+        // Two more samples, in recursions: slow at 12 called by slow at 14, and by slow at 12 itself.
+        var recording = Load(Sample + "\nLK|3|0:12 0:14 1:80\nL|1048000|3\nLK|4|0:12 0:12 1:80\nL|1049000|4"
+            + "\nLA|1015000|1000\nLA|1025000|3000\nLA|1035000|5000\nLA|1045000|200\nLA|1048000|700");
+        // The mod's samples in slow: twice at 12 on their own, once at 12 under itself at 14, once under itself at 12.
+        // Each line the sample passed counts it once, and the innermost runs it: 14 only called, and the lines' self
+        // samples add up to slow's own.
+        Assert.Equal([(12, 4, 4, 6700L, 6700L), (14, 0, 1, 0L, 700L)],
             ProfileAnalysis.LinesIn(recording, 0, 50_000, "SlowMod", 0)
                 .Select(line => (line.Line, line.SelfSamples, line.Samples, line.AllocatedSelf, line.AllocatedTotal)));
+        var range = ProfileAnalysis.Analyze(recording, 0, 50_000, recording.GameThread);
+        Assert.Equal(range.LuaGroups.Single(group => group.Key == "SlowMod").Samples,
+            ProfileAnalysis.LinesIn(recording, 0, 50_000, "SlowMod", 0).Sum(line => line.SelfSamples));
+        // The analysis counts the same lines for every owner's functions as it goes.
+        Assert.Equal(ProfileAnalysis.LinesIn(recording, 0, 50_000, "SlowMod", 0), range.LuaLines["SlowMod"][0]);
+        Assert.Equal(ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.GameOwner, 1), range.LuaLines[ProfileAnalysis.GameOwner][1]);
+        // In the tree each node has its own frame's lines, which add up to the node: OnTick at 80; slow at 12 (twice on
+        // its own, once calling itself) and 14; the inner slow at 12.
+        var onTick = Assert.Single(range.LuaCallTrees["SlowMod"].Children);
+        Assert.Equal([(80, 0, 4)], onTick.Lines.Select(line => (line.Line, line.SelfSamples, line.Samples)));
+        var slow = Assert.Single(onTick.Children);
+        Assert.Equal([(12, 2, 3), (14, 0, 1)], slow.Lines.Select(line => (line.Line, line.SelfSamples, line.Samples)));
+        Assert.Equal([(12, 2, 2)], Assert.Single(slow.Children).Lines.Select(line => (line.Line, line.SelfSamples, line.Samples)));
+        Assert.Empty(range.LuaCallTrees["SlowMod"].Lines);
         // slow called helper at 13, a sample the unknown owner's: counted there, as a total only.
         Assert.Equal([(13, 0, 1)], ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.UnknownOwner, 0)
             .Select(line => (line.Line, line.SelfSamples, line.Samples)));

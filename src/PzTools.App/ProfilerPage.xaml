@@ -310,8 +310,9 @@
           <!-- Narrows the table to rows whose name or file holds the text; a tree keeps the paths that lead to them. -->
           <TextBox x:Name="DetailSearch" Grid.Column="1" Width="170" Margin="0,0,0,-7" VerticalAlignment="Bottom"
                    TextChanged="DetailSearch_TextChanged" AutomationProperties.AutomationId="ProfileDetailSearch" />
-          <!-- The scripts' functions as a list, or as the call paths that led to them. -->
-          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" Margin="0,0,0,-7" VerticalAlignment="Bottom" Visibility="Collapsed"
+          <!-- The scripts' functions as a list, or as the call paths that led to them. A switch is 40 pixels tall with
+               its text centred, 4 more below the text than a 32-pixel button: so it hangs 4 further to share the line. -->
+          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" Margin="0,0,0,-11" VerticalAlignment="Bottom" Visibility="Collapsed"
                         Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
           <TextBlock x:Name="DetailSamples" Grid.Column="3" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
         </Grid>
