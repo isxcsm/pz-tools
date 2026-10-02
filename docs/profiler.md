@@ -137,9 +137,13 @@ many paths call: the tree splits its cost among them, the list adds it up.
 
 Tree and list count the same samples, those that ended in the chosen owner's functions,
 and their percentages are parts of the owner, the owner being 100%: the question there is
-where inside it the time went, and parts of a long range shrank to 0.0%. The top rows of
-the tree add up to 100%, and so do the list's *Self* figures. A faint bar behind each
-*Total* shows the same part at a glance. Resting the pointer on a number gives its part
+where inside it the time went, and parts of a long range shrank to 0.0%. They have two
+decimals. The top rows of the tree add up to 100%, and so do the list's *Self* figures.
+Past the first 20 rows of a level (30 in the list) the rest are gathered into one closed
+row, *N more*, that carries their sum, so the rows on screen visibly add up; open it for
+the rest. Behind each *Total* a gauge shows the same part at a glance: a faint track the
+width of the column, so the number always sits in it, and a fill in exact proportion to
+the table's largest total. Resting the pointer on a number gives its part
 of the whole range and the time it stands for (*2.1% of the whole range, about 1.14 s*),
 so a large part of a light owner is not mistaken for a heavy one; in *Memory allocation*
 the bytes stay and the pointer gives their part of the owner. *Samples* in the tree are

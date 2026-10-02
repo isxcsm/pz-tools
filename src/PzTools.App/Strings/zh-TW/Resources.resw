@@ -458,6 +458,7 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>樣本：結束於該函式的樣本數。</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>占整個範圍的 {0}，約 {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>占此擁有者配置量的 {0}</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>其餘 {0} 項</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各執行緒占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長時間等待和停頓</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>模組</value></data>

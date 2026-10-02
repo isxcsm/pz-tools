@@ -465,6 +465,7 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>ตัวอย่าง: จำนวนที่จบในฟังก์ชันนั้น</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} ของทั้งช่วง ประมาณ {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} ของการจัดสรรของเจ้าของนี้</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>อีก {0} รายการ</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>สัดส่วนตามเธรด</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>การรอและการหยุดชะงักนาน ๆ</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>ม็อด</value></data>

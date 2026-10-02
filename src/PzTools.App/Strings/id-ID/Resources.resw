@@ -458,6 +458,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Sampel: berapa sampel yang berakhir di fungsi itu.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} dari seluruh rentang, sekitar {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} dari alokasi pemilik ini</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>{0} lainnya</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Porsi per thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Waktu tunggu dan jeda yang lama</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>

@@ -710,12 +710,11 @@ public sealed partial class ProfilerPage : UserControl
         return label;
     }
 
-    // Memory readings are hundreds of megabytes and more; a function's allocations can be a few kilobytes.
+    // Memory readings are gigabytes; a function's allocations can be a few kilobytes. Two decimals in every unit.
     private static string Bytes(long bytes) =>
-        bytes >= 1L << 30 ? (bytes / (double)(1L << 30)).ToString("N1", Localizer.Culture) + " GB"
-        : bytes >= 10L << 20 ? (bytes / (double)(1L << 20)).ToString("N0", Localizer.Culture) + " MB"
-        : bytes >= 1L << 20 ? (bytes / (double)(1L << 20)).ToString("N1", Localizer.Culture) + " MB"
-        : (bytes / 1024.0).ToString("N0", Localizer.Culture) + " KB";
+        bytes >= 1L << 30 ? (bytes / (double)(1L << 30)).ToString("N2", Localizer.Culture) + " GB"
+        : bytes >= 1L << 20 ? (bytes / (double)(1L << 20)).ToString("N2", Localizer.Culture) + " MB"
+        : (bytes / 1024.0).ToString("N2", Localizer.Culture) + " KB";
 
     private string CollectionText(int count, double pausedMilliseconds) =>
         $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds))}";
@@ -1212,8 +1211,16 @@ public sealed partial class ProfilerPage : UserControl
     private readonly Dictionary<string, HashSet<string>> openPaths = [];
     // A tree opened all the way down can be long; past this the rest is left closed.
     private const int MaximumTreeRows = 400;
+    // Siblings past this many, and list rows past RowsPerGroup, are gathered under one closed "the rest" line that
+    // carries their sum: the parts on screen then visibly add up to the whole, and the long tail stays one click away.
+    private const int MaximumSiblings = 20;
 
-    private sealed record TreeItem(ProfileCallNode Node, int Depth, string Path, bool HasChildren, bool Open);
+    /// <summary>
+    /// A line of the tree: a node, or (with <see cref="Rest"/>) the siblings past the first few, gathered and summed;
+    /// opened, they follow it one level deeper.
+    /// </summary>
+    private sealed record TreeItem(ProfileCallNode? Node, int Depth, string Path, bool HasChildren, bool Open,
+        IReadOnlyList<ProfileCallNode>? Rest = null);
 
     private ProfileCallNode? TreeOf(ResultGroup group) =>
         group.Kind is DetailKind.Lua or DetailKind.Allocation && shown?.LuaCallTrees.TryGetValue(group.Key, out var tree) == true ? tree : null;
@@ -1237,17 +1244,25 @@ public sealed partial class ProfilerPage : UserControl
         var key = $"{group.Kind}|{group.Key}";
         if (!openPaths.TryGetValue(key, out var open)) openPaths[key] = open = [];
         var rows = new List<TreeItem>();
+        void Add(ProfileCallNode child, int depth, string path)
+        {
+            if (rows.Count >= MaximumTreeRows) return;
+            var childPath = path + "/" + child.Function;
+            var hasChildren = Branches(child, allocation).Any();
+            var isOpen = hasChildren && open.Contains(childPath);
+            rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen));
+            if (isOpen) Walk(child, depth + 1, childPath);
+        }
         void Walk(ProfileCallNode node, int depth, string path)
         {
-            foreach (var child in Branches(node, allocation))
-            {
-                if (rows.Count >= MaximumTreeRows) return;
-                var childPath = path + "/" + child.Function;
-                var hasChildren = Branches(child, allocation).Any();
-                var isOpen = hasChildren && open.Contains(childPath);
-                rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen));
-                if (isOpen) Walk(child, depth + 1, childPath);
-            }
+            var branches = Branches(node, allocation).ToList();
+            foreach (var child in branches.Take(MaximumSiblings)) Add(child, depth, path);
+            if (branches.Count <= MaximumSiblings || rows.Count >= MaximumTreeRows) return;
+            var rest = branches.Skip(MaximumSiblings).ToList();
+            var restPath = path + "/*";
+            var restOpen = open.Contains(restPath);
+            rows.Add(new TreeItem(null, depth, restPath, true, restOpen, rest));
+            if (restOpen) foreach (var child in rest) Add(child, depth + 1, path);
         }
         Walk(root, 0, "");
         return rows;
@@ -1267,22 +1282,38 @@ public sealed partial class ProfilerPage : UserControl
             if (allocation)
             {
                 var share = owner.AllocatedTotal > 0 ? (double)bytes / owner.AllocatedTotal : 0;
-                return (Bytes(bytes), Localizer.Format("ProfileShareOfOwnerFormat", Percent(share)), true);
+                return (Bytes(bytes), Localizer.Format("ProfileShareOfOwnerFormat", FinePercent(share)), true);
             }
             // The owner's samples stand for its share of the range, so each of them for an equal slice of it.
             var ofRange = owner.Samples > 0 ? owner.Total * part / owner.Samples : 0;
             var micros = ofRange * Math.Max(1, (shown?.End ?? 0) - (shown?.Start ?? 0));
             var time = micros >= 1_000_000 ? Seconds((long)micros) : Milliseconds(micros / 1000);
-            return (Percent(owner.Samples > 0 ? (double)part / owner.Samples : 0), Localizer.Format("ProfileShareOfRangeFormat", Percent(ofRange), time), true);
+            return (FinePercent(owner.Samples > 0 ? (double)part / owner.Samples : 0),
+                Localizer.Format("ProfileShareOfRangeFormat", FinePercent(ofRange), time), true);
         }
         var whole = allocation ? owner.AllocatedTotal : owner.Samples;
         var filled = allocation ? allocatedTotal : samples;
+        // Its share of the owner for now; the table scales the bars to its largest line once all are known.
         return new TableLine(
         [
             (indent + name, name, false), (LuaFileName(file), file, false),
             Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
             (shownSamples.ToString("N0", Localizer.Culture), null, true),
         ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree);
+    }
+
+    /// <summary>
+    /// The line that stands for the rest of a level: how many, and their sums. Its total is left empty where the rows
+    /// overlap (a list's functions call one another, so their totals do not add up); a tree's siblings never do.
+    /// </summary>
+    private TableLine RestLine(ProfileCallNode owner, bool allocation, int count, int selfSamples, int samples, int shownSamples,
+        long allocatedSelf, long allocatedTotal, bool totals, string indent, TreeItem? tree)
+    {
+        var line = FunctionLine(owner, allocation, Localizer.Format("ProfileRestFormat", count.ToString("N0", Localizer.Culture)), "",
+            selfSamples, samples, shownSamples, allocatedSelf, allocatedTotal, indent, tree);
+        if (!totals) line.Cells[TotalColumn] = ("", null, true);
+        // No bar: a sum of many is no line of its own to compare.
+        return line with { Bar = null };
     }
 
     private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TableLine line, TreeItem item)
@@ -1301,7 +1332,7 @@ public sealed partial class ProfilerPage : UserControl
                 Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
                 Content = new FontIcon { Glyph = item.Open ? "" : "", FontSize = 10 },
             };
-            AutomationProperties.SetName(arrow, Localizer.Get(item.Open ? "ProfileTreeCollapse" : "ProfileTreeExpand") + " " + item.Node.Name);
+            AutomationProperties.SetName(arrow, Localizer.Get(item.Open ? "ProfileTreeCollapse" : "ProfileTreeExpand") + " " + line.Cells[0].Text.Trim());
             arrow.Click += (_, _) => ToggleNode(group, item.Path);
             name.Children.Add(arrow);
             // The whole row opens and closes too, not only the small arrow; a tap on the arrow is its click's.
@@ -1313,8 +1344,11 @@ public sealed partial class ProfilerPage : UserControl
                 ToggleNode(group, item.Path);
             };
         }
-        var text = new TextBlock { Text = item.Node.Name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
-        if (item.Node.Name.Length > 0) AppToolTip.SetTip(text, item.Node.Name);
+        // A node by its name; the rest of a level muted, as it is no function.
+        var label = line.Cells[0].Text.Trim();
+        var text = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
+        if (item.Node is null) text.Foreground = Muted;
+        else if (label.Length > 0) AppToolTip.SetTip(text, label);
         Grid.SetColumn(text, 1);
         name.Children.Add(text);
         row.Children.Insert(0, name);
@@ -1344,7 +1378,8 @@ public sealed partial class ProfilerPage : UserControl
     {
         GridLength Star(double weight) => new(weight, GridUnitType.Star);
         GridLength Fixed(double width) => new(width);
-        var numbers = new[] { Fixed(64), Fixed(72), Fixed(60) };
+        // Wide enough for "1,023.99 KB"; the total's column also holds the bar behind its number.
+        var numbers = new[] { Fixed(84), Fixed(96), Fixed(60) };
         var columns = group.Kind switch
         {
             DetailKind.Lua or DetailKind.Allocation => [Star(3), Star(2), .. numbers],
@@ -1404,10 +1439,15 @@ public sealed partial class ProfilerPage : UserControl
             if (callTree)
                 foreach (var item in TreeRows(group, tree))
                 {
-                    var node = item.Node;
                     // As text each name is indented by its depth, the open paths only, as on screen.
-                    rows.Add(FunctionLine(tree, allocation, node.Name, node.File, node.SelfSamples, node.Samples, node.Samples,
-                        node.AllocatedSelf, node.AllocatedTotal, new string(' ', item.Depth * 2), item));
+                    var indent = new string(' ', item.Depth * 2);
+                    if (item.Rest is { } rest)
+                        rows.Add(RestLine(tree, allocation, rest.Count, rest.Sum(node => node.SelfSamples), rest.Sum(node => node.Samples),
+                            rest.Sum(node => node.Samples), rest.Sum(node => node.AllocatedSelf), rest.Sum(node => node.AllocatedTotal),
+                            totals: true, indent, item));
+                    else if (item.Node is { } node)
+                        rows.Add(FunctionLine(tree, allocation, node.Name, node.File, node.SelfSamples, node.Samples, node.Samples,
+                            node.AllocatedSelf, node.AllocatedTotal, indent, item));
                 }
             else
             {
@@ -1416,10 +1456,25 @@ public sealed partial class ProfilerPage : UserControl
                     functions = functions.Where(row => row.AllocatedTotal > 0).OrderByDescending(row => row.AllocatedSelf)
                         .ThenByDescending(row => row.AllocatedTotal).ToArray();
                 // The list counts the samples that ended in each function, as it always has.
-                foreach (var row in functions.Take(RowsPerGroup))
-                    rows.Add(FunctionLine(tree, allocation, row.Name, row.File, row.SelfSamples, row.Samples, row.SelfSamples,
-                        row.AllocatedSelf, row.AllocatedTotal));
+                TableLine Line(ProfileFunctionTotal row, string indent = "") => FunctionLine(tree, allocation, row.Name, row.File,
+                    row.SelfSamples, row.Samples, row.SelfSamples, row.AllocatedSelf, row.AllocatedTotal, indent);
+                foreach (var row in functions.Take(RowsPerGroup)) rows.Add(Line(row));
+                if (functions.Count > RowsPerGroup)
+                {
+                    var rest = functions.Skip(RowsPerGroup).ToArray();
+                    var path = "list/*";
+                    var restOpen = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var open) && open.Contains(path);
+                    rows.Add(RestLine(tree, allocation, rest.Length, rest.Sum(row => row.SelfSamples), rest.Sum(row => row.Samples),
+                        rest.Sum(row => row.SelfSamples), rest.Sum(row => row.AllocatedSelf), rest.Sum(row => row.AllocatedTotal),
+                        totals: false, "", new TreeItem(null, 0, path, true, restOpen)));
+                    if (restOpen) foreach (var row in rest) rows.Add(Line(row, "  "));
+                }
             }
+            // Bars against the table's largest total, so the heaviest line fills its column and the rest compare to it.
+            var largest = rows.Max(line => line.Bar ?? 0);
+            if (largest > 0)
+                for (var index = 0; index < rows.Count; index++)
+                    if (rows[index].Bar is { } bar) rows[index] = rows[index] with { Bar = bar / largest };
             return (columns, header, rows);
         }
         foreach (var row in group.Rows)
@@ -1430,7 +1485,7 @@ public sealed partial class ProfilerPage : UserControl
                 DetailKind.Java => [(ShortMethod(row.Name), row.Name, false)],
                 _ => [(row.Name, row.Name, false)],
             };
-            rows.Add(new([.. name, (Percent(row.Self), null, true), (Percent(row.Total), null, true), (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
+            rows.Add(new([.. name, (FinePercent(row.Self), null, true), (FinePercent(row.Total), null, true), (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
         }
         return (columns, header, rows);
     }
@@ -1450,16 +1505,27 @@ public sealed partial class ProfilerPage : UserControl
                 TextAlignment = right ? TextAlignment.Right : TextAlignment.Left,
             };
             if (header) cell.Foreground = Muted;
+            // A script table's total heading stands over its numbers, which sit inset in their bars.
+            if (header && cells.Count == 5 && index == TotalColumn) cell.Padding = new Thickness(0, 0, 6, 0);
             if (tip is { Length: > 0 } && (header || tip != text)) AppToolTip.SetTip(cell, tip);
             Grid.SetColumn(cell, index);
-            // The total's share as a faint bar under its number, filling from the left of its column: heavy lines stand
-            // out before any number is read.
-            if (bar is { } fraction && index == TotalColumn)
+            // The total's share as a gauge behind its number: a faint track the width of the column, so the number always
+            // sits in it, and a fill in exact proportion. Heavy lines stand out before any number is read. (A fill never
+            // shorter than its number made a thousandth look like the whole.)
+            if (bar is { } fraction && index == TotalColumn && columns[index].IsAbsolute)
             {
-                var track = new Grid { Margin = new Thickness(0, -2, 0, -2) };
-                track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(fraction, GridUnitType.Star) });
-                track.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - fraction, GridUnitType.Star) });
-                track.Children.Add(new Rectangle { Fill = BarsPath.Fill, Opacity = 0.22, RadiusX = 2, RadiusY = 2 });
+                cell.Padding = new Thickness(0, 0, 6, 0);
+                var color = (BarsPath.Fill as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.SteelBlue;
+                var track = new Border
+                {
+                    Margin = new Thickness(0, -3, 0, -3), CornerRadius = new CornerRadius(3),
+                    Background = new SolidColorBrush(color) { Opacity = 0.07 },
+                    Child = new Border
+                    {
+                        Width = Math.Clamp(fraction, 0, 1) * columns[index].Value, HorizontalAlignment = HorizontalAlignment.Left,
+                        CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(color) { Opacity = 0.3 },
+                    },
+                };
                 Grid.SetColumn(track, index);
                 row.Children.Add(track);
             }
@@ -1549,6 +1615,9 @@ public sealed partial class ProfilerPage : UserControl
     }
 
     private static string Percent(double share) => (share * 100).ToString("0.0", Localizer.Culture) + "%";
+
+    // The tables' parts, finer than the owner list's: many small parts must still add up visibly.
+    private static string FinePercent(double share) => (share * 100).ToString("0.00", Localizer.Culture) + "%";
 
     private static string LuaFileName(string file)
     {

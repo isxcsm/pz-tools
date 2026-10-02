@@ -458,6 +458,7 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>样本：结束于该函数的样本数。</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>占整个范围的 {0}，约 {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>占此所属方分配量的 {0}</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>其余 {0} 项</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各线程占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>长时间等待和停顿</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>模组</value></data>

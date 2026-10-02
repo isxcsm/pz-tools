@@ -457,6 +457,7 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>샘플: 그 함수에서 끝난 샘플 수.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>구간 전체의 {0}, 약 {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>이 모드 할당량의 {0}</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>나머지 {0}개</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>스레드별 비중</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>긴 대기·멈춤</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>모드</value></data>

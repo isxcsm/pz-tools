@@ -378,6 +378,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Podíl podle vláken</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Vzorky</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} alokací tohoto vlastníka</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>Dalších {0}</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} celého úseku, asi {1}</value></data>
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Vzorky: kolik vzorků skončilo ve funkci.</value></data>
   <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Vzorky: kolik vzorků prošlo řádkem.</value></data>

@@ -458,6 +458,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Échantillons : combien se sont terminés dans la fonction.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} de toute la plage, environ {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} des allocations de ce propriétaire</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>{0} de plus</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Répartition par thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Longues attentes et pauses</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>

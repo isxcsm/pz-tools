@@ -458,6 +458,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Amostras: quantas terminaram na função.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} do intervalo inteiro, cerca de {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} das alocações deste dono</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>Mais {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Participação por thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Esperas e pausas longas</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>

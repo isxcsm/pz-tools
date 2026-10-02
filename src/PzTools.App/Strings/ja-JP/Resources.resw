@@ -458,6 +458,7 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>サンプル: その関数で終わったサンプル数。</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>範囲全体の {0}、約 {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>この所有者の割り当ての {0}</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>残り {0} 件</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>スレッド別の割合</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長い待機と一時停止</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>MOD</value></data>

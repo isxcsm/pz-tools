@@ -458,6 +458,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Stichproben: wie viele in der Funktion endeten.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} des ganzen Bereichs, etwa {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} der Belegung dieses Besitzers</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>{0} weitere</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Anteil pro Thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Lange Wartezeiten und Pausen</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>

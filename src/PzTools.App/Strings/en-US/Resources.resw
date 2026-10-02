@@ -386,6 +386,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Samples: how many samples ended in the function.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} of the whole range, about {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} of this owner's allocations</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>{0} more</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Self</value></data>
   <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Scripts of unknown origin</value></data>

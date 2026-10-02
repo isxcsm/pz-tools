@@ -458,6 +458,7 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Вибірки: скільки завершилося у функції.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} усього діапазону, близько {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} виділень цього власника</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>Ще {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Частка за потоками</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Довгі очікування та паузи</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Мод</value></data>

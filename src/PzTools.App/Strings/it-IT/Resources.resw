@@ -458,6 +458,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Campioni: quanti sono terminati nella funzione.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} dell'intero intervallo, circa {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} delle allocazioni di questo proprietario</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>Altri {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Ripartizione per thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Attese e pause lunghe</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
