@@ -58,8 +58,8 @@ public sealed partial class HomePage : UserControl
     public HomePage()
     {
         InitializeComponent();
-        HomeVersion.Text = AppVersionText();
         ApplyLocalizedText();
+        HomeVersion.Text = AppVersionText();
         Loaded += HomePage_Loaded;
         Unloaded += HomePage_Unloaded;
         clock.Tick += (_, _) => ShowStatus(status);
