@@ -20,6 +20,56 @@ public sealed record ProfileAllocation(string Name, string Detail, long Self, lo
 /// <summary>A mod's (or the game's scripts') allocations, largest first.</summary>
 public sealed record ProfileAllocationGroup(string Key, long Self, int Samples, IReadOnlyList<ProfileAllocation> Rows);
 
+/// <summary>
+/// One function on one call path, top down: the root's children are the outermost functions (such as an event
+/// handler), each node's children what it called. <see cref="Samples"/> counts the samples that passed through this
+/// node, <see cref="SelfSamples"/> those that ended in it; the shares and bytes follow the same split.
+/// </summary>
+public sealed class ProfileCallNode
+{
+    private readonly Dictionary<int, ProfileCallNode> byFunction = [];
+    private ProfileCallNode[] children = [];
+
+    internal ProfileCallNode(int function, string name, string file) { Function = function; Name = name; File = file; }
+
+    /// <summary>Index into <see cref="ProfileRecording.LuaFunctions"/>; -1 for the root, which stands for no function.</summary>
+    public int Function { get; }
+    public string Name { get; }
+    public string File { get; }
+    public int Samples { get; private set; }
+    public int SelfSamples { get; private set; }
+    public double Total { get; private set; }
+    public double Self { get; private set; }
+    public long AllocatedTotal { get; private set; }
+    public long AllocatedSelf { get; private set; }
+    /// <summary>Most samples first.</summary>
+    public IReadOnlyList<ProfileCallNode> Children => children;
+
+    internal ProfileCallNode Child(int function, ProfileRecording recording)
+    {
+        if (byFunction.TryGetValue(function, out var child)) return child;
+        var source = recording.LuaFunctions[function];
+        return byFunction[function] = new ProfileCallNode(function, source.Name, source.File);
+    }
+
+    internal void Count(bool self, long allocated)
+    {
+        Samples++;
+        if (self) SelfSamples++;
+        if (allocated < 0) return;
+        AllocatedTotal += allocated;
+        if (self) AllocatedSelf += allocated;
+    }
+
+    internal void Finish(double perSample)
+    {
+        Total = Math.Min(1, Samples * perSample);
+        Self = Math.Min(1, SelfSamples * perSample);
+        children = byFunction.Values.OrderByDescending(node => node.Samples).ThenBy(node => node.Name, StringComparer.Ordinal).ToArray();
+        foreach (var child in children) child.Finish(perSample);
+    }
+}
+
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
 
@@ -47,6 +97,11 @@ public sealed record ProfileRange(
     public long LuaAllocated { get; init; }
     /// <summary>Bytes the game thread allocated in the range, in Lua or not; null without readings.</summary>
     public long? GameThreadAllocated { get; init; }
+    /// <summary>
+    /// Per owner (the keys of <see cref="LuaGroups"/>), the call paths of the samples that ended in its functions, as a
+    /// tree under a root: its outermost functions sum to the owner's own samples, as its row in the list does.
+    /// </summary>
+    public IReadOnlyDictionary<string, ProfileCallNode> LuaCallTrees { get; init; } = new Dictionary<string, ProfileCallNode>();
 }
 
 /// <summary>Answers "what was the game doing between these two moments" from a loaded recording.</summary>
@@ -125,6 +180,7 @@ public static class ProfileAnalysis
         var allocatedSelf = new Dictionary<int, (long Bytes, int Count)>();
         var allocatedTotal = new Dictionary<int, long>();
         long luaAllocated = 0;
+        var callTrees = new Dictionary<string, ProfileCallNode>(StringComparer.OrdinalIgnoreCase);
         for (var index = luaFirst; index < lua.Length && lua[index].Time < end; index++)
         {
             var stack = recording.LuaStacks[lua[index].Stack];
@@ -151,9 +207,20 @@ public static class ProfileAnalysis
                 if (depth == 0) ownerSelf[owner] = ownerSelf.GetValueOrDefault(owner) + 1;
                 if (owners.Add(owner)) ownerTotal[owner] = ownerTotal.GetValueOrDefault(owner) + 1;
             }
+            // The sample's path, outermost first, in the tree of the owner whose function it ended in.
+            var innermostOwner = ownerOf[stack[0].Function]!;
+            if (!callTrees.TryGetValue(innermostOwner, out var node))
+                callTrees[innermostOwner] = node = new ProfileCallNode(-1, innermostOwner, "");
+            node.Count(false, allocated);
+            for (var depth = stack.Length - 1; depth >= 0; depth--)
+            {
+                node = node.Child(stack[depth].Function, recording);
+                node.Count(depth == 0, allocated);
+            }
         }
         // Lua rows are shares of the whole range, so a mod's row reads directly as "this much of the time".
         var perLuaSample = recording.LuaPeriod <= 0 ? 0 : Math.Min(1.0, (double)recording.LuaPeriod / (end - start));
+        foreach (var tree in callTrees.Values) tree.Finish(perLuaSample);
         var allLuaFunctions = functionTotal
             .Select(item => new ProfileShare(recording.LuaFunctions[item.Key].Name, recording.LuaFunctions[item.Key].File,
                 Math.Min(1, functionSelf.GetValueOrDefault(item.Key) * perLuaSample), Math.Min(1, item.Value * perLuaSample), functionSelf.GetValueOrDefault(item.Key)))
@@ -195,6 +262,7 @@ public static class ProfileAnalysis
             collectionCount, collectionPause, pauses)
         {
             LuaAllocationGroups = allocationGroups,
+            LuaCallTrees = callTrees,
             LuaAllocated = luaAllocated,
             GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
         };

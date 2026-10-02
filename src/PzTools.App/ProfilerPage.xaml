@@ -219,6 +219,7 @@
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <!-- The name with the copy button right after it. Left-aligned, this grid is only as wide as both need,
                so the button follows the name; when space runs short the name's star column shrinks and trims. -->
@@ -235,7 +236,10 @@
               <FontIcon Glyph="&#xE8C8;" FontSize="16" />
             </Button>
           </Grid>
-          <TextBlock x:Name="DetailSamples" Grid.Column="1" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
+          <!-- The scripts' functions as a list, or as the call paths that led to them. -->
+          <ToggleButton x:Name="CallTreeToggle" Grid.Column="1" Padding="10,3,10,4" VerticalAlignment="Center" Visibility="Collapsed"
+                        Click="CallTreeToggle_Click" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
+          <TextBlock x:Name="DetailSamples" Grid.Column="2" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
         </Grid>
         <Border x:Name="GroupCard" Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

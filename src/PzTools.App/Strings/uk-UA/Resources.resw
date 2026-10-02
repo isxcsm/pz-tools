@@ -420,6 +420,10 @@
   <data name="ProfileTabLua" xml:space="preserve"><value>Скрипти (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Код гри (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Виділення пам'яті</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Дерево викликів</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вибірки: ті, що пройшли через рядок. Найважчий шлях розгорнуто одразу.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Розгорнути</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Згорнути</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Виділено</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Пам'ять, яку ігровий потік виділив, поки у вибраному діапазоні працювали скрипти цього мода, включно з викликаними ними функціями гри. Що більше виділяється, то частіше відбувається очищення пам'яті (GC). Оцінка за вибірками, як і час.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Увесь ігровий потік, зі скриптами й без: {0}</value></data>

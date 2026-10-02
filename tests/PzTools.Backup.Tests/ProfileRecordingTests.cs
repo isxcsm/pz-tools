@@ -101,6 +101,32 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void CallTrees_FollowEachOwnersSamplesFromTheOutermostFunctionDown()
+    {
+        var range = ProfileAnalysis.Analyze(Load(Sample), 10_000, 50_000, 0);
+        // One tree for each owner in the list.
+        Assert.Equal(range.LuaGroups.Select(group => group.Key).Order(StringComparer.Ordinal), range.LuaCallTrees.Keys.Order(StringComparer.Ordinal));
+
+        // The mod's two samples both came from the game's OnTick, which called its function: the path, not just the function.
+        var mod = range.LuaCallTrees["SlowMod"];
+        Assert.Equal(2, mod.Samples);
+        var onTick = Assert.Single(mod.Children);
+        Assert.Equal(("OnTick", 2, 0, 0.5), (onTick.Name, onTick.Samples, onTick.SelfSamples, Math.Round(onTick.Total, 3)));
+        var slow = Assert.Single(onTick.Children);
+        Assert.Equal(("slow", 2, 2, 0.5), (slow.Name, slow.Samples, slow.SelfSamples, Math.Round(slow.Self, 3)));
+        Assert.Empty(slow.Children);
+
+        // The sample that ended in a helper of unknown origin keeps its whole path, three deep.
+        var path = range.LuaCallTrees[ProfileAnalysis.UnknownOwner];
+        Assert.Equal(["OnTick", "slow", "helper"], new[] { path.Children[0], path.Children[0].Children[0], path.Children[0].Children[0].Children[0] }
+            .Select(node => node.Name));
+        Assert.Equal(1, path.Children[0].Children[0].Children[0].SelfSamples);
+        // The outermost functions add up to the owner's own samples, as its row in the list does.
+        Assert.Equal(range.LuaGroups.Single(group => group.Key == ProfileAnalysis.GameOwner).Samples,
+            range.LuaCallTrees[ProfileAnalysis.GameOwner].Children.Sum(node => node.Samples));
+    }
+
+    [Fact]
     public void Analyze_AllThreads_WeighsEachSampleByItsOwnPeriod()
     {
         var all = ProfileAnalysis.Analyze(Load(Sample), 0, 50_000, -1);
@@ -267,6 +293,11 @@ public sealed class ProfileRecordingTests
         Assert.Equal(9200, range.LuaAllocationGroups[2].Rows.Single(row => row.Name == "OnTick").Total);
         // The thread's one reading covers the second before it, of which the range holds 40 ms.
         Assert.Equal(800, range.GameThreadAllocated);
+        // In the call trees each path carries its samples' bytes down to the function they ended in.
+        var unknown = range.LuaCallTrees[ProfileAnalysis.UnknownOwner];
+        Assert.Equal((3000L, 0L), (unknown.Children[0].AllocatedTotal, unknown.Children[0].AllocatedSelf));
+        Assert.Equal(3000, unknown.Children[0].Children[0].Children[0].AllocatedSelf);
+        Assert.Equal(6000, range.LuaCallTrees["SlowMod"].Children[0].Children[0].AllocatedSelf);
 
         var before = ProfileAnalysis.Analyze(recording, 0, 20_000, recording.GameThread);
         Assert.Equal(1000, before.LuaAllocated);

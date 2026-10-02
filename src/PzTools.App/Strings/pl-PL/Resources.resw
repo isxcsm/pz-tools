@@ -420,6 +420,10 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileTabLua" xml:space="preserve"><value>Skrypty (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kod gry (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokacja pamięci</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Drzewo wywołań</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Grupuje funkcje tego właściciela według ścieżek wywołań, które do nich prowadziły: na górze funkcja najbardziej zewnętrzna, np. obsługa zdarzenia, a wewnątrz to, co wywołała. Liczą się tylko próbki zakończone w funkcjach tego właściciela. Próbki: te, które przeszły przez wiersz. Najcięższa ścieżka otwiera się sama.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozwiń</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Zwiń</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Przydzielono</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Pamięć przydzielona przez wątek gry, gdy w wybranym zakresie działały skrypty tego moda, łącznie z wywoływanymi przez nie funkcjami gry. Im więcej przydziałów, tym częściej pamięć jest czyszczona (GC). Szacunek na podstawie próbek, tak jak czas.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Cały wątek gry, ze skryptami i bez: {0}</value></data>

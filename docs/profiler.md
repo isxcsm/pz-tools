@@ -123,6 +123,18 @@ time. To find who makes the collections in a stretch of play, open the memory pa
 drag over the stretch where the grey bars crowd, and read this tab. Recordings made
 before allocations were recorded have no such tab.
 
+In both script tabs, **Call tree** beside the owner's name shows the same samples by the
+path that led to them instead of as a list: the outermost Lua function on top (an event
+handler, or the game's script that called into the mod), and under each function what it
+called, indented, with an arrow to open or close it (a click anywhere on the row does the
+same). Only samples that ended in the chosen owner's functions count, so the top rows add
+up to the owner's figure in the list; a row's *Samples* are those that passed through it.
+The heaviest path is open the first time an owner is shown; what is opened or closed stays
+so for other ranges of the same recording. In *Memory allocation* the paths are ranked by
+bytes and those that allocated nothing are left out. The choice of list or tree holds
+while the app runs, and a copy carries the tree as indented text. A path deeper than the
+24 innermost functions the recorder keeps starts at the 24th.
+
 - **Frame graph.** One bar per slice of time, as tall as the slowest frame in that slice,
   so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per
   second) are highlighted. The scale stops at about twice the 95th percentile of the

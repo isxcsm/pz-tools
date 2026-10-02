@@ -420,6 +420,10 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripte (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Spielcode (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Speicherbelegung</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Aufrufbaum</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Stichproben: die durch die Zeile gingen. Der schwerste Pfad ist von selbst geöffnet.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Aufklappen</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Zuklappen</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Belegt</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Speicher, den der Spiel-Thread im gewählten Bereich belegt hat, während die Skripte dieses Mods liefen, einschließlich der von ihnen aufgerufenen Spielfunktionen. Je mehr belegt wird, desto öfter wird der Speicher bereinigt (GC). Eine Schätzung aus den Stichproben, wie die Zeit.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Ganzer Spiel-Thread, mit und ohne Skripte: {0}</value></data>

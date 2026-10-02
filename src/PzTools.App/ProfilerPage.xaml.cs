@@ -103,6 +103,8 @@ public sealed partial class ProfilerPage : UserControl
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
+        CallTreeToggle.Content = Localizer.Get("ProfileCallTree");
+        AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
         if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
         var thread = ThreadBox.SelectedIndex;
@@ -283,6 +285,8 @@ public sealed partial class ProfilerPage : UserControl
         LoadingRing.Visibility = Visibility.Collapsed;
         if (loaded is null || loaded.Duration <= 0) { loadedPath = null; Clear(Localizer.Get("ProfileLoadFailed")); return; }
         recording = loaded;
+        // Paths name functions by their number in one recording.
+        openPaths.Clear();
         viewStart = 0;
         viewEnd = loaded.Duration;
         selectionStart = selectionEnd = null;
@@ -1177,11 +1181,128 @@ public sealed partial class ProfilerPage : UserControl
         DetailName.Text = group.Name;
         AppToolTip.SetTip(DetailName, group.Name);
         SetStats(DetailSamples, SamplesOf(group) is { } samples ? [(Localizer.Get("ProfileColumnSamples"), samples)] : []);
+        shownGroup = group;
+        var tree = TreeOf(group);
+        CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
+        CallTreeToggle.IsChecked = callTree;
 
         var (columns, header, rows) = Table(group);
         DetailHeader.Child = TableRow(columns, header, header: true);
         DetailRows.Children.Clear();
-        foreach (var row in rows) DetailRows.Children.Add(TableRow(columns, row, header: false));
+        if (tree is not null && callTree)
+            foreach (var item in TreeRows(group, tree)) DetailRows.Children.Add(TreeRow(columns, group, item));
+        else
+            foreach (var row in rows) DetailRows.Children.Add(TableRow(columns, row, header: false));
+    }
+
+    // ---- Call tree ----
+
+    // List or tree, for as long as the app runs, in both script tabs.
+    private static bool callTree;
+    private ResultGroup? shownGroup;
+    // The open nodes of each tab's owner, by path; a new range keeps them, a new recording starts over.
+    private readonly Dictionary<string, HashSet<string>> openPaths = [];
+    // A tree opened all the way down can be long; past this the rest is left closed.
+    private const int MaximumTreeRows = 400;
+
+    private sealed record TreeItem(ProfileCallNode Node, int Depth, string Path, bool HasChildren, bool Open);
+
+    private ProfileCallNode? TreeOf(ResultGroup group) =>
+        group.Kind is DetailKind.Lua or DetailKind.Allocation && shown?.LuaCallTrees.TryGetValue(group.Key, out var tree) == true ? tree : null;
+
+    private void CallTreeToggle_Click(object sender, RoutedEventArgs e)
+    {
+        callTree = CallTreeToggle.IsChecked == true;
+        if (shownGroup is { } group) ShowGroup(group);
+    }
+
+    // In the allocation tab, a path that allocated nothing is left out and the heaviest in bytes comes first.
+    private static IEnumerable<ProfileCallNode> Branches(ProfileCallNode node, bool allocation) =>
+        allocation ? node.Children.Where(child => child.AllocatedTotal > 0).OrderByDescending(child => child.AllocatedTotal) : node.Children;
+
+    /// <summary>
+    /// The rows the tree shows: every open node's children, in order. Shown the first time with the heaviest path open
+    /// all the way down, which is usually the question, and the rest closed.
+    /// </summary>
+    private List<TreeItem> TreeRows(ResultGroup group, ProfileCallNode root)
+    {
+        var allocation = group.Kind == DetailKind.Allocation;
+        var key = $"{group.Kind}|{group.Key}";
+        if (!openPaths.TryGetValue(key, out var open))
+        {
+            openPaths[key] = open = [];
+            var path = "";
+            for (var node = Branches(root, allocation).FirstOrDefault(); node is not null; node = Branches(node, allocation).FirstOrDefault())
+                open.Add(path += "/" + node.Function);
+        }
+        var rows = new List<TreeItem>();
+        void Walk(ProfileCallNode node, int depth, string path)
+        {
+            foreach (var child in Branches(node, allocation))
+            {
+                if (rows.Count >= MaximumTreeRows) return;
+                var childPath = path + "/" + child.Function;
+                var hasChildren = Branches(child, allocation).Any();
+                var isOpen = hasChildren && open.Contains(childPath);
+                rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen));
+                if (isOpen) Walk(child, depth + 1, childPath);
+            }
+        }
+        Walk(root, 0, "");
+        return rows;
+    }
+
+    // A node's cells, the same columns as the list's; its samples are those that passed through it.
+    private static (string Text, string? Tip, bool Right)[] NodeCells(ProfileCallNode node, bool allocation, string indent = "") =>
+    [
+        (indent + node.Name, node.Name, false), (LuaFileName(node.File), node.File, false),
+        (allocation ? Bytes(node.AllocatedSelf) : Percent(node.Self), null, true),
+        (allocation ? Bytes(node.AllocatedTotal) : Percent(node.Total), null, true),
+        (node.Samples.ToString("N0", Localizer.Culture), null, true),
+    ];
+
+    private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TreeItem item)
+    {
+        var cells = NodeCells(item.Node, group.Kind == DetailKind.Allocation);
+        var row = TableRow(columns, cells, header: false);
+        // The name cell gives way to an indented one with the open/close arrow in front.
+        row.Children.RemoveAt(0);
+        var name = new Grid { Margin = new Thickness(item.Depth * 16, 0, 0, 0), ColumnSpacing = 2 };
+        name.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+        name.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        if (item.HasChildren)
+        {
+            var arrow = new Button
+            {
+                Width = 20, Height = 20, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Center,
+                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                Content = new FontIcon { Glyph = item.Open ? "" : "", FontSize = 10 },
+            };
+            AutomationProperties.SetName(arrow, Localizer.Get(item.Open ? "ProfileTreeCollapse" : "ProfileTreeExpand") + " " + item.Node.Name);
+            arrow.Click += (_, _) => ToggleNode(group, item.Path);
+            name.Children.Add(arrow);
+            // The whole row opens and closes too, not only the small arrow; a tap on the arrow is its click's.
+            row.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            row.Tapped += (_, args) =>
+            {
+                for (var element = args.OriginalSource as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
+                    if (ReferenceEquals(element, arrow)) return;
+                ToggleNode(group, item.Path);
+            };
+        }
+        var text = new TextBlock { Text = item.Node.Name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
+        if (item.Node.Name.Length > 0) AppToolTip.SetTip(text, item.Node.Name);
+        Grid.SetColumn(text, 1);
+        name.Children.Add(text);
+        row.Children.Insert(0, name);
+        return row;
+    }
+
+    private void ToggleNode(ResultGroup group, string path)
+    {
+        var open = openPaths[$"{group.Kind}|{group.Key}"];
+        if (!open.Remove(path)) open.Add(path);
+        ShowGroup(group);
     }
 
     /// <summary>An owner's samples out of its tab's, such as "9/70", or null for an owner that has none.</summary>
@@ -1243,6 +1364,13 @@ public sealed partial class ProfilerPage : UserControl
                     (pause.Kind, null, false), (detail, detail, false),
                 ]);
             }
+            return (columns, header, rows);
+        }
+        // The tree as text, for a copy: each name indented by its depth, the open paths only, as on screen.
+        if (callTree && TreeOf(group) is { } tree)
+        {
+            foreach (var item in TreeRows(group, tree))
+                rows.Add(NodeCells(item.Node, group.Kind == DetailKind.Allocation, new string(' ', item.Depth * 2)));
             return (columns, header, rows);
         }
         if (group.Allocations is { } allocations)

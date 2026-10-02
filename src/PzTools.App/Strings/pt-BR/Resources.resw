@@ -420,6 +420,10 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileTabLua" xml:space="preserve"><value>Scripts (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Código do jogo (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alocação de memória</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Árvore de chamadas</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa as funções deste dono pelos caminhos de chamada que levaram a elas: no topo a função mais externa, como um tratador de evento, e dentro o que ela chamou. Só contam as amostras que terminaram em funções deste dono. Amostras: as que passaram pela linha. O caminho mais pesado abre sozinho.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Recolher</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alocado</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memória que a thread do jogo alocou enquanto os scripts deste mod rodavam no intervalo selecionado, incluindo as funções do jogo que eles chamaram. Quanto mais se aloca, mais vezes a memória é limpa (GC). Uma estimativa a partir das amostras, como o tempo.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Toda a thread do jogo, com ou sem scripts: {0}</value></data>

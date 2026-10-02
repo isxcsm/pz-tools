@@ -435,6 +435,10 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Celé herní vlákno, se skripty i bez nich: {0}</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Paměť, kterou herní vlákno alokovalo, zatímco ve vybraném úseku běžely skripty tohoto modu, včetně herních funkcí, které volaly. Čím víc se alokuje, tím častěji probíhá úklid paměti (GC). Odhad ze vzorků, stejně jako čas.</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokace paměti</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Sbalit</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozbalit</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Strom volání</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Seskupí funkce tohoto vlastníka podle cest volání, které k nim vedly: nahoře nejvnější funkce, například obsluha události, uvnitř to, co volala. Počítají se jen vzorky, které skončily ve funkcích tohoto vlastníka. Vzorky: ty, které prošly řádkem. Nejtěžší cesta se otevře sama.</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>
