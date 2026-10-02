@@ -427,6 +427,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileSearch" xml:space="preserve"><value>Cari</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Bandingkan dengan</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Baru saja tersendat? Tekan ini: game menyimpan sekitar satu menit terakhir, dan itu disimpan sebagai rekaman. Mode: {0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>Mode perekaman</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nama baru (kosongkan untuk nama otomatis)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} menit terakhir</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Rekaman {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} dtk</value></data>

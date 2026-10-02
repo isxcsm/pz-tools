@@ -427,6 +427,8 @@
   <data name="ProfileSearch" xml:space="preserve"><value>搜索</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>对比对象</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>录制模式</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新名称（留空则使用自动名称）</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>最近 {0} 分钟</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>录制 {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} 秒</value></data>

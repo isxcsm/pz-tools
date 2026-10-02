@@ -427,6 +427,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileSearch" xml:space="preserve"><value>Pesquisar</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Comparar com</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca do último minuto, que é salvo como gravação. Modo: {0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>Modo de gravação</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Novo nome (vazio para o automático)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Últimos {0} min</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Gravação {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>

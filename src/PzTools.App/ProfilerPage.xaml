@@ -98,17 +98,25 @@
         <ToggleSwitch x:Name="ModeSwitch" Grid.Column="3" VerticalAlignment="Center" MinWidth="0" Toggled="ModeSwitch_Toggled"
                       AutomationProperties.AutomationId="ProfileModeSwitch" />
         <Rectangle Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-        <ComboBox x:Name="RecordingList" Grid.Column="5" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                  SelectionChanged="RecordingList_SelectionChanged"
-                  AutomationProperties.AutomationId="ProfileRecordingList" />
-        <!-- In the list's place while the selected recording is renamed. -->
-        <TextBox x:Name="RenameBox" Grid.Column="5" MinWidth="160" VerticalAlignment="Center" Visibility="Collapsed"
-                 KeyDown="RenameBox_KeyDown" LostFocus="RenameBox_LostFocus" AutomationProperties.AutomationId="ProfileRenameBox" />
-        <Button x:Name="RenameButton" Grid.Column="6" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
-                Style="{StaticResource SubtleButtonStyle}" Click="RenameButton_Click" IsEnabled="False"
-                AutomationProperties.AutomationId="ProfileRenameButton">
-          <FontIcon Glyph="&#xE70F;" FontSize="16" />
-        </Button>
+        <!-- The recordings, and the pencil that renames the selected one, close beside it. -->
+        <Grid Grid.Column="5" ColumnSpacing="2">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <ComboBox x:Name="RecordingList" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                    SelectionChanged="RecordingList_SelectionChanged"
+                    AutomationProperties.AutomationId="ProfileRecordingList" />
+          <!-- In the list's place while the selected recording is renamed; its own X empties it. -->
+          <TextBox x:Name="RenameBox" MinWidth="160" VerticalAlignment="Center" Visibility="Collapsed"
+                   KeyDown="RenameBox_KeyDown" LostFocus="RenameBox_LostFocus" AutomationProperties.AutomationId="ProfileRenameBox" />
+          <Button x:Name="RenameButton" Grid.Column="1" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+                  Style="{StaticResource SubtleButtonStyle}" Click="RenameButton_Click" IsEnabled="False"
+                  AutomationProperties.AutomationId="ProfileRenameButton">
+            <FontIcon Glyph="&#xE70F;" FontSize="16" />
+          </Button>
+        </Grid>
+        <Rectangle Grid.Column="6" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
         <ComboBox x:Name="ThreadBox" Grid.Column="7" MinWidth="130" VerticalAlignment="Center"
                   SelectionChanged="ThreadBox_SelectionChanged" />
         <Button x:Name="MoreButton" Grid.Column="8" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"

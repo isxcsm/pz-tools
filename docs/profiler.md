@@ -76,7 +76,8 @@ A stutter is often over before a recording could be started. **Keep the last min
 under *Settings > Performance*, has the game record all the time and hold only its last
 few minutes: 1 to 10 of them (2 at first), in Standard or Detailed mode, both set there.
 **Save last 2 min** (with the number set) stands at the left of the toolbar, set apart by
-a thin line from **Start recording** and its mode switch, which apply to recordings only.
+a thin line from **Start recording · Standard** and the switch beside it, which set the
+mode for recordings only; the button names the mode the switch sets.
 Press it right after a stutter, and those minutes become a recording like any other,
 listed and opened at once. While Detailed is kept, the button says so (*Save last 2 min ·
 Detailed*), as that mode slows the game for as long as it is on.
@@ -366,7 +367,7 @@ The list names it by what it is: *Last 2 min · Today 3:43 PM*, *Recording 1 min
 Detailed · Yesterday 9:10 PM* (Standard, the usual mode, goes unsaid; older ones show
 their date). What a recording is lies inside it, its length at its very end, so each is
 read once in the background and kept in `%LOCALAPPDATA%\PzTools\profiles-index.json`, by
-file name, size and time; until then it is listed by its time. The pencil beside the
+file name, size and time; until then it is listed by its time. The pencil right beside the
 list renames the selected recording in place: type over the name, Enter or clicking
 elsewhere keeps it, Esc does not, and an empty name gives the saved one back. The name
 is the file's, so whoever is sent the file sees it too, ahead of the rest: *mod A added ·

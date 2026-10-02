@@ -427,6 +427,8 @@
   <data name="ProfileSearch" xml:space="preserve"><value>Поиск</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Сравнить с</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>Режим записи</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Новое имя (пусто — автоматическое)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Последние {0} мин</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Запись {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} с</value></data>

@@ -427,6 +427,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileSearch" xml:space="preserve"><value>Suchen</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Vergleichen mit</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>Aufzeichnungsmodus</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Neuer Name (leer für den automatischen)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Letzte {0} Min.</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Aufzeichnung {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>

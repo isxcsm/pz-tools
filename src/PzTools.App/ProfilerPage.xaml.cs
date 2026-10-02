@@ -95,9 +95,10 @@ public sealed partial class ProfilerPage : UserControl
     {
         Language = Localizer.Culture.Name;
         PageTitle.Text = Localizer.Get("ProfilerNavigation");
-        ModeSwitch.OffContent = Localizer.Get("ProfileModeGeneral");
-        ModeSwitch.OnContent = Localizer.Get("ProfileModeDetailed");
+        // The switch has no words of its own: the recording's button beside it says the mode it sets.
+        ModeSwitch.OffContent = ModeSwitch.OnContent = null;
         AppToolTip.SetTip(ModeSwitch, Localizer.Get("ProfileModeTip"));
+        AutomationProperties.SetName(ModeSwitch, Localizer.Get("ProfileModeName"));
         ImportItem.Text = Localizer.Get("ProfileImport");
         SaveAsItem.Text = Localizer.Get("ProfileSaveAs");
         OpenFolderItem.Text = Localizer.Get("AdvancedFiles.OpenFolder");
@@ -175,7 +176,10 @@ public sealed partial class ProfilerPage : UserControl
     {
         var session = service?.Session ?? new ProfileSession(ProfileSessionState.Idle);
         var idle = session.State == ProfileSessionState.Idle;
-        RecordText.Text = Localizer.Get(idle ? "ProfileRecordStart" : "ProfileRecordStop");
+        // The mode it records in, or is recording in, beside the switch that sets it.
+        var detailed = idle ? ModeSwitch.IsOn : session.Detailed;
+        RecordText.Text = Localizer.Get(idle ? "ProfileRecordStart" : "ProfileRecordStop") + " · "
+            + Localizer.Get(detailed ? "ProfileModeDetailed" : "ProfileModeGeneral");
         RecordIcon.Glyph = idle ? "\uE7C8" : "\uE71A"; // record : stop
         // Starting needs exactly one game; stopping is possible as soon as the game has confirmed the recording;
         // converting cannot be interrupted.
@@ -239,6 +243,7 @@ public sealed partial class ProfilerPage : UserControl
     private void ModeSwitch_Toggled(object sender, RoutedEventArgs e)
     {
         if (service is { } profiles && profiles.Session.State == ProfileSessionState.Idle) profiles.PreferDetailed = ModeSwitch.IsOn;
+        UpdateSession();
     }
 
     // The new file is listed and opened by the service's Saved event, as one saved from a hotkey is.
@@ -425,7 +430,7 @@ public sealed partial class ProfilerPage : UserControl
         if (RecordingList.SelectedItem is not RecordingItem item) return;
         renaming = true;
         RenameBox.Text = item.File.Named ? item.File.Name : "";
-        RenameBox.PlaceholderText = Describe(item.File with { Name = "profile-00000000-000000" });
+        RenameBox.PlaceholderText = Localizer.Get("ProfileRenamePlaceholder");
         RenameBox.Visibility = Visibility.Visible;
         RecordingList.Visibility = Visibility.Collapsed;
         RenameBox.Focus(FocusState.Programmatic);

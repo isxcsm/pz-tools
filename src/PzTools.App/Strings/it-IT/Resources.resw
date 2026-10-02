@@ -427,6 +427,8 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileSearch" xml:space="preserve"><value>Cerca</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Confronta con</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Ha appena scattato? Premi qui: il gioco ha conservato circa l'ultimo minuto, che viene salvato come registrazione. Modalità: {0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>Modalità di registrazione</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nuovo nome (vuoto per quello automatico)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Ultimi {0} min</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Registrazione {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>

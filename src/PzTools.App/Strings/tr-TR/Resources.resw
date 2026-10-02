@@ -427,6 +427,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileSearch" xml:space="preserve"><value>Ara</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Şununla karşılaştır</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>Kayıt modu</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Yeni ad (otomatik ad için boş bırakın)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Son {0} dk</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Kayıt {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} sn</value></data>

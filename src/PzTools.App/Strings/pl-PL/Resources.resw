@@ -427,6 +427,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileSearch" xml:space="preserve"><value>Szukaj</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Porównaj z</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Właśnie przycięło? Naciśnij: gra zachowała mniej więcej ostatnią minutę, która zostanie zapisana jako nagranie. Tryb: {0}</value></data>
+  <data name="ProfileModeName" xml:space="preserve"><value>Tryb nagrywania</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nowa nazwa (pusta = automatyczna)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Ostatnie {0} min</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Nagranie {0}</value></data>
   <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>
