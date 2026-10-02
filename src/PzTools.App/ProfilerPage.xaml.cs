@@ -704,6 +704,8 @@ public sealed partial class ProfilerPage : UserControl
 
     private void RenderChart()
     {
+        // The time bar above the tabs follows what the graph draws: the highlighted mod, or the one pointed at.
+        if (shown is not null && TimeBreakdownPanel.Visibility == Visibility.Visible) ShowTimeBreakdown(shown);
         if (recording is null || ChartSurface.ActualWidth < 4) return;
         double width = ChartWidth, chartHeight = ChartHeight, height = chartHeight;
         // One bar per three pixels; each holds the slowest frame of its slice.
@@ -1741,7 +1743,6 @@ public sealed partial class ProfilerPage : UserControl
         shown = range;
         // A handful of samples cannot carry percentages; say so instead of showing confident numbers.
         FewSamplesInfo.IsOpen = range.Samples < 20;
-        ShowTimeBreakdown(range);
         // The range's trees are new; the comparison's frames are the range's. It also writes the line above the graph.
         baselineMatches.Clear();
         ShowComparison();
@@ -1759,6 +1760,8 @@ public sealed partial class ProfilerPage : UserControl
                 range.Threads.Sum(row => row.Samples), DetailKind.Threads, range.Threads, []));
         if (range.LongestPauses.Count > 0)
             javaGroups.Add(new ResultGroup("#pauses", Localizer.Get("ProfilePausesSection"), null, 0, DetailKind.Pauses, [], range.LongestPauses));
+        // After the owners, so a mod drawn over the graph finds its figure in this range.
+        ShowTimeBreakdown(range);
         ShowTab();
     }
 
@@ -1769,10 +1772,11 @@ public sealed partial class ProfilerPage : UserControl
         var breakdown = range.Samples < 20 ? null : ProfileAnalysis.TimeBreakdown(range);
         TimeBreakdownPanel.Visibility = breakdown is null ? Visibility.Collapsed : Visibility.Visible;
         if (breakdown is null) return;
-        // The mod chosen in the scripts' list, as its own part of the scripts: the list's figure, on the same scale,
-        // so "how much of this stutter was this mod" reads off the bar.
-        var chosen = Tab == ResultTab.Lua && GroupList.SelectedIndex >= 0 && GroupList.SelectedIndex < listedGroups.Count
-            && listedGroups[GroupList.SelectedIndex] is { Kind: DetailKind.Lua, Share: { } part } owner
+        // The mod drawn over the frame graph, as the graph draws it (clicked in the scripts' list, or pointed at while
+        // another is drawn), as its own part of the scripts: the list's figure, on the same scale, so "how much of this
+        // stutter was this mod" reads off the bar. With none drawn, the bar is the whole range's.
+        var chosen = Tab == ResultTab.Lua && HighlightedOwner() is { Java: false } drawn
+            && luaGroups.FirstOrDefault(group => group.Key == drawn.Key) is { Share: { } part } owner
             ? (Name: owner.Name, Share: Math.Min(part, breakdown.Scripts)) : default((string Name, double Share)?);
         var others = breakdown.Scripts - (chosen?.Share ?? 0);
         SelectedColumn.Width = new GridLength(chosen?.Share ?? 0, GridUnitType.Star);
@@ -2256,8 +2260,6 @@ public sealed partial class ProfilerPage : UserControl
     /// <summary>The right pane: the chosen owner's functions as a table with a heading over every column.</summary>
     private void ShowGroup(ResultGroup group)
     {
-        // The bar above the tabs follows the chosen mod.
-        if (shown is not null) ShowTimeBreakdown(shown);
         // Above the table, outside it: whose functions these are and its samples out of the tab's.
         // Its share is not repeated here; the list beside shows it.
         DetailName.Text = group.Name;
