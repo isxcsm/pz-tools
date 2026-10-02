@@ -406,6 +406,8 @@
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Кожен стовпець — одне очищення пам'яті (GC). Його ширина й висота показують, скільки гра через нього стояла; найвищий стовпець — найдовша пауза у видимому діапазоні.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Пам'ять, яку гра займає на відеокарті. Шкала йде від найменшого до найбільшого значення у видимому діапазоні.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: виділено</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Пам'ять, виділена скриптами виділеного мода, по стовпцю на момент, відносно найбільшого з них. Сміття, що накопичується просто перед очищеннями вище, вказує на цей мод.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} разів, пауза {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функція</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>

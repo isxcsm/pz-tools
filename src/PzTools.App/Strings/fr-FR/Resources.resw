@@ -406,6 +406,8 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Chaque barre est un nettoyage de la mémoire (GC). Sa largeur et sa hauteur montrent combien de temps le jeu s’est arrêté ; la barre la plus haute est la plus longue pause de la plage affichée.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Mémoire que le jeu occupe sur la carte graphique. L’échelle va de la valeur la plus basse à la plus haute de la plage affichée.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} : alloué</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>La mémoire allouée par les scripts du mod mis en évidence, une barre par moment, rapportée au maximum de l’un d’eux. Des déchets qui s’accumulent juste avant les nettoyages au-dessus désignent ce mod.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} fois, pause de {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fonction</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Fichier</value></data>

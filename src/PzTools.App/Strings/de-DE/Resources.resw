@@ -406,6 +406,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Jeder Balken ist eine Speicherbereinigung (GC). Breite und Höhe zeigen, wie lange das Spiel dafür stand; der höchste Balken ist die längste Pause im sichtbaren Bereich.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Speicher, den das Spiel auf der Grafikkarte belegt. Die Skala reicht vom niedrigsten bis zum höchsten Wert im sichtbaren Bereich.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} belegt</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Der Speicher, den die Skripte des hervorgehobenen Mods belegten, ein Balken je Zeitpunkt, gemessen am meisten in einem davon. Müll, der sich kurz vor den Bereinigungen darüber häuft, weist auf diesen Mod.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}-mal, {1} pausiert</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funktion</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Datei</value></data>

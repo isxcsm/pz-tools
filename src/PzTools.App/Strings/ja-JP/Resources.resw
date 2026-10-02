@@ -406,6 +406,8 @@
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>棒 1 本がメモリの整理 (GC) 1 回です。幅と高さはその間ゲームが止まった時間で、いちばん高い棒が表示範囲で最も長い停止です。</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>ゲームがグラフィックカード上に確保しているメモリです。目盛りは表示範囲の最小から最大までです。</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} の割り当て</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>強調した MOD のスクリプトが割り当てたメモリを時点ごとに棒で表示します。最も多い時点がいっぱいの棒です。上の GC の棒の直前にこの棒が集まるなら、この MOD が GC を引き起こしています。</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回、停止 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>関数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ファイル</value></data>

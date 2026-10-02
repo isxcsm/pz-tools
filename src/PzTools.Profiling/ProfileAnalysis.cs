@@ -473,6 +473,32 @@ public static class ProfileAnalysis
         return result;
     }
 
+    /// <summary>
+    /// For each of <paramref name="buckets"/> equal slices of the range, the bytes the game thread allocated while one
+    /// owner's scripts ran (a key of <see cref="ProfileRange.LuaGroups"/>), by the Lua samples taken in it: the same
+    /// figures as the allocation tab, spread over time. All 0 for a recording without allocations.
+    /// </summary>
+    public static long[] OwnerAllocationPerBucket(ProfileRecording recording, long start, long end, int buckets, string owner)
+    {
+        var result = new long[Math.Max(1, buckets)];
+        if (end <= start || !recording.HasLuaAllocations) return result;
+        var lua = recording.LuaSamples;
+        var span = (double)(end - start);
+        var ownerOf = new Dictionary<int, bool>();
+        for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
+        {
+            var sample = lua[index];
+            var stack = recording.LuaStacks[sample.Stack];
+            if (sample.Allocated <= 0 || stack.Length == 0) continue;
+            var function = stack[0].Function;
+            if (!ownerOf.TryGetValue(function, out var mine))
+                ownerOf[function] = mine = OwnerOf(recording.LuaFunctions[function].File).Equals(owner, StringComparison.OrdinalIgnoreCase);
+            if (!mine) continue;
+            result[Math.Min(result.Length - 1, (int)((sample.Time - start) / span * result.Length))] += sample.Allocated;
+        }
+        return result;
+    }
+
     /// <summary>Milliseconds one owner's code ran between two moments, by the samples taken then (see <see cref="OwnerTimePerBucket"/>).</summary>
     public static double OwnerTimeIn(ProfileRecording recording, long start, long end, bool java, string owner, int thread)
     {

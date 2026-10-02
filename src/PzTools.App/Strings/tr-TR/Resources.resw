@@ -406,6 +406,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Her çubuk bir bellek temizliğidir (GC). Genişliği ve yüksekliği oyunun bunun için ne kadar durduğunu gösterir; en yüksek çubuk, görünen aralıktaki en uzun duraklamadır.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Oyunun ekran kartında tuttuğu bellek. Ölçek, görünen aralıktaki en düşük değerden en yükseğe uzanır.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} ayırdı</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Vurgulanan modun betiklerinin ayırdığı bellek, her an için bir çubuk, en çok olana göre. Yukarıdaki temizliklerden hemen önce biriken çöp bu modu gösterir.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kez, duraklama {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>İşlev</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Dosya</value></data>

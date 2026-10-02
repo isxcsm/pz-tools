@@ -394,6 +394,11 @@ public sealed class ProfileRecordingTests
 
         var before = ProfileAnalysis.Analyze(recording, 0, 20_000, recording.GameThread);
         Assert.Equal(1000, before.LuaAllocated);
+
+        // Over time, in two slices of 25 ms: the mod's samples at 15 ms and 35 ms; the game's at 45 ms.
+        Assert.Equal([1000L, 5000], ProfileAnalysis.OwnerAllocationPerBucket(recording, 0, 50_000, 2, "SlowMod"));
+        Assert.Equal([0L, 200], ProfileAnalysis.OwnerAllocationPerBucket(recording, 0, 50_000, 2, ProfileAnalysis.GameOwner));
+        Assert.Equal([0L, 0], ProfileAnalysis.OwnerAllocationPerBucket(Load(Sample), 0, 50_000, 2, "SlowMod"));
     }
 
     [Fact]

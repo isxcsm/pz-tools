@@ -406,6 +406,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Cada barra é uma limpeza de memória (GC). A largura e a altura mostram quanto tempo o jogo parou por ela; a barra mais alta é a pausa mais longa no intervalo visível.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memória que o jogo ocupa na placa de vídeo. A escala vai do menor ao maior valor no intervalo visível.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: alocado</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>A memória que os scripts do mod destacado alocaram, uma barra por momento, em relação ao máximo em um deles. Lixo que se acumula logo antes das limpezas acima aponta para este mod.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} vezes, pausa de {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Função</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Arquivo</value></data>

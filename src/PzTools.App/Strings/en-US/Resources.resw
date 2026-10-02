@@ -434,6 +434,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Each bar is one memory cleanup (GC). Its width and height show how long the game stopped for it; the tallest bar is the longest pause in view.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memory the game holds on the graphics card. The scale runs from the lowest to the highest reading in view.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} allocated</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>The memory the highlighted mod's scripts allocated, one bar per moment, against the most in one of them. Garbage that piles up just before the collections above points at this mod.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} times, paused {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Function</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>

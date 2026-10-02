@@ -413,6 +413,8 @@
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>แต่ละแท่งคือการล้างหน่วยความจำ (GC) หนึ่งครั้ง ความกว้างและความสูงแสดงเวลาที่เกมหยุดไป แท่งที่สูงที่สุดคือการหยุดนานที่สุดในช่วงที่มองเห็น</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>หน่วยความจำที่เกมใช้บนการ์ดจอ สเกลเริ่มจากค่าต่ำสุดถึงสูงสุดในช่วงที่มองเห็น</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} จัดสรร</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>หน่วยความจำที่สคริปต์ของม็อดที่ไฮไลต์จัดสรร แท่งละช่วงเวลา เทียบกับช่วงที่มากที่สุด ถ้าแท่งเหล่านี้กองอยู่ก่อนแท่ง GC ด้านบน แสดงว่าม็อดนี้ทำให้เกิด GC</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} ครั้ง หยุดชะงัก {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>ฟังก์ชัน</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ไฟล์</value></data>

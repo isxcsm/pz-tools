@@ -430,6 +430,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemory" xml:space="preserve"><value>Paměť</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Paměť, kterou hra drží na grafické kartě. Stupnice sahá od nejnižší po nejvyšší hodnotu v zobrazeném úseku.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} – alokace</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Paměť alokovaná skripty zvýrazněného modu, jeden sloupec za okamžik, vůči nejvíce v jednom z nich. Odpad, který se hromadí těsně před úklidy výše, ukazuje na tento mod.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Každý sloupec je jeden úklid paměti (GC). Jeho šířka a výška ukazují, jak dlouho kvůli němu hra stála; nejvyšší sloupec je nejdelší pauza v zobrazeném úseku.</value></data>
   <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Pauzy GC</value></data>

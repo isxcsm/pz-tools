@@ -405,6 +405,8 @@
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>막대 하나가 메모리 정리(GC) 한 번입니다. 폭과 높이는 그동안 게임이 멈춘 시간이고, 가장 높은 막대가 보이는 구간에서 가장 길게 멈춘 것입니다.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>게임이 그래픽카드에 올려 둔 메모리입니다. 눈금은 보이는 구간의 최저에서 최고까지입니다.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} 할당</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>강조한 모드의 스크립트가 할당한 메모리를 시점마다 막대로 보여줍니다. 가장 많이 할당한 시점이 꽉 찬 막대입니다. 위 GC 막대 바로 앞에 이 막대가 몰리면 이 모드가 GC를 부르는 것입니다.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}회, 멈춤 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>함수</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>파일</value></data>

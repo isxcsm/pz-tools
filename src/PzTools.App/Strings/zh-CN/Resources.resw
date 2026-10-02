@@ -406,6 +406,8 @@
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>每根柱代表一次内存清理（GC）。宽度和高度表示游戏因此暂停的时间，最高的柱是可见范围内最长的暂停。</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>显存</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>游戏在显卡上占用的内存。刻度为可见范围内的最低值到最高值。</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} 分配</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>按时刻以柱显示突出显示的模组脚本分配的内存，分配最多的时刻为满柱。若这些柱集中在上方 GC 柱之前，就是此模组引起了 GC。</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停顿 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>文件</value></data>

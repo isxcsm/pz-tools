@@ -296,7 +296,7 @@ public sealed partial class ProfilerPage : UserControl
         recording = loaded;
         // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
         openPaths.Clear();
-        luaHighlight = javaHighlight = null;
+        luaHighlight = javaHighlight = allocationHighlight = null;
         previewGroup = null;
         viewStart = 0;
         viewEnd = loaded.Duration;
@@ -625,9 +625,16 @@ public sealed partial class ProfilerPage : UserControl
     // Open or shut for as long as the app runs, whichever recording is shown.
     private static bool memoryOpen;
 
-    // The panel's rows: heap, collections and video memory, each only when the recording has it.
+    // The panel's rows: heap, collections and video memory, each only when the recording has it, and the allocations
+    // of the highlighted mod when the recording has allocations.
     private int MemoryRows => recording is not { } loaded ? 0
-        : (loaded.Heap.Count > 0 ? 1 : 0) + (loaded.Collections.Count > 0 ? 1 : 0) + (loaded.VideoMemory.Count > 0 ? 1 : 0);
+        : (loaded.Heap.Count > 0 ? 1 : 0) + (loaded.Collections.Count > 0 ? 1 : 0) + (loaded.VideoMemory.Count > 0 ? 1 : 0)
+            + (AllocationOwner is null ? 0 : 1);
+
+    // The heap, collections and video memory are the whole game's and cannot be split by mod. What can is the memory a
+    // mod's scripts allocate: a highlighted script owner gets its own row of that, beside the collections it brings on.
+    private HighlightedGroup? AllocationOwner =>
+        recording?.HasLuaAllocations == true && HighlightedOwner() is { Java: false } owner ? owner : null;
 
     private const double MemoryRowHeight = 36, MemoryRowGap = 10;
 
@@ -665,14 +672,29 @@ public sealed partial class ProfilerPage : UserControl
         MemoryNames.Children.Clear();
         if (recording is null || MemoryBorder.Visibility != Visibility.Visible || MemorySurface.ActualWidth < 4) return;
         var width = MemorySurface.ActualWidth;
-        var rows = new List<(Action<double, double> Draw, string Name, Brush Brush)>();
+        var rows = new List<(Action<double, double> Draw, string Name, string Tip, Brush Brush)>();
+        (string, string) Named(string key) => (Localizer.Get(key), Localizer.Get($"{key}Tip"));
         if (recording.Heap.Count > 0)
+        {
+            var (name, tip) = Named("ProfileMemoryHeapRow");
             rows.Add(((top, inner) => DrawLine(Visible(recording.Heap.Select(item => (item.Time, item.Used))), HeapBrush, top, inner),
-                "ProfileMemoryHeapRow", HeapBrush));
-        if (recording.Collections.Count > 0) rows.Add((DrawCollections, "ProfileMemoryCollectionsRow", Muted));
+                name, tip, HeapBrush));
+        }
+        if (recording.Collections.Count > 0)
+        {
+            var (name, tip) = Named("ProfileMemoryCollectionsRow");
+            rows.Add((DrawCollections, name, tip, Muted));
+        }
+        // Under the collections: whether the mod's garbage comes just before them.
+        if (AllocationOwner is { } owner)
+            rows.Add(((top, inner) => DrawOwnerAllocation(owner.Key, top, inner), Localizer.Format("ProfileMemoryOwnerRowFormat", owner.Name),
+                Localizer.Get("ProfileMemoryOwnerRowTip"), HighlightPath.Fill));
         if (recording.VideoMemory.Count > 0)
+        {
+            var (name, tip) = Named("ProfileMemoryVideoRow");
             rows.Add(((top, inner) => DrawLine(Visible(recording.VideoMemory.Select(item => (item.Time, item.Dedicated))), VideoBrush, top, inner),
-                "ProfileMemoryVideoRow", VideoBrush));
+                name, tip, VideoBrush));
+        }
         // Rows apart by a gap, so one row's lowest label and the next one's highest do not meet.
         var rowHeight = (MemorySurface.ActualHeight - MemoryRowGap * (rows.Count - 1)) / Math.Max(1, rows.Count);
         for (var row = 0; row < rows.Count; row++)
@@ -684,9 +706,9 @@ public sealed partial class ProfilerPage : UserControl
                 MemoryCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = Muted, StrokeThickness = 0.5, Opacity = 0.6 });
             }
             // The drawing keeps clear of the row's edges by half a label, so each label centres on its end.
-            var (draw, name, brush) = rows[row];
+            var (draw, name, tip, brush) = rows[row];
             draw(rowTop + 6, Math.Max(1, rowHeight - 12));
-            Name(name, brush, rowTop);
+            Name(name, tip, brush, rowTop);
         }
         UpdateSelectionRectangle();
 
@@ -725,16 +747,37 @@ public sealed partial class ProfilerPage : UserControl
             Labels(Milliseconds(longest / 1000.0), "0 ms", top, inner);
         }
 
+        // The highlighted mod's allocations, one bar per three pixels, against the most it allocated in one of them.
+        void DrawOwnerAllocation(string owner, double top, double inner)
+        {
+            var buckets = Math.Max(1, (int)(width / 3));
+            var bytes = ProfileAnalysis.OwnerAllocationPerBucket(recording, viewStart, viewEnd, buckets, owner);
+            var most = bytes.Max();
+            if (most > 0)
+            {
+                var step = width / buckets;
+                var bars = new GeometryGroup { FillRule = FillRule.Nonzero };
+                for (var index = 0; index < buckets; index++)
+                {
+                    if (bytes[index] <= 0) continue;
+                    var barHeight = Math.Max(1, bytes[index] / (double)most * inner);
+                    bars.Children.Add(new RectangleGeometry { Rect = new Rect(index * step, top + inner - barHeight, Math.Max(1, step - 0.5), barHeight) });
+                }
+                MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = HighlightPath.Fill });
+            }
+            Labels(Bytes(most), "0", top, inner);
+        }
+
         // What the row is, as a small chip at its top left: a dot in the row's colour and the name in secondary text,
         // on an opaque background so a line passing under it does not cross the words. Resting the pointer on it says
         // how to read the row; presses and moves on it bubble to the graph, so a range can be dragged from it too.
-        void Name(string key, Brush brush, double rowTop)
+        void Name(string text, string tip, Brush brush, double rowTop)
         {
             var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
             content.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = brush, VerticalAlignment = VerticalAlignment.Center });
             content.Children.Add(new TextBlock
             {
-                Text = Localizer.Get(key), FontSize = 11,
+                Text = text, FontSize = 11,
                 Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
             });
             var chip = new Border
@@ -743,7 +786,7 @@ public sealed partial class ProfilerPage : UserControl
                 BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 0, 7, 1), Child = content,
             };
-            AppToolTip.SetTip(chip, Localizer.Get($"{key}Tip"));
+            AppToolTip.SetTip(chip, tip);
             Canvas.SetLeft(chip, 4);
             Canvas.SetTop(chip, rowTop - 2);
             MemoryNames.Children.Add(chip);
@@ -1186,7 +1229,8 @@ public sealed partial class ProfilerPage : UserControl
         GroupList.SelectedIndex = index;
         updatingGroups = false;
         ShowGroup(listedGroups[index]);
-        // Each tab has its own highlight, or none.
+        // Each tab has its own highlight, or none, and with it the memory panel's mod row.
+        ApplyMemoryPanel();
         RenderChart();
     }
 
@@ -1214,8 +1258,9 @@ public sealed partial class ProfilerPage : UserControl
     // ---- Highlight on the frame graph ----
 
     // The owner drawn over the frame graph in each tab, or none: clicking an owner in the list draws it, clicking it
-    // again stops. Not in the allocation tab, whose figures are bytes, not time. A new recording starts with none.
-    private string? luaHighlight, javaHighlight;
+    // again stops. A script owner also gets a row of its allocations in the memory panel; in the allocation tab that
+    // row is the point, and the frame graph shows the same mod's time. A new recording starts with none.
+    private string? luaHighlight, javaHighlight, allocationHighlight;
     // While one is highlighted, the owner under the pointer is drawn in its place until the pointer leaves.
     private ResultGroup? previewGroup;
     private string? highlightMovedTo;
@@ -1223,9 +1268,12 @@ public sealed partial class ProfilerPage : UserControl
 
     private readonly record struct HighlightedGroup(bool Java, string Key, string Name);
 
-    private static bool Highlightable(ResultGroup group) => group.Kind is DetailKind.Lua or DetailKind.Java;
+    private static bool Highlightable(ResultGroup group) => group.Kind is DetailKind.Lua or DetailKind.Java or DetailKind.Allocation;
 
-    private string? CurrentHighlight => Tab switch { ResultTab.Lua => luaHighlight, ResultTab.Java => javaHighlight, _ => null };
+    private string? CurrentHighlight => Tab switch
+    {
+        ResultTab.Lua => luaHighlight, ResultTab.Java => javaHighlight, _ => allocationHighlight,
+    };
 
     private HighlightedGroup? HighlightedOwner()
     {
@@ -1247,11 +1295,16 @@ public sealed partial class ProfilerPage : UserControl
 
     private void SetHighlight(string? key)
     {
-        if (Tab == ResultTab.Java) javaHighlight = key;
-        else if (Tab == ResultTab.Lua) luaHighlight = key;
-        else return;
+        switch (Tab)
+        {
+            case ResultTab.Java: javaHighlight = key; break;
+            case ResultTab.Allocation: allocationHighlight = key; break;
+            default: luaHighlight = key; break;
+        }
         previewGroup = null;
         UpdateHighlightIcons();
+        // The memory panel gains or loses the mod's row.
+        ApplyMemoryPanel();
         RenderChart();
     }
 

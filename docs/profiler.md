@@ -220,8 +220,16 @@ heading says what its column means when the pointer rests on it.
   the line above it adds the owner's time in the frame under the pointer. It counts the
   samples taken in that frame (the game thread's, for game code), so it moves in steps of
   a sampling period: coarse for short frames in Standard mode, fine in Detailed mode. A
-  new recording starts with nothing highlighted; *Memory allocation*, in bytes, has
-  none. Wheel zooms
+  new recording starts with nothing highlighted.
+
+  The memory panel's heap, collections and video memory are the whole game's and cannot
+  be split by mod. What can is the memory a mod's scripts allocate: when a mod (or the
+  game's scripts) is highlighted and the recording has allocations, the panel gains a
+  row of it under the collections, one bar per moment against the most in one of them,
+  so garbage that piles up just before collections points at that mod. *Memory
+  allocation* highlights the same way: there the row is the point, and the frame graph
+  shows the same mod's time. Parts of the game code have no such row, as allocations
+  are recorded for scripts only. Wheel zooms
   around the pointer, right-button drag or the scroll bar moves, double-click shows
   everything.
 - **Memory panel.** When the recording has memory readings or garbage collections, the
