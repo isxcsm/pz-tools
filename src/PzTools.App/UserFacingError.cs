@@ -7,7 +7,7 @@ internal static class UserFacingError
 {
     private static readonly string[] AlreadyLocalizedKeys =
     [
-        "HostNotReady", "WindowNotCreated", "StopPlayingToExport", "DeleteSaveUnavailable",
+        "HostNotReady", "WindowNotCreated", "StopPlayingToExport", "StopPlayingToHeal", "OperationBusy", "DeleteSaveUnavailable",
         "OperationError.Configuration", "OperationError.SettingsBusy", "OperationError.RestartFailed",
         "OperationError.SettingsReverted", "OperationError.SettingsRecoveryFailed",
         "OperationError.AccessDenied", "OperationError.FileMissing", "OperationError.FileInUse",
