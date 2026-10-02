@@ -2,6 +2,8 @@ package pztools.bridge.runtime;
 
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -202,9 +204,10 @@ final class ProfileRecorder {
      */
     static final class LuaSampler implements Runnable {
         private static final int MAXIMUM_DEPTH = 24, MAXIMUM_CACHE = 8192, MAXIMUM_STACK_TEXT = 4096;
-        private final Field[] threads;
-        private final Field currentCoroutine, closure, pc, prototype, name, file, filename, lines;
-        private final Method top, stack;
+        // Method handles, not reflection: access is checked once, here, instead of on every read, and nothing is
+        // boxed. Types are erased to Object (or int) so the reads are exact calls; checked above them by type.
+        private final MethodHandle[] threads;
+        private final MethodHandle currentCoroutine, closure, pc, prototype, name, file, filename, lines, top, stack;
         private final long periodNanos;
         private final IdentityHashMap<Object, String> labels = new IdentityHashMap<>();
         private final PreciseWait wait = new PreciseWait();
@@ -223,22 +226,35 @@ final class ProfileRecorder {
             // The interface runs on its own interpreter thread object; without it only game logic Lua is seen.
             try { ui = Class.forName("zombie.ui.UIManager", false, game).getField("defaultthread"); if (ui.getType() != kahlua) ui = null; }
             catch (ReflectiveOperationException absent) { ui = null; }
-            threads = ui == null ? new Field[] { main } : new Field[] { main, ui };
-            currentCoroutine = typed(kahlua.getField("currentCoroutine"), coroutine);
-            top = coroutine.getMethod("getCallframeTop");
-            stack = coroutine.getMethod("getCallframeStack");
-            if (top.getReturnType() != int.class || stack.getReturnType() != frame.arrayType()) throw new NoSuchMethodException("Coroutine call frames");
-            closure = typed(frame.getField("closure"), closureType);
-            pc = typed(frame.getField("pc"), int.class);
-            prototype = typed(closureType.getField("prototype"), prototypeType);
-            name = typed(prototypeType.getField("name"), String.class);
-            file = typed(prototypeType.getField("file"), String.class);
-            filename = typed(prototypeType.getField("filename"), String.class);
-            lines = typed(prototypeType.getField("lines"), int[].class);
+            threads = ui == null ? new MethodHandle[] { read(main) } : new MethodHandle[] { read(main), read(ui) };
+            currentCoroutine = read(typed(kahlua.getField("currentCoroutine"), coroutine));
+            Method callTop = coroutine.getMethod("getCallframeTop"), callStack = coroutine.getMethod("getCallframeStack");
+            if (callTop.getReturnType() != int.class || callStack.getReturnType() != frame.arrayType()) throw new NoSuchMethodException("Coroutine call frames");
+            top = call(callTop);
+            stack = call(callStack);
+            closure = read(typed(frame.getField("closure"), closureType));
+            pc = read(typed(frame.getField("pc"), int.class));
+            prototype = read(typed(closureType.getField("prototype"), prototypeType));
+            name = read(typed(prototypeType.getField("name"), String.class));
+            file = read(typed(prototypeType.getField("file"), String.class));
+            filename = read(typed(prototypeType.getField("filename"), String.class));
+            lines = read(typed(prototypeType.getField("lines"), int[].class));
         }
         private static Field typed(Field field, Class<?> type) throws NoSuchFieldException {
             if (field.getType() != type) throw new NoSuchFieldException(field.getName());
             return field;
+        }
+        /** A field's getter as ()Object for a static field or (Object)Object, primitives kept. */
+        private static MethodHandle read(Field field) throws IllegalAccessException {
+            Class<?> value = field.getType().isPrimitive() ? field.getType() : Object.class;
+            MethodHandle getter = MethodHandles.publicLookup().unreflectGetter(field);
+            return getter.asType(java.lang.reflect.Modifier.isStatic(field.getModifiers())
+                ? MethodType.methodType(value) : MethodType.methodType(value, Object.class));
+        }
+        /** A no-argument instance method as (Object)Object, primitives kept. */
+        private static MethodHandle call(Method method) throws IllegalAccessException {
+            Class<?> value = method.getReturnType().isPrimitive() ? method.getReturnType() : Object.class;
+            return MethodHandles.publicLookup().unreflect(method).asType(MethodType.methodType(value, Object.class));
         }
 
         @Override public void run() {
@@ -250,6 +266,9 @@ final class ProfileRecorder {
             Thread counted = null;
             long lastBytes = -1, reportBytes = -1;
             var text = new StringBuilder(512);
+            // The game often stays in one place for many samples in a row: the same text is then the same string,
+            // so it makes no garbage in the game's heap and the recorder finds it already in its string pool.
+            String previousStack = "";
             try {
                 while (!stopped) {
                     wait.pause(periodNanos);
@@ -267,8 +286,9 @@ final class ProfileRecorder {
                     try { read(text); } catch (Throwable racing) { text.setLength(0); }
                     if (text.length() != 0) {
                         inLua++;
+                        if (!previousStack.contentEquals(text)) previousStack = text.toString();
                         LuaSampleEvent event = new LuaSampleEvent();
-                        event.stack = text.toString();
+                        event.stack = previousStack;
                         event.allocated = allocated;
                         event.commit();
                     }
@@ -290,31 +310,32 @@ final class ProfileRecorder {
             event.commit();
         }
 
-        private void read(StringBuilder out) throws ReflectiveOperationException {
-            for (Field thread : threads) {
-                Object interpreter = thread.get(null);
+        private void read(StringBuilder out) throws Throwable {
+            for (MethodHandle thread : threads) {
+                Object interpreter = (Object)thread.invokeExact();
                 if (interpreter == null) continue;
-                Object coroutine = currentCoroutine.get(interpreter);
+                Object coroutine = (Object)currentCoroutine.invokeExact(interpreter);
                 if (coroutine == null) continue;
-                int depth = (int)top.invoke(coroutine);
-                Object[] frames = (Object[])stack.invoke(coroutine);
+                int depth = (int)top.invokeExact(coroutine);
+                Object[] frames = (Object[])(Object)stack.invokeExact(coroutine);
                 if (depth <= 0 || frames == null) continue;
                 int written = 0;
                 for (int index = Math.min(depth, frames.length) - 1; index >= 0 && written < MAXIMUM_DEPTH; index--) {
                     Object callFrame = frames[index];
                     if (callFrame == null) continue;
-                    Object function = closure.get(callFrame);
+                    Object function = (Object)closure.invokeExact(callFrame);
                     if (function == null) continue; // A Java function called from Lua; the Java samples cover it.
-                    Object code = prototype.get(function);
+                    Object code = (Object)prototype.invokeExact(function);
                     if (code == null) continue;
                     String label = labels.get(code);
                     if (label == null) {
                         if (labels.size() >= MAXIMUM_CACHE) labels.clear();
-                        label = clean((String)name.get(code)) + "|" + clean(firstNonEmpty((String)filename.get(code), (String)file.get(code)));
+                        label = clean((String)(Object)name.invokeExact(code)) + "|"
+                            + clean(firstNonEmpty((String)(Object)filename.invokeExact(code), (String)(Object)file.invokeExact(code)));
                         labels.put(code, label);
                     }
-                    int line = 0, counter = pc.getInt(callFrame) - 1;
-                    int[] lineTable = (int[])lines.get(code);
+                    int line = 0, counter = (int)pc.invokeExact(callFrame) - 1;
+                    int[] lineTable = (int[])(Object)lines.invokeExact(code);
                     if (lineTable != null && counter >= 0 && counter < lineTable.length) line = lineTable[counter];
                     if (out.length() + label.length() + 16 > MAXIMUM_STACK_TEXT) break;
                     if (written++ != 0) out.append('\n');
@@ -425,16 +446,29 @@ final class ProfileRecorder {
                 timer = created.address() == 0 ? null : created;
             } catch (Throwable unavailable) { timer = null; }
         }
+        // The period the timer repeats at once armed, so each pause is one wait instead of arming and waiting; 0 when
+        // not armed, -1 when the system refused a repeating timer and each pause arms it once.
+        private long periodicNanos;
+
         void pause(long nanos) {
             MemorySegment current = timer;
             if (current != null) {
                 try {
-                    due.set(ValueLayout.JAVA_LONG, 0, -Math.max(1, nanos / 100));
-                    int armed = (int)setTimer.invokeExact(current, due, 0, MemorySegment.NULL, MemorySegment.NULL, 0);
-                    if (armed != 0) {
-                        int result = (int)waitFor.invokeExact(current, 1000);
-                        if (result == 0) return;
+                    if (periodicNanos != nanos && periodicNanos >= 0) {
+                        // A repeating timer counts its ticks in milliseconds, which both sampling periods are.
+                        due.set(ValueLayout.JAVA_LONG, 0, -Math.max(1, nanos / 100));
+                        int period = (int)Math.max(1, nanos / 1_000_000);
+                        int armed = (int)setTimer.invokeExact(current, due, period, MemorySegment.NULL, MemorySegment.NULL, 0);
+                        periodicNanos = armed != 0 && nanos % 1_000_000 == 0 ? nanos : -1;
                     }
+                    if (periodicNanos < 0) {
+                        due.set(ValueLayout.JAVA_LONG, 0, -Math.max(1, nanos / 100));
+                        int armed = (int)setTimer.invokeExact(current, due, 0, MemorySegment.NULL, MemorySegment.NULL, 0);
+                        if (armed == 0) throw new IllegalStateException("timer");
+                    }
+                    // A tick missed while the sampler was busy is not owed: the repeating timer is signalled once.
+                    int result = (int)waitFor.invokeExact(current, 1000);
+                    if (result == 0) return;
                 } catch (Throwable failed) { timer = null; }
             }
             LockSupport.parkNanos(this, nanos);

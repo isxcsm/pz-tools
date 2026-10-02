@@ -70,7 +70,10 @@ it, start or stop simply waits for it.
 
 The Lua sampler reads interpreter objects from another thread without stopping the game.
 A sample can be one call out of date; it cannot crash the game, and one sample is only one
-vote among many.
+vote among many. It reads through method handles checked once when it starts, waits on a
+repeating high-resolution timer, and reuses the text of a stack it saw the sample before,
+so its own thread does little besides reading and its garbage in the game's heap stays
+small.
 
 When something does not fit, the profiler is what stops, and only it:
 
@@ -206,7 +209,8 @@ heading says what its column means when the pointer rests on it.
   can be dragged on either. It stays open or shut while the app runs. Closed, it takes no
   room.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
-  the whole recording is analysed.
+  the whole recording is analysed, in the background; choosing another range stops the
+  analysis of the previous one.
 - **Shares.** *Self* is time spent in the function itself, *Total* includes what it
   called; resting the pointer on either heading says so. Every row shows its sample count. A warning appears below 20 samples: a single
   16 ms frame holds one or two Standard samples, so one frame is only meaningful in

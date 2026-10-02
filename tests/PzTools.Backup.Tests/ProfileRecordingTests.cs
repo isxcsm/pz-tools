@@ -161,6 +161,15 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Analyze_StopsWhenNobodyWaitsForItAnyMore()
+    {
+        using var cancel = new CancellationTokenSource();
+        cancel.Cancel();
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            ProfileAnalysis.Analyze(Load(Sample), 0, 50_000, -1, cancellation: cancel.Token));
+    }
+
+    [Fact]
     public void Analyze_LeavesOutThreadsOnlyWaitingInANativeCall()
     {
         // Render also waits for a connection, and in a timer reached through a foreign function call.

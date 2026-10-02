@@ -122,7 +122,10 @@ public static class ProfileAnalysis
     public const string GameCode = "game", LuaRuntime = "lua", JavaRuntime = "java", Tools = "tools", Libraries = "libraries";
 
     /// <param name="thread">Index into <see cref="ProfileRecording.Threads"/>; -1 for every thread together.</param>
-    public static ProfileRange Analyze(ProfileRecording recording, long start, long end, int thread, int maximumRows = 40)
+    /// <param name="cancellation">Stops an analysis nobody waits for any more (a newer range was chosen); checked
+    /// every few thousand samples, so a long recording's analysis ends within milliseconds.</param>
+    public static ProfileRange Analyze(ProfileRecording recording, long start, long end, int thread, int maximumRows = 40,
+        CancellationToken cancellation = default)
     {
         if (end < start) (start, end) = (end, start);
         start = Math.Max(0, start);
@@ -147,6 +150,7 @@ public static class ProfileAnalysis
         var waiting = 0;
         for (var index = first; index < samples.Length && samples[index].Time < end; index++)
         {
+            if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
             var sample = samples[index];
             if (sample.Native && (waits[sample.Stack] ??= Waits(recording, recording.Stacks[sample.Stack])))
             {
@@ -222,6 +226,7 @@ public static class ProfileAnalysis
         var callTrees = new Dictionary<string, ProfileCallNode>(StringComparer.OrdinalIgnoreCase);
         for (var index = luaFirst; index < lua.Length && lua[index].Time < end; index++)
         {
+            if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
             var stack = recording.LuaStacks[lua[index].Stack];
             if (stack.Length == 0) continue;
             luaCount++;

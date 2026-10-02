@@ -46,6 +46,7 @@ public sealed partial class ProfilerPage : UserControl
     private double pressX;
     private long pressViewStart;
     private int loadVersion, analysisVersion;
+    private CancellationTokenSource? analysisCancel;
     private double gripStartY, gripStartHeight;
     private bool resizingChart, updatingGroups;
     private ProfileRange? shown;
@@ -1039,10 +1040,14 @@ public sealed partial class ProfilerPage : UserControl
         var start = selectionStart ?? 0;
         var end = selectionEnd ?? current.Duration;
         var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
+        // A newer range makes the previous analysis pointless: stop it rather than let it finish on a worker.
+        analysisCancel?.Cancel();
+        var cancel = analysisCancel = new CancellationTokenSource();
         ProfileRange range;
         // Every row of a group, not the first few: the table shows the first and gathers the rest into one row with its sum.
-        try { range = await Task.Run(() => ProfileAnalysis.Analyze(current, start, end, thread, MaximumGroupRows)); }
+        try { range = await Task.Run(() => ProfileAnalysis.Analyze(current, start, end, thread, MaximumGroupRows, cancel.Token), cancel.Token); }
         catch (Exception) { return; }
+        finally { if (ReferenceEquals(analysisCancel, cancel)) analysisCancel = null; cancel.Dispose(); }
         if (version != analysisVersion || !ReferenceEquals(current, recording)) return;
         ShowRange(range);
     }
