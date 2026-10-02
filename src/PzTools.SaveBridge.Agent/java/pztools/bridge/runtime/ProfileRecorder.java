@@ -86,6 +86,8 @@ final class ProfileRecorder {
             next.enable("jdk.GarbageCollection");
             next.enable("jdk.GCPhasePause");
             next.enable("jdk.ZAllocationStall");
+            // How full the Java heap is, four times a second: it fills between collections and drops at each.
+            next.enable("jdk.GCHeapMemoryUsage").withPeriod(Duration.ofMillis(250));
             if (detailedMode) {
                 // Where a thread was not running at all: waiting for a lock, parked, blocked on a file, stopped by the JVM.
                 next.enable("jdk.JavaMonitorEnter").withThreshold(Duration.ofMillis(1));

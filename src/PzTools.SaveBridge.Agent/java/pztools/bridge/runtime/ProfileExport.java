@@ -29,6 +29,9 @@ import jdk.jfr.consumer.*;
  *   LH time taken inLua periodMicros  Lua sampler totals since the previous LH
  *   G  time duration name cause       a garbage collection; duration is its total pause
  *   P  time duration kind thread detail   a pause or wait on one thread
+ *   H  time used committed max        the Java heap in bytes, four times a second
+ *   V  time dedicated shared          the game's video memory in bytes; added afterwards by the
+ *                                     recording worker, which reads it from outside the game
  * </pre>
  */
 public final class ProfileExport {
@@ -128,6 +131,8 @@ public final class ProfileExport {
                     }
                     case "pztools.LuaSampler" -> body.append("LH\t").append(time).append('\t').append(event.getLong("taken")).append('\t')
                         .append(event.getLong("inLua")).append('\t').append(event.getLong("periodMicros")).append('\n');
+                    case "jdk.GCHeapMemoryUsage" -> body.append("H\t").append(time).append('\t').append(event.getLong("used"))
+                        .append('\t').append(event.getLong("committed")).append('\t').append(event.getLong("max")).append('\n');
                     case "jdk.GarbageCollection" -> body.append("G\t").append(time).append('\t')
                         .append(event.getDuration("sumOfPauses").toNanos() / 1000).append('\t')
                         .append(clean(event.getString("name"))).append('\t').append(clean(event.getString("cause"))).append('\n');

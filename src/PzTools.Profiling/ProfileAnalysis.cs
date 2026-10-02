@@ -148,6 +148,27 @@ public static class ProfileAnalysis
             collectionCount, collectionPause, pauses);
     }
 
+    /// <summary>The most heap in use, and the most video memory on the graphics card, during the range; null without readings.</summary>
+    public static (long? Heap, long? VideoMemory) MemoryPeaksIn(ProfileRecording recording, long start, long end)
+    {
+        long? heap = null, video = null;
+        foreach (var item in recording.Heap)
+            if (item.Time >= start && item.Time < end) heap = Math.Max(heap ?? 0, item.Used);
+        foreach (var item in recording.VideoMemory)
+            if (item.Time >= start && item.Time < end) video = Math.Max(video ?? 0, item.Dedicated);
+        return (heap, video);
+    }
+
+    /// <summary>The last readings at or before a moment: what memory looked like then.</summary>
+    public static (ProfileHeapSample? Heap, ProfileVideoMemorySample? VideoMemory) MemoryAt(ProfileRecording recording, long time)
+    {
+        ProfileHeapSample? heap = null;
+        foreach (var item in recording.Heap) { if (item.Time > time) break; heap = item; }
+        ProfileVideoMemorySample? video = null;
+        foreach (var item in recording.VideoMemory) { if (item.Time > time) break; video = item; }
+        return (heap, video);
+    }
+
     /// <summary>
     /// Garbage collections that overlap the range, and how long they paused the game in all. A pause stops
     /// every thread, so it leaves no samples behind; this is where it shows instead.

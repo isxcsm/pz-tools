@@ -411,7 +411,10 @@ public sealed partial class ProfilerPage : UserControl
         // game, so a spike above a mark reads as "the game stopped to collect". Only when there are any.
         const double CollectionLane = 8;
         var markCollections = recording.Collections.Count > 0;
-        var height = markCollections ? Math.Max(1, chartHeight - CollectionLane) : chartHeight;
+        // Below that, memory on its own scale: the Java heap and the game's video memory as two lines.
+        const double MemoryLane = 34;
+        var showMemory = recording.Heap.Count > 0 || recording.VideoMemory.Count > 0;
+        var height = Math.Max(1, chartHeight - (markCollections ? CollectionLane : 0) - (showMemory ? MemoryLane : 0));
         // One bar per three pixels; each holds the slowest frame of its slice.
         var buckets = Math.Max(1, (int)(width / 3));
         var values = ProfileAnalysis.SlowestFramePerBucket(recording, viewStart, viewEnd, buckets);
@@ -472,6 +475,7 @@ public sealed partial class ProfilerPage : UserControl
             }
             GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = marks, Fill = brush });
         }
+        if (showMemory) RenderMemoryLane(width, height + (markCollections ? CollectionLane : 0) + 3, MemoryLane - 6, brush);
 
         UpdateSelectionRectangle();
         var zoomed = viewStart > 0 || viewEnd < recording.Duration;
@@ -513,6 +517,9 @@ public sealed partial class ProfilerPage : UserControl
         var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
             : ProfileAnalysis.CollectionsIn(recording, start, end);
         if (collections > 0) items.Add(CollectionStat(collections, paused));
+        var (heapPeak, videoPeak) = ProfileAnalysis.MemoryPeaksIn(recording, start, end);
+        if (heapPeak is { } heap) items.Add((Localizer.Get("ProfileStatHeapPeak"), Bytes(heap)));
+        if (videoPeak is { } video) items.Add((Localizer.Get("ProfileStatVideoPeak"), Bytes(video)));
         var lines = SetStats(ChartInfo, items);
         rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
@@ -520,6 +527,39 @@ public sealed partial class ProfilerPage : UserControl
         lines.Add(Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
         AppToolTip.SetTip(ChartInfo, string.Join("\n", lines));
     }
+
+    // Heap in green, video memory in the text colour, both against the larger of the two peaks in view, so the
+    // lines compare. The peak stands at the left, where the frame scale's labels are.
+    private void RenderMemoryLane(double width, double top, double laneHeight, Brush muted)
+    {
+        if (recording is null) return;
+        var heap = recording.Heap.Where(item => item.Time >= viewStart && item.Time <= viewEnd).Select(item => (item.Time, item.Used)).ToArray();
+        var video = recording.VideoMemory.Where(item => item.Time >= viewStart && item.Time <= viewEnd).Select(item => (item.Time, Used: item.Dedicated)).ToArray();
+        var peak = Math.Max(heap.Length > 0 ? heap.Max(item => item.Used) : 0, video.Length > 0 ? video.Max(item => item.Used) : 0);
+        if (peak <= 0) return;
+        var scale = peak * 1.1;
+        GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = top + laneHeight, Y2 = top + laneHeight, Stroke = muted, StrokeThickness = 0.5, Opacity = 0.6 });
+        var label = new TextBlock { Text = Bytes(peak), FontSize = 11, Foreground = muted };
+        Canvas.SetLeft(label, -42);
+        Canvas.SetTop(label, top - 4);
+        GridCanvas.Children.Add(label);
+        foreach (var (points, stroke) in new[]
+        {
+            (heap, (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]),
+            (video, (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]),
+        })
+        {
+            if (points.Length == 0) continue;
+            var line = new Polyline { Stroke = stroke, StrokeThickness = 1.5, IsHitTestVisible = false };
+            foreach (var (time, used) in points)
+                line.Points.Add(new Windows.Foundation.Point(XAt(time), top + laneHeight - used / scale * laneHeight));
+            GridCanvas.Children.Add(line);
+        }
+    }
+
+    private static string Bytes(long bytes) => bytes >= 1L << 30
+        ? (bytes / (double)(1L << 30)).ToString("N1", Localizer.Culture) + " GB"
+        : (bytes / (double)(1L << 20)).ToString("N0", Localizer.Culture) + " MB";
 
     private (string?, string) CollectionStat(int count, double pausedMilliseconds) =>
         (Localizer.Get("ProfileStatCollections"), Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds)));
@@ -665,6 +705,9 @@ public sealed partial class ProfilerPage : UserControl
             var (collections, paused) = ProfileAnalysis.CollectionsIn(recording, found.Start, found.Start + found.Duration);
             if (collections > 0) items.Add(CollectionStat(collections, paused));
         }
+        var (heapNow, videoNow) = ProfileAnalysis.MemoryAt(recording, time);
+        if (heapNow is { } heap) items.Add((Localizer.Get("ProfileStatHeap"), Bytes(heap.Used)));
+        if (videoNow is { } video) items.Add((Localizer.Get("ProfileStatVideo"), Bytes(video.Dedicated)));
         SetStats(ChartInfo, items);
     }
 

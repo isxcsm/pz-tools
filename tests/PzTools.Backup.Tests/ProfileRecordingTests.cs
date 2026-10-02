@@ -210,6 +210,54 @@ public sealed class ProfileRecordingTests
         gzip.Write(Encoding.UTF8.GetBytes(text));
     }
 
+    [Fact]
+    public void Memory_HeapFromTheGameAndVideoMemoryAddedAfterwards_ShareTheRecordingsTimeScale()
+    {
+        // Heap readings as the game writes them; video memory as the worker adds it once the file exists.
+        var heapLines = "\nH|1005000|400000000|600000000|900000000\nH|1030000|700000000|800000000|900000000\nH|1900000|1|1|1";
+        var path = Path.Combine(Path.GetTempPath(), $"pztools-memory-{Guid.NewGuid():N}{ProfileRecording.Extension}");
+        try
+        {
+            File.WriteAllBytes(path, Compress(Sample + heapLines));
+            var start = DateTimeOffset.FromUnixTimeMilliseconds(1790000000000);
+            // The recording's first sample is 1.005 s after its first event, so these land at 15 ms and 45 ms.
+            Assert.Equal(2, ProfileVideoMemory.Append(path, [
+                new(start.AddMilliseconds(1015), 2_000_000_000, 40_000_000),
+                new(start.AddMilliseconds(1045), 2_500_000_000, 41_000_000)]));
+            var recording = ProfileRecording.Load(path);
+
+            // The reading past the recording's end is left out rather than stretching it.
+            Assert.Equal([(5_000L, 400_000_000L), (30_000L, 700_000_000L)], recording.Heap.Select(item => (item.Time, item.Used)));
+            Assert.Equal([(15_000L, 2_000_000_000L), (45_000L, 2_500_000_000L)], recording.VideoMemory.Select(item => (item.Time, item.Dedicated)));
+            Assert.Equal(50_000, recording.Duration);
+
+            Assert.Equal((700_000_000L, 2_500_000_000L), ProfileAnalysis.MemoryPeaksIn(recording, 0, 50_000));
+            Assert.Equal((400_000_000L, (long?)null), ProfileAnalysis.MemoryPeaksIn(recording, 0, 10_000));
+            var (heap, video) = ProfileAnalysis.MemoryAt(recording, 40_000);
+            Assert.Equal((700_000_000L, 2_000_000_000L), (heap!.Value.Used, video!.Value.Dedicated));
+            Assert.Null(ProfileAnalysis.MemoryAt(recording, 10_000).VideoMemory);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
+    {
+        var recording = Load(Sample);
+        Assert.Empty(recording.Heap);
+        Assert.Empty(recording.VideoMemory);
+        Assert.Equal(((long?)null, (long?)null), ProfileAnalysis.MemoryPeaksIn(recording, 0, 50_000));
+    }
+
+    private static byte[] Compress(string text)
+    {
+        var lines = text.Replace("\r\n", "\n").Replace('|', '\t').Split('\n').Select(line => line.TrimStart(' '));
+        using var buffer = new MemoryStream();
+        using (var gzip = new GZipStream(buffer, CompressionMode.Compress, leaveOpen: true))
+            gzip.Write(Encoding.UTF8.GetBytes(string.Join('\n', lines)));
+        return buffer.ToArray();
+    }
+
     private static ProfileRecording Load(string text)
     {
         var lines = text.Replace("\r\n", "\n").Replace('|', '\t').Split('\n').Select(line => line.TrimStart(' '));

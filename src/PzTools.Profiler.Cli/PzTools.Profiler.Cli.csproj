@@ -8,5 +8,6 @@
     <ProjectReference Include="..\PzTools.Process.Contracts\PzTools.Process.Contracts.csproj" />
     <ProjectReference Include="..\PzTools.Process.Telemetry\PzTools.Process.Telemetry.csproj" />
     <ProjectReference Include="..\PzTools.Process.Hosting\PzTools.Process.Hosting.csproj" />
+    <ProjectReference Include="..\PzTools.Profiling\PzTools.Profiling.csproj" />
   </ItemGroup>
 </Project>

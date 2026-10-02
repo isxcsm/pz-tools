@@ -21,8 +21,19 @@ the reason.
 
 | Mode | Java samples | Lua samples | Extra |
 | --- | --- | --- | --- |
-| Standard | every 10 ms | every 10 ms | garbage-collection pauses |
-| Detailed | 1 ms requested, about 1.5–2 ms in practice | every 1 ms | lock waits, parked threads, slow file reads/writes, JVM stop-the-world operations |
+| Standard | every 10 ms | every 10 ms | garbage-collection pauses, Java heap use, video memory |
+| Detailed | 1 ms requested, about 1.5–2 ms in practice | every 1 ms | the above, and lock waits, parked threads, slow file reads/writes, JVM stop-the-world operations |
+
+Memory is recorded in both modes. The **Java heap** (used, committed and maximum) is read
+by the game's own recorder four times a second. **Video memory** cannot be measured from
+inside the game: the recording worker reads the game process's figures from Windows five
+times a second (the per-process *GPU Process Memory* counters, the same numbers as Task
+Manager's GPU memory columns: on the graphics card, and system memory the card borrows),
+matched to the game by its process id, so other programs' use is left out. Once the
+recording is written, the worker adds these readings to its end on the recording's time
+scale. Where Windows has no such counters (before Windows 10 1709, or a driver that does
+not report them), the recording simply has no video memory. Neither tells how much of
+what is held each frame actually uses.
 
 Both modes are sampling: the game's code is not rewritten or instrumented. Detailed mode
 samples more often and records why a thread was *not* running; it costs the game some
@@ -40,7 +51,8 @@ it, start or stop simply waits for it.
 
 | Part | Source | If the game changes |
 | --- | --- | --- |
-| Java stack samples, native-call samples, GC and pause events | The JVM's own flight recorder (`jdk.jfr`) | Unaffected: it depends on Java, not on game code |
+| Java stack samples, native-call samples, GC and pause events, heap use | The JVM's own flight recorder (`jdk.jfr`) | Unaffected: it depends on Java, not on game code |
+| Video memory | Windows performance counters, read by the recording worker | Unaffected: it depends on Windows and the graphics driver |
 | Frame boundaries | The existing game-loop hook (`GameWindow.logic`) | The recording still works; there is no frame graph, only the time axis |
 | Lua function and mod attribution | Reads the Lua interpreter's call stack (`LuaManager.thread`, Kahlua call frames) from a sampler thread | The recording still works; the page says mod information is unavailable |
 
@@ -90,6 +102,11 @@ narrow window the table moves below the owner list.
   the bars marks each one in grey, as long as it paused the game (at least two pixels), on
   the same time scale: a spike above a mark is a frame the game spent collecting. The
   marks are drawn as one shape, as a game may collect several times a second.
+- **Memory lane.** Below that, when the recording has memory readings, two lines on one
+  scale: the Java heap in use (green) and the game's video memory on the graphics card
+  (text colour), with the higher peak in view as the scale's label. The line above the
+  graph adds the range's peaks (*Heap peak*, *VRAM peak*); over the graph it adds both
+  values at the pointer. Recordings made before memory was recorded have no lane.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
   the whole recording is analysed.
 - **Shares.** *Self* is time spent in the function itself, *Total* includes what it

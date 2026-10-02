@@ -49,6 +49,9 @@ public sealed partial class GameSaveClientTests
         Assert.Equal("ExampleMod", Assert.Single(range.LuaGroups).Key);
         Assert.Equal("heavyWork", range.LuaGroups[0].Rows[0].Name);
         Assert.True(range.Frames.Count > 20 && range.Frames.AverageMilliseconds is > 15 and < 80);
+        // The heap is read four times a second while the recording runs.
+        Assert.True(recording.Heap.Count >= 4, $"heap readings: {recording.Heap.Count}");
+        Assert.All(recording.Heap, item => Assert.True(item.Used > 0 && item.Used <= item.Committed));
 
         // The shared file names the mod and the script, never the folders above them.
         using var text = new StreamReader(new GZipStream(File.OpenRead(output), CompressionMode.Decompress));
