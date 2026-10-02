@@ -138,14 +138,31 @@ public static class ProfileAnalysis
                 Math.Min(1, item.Value * perLuaSample), ownerSelf.GetValueOrDefault(item.Key)))
             .OrderByDescending(row => row.Self).ThenBy(row => row.Name, StringComparer.Ordinal).Take(maximumRows).ToArray();
 
-        var collections = recording.Collections.Where(item => item.Time < end && item.Time + item.Duration >= start).ToArray();
+        var (collectionCount, collectionPause) = CollectionsIn(recording, start, end);
         var pauses = recording.Pauses.Where(item => item.Time < end && item.Time + item.Duration >= start
                 && (thread < 0 || item.Thread < 0 || item.Thread == thread))
             .OrderByDescending(item => item.Duration).Take(10).ToArray();
 
         return new ProfileRange(start, end, FrameStatistics(recording, start, end), count, methods, methodGroups, threads,
             Math.Min(1, luaCount * perLuaSample), luaCount, luaFunctions, luaOwners, luaGroups,
-            collections.Length, collections.Sum(item => item.Duration) / 1000.0, pauses);
+            collectionCount, collectionPause, pauses);
+    }
+
+    /// <summary>
+    /// Garbage collections that overlap the range, and how long they paused the game in all. A pause stops
+    /// every thread, so it leaves no samples behind; this is where it shows instead.
+    /// </summary>
+    public static (int Count, double PauseMilliseconds) CollectionsIn(ProfileRecording recording, long start, long end)
+    {
+        var count = 0;
+        long pause = 0;
+        foreach (var item in recording.Collections)
+        {
+            if (item.Time >= end || item.Time + item.Duration < start) continue;
+            count++;
+            pause += item.Duration;
+        }
+        return (count, pause / 1000.0);
     }
 
     /// <summary>Frames that begin inside the range.</summary>

@@ -406,7 +406,12 @@ public sealed partial class ProfilerPage : UserControl
     private void RenderChart()
     {
         if (recording is null || ChartSurface.ActualWidth < 4) return;
-        double width = ChartWidth, height = ChartHeight;
+        double width = ChartWidth, chartHeight = ChartHeight;
+        // Under the bars, a strip on the same time scale marks each garbage collection as long as it paused the
+        // game, so a spike above a mark reads as "the game stopped to collect". Only when there are any.
+        const double CollectionLane = 8;
+        var markCollections = recording.Collections.Count > 0;
+        var height = markCollections ? Math.Max(1, chartHeight - CollectionLane) : chartHeight;
         // One bar per three pixels; each holds the slowest frame of its slice.
         var buckets = Math.Max(1, (int)(width / 3));
         var values = ProfileAnalysis.SlowestFramePerBucket(recording, viewStart, viewEnd, buckets);
@@ -450,8 +455,22 @@ public sealed partial class ProfilerPage : UserControl
             var label = new TextBlock { Text = Seconds(viewStart + (long)((viewEnd - viewStart) * fraction)), FontSize = 11, Foreground = brush };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             Canvas.SetLeft(label, Math.Clamp(width * fraction - label.DesiredSize.Width / 2, 0, Math.Max(0, width - label.DesiredSize.Width)));
-            Canvas.SetTop(label, height + 2);
+            Canvas.SetTop(label, chartHeight + 2);
             GridCanvas.Children.Add(label);
+        }
+        if (markCollections)
+        {
+            // One shape for all marks: a game that allocates a lot collects many times a second.
+            var marks = new GeometryGroup { FillRule = FillRule.Nonzero };
+            foreach (var collection in recording.Collections)
+            {
+                if (collection.Time >= viewEnd || collection.Time + collection.Duration < viewStart) continue;
+                var left = Math.Clamp(XAt(collection.Time), 0, Math.Max(0, width - 2));
+                // A pause of a few milliseconds is far narrower than a pixel at most zooms: keep it visible.
+                var markWidth = Math.Max(2, XAt(collection.Time + collection.Duration) - left);
+                marks.Children.Add(new RectangleGeometry { Rect = new Rect(left, height + (CollectionLane - 4) / 2, markWidth, 4) });
+            }
+            GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = marks, Fill = brush });
         }
 
         UpdateSelectionRectangle();
@@ -489,6 +508,11 @@ public sealed partial class ProfilerPage : UserControl
             items.Add((Localizer.Get("ProfileStatSlowest"), Milliseconds(frames.SlowestMilliseconds)));
             items.Add((Localizer.Get("ProfileStatWorst"), Milliseconds(frames.OnePercentWorstMilliseconds)));
         }
+        // Collections stop the game without leaving samples, so the tables cannot show them; the line does,
+        // and so does the copied text, which starts with this line.
+        var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
+            : ProfileAnalysis.CollectionsIn(recording, start, end);
+        if (collections > 0) items.Add(CollectionStat(collections, paused));
         var lines = SetStats(ChartInfo, items);
         rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
@@ -496,6 +520,9 @@ public sealed partial class ProfilerPage : UserControl
         lines.Add(Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
         AppToolTip.SetTip(ChartInfo, string.Join("\n", lines));
     }
+
+    private (string?, string) CollectionStat(int count, double pausedMilliseconds) =>
+        (Localizer.Get("ProfileStatCollections"), Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds)));
 
     // The secondary text colour of the current theme, for names beside numbers and for the graph's scale.
     private Brush Muted => ChartHelpIcon.Foreground;
@@ -631,7 +658,13 @@ public sealed partial class ProfilerPage : UserControl
         HoverLine.Visibility = Visibility.Visible;
         var frame = ProfileAnalysis.FrameAt(recording, time);
         List<(string?, string)> items = [(null, Seconds(time))];
-        if (frame is { } found && time >= found.Start) items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(found.Duration / 1000.0)));
+        if (frame is { } found && time >= found.Start)
+        {
+            items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(found.Duration / 1000.0)));
+            // Whether this frame was slow because the game stopped to collect garbage.
+            var (collections, paused) = ProfileAnalysis.CollectionsIn(recording, found.Start, found.Start + found.Duration);
+            if (collections > 0) items.Add(CollectionStat(collections, paused));
+        }
         SetStats(ChartInfo, items);
     }
 

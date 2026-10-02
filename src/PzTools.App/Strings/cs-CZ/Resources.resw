@@ -394,7 +394,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileThreadGame" xml:space="preserve"><value>Herní vlákno</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Přiblížit výběr</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé značky pod sloupci: úklid paměti (GC)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Zkopírovat zobrazený obsah jako text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Výsledky výkonu byly zkopírovány.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} se nespustilo, protože běží více než jedna hra.</value></data>
@@ -409,6 +409,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileColumnFile" xml:space="preserve"><value>Soubor</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funkce</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Nejhorší 1 %</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}×, pozastavení {1}</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Nejpomalejší</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Průměr</value></data>
   <data name="ProfileStatFrames" xml:space="preserve"><value>Snímky</value></data>

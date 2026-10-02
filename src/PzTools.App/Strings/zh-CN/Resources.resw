@@ -381,7 +381,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要删除这条录制吗？此操作无法撤销。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>还没有录制记录。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开这条录制。文件已损坏，或由更新的版本创建。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 柱下的灰色标记：内存清理（GC）</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>将显示的内容复制为文本</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已复制性能结果。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>启动游戏后即可录制。</value></data>
@@ -392,6 +392,8 @@
   <data name="ProfileStatAverage" xml:space="preserve"><value>平均</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>最慢</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>最差 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停顿 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>文件</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>方法</value></data>

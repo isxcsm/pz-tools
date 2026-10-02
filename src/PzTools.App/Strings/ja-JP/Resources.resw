@@ -381,7 +381,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>この記録を削除しますか？ 元に戻すことはできません。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>記録はまだありません。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>この記録を開けません。ファイルが破損しているか、より新しいバージョンで作成されています。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · 棒の下の灰色の印: メモリの整理 (GC)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>表示中の内容をテキストでコピー</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>パフォーマンスの結果をコピーしました。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>ゲームを起動すると記録できます。</value></data>
@@ -392,6 +392,8 @@
   <data name="ProfileStatAverage" xml:space="preserve"><value>平均</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>最も遅い</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>下位 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回、停止 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>関数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ファイル</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>メソッド</value></data>

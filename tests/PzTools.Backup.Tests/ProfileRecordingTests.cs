@@ -121,6 +121,18 @@ public sealed class ProfileRecordingTests
         Assert.Equal(2, ProfileAnalysis.FrameStatistics(recording, 0, 50_000).Count);
     }
 
+    [Fact]
+    public void Collections_OfAFrameOrRange_CountThePausesThatTouchIt()
+    {
+        // One collection at 30 ms pausing 2.5 ms: inside the second frame, outside the first.
+        var recording = Load(Sample);
+        Assert.Equal((1, 2.5), ProfileAnalysis.CollectionsIn(recording, 10_000, 50_000));
+        Assert.Equal((0, 0.0), ProfileAnalysis.CollectionsIn(recording, 0, 10_000));
+        // A pause that started before the range still counts while it runs into it.
+        Assert.Equal((1, 2.5), ProfileAnalysis.CollectionsIn(recording, 31_000, 32_000));
+        Assert.Equal((0, 0.0), ProfileAnalysis.CollectionsIn(recording, 33_000, 50_000));
+    }
+
     [Theory]
     [InlineData("mods/ExampleMod/media/lua/client/A.lua", "ExampleMod")]
     [InlineData("workshop/2900000000/mods/Other Mod/42/media/lua/shared/B.lua", "Other Mod")]

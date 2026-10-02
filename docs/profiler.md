@@ -57,10 +57,13 @@ while a recording starts, runs or is being processed.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
 line above the graph describes the range the results show: its start, end and length,
-then frames, average, slowest and worst 1 %, names muted and numbers not. A range of one
-frame shows that frame's time alone. Resting the pointer on the line adds the sample count,
-garbage collections and recording mode; while the pointer is over the graph the line shows
-the time and frame under it instead. The **?** beside it lists the graph's mouse controls.
+then frames, average, slowest and worst 1 %, and when the range had any, garbage collections
+(*GC 3 times, paused 120 ms*), names muted and numbers not. A collection stops the game
+without leaving samples, so the tables cannot show it; this line, which also heads the
+copied text, does. A range of one frame shows that frame's time alone. Resting the pointer
+on the line adds the sample count and recording mode; while the pointer is over the graph
+the line shows the time and frame under it instead, with the collections that overlapped
+that frame. The **?** beside it lists the graph's mouse controls.
 
 The results are in two tabs, *Scripts (Lua)* and *Game code (Java)*. Each tab is split in
 two: owners on the left (mods, the game's scripts, parts of the game code, with a bar
@@ -83,6 +86,10 @@ narrow window the table moves below the owner list.
   so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per
   second) are highlighted. Wheel zooms around the pointer, right-button drag or the
   scroll bar moves, double-click shows everything.
+- **Collection strip.** When the recording has garbage collections, a thin strip under
+  the bars marks each one in grey, as long as it paused the game (at least two pixels), on
+  the same time scale: a spike above a mark is a frame the game spent collecting. The
+  marks are drawn as one shape, as a game may collect several times a second.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
   the whole recording is analysed.
 - **Shares.** *Self* is time spent in the function itself, *Total* includes what it

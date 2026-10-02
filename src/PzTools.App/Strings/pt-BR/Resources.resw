@@ -381,7 +381,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Excluir esta gravação? Essa ação não pode ser desfeita.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Ainda não há gravações.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Não foi possível abrir esta gravação. O arquivo está danificado ou foi criado por uma versão mais recente.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo · Marcas cinza sob as barras: limpeza de memória (GC)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar o conteúdo exibido como texto</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Os resultados de desempenho foram copiados.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Abra o jogo para gravar.</value></data>
@@ -392,6 +392,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Média</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Mais lento</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Pior 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} vezes, pausa de {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Função</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Arquivo</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Método</value></data>

@@ -381,7 +381,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Удалить эту запись? Это действие нельзя отменить.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Записей пока нет.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не удаётся открыть эту запись. Файл повреждён или создан в более новой версии.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё · Серые отметки под столбцами: очистка памяти (GC)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Скопировать показанное как текст</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Результаты производительности скопированы.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустите игру, чтобы записывать.</value></data>
@@ -392,6 +392,8 @@
   <data name="ProfileStatAverage" xml:space="preserve"><value>Среднее</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Самый медленный</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Худший 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} раз, пауза {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функция</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Метод</value></data>
