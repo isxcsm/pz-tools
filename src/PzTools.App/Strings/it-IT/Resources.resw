@@ -431,6 +431,8 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileRollingSave" xml:space="preserve"><value>Salva l'ultimo minuto</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Salvataggio…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Ha appena scattato? Premi qui: il gioco ha conservato circa l'ultimo minuto, che viene salvato come registrazione. Modalità: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Nel gioco premi {0}: un suono conferma la pressione, un altro il salvataggio (il suono di errore, un errore).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Nessun tasto per salvare dal gioco: altri programmi usano Ctrl+Maiusc+F9, Ctrl+Maiusc+F10, Ctrl+Alt+F9 e Ctrl+Alt+F10.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Inizia a conservare l'ultimo minuto appena il gioco è avviato.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Avvio della conservazione dell'ultimo minuto…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>In pausa durante una registrazione; riprende al suo termine.</value></data>

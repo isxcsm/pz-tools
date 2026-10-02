@@ -431,6 +431,8 @@
   <data name="ProfileRollingSave" xml:space="preserve"><value>儲存最近 1 分鐘</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>正在儲存…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>剛剛卡頓？按這裡：遊戲保留了最近約 1 分鐘，會儲存為一段錄製。模式：{0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>遊戲中按 {0}：按下時響一聲，儲存後再響一聲（失敗時為警告音）。</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>無法使用遊戲中儲存的快速鍵：其他程式已佔用 Ctrl+Shift+F9、Ctrl+Shift+F10、Ctrl+Alt+F9 和 Ctrl+Alt+F10。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>遊戲執行後開始保留最近 1 分鐘。</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>正在開始保留最近 1 分鐘…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>錄製期間暫停，錄製結束後繼續。</value></data>

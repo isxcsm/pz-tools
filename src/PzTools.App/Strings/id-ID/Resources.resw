@@ -431,6 +431,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileRollingSave" xml:space="preserve"><value>Simpan menit terakhir</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Menyimpan…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Baru saja tersendat? Tekan ini: game menyimpan sekitar satu menit terakhir, dan itu disimpan sebagai rekaman. Mode: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Di dalam game, tekan {0}: satu suara menandakan tombol diterima, satu lagi saat tersimpan (suara kesalahan jika gagal).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Tidak ada tombol untuk menyimpan dari game: program lain memakai Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9, dan Ctrl+Alt+F10.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Mulai menyimpan menit terakhir setelah game berjalan.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Mulai menyimpan menit terakhir…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Dijeda selama merekam; berlanjut setelah rekaman selesai.</value></data>

@@ -97,7 +97,7 @@
                   AutomationProperties.AutomationId="ProfileRecordingList" />
         <ComboBox x:Name="ThreadBox" Grid.Column="3" MinWidth="130" VerticalAlignment="Center"
                   SelectionChanged="ThreadBox_SelectionChanged" />
-        <Button x:Name="MoreButton" Grid.Column="4" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+        <Button x:Name="MoreButton" Grid.Column="4" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
                 Style="{StaticResource SubtleButtonStyle}">
           <FontIcon Glyph="&#xE712;" FontSize="16" />
           <Button.Flyout>

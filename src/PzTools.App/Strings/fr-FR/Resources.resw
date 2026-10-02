@@ -431,6 +431,8 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileRollingSave" xml:space="preserve"><value>Enregistrer la dernière minute</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Enregistrement…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Ça vient de saccader ? Appuyez ici : le jeu a gardé environ la dernière minute, enregistrée comme un enregistrement. Mode : {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>En jeu, appuyez sur {0} : un son confirme l’appui, un autre l’enregistrement (le son d’erreur, un échec).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Aucune touche pour enregistrer depuis le jeu : d’autres programmes utilisent Ctrl+Maj+F9, Ctrl+Maj+F10, Ctrl+Alt+F9 et Ctrl+Alt+F10.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Commence à garder la dernière minute dès que le jeu tourne.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Démarrage de la conservation de la dernière minute…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>En pause pendant un enregistrement ; reprend à sa fin.</value></data>

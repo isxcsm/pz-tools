@@ -80,6 +80,15 @@ minute. Flipping the mode switch restarts the keeping in the new mode; the butto
 says which mode is kept, or why there is nothing yet (no game, the game's bridge needs a
 restart).
 
+The game has the keyboard when it stutters, so the save has a key too: **Ctrl+Shift+F9**,
+pressed in the game. The app takes it from Windows only while *Keep the last minute* is
+on, and Windows then gives that combination to the app alone; if another program holds
+it, the next free one of Ctrl+Shift+F10, Ctrl+Alt+F9 and Ctrl+Alt+F10 is taken, and the
+button's tip names the one in use. Nothing shows over the game, so sounds say what
+happened: one when the key is heard, another when the minute is saved; Windows' error
+sound if there was nothing to save (the reason waits in the app) or the save failed. The
+saved recording is listed and opened in the app without bringing it in front of the game.
+
 The game started later, or restarted, gets it within five seconds, whether or not the
 page is open. **Start recording** replaces it while that recording runs, and it resumes
 when the recording ends. It ends when switched off or when the app closes, and is off

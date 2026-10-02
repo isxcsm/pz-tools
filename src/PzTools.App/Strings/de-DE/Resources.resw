@@ -431,6 +431,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileRollingSave" xml:space="preserve"><value>Letzte Minute speichern</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Wird gespeichert…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Im Spiel {0} drücken: Ein Ton bestätigt den Tastendruck, ein weiterer das Speichern (der Fehlerton einen Fehler).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Keine Taste zum Speichern aus dem Spiel: Andere Programme belegen Strg+Umschalt+F9, Strg+Umschalt+F10, Strg+Alt+F9 und Strg+Alt+F10.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten, sobald das Spiel läuft.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Während einer Aufnahme pausiert; danach geht es weiter.</value></data>

@@ -472,6 +472,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Spouští se uchovávání poslední minuty…</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat poslední minutu.</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Ve hře stiskněte {0}: jeden zvuk potvrdí stisk, další uložení (chybový zvuk značí selhání).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Klávesa pro uložení ze hry není k dispozici: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 i Ctrl+Alt+F10 drží jiné programy.</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Ukládání…</value></data>
   <data name="ProfileRolling" xml:space="preserve"><value>Uchovávat poslední minutu</value></data>
   <data name="ProfileRollingSave" xml:space="preserve"><value>Uložit poslední minutu</value></data>

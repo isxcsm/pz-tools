@@ -431,6 +431,8 @@
   <data name="ProfileRollingSave" xml:space="preserve"><value>直前の 1 分を保存</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>保存中…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>ゲーム中は {0} を押してください。押したときに 1 回、保存されるともう 1 回音が鳴ります (失敗すると警告音)。</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>ゲーム中に保存するキーを使えません。ほかのプログラムが Ctrl+Shift+F9、Ctrl+Shift+F10、Ctrl+Alt+F9、Ctrl+Alt+F10 をすべて使っています。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の 1 分の記録を始めます。</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の 1 分の記録を開始しています…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>記録中は休止し、記録が終わると再開します。</value></data>

@@ -431,6 +431,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileRollingSave" xml:space="preserve"><value>Salvar último minuto</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Salvando…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca do último minuto, que é salvo como gravação. Modo: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>No jogo, pressione {0}: um som confirma o toque e outro o salvamento (o som de erro indica falha).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Nenhuma tecla para salvar a partir do jogo: outros programas usam Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 e Ctrl+Alt+F10.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Começa a manter o último minuto quando o jogo estiver em execução.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Começando a manter o último minuto…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Pausado durante uma gravação; continua quando ela termina.</value></data>

@@ -431,6 +431,8 @@
   <data name="ProfileRollingSave" xml:space="preserve"><value>Сохранить последнюю минуту</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Сохранение…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>В игре нажмите {0}: один звук подтвердит нажатие, второй — сохранение (звук ошибки — сбой).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Нет клавиши для сохранения из игры: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 и Ctrl+Alt+F10 заняты другими программами.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Начнёт хранить последнюю минуту, когда игра будет запущена.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск хранения последней минуты…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Приостановлено на время записи; продолжится после неё.</value></data>

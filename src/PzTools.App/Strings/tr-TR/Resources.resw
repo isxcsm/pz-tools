@@ -431,6 +431,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileRollingSave" xml:space="preserve"><value>Son dakikayı kaydet</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Kaydediliyor…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Oyundayken {0} tuşlarına basın: bir ses basışı, bir ses daha kaydı bildirir (hata sesi başarısızlık demektir).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Oyundan kaydetmek için tuş yok: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 ve Ctrl+Alt+F10 başka programlarca kullanılıyor.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Oyun çalışınca son dakikayı tutmaya başlar.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Son dakikayı tutmaya başlanıyor…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Kayıt sürerken duraklatıldı; kayıt bitince devam eder.</value></data>

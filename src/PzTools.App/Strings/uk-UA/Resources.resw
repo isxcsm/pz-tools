@@ -431,6 +431,8 @@
   <data name="ProfileRollingSave" xml:space="preserve"><value>Зберегти останню хвилину</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Збереження…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Щойно підвисло? Натисніть: гра зберігала приблизно останню хвилину, її буде збережено як запис. Режим: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>У грі натисніть {0}: один звук підтвердить натискання, другий — збереження (звук помилки — збій).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Немає клавіші для збереження з гри: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 і Ctrl+Alt+F10 зайняті іншими програмами.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Почне зберігати останню хвилину, коли гру буде запущено.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск збереження останньої хвилини…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Призупинено на час запису; продовжиться після нього.</value></data>

@@ -78,6 +78,8 @@ public sealed partial class ProfilerPage : UserControl
             gameClock.Stop();
             if (service is not null) service.Changed -= Session_Changed;
             service = null;
+            // A replaced shell's page must not keep the key from the new one.
+            ReleaseHotKey();
         };
         // Text and grid lines drawn in code hold the brush of the theme they were drawn in.
         ActualThemeChanged += (_, _) => { RenderChart(); if (shown is not null) ShowRange(shown); };
@@ -199,15 +201,46 @@ public sealed partial class ProfilerPage : UserControl
     private void UpdateRolling(bool idle)
     {
         var rolling = service?.Rolling ?? new ProfileRolling();
+        FollowHotKey(rolling.Wanted);
         SaveLastHost.Visibility = rolling.Wanted ? Visibility.Visible : Visibility.Collapsed;
         SaveLastText.Text = Localizer.Get(rolling.Saving ? "ProfileRollingSaving" : "ProfileRollingSave");
-        SaveLastButton.IsEnabled = rolling.On && !rolling.Busy && idle;
-        var tip = !idle ? Localizer.Get("ProfileRollingPaused")
-            : rolling.Error is { } error && !rolling.On ? Localizer.Get(ProfileRecordingService.ErrorKey(error))
-            : !rolling.On ? Localizer.Get(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting")
-            : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
+        SaveLastButton.IsEnabled = CanSaveLastMinute(rolling, idle);
+        var key = hotKey is { } registered ? Localizer.Format("ProfileRollingHotKeyFormat", registered.Text)
+            : hotKeyTried ? Localizer.Get("ProfileRollingHotKeyUnavailable") : null;
+        var tip = RollingState(rolling, idle) + (key is null ? "" : "\n" + key);
         AppToolTip.SetTip(SaveLastHost, tip);
         AutomationProperties.SetHelpText(SaveLastButton, tip);
+        AutomationProperties.SetAcceleratorKey(SaveLastButton, hotKey?.Text ?? "");
+    }
+
+    private static bool CanSaveLastMinute(ProfileRolling rolling, bool idle) => rolling.On && !rolling.Busy && idle;
+
+    // What the game is doing with the last minute: the mode it keeps it in, or why there is nothing to save yet.
+    private string RollingState(ProfileRolling rolling, bool idle) =>
+        !idle ? Localizer.Get("ProfileRollingPaused")
+        : rolling.Error is { } error && !rolling.On ? Localizer.Get(ProfileRecordingService.ErrorKey(error))
+        : !rolling.On ? Localizer.Get(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting")
+        : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
+
+    // The save from inside the game: registered while the last minute is wanted, as Windows then gives the
+    // combination to this app alone. One that could not be registered is tried again when the switch is next turned on.
+    private GlobalHotKey? hotKey;
+    private bool hotKeyTried;
+
+    private void FollowHotKey(bool wanted)
+    {
+        if (!wanted) { ReleaseHotKey(); return; }
+        if (hotKey is not null || hotKeyTried) return;
+        hotKeyTried = true;
+        try { hotKey = GlobalHotKey.TryRegister(App.MainWindow, () => _ = SaveLastMinuteAsync(fromKey: true)); }
+        catch (Exception exception) when (exception is InvalidOperationException or System.Runtime.InteropServices.COMException) { hotKey = null; }
+    }
+
+    private void ReleaseHotKey()
+    {
+        hotKey?.Dispose();
+        hotKey = null;
+        hotKeyTried = false;
     }
 
     private async void RollingItem_Click(object sender, RoutedEventArgs e)
@@ -240,12 +273,31 @@ public sealed partial class ProfilerPage : UserControl
         if (service is { } profiles && profiles.Session.State == ProfileSessionState.Idle) profiles.SetRollingMode(ModeSwitch.IsOn);
     }
 
-    private async void SaveLastButton_Click(object sender, RoutedEventArgs e)
+    private void SaveLastButton_Click(object sender, RoutedEventArgs e) => _ = SaveLastMinuteAsync(fromKey: false);
+
+    /// <summary>
+    /// Saves the last minute and opens it. From the key the player is in the game and sees none of this: a sound says
+    /// it was heard, another that it is saved or that it failed, whose reason waits in the app.
+    /// </summary>
+    private async Task SaveLastMinuteAsync(bool fromKey)
     {
-        if (service is not { } profiles) return;
+        if (service is not { } profiles) { if (fromKey) SystemSound.Failed(); return; }
+        if (fromKey)
+        {
+            var idle = profiles.Session.State == ProfileSessionState.Idle;
+            if (!CanSaveLastMinute(profiles.Rolling, idle))
+            {
+                SystemSound.Failed();
+                App.ShowSidebarNotification(InfoBarSeverity.Informational, Localizer.Get("ProfilerNavigation"),
+                    RollingState(profiles.Rolling, idle));
+                return;
+            }
+            SystemSound.Accepted();
+        }
         try
         {
             var (path, result) = await profiles.SaveRollingAsync();
+            if (fromKey) { if (path is null) SystemSound.Failed(); else SystemSound.Done(); }
             if (path is null)
             {
                 var message = Localizer.Get(ProfileRecordingService.ErrorKey(result));
@@ -261,6 +313,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
+            if (fromKey) SystemSound.Failed();
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
     }
@@ -1978,7 +2031,8 @@ public sealed partial class ProfilerPage : UserControl
                     foreach (var line in lines)
                         rows.Add(FunctionLine(tree, allocation,
                             line.Line > 0 ? Localizer.Format("ProfileLineFormat", line.Line.ToString(Localizer.Culture)) : Localizer.Get("ProfileLineUnknown"),
-                            row.File, line.SelfSamples, line.Samples, line.Samples, line.AllocatedSelf, line.AllocatedTotal, indent + "  ",
+                            // Samples as the list counts them, those that ended there: a function's lines add up to it.
+                            row.File, line.SelfSamples, line.Samples, line.SelfSamples, line.AllocatedSelf, line.AllocatedTotal, indent + "  ",
                             new TreeItem(null, indent.Length / 2 + 1, $"line/{row.Function}/{line.Line}", false, false)));
                 }
                 foreach (var row in functions.Take(RowsPerGroup)) Add(row, "");

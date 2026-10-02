@@ -431,6 +431,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileRollingSave" xml:space="preserve"><value>Zapisz ostatnią minutę</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Zapisywanie…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Właśnie przycięło? Naciśnij: gra zachowała mniej więcej ostatnią minutę, która zostanie zapisana jako nagranie. Tryb: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>W grze naciśnij {0}: jeden dźwięk potwierdza naciśnięcie, drugi zapis (dźwięk błędu oznacza niepowodzenie).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Brak klawisza do zapisu z gry: inne programy zajmują Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 i Ctrl+Alt+F10.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Zacznie zachowywać ostatnią minutę, gdy gra będzie uruchomiona.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Uruchamianie zachowywania ostatniej minuty…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Wstrzymane podczas nagrywania; wznawia się po jego zakończeniu.</value></data>

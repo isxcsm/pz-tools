@@ -459,6 +459,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileRollingSave" xml:space="preserve"><value>Save last minute</value></data>
   <data name="ProfileRollingSaving" xml:space="preserve"><value>Saving…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last minute, and it is saved as a recording. Mode: {0}</value></data>
+  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>In the game, press {0}: a sound says it was heard, another that it is saved (an error sound if it failed).</value></data>
+  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>No key for saving from the game: other programs hold Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 and Ctrl+Alt+F10.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last minute once the game is running.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last minute…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Paused while recording; it carries on once the recording ends.</value></data>
