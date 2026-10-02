@@ -1,15 +1,48 @@
-<UserControl
+﻿<UserControl
     x:Class="PzTools.App.ProfilerPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:PzTools.App"
     SizeChanged="ProfilerPage_SizeChanged">
+  <UserControl.Resources>
+    <!-- The frame graph's colours, chosen per theme for contrast on the card: the system's accent can be any colour,
+         and its caution colour was a glaring yellow on dark and a dull brown on light. -->
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="ProfileFrameBrush" Color="#3B82F6" />
+          <SolidColorBrush x:Key="ProfileSlowFrameBrush" Color="#EA580C" />
+          <SolidColorBrush x:Key="ProfileHighlightBrush" Color="#1D4ED8" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="ProfileFrameBrush" Color="#60A5FA" />
+          <SolidColorBrush x:Key="ProfileSlowFrameBrush" Color="#FB923C" />
+          <SolidColorBrush x:Key="ProfileHighlightBrush" Color="#BFDBFE" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+          <SolidColorBrush x:Key="ProfileFrameBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+          <SolidColorBrush x:Key="ProfileSlowFrameBrush" Color="{ThemeResource SystemColorHotlightColor}" />
+          <SolidColorBrush x:Key="ProfileHighlightBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
+    <!-- Theme colours for what code draws, resolved here in the page's own theme: the app's resources follow Windows'
+         theme, not the one chosen in PZ Tools, and gave light colours on a dark page. Never shown. -->
+    <StackPanel x:Name="ThemeProbes" Visibility="Collapsed">
+      <Border x:Name="CardProbe" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+      <Border x:Name="SolidBaseProbe" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
+      <Border x:Name="CardStrokeProbe" Background="{ThemeResource CardStrokeColorDefaultBrush}" />
+      <Border x:Name="SecondaryTextProbe" Background="{ThemeResource TextFillColorSecondaryBrush}" />
+      <Border x:Name="PrimaryTextProbe" Background="{ThemeResource TextFillColorPrimaryBrush}" />
+      <Border x:Name="SuccessProbe" Background="{ThemeResource SystemFillColorSuccessBrush}" />
+    </StackPanel>
 
     <!-- The title and everything about recordings share one line: record, mode, which recording, which thread,
          and the rest (import, save, folder, delete) behind one menu. A narrow window moves the tools below the title. -->
@@ -122,12 +155,12 @@
                 PointerWheelChanged="Chart_PointerWheelChanged" DoubleTapped="Chart_DoubleTapped">
             <Canvas x:Name="GridCanvas" IsHitTestVisible="False" />
             <Path x:Name="BarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                  Fill="{ThemeResource ProfileFrameBrush}" />
             <Path x:Name="SlowBarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Fill="{ThemeResource SystemFillColorCautionBrush}" />
+                  Fill="{ThemeResource ProfileSlowFrameBrush}" />
             <!-- The highlighted owner's part of each bar, over the bars faded behind it. -->
             <Path x:Name="HighlightPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                  Fill="{ThemeResource ProfileHighlightBrush}" />
             <!-- The 60 and 30 FPS lines, over the bars: a slow recording's bars would otherwise hide them. -->
             <Canvas x:Name="ReferenceCanvas" IsHitTestVisible="False" />
             <Canvas IsHitTestVisible="False">

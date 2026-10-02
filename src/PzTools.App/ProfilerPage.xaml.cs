@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -528,7 +528,7 @@ public sealed partial class ProfilerPage : UserControl
             });
             var name = new Border
             {
-                Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+                Background = CardProbe.Background,
                 CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0),
                 Child = new TextBlock { Text = $"{fps} {Localizer.Get("ProfileStatFps")}", FontSize = 10, Foreground = brush },
             };
@@ -778,12 +778,12 @@ public sealed partial class ProfilerPage : UserControl
             content.Children.Add(new TextBlock
             {
                 Text = text, FontSize = 11,
-                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                Foreground = SecondaryTextProbe.Background,
             });
             var chip = new Border
             {
-                Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], BorderThickness = new Thickness(1),
+                Background = SolidBaseProbe.Background,
+                BorderBrush = CardStrokeProbe.Background, BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 0, 7, 1), Child = content,
             };
             AppToolTip.SetTip(chip, tip);
@@ -828,8 +828,8 @@ public sealed partial class ProfilerPage : UserControl
     private string CollectionText(int count, double pausedMilliseconds) =>
         $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds))}";
 
-    private static Brush HeapBrush => (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
-    private static Brush VideoBrush => (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+    private Brush HeapBrush => SuccessProbe.Background;
+    private Brush VideoBrush => PrimaryTextProbe.Background;
 
     /// <summary>Fills the figures on the line under the frames (absent ones hidden); returns those shown.</summary>
     private List<string> SetLaneInfo(string? collections, string? heap, string? video)
@@ -1341,7 +1341,7 @@ public sealed partial class ProfilerPage : UserControl
             var mark = new FontIcon
             {
                 Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
-                Foreground = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"],
+                Foreground = HighlightPath.Fill,
                 Visibility = group.Key == CurrentHighlight ? Visibility.Visible : Visibility.Collapsed,
             };
             highlightIcons[group.Key] = mark;
