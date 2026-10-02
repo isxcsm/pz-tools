@@ -388,8 +388,10 @@
           </Button>
           <Rectangle x:Name="SamplesDivider" Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center"
                      Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-          <!-- The owner's samples out of the tab's, last on the line as before. -->
-          <TextBlock x:Name="DetailSamples" Grid.Column="5" Margin="0,0,4,0" VerticalAlignment="Center" TextWrapping="NoWrap" FontSize="12" />
+          <!-- The owner's samples out of the tab's, last on the line as before, in the line's text size. The divider has
+               16 on each side (the copy button's own 8 plus the spacing on its left), and the number ends where the
+               table's sample column does below it (the card's border and the header's 16). -->
+          <TextBlock x:Name="DetailSamples" Grid.Column="5" Margin="8,0,17,0" VerticalAlignment="Center" TextWrapping="NoWrap" />
         </Grid>
         <!-- The chosen owner's functions, level with the owner list's card. -->
         <Border x:Name="DetailCard" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
