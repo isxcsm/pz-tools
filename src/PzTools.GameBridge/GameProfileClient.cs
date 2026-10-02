@@ -69,7 +69,8 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
 
     /// <summary>
     /// Starts a recording that keeps only about its last <paramref name="keepSeconds"/> and runs until stopped, for a
-    /// stutter that already happened. It gives way to a recording started with <see cref="StartAsync"/>.
+    /// stutter that already happened. A recording started with <see cref="StartAsync"/> runs beside it, and a file of
+    /// either is converted back to its own mode's sampling by <see cref="ExportAsync"/> given its mode.
     /// </summary>
     /// <param name="maxMegabytes">The most the game holds on disk; 0 for the game's own default.</param>
     public Task<GameProfileStatus> StartRollingAsync(int processId, bool detailed, int keepSeconds,

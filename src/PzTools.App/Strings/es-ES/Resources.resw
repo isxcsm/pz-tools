@@ -488,7 +488,6 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>De 1 a 10 minutos. Una duración mayor cuesta lo mismo al juego, solo ocupa más disco.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Empieza a conservar el último minuto cuando el juego esté en marcha.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Empezando a conservar el último minuto…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>En pausa mientras se graba; continúa al terminar la grabación.</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>El juego no había conservado el último minuto (se reinició el juego o su conexión). Lo conserva de nuevo desde ahora.</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Tomando el último minuto</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Dejar de comparar</value></data>

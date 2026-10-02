@@ -75,7 +75,7 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
-    public async Task RollingRecording_KeepsGoingThroughASave_CutsItToItsWindow_AndGivesWayToARecording()
+    public async Task RollingRecording_KeepsGoingThroughASave_CutsItToItsWindow_AndRunsBesideARecording()
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
@@ -101,11 +101,17 @@ public sealed partial class GameSaveClientTests
         Assert.True(recording.Frames.Length is > 5 and < 80, $"frames: {recording.Frames.Length}");
         Assert.Equal("ExampleMod", Assert.Single(ProfileAnalysis.Analyze(recording, 0, recording.Duration, recording.GameThread).LuaGroups).Key);
 
-        // A recording asked for replaces it; the app arms it again afterwards. A rolling stop leaves that recording be.
-        Assert.True((await client.StartAsync(game.Pid, temp.GetPath("asked.pzprof.jfr"), false, 60)).Recording);
-        Assert.True((await client.StopRollingAsync(game.Pid)).Recording);
-        Assert.Equal("already-recording", (await Assert.ThrowsAsync<GameSaveException>(() => client.StartRollingAsync(game.Pid, false, 10))).Code);
-        await client.StopAsync(game.Pid);
+        // A recording asked for runs beside it, in another mode: a save still takes the rolling one, in its own mode,
+        // and stopping either leaves the other.
+        Assert.True((await client.StartAsync(game.Pid, temp.GetPath("asked.pzprof.jfr"), detailed: true, 60)).Recording);
+        Assert.True((await client.StatusAsync(game.Pid)).Recording);
+        var beside = await client.SaveRollingAsync(game.Pid, temp.GetPath("beside.pzprof.jfr"));
+        Assert.Equal(("rolling", "general"), (beside.State, beside.Mode));
+        Assert.True((await client.StopRollingAsync(game.Pid)).Rolling);
+        Assert.True((await client.StatusAsync(game.Pid)).Recording);
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10)).Rolling);
+        Assert.True((await client.StopAsync(game.Pid)).Recording);
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
         Assert.True((await client.StartRollingAsync(game.Pid, detailed: true, 10)).Rolling);
         Assert.True((await client.StopRollingAsync(game.Pid)).Rolling);
         Assert.Equal("idle", (await client.StatusAsync(game.Pid)).State);

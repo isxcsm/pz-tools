@@ -81,11 +81,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         Changed?.Invoke();
         try
         {
-            // Waits out a rolling command under way, so its result cannot undo what is said here: the recording
-            // replaces the rolling one in the game, which is armed again once it has ended.
-            await rollingLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            SetRolling(state => state with { On = false });
-            rollingLock.Release();
+            // The rolling recording goes on beside this one in the game: what it holds is still there to save.
             TryDelete(stop);
             var result = await coordinator.RecordProfileAsync(output, stop, detailed, limit, Report, cancellationToken).ConfigureAwait(false);
             var written = result.Outcome == ProcessOutcome.Succeeded && File.Exists(output);
@@ -159,7 +155,8 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
 
     /// <summary>
     /// Keeps the game's last minute from now on, in the given mode, until <see cref="StopRollingAsync"/>: armed now
-    /// if a game is running, otherwise as soon as one is, and again after each recording and each restart of the game.
+    /// if a game is running, otherwise as soon as one is, and again after each restart of the game. A recording asked
+    /// for runs beside it.
     /// Returns the start's result when it ran now.
     /// </summary>
     public async Task<AppOperationResult?> StartRollingAsync(bool detailed, int minutes = AppSettings.DefaultRollingMinutes)
@@ -253,8 +250,8 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     }
 
     /// <summary>
-    /// Arms the rolling recording when it is wanted and the game is not keeping it in the wanted mode, there is exactly
-    /// one game, and no recording runs. Returns the start's result when one ran.
+    /// Arms the rolling recording when it is wanted and the game is not keeping it in the wanted mode, and there is
+    /// exactly one game; a recording asked for may be running beside it. Returns the start's result when one ran.
     /// </summary>
     private async Task<AppOperationResult?> EnsureRollingAsync()
     {
@@ -273,7 +270,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             bool blocked;
             lock (gate) blocked = rollingBlocked;
             if (blocked || state.On && state.OnDetailed == state.Detailed && state.OnMinutes == state.Minutes
-                || Session.State != ProfileSessionState.Idle || operations() is not { } coordinator) return null;
+                || operations() is not { } coordinator) return null;
             SetRolling(current => current with { Busy = true });
             AppOperationResult result;
             try

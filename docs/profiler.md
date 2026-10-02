@@ -87,9 +87,13 @@ keeping that way; the button's tip says which mode is kept, or why there is noth
 the button says it too: *Save last 2 min (Ctrl+Shift+F9)*.
 
 The game started later, or restarted, gets it within five seconds, whether or not the
-page is open. **Start recording** replaces it while that recording runs, and it resumes
-when the recording ends. The setting is kept, so it starts again with the app; it ends
-when switched off, and while the app is closed nothing records the game.
+page is open. **Start recording** runs beside it, so reaching for the record button after
+a stutter loses nothing: the last minutes are still there to save, during the recording
+and after it. The two may be in different modes. While either is in Detailed mode the
+game is sampled at Detailed's pace; each file is taken back to its own mode as it is
+converted, so a Standard one reads as if it had run alone. The setting is kept, so it
+starts again with the app; it ends when switched off, and while the app is closed nothing
+records the game.
 
 The cost is that of a recording that never ends. Standard mode is light; Detailed mode
 costs the game frame rate for as long as it is on (roughly 10% in a synthetic test), so
@@ -448,7 +452,12 @@ The last minutes are kept by the game between short commands, each one process:
 most megabytes to hold), `roll-save`
 (`PROFILE_ROLL_SAVE`: the game writes what it holds to a flight recording, which is
 converted cut to its window, as a recording is) and `roll-stop` (`PROFILE_ROLL_STOP`,
-which ends only the rolling recording, never one someone started). Starting and stopping
+which ends only the rolling recording, never one someone started; `PROFILE_STOP` likewise
+ends only the one asked for). They wait only for each other, not for a recording's worker,
+as the two recordings run side by side in the game: the flight recorder takes each event
+once for both, the frame marks, Lua sampler and timer resolution are shared, and the
+converter thins a file's samples back to its own mode's period and leaves out the waits
+only Detailed mode records. Starting and stopping
 show no card; a save shows as a recording does. A game whose bridge refuses `roll-start`
 (one from before it, or one that cannot attach) is not asked again until it restarts or
 the settings change; the button's tip gives the reason.

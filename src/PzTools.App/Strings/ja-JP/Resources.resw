@@ -488,7 +488,6 @@
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分。長くしてもゲームへの負荷は同じで、ディスクの使用量だけが増えます。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の 1 分の記録を始めます。</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の 1 分の記録を開始しています…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>記録中は休止し、記録が終わると再開します。</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>ゲームは直前の記録を持っていませんでした (ゲームか接続が再起動されました)。今から再び記録します。</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>直前の記録を取り出し</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>比較をやめる</value></data>

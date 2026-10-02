@@ -488,7 +488,6 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>Od 1 do 10 minut. Dłuższa nie obciąża gry bardziej, zajmuje tylko więcej miejsca na dysku.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Zacznie zachowywać ostatnią minutę, gdy gra będzie uruchomiona.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Uruchamianie zachowywania ostatniej minuty…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>Wstrzymane podczas nagrywania; wznawia się po jego zakończeniu.</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Gra nie zachowała ostatniej minuty (gra lub połączenie zostały ponownie uruchomione). Od teraz zachowuje ją znowu.</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Pobieranie ostatniej minuty</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Zakończ porównanie</value></data>

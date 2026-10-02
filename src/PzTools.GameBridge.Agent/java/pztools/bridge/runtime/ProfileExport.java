@@ -75,6 +75,16 @@ public final class ProfileExport {
             Instant end = latest(input);
             if (end != null) cutoff = end.minusSeconds(seconds);
         }
+        // The recording asked for and the rolling one may run together, and the flight recorder samples then for the
+        // finer of their modes; their files also share chunks, so each holds the other's events of the time they
+        // overlapped. A file is taken back to its own mode: samples thinned to its period, per thread and kind, and
+        // in Standard mode without the waits only Detailed mode records. Without a mode, nothing is changed.
+        String mode = information.get("mode");
+        boolean modeKnown = "general".equals(mode) || "detailed".equals(mode), detailedMode = "detailed".equals(mode);
+        long javaTarget = !modeKnown ? 0 : detailedMode ? 1_000 : 10_000, nativeTarget = !modeKnown ? 0 : detailedMode ? 10_000 : 20_000;
+        long luaTarget = javaTarget;
+        var lastKept = new HashMap<Long, Long>();
+        long carriedAllocation = 0;
         var periods = new HashMap<String, Long>();
         var eventNames = new HashMap<Long, String>();
         var methods = new HashMap<String, Integer>();
@@ -110,10 +120,12 @@ public final class ProfileExport {
                         RecordedStackTrace trace = event.getStackTrace();
                         if (thread == null || trace == null) break;
                         long id = thread.getJavaThreadId();
+                        boolean nativeSample = type.equals("jdk.NativeMethodSample");
+                        if (thinned(lastKept, id * 2 + (nativeSample ? 1 : 0), time, nativeSample ? nativeTarget : javaTarget)) break;
                         threads.putIfAbsent(id, name(thread));
                         int stack = stack(trace, methods, stacks, tables);
                         body.append("S\t").append(time).append('\t').append(id).append('\t').append(stack).append('\t')
-                            .append(type.equals("jdk.NativeMethodSample") ? 'N' : 'J').append('\n');
+                            .append(nativeSample ? 'N' : 'J').append('\n');
                         samples++;
                     }
                     case "pztools.Frame" -> {
@@ -125,6 +137,8 @@ public final class ProfileExport {
                     case "pztools.LuaSample" -> {
                         String text = event.getString("stack");
                         if (text == null || text.isEmpty()) break;
+                        // A sample left out still counted what the game thread allocated: the next one kept carries it.
+                        if (thinned(lastKept, -1L, time, luaTarget)) { carriedAllocation += Math.max(0, allocated(event)); break; }
                         Integer known = luaStacks.get(text);
                         if (known == null) {
                             known = luaStacks.size();
@@ -151,12 +165,17 @@ public final class ProfileExport {
                         }
                         body.append("L\t").append(time).append('\t').append(known).append('\n');
                         long allocated = allocated(event);
-                        if (allocated >= 0) body.append("LA\t").append(time).append('\t').append(allocated).append('\n');
+                        if (allocated >= 0) {
+                            body.append("LA\t").append(time).append('\t').append(allocated + carriedAllocation).append('\n');
+                            carriedAllocation = 0;
+                        }
                         luaSamples++;
                     }
                     case "pztools.LuaSampler" -> {
+                        // The sampler ran at the finer mode's period while both recordings did; this file's samples
+                        // were thinned to its own.
                         body.append("LH\t").append(time).append('\t').append(event.getLong("taken")).append('\t')
-                            .append(event.getLong("inLua")).append('\t').append(event.getLong("periodMicros")).append('\n');
+                            .append(event.getLong("inLua")).append('\t').append(Math.max(event.getLong("periodMicros"), luaTarget)).append('\n');
                         long allocated = allocated(event);
                         if (allocated >= 0) body.append("GA\t").append(time).append('\t').append(allocated).append('\n');
                     }
@@ -167,6 +186,7 @@ public final class ProfileExport {
                         .append(clean(event.getString("name"))).append('\t').append(clean(event.getString("cause"))).append('\n');
                     case "jdk.GCPhasePause", "jdk.ZAllocationStall", "jdk.JavaMonitorEnter", "jdk.ThreadPark", "jdk.FileRead", "jdk.FileWrite",
                          "jdk.ExecuteVMOperation" -> {
+                        if (modeKnown && !detailedMode && !type.equals("jdk.GCPhasePause") && !type.equals("jdk.ZAllocationStall")) break;
                         RecordedThread thread = event.getThread();
                         long id = thread == null ? -1 : thread.getJavaThreadId();
                         if (thread != null) threads.putIfAbsent(id, name(thread));
@@ -185,8 +205,9 @@ public final class ProfileExport {
             for (var thread : threads.entrySet())
                 writer.write("T\t" + thread.getKey() + "\t" + clean(thread.getValue()) + "\n");
             writer.write("I\tgameThread\t" + gameThread + "\n");
-            writer.write("I\tjavaPeriodMicros\t" + periods.getOrDefault("jdk.ExecutionSample", 0L) + "\n");
-            writer.write("I\tnativePeriodMicros\t" + periods.getOrDefault("jdk.NativeMethodSample", 0L) + "\n");
+            // With a mode, its own periods: the settings in the file may be the other recording's.
+            writer.write("I\tjavaPeriodMicros\t" + (modeKnown ? javaTarget : periods.getOrDefault("jdk.ExecutionSample", 0L)) + "\n");
+            writer.write("I\tnativePeriodMicros\t" + (modeKnown ? nativeTarget : periods.getOrDefault("jdk.NativeMethodSample", 0L)) + "\n");
             writer.write("I\tdurationMicros\t" + last + "\n");
             writer.write("I\tstartEpochMillis\t" + (origin == null ? 0 : origin.toEpochMilli()) + "\n");
             writer.write("I\tsamples\t" + samples + "\n");
@@ -194,6 +215,19 @@ public final class ProfileExport {
             writer.write("I\tluaSamples\t" + luaSamples + "\n");
         }
         return new long[] { samples, frames, luaSamples, last };
+    }
+
+    /**
+     * Whether a sample is left out: one of the same kind and thread was kept less than this recording's period
+     * before it (with a little room, as the recorder's own spacing jitters). Samples come in time order per kind, as
+     * one thread writes them; one out of order only starts the count again.
+     */
+    private static boolean thinned(Map<Long, Long> lastKept, long key, long time, long period) {
+        if (period <= 0) return false;
+        Long previous = lastKept.get(key);
+        if (previous != null && Math.abs(time - previous) < period * 95 / 100) return true;
+        lastKept.put(key, time);
+        return false;
     }
 
     private static void period(RecordedEvent event, Map<Long, String> eventNames, Map<String, Long> periods) {

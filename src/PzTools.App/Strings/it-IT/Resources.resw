@@ -488,7 +488,6 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>Da 1 a 10 minuti. Una durata maggiore pesa sul gioco allo stesso modo, occupa solo più spazio su disco.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Inizia a conservare l'ultimo minuto appena il gioco è avviato.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Avvio della conservazione dell'ultimo minuto…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>In pausa durante una registrazione; riprende al suo termine.</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Il gioco non aveva conservato l'ultimo minuto (il gioco o il collegamento sono stati riavviati). Da ora lo conserva di nuovo.</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Recupero dell'ultimo minuto</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Interrompi il confronto</value></data>

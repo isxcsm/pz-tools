@@ -109,12 +109,12 @@ internal sealed class HotKeyController : IDisposable
     private async Task SaveLastAsync(AppHost host)
     {
         var profiles = host.Profiles;
-        if (profiles.Rolling is not { On: true, Busy: false } rolling || profiles.Session.State != ProfileSessionState.Idle)
+        if (profiles.Rolling is not { On: true, Busy: false } rolling)
         {
             Sound(SystemSound.Failed);
             Note(host, "save-last-none");
             app.ShowSidebarNotification(InfoBarSeverity.Informational, Localizer.Get("ProfilerNavigation"),
-                Localizer.Get(profiles.Session.State != ProfileSessionState.Idle ? "ProfileRollingPaused" : "ProfileRollingNotReady"));
+                Localizer.Get("ProfileRollingNotReady"));
             return;
         }
         Sound(SystemSound.Accepted);

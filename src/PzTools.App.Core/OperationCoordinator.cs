@@ -433,7 +433,8 @@ public sealed class OperationCoordinator(
     public Task<AppOperationResult> RecordProfileAsync(
         string outputPath, string stopFile, bool detailed, int maximumSeconds,
         Action<string>? progress = null, CancellationToken cancellationToken = default, string? operationId = null) =>
-        RunArchiveAsync("profile", Path.GetFullPath(outputPath), OperationScope.SaveWrite,
+        // Only one recording asked for at a time, whatever its file is called.
+        RunArchiveAsync("profile", Path.Combine(operationsRoot, "profiler"), OperationScope.SaveWrite,
             [
                 "record", "--output", Path.GetFullPath(outputPath), "--stop-file", Path.GetFullPath(stopFile),
                 "--mode", detailed ? "detailed" : "general",
@@ -460,7 +461,9 @@ public sealed class OperationCoordinator(
             "roll-stop" => ["roll-stop"],
             _ => throw new ArgumentOutOfRangeException(nameof(command)),
         };
-        return RunArchiveAsync(command == "roll-save" ? "profile" : "profile-roll", Path.Combine(operationsRoot, "profiler"),
+        // Its own admission: the rolling recording runs in the game beside one asked for, so its commands do not wait
+        // for that recording's worker, only for each other.
+        return RunArchiveAsync(command == "roll-save" ? "profile" : "profile-roll", Path.Combine(operationsRoot, "profiler-rolling"),
             OperationScope.SaveWrite, [.. arguments, "--bridge", Path.Combine(workerDirectory, "game-bridge")],
             cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId);
     }
@@ -481,8 +484,6 @@ public sealed class OperationCoordinator(
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
         await using var admission = await TryAcquireAsync(component == "character-recovery"
             ? [(scope, identity), (OperationScope.RepositoryWrite, repository.RepositoryPath)]
-            // Only one recording at a time, whatever its file is called.
-            : component == "profiler" ? [(scope, Path.Combine(operationsRoot, "profiler"))]
             : [(scope, identity)], cancellationToken);
         if (admission is null)
             return new AppOperationResult(operationId, 0, ProcessOutcome.Busy, null, "operation-busy");

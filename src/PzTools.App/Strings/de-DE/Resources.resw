@@ -488,7 +488,6 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 bis 10 Minuten. Eine längere Dauer belastet das Spiel genauso, braucht nur mehr Speicherplatz.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten, sobald das Spiel läuft.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>Während einer Aufnahme pausiert; danach geht es weiter.</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Das Spiel hatte die letzte Minute nicht behalten (Spiel oder Verbindung neu gestartet). Ab jetzt behält es sie wieder.</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Letzte Minute übernehmen</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Vergleich beenden</value></data>

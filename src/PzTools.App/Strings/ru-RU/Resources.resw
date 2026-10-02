@@ -488,7 +488,6 @@
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>От 1 до 10 минут. Большая длина нагружает игру так же, только занимает больше места на диске.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Начнёт хранить последнюю минуту, когда игра будет запущена.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск хранения последней минуты…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>Приостановлено на время записи; продолжится после неё.</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Игра не хранила последнюю минуту (игра или связь перезапускались). С этого момента хранит снова.</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Получение последней минуты</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Прекратить сравнение</value></data>

@@ -488,7 +488,6 @@
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分钟。时长更长对游戏的开销不变，只会占用更多磁盘空间。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>游戏运行后开始保留最近 1 分钟。</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>正在开始保留最近 1 分钟…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>录制期间暂停，录制结束后继续。</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>游戏没有保留最近的记录（游戏或连接已重启）。从现在起重新保留。</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>取出最近记录</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>停止对比</value></data>

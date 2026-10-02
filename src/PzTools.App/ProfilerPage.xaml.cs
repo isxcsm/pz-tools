@@ -221,14 +221,14 @@ public sealed partial class ProfilerPage : UserControl
         StatusNote.Text = note ?? "";
         StatusNote.Visibility = note is null ? Visibility.Collapsed : Visibility.Visible;
         if (session.State == ProfileSessionState.Recording) clock.Start(); else clock.Stop();
-        UpdateRolling(idle);
+        UpdateRolling();
     }
 
     // ---- The last minutes ----
 
     // The save button stands beside the recording's: "Save last 2 min (Ctrl+Shift+F9)". It works while the settings have
     // the game keep its last minutes; its tip says the mode kept, or why there is nothing to save yet.
-    private void UpdateRolling(bool idle)
+    private void UpdateRolling()
     {
         var rolling = service?.Rolling ?? new ProfileRolling();
         var minutes = rolling.Wanted ? rolling.Minutes
@@ -239,19 +239,19 @@ public sealed partial class ProfilerPage : UserControl
         // is the tip's: the button stays a name.
         if (rolling.Wanted && rolling.Detailed) label += " · " + Localizer.Get("ProfileModeDetailed");
         SaveLastText.Text = label;
-        SaveLastButton.IsEnabled = CanSaveLastMinute(rolling, idle);
-        var tip = label + "\n" + RollingState(rolling, idle) + (key is null ? "" : "\n" + Localizer.Format("ProfileHotKeyTipFormat", key));
+        SaveLastButton.IsEnabled = CanSaveLastMinute(rolling);
+        var tip = label + "\n" + RollingState(rolling) + (key is null ? "" : "\n" + Localizer.Format("ProfileHotKeyTipFormat", key));
         AppToolTip.SetTip(SaveLastHost, tip);
         AutomationProperties.SetHelpText(SaveLastButton, tip);
         AutomationProperties.SetAcceleratorKey(SaveLastButton, key ?? "");
     }
 
-    private static bool CanSaveLastMinute(ProfileRolling rolling, bool idle) => rolling.On && !rolling.Busy && idle;
+    // A recording asked for runs beside the rolling one, so it does not stand in the way.
+    private static bool CanSaveLastMinute(ProfileRolling rolling) => rolling.On && !rolling.Busy;
 
     // What the game is doing with the last minutes: the mode it keeps them in, or why there is nothing to save yet.
-    private string RollingState(ProfileRolling rolling, bool idle) =>
+    private string RollingState(ProfileRolling rolling) =>
         !rolling.Wanted ? Localizer.Get("ProfileRollingOff")
-        : !idle ? Localizer.Get("ProfileRollingPaused")
         : rolling.Error is { } error && !rolling.On ? Localizer.Get(ProfileRecordingService.ErrorKey(error))
         : !rolling.On ? Localizer.Get(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting")
         : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));

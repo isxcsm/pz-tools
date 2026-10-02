@@ -14,8 +14,8 @@ import java.util.concurrent.locks.LockSupport;
 import jdk.jfr.*;
 
 /**
- * One recording at a time, started and stopped on request. Nothing is sampled, hooked or kept
- * while no recording runs.
+ * The recording asked for and the rolling one, each started and stopped on request, alone or together. Nothing is
+ * sampled, hooked or kept while neither runs.
  *
  * <p>The JVM's own flight recorder does the measuring: periodic stack samples of running threads,
  * garbage-collection pauses, and the events below. It depends on Java, not on the game's code,
@@ -47,15 +47,29 @@ final class ProfileRecorder {
     }
 
     static final int MAXIMUM_SECONDS = 1800, MAXIMUM_ROLLING_SECONDS = 600, DEFAULT_ROLLING_MEGABYTES = 256;
-    private static volatile Recording recording;
-    // The recording keeps only its last stretch and has no end of its own; see startRolling.
-    private static boolean rolling;
+
+    /** One recording with what its status reports: its mode, when it began, and the frame count it began at. */
+    private static final class Slot {
+        final Recording recording;
+        final boolean detailed;
+        final long startedNanos = System.nanoTime(), startFrames;
+        Slot(Recording recording, boolean detailed, long startFrames) {
+            this.recording = recording; this.detailed = detailed; this.startFrames = startFrames;
+        }
+        boolean running() { return recording.getState() == RecordingState.RUNNING; }
+    }
+
+    // The recording asked for, and the rolling one, which keeps only its last stretch and has no end of its own (see
+    // startRolling). Both may run at once: the flight recorder takes each event once and every running recording
+    // that enabled it gets it. The frame marks, the Lua sampler and the timer resolution are shared, and run while
+    // either recording does; the sampler at the shorter of their periods. The converter takes each recording back to
+    // its own mode's density.
+    private static volatile Slot asked, rolling;
     private static LuaSampler lua;
     private static Thread luaThread;
-    private static long startedNanos;
-    private static boolean detailed;
     private static String luaState = "not-started";
     private static volatile boolean active;
+    // Frames marked since the recorder first ran; each recording counts from where it began.
     private static volatile long frames;
     // Game thread only while active.
     private static FrameEvent open;
@@ -67,11 +81,13 @@ final class ProfileRecorder {
     private ProfileRecorder() { }
 
     static boolean active() { return active; }
-    /** Any thread: whether the flight recorder is still taking events; it ends by itself at the maximum duration. */
-    static boolean running() {
-        Recording current = recording;
-        return active && current != null && current.getState() == RecordingState.RUNNING;
-    }
+    /**
+     * Any thread: whether the flight recorder is still taking events for either recording; the one asked for ends by
+     * itself at its maximum duration.
+     */
+    static boolean running() { return active && (live(asked) || live(rolling)); }
+
+    private static boolean live(Slot slot) { return slot != null && slot.running(); }
 
     /** Game thread, once per game-loop iteration. One branch when nothing is being recorded. */
     static void frame() {
@@ -85,10 +101,11 @@ final class ProfileRecorder {
         frames++;
     }
 
+    /** Starts the recording asked for; a rolling one goes on beside it. */
     static synchronized String start(Path destination, boolean detailedMode, int maximumSeconds, ClassLoader gameLoader) throws Exception {
-        // A rolling recording gives way to one asked for; the app arms it again afterwards.
-        if (running() && !rolling) throw new IllegalStateException("already-recording");
-        closeQuietly();
+        if (live(asked)) throw new IllegalStateException("already-recording");
+        // One that ended by itself at its limit and was never stopped.
+        close(asked);
         checkDestination(destination);
         if (maximumSeconds < 5 || maximumSeconds > MAXIMUM_SECONDS) throw new IllegalArgumentException("Invalid maximum duration");
         Recording next = configured(detailedMode);
@@ -98,42 +115,50 @@ final class ProfileRecorder {
             next.setDuration(Duration.ofSeconds(maximumSeconds));
             next.setDestination(destination);
         } catch (Throwable failure) { next.close(); throw failure; }
-        return begin(next, detailedMode, gameLoader, false);
+        return status(begin(next, detailedMode, gameLoader, false));
     }
 
     /**
      * Keeps recording, holding only about the last {@code keepSeconds}, until stopped: for the stutter that already
      * happened, saved with {@link #save} after it. Older data is dropped a whole chunk at a time, so somewhat more is
-     * held; the converter cuts a save to the window. A recording asked for replaces it.
+     * held; the converter cuts a save to the window. A recording asked for runs beside it; a rolling one already
+     * running is replaced, as when its mode or window changes.
      */
     static synchronized String startRolling(boolean detailedMode, int keepSeconds, ClassLoader gameLoader) throws Exception {
         return startRolling(detailedMode, keepSeconds, DEFAULT_ROLLING_MEGABYTES, gameLoader);
     }
 
     static synchronized String startRolling(boolean detailedMode, int keepSeconds, int maxMegabytes, ClassLoader gameLoader) throws Exception {
-        if (running() && !rolling) throw new IllegalStateException("already-recording");
         if (keepSeconds < 10 || keepSeconds > MAXIMUM_ROLLING_SECONDS) throw new IllegalArgumentException("Invalid rolling duration");
         if (maxMegabytes < 64 || maxMegabytes > 2048) throw new IllegalArgumentException("Invalid rolling size");
-        closeQuietly();
+        Slot previous = rolling;
+        rolling = null;
+        close(previous);
         Recording next = configured(detailedMode);
         try {
             next.setMaxAge(Duration.ofSeconds(keepSeconds));
             next.setMaxSize(maxMegabytes * 1024L * 1024);
-        } catch (Throwable failure) { next.close(); throw failure; }
-        return begin(next, detailedMode, gameLoader, true);
+        } catch (Throwable failure) { next.close(); release(); throw failure; }
+        return status(begin(next, detailedMode, gameLoader, true));
     }
 
     /** Writes what the rolling recording holds now; it goes on recording. */
     static synchronized String save(Path destination) throws Exception {
-        if (!rolling || !running()) throw new IllegalStateException("not-rolling");
+        Slot slot = rolling;
+        if (!active || !live(slot)) throw new IllegalStateException("not-rolling");
         checkDestination(destination);
-        recording.dump(destination);
-        return status();
+        slot.recording.dump(destination);
+        return status(slot);
     }
 
-    /** Ends a rolling recording, and only that: a recording someone asked for is left alone. */
-    static synchronized String stopRolling() throws Exception {
-        return rolling && recording != null ? stop() : status();
+    /** Ends the rolling recording, and only that: a recording someone asked for is left alone. */
+    static synchronized String stopRolling() {
+        Slot slot = rolling;
+        if (slot == null) return status();
+        String result = status(slot);
+        rolling = null;
+        close(slot);
+        return result;
     }
 
     private static void checkDestination(Path destination) {
@@ -173,73 +198,103 @@ final class ProfileRecorder {
         return next;
     }
 
-    private static String begin(Recording next, boolean detailedMode, ClassLoader gameLoader, boolean keepsRolling) {
+    /** Starts a recording and, with the first one, what both share; the sampler follows the shorter period. */
+    private static Slot begin(Recording next, boolean detailedMode, ClassLoader gameLoader, boolean keepsRolling) {
+        boolean first = !live(asked) && !live(rolling);
         try {
             TimerResolution.raise();
             next.start();
-        } catch (Throwable failure) { TimerResolution.restore(); next.close(); throw failure; }
-        recording = next; rolling = keepsRolling; detailed = detailedMode; startedNanos = System.nanoTime(); frames = 0; open = null; gameThread = null;
-        LuaSampler sampler = null;
-        try { sampler = new LuaSampler(gameLoader, detailedMode ? 1_000_000L : 10_000_000L); luaState = "sampling"; }
-        catch (ReflectiveOperationException | LinkageError unavailable) { luaState = "unavailable:" + unavailable.getClass().getSimpleName(); }
-        lua = sampler;
-        if (sampler != null) {
-            luaThread = new Thread(sampler, "PzTools-lua-sampler");
-            luaThread.setDaemon(true);
-            luaThread.start();
+        } catch (Throwable failure) { next.close(); release(); throw failure; }
+        if (first) { open = null; gameThread = null; }
+        Slot slot = new Slot(next, detailedMode, frames);
+        if (keepsRolling) rolling = slot; else asked = slot;
+        long period = samplingPeriod();
+        if (lua != null) lua.periodNanos = period;
+        else {
+            LuaSampler sampler = null;
+            try { sampler = new LuaSampler(gameLoader, period); luaState = "sampling"; }
+            catch (ReflectiveOperationException | LinkageError unavailable) { luaState = "unavailable:" + unavailable.getClass().getSimpleName(); }
+            lua = sampler;
+            if (sampler != null) {
+                luaThread = new Thread(sampler, "PzTools-lua-sampler");
+                luaThread.setDaemon(true);
+                luaThread.start();
+            }
         }
         active = true;
         ProfileFrames.attach(FRAME_MARK);
-        return status();
+        return slot;
     }
 
-    static synchronized String stop() throws Exception {
-        if (recording == null) throw new IllegalStateException("not-recording");
-        String result = status();
-        active = false; rolling = false;
+    // The Lua sampler's period: the shorter of the running recordings' modes.
+    private static long samplingPeriod() {
+        return live(asked) && asked.detailed || live(rolling) && rolling.detailed ? 1_000_000L : 10_000_000L;
+    }
+
+    /**
+     * After a recording has stopped: with neither running, stop what they shared (frame marks, Lua sampler, timer
+     * resolution); with one still running, the sampler goes back to its period.
+     */
+    private static void release() {
+        if (live(asked) || live(rolling)) {
+            if (lua != null) lua.periodNanos = samplingPeriod();
+            return;
+        }
+        active = false; open = null;
         ProfileFrames.detach(FRAME_MARK);
-        open = null;
         stopLua();
-        Recording current = recording;
-        recording = null;
-        try { if (current.getState() == RecordingState.RUNNING) current.stop(); }
-        finally { current.close(); TimerResolution.restore(); }
+        TimerResolution.restore();
+    }
+
+    /** Stops and closes a recording that is no longer wanted, quietly. */
+    private static void close(Slot slot) {
+        if (slot == null) return;
+        if (asked == slot) asked = null;
+        if (rolling == slot) rolling = null;
+        try { slot.recording.close(); } catch (Throwable ignored) { }
+        release();
+    }
+
+    /** Ends the recording asked for, which writes its file; a rolling one goes on. */
+    static synchronized String stop() throws Exception {
+        Slot slot = asked;
+        if (slot == null) throw new IllegalStateException("not-recording");
+        String result = status(slot);
+        asked = null;
+        try { if (slot.running()) slot.recording.stop(); }
+        finally { slot.recording.close(); release(); }
         return result;
     }
 
     /**
-     * The flight recorder ended the recording by itself at its maximum duration, and nobody has asked
-     * for it to stop (the recording program may have ended). Stop what this class added around it:
-     * the Lua sampler, the per-frame events and the raised timer resolution. The recording itself
-     * stays, so a later stop request still reports it as finished.
+     * The flight recorder ended the recording asked for by itself at its maximum duration, and nobody has asked for
+     * it to stop (the recording program may have ended). Give back what it held of the shared parts: all of them
+     * unless the rolling recording still runs. The recording itself stays, so a later stop request still reports it
+     * as finished.
      */
     static synchronized void wrapUpIfEnded() {
-        Recording current = recording;
-        if (!active || current == null || current.getState() == RecordingState.RUNNING) return;
-        active = false; rolling = false; open = null;
-        ProfileFrames.detach(FRAME_MARK);
-        stopLua();
-        TimerResolution.restore();
+        if (active && (asked != null || rolling != null)) release();
     }
 
-    /** {@code state;elapsedMillis;frames;mode;lua} - fixed fields, no free text. */
-    static synchronized String status() {
-        boolean running = recording != null && recording.getState() == RecordingState.RUNNING;
+    /** {@code state;elapsedMillis;frames;mode;lua} for the recording asked for if there is one, else the rolling one. */
+    static synchronized String status() { return status(asked != null ? asked : rolling); }
+
+    /** Fixed fields, no free text. */
+    private static String status(Slot slot) {
+        if (slot == null) return "idle;0;0;general;" + luaState;
         // The recorder ends a recording by itself at its maximum duration; that is "finished", not lost.
-        String state = recording == null ? "idle" : running ? (rolling ? "rolling" : "recording") : "finished";
-        long elapsed = recording == null ? 0 : (System.nanoTime() - startedNanos) / 1_000_000L;
-        return state + ";" + elapsed + ";" + frames + ";" + (detailed ? "detailed" : "general") + ";" + luaState;
+        String state = !slot.running() ? "finished" : slot == rolling ? "rolling" : "recording";
+        long elapsed = (System.nanoTime() - slot.startedNanos) / 1_000_000L;
+        return state + ";" + elapsed + ";" + (frames - slot.startFrames) + ";" + (slot.detailed ? "detailed" : "general") + ";" + luaState;
     }
 
     /** Payload replacement or shutdown: leave nothing running that belongs to a retiring class loader. */
     static synchronized void closeQuietly() {
-        active = false; rolling = false; open = null;
-        ProfileFrames.detach(FRAME_MARK);
-        stopLua();
-        Recording current = recording;
-        recording = null;
-        if (current != null) try { current.close(); } catch (Throwable ignored) { }
-        TimerResolution.restore();
+        Slot first = asked, second = rolling;
+        asked = null; rolling = null;
+        for (Slot slot : new Slot[] { first, second })
+            if (slot != null) try { slot.recording.close(); } catch (Throwable ignored) { }
+        release();
     }
 
     private static void stopLua() {
@@ -264,7 +319,8 @@ final class ProfileRecorder {
         // boxed. Types are erased to Object (or int) so the reads are exact calls; checked above them by type.
         private final MethodHandle[] threads;
         private final MethodHandle currentCoroutine, closure, pc, prototype, name, file, filename, lines, top, stack;
-        private final long periodNanos;
+        // Shared by both recordings: set again when one starts or stops, read before each wait.
+        volatile long periodNanos;
         private final IdentityHashMap<Object, String> labels = new IdentityHashMap<>();
         private final PreciseWait wait = new PreciseWait();
         volatile boolean stopped;

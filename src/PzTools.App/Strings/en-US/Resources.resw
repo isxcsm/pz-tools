@@ -517,7 +517,6 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="HotKeysTitle" xml:space="preserve"><value>Hotkeys</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last minute once the game is running.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last minute…</value></data>
-  <data name="ProfileRollingPaused" xml:space="preserve"><value>Paused while recording; it carries on once the recording ends.</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>The game had not kept the last minute (the game or its link was restarted). It keeps it again from now.</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Taking the last minute</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Stop comparing</value></data>

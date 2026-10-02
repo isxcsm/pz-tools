@@ -59,7 +59,8 @@ final class ProfileControl {
                 case "PROFILE_STOP" -> {
                     if (command.length != 1) return error("protocol", "Invalid profile stop request");
                     String status = ProfileRecorder.stop();
-                    releaseFrameHook();
+                    // A rolling recording may still mark frames.
+                    if (!ProfileRecorder.active()) releaseFrameHook();
                     return ok(status);
                 }
                 case "PROFILE_STATUS" -> {
@@ -139,11 +140,12 @@ final class ProfileControl {
                         synchronized (ProfileControl.class) { ProfileRecorder.closeQuietly(); releaseFrameHook(); }
                         return;
                     }
-                    // Ended at its maximum duration with no stop request (the recording program may be
-                    // gone): nothing should keep sampling the game or marking its frames.
-                    if (!ProfileRecorder.running()) {
-                        synchronized (ProfileControl.class) { ProfileRecorder.wrapUpIfEnded(); releaseFrameHook(); }
-                        return;
+                    // The recording asked for ended at its maximum duration with no stop request (the recording
+                    // program may be gone): it should no longer set the Lua sampler's pace, and with no rolling
+                    // recording beside it, nothing should keep sampling the game or marking its frames.
+                    synchronized (ProfileControl.class) {
+                        ProfileRecorder.wrapUpIfEnded();
+                        if (!ProfileRecorder.active()) { releaseFrameHook(); return; }
                     }
                     Thread.sleep(100);
                 }
