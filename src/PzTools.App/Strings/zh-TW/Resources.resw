@@ -715,4 +715,9 @@
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>遊戲程式碼</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他腳本</value></data>
+  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>請在不使用系統管理員權限的情況下重新啟動遊戲。</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>遊戲的啟動選項封鎖了連線。</value></data>
+  <data name="ProfileError.Elevation" xml:space="preserve"><value>遊戲正以系統管理員身分執行，因此無法連線。請在不使用系統管理員權限的情況下重新啟動遊戲。</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>遊戲的啟動選項封鎖了連線，因此無法連線。請檢查遊戲的啟動選項。</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>無法連線到遊戲</value></data>
 </root>

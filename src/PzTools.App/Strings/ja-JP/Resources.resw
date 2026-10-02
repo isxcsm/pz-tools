@@ -715,4 +715,9 @@
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>その他のスクリプト</value></data>
+  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>管理者権限なしでゲームを再起動してください。</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ゲームの起動オプションが接続をブロックしています。</value></data>
+  <data name="ProfileError.Elevation" xml:space="preserve"><value>ゲームが管理者として実行されているため接続できませんでした。管理者権限なしで再起動してください。</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>ゲームの起動オプションがブロックしているため接続できませんでした。起動オプションを確認してください。</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>ゲームに接続できませんでした</value></data>
 </root>

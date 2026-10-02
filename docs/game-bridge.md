@@ -120,6 +120,37 @@ that someone else could change is not used.
 
 The bridge then calls the game's original `GameWindow.save(true)` on the game thread.
 
+### When attaching fails
+
+The helper's first line of error output names the step it stopped at (`arguments`,
+`lock`, `attach`, `native-bootstrap`, `bootstrap`, `bootstrap-version`, `handshake`)
+and the error. PZ Tools logs that, with what most often breaks an attach on a player's
+machine, as the failure's `diagnostics`:
+
+- whether the app and the game run as administrator, and why the game's rights could not
+  be read if they could not;
+- the game's Java executable, by file name;
+- whether the app folder, the temporary folder and the user folder hold letters outside
+  ASCII (yes or no, never the path);
+- the Windows version and the end of the helper's output.
+
+Two causes the player can change get their own code and words:
+
+| Cause | How it is told | Code | The app says |
+| --- | --- | --- | --- |
+| The game runs as administrator and PZ Tools does not | The `attach` step fails, and Windows says the game is elevated or refuses to say (access denied) | `attach-elevation` | Restart the game without administrator rights |
+| The game was started with `-XX:+DisableAttachMechanism` | Java says the game does not support attaching | `attach-disabled` | A launch option is blocking the connection |
+
+Anything else stays `attach-failed`. Where to find the entry, for a user's report:
+
+| Link | Log entry |
+| --- | --- |
+| The always-on link (game state, pause-aware timing) | `game.link.failed` from `state-scheduler`, once per game process and cause rather than every retry |
+| A recording | The recorder's `run.failed` |
+| A backup's save request | The `source.prepare.completed` warning, whose detail holds the same text |
+
+**Copy details** on the Logs page includes it.
+
 ### Layers
 
 The bridge is loaded once per game session and reused for every request. It has

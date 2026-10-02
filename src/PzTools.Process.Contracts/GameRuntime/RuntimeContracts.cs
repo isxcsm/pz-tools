@@ -103,6 +103,10 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     public const string GameStartingReason = "game-starting";
     /// <summary>The game still runs a bridge older than this app's; it connects again after a game restart.</summary>
     public const string RestartRequiredReason = "runtime-restart-required";
+    /// <summary>The game runs with rights this app lacks (as administrator): it connects once both run alike.</summary>
+    public const string ElevationReason = "runtime-attach-elevation";
+    /// <summary>The game was started with connecting turned off by a launch option.</summary>
+    public const string AttachDisabledReason = "runtime-attach-disabled";
     /// <summary>
     /// A game is running but its state cannot be read: the connection failed, or it answers without
     /// a recognisable game state (for example after a game update). An absent game, a second game,

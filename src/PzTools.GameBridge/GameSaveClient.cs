@@ -19,7 +19,8 @@ public sealed class GameSaveException(string code, string message, string? diagn
     /// The game could not be reached at all and nothing was asked of it (a blocked helper, a game
     /// update, a missing bridge). The files on disk can still be backed up as they are.
     /// </summary>
-    public bool LinkUnavailable => Code is "attach-failed" or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
+    public bool LinkUnavailable => Code is "attach-failed" or AttachDiagnostics.ElevationCode or AttachDiagnostics.DisabledCode
+        or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
     public string? Diagnostics { get; } = diagnostics;
 
     /// <summary>
@@ -131,7 +132,7 @@ public sealed class GameSaveClient(string bridgeDirectory,
             {
                 await exited;
                 if (helper.ExitCode != 0)
-                    throw new GameSaveException("attach-failed", (await error + "\n" + await output).Trim());
+                    throw AttachDiagnostics.Failure(processId, (await error + "\n" + await output).Trim(), helper.ExitCode, bridgeDirectory);
             }
             using var client = await accepted;
             using var stream = client.GetStream();

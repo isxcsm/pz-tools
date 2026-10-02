@@ -18,7 +18,7 @@ public sealed class GuardedGamePreparation(GameSaveClient client)
         {
             // The scheduler already found this backup due from the observed game. Only the request
             // channel is down, and nothing was asked of the game: back up what is on disk.
-            return new GameSaveResult(BackupGameSave.SaveUnavailable, exception.Message);
+            return new GameSaveResult(BackupGameSave.SaveUnavailable, exception.Diagnostics ?? exception.Message);
         }
     }
 }

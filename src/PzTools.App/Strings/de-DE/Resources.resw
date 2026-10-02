@@ -715,4 +715,9 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Spielcode</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Warten</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Andere Skripte</value></data>
+  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Starten Sie das Spiel ohne Administratorrechte neu.</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Eine Startoption des Spiels blockiert die Verbindung.</value></data>
+  <data name="ProfileError.Elevation" xml:space="preserve"><value>Keine Verbindung möglich, da das Spiel als Administrator läuft. Starten Sie es ohne Administratorrechte neu.</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Keine Verbindung möglich, da eine Startoption des Spiels sie blockiert. Prüfen Sie die Startoptionen des Spiels.</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Verbindung zum Spiel fehlgeschlagen</value></data>
 </root>

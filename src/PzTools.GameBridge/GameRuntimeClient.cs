@@ -42,11 +42,13 @@ public sealed class GameRuntimeClient(string bridgeDirectory)
                 await exit;
                 if (helper.ExitCode != 0)
                 {
-                    var detail = await error;
-                    bool restart = GameSaveException.NamesRestart(detail);
-                    throw new GameSaveException(restart ? "restart-required" : "runtime-unavailable",
-                        restart ? "The loaded bootstrap requires one game restart after this bridge update."
-                            : "Runtime observer attach failed.");
+                    var detail = (await error + "\n" + await output).Trim();
+                    if (GameSaveException.NamesRestart(detail))
+                        throw new GameSaveException("restart-required", "The loaded bootstrap requires one game restart after this bridge update.");
+                    // A known cause keeps its own code, for the card to name; any other stays this link's own failure.
+                    var failure = AttachDiagnostics.Failure(processId, detail, helper.ExitCode, bridgeDirectory);
+                    throw failure.Code == "attach-failed"
+                        ? new GameSaveException("runtime-unavailable", "Runtime observer attach failed.", failure.Diagnostics) : failure;
                 }
             }
             using var client = await accept;

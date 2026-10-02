@@ -160,8 +160,10 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
                     var detail = (await error + "\n" + await output).Trim();
                     // A save or another short request holds the channel for a moment; the caller may simply try again.
                     // A bootstrap from before an update cannot be used until the game restarts: say so, not "link failed".
-                    throw new GameSaveException(detail.Contains("still active", StringComparison.Ordinal) ? "busy"
-                        : GameSaveException.NamesRestart(detail) ? "restart-required" : "attach-failed", detail);
+                    if (detail.Contains("still active", StringComparison.Ordinal)) throw new GameSaveException("busy", detail);
+                    if (GameSaveException.NamesRestart(detail)) throw new GameSaveException("restart-required", detail);
+                    // Otherwise why it could not attach: a known cause under its own code, and what the log needs either way.
+                    throw AttachDiagnostics.Failure(processId, detail, helper.ExitCode, bridgeDirectory);
                 }
             }
             using var client = await accepted;

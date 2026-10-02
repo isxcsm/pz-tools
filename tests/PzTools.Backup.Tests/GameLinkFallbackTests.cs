@@ -156,6 +156,8 @@ public sealed class GameLinkFallbackTests
 
     [Theory]
     [InlineData("attach-failed", BackupGameSave.SaveUnavailable)]
+    [InlineData(AttachDiagnostics.ElevationCode, BackupGameSave.SaveUnavailable)]
+    [InlineData(AttachDiagnostics.DisabledCode, BackupGameSave.SaveUnavailable)]
     [InlineData("connection-timeout", BackupGameSave.SaveUnavailable)]
     [InlineData("bridge-not-built", BackupGameSave.SaveUnavailable)]
     [InlineData("not-in-world", "not-in-world")]
@@ -197,5 +199,22 @@ public sealed class GameLinkFallbackTests
         Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).RestartRequired);
         Assert.Equal(GameLinkView.Available, monitor.Update(new("", RuntimeQuality.Offline, null)));
         Assert.False(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).RestartRequired);
+    }
+
+    [Fact]
+    public void Monitor_NamesACauseThePlayerCanChange_ForTheWholeOutage()
+    {
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true);
+        Assert.Null(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Cause);
+        Assert.Equal(RuntimeObservation.ElevationReason,
+            monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.ElevationReason)).Cause);
+        Assert.Equal(RuntimeObservation.ElevationReason, monitor.Update(RuntimeObservation.Unknown("connecting")).Cause);
+        // Connected again, or the game gone: the cause goes with the outage.
+        Assert.Equal(GameLinkView.Available, monitor.Update(new("", RuntimeQuality.Offline, null)));
+        Assert.Equal(RuntimeObservation.AttachDisabledReason,
+            monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason)).Cause);
+        // Still within the grace, nothing is shown, the cause included.
+        var patient = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
+        Assert.Equal(GameLinkView.Available, patient.Update(RuntimeObservation.Unknown(RuntimeObservation.ElevationReason)));
     }
 }

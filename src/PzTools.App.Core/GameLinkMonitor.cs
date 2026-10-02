@@ -8,7 +8,11 @@ namespace PzTools.App.Core;
 /// </summary>
 /// <param name="RestartRequired">The link is unavailable because the game still runs an older bridge; a
 /// game restart is known to bring it back. Any other unavailable link may not come back with a restart.</param>
-public sealed record GameLinkView(bool LinkUnavailable = false, bool SleepUnavailable = false, bool RestartRequired = false)
+/// <param name="Cause">What stops the link when it is known and the player can change it: the game run as
+/// administrator (<see cref="RuntimeObservation.ElevationReason"/>) or with connecting turned off
+/// (<see cref="RuntimeObservation.AttachDisabledReason"/>).</param>
+public sealed record GameLinkView(bool LinkUnavailable = false, bool SleepUnavailable = false, bool RestartRequired = false,
+    string? Cause = null)
 {
     public static GameLinkView Available { get; } = new();
 }
@@ -25,6 +29,7 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
     private readonly TimeSpan valueGrace = valueGrace ?? TimeSpan.FromSeconds(30);
     private long? linkSince, sleepSince, lastProcessCheck;
     private bool running, restartRequired;
+    private string? cause;
 
     public GameLinkView Update(RuntimeObservation observation)
     {
@@ -33,11 +38,13 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
         linkSince = unusable ? linkSince ?? time.GetTimestamp() : null;
         // Each retry reports "connecting" before it fails again: keep the reason for the whole outage.
         restartRequired = unusable && (restartRequired || observation.Reason == RuntimeObservation.RestartRequiredReason);
+        cause = !unusable ? null : observation.Reason is RuntimeObservation.ElevationReason or RuntimeObservation.AttachDisabledReason
+            ? observation.Reason : cause;
         bool sleepUnknown = observation is { IsFresh: true, Snapshot: { IsWorldReady: true, Sleep: RuntimeSleep.Unknown } };
         sleepSince = sleepUnknown ? sleepSince ?? time.GetTimestamp() : null;
         bool linkUnavailable = linkSince is { } link && time.GetElapsedTime(link) >= linkGrace;
         return new(linkUnavailable, sleepSince is { } sleep && time.GetElapsedTime(sleep) >= valueGrace,
-            linkUnavailable && restartRequired);
+            linkUnavailable && restartRequired, linkUnavailable ? cause : null);
     }
 
     private bool IsGameRunning()

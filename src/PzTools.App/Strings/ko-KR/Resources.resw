@@ -714,4 +714,9 @@
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>대기</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>다른 스크립트</value></data>
+  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>게임을 관리자 권한 없이 다시 시작해 주세요.</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>게임 실행 옵션이 연결을 막고 있습니다.</value></data>
+  <data name="ProfileError.Elevation" xml:space="preserve"><value>게임이 관리자 권한으로 실행 중이라 연결하지 못했습니다. 관리자 권한 없이 다시 시작해 주세요.</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>게임 실행 옵션이 연결을 막고 있어 연결하지 못했습니다. 실행 옵션을 확인해 주세요.</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>게임에 연결하지 못함</value></data>
 </root>

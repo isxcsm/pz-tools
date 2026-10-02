@@ -715,4 +715,9 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kode game</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Menunggu</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Skrip lain</value></data>
+  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Mulai ulang gim tanpa hak administrator.</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Opsi peluncuran gim memblokir koneksi.</value></data>
+  <data name="ProfileError.Elevation" xml:space="preserve"><value>Tidak dapat terhubung karena gim berjalan sebagai administrator. Mulai ulang gim tanpa hak administrator.</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Tidak dapat terhubung karena opsi peluncuran gim memblokirnya. Periksa opsi peluncuran gim.</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Tidak dapat terhubung ke gim</value></data>
 </root>

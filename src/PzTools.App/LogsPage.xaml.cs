@@ -943,6 +943,7 @@ public sealed class LogEntryUiItem
         "source.prepare.completed" when outcome == "save-unavailable" => Localizer.Get("LogEvent.GameSaveUnavailable"),
         "tick.completed" when outcome == "Failed" => ActivityMessage("LogEvent.TickFailed"),
         "tick.failed" => ActivityMessage("LogEvent.TickFailed"),
+        "game.link.failed" => Localizer.Get("LogEvent.GameLinkFailed"),
         var name when name.EndsWith(".completed", StringComparison.Ordinal)
             && outcome is "Failed" or "Abandoned" => ActivityMessage("LogEvent.RunFailed"),
         var name when name.EndsWith(".completed", StringComparison.Ordinal)

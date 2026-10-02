@@ -286,6 +286,11 @@ on the card.
 - The card also leaves when a later check finds nothing blocked. It comes back only if a
   different set of components is blocked.
 
+The game-link card names a cause the player can change when the attach found one: the
+game run as administrator (*restart the game without administrator rights*) or a launch
+option that turns connecting off. Otherwise it says what backups do meanwhile. See
+[when attaching fails](game-bridge.md#when-attaching-fails).
+
 ### Writing a card
 
 Cards are read by players, in a pane about 200 pixels wide. Every card, notice and error

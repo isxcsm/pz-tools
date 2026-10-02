@@ -11,7 +11,8 @@ namespace PzTools.State.Scheduler;
 /// <summary>Composition root for observation. Reception never waits for slow save discovery/SQLite.</summary>
 internal sealed class RuntimeObservationCoordinator(StateDatabase state, SchedulerDatabase scheduler,
     string savesRoot, string bridgeDirectory, RuntimeSnapshotStore published,
-    string runtimeRoot, RuntimeExtensionStatusStore extensions, ExtensionControlOptions extensionOptions)
+    string runtimeRoot, RuntimeExtensionStatusStore extensions, ExtensionControlOptions extensionOptions,
+    Func<CancellationToken, Task<long>>? allocateRunIndex = null, string? telemetryConfigurationPath = null)
 {
     private readonly RuntimeSnapshotStore received = new();
 
@@ -106,13 +107,44 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 or Microsoft.Data.Sqlite.SqliteException)
             {
                 bool restart = error is GameSaveException { Code: "restart-required" };
-                received.Publish(RuntimeObservation.Unknown(restart ? RuntimeObservation.RestartRequiredReason : "runtime-unavailable"));
+                received.Publish(RuntimeObservation.Unknown(error is GameSaveException { Code: var code } ? code switch
+                {
+                    "restart-required" => RuntimeObservation.RestartRequiredReason,
+                    AttachDiagnostics.ElevationCode => RuntimeObservation.ElevationReason,
+                    AttachDiagnostics.DisabledCode => RuntimeObservation.AttachDisabledReason,
+                    _ => "runtime-unavailable",
+                } : "runtime-unavailable"));
                 if (restart) extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
+                if (error is GameSaveException { Diagnostics: not null } attach && games.Length == 1)
+                    await RecordAttachFailureAsync(games[0], attach, token);
             }
             finally { foreach (var game in games) game.Dispose(); }
             failures = Math.Min(5, failures + 1);
             await Task.Delay(TimeSpan.FromSeconds(Math.Min(30, 1 << failures)), token);
         }
+    }
+
+    // The game and cause last written to the log: the link retries every half minute, and one entry per game and
+    // cause says all a repeat would.
+    private (int ProcessId, DateTime Started, string Code)? attachLogged;
+
+    private async Task RecordAttachFailureAsync(System.Diagnostics.Process game, GameSaveException failure, CancellationToken token)
+    {
+        if (allocateRunIndex is null) return;
+        DateTime started;
+        try { started = game.StartTime; }
+        catch (Exception error) when (error is InvalidOperationException or System.ComponentModel.Win32Exception) { return; }
+        var key = (game.Id, started, failure.Code);
+        if (attachLogged == key) return;
+        attachLogged = key;
+        long run;
+        // The log is a record, never a reason to stop watching the game.
+        try { run = await allocateRunIndex(token); }
+        catch (Exception error) when (error is not OperationCanceledException) { return; }
+        await PzTools.Process.Telemetry.BestEffortProcessTelemetry.TryRecordAsync(scheduler.DatabasePath, "state-scheduler",
+            run, "game.link.failed",
+            FailureTelemetry.FromException(failure.Code, failure, phase: "attach", operation: "game-link"),
+            telemetryConfigurationPath);
     }
 
     private async Task PublishAsync(CancellationToken token)

@@ -171,7 +171,8 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     private bool rollingMaybeOn;
 
     private static bool IsLasting(string? error) => error is "profile-restart-required" or "profile-unsupported-protocol"
-        or "profile-unsupported-runtime" or "profile-bridge-not-built" or PzTools.Process.Hosting.LaunchFailure.Blocked;
+        or "profile-unsupported-runtime" or "profile-bridge-not-built" or "profile-attach-elevation" or "profile-attach-disabled"
+        or PzTools.Process.Hosting.LaunchFailure.Blocked;
 
     // Another game, or other settings: a clean slate.
     private void ResetRollingRetries() { lock (gate) { rollingBlocked = false; rollingFailures = 0; rollingRetryAt = DateTime.MinValue; } }
@@ -537,6 +538,8 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         "profile-multiple-games" => "ProfileError.MultipleGames",
         "profile-attach-failed" or "profile-connection-timeout" or "profile-bridge-not-built"
             or "profile-unsupported-protocol" or "profile-unsupported-runtime" => "ProfileError.Link",
+        "profile-attach-elevation" => "ProfileError.Elevation",
+        "profile-attach-disabled" => "ProfileError.AttachDisabled",
         "profile-restart-required" => "ProfileError.Restart",
         "profile-busy" or "operation-busy" or "profile-already-recording" => "ProfileError.Busy",
         "profile-not-rolling" => "ProfileError.NotRolling",

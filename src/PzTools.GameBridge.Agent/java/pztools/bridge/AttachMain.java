@@ -15,7 +15,20 @@ import java.util.HexFormat;
 /** Short-lived helper. Reuses one authenticated bootstrap; never re-loads on dispatch failure. */
 public final class AttachMain {
     private static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
+    /** The first line a failure prints, before its stack trace: the step it stopped at, then the error, for the app. */
+    static final String FAILURE_MARK = "PZTOOLS-ATTACH-FAILED";
+    private static String stage = "arguments";
+
     public static void main(String[] args) throws Exception {
+        try { run(args); }
+        catch (Exception failure) {
+            String message = String.valueOf(failure.getMessage()).replace('\r', ' ').replace('\n', ' ');
+            System.err.println(FAILURE_MARK + "\t" + stage + "\t" + failure.getClass().getName() + ": " + message);
+            throw failure;
+        }
+    }
+
+    private static void run(String[] args) throws Exception {
         if (args.length != 4 && !(args.length == 5 && (args[4].equals("WATCH") || args[4].equals("EXTENSIONS")))) throw new IllegalArgumentException("Expected pid, agent jar, port, token");
         long pid = Long.parseLong(args[0]);
         int port = Integer.parseInt(args[2]);
@@ -25,27 +38,33 @@ public final class AttachMain {
         String encoded = Base64.getEncoder().encodeToString(payload.toString().getBytes(StandardCharsets.UTF_8));
         // One small per-user lock serializes cold discovery/initialization across worker processes.
         // OS file locks are released when a helper is killed. Do not unlink the shared lock file.
+        stage = "lock";
         Path directory = Path.of(System.getProperty("user.home"), ".pztools-bridge");
         Files.createDirectories(directory);
         if (Files.isSymbolicLink(directory)) throw new IOException("Linked bridge lock directory is not supported");
         try (var lockFile = FileChannel.open(directory.resolve("bootstrap.lock"),
                 StandardOpenOption.CREATE, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
              var lock = lockFile.lock()) {
+            stage = "attach";
             VirtualMachine vm = VirtualMachine.attach(Long.toString(pid));
             String endpoint;
             try {
                 endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
                 if (endpoint == null) {
                     // Embedded Windows launchers need their own jli.dll, not our helper's.
+                    stage = "native-bootstrap";
                     if (System.getProperty("os.name").startsWith("Windows"))
                         vm.loadAgentPath(attachable(payload.getParent().resolve("pztools-attach-bootstrap.dll")).toString());
+                    stage = "bootstrap";
                     vm.loadAgent(attachable(payload.getParent().resolve("pztools-game-bootstrap.jar")).toString(), "BOOTSTRAP1:" + encoded);
                     endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
                 }
+                stage = "bootstrap-version";
                 if (!"11".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
                     throw new IOException("Restart the game to use the updated bridge; no save request was sent");
             } finally { vm.detach(); }
             if (endpoint == null) throw new IOException("Bootstrap is incompatible; restart the game with matching app/workers");
+            stage = "handshake";
             String[] fields = endpoint.split(":", -1);
             if (fields.length != 4 || !fields[0].equals("2") || Long.parseLong(fields[1]) != pid
                     || !fields[3].matches("[0-9a-f]{64}")) throw new IOException("Invalid bootstrap endpoint");

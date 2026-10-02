@@ -19,6 +19,8 @@ public sealed partial class MainWindowShell
         ("blocked", "Windows 보안 차단"),
         ("game-link", "게임 연결 끊김"),
         ("game-restart", "게임 다시 시작 필요"),
+        ("game-elevation", "게임 연결: 관리자 권한"),
+        ("game-disabled", "게임 연결: 실행 옵션"),
         ("projectors", "불러오기 실패"),
         ("update", "새 버전"),
         ("notice-success", "결과: 성공"),
@@ -37,8 +39,13 @@ public sealed partial class MainWindowShell
                 dismissedBlockedComponents = null;
                 ApplyBlockedComponents(previewBlocked);
                 break;
-            case "game-link" or "game-restart":
-                previewGameLink = new GameLinkView(LinkUnavailable: true, RestartRequired: key == "game-restart");
+            case "game-link" or "game-restart" or "game-elevation" or "game-disabled":
+                previewGameLink = new GameLinkView(LinkUnavailable: true, RestartRequired: key == "game-restart", Cause: key switch
+                {
+                    "game-elevation" => Process.Contracts.GameRuntime.RuntimeObservation.ElevationReason,
+                    "game-disabled" => Process.Contracts.GameRuntime.RuntimeObservation.AttachDisabledReason,
+                    _ => null,
+                });
                 gameLinkDismissed = false;
                 ApplyGameLink(previewGameLink);
                 break;

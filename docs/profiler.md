@@ -497,7 +497,9 @@ same per-frame relay the recording uses.
 ## Limits
 
 - Only a local game process started normally is supported; the recorder attaches the
-  same way the game bridge does. See [game bridge](game-bridge.md).
+  same way the game bridge does. A game run as administrator while PZ Tools is not, or
+  started with attaching turned off, cannot be recorded, and the app says which. See
+  [when attaching fails](game-bridge.md#when-attaching-fails).
 - Time spent inside native code (rendering driver, physics, sound) is attributed to the
   Java method that called it, not to anything inside the native library.
 - A thread that is asleep or waiting produces no samples. In Detailed mode long waits are

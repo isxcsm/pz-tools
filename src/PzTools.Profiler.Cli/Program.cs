@@ -90,7 +90,7 @@ try
     {
         // Stopping is owed even when this run was cancelled: the game must not keep recording for nobody.
         try { await WhenFreeAsync(() => client.StopAsync(processId, CancellationToken.None), patienceSeconds: 180); }
-        catch (GameSaveException gone) when (gone.Code is "not-recording" or "game-not-running" or "attach-failed" or "connection-timeout")
+        catch (GameSaveException gone) when (gone.Code is "not-recording" or "game-not-running" or "connection-timeout" || gone.LinkUnavailable)
         {
             if (!File.Exists(recordingPath)) throw;
         }

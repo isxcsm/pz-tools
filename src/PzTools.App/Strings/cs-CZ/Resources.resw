@@ -715,4 +715,9 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kód hry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Čekání</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Ostatní skripty</value></data>
+  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Restartujte hru bez oprávnění správce.</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Možnost spuštění hry blokuje připojení.</value></data>
+  <data name="ProfileError.Elevation" xml:space="preserve"><value>Nepodařilo se připojit, protože hra běží jako správce. Restartujte ji bez oprávnění správce.</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nepodařilo se připojit, protože to blokuje možnost spuštění hry. Zkontrolujte možnosti spuštění hry.</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Ke hře se nepodařilo připojit</value></data>
 </root>

@@ -715,4 +715,9 @@
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>游戏代码</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他脚本</value></data>
+  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>请在不使用管理员权限的情况下重新启动游戏。</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>游戏的启动选项阻止了连接。</value></data>
+  <data name="ProfileError.Elevation" xml:space="preserve"><value>游戏正以管理员身份运行，因此无法连接。请在不使用管理员权限的情况下重新启动游戏。</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>游戏的启动选项阻止了连接，因此无法连接。请检查游戏的启动选项。</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>无法连接到游戏</value></data>
 </root>

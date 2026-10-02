@@ -61,7 +61,7 @@ try
         var observation = new RuntimeObservationCoordinator(stateDb, schedulerDb, savesRoot,
             Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "game-bridge"), runtime,
             options.GetValueOrDefault("--runtime-root") ?? Path.GetDirectoryName(Path.GetFullPath(schedulerPath))!, extensions,
-            settings.Extensions);
+            settings.Extensions, runToken => allocator.AllocateAsync(cancellationToken: runToken), configurationPath);
         var runtimeObservation = observation.RunAsync(runtimeCancellation.Token);
         try
         {

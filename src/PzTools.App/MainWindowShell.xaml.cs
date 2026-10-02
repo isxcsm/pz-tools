@@ -1449,7 +1449,13 @@ public sealed partial class MainWindowShell : UserControl
         GameLinkCard.Visibility = view.LinkUnavailable && !gameLinkDismissed ? Visibility.Visible : Visibility.Collapsed;
         // After an update the cause is the update, and restarting the game is what to do about it.
         GameLinkCard.Title = Localizer.Get(view.RestartRequired ? "GameLinkRestartTitle" : "GameLinkCardTitle");
-        GameLinkCard.Message = Localizer.Get(view.RestartRequired ? "GameLinkCardRestartMessage" : "GameLinkCardMessage");
+        // A known cause the player can change says what to change; otherwise, what the backups do meanwhile.
+        GameLinkCard.Message = Localizer.Get(view.RestartRequired ? "GameLinkCardRestartMessage" : view.Cause switch
+        {
+            RuntimeObservation.ElevationReason => "GameLinkCardElevationMessage",
+            RuntimeObservation.AttachDisabledReason => "GameLinkCardDisabledMessage",
+            _ => "GameLinkCardMessage",
+        });
         UpdateInteractiveCards();
     }
 

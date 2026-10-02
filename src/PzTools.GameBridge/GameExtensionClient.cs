@@ -87,7 +87,8 @@ public sealed class GameExtensionClient : IGameExtensionSession
             {
                 await exit;
                 if (helper.ExitCode != 0)
-                    throw new GameSaveException("runtime-unavailable", "Continuous extension attach failed; the existing bootstrap may require a game restart.");
+                    throw new GameSaveException("runtime-unavailable", "Continuous extension attach failed; the existing bootstrap may require a game restart.",
+                        AttachDiagnostics.Describe(processId, (await error + "\n" + await output).Trim(), helper.ExitCode, bridgeDirectory));
             }
             session = new(await accept);
             if (await ReadLineAsync(session.reader, deadline.Token) != $"EXTENSIONS\t1\t{processId}\t{secret}")
