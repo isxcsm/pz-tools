@@ -49,6 +49,10 @@ public sealed partial class ProfilerPage : UserControl
     private ProfileRange? shown;
     // The summary above the graph as plain text, for a copy of the page; the line itself changes while hovering.
     private string rangeSummary = "";
+    // The figures of the lanes under the bars (collections, heap, video memory), rebuilt with the graph.
+    private Border? laneInfo;
+    private TextBlock? laneGc, laneHeap, laneVideo;
+    private double laneInfoTop, laneInfoRight;
     // A newly opened recording's bars rise from the baseline once, the first time the graph is drawn.
     private bool chartEntrance;
     private List<ResultGroup> luaGroups = [], javaGroups = [], listedGroups = [];
@@ -409,11 +413,12 @@ public sealed partial class ProfilerPage : UserControl
         double width = ChartWidth, chartHeight = ChartHeight;
         // Under the bars, a strip on the same time scale marks each garbage collection as long as it paused the
         // game, so a spike above a mark reads as "the game stopped to collect". Only when there are any.
-        const double CollectionLane = 8;
         var markCollections = recording.Collections.Count > 0;
         // Below that, memory on its own scale: the Java heap and the game's video memory as two lines.
         const double MemoryLane = 34;
         var showMemory = recording.Heap.Count > 0 || recording.VideoMemory.Count > 0;
+        // The lanes' figures stand in their lowest lane; a strip alone is made tall enough to hold them.
+        var CollectionLane = showMemory ? 8.0 : 18.0;
         var height = Math.Max(1, chartHeight - (markCollections ? CollectionLane : 0) - (showMemory ? MemoryLane : 0));
         // One bar per three pixels; each holds the slowest frame of its slice.
         var buckets = Math.Max(1, (int)(width / 3));
@@ -475,7 +480,29 @@ public sealed partial class ProfilerPage : UserControl
             }
             GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = marks, Fill = brush });
         }
-        if (showMemory) RenderMemoryLane(width, height + (markCollections ? CollectionLane : 0) + 3, MemoryLane - 6, brush);
+        var memoryTop = height + (markCollections ? CollectionLane : 0) + 3;
+        if (showMemory) RenderMemoryLane(width, memoryTop, MemoryLane - 6, brush);
+        // The lanes' own figures, at the right of the lowest lane and in their lines' colours, so they also say
+        // which line is which. The line above the graph keeps to the frames and stays one line in every language.
+        laneInfo = null;
+        if (markCollections || showMemory)
+        {
+            laneGc = new TextBlock { FontSize = 11, Foreground = brush };
+            laneHeap = new TextBlock { FontSize = 11, Foreground = HeapBrush };
+            laneVideo = new TextBlock { FontSize = 11, Foreground = VideoBrush };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+            row.Children.Add(laneGc);
+            row.Children.Add(laneHeap);
+            row.Children.Add(laneVideo);
+            laneInfo = new Border
+            {
+                Child = row, Padding = new Thickness(4, 0, 4, 0), CornerRadius = new CornerRadius(3),
+                Background = ChartBorder.Background, IsHitTestVisible = false,
+            };
+            laneInfoTop = showMemory ? memoryTop - 2 : height + 1;
+            laneInfoRight = width;
+            GridCanvas.Children.Add(laneInfo);
+        }
 
         UpdateSelectionRectangle();
         var zoomed = viewStart > 0 || viewEnd < recording.Duration;
@@ -516,15 +543,16 @@ public sealed partial class ProfilerPage : UserControl
             items.Add((Localizer.Get("ProfileStatSlowest"), Milliseconds(frames.SlowestMilliseconds)));
             items.Add((Localizer.Get("ProfileStatWorst"), Milliseconds(frames.OnePercentWorstMilliseconds)));
         }
-        // Collections stop the game without leaving samples, so the tables cannot show them; the line does,
-        // and so does the copied text, which starts with this line.
+        var lines = SetStats(ChartInfo, items);
+        // Collections stop the game without leaving samples, so the tables cannot show them. They and the
+        // memory peaks stand in their lanes under the bars, and in the copied text, which starts with this line.
         var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
             : ProfileAnalysis.CollectionsIn(recording, start, end);
-        if (collections > 0) items.Add(CollectionStat(collections, paused));
         var (heapPeak, videoPeak) = ProfileAnalysis.MemoryPeaksIn(recording, start, end);
-        if (heapPeak is { } heap) items.Add((Localizer.Get("ProfileStatHeapPeak"), Bytes(heap)));
-        if (videoPeak is { } video) items.Add((Localizer.Get("ProfileStatVideoPeak"), Bytes(video)));
-        var lines = SetStats(ChartInfo, items);
+        var lanes = SetLaneInfo(collections > 0 ? CollectionText(collections, paused) : null,
+            heapPeak is { } heap ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heap)}" : null,
+            videoPeak is { } video ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(video)}" : null);
+        lines.AddRange(lanes);
         rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
             lines.Add(Localizer.Format("ProfileSummarySamplesFormat", current.Samples, current.Collections, current.CollectionPauseMilliseconds));
@@ -547,11 +575,7 @@ public sealed partial class ProfilerPage : UserControl
         Canvas.SetLeft(label, -42);
         Canvas.SetTop(label, top - 4);
         GridCanvas.Children.Add(label);
-        foreach (var (points, stroke) in new[]
-        {
-            (heap, (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]),
-            (video, (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]),
-        })
+        foreach (var (points, stroke) in new[] { (heap, HeapBrush), (video, VideoBrush) })
         {
             if (points.Length == 0) continue;
             var line = new Polyline { Stroke = stroke, StrokeThickness = 1.5, IsHitTestVisible = false };
@@ -565,8 +589,29 @@ public sealed partial class ProfilerPage : UserControl
         ? (bytes / (double)(1L << 30)).ToString("N1", Localizer.Culture) + " GB"
         : (bytes / (double)(1L << 20)).ToString("N0", Localizer.Culture) + " MB";
 
-    private (string?, string) CollectionStat(int count, double pausedMilliseconds) =>
-        (Localizer.Get("ProfileStatCollections"), Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds)));
+    private string CollectionText(int count, double pausedMilliseconds) =>
+        $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds))}";
+
+    private static Brush HeapBrush => (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+    private static Brush VideoBrush => (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+
+    /// <summary>Fills the lanes' figures (absent ones hidden) and keeps them against the right edge; returns those shown.</summary>
+    private List<string> SetLaneInfo(string? collections, string? heap, string? video)
+    {
+        var shownTexts = new[] { collections, heap, video }.OfType<string>().ToList();
+        if (laneInfo is null) return shownTexts;
+        foreach (var (block, text) in new[] { (laneGc, collections), (laneHeap, heap), (laneVideo, video) })
+        {
+            if (block is null) continue;
+            block.Text = text ?? "";
+            block.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
+        }
+        laneInfo.Visibility = shownTexts.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        laneInfo.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(laneInfo, Math.Max(0, laneInfoRight - laneInfo.DesiredSize.Width));
+        Canvas.SetTop(laneInfo, laneInfoTop);
+        return shownTexts;
+    }
 
     // The secondary text colour of the current theme, for names beside numbers and for the graph's scale.
     private Brush Muted => ChartHelpIcon.Foreground;
@@ -702,17 +747,20 @@ public sealed partial class ProfilerPage : UserControl
         HoverLine.Visibility = Visibility.Visible;
         var frame = ProfileAnalysis.FrameAt(recording, time);
         List<(string?, string)> items = [(null, Seconds(time))];
+        string? collection = null;
         if (frame is { } found && time >= found.Start)
         {
             items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(found.Duration / 1000.0)));
             // Whether this frame was slow because the game stopped to collect garbage.
             var (collections, paused) = ProfileAnalysis.CollectionsIn(recording, found.Start, found.Start + found.Duration);
-            if (collections > 0) items.Add(CollectionStat(collections, paused));
+            if (collections > 0) collection = CollectionText(collections, paused);
         }
-        var (heapNow, videoNow) = ProfileAnalysis.MemoryAt(recording, time);
-        if (heapNow is { } heap) items.Add((Localizer.Get("ProfileStatHeap"), Bytes(heap.Used)));
-        if (videoNow is { } video) items.Add((Localizer.Get("ProfileStatVideo"), Bytes(video.Dedicated)));
         SetStats(ChartInfo, items);
+        // The lanes' figures follow the pointer too: this frame's collections, memory at this moment.
+        var (heapNow, videoNow) = ProfileAnalysis.MemoryAt(recording, time);
+        SetLaneInfo(collection,
+            heapNow is { } heap ? $"{Localizer.Get("ProfileStatHeap")} {Bytes(heap.Used)}" : null,
+            videoNow is { } video ? $"{Localizer.Get("ProfileStatVideo")} {Bytes(video.Dedicated)}" : null);
     }
 
     private void Chart_PointerReleased(object sender, PointerRoutedEventArgs e)

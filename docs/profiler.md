@@ -70,14 +70,19 @@ while a recording starts, runs or is being processed.
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
 line above the graph describes the range the results show: its start, end and length,
 then the frame count (how many frames the range holds, not frames per second), the average
-frame time, the same average as a frame rate (*FPS 7.4*), slowest and worst 1 %, and when the
-range had any, garbage collections
-(*GC 3 times, paused 120 ms*), names muted and numbers not. A collection stops the game
-without leaving samples, so the tables cannot show it; this line, which also heads the
-copied text, does. A range of one frame shows that frame's time alone. Resting the pointer
-on the line adds the sample count and recording mode; while the pointer is over the graph
-the line shows the time and frame under it instead, with the collections that overlapped
-that frame. The **?** beside it lists the graph's mouse controls.
+frame time, the same average as a frame rate (*FPS 7.4*), slowest and worst 1 %, names
+muted and numbers not. It keeps to the frames, so it stays one line in every language. A
+range of one frame shows that frame's time alone. Resting the pointer on the line adds the
+sample count and recording mode; while the pointer is over the graph the line shows the
+time and frame under it instead. The **?** beside it lists the graph's mouse controls.
+
+The figures of the lanes under the bars stand at the right of the lowest lane, each in its
+line's colour, so they also say which line is which: the range's garbage collections
+(*GC 3 times, paused 120 ms*), heap peak and video memory peak. A collection stops the
+game without leaving samples, so the tables cannot show it; this is where it shows. Over
+the graph they follow the pointer: the collections that overlapped the frame there, and
+memory at that moment. The copied text starts with the range line followed by these
+figures.
 
 The results are in two tabs, *Scripts (Lua)* and *Game code (Java)*. Each tab is split in
 two: owners on the left (mods, the game's scripts, parts of the game code, with a bar
@@ -106,9 +111,9 @@ narrow window the table moves below the owner list.
   marks are drawn as one shape, as a game may collect several times a second.
 - **Memory lane.** Below that, when the recording has memory readings, two lines on one
   scale: the Java heap in use (green) and the game's video memory on the graphics card
-  (text colour), with the higher peak in view as the scale's label. The line above the
-  graph adds the range's peaks (*Heap peak*, *VRAM peak*); over the graph it adds both
-  values at the pointer. Recordings made before memory was recorded have no lane.
+  (text colour), with the higher peak in view as the scale's label. The lane's figures
+  give the range's peaks (*Heap peak*, *VRAM peak*), and both values at the pointer while
+  it is over the graph. Recordings made before memory was recorded have no lane.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
   the whole recording is analysed.
 - **Shares.** *Self* is time spent in the function itself, *Total* includes what it
