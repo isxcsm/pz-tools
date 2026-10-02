@@ -395,6 +395,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileStatWorst" xml:space="preserve"><value>Najgorszy 1%</value></data>
   <data name="ProfileRangeWhole" xml:space="preserve"><value>Łącznie</value></data>
   <data name="ProfileRangeSelected" xml:space="preserve"><value>Zaznaczenie</value></data>
+  <data name="ProfileClearSelection" xml:space="preserve"><value>Usuń zaznaczenie (Esc)</value></data>
+  <data name="ProfileClearSelectionHint" xml:space="preserve"><value>✕ przy zaznaczeniu lub Esc: usuń zaznaczenie</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Szczyt sterty</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Szczyt VRAM</value></data>

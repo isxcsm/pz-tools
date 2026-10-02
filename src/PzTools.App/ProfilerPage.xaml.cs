@@ -114,7 +114,11 @@ public sealed partial class ProfilerPage : UserControl
         ZoomAllButton.Content = Localizer.Get("ProfileZoomAll");
         ZoomSelectionButton.Content = Localizer.Get("ProfileZoomSelection");
         // How to use the graph, one hover away instead of a line of text under it.
-        AppToolTip.SetTip(ChartHelp, string.Join("\n", Localizer.Get("ProfileChartHint").Split(" · ")));
+        // Clearing a selection follows selecting one.
+        var hints = Localizer.Get("ProfileChartHint").Split(" · ").ToList();
+        hints.Insert(Math.Min(3, hints.Count), Localizer.Get("ProfileClearSelectionHint"));
+        AppToolTip.SetTip(ChartHelp, string.Join("\n", hints));
+        AppToolTip.SetTip(SelectionChip, Localizer.Get("ProfileClearSelection"));
         AutomationProperties.SetName(ChartHelp, Localizer.Get("ProfileChartHelp"));
         AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
         CopyResultsText.Text = Localizer.Get("ProfileCopyText");
@@ -835,10 +839,14 @@ public sealed partial class ProfilerPage : UserControl
         // On the line: the range, the average, the worst 1%. Each number has its name: the whole recording by its
         // length alone ("0–80 s (80 s)" said the length twice, unnamed), a selection by its length with where it lies.
         // The frame count and the slowest frame are one hover away, and in the copied text.
+        // A selection is a chip with its clear button, like a filter; the whole recording is plain text.
         var whole = start == 0 && end == recording.Duration;
-        List<(string?, string)> items = [whole
-            ? (Localizer.Get("ProfileRangeWhole"), Seconds(end - start))
-            : (Localizer.Get("ProfileRangeSelected"), $"{Seconds(end - start)} ({SecondsNumber(start)}–{Seconds(end)})")];
+        List<(string?, string)> items = [];
+        string? selectionLine = null;
+        if (whole) items.Add((Localizer.Get("ProfileRangeWhole"), Seconds(end - start)));
+        else selectionLine = SetStats(SelectionText,
+            [(Localizer.Get("ProfileRangeSelected"), $"{Seconds(end - start)} ({SecondsNumber(start)}–{Seconds(end)})")])[0];
+        SelectionChip.Visibility = whole ? Visibility.Collapsed : Visibility.Visible;
         var more = new List<string>();
         // One frame has one time; average, slowest and worst 1% would repeat it three times.
         if (frames.Count == 1) items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(frames.SlowestMilliseconds)));
@@ -851,6 +859,7 @@ public sealed partial class ProfilerPage : UserControl
             more.Add($"{Localizer.Get("ProfileStatSlowest")} {Milliseconds(frames.SlowestMilliseconds)}");
         }
         var lines = SetStats(ChartInfo, items);
+        if (selectionLine is not null) lines.Insert(0, selectionLine);
         lines.AddRange(more);
         // Collections stop the game without leaving samples, so the tables cannot show them. They and the
         // memory peaks stand on the memory panel's line under the bars, and in the copied text, which starts with this line.
@@ -1308,6 +1317,7 @@ public sealed partial class ProfilerPage : UserControl
             // A pause long enough to be marked on the graph is named beside the frame it stopped.
             if (paused * 1000 >= SignificantPauseMicros) items.Add((Localizer.Get("ProfileStatGcPause"), Milliseconds(paused)));
         }
+        SelectionChip.Visibility = Visibility.Collapsed;
         SetStats(ChartInfo, items);
         // The lanes' figures follow the pointer too: this frame's collections, memory at this moment.
         var (heapNow, videoNow) = ProfileAnalysis.MemoryAt(recording, time);
@@ -1340,6 +1350,26 @@ public sealed partial class ProfilerPage : UserControl
     }
 
     private void Chart_PointerCanceled(object sender, PointerRoutedEventArgs e) => selecting = panning = false;
+
+    /// <summary>Back to the whole recording: the results describe all of it again. The view keeps its zoom.</summary>
+    private void ClearSelection()
+    {
+        if (recording is null || selectionStart is null) return;
+        selectionStart = selectionEnd = null;
+        UpdateSelectionRectangle();
+        Analyze();
+    }
+
+    private void SelectionChip_Click(object sender, RoutedEventArgs e) => ClearSelection();
+
+    // Escape anywhere on the page clears the selection, unless something under focus used it first (the search box
+    // closing, a rename cancelled, a list closing).
+    private void Page_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Handled || e.Key != Windows.System.VirtualKey.Escape || selectionStart is null || selecting) return;
+        e.Handled = true;
+        ClearSelection();
+    }
 
     private void Chart_PointerExited(object sender, PointerRoutedEventArgs e)
     {

@@ -395,6 +395,8 @@
   <data name="ProfileStatWorst" xml:space="preserve"><value>最差 1%</value></data>
   <data name="ProfileRangeWhole" xml:space="preserve"><value>全部</value></data>
   <data name="ProfileRangeSelected" xml:space="preserve"><value>選取</value></data>
+  <data name="ProfileClearSelection" xml:space="preserve"><value>取消選取 (Esc)</value></data>
+  <data name="ProfileClearSelectionHint" xml:space="preserve"><value>選取範圍上的 ✕ 或 Esc：取消選取</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>堆積峰值</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>顯示記憶體峰值</value></data>

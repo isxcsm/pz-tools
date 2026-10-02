@@ -3,7 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:PzTools.App"
-    SizeChanged="ProfilerPage_SizeChanged">
+    SizeChanged="ProfilerPage_SizeChanged" KeyDown="Page_KeyDown">
   <UserControl.Resources>
     <!-- The frame graph's colours, chosen per theme for contrast on the card: the system's accent can be any colour,
          and its caution colour was a glaring yellow on dark and a dull brown on light. -->
@@ -177,7 +177,25 @@
           </Grid.ColumnDefinitions>
           <!-- The range the results describe; while the pointer is over the graph, the frame under it.
                Names are muted and numbers are not, so the eye finds the numbers first. -->
-          <TextBlock x:Name="ChartInfo" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+          <!-- A selection shows as a chip with its ✕, like an active filter: pressing it (or Escape) goes back to the
+               whole recording. -->
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="SelectionChip" Visibility="Collapsed" Padding="10,3,8,4" MinHeight="0" CornerRadius="12"
+                    VerticalAlignment="Center" Click="SelectionChip_Click" AutomationProperties.AutomationId="ProfileSelectionChip"
+                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock x:Name="SelectionText" VerticalAlignment="Center" TextWrapping="NoWrap" />
+                <FontIcon Glyph="&#xE711;" FontSize="10" VerticalAlignment="Center"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              </StackPanel>
+            </Button>
+            <TextBlock x:Name="ChartInfo" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+          </Grid>
           <!-- Whose samples the results count, the game's thread or all of them: a choice for the whole analysis,
                both tabs, so it stands with the range the analysis is of. -->
           <ComboBox x:Name="ThreadBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"

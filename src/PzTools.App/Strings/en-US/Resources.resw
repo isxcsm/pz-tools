@@ -424,6 +424,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileStatWorst" xml:space="preserve"><value>Worst 1%</value></data>
   <data name="ProfileRangeWhole" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileRangeSelected" xml:space="preserve"><value>Selection</value></data>
+  <data name="ProfileClearSelection" xml:space="preserve"><value>Clear the selection (Esc)</value></data>
+  <data name="ProfileClearSelectionHint" xml:space="preserve"><value>✕ on the selection or Esc: clear the selection</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Heap peak</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM peak</value></data>

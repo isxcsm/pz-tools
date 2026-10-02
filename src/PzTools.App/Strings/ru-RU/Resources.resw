@@ -395,6 +395,8 @@
   <data name="ProfileStatWorst" xml:space="preserve"><value>Худший 1%</value></data>
   <data name="ProfileRangeWhole" xml:space="preserve"><value>Всего</value></data>
   <data name="ProfileRangeSelected" xml:space="preserve"><value>Выделение</value></data>
+  <data name="ProfileClearSelection" xml:space="preserve"><value>Снять выделение (Esc)</value></data>
+  <data name="ProfileClearSelectionHint" xml:space="preserve"><value>✕ у выделения или Esc: снять выделение</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Пик кучи</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Пик VRAM</value></data>

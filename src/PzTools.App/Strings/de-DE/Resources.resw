@@ -395,6 +395,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileStatWorst" xml:space="preserve"><value>Schlechteste 1 %</value></data>
   <data name="ProfileRangeWhole" xml:space="preserve"><value>Gesamt</value></data>
   <data name="ProfileRangeSelected" xml:space="preserve"><value>Auswahl</value></data>
+  <data name="ProfileClearSelection" xml:space="preserve"><value>Auswahl aufheben (Esc)</value></data>
+  <data name="ProfileClearSelectionHint" xml:space="preserve"><value>✕ an der Auswahl oder Esc: Auswahl aufheben</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Heap max.</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM max.</value></data>
