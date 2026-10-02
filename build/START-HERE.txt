@@ -1,4 +1,4 @@
-PZ Tools — pre-release for Windows x64
+PZ Tools for Windows x64
 
 1. Install the .NET 10 Runtime for Windows x64 if it is not already installed:
    https://dotnet.microsoft.com/en-us/download/dotnet/10.0
@@ -14,4 +14,4 @@ are selected in the app; keep them outside the extracted application folder.
 To update, close PZ Tools and extract the new release to a different folder.
 Do not overwrite a running installation. Your settings stay in Local AppData.
 
-This is a pre-release. Keep a separate copy of saves and backups you need.
+Keep a separate copy of saves and backups you need.

@@ -119,8 +119,8 @@ output. Do not use an installed app folder as a native build-output directory.
 The [deployment layout](deployment-layout.md) describes app files, user settings and
 backup data separately.
 
-**Existing data and pre-release builds.** Read the [repository format](repository-format.md)
-before opening existing data with a pre-release build. If the schema is incompatible:
+**Existing data and development builds.** Read the [repository format](repository-format.md)
+before opening existing data with a development build. If the schema is incompatible:
 
 - keep the old data you need
 - choose a new empty backup folder

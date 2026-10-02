@@ -102,7 +102,7 @@ The optional vehicle extension changes how vehicles drive while the game runs, w
 <a id="compatibility-and-limits"></a>
 ## Compatibility and limits
 
-PZ Tools is pre-release software. Keep an independent copy of important saves. File verification helps detect changes during capture, but it is not an atomic snapshot of the entire world.
+Keep an independent copy of important saves. File verification helps detect changes during capture, but it is not an atomic snapshot of the entire world.
 
 If a backup folder uses an unsupported storage format, PZ Tools leaves it unchanged and refuses to open it. Choose a new empty backup folder and retain the old one if needed; do not delete the game save or just `repository.db`. See [storage compatibility](docs/repository-format.md) and [game-extension compatibility](docs/game-extensions.md).
 
