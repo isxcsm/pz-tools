@@ -177,35 +177,38 @@
         <StackPanel x:Name="InteractiveCards" Spacing="8" Visibility="Collapsed">
           <!-- A newer release, one line until the app is updated: clicking it opens the release's page. The
                notice is turned off in the settings, not here. -->
-          <!-- Tinted with the accent colour, deeper under the pointer, so it reads as news rather than as one more
-               status card. -->
+          <!-- A plain grey fill and no border: set apart from the white status cards as something to press, without
+               a frame or a colour of its own. Darker under the pointer, lighter while pressed. -->
           <Button x:Name="UpdateCard" Visibility="Collapsed" Click="UpdateCard_Click"
-                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="10,8,12,8" CornerRadius="8"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,9" CornerRadius="8"
                   AutomationProperties.AutomationId="UpdateCard">
             <Button.Resources>
-              <SolidColorBrush x:Key="ButtonBackground" Color="{ThemeResource SystemAccentColor}" Opacity="0.10" />
-              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.18" />
-              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.06" />
-              <SolidColorBrush x:Key="ButtonBorderBrush" Color="{ThemeResource SystemAccentColor}" Opacity="0.35" />
-              <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.55" />
-              <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.35" />
+              <ResourceDictionary>
+                <ResourceDictionary.ThemeDictionaries>
+                  <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0DFFFFFF" />
+                  </ResourceDictionary>
+                  <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="ButtonBackground" Color="#0F000000" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#17000000" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0A000000" />
+                  </ResourceDictionary>
+                </ResourceDictionary.ThemeDictionaries>
+                <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+              </ResourceDictionary>
             </Button.Resources>
-            <Grid ColumnSpacing="10">
+            <Grid ColumnSpacing="8">
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <!-- A download mark in a filled accent circle. -->
-              <Grid Width="24" Height="24" VerticalAlignment="Center">
-                <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-                <FontIcon Glyph="&#xE896;" FontSize="12" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Grid>
-              <TextBlock x:Name="UpdateCardText" Grid.Column="1" FontSize="13" FontWeight="SemiBold"
-                         TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-              <FontIcon Grid.Column="2" Glyph="&#xE72A;" FontSize="12" VerticalAlignment="Center"
-                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+              <TextBlock x:Name="UpdateCardText" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+              <FontIcon Grid.Column="1" Glyph="&#xE72A;" FontSize="12" VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Grid>
           </Button>
           <Border x:Name="ProjectorStatusCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
