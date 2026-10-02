@@ -390,6 +390,7 @@
   <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกนี้ไม่ได้ ไฟล์เสียหายหรือสร้างจากเวอร์ชันที่ใหม่กว่า</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>คัดลอกเนื้อหาที่แสดงเป็นข้อความ</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกข้อความ</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>คัดลอกผลประสิทธิภาพแล้ว</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>เปิดเกมเพื่อเริ่มบันทึก</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะเกมไม่ได้เปิดอยู่</value></data>

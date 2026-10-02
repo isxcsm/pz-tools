@@ -396,6 +396,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Zkopírovat zobrazený obsah jako text</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Výsledky výkonu byly zkopírovány.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} se nespustilo, protože běží více než jedna hra.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Nahrávat můžete po spuštění hry.</value></data>

@@ -231,14 +231,17 @@
             <!-- Larger than the tabs beside it; the samples share its baseline. The share is in the list beside. -->
             <TextBlock x:Name="DetailName" FontSize="18" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
             <!-- What the page shows, as text: to paste into a message to a mod's author. -->
-            <Button x:Name="CopyResultsButton" Grid.Column="1" Width="32" Height="32" Padding="0"
+            <Button x:Name="CopyResultsButton" Grid.Column="1" Height="32" Padding="8,0,10,0"
                     VerticalAlignment="Center" Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
-              <FontIcon Glyph="&#xE8C8;" FontSize="16" />
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE8C8;" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock x:Name="CopyResultsText" VerticalAlignment="Center" />
+              </StackPanel>
             </Button>
           </Grid>
           <!-- The scripts' functions as a list, or as the call paths that led to them. -->
-          <ToggleButton x:Name="CallTreeToggle" Grid.Column="1" Padding="10,3,10,4" VerticalAlignment="Center" Visibility="Collapsed"
-                        Click="CallTreeToggle_Click" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
+          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="1" MinWidth="0" VerticalAlignment="Center" Visibility="Collapsed"
+                        Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
           <TextBlock x:Name="DetailSamples" Grid.Column="2" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
         </Grid>
         <Border x:Name="GroupCard" Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"

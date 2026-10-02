@@ -383,6 +383,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossibile aprire questa registrazione. Il file è danneggiato o è stato creato con una versione più recente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Rotellina: zoom · Trascina: seleziona un intervallo · Clic: seleziona un frame · Trascina con il tasto destro: sposta · Doppio clic: mostra tutto · Barre grigie in Memoria: pulizia della memoria (GC), alte quanto la pausa · ▲: frame oltre la scala (il suo tempo al passaggio del puntatore)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copia il contenuto mostrato come testo</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Copia testo</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Risultati copiati.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Avvia il gioco per registrare.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} non è stato avviato perché il gioco non è in esecuzione.</value></data>

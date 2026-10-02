@@ -105,7 +105,7 @@ of the range a mod's scripts were running, game functions they called included, 
 figure for all scripts together beside the heading; in *Game code* (*Run share*) the share of the game
 code's running time, where game functions called from Lua count as the base game. *Long
 waits and pauses* shows a count with its unit instead of a share. Above the table, on the line of the tabs, stand the owner's
-name and its samples out of the tab's, such as *Samples 9/70*. The copy button beside the
+name and its samples out of the tab's, such as *Samples 9/70*. The **Copy text** button beside the
 name puts what the page shows on the clipboard as text (the recording, the range,
 the tab's owner list with its headings, and the chosen owner's table, columns lined up), ready to paste into a
 message to a mod's author. The
@@ -123,8 +123,9 @@ time. To find who makes the collections in a stretch of play, open the memory pa
 drag over the stretch where the grey bars crowd, and read this tab. Recordings made
 before allocations were recorded have no such tab.
 
-In both script tabs, **Call tree** beside the owner's name shows the same samples by the
-path that led to them instead of as a list: the outermost Lua function on top (an event
+In both script tabs the table starts as a call tree; the **Call tree** switch beside the
+owner's name turns it into a plain list of functions and back. The tree shows the samples
+by the path that led to them: the outermost Lua function on top (an event
 handler, or the game's script that called into the mod), and under each function what it
 called, indented, with an arrow to open or close it (a click anywhere on the row does the
 same). Only samples that ended in the chosen owner's functions count, so the top rows add
@@ -133,7 +134,9 @@ The heaviest path is open the first time an owner is shown; what is opened or cl
 so for other ranges of the same recording. In *Memory allocation* the paths are ranked by
 bytes and those that allocated nothing are left out. The choice of list or tree holds
 while the app runs, and a copy carries the tree as indented text. A path deeper than the
-24 innermost functions the recorder keeps starts at the 24th.
+24 innermost functions the recorder keeps starts at the 24th. The list is still the way
+to see a helper that many paths call: the tree splits its cost among them, the list adds
+it up.
 
 - **Frame graph.** One bar per slice of time, as tall as the slowest frame in that slice,
   so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per

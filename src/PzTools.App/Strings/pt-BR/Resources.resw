@@ -383,6 +383,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Não foi possível abrir esta gravação. O arquivo está danificado ou foi criado por uma versão mais recente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo · Barras cinza em Memória: limpeza de memória (GC), da altura da pausa · ▲: quadro acima da escala (seu tempo ao passar o ponteiro)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar o conteúdo exibido como texto</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Copiar texto</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Os resultados de desempenho foram copiados.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Abra o jogo para gravar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} não foi iniciado porque o jogo não está em execução.</value></data>

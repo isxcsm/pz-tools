@@ -383,6 +383,7 @@
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не вдається відкрити цей запис. Файл пошкоджено або створено в новішій версії.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все · Сірі стовпці в панелі «Пам’ять»: очищення пам'яті (GC), висота — тривалість паузи · ▲: кадр понад шкалою (час під час наведення)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Скопіювати показане як текст</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Копіювати текст</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Результати продуктивності скопійовано.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустіть гру, щоб записувати.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не розпочато, бо гру не запущено.</value></data>

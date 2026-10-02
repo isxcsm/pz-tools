@@ -103,7 +103,10 @@ public sealed partial class ProfilerPage : UserControl
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
-        CallTreeToggle.Content = Localizer.Get("ProfileCallTree");
+        // One name, on or off, like the recording mode's switch.
+        CallTreeToggle.OnContent = CallTreeToggle.OffContent = Localizer.Get("ProfileCallTree");
+        AutomationProperties.SetName(CallTreeToggle, Localizer.Get("ProfileCallTree"));
+        CopyResultsText.Text = Localizer.Get("ProfileCopyText");
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
         if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
@@ -1184,7 +1187,7 @@ public sealed partial class ProfilerPage : UserControl
         shownGroup = group;
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
-        CallTreeToggle.IsChecked = callTree;
+        CallTreeToggle.IsOn = callTree;
 
         var (columns, header, rows) = Table(group);
         DetailHeader.Child = TableRow(columns, header, header: true);
@@ -1197,8 +1200,9 @@ public sealed partial class ProfilerPage : UserControl
 
     // ---- Call tree ----
 
-    // List or tree, for as long as the app runs, in both script tabs.
-    private static bool callTree;
+    // Tree or list, for as long as the app runs, in both script tabs. The tree first: with its heaviest path open it
+    // answers what the list does, and says where from.
+    private static bool callTree = true;
     private ResultGroup? shownGroup;
     // The open nodes of each tab's owner, by path; a new range keeps them, a new recording starts over.
     private readonly Dictionary<string, HashSet<string>> openPaths = [];
@@ -1210,9 +1214,11 @@ public sealed partial class ProfilerPage : UserControl
     private ProfileCallNode? TreeOf(ResultGroup group) =>
         group.Kind is DetailKind.Lua or DetailKind.Allocation && shown?.LuaCallTrees.TryGetValue(group.Key, out var tree) == true ? tree : null;
 
-    private void CallTreeToggle_Click(object sender, RoutedEventArgs e)
+    private void CallTreeToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        callTree = CallTreeToggle.IsChecked == true;
+        // Showing an owner sets the switch to the remembered choice; that is not a change to act on.
+        if (CallTreeToggle.IsOn == callTree) return;
+        callTree = CallTreeToggle.IsOn;
         if (shownGroup is { } group) ShowGroup(group);
     }
 
