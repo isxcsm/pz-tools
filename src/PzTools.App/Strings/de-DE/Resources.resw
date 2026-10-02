@@ -708,4 +708,10 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Downloadseite</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Downloadseite öffnen</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Öffnen</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Die Zeit eines Mods enthält auch die Spielfunktionen, die er aufgerufen hat.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Von Skripten aufgerufene Spielfunktionen zählen hier zum Spiel. Die Zeit je Mod zeigt der Tab Skripte.</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Zeit dieses Bereichs</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripte</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Spielcode</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Warten</value></data>
 </root>

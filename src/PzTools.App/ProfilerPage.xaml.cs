@@ -152,6 +152,11 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(SearchButton, Localizer.Get("ProfileSearch"));
         if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
+        TimeBreakdownTitle.Text = Localizer.Get("ProfileBreakdownTitle");
+        ScriptsLabel.Text = Localizer.Get("ProfileBreakdownScripts");
+        GameLabel.Text = Localizer.Get("ProfileBreakdownGame");
+        CollectionsLabel.Text = Localizer.Get("ProfileStatGcPause");
+        SpareLabel.Text = Localizer.Get("ProfileBreakdownWaiting");
         var thread = ThreadBox.SelectedIndex;
         // The same choice in new words: not a change of thread to analyse again for.
         updatingThreads = true;
@@ -602,6 +607,7 @@ public sealed partial class ProfilerPage : UserControl
     {
         ChartPanel.Visibility = ResultsGrid.Visibility = Visibility.Collapsed;
         FewSamplesInfo.IsOpen = false;
+        TimeBreakdownPanel.Visibility = Visibility.Collapsed;
     }
 
     private async void ImportItem_Click(object sender, RoutedEventArgs e)
@@ -1735,6 +1741,7 @@ public sealed partial class ProfilerPage : UserControl
         shown = range;
         // A handful of samples cannot carry percentages; say so instead of showing confident numbers.
         FewSamplesInfo.IsOpen = range.Samples < 20;
+        ShowTimeBreakdown(range);
         // The range's trees are new; the comparison's frames are the range's. It also writes the line above the graph.
         baselineMatches.Clear();
         ShowComparison();
@@ -1754,6 +1761,32 @@ public sealed partial class ProfilerPage : UserControl
             javaGroups.Add(new ResultGroup("#pauses", Localizer.Get("ProfilePausesSection"), null, 0, DetailKind.Pauses, [], range.LongestPauses));
         ShowTab();
     }
+
+    // The game thread's range by what it did, as a bar and its figures; not for all threads together, whose times
+    // overlap, nor for a range too short to carry percentages.
+    private void ShowTimeBreakdown(ProfileRange range)
+    {
+        var breakdown = range.Samples < 20 ? null : ProfileAnalysis.TimeBreakdown(range);
+        TimeBreakdownPanel.Visibility = breakdown is null ? Visibility.Collapsed : Visibility.Visible;
+        if (breakdown is null) return;
+        ScriptsColumn.Width = new GridLength(breakdown.Scripts, GridUnitType.Star);
+        GameColumn.Width = new GridLength(breakdown.GameCode, GridUnitType.Star);
+        CollectionsColumn.Width = new GridLength(breakdown.Collections, GridUnitType.Star);
+        SpareColumn.Width = new GridLength(breakdown.Waiting, GridUnitType.Star);
+        ScriptsValue.Text = BreakdownPercent(breakdown.Scripts);
+        GameValue.Text = BreakdownPercent(breakdown.GameCode);
+        CollectionsValue.Text = BreakdownPercent(breakdown.Collections);
+        SpareValue.Text = BreakdownPercent(breakdown.Waiting);
+        AutomationProperties.SetName(TimeBreakdownPanel, TimeBreakdownText(breakdown));
+    }
+
+    private static string BreakdownPercent(double share) => (share * 100).ToString("0.0", Localizer.Culture) + "%";
+
+    // The same figures as one line of text, for the screen reader and the copied results.
+    private string TimeBreakdownText(ProfileTimeBreakdown breakdown) => string.Join("  ",
+        TimeBreakdownTitle.Text,
+        $"{ScriptsLabel.Text} {BreakdownPercent(breakdown.Scripts)}", $"{GameLabel.Text} {BreakdownPercent(breakdown.GameCode)}",
+        $"{CollectionsLabel.Text} {BreakdownPercent(breakdown.Collections)}", $"{SpareLabel.Text} {BreakdownPercent(breakdown.Waiting)}");
 
     private static string OwnerName(string key) =>
         key == ProfileAnalysis.GameOwner ? Localizer.Get("ProfileOwnerGame")
@@ -1786,6 +1819,13 @@ public sealed partial class ProfilerPage : UserControl
         {
             ResultTab.Java => "ProfileListJavaShare", ResultTab.Allocation => "ProfileListAllocation", _ => "ProfileListLuaShare",
         });
+        GroupNote.Text = tab switch
+        {
+            ResultTab.Java => Localizer.Get("ProfileListJavaNote"),
+            ResultTab.Lua => Localizer.Get("ProfileListLuaNote"),
+            _ => "",
+        };
+        GroupNoteArea.Visibility = GroupNote.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         AppToolTip.SetTip(GroupShareHeading, tab switch
         {
             ResultTab.Java => Localizer.Get("ProfileListJavaShareTip"),
@@ -2909,6 +2949,8 @@ public sealed partial class ProfilerPage : UserControl
         }.Where(part => !string.IsNullOrEmpty(part))));
         text.AppendLine(rangeSummary);
         if (comparisonSummary.Length > 0) text.AppendLine(comparisonSummary);
+        if (TimeBreakdownPanel.Visibility == Visibility.Visible && shown is not null && ProfileAnalysis.TimeBreakdown(shown) is { } breakdown)
+            text.AppendLine(TimeBreakdownText(breakdown));
         text.AppendLine();
         text.AppendLine(TabItem.Text);
         if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);

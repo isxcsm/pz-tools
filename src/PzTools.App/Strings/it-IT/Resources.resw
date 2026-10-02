@@ -708,4 +708,10 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Pagina di download</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Apri la pagina di download</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Apri</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Il tempo di una mod include le funzioni del gioco che ha chiamato.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Le funzioni del gioco chiamate dagli script qui contano come gioco. Vedi la scheda Script per ogni mod.</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Tempo di questo intervallo</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Script</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Codice del gioco</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attesa</value></data>
 </root>

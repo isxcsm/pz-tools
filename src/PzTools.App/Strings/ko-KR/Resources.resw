@@ -707,4 +707,10 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>다운로드 페이지</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>다운로드 페이지 열기</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>열기</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>모드가 부른 게임 기능 시간도 포함합니다.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>스크립트가 불러 쓴 게임 기능은 여기서 게임 쪽으로 잡힙니다. 모드별로는 스크립트 탭에서 보세요.</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>이 구간의 시간</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>스크립트</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>대기</value></data>
 </root>

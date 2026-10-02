@@ -708,4 +708,10 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Страница загрузки</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Открыть страницу загрузки</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Открыть</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Время мода включает вызванные им функции игры.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Функции игры, вызванные скриптами, здесь считаются игрой. Время каждого мода — на вкладке «Скрипты».</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Время этого участка</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипты</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код игры</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Ожидание</value></data>
 </root>

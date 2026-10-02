@@ -708,4 +708,10 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>下载页面</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>打开下载页面</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>打开</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>模组调用的游戏功能所用时间也计入该模组。</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>脚本调用的游戏功能在此计入游戏本身。各模组的时间请查看脚本标签页。</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>此区间的时间</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>脚本</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>游戏代码</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
 </root>

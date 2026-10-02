@@ -302,6 +302,51 @@
 
       <StackPanel Grid.Row="1">
         <InfoBar x:Name="FewSamplesInfo" Margin="0,4,0,0" IsOpen="False" IsClosable="False" Severity="Warning" />
+        <!-- Where the range's time went on the game thread: its scripts (with the game functions they called), the
+             game's own code, collections stopping the game, and waiting (for the next frame, or stuck on a file or another thread). One look tells whether a stutter
+             was the scripts, the game or the memory, without adding up the tabs, which count the same time two ways. -->
+        <Grid x:Name="TimeBreakdownPanel" Margin="0,10,0,2" RowSpacing="6" Visibility="Collapsed"
+              AutomationProperties.AutomationId="ProfileTimeBreakdown">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Grid x:Name="TimeBreakdownBar" Height="6" CornerRadius="3">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition x:Name="ScriptsColumn" Width="0" />
+              <ColumnDefinition x:Name="GameColumn" Width="0" />
+              <ColumnDefinition x:Name="CollectionsColumn" Width="0" />
+              <ColumnDefinition x:Name="SpareColumn" Width="*" />
+            </Grid.ColumnDefinitions>
+            <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+            <Rectangle Grid.Column="1" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
+            <Rectangle Grid.Column="2" Fill="{ThemeResource SystemFillColorCautionBrush}" />
+            <Rectangle Grid.Column="3" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
+          </Grid>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="16">
+            <TextBlock x:Name="TimeBreakdownTitle" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+              <TextBlock x:Name="ScriptsLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock x:Name="ScriptsValue" FontSize="12" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
+              <TextBlock x:Name="GameLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock x:Name="GameValue" FontSize="12" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource SystemFillColorCautionBrush}" />
+              <TextBlock x:Name="CollectionsLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock x:Name="CollectionsValue" FontSize="12" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
+              <TextBlock x:Name="SpareLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock x:Name="SpareValue" FontSize="12" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
       </StackPanel>
 
       <!-- Scripts or game code, one at a time. Who took the time on the left, what exactly on the right:
@@ -336,7 +381,14 @@
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />
               <RowDefinition Height="*" />
+              <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
+            <!-- How the list's numbers relate to the other tab's, under the list where it is read: the scripts' include
+                 the game functions they called, which the game code's tab counts under the game. Said on the page, not
+                 only one hover away: read the other way, the two tabs seemed to blame the wrong mod. -->
+            <Border x:Name="GroupNoteArea" Grid.Row="2" Padding="24,8,16,10" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+              <TextBlock x:Name="GroupNote" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Border>
             <!-- Column headings like the table beside: what the list holds and what its number is.
                  The number's meaning differs by tab, so it is explained one hover away. Insets match the rows'. -->
             <Border Padding="24,12,16,6" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">

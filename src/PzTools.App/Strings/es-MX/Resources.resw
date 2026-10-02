@@ -708,4 +708,10 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Página de descarga</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Abrir la página de descarga</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Abrir</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>El tiempo de un mod incluye las funciones del juego que llamó.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Las funciones del juego que llaman los scripts cuentan aquí como juego. Revisa la pestaña Scripts para cada mod.</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Tiempo de este tramo</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código del juego</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
 </root>

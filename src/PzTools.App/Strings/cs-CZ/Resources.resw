@@ -708,4 +708,10 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Stránka ke stažení</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Otevřít stránku ke stažení</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Otevřít</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Čas modu zahrnuje i herní funkce, které volal.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Herní funkce volané skripty se zde počítají ke hře. Čas jednotlivých modů najdete na kartě Skripty.</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Čas tohoto úseku</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripty</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kód hry</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Čekání</value></data>
 </root>

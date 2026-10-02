@@ -123,6 +123,29 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void TimeBreakdown_SplitsTheGameThreadsRangeIntoScriptsGameCodeCollectionsAndWaiting()
+    {
+        var recording = Load(Sample);
+        // The slow frame: the scripts ran all of it by their sampler, but a 2.5 ms collection stopped the game in it,
+        // and the scripts give way to it.
+        var slow = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread))!;
+        Assert.Equal((0.9375, 0.0, 0.0625, 0.0), (Math.Round(slow.Scripts, 4), Math.Round(slow.GameCode, 4),
+            Math.Round(slow.Collections, 4), Math.Round(slow.Waiting, 4)));
+        // The quick frame was the game's own code, all of it.
+        var quick = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, 0, 10_000, recording.GameThread))!;
+        Assert.Equal((0.0, 1.0, 0.0, 0.0), (quick.Scripts, Math.Round(quick.GameCode, 4), quick.Collections, quick.Waiting));
+        // All threads together overlap in time: no breakdown.
+        Assert.Null(ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, 0, 50_000, -1)));
+
+        // A thread running two 10 ms samples in a 100 ms frame waited the rest.
+        var idle = Load(string.Join('\n', "PZPROF|1", "M|0|zombie.GameWindow.logic", "K|0|0", "F|0|100000",
+            "S|0|7|0|J", "S|10000|7|0|J", "T|7|main", "I|gameThread|7", "I|javaPeriodMicros|10000"));
+        var waited = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(idle, 0, 100_000, idle.GameThread))!;
+        Assert.Equal((0.0, 0.2, 0.0, 0.8), (waited.Scripts, Math.Round(waited.GameCode, 4), waited.Collections, Math.Round(waited.Waiting, 4)));
+        Assert.Equal(1.0, waited.Scripts + waited.GameCode + waited.Collections + waited.Waiting, 6);
+    }
+
+    [Fact]
     public void CallTrees_FollowEachOwnersSamplesFromTheOutermostFunctionDown()
     {
         var range = ProfileAnalysis.Analyze(Load(Sample), 10_000, 50_000, 0);

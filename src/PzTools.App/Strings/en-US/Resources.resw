@@ -707,4 +707,10 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Download page</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Open the download page</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Open</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>A mod&apos;s time includes the game functions it called.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Game functions called by scripts count as the game here. See the Scripts tab for each mod.</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>This range&apos;s time</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
 </root>

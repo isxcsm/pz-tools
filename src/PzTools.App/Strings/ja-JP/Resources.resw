@@ -708,4 +708,10 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>ダウンロード ページ</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>ダウンロード ページを開く</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>開く</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>MOD が呼び出したゲーム機能の時間もその MOD に含まれます。</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>スクリプトが呼び出したゲーム機能は、ここではゲーム側に数えます。MOD ごとの時間はスクリプト タブで確認してください。</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>この区間の時間</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>スクリプト</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
 </root>

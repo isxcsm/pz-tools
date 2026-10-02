@@ -140,6 +140,9 @@ public sealed record ProfileLineTotal(int Line, int SelfSamples, int Samples, lo
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
 
+/// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one.</summary>
+public sealed record ProfileTimeBreakdown(double Scripts, double GameCode, double Collections, double Waiting);
+
 public sealed record ProfileRange(
     long Start, long End,
     ProfileFrameStatistics Frames,
@@ -166,6 +169,11 @@ public sealed record ProfileRange(
     public long? GameThreadAllocated { get; init; }
     /// <summary>Samples of the chosen thread(s) left out because the thread was only waiting inside a native call.</summary>
     public int WaitingSamples { get; init; }
+    /// <summary>
+    /// The share of the range the one chosen thread was running, by its samples' periods; null for all threads together,
+    /// whose times overlap.
+    /// </summary>
+    public double? RunningShare { get; init; }
     /// <summary>
     /// Per owner (the keys of <see cref="LuaGroups"/>), the call paths of the samples that ended in its functions, as a
     /// tree under a root: its outermost functions sum to the owner's own samples, as its row in the list does.
@@ -431,6 +439,7 @@ public static class ProfileAnalysis
                     function => function.Key, function => (IReadOnlyList<ProfileLineTotal>)ProfileLineTotals.Ordered(function.Value)),
                 StringComparer.OrdinalIgnoreCase),
             WaitingSamples = waiting,
+            RunningShare = thread < 0 ? null : Math.Min(1, weightSum / (end - start)),
             LuaAllocated = luaAllocated,
             GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
         };
@@ -505,6 +514,24 @@ public static class ProfileAnalysis
     {
         var at = file.IndexOf("media/lua/", StringComparison.OrdinalIgnoreCase);
         return name + "\n" + (at < 0 ? file : file[at..]);
+    }
+
+    /// <summary>
+    /// Where one thread's time in the range went, as shares of the range that add up to one: its scripts running (the
+    /// game functions they called included), the game's own code running, collections stopping the game, and the rest,
+    /// which the thread spent waiting (for the next frame, mostly). The answer to "was this stutter the scripts, the game
+    /// or the memory", without adding up figures from tabs that count the same time two ways. Null for all threads
+    /// together, whose times overlap.
+    /// </summary>
+    public static ProfileTimeBreakdown? TimeBreakdown(ProfileRange range)
+    {
+        if (range.RunningShare is not { } running) return null;
+        var length = Math.Max(1, range.End - range.Start);
+        var collections = Math.Clamp(range.CollectionPauseMilliseconds * 1000 / length, 0, 1);
+        // Two samplers measure the scripts and the running code; where they disagree a little, the scripts win.
+        var scripts = Math.Clamp(range.LuaShare, 0, 1 - collections);
+        var game = Math.Clamp(Math.Max(running, scripts) - scripts, 0, 1 - collections - scripts);
+        return new ProfileTimeBreakdown(scripts, game, collections, Math.Max(0, 1 - scripts - game - collections));
     }
 
     /// <summary>
