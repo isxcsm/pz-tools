@@ -247,11 +247,14 @@ a copy carries the tree as indented text. A path deeper than the 24 innermost fu
 the recorder keeps starts at the 24th. The list is still the way to see a helper that
 many paths call: the tree splits its cost among them, the list adds it up.
 
-The *File* column names the function's heaviest line too, as `Client.lua:125`: the line
-it was at in most samples (in *Memory allocation*, where it allocated most). Each function
-opens into all its lines, most samples first: what to change, not only where. In the list,
-a function's row opens into them; in the tree, a node opens into its lines on that path
-(when it was at more than one) above what it called. A line's *Total* counts the samples
+The *File* column names the line the function ran itself the most, as `Client.lua:125`
+(in *Memory allocation*, where it allocated most): what to change, not only where. In the
+list, a function's row opens into all its lines, most samples first; a line it only
+called from is marked *(call)*, as its time is the called function's. In the tree, a node
+opens into what it called, the heaviest first, and after them one closed row, *Lines it
+ran itself · 25*, opening into the lines where it did its own work, the most first; the
+lines it called from are its children's rows already, and resting the pointer on a
+child's file says which line of its caller called it. A line's *Total* counts the samples
 that found the function there, whatever it had called from that line, once per sample
 even if a recursion passed the line again; its *Self* those where it was running the
 line itself. So in the list a function's lines' *Samples*, those that ended there, add up
@@ -337,9 +340,11 @@ heading says what its column means when the pointer rests on it.
   and the game's video memory on the graphics card (text colour) at the bottom. The
   figures on the panel's line put their rows away and back when clicked (the
   collections' figure their marks), for as long as the app runs; a figure whose row is
-  away stands faint, and the panel opens when one is brought back. Where the panel does
-  not show the collections (it is closed, or the heap's row is away), short grey marks
-  on the frame graph's floor say when the game collected. The memory rows are lines fitted to their own
+  away stands faint, and the panel opens when one is brought back. A collection that
+  stopped the game for 2 ms or more is also marked on the frame graph itself, panel open
+  or not: a dashed line up the graph and a small triangle on its floor in the alert
+  colour, and the frame under the pointer names the pause. The many short ones stay the
+  panel's; with none marked, the stutters are not the collector's. The memory rows are lines fitted to their own
   lowest and highest reading in view, as their sizes differ too much for one scale and a
   fitted one shows small changes. Each collection is a bar as long as it paused the game
   (at least two pixels) and as tall as that pause against the longest one in view, so a

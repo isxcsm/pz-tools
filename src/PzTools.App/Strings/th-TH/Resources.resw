@@ -436,6 +436,10 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>ไม่มีการบันทึกอื่นให้เปรียบเทียบ</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>เธรด</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณหนึ่งนาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>เรียกจากบรรทัด {1} ของ {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>บรรทัดที่ทำงานเอง · {0} บรรทัด</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (เรียก)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>GC หยุดชั่วคราว</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>คลิกเพื่อซ่อนหรือแสดงแถวนี้</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ปุ่มลัด: {0}</value></data>

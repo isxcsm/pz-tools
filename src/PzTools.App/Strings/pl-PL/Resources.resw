@@ -429,6 +429,10 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileCompareNone" xml:space="preserve"><value>Brak innego nagrania do porównania</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Wątki</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Właśnie przycięło? Naciśnij: gra zachowała mniej więcej ostatnią minutę, która zostanie zapisana jako nagranie. Tryb: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Wywołana z wiersza {1} funkcji {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Wiersze wykonane przez nią samą · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (wywołanie)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Kliknij, aby ukryć lub pokazać ten wiersz</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Skrót: {0}</value></data>

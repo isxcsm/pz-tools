@@ -429,6 +429,10 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>比較できるほかの記録がありません</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>スレッド</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>{0} の {1} 行目から呼び出し</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身で実行した行 · {0} 行</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (呼び出し)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 停止</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>クリックでこの行を隠す/表示する</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ショートカット: {0}</value></data>

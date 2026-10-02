@@ -59,6 +59,17 @@ public sealed class ProfileCallNode
     public IReadOnlyList<ProfileLineTotal> Lines { get; private set; } = [];
     private Dictionary<int, ProfileLineTotal>? lineCounts;
 
+    /// <summary>The line of the function above it that called it most often on this path; 0 for an outermost one.</summary>
+    public int CalledFromLine { get; private set; }
+    private Dictionary<int, int>? callerLines;
+
+    internal void CountCaller(int line)
+    {
+        if (line <= 0) return;
+        callerLines ??= [];
+        callerLines[line] = callerLines.GetValueOrDefault(line) + 1;
+    }
+
     internal void Count(bool self, long allocated, int line = -1)
     {
         Samples++;
@@ -76,6 +87,9 @@ public sealed class ProfileCallNode
         children = byFunction.Values.OrderByDescending(node => node.Samples).ThenBy(node => node.Name, StringComparer.Ordinal).ToArray();
         if (lineCounts is not null) Lines = ProfileLineTotals.Ordered(lineCounts.Values);
         lineCounts = null;
+        if (callerLines is not null)
+            CalledFromLine = callerLines.OrderByDescending(item => item.Value).ThenBy(item => item.Key).First().Key;
+        callerLines = null;
         foreach (var child in children) child.Finish(perSample);
     }
 }
@@ -310,6 +324,8 @@ public static class ProfileAnalysis
             {
                 node = node.Child(stack[depth].Function, recording);
                 node.Count(depth == 0, allocated, stack[depth].Line);
+                // Where the function above called it: the caller's line in this sample.
+                if (depth < stack.Length - 1) node.CountCaller(stack[depth + 1].Line);
             }
         }
         // Lua rows are shares of the whole range, so a mod's row reads directly as "this much of the time".

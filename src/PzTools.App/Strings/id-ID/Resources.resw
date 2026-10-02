@@ -429,6 +429,10 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileCompareNone" xml:space="preserve"><value>Tidak ada rekaman lain untuk dibandingkan</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Thread</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Baru saja tersendat? Tekan ini: game menyimpan sekitar satu menit terakhir, dan itu disimpan sebagai rekaman. Mode: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Dipanggil dari baris {1} di {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Baris yang dijalankan sendiri · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (panggilan)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>Jeda GC</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klik untuk menyembunyikan atau menampilkan baris ini</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Pintasan: {0}</value></data>

@@ -429,6 +429,10 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>没有可对比的其他录制</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>线程</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>从 {0} 的第 {1} 行调用</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身执行的行 · {0} 行</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0}（调用）</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 暂停</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>单击以隐藏或显示此行</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>快捷键：{0}</value></data>

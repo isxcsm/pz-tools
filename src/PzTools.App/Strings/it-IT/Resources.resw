@@ -429,6 +429,10 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileCompareNone" xml:space="preserve"><value>Nessun’altra registrazione da confrontare</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Thread</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Ha appena scattato? Premi qui: il gioco ha conservato circa l'ultimo minuto, che viene salvato come registrazione. Modalità: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Chiamata dalla riga {1} di {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Righe eseguite da sé · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (chiamata)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa GC</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Fai clic per nascondere o mostrare questa riga</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Scorciatoia: {0}</value></data>

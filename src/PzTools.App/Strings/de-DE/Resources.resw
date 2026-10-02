@@ -429,6 +429,10 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileCompareNone" xml:space="preserve"><value>Keine andere Aufzeichnung zum Vergleichen</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Aufgerufen aus Zeile {1} von {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Selbst ausgeführte Zeilen · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (Aufruf)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>GC-Pause</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klicken, um diese Zeile aus- oder einzublenden</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Tastenkürzel: {0}</value></data>

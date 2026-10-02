@@ -120,7 +120,7 @@ public sealed partial class ProfilerPage : UserControl
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
         // One name, on or off, like the recording mode's switch.
-        CallTreeText.Text = Localizer.Get("ProfileCallTree");
+        CallTreeToggle.OnContent = CallTreeToggle.OffContent = Localizer.Get("ProfileCallTree");
         AutomationProperties.SetName(CallTreeToggle, Localizer.Get("ProfileCallTree"));
         AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyText"));
         // Set here too, not only when a recording opens: a language changed with a recording open kept the old word.
@@ -762,19 +762,43 @@ public sealed partial class ProfilerPage : UserControl
         }
         if (clipped.Children.Count > 0)
             GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = clipped, Fill = VideoBrush });
-        // Where the panel does not show the collections, short marks on the floor say when the game collected: is
-        // this stutter one of them, at a glance.
-        if (CollectionsOnFrames)
+        // A collection that stopped the game long enough to feel stands out on the frames: a dashed line up the graph
+        // and a mark on its floor, in the alert colour. The many short ones would only be a pattern under the bars;
+        // they are the memory panel's. None at all means the stutters are not the collector's.
+        if (collectionMarks && recording.Collections.Count > 0)
         {
+            var lines = new GeometryGroup();
             var marks = new GeometryGroup { FillRule = FillRule.Nonzero };
             foreach (var collection in recording.Collections)
             {
-                if (collection.Time >= viewEnd || collection.Time + collection.Duration < viewStart) continue;
-                var left = Math.Clamp(XAt(collection.Time), 0, Math.Max(0, width - 2));
-                marks.Children.Add(new RectangleGeometry { Rect = new Rect(left, height - 5, Math.Max(2, XAt(collection.Time + collection.Duration) - left), 5) });
+                if (collection.Duration < SignificantPauseMicros || collection.Time >= viewEnd || collection.Time + collection.Duration < viewStart) continue;
+                var x = Math.Clamp(XAt(collection.Time), 0, width);
+                lines.Children.Add(new LineGeometry { StartPoint = new Windows.Foundation.Point(x, 0), EndPoint = new Windows.Foundation.Point(x, height) });
+                marks.Children.Add(new PathGeometry
+                {
+                    Figures =
+                    {
+                        new PathFigure
+                        {
+                            StartPoint = new Windows.Foundation.Point(x - 5, height), IsClosed = true, IsFilled = true,
+                            Segments =
+                            {
+                                new LineSegment { Point = new Windows.Foundation.Point(x, height - 8) },
+                                new LineSegment { Point = new Windows.Foundation.Point(x + 5, height) },
+                            },
+                        },
+                    },
+                });
             }
             if (marks.Children.Count > 0)
-                ReferenceCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = marks, Fill = Muted, Opacity = 0.9 });
+            {
+                ReferenceCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path
+                {
+                    Data = lines, Stroke = CriticalProbe.Background, StrokeThickness = 1, Opacity = 0.7,
+                    StrokeDashArray = new DoubleCollection { 3, 3 },
+                });
+                ReferenceCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = marks, Fill = CriticalProbe.Background });
+            }
         }
         RenderMemoryPanel();
 
@@ -875,9 +899,8 @@ public sealed partial class ProfilerPage : UserControl
     private int MemoryRows => (HeapRowShown ? 1 : 0) + (CollectionsAloneShown ? 1 : 0) + (VideoRowShown ? 1 : 0)
         + (AllocationOwner is null ? 0 : 1);
 
-    // On the frame graph, the collections are marked where the panel does not show them.
-    private bool CollectionsOnFrames => recording is { Collections.Count: > 0 } && collectionMarks
-        && !(memoryOpen && (HeapRowShown || CollectionsAloneShown));
+    // A collection pause from this long is felt (an eighth of a 60 FPS frame), and marked on the frame graph.
+    private const long SignificantPauseMicros = 2_000;
 
     // The heap, collections and video memory are the whole game's and cannot be split by mod. What can is the memory a
     // mod's scripts allocate: a highlighted script owner gets its own row of that, beside the collections it brings on.
@@ -1274,6 +1297,8 @@ public sealed partial class ProfilerPage : UserControl
             // Whether this frame was slow because the game stopped to collect garbage.
             var (collections, paused) = ProfileAnalysis.CollectionsIn(recording, found.Start, found.Start + found.Duration);
             if (collections > 0) collection = CollectionText(collections, paused);
+            // A pause long enough to be marked on the graph is named beside the frame it stopped.
+            if (paused * 1000 >= SignificantPauseMicros) items.Add((Localizer.Get("ProfileStatGcPause"), Milliseconds(paused)));
         }
         SetStats(ChartInfo, items);
         // The lanes' figures follow the pointer too: this frame's collections, memory at this moment.
@@ -1840,7 +1865,7 @@ public sealed partial class ProfilerPage : UserControl
         shownGroup = group;
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
-        CallTreeToggle.IsChecked = callTree;
+        CallTreeToggle.IsOn = callTree;
         // Pauses have no names to look for.
         DetailSearch.Visibility = group.Kind == DetailKind.Pauses ? Visibility.Collapsed : Visibility.Visible;
 
@@ -1892,7 +1917,14 @@ public sealed partial class ProfilerPage : UserControl
     /// opened, they follow it one level deeper. With <see cref="Line"/>, one of the lines of <see cref="LineOf"/>.
     /// </summary>
     private sealed record TreeItem(ProfileCallNode? Node, int Depth, string Path, bool HasChildren, bool Open,
-        IReadOnlyList<ProfileCallNode>? Rest = null, ProfileLineTotal? Line = null, ProfileCallNode? LineOf = null);
+        IReadOnlyList<ProfileCallNode>? Rest = null, ProfileLineTotal? Line = null, ProfileCallNode? LineOf = null,
+        ProfileCallNode? Parent = null, ProfileCallNode? OwnLinesOf = null, int OwnLineCount = 0);
+
+    // The lines a node ran itself, the most first: where its own time (or bytes) went. The lines it called from are its
+    // children's rows already.
+    private static IReadOnlyList<ProfileLineTotal> OwnLines(ProfileCallNode node, bool allocation) => allocation
+        ? node.Lines.Where(line => line.AllocatedSelf > 0).OrderByDescending(line => line.AllocatedSelf).ToArray()
+        : node.Lines.Where(line => line.SelfSamples > 0).OrderByDescending(line => line.SelfSamples).ThenBy(line => line.Line).ToArray();
 
     // A function's lines as a table shows them: in the allocation tab only those that allocated, the most bytes first.
     private static IReadOnlyList<ProfileLineTotal> ShownLines(IReadOnlyList<ProfileLineTotal> lines, bool allocation) =>
@@ -1908,11 +1940,11 @@ public sealed partial class ProfilerPage : UserControl
     private ProfileCallNode? TreeOf(ResultGroup group) =>
         group.Kind is DetailKind.Lua or DetailKind.Allocation && shown?.LuaCallTrees.TryGetValue(group.Key, out var tree) == true ? tree : null;
 
-    private void CallTreeToggle_Click(object sender, RoutedEventArgs e)
+    private void CallTreeToggle_Toggled(object sender, RoutedEventArgs e)
     {
         // Showing an owner sets the switch to the remembered choice; that is not a change to act on.
-        if ((CallTreeToggle.IsChecked == true) == callTree) return;
-        callTree = CallTreeToggle.IsChecked == true;
+        if (CallTreeToggle.IsOn == callTree) return;
+        callTree = CallTreeToggle.IsOn;
         if (shownGroup is { } group) ShowGroup(group);
     }
 
@@ -1953,35 +1985,41 @@ public sealed partial class ProfilerPage : UserControl
         IEnumerable<ProfileCallNode> Shown(ProfileCallNode node) =>
             filtering ? Branches(node, allocation).Where(Holds) : Branches(node, allocation);
         var rows = new List<TreeItem>();
-        void Add(ProfileCallNode child, int depth, string path)
+        void Add(ProfileCallNode child, int depth, string path, ProfileCallNode parent)
         {
             if (rows.Count >= MaximumTreeRows) return;
             var childPath = path + "/" + child.Function;
-            // A node opens into its lines (when it was at more than one) and what it called. A search opens the paths
-            // to its matches, not every line on the way.
-            var lines = ShownLines(child.Lines, allocation);
+            // A node opens into what it called, the heaviest first, and after them one closed row of the lines it ran
+            // itself: what it called is usually the question, its own lines the next one. A lone line needs no row of
+            // its own unless there are calls to set it apart from; the file column names the heaviest. A search opens
+            // the paths to its matches, not the lines on the way.
+            var own = OwnLines(child, allocation);
             var calls = Shown(child).Any();
-            var hasChildren = calls || lines.Count >= 2;
+            var ownRow = own.Count >= 2 || calls && own.Count >= 1;
+            var hasChildren = calls || ownRow;
             var opened = open.Contains(childPath);
             var isOpen = hasChildren && (opened || filtering && calls);
-            rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen));
+            rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen, Parent: parent));
             if (!isOpen) return;
-            // Where on this path the function's time went, before what it called from those lines.
-            if (opened && lines.Count >= 2)
-                foreach (var line in lines.Take(MaximumSiblings))
-                    rows.Add(new TreeItem(null, depth + 1, $"line/{childPath}/{line.Line}", false, false, Line: line, LineOf: child));
             Walk(child, depth + 1, childPath);
+            if (!ownRow || filtering && !opened || rows.Count >= MaximumTreeRows) return;
+            var ownPath = "own" + childPath;
+            var ownOpen = open.Contains(ownPath);
+            rows.Add(new TreeItem(null, depth + 1, ownPath, true, ownOpen, OwnLinesOf: child, OwnLineCount: own.Count));
+            if (ownOpen)
+                foreach (var line in own.Take(MaximumSiblings))
+                    rows.Add(new TreeItem(null, depth + 2, $"line/{childPath}/{line.Line}", false, false, Line: line, LineOf: child));
         }
         void Walk(ProfileCallNode node, int depth, string path)
         {
             var branches = Shown(node).ToList();
-            foreach (var child in branches.Take(MaximumSiblings)) Add(child, depth, path);
+            foreach (var child in branches.Take(MaximumSiblings)) Add(child, depth, path, node);
             if (branches.Count <= MaximumSiblings || rows.Count >= MaximumTreeRows) return;
             var rest = branches.Skip(MaximumSiblings).ToList();
             var restPath = path + "/*";
             var restOpen = open.Contains(restPath);
             rows.Add(new TreeItem(null, depth, restPath, true, restOpen, rest));
-            if (restOpen) foreach (var child in rest) Add(child, depth + 1, path);
+            if (restOpen) foreach (var child in rest) Add(child, depth + 1, path, node);
         }
         Walk(root, 0, "");
         return rows;
@@ -1995,7 +2033,7 @@ public sealed partial class ProfilerPage : UserControl
     /// </summary>
     private TableLine FunctionLine(ProfileCallNode owner, bool allocation, string name, string file, int selfSamples, int samples,
         int shownSamples, long allocatedSelf, long allocatedTotal, string indent = "", TreeItem? tree = null, double? delta = null,
-        int line = 0)
+        int line = 0, string? fileNote = null)
     {
         // The file with a line: the function's heaviest, or the line a line row stands for.
         var at = line > 0 ? ":" + line.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
@@ -2020,7 +2058,8 @@ public sealed partial class ProfilerPage : UserControl
         // Its share of the owner for now; the table scales the bars to its largest line once all are known.
         return new TableLine(
         [
-            (indent + name, name, false), (LuaFileName(file) is { Length: > 0 } fileName ? fileName + at : "", file + at, false),
+            (indent + name, name, false),
+            (LuaFileName(file) is { Length: > 0 } fileName ? fileName + at : "", file + at + (fileNote is null ? "" : "\n" + fileNote), false),
             Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
             (shownSamples.ToString("N0", Localizer.Culture), null, true),
         ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0, delta);
@@ -2072,7 +2111,8 @@ public sealed partial class ProfilerPage : UserControl
         var label = line.Cells[0].Text.Trim();
         var text = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
         // The rest of a level and a function's lines are no functions of their own: muted.
-        if (item.Path.EndsWith("/*", StringComparison.Ordinal) || item.Path.StartsWith("line/", StringComparison.Ordinal)) text.Foreground = Muted;
+        if (item.Path.EndsWith("/*", StringComparison.Ordinal) || item.Path.StartsWith("line/", StringComparison.Ordinal)
+            || item.Path.StartsWith("own/", StringComparison.Ordinal)) text.Foreground = Muted;
         // The full name only where the screen cuts it short; a name shown whole needs no tip repeating it.
         else text.IsTextTrimmedChanged += (_, _) => AppToolTip.SetTip(text, text.IsTextTrimmed ? label : null);
         Grid.SetColumn(text, 1);
@@ -2192,9 +2232,20 @@ public sealed partial class ProfilerPage : UserControl
                             totals: true, indent, item));
                     else if (item.Node is { } node)
                         rows.Add(FunctionLine(tree, allocation, node.Name, node.File, node.SelfSamples, node.Samples, node.Samples,
-                            node.AllocatedSelf, node.AllocatedTotal, indent, item, NodeDelta(node), MainLine(node.Lines, allocation)));
+                            node.AllocatedSelf, node.AllocatedTotal, indent, item, NodeDelta(node), MainLine(OwnLines(node, allocation), allocation),
+                            // Where it was called from: what the lines a caller called at were, on the caller's own rows before.
+                            item.Parent is { Function: >= 0 } parent && node.CalledFromLine > 0
+                                ? Localizer.Format("ProfileCalledFromFormat", parent.Name, node.CalledFromLine.ToString(Localizer.Culture)) : null));
+                    else if (item is { OwnLinesOf: { } runner })
+                    {
+                        // Its own work, in sum: the total would only repeat it.
+                        var ownLine = FunctionLine(tree, allocation, Localizer.Format("ProfileOwnLinesFormat", item.OwnLineCount),
+                            "", runner.SelfSamples, runner.SelfSamples, runner.SelfSamples, runner.AllocatedSelf, runner.AllocatedSelf, indent, item);
+                        ownLine.Cells[TotalColumn] = ("", null, true);
+                        rows.Add(ownLine with { Bar = null, SelfBar = null });
+                    }
                     else if (item is { Line: { } line, LineOf: { } of })
-                        rows.Add(FunctionLine(tree, allocation, LineName(line), of.File, line.SelfSamples, line.Samples, line.Samples,
+                        rows.Add(FunctionLine(tree, allocation, LineName(line), of.File, line.SelfSamples, line.Samples, line.SelfSamples,
                             line.AllocatedSelf, line.AllocatedTotal, indent, item, line: line.Line));
                 }
             else
@@ -2212,13 +2263,18 @@ public sealed partial class ProfilerPage : UserControl
                     var path = $"lines/{row.Function}";
                     var isOpen = open.Contains(path);
                     var lines = ShownLines(ownerLines?.GetValueOrDefault(row.Function) ?? [], allocation);
+                    // The file column names the line it ran itself the most, as in the tree.
+                    var main = MainLine(lines.Where(line => allocation ? line.AllocatedSelf > 0 : line.SelfSamples > 0).ToArray(), allocation);
                     rows.Add(FunctionLine(tree, allocation, row.Name, row.File, row.SelfSamples, row.Samples, row.SelfSamples,
                         row.AllocatedSelf, row.AllocatedTotal, indent, new TreeItem(null, indent.Length / 2, path, true, isOpen), FunctionDelta(row),
-                        MainLine(lines, allocation)));
+                        main));
                     if (!isOpen) return;
                     foreach (var line in lines)
-                        // Samples as the list counts them, those that ended there: a function's lines add up to it.
-                        rows.Add(FunctionLine(tree, allocation, LineName(line), row.File, line.SelfSamples, line.Samples, line.SelfSamples,
+                        // Samples as the list counts them, those that ended there: a function's lines add up to it. A line
+                        // it only called from says so: its time is the called function's.
+                        rows.Add(FunctionLine(tree, allocation,
+                            (allocation ? line.AllocatedSelf : line.SelfSamples) == 0 ? Localizer.Format("ProfileLineCallFormat", LineName(line)) : LineName(line),
+                            row.File, line.SelfSamples, line.Samples, line.SelfSamples,
                             line.AllocatedSelf, line.AllocatedTotal, indent + "  ",
                             new TreeItem(null, indent.Length / 2 + 1, $"line/{row.Function}/{line.Line}", false, false), line: line.Line));
                 }

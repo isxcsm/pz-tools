@@ -429,6 +429,10 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>Нет другой записи для сравнения</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Вызвана из строки {1} функции {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Строки, выполненные ею самой · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (вызов)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>Пауза GC</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Нажмите, чтобы скрыть или показать эту строку</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сочетание клавиш: {0}</value></data>

@@ -522,6 +522,9 @@ public sealed class ProfileRecordingTests
         Assert.Equal([(12, 2, 3), (14, 0, 1)], slow.Lines.Select(line => (line.Line, line.SelfSamples, line.Samples)));
         Assert.Equal([(12, 2, 2)], Assert.Single(slow.Children).Lines.Select(line => (line.Line, line.SelfSamples, line.Samples)));
         Assert.Empty(range.LuaCallTrees["SlowMod"].Lines);
+        // And where the function above called each: OnTick is outermost; slow was called at OnTick's 80; the inner slow
+        // once at 14 and once at 12, the lower line first when they tie.
+        Assert.Equal((0, 80, 12), (onTick.CalledFromLine, slow.CalledFromLine, Assert.Single(slow.Children).CalledFromLine));
         // slow called helper at 13, a sample the unknown owner's: counted there, as a total only.
         Assert.Equal([(13, 0, 1)], ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.UnknownOwner, 0)
             .Select(line => (line.Line, line.SelfSamples, line.Samples)));

@@ -429,6 +429,10 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileCompareNone" xml:space="preserve"><value>No hay otra grabación con la que comparar</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Hilos</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>¿Acaba de tirones? Pulsa aquí: el juego ha conservado aproximadamente el último minuto y se guarda como grabación. Modo: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Llamada desde la línea {1} de {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Líneas ejecutadas por sí misma · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (llamada)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa de GC</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Haz clic para ocultar o mostrar esta fila</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Atajo: {0}</value></data>
