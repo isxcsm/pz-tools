@@ -703,16 +703,14 @@
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} год тому</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} дн. тому</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>Версія</value></data>
-  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Перевіряти оновлення</value></data>
-  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Раз на день перевіряє на GitHub, чи вийшла нова версія. Нічого не завантажує саме.</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Сповіщення про нову версію</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Раз на день перевіряє на GitHub, чи вийшла нова версія, і якщо так, повідомляє рядком на бічній панелі. Нічого не завантажує саме.</value></data>
   <data name="UpdateCheckNow" xml:space="preserve"><value>Перевірити</value></data>
   <data name="UpdateDownload" xml:space="preserve"><value>Завантажити</value></data>
-  <data name="UpdateSkip" xml:space="preserve"><value>Пропустити цю версію</value></data>
-  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Нова версія {0}</value></data>
-  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>У вас версія {0}. «Завантажити» відкриє сторінку завантаження.</value></data>
   <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Остання версія</value></data>
   <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Доступна нова версія: {1}</value></data>
   <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Оновлення ще не перевірялися</value></data>
   <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Перевірка…</value></data>
   <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Не вдалося перевірити оновлення. Перевірте з&apos;єднання з інтернетом.</value></data>
+  <data name="UpdateCardFormat" xml:space="preserve"><value>Завантажити версію {0}</value></data>
 </root>

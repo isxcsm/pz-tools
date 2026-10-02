@@ -8,20 +8,13 @@ namespace PzTools.App.Core;
 /// <summary>A published release: its version, its tag as written, and the page it is downloaded from.</summary>
 public sealed record UpdateRelease(Version Version, string Tag, Uri Page);
 
-/// <summary>
-/// What the app knows about its updates, kept between runs: when it last asked, the newest release then, the one the
-/// user said to pass over, and the one already announced with a card.
-/// </summary>
-public sealed record UpdateState(
-    DateTimeOffset? CheckedAt = null,
-    UpdateRelease? Latest = null,
-    string? SkippedTag = null,
-    string? AnnouncedTag = null);
+/// <summary>What the app knows about its updates, kept between runs: when it last asked, and the newest release then.</summary>
+public sealed record UpdateState(DateTimeOffset? CheckedAt = null, UpdateRelease? Latest = null);
 
 /// <summary>
 /// Asks GitHub for the latest release of PZ Tools, no more than once a day unless asked, and keeps the answer. Nothing
-/// is downloaded or installed: a newer release is announced once with a card and marked on the settings until the user
-/// updates or passes over it, and its page is opened in the browser.
+/// is downloaded or installed: a newer release stays offered, one click from its page in the browser, until the app is
+/// updated to it.
 /// </summary>
 public sealed class UpdateChecker
 {
@@ -53,14 +46,8 @@ public sealed class UpdateChecker
     public Version Current { get; }
     public UpdateState State => state;
 
-    /// <summary>The newest release when it is newer than this app, whether or not it was passed over.</summary>
+    /// <summary>The newest release when it is newer than this app.</summary>
     public UpdateRelease? Available => state.Latest is { } latest && latest.Version > Current ? latest : null;
-
-    /// <summary>A newer release the user did not pass over: the settings carry a mark for it.</summary>
-    public UpdateRelease? Pending => Available is { } release && release.Tag != state.SkippedTag ? release : null;
-
-    /// <summary>A pending release not yet announced with a card.</summary>
-    public UpdateRelease? ToAnnounce => Pending is { } release && release.Tag != state.AnnouncedTag ? release : null;
 
     /// <summary>
     /// Asks GitHub unless an automatic check already did within <see cref="Interval"/>. Failures (no connection,
@@ -74,26 +61,6 @@ public sealed class UpdateChecker
             if (!force && state.CheckedAt is { } last && time.GetUtcNow() - last < Interval) return;
             var latest = await FetchAsync(cancellationToken);
             await SaveAsync(state with { CheckedAt = time.GetUtcNow(), Latest = latest }, cancellationToken);
-        }
-        finally { gate.Release(); }
-        Changed?.Invoke();
-    }
-
-    /// <summary>The card was shown and closed, or its page opened: it is not shown again for this release.</summary>
-    public Task MarkAnnouncedAsync(string tag) => UpdateAsync(value => value with { AnnouncedTag = tag });
-
-    /// <summary>This release is passed over: no card and no mark until a newer one.</summary>
-    public Task SkipAsync(string tag) => UpdateAsync(value => value with { SkippedTag = tag, AnnouncedTag = tag });
-
-    private async Task UpdateAsync(Func<UpdateState, UpdateState> change)
-    {
-        await gate.WaitAsync();
-        try
-        {
-            var next = change(state);
-            // A choice that cannot be written still holds until the app closes.
-            try { await SaveAsync(next, CancellationToken.None); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { state = next; }
         }
         finally { gate.Release(); }
         Changed?.Invoke();
@@ -151,7 +118,7 @@ public sealed class UpdateChecker
 
     private async Task SaveAsync(UpdateState next, CancellationToken cancellationToken)
     {
-        var stored = new StoredState(next.CheckedAt, next.Latest?.Tag, next.Latest?.Page.ToString(), next.SkippedTag, next.AnnouncedTag);
+        var stored = new StoredState(next.CheckedAt, next.Latest?.Tag, next.Latest?.Page.ToString());
         await AtomicTextFile.WriteAsync(statePath, JsonSerializer.Serialize(stored, JsonOptions), cancellationToken);
         state = next;
     }
@@ -167,7 +134,7 @@ public sealed class UpdateChecker
             UpdateRelease? latest = null;
             if (stored.LatestTag is { } tag && ParseVersion(tag) is { } version)
                 latest = new UpdateRelease(version, tag, PageOf(stored.LatestPage));
-            return new UpdateState(stored.CheckedAt, latest, stored.SkippedTag, stored.AnnouncedTag);
+            return new UpdateState(stored.CheckedAt, latest);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -182,6 +149,5 @@ public sealed class UpdateChecker
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private sealed record StoredState(
-        DateTimeOffset? CheckedAt, string? LatestTag, string? LatestPage, string? SkippedTag, string? AnnouncedTag);
+    private sealed record StoredState(DateTimeOffset? CheckedAt, string? LatestTag, string? LatestPage);
 }

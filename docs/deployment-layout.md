@@ -42,7 +42,7 @@ The packaged defaults are the starting point for each
 ```text
 %LOCALAPPDATA%\PzTools\
   settings.toml                       # choices saved from the app
-  update.json                         # the last update check, and the release skipped or announced
+  update.json                         # what the last update check found
   config\<component>\default.toml     # editable component settings
   config-backups\                     # TOML copies made by Restore defaults
   extensions\                         # game-extension settings

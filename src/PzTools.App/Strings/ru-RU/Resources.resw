@@ -703,16 +703,14 @@
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} ч назад</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} дн. назад</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>Версия</value></data>
-  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Проверять обновления</value></data>
-  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Раз в день проверяет на GitHub, вышла ли новая версия. Ничего не скачивает само.</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Уведомление о новой версии</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Раз в день проверяет на GitHub, вышла ли новая версия, и если да, сообщает об этом строкой на боковой панели. Ничего не скачивает само.</value></data>
   <data name="UpdateCheckNow" xml:space="preserve"><value>Проверить</value></data>
   <data name="UpdateDownload" xml:space="preserve"><value>Скачать</value></data>
-  <data name="UpdateSkip" xml:space="preserve"><value>Пропустить эту версию</value></data>
-  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Новая версия {0}</value></data>
-  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>У вас версия {0}. «Скачать» откроет страницу загрузки.</value></data>
   <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Последняя версия</value></data>
   <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Доступна новая версия: {1}</value></data>
   <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Обновления ещё не проверялись</value></data>
   <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Проверка…</value></data>
   <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Не удалось проверить обновления. Проверьте подключение к интернету.</value></data>
+  <data name="UpdateCardFormat" xml:space="preserve"><value>Скачать версию {0}</value></data>
 </root>

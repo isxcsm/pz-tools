@@ -51,9 +51,10 @@
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
       </StackPanel>
     </Grid>
+  <!-- The pane folds to its icons only below 900: a 1366-wide laptop at 125% and half of a 1920 screen keep it open. -->
   <NavigationView x:Name="Navigation" Grid.Row="1" IsSettingsVisible="True"
                   IsBackButtonVisible="Collapsed" PaneDisplayMode="Auto" IsPaneToggleButtonVisible="False"
-                  OpenPaneLength="248" ExpandedModeThresholdWidth="1100"
+                  OpenPaneLength="248" ExpandedModeThresholdWidth="900"
                   CompactModeThresholdWidth="0" IsTitleBarAutoPaddingEnabled="False"
                   SelectionChanged="Navigation_SelectionChanged" ItemInvoked="Navigation_ItemInvoked"
                   DisplayModeChanged="Navigation_DisplayModeChanged"
@@ -174,27 +175,39 @@
              through one of their own buttons. Every such card has the same shape: title, message, then
              its buttons, if it has any. -->
         <StackPanel x:Name="InteractiveCards" Spacing="8" Visibility="Collapsed">
-          <!-- A newer release, once: closing it leaves the mark on the settings; passing over it removes both. -->
-          <Border x:Name="UpdateCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}"
+          <!-- A newer release, one line until the app is updated: clicking it opens the release's page. The
+               notice is turned off in the settings, not here. -->
+          <!-- Tinted with the accent colour, deeper under the pointer, so it reads as news rather than as one more
+               status card. -->
+          <Button x:Name="UpdateCard" Visibility="Collapsed" Click="UpdateCard_Click"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="10,8,12,8" CornerRadius="8"
                   AutomationProperties.AutomationId="UpdateCard">
-            <StackPanel Spacing="8">
-              <TextBlock x:Name="UpdateCardTitle" TextWrapping="Wrap" />
-              <TextBlock x:Name="UpdateCardMessage" TextWrapping="Wrap" Opacity="0.8" />
-              <!-- The way to the release takes the room; closing needs only its word. -->
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Button x:Name="UpdateCardOpenButton" Click="UpdateCardOpen_Click" HorizontalAlignment="Stretch"
-                        Style="{StaticResource AccentButtonStyle}" AutomationProperties.AutomationId="UpdateCardOpenButton" />
-                <Button x:Name="UpdateCardCloseButton" Grid.Column="1" Click="UpdateCardClose_Click" MinWidth="64"
-                        AutomationProperties.AutomationId="UpdateCardCloseButton" />
+            <Button.Resources>
+              <SolidColorBrush x:Key="ButtonBackground" Color="{ThemeResource SystemAccentColor}" Opacity="0.10" />
+              <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.18" />
+              <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.06" />
+              <SolidColorBrush x:Key="ButtonBorderBrush" Color="{ThemeResource SystemAccentColor}" Opacity="0.35" />
+              <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="{ThemeResource SystemAccentColor}" Opacity="0.55" />
+              <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="{ThemeResource SystemAccentColor}" Opacity="0.35" />
+            </Button.Resources>
+            <Grid ColumnSpacing="10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <!-- A download mark in a filled accent circle. -->
+              <Grid Width="24" Height="24" VerticalAlignment="Center">
+                <Ellipse Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                <FontIcon Glyph="&#xE896;" FontSize="12" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Grid>
-              <HyperlinkButton x:Name="UpdateCardSkipButton" Click="UpdateCardSkip_Click" Padding="0" FontSize="12"
-                               HorizontalAlignment="Center" AutomationProperties.AutomationId="UpdateCardSkipButton" />
-            </StackPanel>
-          </Border>
+              <TextBlock x:Name="UpdateCardText" Grid.Column="1" FontSize="13" FontWeight="SemiBold"
+                         TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+              <FontIcon Grid.Column="2" Glyph="&#xE72A;" FontSize="12" VerticalAlignment="Center"
+                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+            </Grid>
+          </Button>
           <Border x:Name="ProjectorStatusCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
             <StackPanel Spacing="8">
               <TextBlock x:Name="ProjectorStatusTitle" Text="일부 정보를 갱신할 수 없음" TextWrapping="Wrap" />

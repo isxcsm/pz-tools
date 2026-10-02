@@ -32,7 +32,7 @@ public sealed class UpdateCheckerTests
     }
 
     [Fact]
-    public async Task NewerRelease_IsAnnouncedOnceAndMarkedUntilPassedOver()
+    public async Task NewerRelease_StaysOfferedUntilUpdated()
     {
         using var temp = new TempDirectory();
         var github = new FakeGitHub("v0.3.0");
@@ -45,32 +45,22 @@ public sealed class UpdateCheckerTests
         checker.Changed += () => changed++;
         await checker.CheckAsync(force: false);
         Assert.Equal(1, changed);
-        Assert.Equal("v0.3.0", checker.ToAnnounce?.Tag);
-        Assert.Equal("v0.3.0", checker.Pending?.Tag);
+        Assert.Equal("v0.3.0", checker.Available?.Tag);
         Assert.Contains("PzTools/0.2.1", github.UserAgents.Single());
 
-        // The card closed: the mark stays, also for the next run.
-        await checker.MarkAnnouncedAsync("v0.3.0");
-        Assert.Null(checker.ToAnnounce);
-        Assert.Equal("v0.3.0", checker.Pending?.Tag);
+        // Known from the last check on the next run, without asking again.
         var reopened = new UpdateChecker(path, new Version(0, 2, 1), github);
-        Assert.Null(reopened.ToAnnounce);
-        Assert.Equal("v0.3.0", reopened.Pending?.Tag);
-
-        // Passed over: no mark, but the settings can still offer it.
-        await reopened.SkipAsync("v0.3.0");
-        Assert.Null(reopened.Pending);
         Assert.Equal("v0.3.0", reopened.Available?.Tag);
+        Assert.Equal("https://github.com/isxcsm/pz-tools/releases/tag/v0.3.0", reopened.Available?.Page.ToString());
 
-        // A newer one comes back with its card.
+        // A newer one replaces it.
         github.Tag = "v0.3.1";
         await reopened.CheckAsync(force: true);
-        Assert.Equal("v0.3.1", reopened.ToAnnounce?.Tag);
+        Assert.Equal("v0.3.1", reopened.Available?.Tag);
 
-        // Updated to it: nothing left to offer.
-        var updated = new UpdateChecker(path, new Version(0, 3, 1, 0), github);
-        Assert.Null(updated.Available);
-        Assert.Null(updated.Pending);
+        // Updated to it: nothing left to offer; the same release as this app is nothing either.
+        Assert.Null(new UpdateChecker(path, new Version(0, 3, 1, 0), github).Available);
+        Assert.Null(new UpdateChecker(path, new Version(0, 4, 0), github).Available);
     }
 
     [Fact]

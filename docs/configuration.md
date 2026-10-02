@@ -61,7 +61,7 @@ These live in `settings.toml` and are normally changed from the Settings screen.
 | Setting | Default | Behaviour |
 |---|---|---|
 | `[ui].system_tray` | `false` | When enabled, closing the window hides it in the tray. Restore or exit through the tray menu. Exit asks for confirmation and stops the scheduler. |
-| `[ui].check_updates` | `true` | Once a day, asks GitHub for the latest release and announces a newer one. What the last check found, and the release skipped or already announced, are kept in `update.json` beside `settings.toml`; deleting that file only makes the next check announce again. |
+| `[ui].check_updates` | `true` | Once a day, asks GitHub for the latest release; a newer one shows as one line in the sidebar (a dot on the settings icon while the menu is folded) until the app is updated. What the last check found is kept in `update.json` beside `settings.toml`; deleting that file only makes the next check ask again. |
 | `[backup].automatic_enabled` | `true` | Turns automatic backups on or off, independently of the interval, death-backup and save-before-backup preferences. |
 | `[backup].interval_minutes` | `5` | Integer from 1 through 60. Editing it does not turn automatic backups on. |
 | `[backup].pause_periodic_during_game` | `true` | Keeps the remaining interval while the game is paused, the player is asleep, or the game's state is unknown, and resumes counting afterwards. See [game-aware timing](runtime-pause-backups.md). |

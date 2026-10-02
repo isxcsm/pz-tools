@@ -703,16 +703,14 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} sa önce</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} gün önce</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>Sürüm</value></data>
-  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Güncellemeleri denetle</value></data>
-  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Günde bir kez GitHub&apos;da yeni sürüm çıkıp çıkmadığına bakar. Kendiliğinden bir şey indirmez.</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Yeni sürüm bildirimi</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Günde bir kez GitHub&apos;da yeni sürüm çıkıp çıkmadığına bakar; çıktıysa kenar çubuğunda tek satırla bildirir. Kendiliğinden bir şey indirmez.</value></data>
   <data name="UpdateCheckNow" xml:space="preserve"><value>Şimdi denetle</value></data>
   <data name="UpdateDownload" xml:space="preserve"><value>İndir</value></data>
-  <data name="UpdateSkip" xml:space="preserve"><value>Bu sürümü atla</value></data>
-  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Yeni sürüm {0}</value></data>
-  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>Sizdeki sürüm {0}. İndir, indirme sayfasını açar.</value></data>
   <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Güncel</value></data>
   <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Yeni sürüm çıktı: {1}</value></data>
   <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Güncellemeler henüz denetlenmedi</value></data>
   <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Denetleniyor…</value></data>
   <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Güncellemeler denetlenemedi. İnternet bağlantısını denetleyin.</value></data>
+  <data name="UpdateCardFormat" xml:space="preserve"><value>Yeni sürüm {0} indir</value></data>
 </root>

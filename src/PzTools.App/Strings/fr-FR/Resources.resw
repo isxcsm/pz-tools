@@ -703,16 +703,14 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="Home.AgoHours" xml:space="preserve"><value>il y a {0} h</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>il y a {0} j</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>Version</value></data>
-  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Rechercher les mises à jour</value></data>
-  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Une fois par jour, vérifie sur GitHub si une nouvelle version est sortie. Rien n&apos;est téléchargé automatiquement.</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Avis de nouvelle version</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Une fois par jour, vérifie sur GitHub si une nouvelle version est sortie et, le cas échéant, l&apos;indique d&apos;une ligne dans la barre latérale. Rien n&apos;est téléchargé automatiquement.</value></data>
   <data name="UpdateCheckNow" xml:space="preserve"><value>Vérifier</value></data>
   <data name="UpdateDownload" xml:space="preserve"><value>Télécharger</value></data>
-  <data name="UpdateSkip" xml:space="preserve"><value>Ignorer cette version</value></data>
-  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Nouvelle version {0}</value></data>
-  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>Vous avez la {0}. Télécharger ouvre la page de téléchargement.</value></data>
   <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · À jour</value></data>
   <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Nouvelle version disponible : {1}</value></data>
   <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Mises à jour pas encore vérifiées</value></data>
   <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Vérification…</value></data>
   <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Impossible de vérifier les mises à jour. Vérifiez la connexion Internet.</value></data>
+  <data name="UpdateCardFormat" xml:space="preserve"><value>Obtenir la version {0}</value></data>
 </root>

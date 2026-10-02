@@ -702,16 +702,14 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} h ago</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} d ago</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>Version</value></data>
-  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Check for updates</value></data>
-  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Once a day, asks GitHub whether a new version is out. Nothing is downloaded by itself.</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>New version notice</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Once a day, asks GitHub whether a new version is out and, if so, says so in one line in the sidebar. Nothing is downloaded by itself.</value></data>
   <data name="UpdateCheckNow" xml:space="preserve"><value>Check now</value></data>
   <data name="UpdateDownload" xml:space="preserve"><value>Get it</value></data>
-  <data name="UpdateSkip" xml:space="preserve"><value>Skip this version</value></data>
-  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>New version {0}</value></data>
-  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>You have {0}. Get it opens the download page.</value></data>
   <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Up to date</value></data>
   <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · New version out: {1}</value></data>
   <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Not checked for updates yet</value></data>
   <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Checking…</value></data>
   <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Could not check for updates. Check the internet connection.</value></data>
+  <data name="UpdateCardFormat" xml:space="preserve"><value>Get new version {0}</value></data>
 </root>

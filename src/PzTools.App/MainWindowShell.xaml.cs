@@ -46,6 +46,8 @@ public sealed partial class MainWindowShell : UserControl
     private IDisposable? viewSubscription;
     private long saveListRevision;
     private long scheduleRevision;
+    // Only the update notice's switch is read from the settings here.
+    private long settingsRevision;
     private long operationsRevision;
     private long projectorHealthRevision;
     private long blockedComponentsRevision;
@@ -264,6 +266,7 @@ public sealed partial class MainWindowShell : UserControl
         ProfilerRoot.ApplyLocalizedText();
         saveListRevision = 0;
         scheduleRevision = 0;
+        settingsRevision = 0;
         operationsRevision = 0;
         projectorHealthRevision = 0;
         logsRevision = 0;
@@ -352,6 +355,13 @@ public sealed partial class MainWindowShell : UserControl
         {
             saveListRevision = saves.ViewRevision;
             ApplySaveList(saves.Snapshot, saves.ViewRevision);
+        }
+
+        var settingsView = host.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, settingsRevision);
+        if (settingsView.Modified)
+        {
+            settingsRevision = settingsView.ViewRevision;
+            ApplyUpdate();
         }
 
         var scheduler = host.Views.ReadIfChanged<ScheduleStatusView>(
@@ -1395,47 +1405,38 @@ public sealed partial class MainWindowShell : UserControl
 
     private void Updates_Changed() => DispatcherQueue.TryEnqueue(ApplyUpdate);
 
-    // A newer release is announced once with the card, and marked on the settings until the app is updated or the
-    // release passed over; the settings page says the rest.
+    // A newer release, while the notice is on: one line in the pane until the app is updated. With the pane folded to
+    // its icons the cards cannot be read, so the settings icon carries a dot instead. The settings page says the rest.
     private void ApplyUpdate()
     {
-        var updates = App.Updates;
-        var announce = updates?.ToAnnounce;
-        UpdateCard.Visibility = announce is null ? Visibility.Collapsed : Visibility.Visible;
-        if (announce is not null && updates is not null)
+        var notice = UpdateNotice();
+        UpdateCard.Visibility = notice is null ? Visibility.Collapsed : Visibility.Visible;
+        if (notice is not null)
         {
-            UpdateCardTitle.Text = Localizer.Format("UpdateCardTitleFormat", "v" + announce.Version.ToString(3));
-            UpdateCardMessage.Text = Localizer.Format("UpdateCardMessageFormat", "v" + updates.Current.ToString(3));
-            UpdateCardOpenButton.Content = Localizer.Get("UpdateDownload");
-            UpdateCardCloseButton.Content = Localizer.Get("CardAcknowledge");
-            UpdateCardSkipButton.Content = Localizer.Get("UpdateSkip");
+            UpdateCardText.Text = Localizer.Format("UpdateCardFormat", "v" + notice.Version.ToString(3));
+            AutomationProperties.SetName(UpdateCard, UpdateCardText.Text);
+            AppToolTip.SetTip(UpdateCard, notice.Page.ToString());
         }
         UpdateInteractiveCards();
         if (Navigation.SettingsItem is NavigationViewItem settings)
         {
-            var pending = updates?.Pending is not null;
-            if (pending && settings.InfoBadge is null)
+            var dot = notice is not null && Navigation.DisplayMode != NavigationViewDisplayMode.Expanded;
+            if (dot && settings.InfoBadge is null)
                 settings.InfoBadge = new InfoBadge { Style = (Style)Application.Current.Resources["AttentionDotInfoBadgeStyle"] };
-            else if (!pending && settings.InfoBadge is not null)
+            else if (!dot && settings.InfoBadge is not null)
                 settings.InfoBadge = null;
         }
         SettingsRoot.ApplyUpdate();
     }
 
-    private void UpdateCardOpen_Click(object sender, RoutedEventArgs e)
-    {
-        if (App.Updates?.ToAnnounce is not { } release) return;
-        if (App.OpenReleasePage(release.Page)) _ = App.Updates.MarkAnnouncedAsync(release.Tag);
-    }
+    // The newer release to point at, unless the notice is turned off in the settings.
+    private UpdateRelease? UpdateNotice() =>
+        App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.CheckForUpdates == false
+            ? null : App.Updates?.Available;
 
-    private void UpdateCardClose_Click(object sender, RoutedEventArgs e)
+    private void UpdateCard_Click(object sender, RoutedEventArgs e)
     {
-        if (App.Updates?.ToAnnounce is { } release) _ = App.Updates.MarkAnnouncedAsync(release.Tag);
-    }
-
-    private void UpdateCardSkip_Click(object sender, RoutedEventArgs e)
-    {
-        if (App.Updates?.ToAnnounce is { } release) _ = App.Updates.SkipAsync(release.Tag);
+        if (UpdateNotice() is { } release) App.OpenReleasePage(release.Page);
     }
 
     private void UpdateInteractiveCards() =>
@@ -1573,7 +1574,11 @@ public sealed partial class MainWindowShell : UserControl
     }
 
     private void Navigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
-        => ApplyNavigationSpacing();
+    {
+        ApplyNavigationSpacing();
+        // Folded, the update notice moves to a dot on the settings icon.
+        ApplyUpdate();
+    }
 
     private void Navigation_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {

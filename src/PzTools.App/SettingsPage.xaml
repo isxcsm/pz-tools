@@ -40,7 +40,7 @@
               <Button x:Name="UpdateCheckButton" Click="UpdateCheck_Click" AutomationProperties.AutomationId="UpdateCheckButton" />
             </StackPanel>
             <toolkit:SettingsExpander.Items>
-              <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="업데이트 자동 확인">
+              <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="새 버전 알림">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
                 <ToggleSwitch x:Name="UpdateAutoToggle" Toggled="SettingChanged" AutomationProperties.AutomationId="UpdateAutoToggle" />
               </toolkit:SettingsCard>
