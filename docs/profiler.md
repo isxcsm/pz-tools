@@ -17,7 +17,10 @@ check has answered; the page checks every two seconds, and resting the pointer o
 is logged for that. If the game closes just as a recording starts, the recording's card
 says so and the log keeps it as information (`run.unavailable`), not as an error. A
 recording that really fails is logged once, by the recording itself, and its card gives
-the reason.
+the reason. When the game still runs a bridge bootstrap from before an update that this
+build cannot use, the card says plainly that the game needs one restart to record, rather
+than the general "could not connect"; an update that keeps the bootstrap compatible needs
+no restart at all (see [compatibility](save-bridge.md#compatibility-and-lifecycle)).
 
 | Mode | Java samples | Lua samples | Extra |
 | --- | --- | --- | --- |

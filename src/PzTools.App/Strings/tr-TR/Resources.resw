@@ -476,6 +476,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Oyun çalışmıyor. Oyunu açıp yeniden deneyin.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Birden fazla oyun çalışıyor, bu yüzden hedef seçilemiyor.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Oyuna bağlanılamadı. Oyunu veya PZ Tools uygulamasını güncellediyseniz oyunu yeniden başlatın.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools güncellendi. Kayıt için oyunu bir kez yeniden başlatın.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Başka bir işlem sürüyor. Biraz sonra yeniden deneyin.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Kayıt tamamlandı ama sonucu işlenemedi. Ayrıntılar için günlüğe bakın.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Kayıt başarısız oldu. Ayrıntılar için günlüğe bakın.</value></data>

@@ -21,6 +21,14 @@ public sealed class GameSaveException(string code, string message, string? diagn
     /// </summary>
     public bool LinkUnavailable => Code is "attach-failed" or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
     public string? Diagnostics { get; } = diagnostics;
+
+    /// <summary>
+    /// Whether the attach helper refused because the game still runs a bootstrap this build cannot use: then one
+    /// restart of the game is the answer, not a guess among other link failures. The helper's own words.
+    /// </summary>
+    public static bool NamesRestart(string helperOutput) =>
+        helperOutput.Contains("Restart the game to use the updated bridge", StringComparison.Ordinal)
+        || helperOutput.Contains("Bootstrap is incompatible; restart the game", StringComparison.Ordinal);
 }
 
 /// <summary>Authenticated, game-thread save requests through the JVM Attach bridge.</summary>

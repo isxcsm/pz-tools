@@ -476,6 +476,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Gra nie jest uruchomiona. Uruchom grę i spróbuj ponownie.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Uruchomiona jest więcej niż jedna gra, więc nie można wybrać celu.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Nie udało się połączyć z grą. Jeśli gra lub PZ Tools zostały zaktualizowane, uruchom grę ponownie.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools zostało zaktualizowane. Uruchom grę ponownie raz, aby nagrywać.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Trwa inna operacja. Spróbuj ponownie za chwilę.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Nagrywanie się zakończyło, ale nie udało się przetworzyć wyniku. Szczegóły znajdziesz w dzienniku.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Nagrywanie nie powiodło się. Szczegóły znajdziesz w dzienniku.</value></data>

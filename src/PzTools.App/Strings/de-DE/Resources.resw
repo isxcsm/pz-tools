@@ -476,6 +476,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Das Spiel läuft nicht. Starte das Spiel und versuche es erneut.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Es laufen mehrere Spiele gleichzeitig, daher kann kein Ziel bestimmt werden.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Verbindung zum Spiel fehlgeschlagen. Falls du das Spiel oder PZ Tools aktualisiert hast, starte das Spiel neu.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools wurde aktualisiert. Starte das Spiel einmal neu, um aufzuzeichnen.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Ein anderer Vorgang läuft gerade. Versuche es gleich noch einmal.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Die Aufzeichnung wurde beendet, aber das Ergebnis konnte nicht verarbeitet werden. Details findest du im Protokoll.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Aufzeichnung fehlgeschlagen. Details findest du im Protokoll.</value></data>

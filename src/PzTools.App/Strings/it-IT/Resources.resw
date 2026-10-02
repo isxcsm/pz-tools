@@ -476,6 +476,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Il gioco non è in esecuzione. Avvia il gioco e riprova.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Sono in esecuzione più giochi, quindi non è possibile scegliere quale analizzare.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Impossibile connettersi al gioco. Se hai aggiornato il gioco o PZ Tools, riavvia il gioco.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools è stato aggiornato. Riavvia il gioco una volta per registrare.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>È in corso un'altra operazione. Riprova tra un momento.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>La registrazione è terminata, ma non è stato possibile elaborarne il risultato. Controlla il log per i dettagli.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Registrazione non riuscita. Controlla il log per i dettagli.</value></data>

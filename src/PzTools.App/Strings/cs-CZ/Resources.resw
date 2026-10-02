@@ -365,6 +365,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileError.Convert" xml:space="preserve"><value>Záznam byl dokončen, ale výsledek se nepodařilo zpracovat. Podrobnosti najdete v protokolu.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Právě probíhá jiná operace. Zkuste to za chvíli znovu.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Nepodařilo se připojit ke hře. Pokud jste aktualizovali hru nebo PZ Tools, restartujte hru.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools se aktualizoval. Pro nahrávání hru jednou restartujte.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Je spuštěno více her najednou, takže nelze určit cíl.</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Hra není spuštěná. Spusťte hru a zkuste to znovu.</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Dlouhá čekání a pauzy</value></data>

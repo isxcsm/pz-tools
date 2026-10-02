@@ -364,6 +364,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileError.Convert" xml:space="preserve"><value>The recording finished, but its result could not be processed. Check the log for details.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Another operation is in progress. Try again in a moment.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Could not connect to the game. If you updated the game or PZ Tools, restart the game.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools was updated. Restart the game once to record.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>More than one game is running, so the target cannot be chosen.</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>The game is not running. Start the game and try again.</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Long waits and pauses</value></data>

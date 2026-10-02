@@ -476,6 +476,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Game tidak sedang berjalan. Jalankan game lalu coba lagi.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Ada lebih dari satu game yang berjalan, jadi target tidak dapat ditentukan.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Tidak dapat terhubung ke game. Jika Anda baru memperbarui game atau PZ Tools, mulai ulang game.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools telah diperbarui. Mulai ulang game sekali untuk merekam.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Operasi lain sedang berlangsung. Coba lagi sebentar lagi.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Rekaman selesai, tetapi hasilnya tidak dapat diproses. Periksa log untuk detailnya.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Perekaman gagal. Periksa log untuk detailnya.</value></data>

@@ -476,6 +476,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Le jeu n'est pas lancé. Lancez le jeu et réessayez.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Plusieurs jeux sont en cours d'exécution : impossible de choisir la cible.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Impossible de se connecter au jeu. Si vous avez mis à jour le jeu ou PZ Tools, redémarrez le jeu.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools a été mis à jour. Redémarrez le jeu une fois pour enregistrer.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Une autre opération est en cours. Réessayez dans un instant.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>L'enregistrement est terminé, mais son résultat n'a pas pu être traité. Consultez le journal pour plus de détails.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>L'enregistrement a échoué. Consultez le journal pour plus de détails.</value></data>

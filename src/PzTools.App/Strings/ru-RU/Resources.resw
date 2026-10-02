@@ -476,6 +476,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Игра не запущена. Запустите игру и попробуйте снова.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Запущено несколько копий игры, поэтому не удаётся выбрать нужную.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Не удалось подключиться к игре. Если вы обновили игру или PZ Tools, перезапустите игру.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools обновлён. Чтобы записывать, один раз перезапустите игру.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Выполняется другая операция. Попробуйте чуть позже.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Запись завершена, но обработать результат не удалось. Подробности смотрите в журнале.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Не удалось выполнить запись. Подробности смотрите в журнале.</value></data>

@@ -43,8 +43,7 @@ public sealed class GameRuntimeClient(string bridgeDirectory)
                 if (helper.ExitCode != 0)
                 {
                     var detail = await error;
-                    bool restart = detail.Contains("Restart the game to use the updated bridge", StringComparison.Ordinal)
-                        || detail.Contains("Bootstrap is incompatible; restart the game", StringComparison.Ordinal);
+                    bool restart = GameSaveException.NamesRestart(detail);
                     throw new GameSaveException(restart ? "restart-required" : "runtime-unavailable",
                         restart ? "The loaded bootstrap requires one game restart after this bridge update."
                             : "Runtime observer attach failed.");

@@ -483,6 +483,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>เกมไม่ได้เปิดอยู่ เปิดเกมแล้วลองอีกครั้ง</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>มีเกมเปิดอยู่มากกว่าหนึ่งตัว จึงเลือกเป้าหมายไม่ได้</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ หากคุณเพิ่งอัปเดตเกมหรือ PZ Tools ให้เปิดเกมใหม่</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools ได้รับการอัปเดตแล้ว รีสตาร์ตเกมหนึ่งครั้งเพื่อบันทึก</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>กำลังทำงานอย่างอื่นอยู่ โปรดลองอีกครั้งในอีกสักครู่</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>บันทึกเสร็จแล้ว แต่ประมวลผลผลลัพธ์ไม่ได้ ดูรายละเอียดได้ในล็อก</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>บันทึกไม่สำเร็จ ดูรายละเอียดได้ในล็อก</value></data>

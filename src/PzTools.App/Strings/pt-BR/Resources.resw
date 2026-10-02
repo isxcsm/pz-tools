@@ -476,6 +476,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>O jogo não está em execução. Abra o jogo e tente de novo.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Há mais de um jogo em execução, então não é possível escolher o alvo.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Não foi possível conectar ao jogo. Se você atualizou o jogo ou o PZ Tools, reinicie o jogo.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>O PZ Tools foi atualizado. Reinicie o jogo uma vez para gravar.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Outra operação está em andamento. Tente de novo daqui a pouco.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>A gravação terminou, mas não foi possível processar o resultado. Veja o log para mais detalhes.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>A gravação falhou. Veja o log para mais detalhes.</value></data>

@@ -296,6 +296,18 @@ public sealed class ProfileRecordingTests
             PzTools.App.Core.ProfileRecordingService.ErrorKey(result));
     }
 
+    [Theory]
+    [InlineData("java.io.IOException: Restart the game to use the updated bridge; no save request was sent", "profile-restart-required", "ProfileError.Restart")]
+    [InlineData("java.io.IOException: Bootstrap is incompatible; restart the game with matching app/workers", "profile-restart-required", "ProfileError.Restart")]
+    [InlineData("com.sun.tools.attach.AttachNotSupportedException: Unable to open socket file", "profile-attach-failed", "ProfileError.Link")]
+    public void AttachRefusals_SayRestartWhenTheGameRunsABootstrapThisBuildCannotUse(string helperOutput, string error, string key)
+    {
+        // What the recording worker reports for the attach helper's words, and what the card then says.
+        var code = "profile-" + (PzTools.SaveBridge.GameSaveException.NamesRestart(helperOutput) ? "restart-required" : "attach-failed");
+        Assert.Equal(error, code);
+        Assert.Equal(key, PzTools.App.Core.ProfileRecordingService.ErrorKey(code));
+    }
+
     private static void WriteRecording(string path, string text)
     {
         using var file = File.Create(path);

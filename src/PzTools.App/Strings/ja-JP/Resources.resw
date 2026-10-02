@@ -476,6 +476,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>ゲームが起動していません。ゲームを起動してからもう一度お試しください。</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>ゲームが複数起動しているため、対象を決められません。</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>ゲームに接続できませんでした。ゲームまたは PZ Tools を更新した場合は、ゲームを再起動してください。</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools が更新されました。記録するにはゲームを一度再起動してください。</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>別の処理が進行中です。しばらくしてからもう一度お試しください。</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>記録は完了しましたが、結果を処理できませんでした。詳しくはログを確認してください。</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>記録に失敗しました。詳しくはログを確認してください。</value></data>

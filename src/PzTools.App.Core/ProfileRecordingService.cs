@@ -175,6 +175,7 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
         "profile-multiple-games" => "ProfileError.MultipleGames",
         "profile-attach-failed" or "profile-connection-timeout" or "profile-bridge-not-built"
             or "profile-unsupported-protocol" or "profile-unsupported-runtime" => "ProfileError.Link",
+        "profile-restart-required" => "ProfileError.Restart",
         "profile-busy" or "operation-busy" => "ProfileError.Busy",
         "profile-convert-failed" => "ProfileError.Convert",
         "cancelled" => "OperationCancelled",

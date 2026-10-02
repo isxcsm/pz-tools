@@ -476,6 +476,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>游戏没有运行。请启动游戏后重试。</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>有多个游戏正在运行，无法确定目标。</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>无法连接到游戏。如果你更新过游戏或 PZ Tools，请重新启动游戏。</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools 已更新。请重新启动游戏一次后再录制。</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>正在进行其他操作。请稍后再试。</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>录制已完成，但无法处理结果。详情请查看日志。</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>录制失败。详情请查看日志。</value></data>
