@@ -702,4 +702,17 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="Home.AgoMinutes" xml:space="preserve"><value>vor {0} Min.</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>vor {0} Std.</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>vor {0} Tg.</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>Version</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Nach Updates suchen</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Fragt einmal täglich bei GitHub, ob eine neue Version erschienen ist. Es wird nichts von selbst heruntergeladen.</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Jetzt suchen</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Herunterladen</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>Diese Version überspringen</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Neue Version {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>Sie haben {0}. „Herunterladen“ öffnet die Downloadseite.</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Auf dem neuesten Stand</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Neue Version verfügbar: {1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Noch nicht nach Updates gesucht</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Wird gesucht…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Updates konnten nicht gesucht werden. Prüfen Sie die Internetverbindung.</value></data>
 </root>

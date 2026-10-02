@@ -32,7 +32,9 @@ public sealed record AppSettings(
     bool RollingEnabled = false,
     bool RollingDetailed = false,
     int RollingMinutes = AppSettings.DefaultRollingMinutes,
-    HotKeySettings? HotKeys = null)
+    HotKeySettings? HotKeys = null,
+    // Once a day the app asks GitHub for its latest release, and says so when there is a newer one.
+    bool CheckForUpdates = true)
 {
     public HotKeySettings Keys => HotKeys ?? new();
 
@@ -112,7 +114,8 @@ public sealed class SettingsProjector(RevisionedViewStore views)
                 value.RollingEnabled,
                 value.RollingDetailed,
                 value.RollingMinutes,
-                value.Keys),
+                value.Keys,
+                value.CheckForUpdates),
             comparer: EqualityComparer<SettingsView>.Default);
     }
 }
@@ -258,7 +261,8 @@ public sealed class AppSettingsService
             GetBoolean(model, "profiler", "rolling_enabled", false),
             GetBoolean(model, "profiler", "rolling_detailed", false),
             Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)), 1, 10),
-            ReadHotKeys(model));
+            ReadHotKeys(model),
+            GetBoolean(model, "ui", "check_updates", true));
         // 기존 설정의 추적 표시값은 새 기록 하한보다 낮을 수 있습니다.
         return (loaded with { LogMinimumLevel =
             (LogLevel)Math.Max((int)loaded.LogMinimumLevel, (int)loaded.LogRecordMinimumLevel) }).Validate();
@@ -293,6 +297,7 @@ public sealed class AppSettingsService
                 RollingDetailed = settings.RollingDetailed,
                 RollingMinutes = settings.RollingMinutes,
                 HotKeys = settings.HotKeys,
+                CheckForUpdates = settings.CheckForUpdates,
             })
         {
             // These settings do not change the running job or scheduler. The next worker
@@ -357,7 +362,8 @@ public sealed class AppSettingsService
         $"[ui]{Environment.NewLine}"
         + $"language = \"{LanguageCatalog.Get(value.Language).Tag}\"{Environment.NewLine}"
         + $"theme = \"{value.Theme}\"{Environment.NewLine}"
-        + $"system_tray = {value.UseSystemTray.ToString().ToLowerInvariant()}{Environment.NewLine}{Environment.NewLine}"
+        + $"system_tray = {value.UseSystemTray.ToString().ToLowerInvariant()}{Environment.NewLine}"
+        + $"check_updates = {value.CheckForUpdates.ToString().ToLowerInvariant()}{Environment.NewLine}{Environment.NewLine}"
         + $"[paths]{Environment.NewLine}"
         + $"saves_root = {Quote(value.SavesRoot)}{Environment.NewLine}"
         + $"backup_root = {Quote(value.BackupRoot)}{Environment.NewLine}{Environment.NewLine}"

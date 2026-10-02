@@ -702,4 +702,17 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} mnt lalu</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} jam lalu</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} hari lalu</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>Versi</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Periksa pembaruan</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Sekali sehari memeriksa GitHub apakah ada versi baru. Tidak mengunduh apa pun dengan sendirinya.</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Periksa sekarang</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Unduh</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>Lewati versi ini</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Versi baru {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>Versi Anda {0}. Unduh membuka halaman unduhan.</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Sudah versi terbaru</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Versi baru tersedia: {1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Belum memeriksa pembaruan</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Memeriksa…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Tidak dapat memeriksa pembaruan. Periksa koneksi internet.</value></data>
 </root>

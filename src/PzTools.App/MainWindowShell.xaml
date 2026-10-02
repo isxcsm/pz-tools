@@ -174,6 +174,27 @@
              through one of their own buttons. Every such card has the same shape: title, message, then
              its buttons, if it has any. -->
         <StackPanel x:Name="InteractiveCards" Spacing="8" Visibility="Collapsed">
+          <!-- A newer release, once: closing it leaves the mark on the settings; passing over it removes both. -->
+          <Border x:Name="UpdateCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}"
+                  AutomationProperties.AutomationId="UpdateCard">
+            <StackPanel Spacing="8">
+              <TextBlock x:Name="UpdateCardTitle" TextWrapping="Wrap" />
+              <TextBlock x:Name="UpdateCardMessage" TextWrapping="Wrap" Opacity="0.8" />
+              <!-- The way to the release takes the room; closing needs only its word. -->
+              <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="UpdateCardOpenButton" Click="UpdateCardOpen_Click" HorizontalAlignment="Stretch"
+                        Style="{StaticResource AccentButtonStyle}" AutomationProperties.AutomationId="UpdateCardOpenButton" />
+                <Button x:Name="UpdateCardCloseButton" Grid.Column="1" Click="UpdateCardClose_Click" MinWidth="64"
+                        AutomationProperties.AutomationId="UpdateCardCloseButton" />
+              </Grid>
+              <HyperlinkButton x:Name="UpdateCardSkipButton" Click="UpdateCardSkip_Click" Padding="0" FontSize="12"
+                               HorizontalAlignment="Center" AutomationProperties.AutomationId="UpdateCardSkipButton" />
+            </StackPanel>
+          </Border>
           <Border x:Name="ProjectorStatusCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
             <StackPanel Spacing="8">
               <TextBlock x:Name="ProjectorStatusTitle" Text="일부 정보를 갱신할 수 없음" TextWrapping="Wrap" />

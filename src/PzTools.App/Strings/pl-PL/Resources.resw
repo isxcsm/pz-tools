@@ -702,4 +702,17 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} min temu</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} godz. temu</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} dn. temu</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>Wersja</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Sprawdzaj aktualizacje</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Raz dziennie sprawdza w GitHubie, czy wyszła nowa wersja. Niczego nie pobiera samodzielnie.</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Sprawdź teraz</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Pobierz</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>Pomiń tę wersję</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Nowa wersja {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>Masz wersję {0}. Pobierz otwiera stronę pobierania.</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Wersja aktualna</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Dostępna nowa wersja: {1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Aktualizacje jeszcze nie sprawdzone</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Sprawdzanie…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Nie udało się sprawdzić aktualizacji. Sprawdź połączenie z internetem.</value></data>
 </root>

@@ -702,4 +702,17 @@
   <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} 分钟前</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} 小时前</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} 天前</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>版本信息</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>自动检查更新</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>每天一次在 GitHub 上检查是否有新版本。不会自动下载。</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>立即检查</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>前往下载</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>跳过此版本</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>新版本 {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>当前版本为 {0}。点击“前往下载”将打开下载页面。</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · 已是最新版本</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · 有新版本：{1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · 尚未检查更新</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · 正在检查…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · 无法检查更新。请检查网络连接。</value></data>
 </root>

@@ -702,4 +702,17 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="Home.AgoMinutes" xml:space="preserve"><value>há {0} min</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>há {0} h</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>há {0} d</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>Versão</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Verificar atualizações</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Uma vez por dia, verifica no GitHub se saiu uma nova versão. Nada é baixado sozinho.</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Verificar agora</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Baixar</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>Pular esta versão</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>Nova versão {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>Você tem a {0}. Baixar abre a página de download.</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Atualizado</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Nova versão disponível: {1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Atualizações ainda não verificadas</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Verificando…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Não foi possível verificar atualizações. Verifique a conexão com a internet.</value></data>
 </root>

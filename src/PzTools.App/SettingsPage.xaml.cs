@@ -57,12 +57,19 @@ public sealed partial class SettingsPage : UserControl
     internal void ApplyLocalizedText()
     {
         Language = Localizer.Culture.Name;
-        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, AutomaticBackupToggle, DeathBackupToggle, PausePeriodicToggle, RollingToggle })
+        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, AutomaticBackupToggle, DeathBackupToggle, PausePeriodicToggle, RollingToggle, UpdateAutoToggle })
         {
             toggle.OnContent = Localizer.Get("SettingEnabled");
             toggle.OffContent = Localizer.Get("SettingDisabled");
         }
         SettingsTitleText.Text = Localizer.Get("SettingsTitle.Text");
+        UpdateSection.Header = Localizer.Get("UpdateSection.Header");
+        UpdateAutoSettingCard.Header = Localizer.Get("UpdateAutoSetting.Header");
+        UpdateAutoSettingCard.Description = Localizer.Get("UpdateAutoSetting.Description");
+        UpdateCheckButton.Content = Localizer.Get("UpdateCheckNow");
+        UpdateDownloadButton.Content = Localizer.Get("UpdateDownload");
+        SetInputName(UpdateAutoToggle, UpdateAutoSettingCard.Header);
+        ApplyUpdate();
         DisplaySection.Header = Localizer.Get("DisplaySettings.Header");
         DisplaySection.Description = Localizer.Get("DisplaySettings.Description");
         LanguageSettingCard.Header = Localizer.Get("LanguageSetting.Header");
@@ -200,7 +207,7 @@ public sealed partial class SettingsPage : UserControl
     {
         if (initialLayoutCompleted) return;
         UpdateLayout();
-        foreach (var section in new[] { DisplaySection, PathSection, BackupSection, ProfilerSection, HotKeySection, AdvancedSection })
+        foreach (var section in new[] { UpdateSection, DisplaySection, PathSection, BackupSection, ProfilerSection, HotKeySection, AdvancedSection })
             SettingsExpanderLayout.CompleteInitialExpansion(section);
         UpdateLayout();
         SettingsSections.ChildrenTransitions = new TransitionCollection
@@ -224,6 +231,7 @@ public sealed partial class SettingsPage : UserControl
             SelectTag(LanguageCombo, value.Language);
             SelectTag(ThemeCombo, value.Theme);
             SystemTrayToggle.IsOn = value.UseSystemTray;
+            UpdateAutoToggle.IsOn = value.CheckForUpdates;
             SavesPath.Text = value.SavesRoot;
             BackupPath.Text = value.BackupRoot;
             AutomaticBackupToggle.IsOn = value.AutomaticBackupEnabled;
@@ -535,7 +543,53 @@ public sealed partial class SettingsPage : UserControl
         RollingToggle.IsOn,
         RollingModeToggle.IsOn,
         checked((int)Math.Clamp(double.IsNaN(RollingMinutesNumber.Value) ? 1 : RollingMinutesNumber.Value, 1, 10)),
-        hotKeySettings);
+        hotKeySettings,
+        UpdateAutoToggle.IsOn);
+    }
+
+    // ---- Version and updates ----
+
+    // A check asked for here: it runs whatever the last one was, and its failure is said in the line.
+    private bool checkingUpdates, updateCheckFailed;
+
+    /// <summary>The version line: this version, then whether a newer one can be had, as last asked.</summary>
+    internal void ApplyUpdate()
+    {
+        if (App.Updates is not { } updates) return;
+        var current = "v" + updates.Current.ToString(3);
+        var available = updates.Available;
+        UpdateSection.Description = checkingUpdates ? Localizer.Format("UpdateStatusChecking", current)
+            : updateCheckFailed ? Localizer.Format("UpdateStatusFailed", current)
+            : available is not null ? Localizer.Format("UpdateStatusAvailable", current, "v" + available.Version.ToString(3))
+            : updates.State.CheckedAt is null ? Localizer.Format("UpdateStatusUnknown", current)
+            : Localizer.Format("UpdateStatusCurrent", current);
+        UpdateDownloadButton.Visibility = available is null ? Visibility.Collapsed : Visibility.Visible;
+        UpdateCheckProgress.IsActive = checkingUpdates;
+        UpdateCheckProgress.Visibility = checkingUpdates ? Visibility.Visible : Visibility.Collapsed;
+        UpdateCheckButton.IsEnabled = !checkingUpdates;
+    }
+
+    private async void UpdateCheck_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Updates is not { } updates || checkingUpdates) return;
+        (checkingUpdates, updateCheckFailed) = (true, false);
+        ApplyUpdate();
+        try { await updates.CheckAsync(force: true); }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException
+            or IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            updateCheckFailed = true;
+        }
+        finally
+        {
+            checkingUpdates = false;
+            ApplyUpdate();
+        }
+    }
+
+    private void UpdateDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Updates?.Available is { } release) App.OpenReleasePage(release.Page);
     }
 
     private void IntervalSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)

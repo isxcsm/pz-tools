@@ -702,4 +702,17 @@
   <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} 分前</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} 時間前</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} 日前</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>バージョン情報</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>更新を自動で確認</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>1 日に 1 回、新しいバージョンが出たかを GitHub で確認します。自動でダウンロードはしません。</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>今すぐ確認</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>入手する</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>このバージョンをスキップ</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>新しいバージョン {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>現在のバージョンは {0} です。「入手する」でダウンロード ページが開きます。</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · 最新バージョンです</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · 新しいバージョンがあります: {1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · まだ更新を確認していません</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · 確認しています…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · 更新を確認できませんでした。インターネット接続を確認してください。</value></data>
 </root>

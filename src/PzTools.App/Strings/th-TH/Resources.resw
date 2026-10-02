@@ -709,4 +709,17 @@
   <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} นาทีที่แล้ว</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} ชั่วโมงที่แล้ว</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} วันที่แล้ว</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>เวอร์ชัน</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>ตรวจหาอัปเดต</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>ตรวจที่ GitHub วันละครั้งว่ามีเวอร์ชันใหม่หรือไม่ จะไม่ดาวน์โหลดเอง</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>ตรวจเลย</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>ไปดาวน์โหลด</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>ข้ามเวอร์ชันนี้</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>เวอร์ชันใหม่ {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>เวอร์ชันปัจจุบันคือ {0} กด &quot;ไปดาวน์โหลด&quot; เพื่อเปิดหน้าดาวน์โหลด</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · เป็นเวอร์ชันล่าสุด</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · มีเวอร์ชันใหม่: {1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · ยังไม่ได้ตรวจหาอัปเดต</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · กำลังตรวจ…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · ตรวจหาอัปเดตไม่ได้ โปรดตรวจการเชื่อมต่ออินเทอร์เน็ต</value></data>
 </root>

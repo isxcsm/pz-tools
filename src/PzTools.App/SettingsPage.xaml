@@ -29,6 +29,23 @@
           <!-- Reflow transitions are attached after the initial expanded layout.
                MainWindowShell owns the page entrance animation. -->
 
+          <!-- The app's version and its updates: a newer release is offered here until the app is updated. -->
+          <toolkit:SettingsExpander x:Name="UpdateSection" IsExpanded="True" Header="버전 정보"
+                                    AutomationProperties.AutomationId="UpdateSection">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ProgressRing x:Name="UpdateCheckProgress" Width="16" Height="16" MinWidth="16" MinHeight="16"
+                            IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
+              <Button x:Name="UpdateDownloadButton" Style="{StaticResource AccentButtonStyle}" Visibility="Collapsed"
+                      Click="UpdateDownload_Click" AutomationProperties.AutomationId="UpdateDownloadButton" />
+              <Button x:Name="UpdateCheckButton" Click="UpdateCheck_Click" AutomationProperties.AutomationId="UpdateCheckButton" />
+            </StackPanel>
+            <toolkit:SettingsExpander.Items>
+              <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="업데이트 자동 확인">
+                <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
+                <ToggleSwitch x:Name="UpdateAutoToggle" Toggled="SettingChanged" AutomationProperties.AutomationId="UpdateAutoToggle" />
+              </toolkit:SettingsCard>
+            </toolkit:SettingsExpander.Items>
+          </toolkit:SettingsExpander>
           <toolkit:SettingsExpander x:Name="DisplaySection" IsExpanded="True"
                                     Header="화면" Description="언어, 테마와 창 닫기 동작을 설정합니다.">
             <toolkit:SettingsExpander.Items>

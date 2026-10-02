@@ -196,6 +196,7 @@ public sealed partial class MainWindowShell : UserControl
         if (Navigation.SettingsItem is NavigationViewItem settings)
             settings.Content = Localizer.Get("SettingsTitle.Text");
         if (IsLoaded) RefreshOperationCards();
+        if (IsLoaded) ApplyUpdate();
         if (blockedComponents is not null) ApplyBlockedComponents(blockedComponents);
         if (gameLink is not null) ApplyGameLink(gameLink);
         NextBackupText.Text = Localizer.Get("NextBackupWaiting.Text");
@@ -292,6 +293,8 @@ public sealed partial class MainWindowShell : UserControl
         }
         ApplyNavigationSpacing();
         UpdateSaveListPlaceholder();
+        if (App.Updates is { } updates) { updates.Changed -= Updates_Changed; updates.Changed += Updates_Changed; }
+        ApplyUpdate();
         var host = App.Host;
         if (host is null) return;
         viewSubscription ??= host.Views.Subscribe((_, _) =>
@@ -336,6 +339,7 @@ public sealed partial class MainWindowShell : UserControl
         StopOperationProgressRefresh();
         viewSubscription?.Dispose();
         viewSubscription = null;
+        if (App.Updates is { } updates) updates.Changed -= Updates_Changed;
     }
 
     private void RefreshChangedViews()
@@ -1385,6 +1389,53 @@ public sealed partial class MainWindowShell : UserControl
         gameLinkDismissed = true;
         GameLinkCard.Visibility = Visibility.Collapsed;
         UpdateInteractiveCards();
+    }
+
+    // ---- Updates ----
+
+    private void Updates_Changed() => DispatcherQueue.TryEnqueue(ApplyUpdate);
+
+    // A newer release is announced once with the card, and marked on the settings until the app is updated or the
+    // release passed over; the settings page says the rest.
+    private void ApplyUpdate()
+    {
+        var updates = App.Updates;
+        var announce = updates?.ToAnnounce;
+        UpdateCard.Visibility = announce is null ? Visibility.Collapsed : Visibility.Visible;
+        if (announce is not null && updates is not null)
+        {
+            UpdateCardTitle.Text = Localizer.Format("UpdateCardTitleFormat", "v" + announce.Version.ToString(3));
+            UpdateCardMessage.Text = Localizer.Format("UpdateCardMessageFormat", "v" + updates.Current.ToString(3));
+            UpdateCardOpenButton.Content = Localizer.Get("UpdateDownload");
+            UpdateCardCloseButton.Content = Localizer.Get("CardAcknowledge");
+            UpdateCardSkipButton.Content = Localizer.Get("UpdateSkip");
+        }
+        UpdateInteractiveCards();
+        if (Navigation.SettingsItem is NavigationViewItem settings)
+        {
+            var pending = updates?.Pending is not null;
+            if (pending && settings.InfoBadge is null)
+                settings.InfoBadge = new InfoBadge { Style = (Style)Application.Current.Resources["AttentionDotInfoBadgeStyle"] };
+            else if (!pending && settings.InfoBadge is not null)
+                settings.InfoBadge = null;
+        }
+        SettingsRoot.ApplyUpdate();
+    }
+
+    private void UpdateCardOpen_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Updates?.ToAnnounce is not { } release) return;
+        if (App.OpenReleasePage(release.Page)) _ = App.Updates.MarkAnnouncedAsync(release.Tag);
+    }
+
+    private void UpdateCardClose_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Updates?.ToAnnounce is { } release) _ = App.Updates.MarkAnnouncedAsync(release.Tag);
+    }
+
+    private void UpdateCardSkip_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.Updates?.ToAnnounce is { } release) _ = App.Updates.SkipAsync(release.Tag);
     }
 
     private void UpdateInteractiveCards() =>

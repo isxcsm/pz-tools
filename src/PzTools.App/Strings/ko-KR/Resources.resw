@@ -701,4 +701,17 @@
   <data name="Home.AgoMinutes" xml:space="preserve"><value>{0}분 전</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>{0}시간 전</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0}일 전</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>버전 정보</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>업데이트 자동 확인</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>하루에 한 번 GitHub에서 새 버전이 나왔는지 확인합니다. 저절로 내려받지는 않습니다.</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>지금 확인</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>받으러 가기</value></data>
+  <data name="UpdateSkip" xml:space="preserve"><value>이 버전 넘기기</value></data>
+  <data name="UpdateCardTitleFormat" xml:space="preserve"><value>새 버전 {0}</value></data>
+  <data name="UpdateCardMessageFormat" xml:space="preserve"><value>지금 버전은 {0}입니다. 받으러 가기를 누르면 다운로드 페이지가 열립니다.</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · 최신 버전입니다</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · 새 버전이 나왔습니다: {1}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · 아직 업데이트를 확인하지 않았습니다</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · 확인하는 중…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · 업데이트를 확인하지 못했습니다. 인터넷 연결을 확인해 주세요.</value></data>
 </root>

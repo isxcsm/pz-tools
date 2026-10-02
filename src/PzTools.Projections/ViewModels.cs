@@ -103,7 +103,8 @@ public sealed record SettingsView(
     bool RollingEnabled = false,
     bool RollingDetailed = false,
     int RollingMinutes = 2,
-    HotKeySettings? HotKeys = null);
+    HotKeySettings? HotKeys = null,
+    bool CheckForUpdates = true);
 
 public sealed record ProjectorHealthView(IReadOnlyList<ProjectorStatus> Projectors)
 {
