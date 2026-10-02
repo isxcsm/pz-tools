@@ -419,6 +419,12 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileMoreActions" xml:space="preserve"><value>Plus</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Scripts (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Code du jeu (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Allocation mémoire</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Alloué</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Mémoire allouée par le thread du jeu pendant que les scripts de ce mod s’exécutaient dans la plage choisie, fonctions du jeu qu’ils ont appelées comprises. Plus on alloue, plus la mémoire est nettoyée souvent (GC). Une estimation tirée des échantillons, comme le temps.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Tout le thread du jeu, scripts ou non : {0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Propre : alloué pendant que la fonction elle-même s’exécutait. Total : aussi pendant que s’exécutaient les fonctions qu’elle a appelées.</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>Aucune allocation de script n’a été enregistrée dans cette plage.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Utilisation du graphique</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Enregistrement des performances</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Tout afficher</value></data>

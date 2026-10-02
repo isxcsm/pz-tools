@@ -419,6 +419,12 @@
   <data name="ProfileMoreActions" xml:space="preserve"><value>更多</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>脚本 (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>游戏代码 (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>内存分配</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>分配量</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>在所选范围内，此模组的脚本运行时游戏线程分配的内存，包括脚本调用的游戏功能的分配。分配越多，内存清理（GC）越频繁。与时间一样，是根据样本得出的估计值。</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>整个游戏线程（含脚本以外）：{0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>自身：该函数本身运行时分配的量。总计：还包括它调用的函数运行时分配的量。</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>此范围内没有记录到脚本的分配。</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>图表使用方法</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>性能录制</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>显示全部</value></data>

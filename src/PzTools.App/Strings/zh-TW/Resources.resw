@@ -419,6 +419,12 @@
   <data name="ProfileMoreActions" xml:space="preserve"><value>更多</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>指令碼 (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>遊戲程式碼 (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>記憶體配置</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>配置量</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>在所選範圍內，此模組的腳本執行時遊戲執行緒配置的記憶體，包括腳本呼叫的遊戲功能的配置。配置越多，記憶體清理（GC）越頻繁。與時間一樣，是根據樣本得出的估計值。</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>整個遊戲執行緒（含腳本以外）：{0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>自身：該函式本身執行時配置的量。總計：還包括它呼叫的函式執行時配置的量。</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>此範圍內沒有記錄到腳本的配置。</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>圖表使用方式</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>效能錄製</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>顯示全部</value></data>

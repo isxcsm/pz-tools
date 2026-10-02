@@ -419,6 +419,12 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileMoreActions" xml:space="preserve"><value>Lainnya</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skrip (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kode game (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokasi memori</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Dialokasikan</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memori yang dialokasikan thread game selama skrip mod ini berjalan dalam rentang yang dipilih, termasuk fungsi game yang dipanggilnya. Makin banyak alokasi, makin sering memori dibersihkan (GC). Perkiraan dari sampel, seperti waktunya.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Seluruh thread game, skrip maupun bukan: {0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Sendiri: dialokasikan saat fungsi itu sendiri berjalan. Total: juga saat fungsi yang dipanggilnya berjalan.</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>Tidak ada alokasi skrip yang tercatat dalam rentang ini.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Cara menggunakan grafik</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Rekaman performa</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Tampilkan semua</value></data>

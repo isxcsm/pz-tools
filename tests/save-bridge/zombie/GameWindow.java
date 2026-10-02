@@ -19,11 +19,15 @@ public final class GameWindow {
     public static boolean isIngameState() { return states.current instanceof zombie.gameStates.IngameState; }
     private static boolean busy;
     private static double sink;
+    private static volatile Object garbage;
     private static void logic() { ticks++; zombie.characters.IsoPlayer.tickHalo(); if (busy) simulateWork(); }
-    // Something for a profile recording to see: a few milliseconds of plain Java each frame.
+    // Something for a profile recording to see: a few milliseconds of plain Java each frame, and garbage to allocate.
     private static void simulateWork() {
         long until = System.nanoTime() + 8_000_000L;
-        while (System.nanoTime() < until) for (int i = 1; i < 2000; i++) sink += Math.sqrt(i);
+        while (System.nanoTime() < until) {
+            for (int i = 1; i < 2000; i++) sink += Math.sqrt(i);
+            garbage = new byte[16 * 1024];
+        }
     }
 
     public static void save(boolean flag) throws IOException {

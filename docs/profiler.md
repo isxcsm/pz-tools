@@ -21,7 +21,7 @@ the reason.
 
 | Mode | Java samples | Lua samples | Extra |
 | --- | --- | --- | --- |
-| Standard | every 10 ms | every 10 ms | garbage-collection pauses, Java heap use, video memory |
+| Standard | every 10 ms | every 10 ms | garbage-collection pauses, Java heap use, video memory, memory allocated by scripts |
 | Detailed | 1 ms requested, about 1.5–2 ms in practice | every 1 ms | the above, and lock waits, parked threads, slow file reads/writes, JVM stop-the-world operations |
 
 Memory is recorded in both modes. The **Java heap** (used, committed and maximum) is read
@@ -34,6 +34,17 @@ recording is written, the worker adds these readings to its end on the recording
 scale. Where Windows has no such counters (before Windows 10 1709, or a driver that does
 not report them), the recording simply has no video memory. Neither tells how much of
 what is held each frame actually uses.
+
+**Allocations** say who fills the heap. Each time the Lua sampler looks at the game, it
+also reads how many bytes the game thread has allocated so far (the JVM's own per-thread
+counter; nothing is hooked), and the bytes since its previous look go to the Lua function
+it finds running, the same way the sample's time does. Once a second it also records the
+game thread's whole allocation, in Lua or not. Like the shares of time this is an
+estimate: a function that runs between two looks has its bytes counted for whichever
+function the next look finds, so Detailed mode, which looks every millisecond, is closer.
+It says how much garbage each mod makes, which is what makes collections frequent; it
+does not say which mod *keeps* memory (a growing heap that never drops), which would need
+a heap dump.
 
 Both modes are sampling: the game's code is not rewritten or instrumented. Detailed mode
 samples more often and records why a thread was *not* running; it costs the game some
@@ -53,6 +64,7 @@ it, start or stop simply waits for it.
 | --- | --- | --- |
 | Java stack samples, native-call samples, GC and pause events, heap use | The JVM's own flight recorder (`jdk.jfr`) | Unaffected: it depends on Java, not on game code |
 | Video memory | Windows performance counters, read by the recording worker | Unaffected: it depends on Windows and the graphics driver |
+| Allocations by script | The JVM's per-thread allocation counter, read by the Lua sampler for the thread that runs the frame hook | Needs both game-specific parts below; without either, or in a Java runtime without the `jdk.management` module, the recording has no allocations and the page no allocation tab |
 | Frame boundaries | The existing game-loop hook (`GameWindow.logic`) | The recording still works; there is no frame graph, only the time axis |
 | Lua function and mod attribution | Reads the Lua interpreter's call stack (`LuaManager.thread`, Kahlua call frames) from a sampler thread | The recording still works; the page says mod information is unavailable |
 
@@ -83,7 +95,8 @@ it; this is where it shows. Over either graph the figures follow the pointer: th
 collections that overlapped the frame there, and memory at that moment. The copied text
 starts with the range line followed by these figures.
 
-The results are in two tabs, *Scripts (Lua)* and *Game code (Java)*. Each tab is split in
+The results are in tabs, *Scripts (Lua)* and *Game code (Java)*, and *Memory allocation*
+for recordings that have allocations. Each tab is split in
 two: owners on the left (mods, the game's scripts, parts of the game code, with a bar
 relative to the largest), and the chosen owner's functions on the right as a table with a
 heading over every column. The owner list has headings too, and the one over its numbers
@@ -98,7 +111,17 @@ the tab's owner list with its headings, and the chosen owner's table, columns li
 message to a mod's author. The
 chosen owner stays chosen when the range changes, if it is still there. The *Game code*
 tab also lists *Share by thread* (with *All threads*) and *Long waits and pauses*. In a
-narrow window the table moves below the owner list.
+narrow window the table moves below the owner list; in a wide one the owner list is as
+wide as the tabs above it need.
+
+*Memory allocation* has the same owners as *Scripts*, ranked by the bytes the game thread
+allocated while their functions ran (*Allocated*, with all scripts together beside the
+heading; resting the pointer on the heading adds the whole game thread's figure, scripts
+or not, which tells whether the scripts or the game's own code make more garbage). The
+table gives each function's *Self* and *Total* in bytes, as the time tab gives them in
+time. To find who makes the collections in a stretch of play, open the memory panel,
+drag over the stretch where the grey bars crowd, and read this tab. Recordings made
+before allocations were recorded have no such tab.
 
 - **Frame graph.** One bar per slice of time, as tall as the slowest frame in that slice,
   so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per

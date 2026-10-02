@@ -249,6 +249,41 @@ public sealed class ProfileRecordingTests
         Assert.Equal(((long?)null, (long?)null), ProfileAnalysis.MemoryPeaksIn(recording, 0, 50_000));
     }
 
+    [Fact]
+    public void Allocations_GoToTheFunctionsEachLuaSampleFound_AndTheirMods()
+    {
+        // What the game thread allocated before each Lua sample, and once for the whole thread.
+        var recording = Load(Sample + "\nLA|1015000|1000\nLA|1025000|3000\nLA|1035000|5000\nLA|1045000|200\nGA|1050000|20000");
+        Assert.True(recording.HasLuaAllocations);
+        Assert.Equal([1000L, 3000, 5000, 200], recording.LuaSamples.Select(sample => sample.Allocated));
+
+        var range = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        Assert.Equal(9200, range.LuaAllocated);
+        // Each sample's bytes go to the innermost function's mod, as its time does.
+        Assert.Equal([("SlowMod", 6000L, 2), (ProfileAnalysis.UnknownOwner, 3000L, 1), (ProfileAnalysis.GameOwner, 200L, 1)],
+            range.LuaAllocationGroups.Select(group => (group.Key, group.Self, group.Samples)));
+        var slow = Assert.Single(range.LuaAllocationGroups[0].Rows);
+        Assert.Equal(("slow", 6000L, 9000L), (slow.Name, slow.Self, slow.Total));
+        Assert.Equal(9200, range.LuaAllocationGroups[2].Rows.Single(row => row.Name == "OnTick").Total);
+        // The thread's one reading covers the second before it, of which the range holds 40 ms.
+        Assert.Equal(800, range.GameThreadAllocated);
+
+        var before = ProfileAnalysis.Analyze(recording, 0, 20_000, recording.GameThread);
+        Assert.Equal(1000, before.LuaAllocated);
+    }
+
+    [Fact]
+    public void Allocations_AreAbsentFromRecordingsMadeBeforeThem()
+    {
+        var recording = Load(Sample);
+        Assert.False(recording.HasLuaAllocations);
+        Assert.All(recording.LuaSamples, sample => Assert.Equal(-1, sample.Allocated));
+        var range = ProfileAnalysis.Analyze(recording, 0, 50_000, recording.GameThread);
+        Assert.Empty(range.LuaAllocationGroups);
+        Assert.Equal(0, range.LuaAllocated);
+        Assert.Null(range.GameThreadAllocated);
+    }
+
     private static byte[] Compress(string text)
     {
         var lines = text.Replace("\r\n", "\n").Replace('|', '\t').Split('\n').Select(line => line.TrimStart(' '));

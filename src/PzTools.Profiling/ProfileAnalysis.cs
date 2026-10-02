@@ -1,4 +1,4 @@
-namespace PzTools.Profiling;
+﻿namespace PzTools.Profiling;
 
 /// <summary>
 /// One row of a breakdown. <see cref="Self"/> is time spent in the item itself, <see cref="Total"/>
@@ -9,6 +9,16 @@ public sealed record ProfileShare(string Name, string Detail, double Self, doubl
 
 /// <summary>Rows that belong together: the game's own code, one mod, the Java runtime. Largest rows first.</summary>
 public sealed record ProfileGroup(string Key, double Self, int Samples, IReadOnlyList<ProfileShare> Rows);
+
+/// <summary>
+/// One row of the allocation breakdown, in bytes the game thread allocated: <see cref="Self"/> while the function itself
+/// was running, <see cref="Total"/> while it was anywhere on the stack. Each sample's bytes go to what it found running,
+/// so like the shares of time these are estimates; <see cref="Samples"/> is how many samples carry <see cref="Self"/>.
+/// </summary>
+public sealed record ProfileAllocation(string Name, string Detail, long Self, long Total, int Samples);
+
+/// <summary>A mod's (or the game's scripts') allocations, largest first.</summary>
+public sealed record ProfileAllocationGroup(string Key, long Self, int Samples, IReadOnlyList<ProfileAllocation> Rows);
 
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
@@ -29,7 +39,15 @@ public sealed record ProfileRange(
     IReadOnlyList<ProfileGroup> LuaGroups,
     int Collections,
     double CollectionPauseMilliseconds,
-    IReadOnlyList<ProfilePause> LongestPauses);
+    IReadOnlyList<ProfilePause> LongestPauses)
+{
+    /// <summary>Allocations by mod; empty when the recording has none.</summary>
+    public IReadOnlyList<ProfileAllocationGroup> LuaAllocationGroups { get; init; } = [];
+    /// <summary>Bytes the game thread allocated while running Lua, all owners together.</summary>
+    public long LuaAllocated { get; init; }
+    /// <summary>Bytes the game thread allocated in the range, in Lua or not; null without readings.</summary>
+    public long? GameThreadAllocated { get; init; }
+}
 
 /// <summary>Answers "what was the game doing between these two moments" from a loaded recording.</summary>
 public static class ProfileAnalysis
@@ -103,17 +121,32 @@ public static class ProfileAnalysis
         var owners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // Worked out once per function, not once per sample and depth.
         var ownerOf = new string?[recording.LuaFunctions.Count];
+        // Bytes the game thread allocated, given to the functions each sample found, the way its time is.
+        var allocatedSelf = new Dictionary<int, (long Bytes, int Count)>();
+        var allocatedTotal = new Dictionary<int, long>();
+        long luaAllocated = 0;
         for (var index = luaFirst; index < lua.Length && lua[index].Time < end; index++)
         {
             var stack = recording.LuaStacks[lua[index].Stack];
             if (stack.Length == 0) continue;
             luaCount++;
             functionSelf[stack[0].Function] = functionSelf.GetValueOrDefault(stack[0].Function) + 1;
+            var allocated = lua[index].Allocated;
+            if (allocated >= 0)
+            {
+                luaAllocated += allocated;
+                var self = allocatedSelf.GetValueOrDefault(stack[0].Function);
+                allocatedSelf[stack[0].Function] = (self.Bytes + allocated, self.Count + 1);
+            }
             seen.Clear(); owners.Clear();
             for (var depth = 0; depth < stack.Length; depth++)
             {
                 var function = stack[depth].Function;
-                if (seen.Add(function)) functionTotal[function] = functionTotal.GetValueOrDefault(function) + 1;
+                if (seen.Add(function))
+                {
+                    functionTotal[function] = functionTotal.GetValueOrDefault(function) + 1;
+                    if (allocated >= 0) allocatedTotal[function] = allocatedTotal.GetValueOrDefault(function) + allocated;
+                }
                 var owner = ownerOf[function] ??= OwnerOf(recording.LuaFunctions[function].File);
                 if (depth == 0) ownerSelf[owner] = ownerSelf.GetValueOrDefault(owner) + 1;
                 if (owners.Add(owner)) ownerTotal[owner] = ownerTotal.GetValueOrDefault(owner) + 1;
@@ -143,9 +176,46 @@ public static class ProfileAnalysis
                 && (thread < 0 || item.Thread < 0 || item.Thread == thread))
             .OrderByDescending(item => item.Duration).Take(10).ToArray();
 
+        // The same owners as the time, ranked by what their functions allocated themselves.
+        var allocationGroups = allocatedTotal
+            .Select(item =>
+            {
+                var self = allocatedSelf.GetValueOrDefault(item.Key);
+                var function = recording.LuaFunctions[item.Key];
+                return new ProfileAllocation(function.Name, function.File, self.Bytes, item.Value, self.Count);
+            })
+            .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal)
+            .GroupBy(row => OwnerOf(row.Detail), StringComparer.OrdinalIgnoreCase)
+            .Select(group => new ProfileAllocationGroup(group.Key, group.Sum(row => row.Self), group.Sum(row => row.Samples),
+                group.Take(maximumRows).ToArray()))
+            .OrderByDescending(group => group.Self).ThenBy(group => group.Key, StringComparer.Ordinal).ToArray();
+
         return new ProfileRange(start, end, FrameStatistics(recording, start, end), count, methods, methodGroups, threads,
             Math.Min(1, luaCount * perLuaSample), luaCount, luaFunctions, luaOwners, luaGroups,
-            collectionCount, collectionPause, pauses);
+            collectionCount, collectionPause, pauses)
+        {
+            LuaAllocationGroups = allocationGroups,
+            LuaAllocated = luaAllocated,
+            GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
+        };
+    }
+
+    /// <summary>
+    /// What the game thread allocated in the range, in Lua or not; null without readings. Each reading covers the time
+    /// since the one before (the first, a second), and counts in the part of it that falls inside the range.
+    /// </summary>
+    public static long? GameThreadAllocatedIn(ProfileRecording recording, long start, long end)
+    {
+        var readings = recording.GameThreadAllocations;
+        if (readings.Count == 0) return null;
+        double bytes = 0;
+        for (var index = 0; index < readings.Count; index++)
+        {
+            long to = readings[index].Time, from = index > 0 ? readings[index - 1].Time : to - 1_000_000;
+            var overlap = Math.Min(end, to) - Math.Max(start, from);
+            if (overlap > 0) bytes += readings[index].Bytes * (double)overlap / Math.Max(1, to - from);
+        }
+        return (long)Math.Round(bytes);
     }
 
     /// <summary>The most heap in use, and the most video memory on the graphics card, during the range; null without readings.</summary>

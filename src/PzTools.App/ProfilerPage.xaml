@@ -207,6 +207,8 @@
           <SelectorBar x:Name="ResultTabs" SelectionChanged="ResultTabs_SelectionChanged">
             <SelectorBarItem x:Name="LuaTab" IsSelected="True" />
             <SelectorBarItem x:Name="JavaTab" AutomationProperties.AutomationId="ProfileJavaTab" />
+            <!-- Only for recordings whose Lua samples carry allocations. -->
+            <SelectorBarItem x:Name="AllocationTab" Visibility="Collapsed" AutomationProperties.AutomationId="ProfileAllocationTab" />
           </SelectorBar>
           <Canvas x:Name="TabSelectionLayer" IsHitTestVisible="False">
             <Border x:Name="TabSelectionBar" Width="16" Height="3" CornerRadius="1.5" Visibility="Collapsed"

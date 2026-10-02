@@ -26,7 +26,13 @@ import jdk.jfr.consumer.*;
  *   LM id name file                   a Lua function
  *   LK id f:line f:line ...           a Lua stack, innermost first
  *   L  time stack                     a Lua sample
+ *   LA time bytes                     what the game thread allocated since the sampler's previous look,
+ *                                     for the Lua sample at the same time
  *   LH time taken inLua periodMicros  Lua sampler totals since the previous LH
+ *   GA time bytes                     what the game thread allocated since the previous GA, in Lua or not
+ *
+ * LA and GA are records of their own, not extra fields of L and LH, so a reader that predates them
+ * still reads the samples; only recordings whose runtime has the per-thread counter carry them.
  *   G  time duration name cause       a garbage collection; duration is its total pause
  *   P  time duration kind thread detail   a pause or wait on one thread
  *   H  time used committed max        the Java heap in bytes, four times a second
@@ -127,10 +133,16 @@ public final class ProfileExport {
                             tables.append(line).append('\n');
                         }
                         body.append("L\t").append(time).append('\t').append(known).append('\n');
+                        long allocated = allocated(event);
+                        if (allocated >= 0) body.append("LA\t").append(time).append('\t').append(allocated).append('\n');
                         luaSamples++;
                     }
-                    case "pztools.LuaSampler" -> body.append("LH\t").append(time).append('\t').append(event.getLong("taken")).append('\t')
-                        .append(event.getLong("inLua")).append('\t').append(event.getLong("periodMicros")).append('\n');
+                    case "pztools.LuaSampler" -> {
+                        body.append("LH\t").append(time).append('\t').append(event.getLong("taken")).append('\t')
+                            .append(event.getLong("inLua")).append('\t').append(event.getLong("periodMicros")).append('\n');
+                        long allocated = allocated(event);
+                        if (allocated >= 0) body.append("GA\t").append(time).append('\t').append(allocated).append('\n');
+                    }
                     case "jdk.GCHeapMemoryUsage" -> body.append("H\t").append(time).append('\t').append(event.getLong("used"))
                         .append('\t').append(event.getLong("committed")).append('\t').append(event.getLong("max")).append('\n');
                     case "jdk.GarbageCollection" -> body.append("G\t").append(time).append('\t')
@@ -198,6 +210,11 @@ public final class ProfileExport {
             tables.append("K\t").append(known).append('\t').append(text).append('\n');
         }
         return known;
+    }
+
+    // A recording made before allocations were read has no such field.
+    private static long allocated(RecordedEvent event) {
+        return event.hasField("allocated") ? event.getLong("allocated") : -1;
     }
 
     private static String detail(RecordedEvent event, String type) {

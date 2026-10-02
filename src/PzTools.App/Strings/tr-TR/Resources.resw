@@ -419,6 +419,12 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileMoreActions" xml:space="preserve"><value>Daha fazla</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Betikler (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Oyun kodu (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Bellek ayırma</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Ayrılan</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Seçilen aralıkta bu modun betikleri çalışırken oyun iş parçacığının ayırdığı bellek; betiklerin çağırdığı oyun işlevleri de dahil. Ne kadar çok ayrılırsa bellek o kadar sık temizlenir (GC). Süre gibi örneklerden çıkan bir tahmindir.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Oyun iş parçacığının tamamı, betik olsun olmasın: {0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Kendi: işlevin kendisi çalışırken ayrılan. Toplam: çağırdığı işlevler çalışırken ayrılan da dahil.</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>Bu aralıkta betiklerin bellek ayırdığı kaydedilmedi.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Grafik nasıl kullanılır</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Performans kaydı</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Tümünü göster</value></data>

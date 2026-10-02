@@ -419,6 +419,12 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Mais</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Scripts (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Código do jogo (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Alocação de memória</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Alocado</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memória que a thread do jogo alocou enquanto os scripts deste mod rodavam no intervalo selecionado, incluindo as funções do jogo que eles chamaram. Quanto mais se aloca, mais vezes a memória é limpa (GC). Uma estimativa a partir das amostras, como o tempo.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Toda a thread do jogo, com ou sem scripts: {0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Próprio: alocado enquanto a própria função rodava. Total: também enquanto rodavam as funções que ela chamou.</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>Nenhuma alocação de script foi registrada neste intervalo.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Como usar o gráfico</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Gravação de desempenho</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Mostrar tudo</value></data>

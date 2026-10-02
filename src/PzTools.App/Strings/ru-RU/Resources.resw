@@ -419,6 +419,12 @@
   <data name="ProfileMoreActions" xml:space="preserve"><value>Ещё</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Скрипты (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Код игры (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Выделение памяти</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Выделено</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Память, которую игровой поток выделил, пока в выбранном диапазоне работали скрипты этого мода, включая вызванные ими функции игры. Чем больше выделяется, тем чаще идёт очистка памяти (GC). Оценка по выборкам, как и время.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Весь игровой поток, со скриптами и без: {0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Собственное: выделено, пока работала сама функция. Всего: также пока работали вызванные ею функции.</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>В этом диапазоне выделение памяти скриптами не записано.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Как пользоваться графиком</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Запись производительности</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Показать всё</value></data>

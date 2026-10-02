@@ -430,6 +430,12 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileFileType" xml:space="preserve"><value>Záznam výkonu</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Jak používat graf</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kód hry (Java)</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>V tomto úseku nebyly zaznamenány žádné alokace skriptů.</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Vlastní: alokováno, když běžela samotná funkce. Celkem: i když běžely funkce, které volala.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Celé herní vlákno, se skripty i bez nich: {0}</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Paměť, kterou herní vlákno alokovalo, zatímco ve vybraném úseku běžely skripty tohoto modu, včetně herních funkcí, které volaly. Čím víc se alokuje, tím častěji probíhá úklid paměti (GC). Odhad ze vzorků, stejně jako čas.</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokace paměti</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Otevřít záznam…</value></data>

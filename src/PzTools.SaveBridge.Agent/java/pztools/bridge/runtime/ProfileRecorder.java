@@ -25,15 +25,23 @@ final class ProfileRecorder {
     @Name("pztools.Frame") @Label("Game frame") @Category("PZ Tools") @StackTrace(false)
     static final class FrameEvent extends Event { }
 
-    /** Innermost first, as {@code name|file|line} joined by tabs-free separators; see {@link LuaSampler}. */
+    /**
+     * Innermost first, as {@code name|file|line} joined by tabs-free separators; see {@link LuaSampler}.
+     * {@code allocated}: bytes the game thread allocated since the sampler's previous look, -1 when unknown.
+     */
     @Name("pztools.LuaSample") @Label("Lua sample") @Category("PZ Tools") @StackTrace(false)
-    static final class LuaSampleEvent extends Event { @Label("Stack") String stack; }
+    static final class LuaSampleEvent extends Event {
+        @Label("Stack") String stack;
+        @Label("Allocated since the previous sample") @DataAmount long allocated;
+    }
 
     @Name("pztools.LuaSampler") @Label("Lua sampler") @Category("PZ Tools") @StackTrace(false)
     static final class LuaSamplerEvent extends Event {
         @Label("Samples taken") long taken;
         @Label("Samples in Lua") long inLua;
         @Label("Period in microseconds") long periodMicros;
+        /** Everything the game thread allocated since the previous report, in Lua or not; -1 when unknown. */
+        @Label("Game thread allocated") @DataAmount long allocated;
     }
 
     static final int MAXIMUM_SECONDS = 1800;
@@ -47,6 +55,8 @@ final class ProfileRecorder {
     private static volatile long frames;
     // Game thread only while active.
     private static FrameEvent open;
+    // The thread that runs the game loop, and with it the game's Lua: whose allocations the Lua sampler reads.
+    private static volatile Thread gameThread;
 
     private ProfileRecorder() { }
 
@@ -62,6 +72,7 @@ final class ProfileRecorder {
         if (!active) return;
         FrameEvent previous = open;
         if (previous != null) { previous.end(); previous.commit(); }
+        else if (gameThread == null) gameThread = Thread.currentThread();
         FrameEvent next = new FrameEvent();
         next.begin();
         open = next;
@@ -107,7 +118,7 @@ final class ProfileRecorder {
             TimerResolution.raise();
             next.start();
         } catch (Throwable failure) { TimerResolution.restore(); next.close(); throw failure; }
-        recording = next; detailed = detailedMode; startedNanos = System.nanoTime(); frames = 0; open = null;
+        recording = next; detailed = detailedMode; startedNanos = System.nanoTime(); frames = 0; open = null; gameThread = null;
         LuaSampler sampler = null;
         try { sampler = new LuaSampler(gameLoader, detailedMode ? 1_000_000L : 10_000_000L); luaState = "sampling"; }
         catch (ReflectiveOperationException | LinkageError unavailable) { luaState = "unavailable:" + unavailable.getClass().getSimpleName(); }
@@ -226,35 +237,50 @@ final class ProfileRecorder {
 
         @Override public void run() {
             long taken = 0, inLua = 0, lastReport = System.nanoTime();
+            // What the game thread allocated, by its JVM counter: the bytes since the previous look go to the Lua
+            // function found running now, the same vote a sample casts for time.
+            ThreadAllocation allocation;
+            try { allocation = ThreadAllocation.open(); } catch (LinkageError absent) { allocation = null; }
+            Thread counted = null;
+            long lastBytes = -1, reportBytes = -1;
             var text = new StringBuilder(512);
             try {
                 while (!stopped) {
                     wait.pause(periodNanos);
                     if (stopped) break;
                     taken++;
+                    long allocated = -1;
+                    Thread game = gameThread;
+                    if (allocation != null && game != null) {
+                        long bytes = allocation.of(game);
+                        if (bytes >= 0 && counted == game && lastBytes >= 0) allocated = Math.max(0, bytes - lastBytes);
+                        counted = game; lastBytes = bytes;
+                        if (allocated >= 0) reportBytes = Math.max(0, reportBytes) + allocated;
+                    }
                     text.setLength(0);
                     try { read(text); } catch (Throwable racing) { text.setLength(0); }
                     if (text.length() != 0) {
                         inLua++;
                         LuaSampleEvent event = new LuaSampleEvent();
                         event.stack = text.toString();
+                        event.allocated = allocated;
                         event.commit();
                     }
                     long now = System.nanoTime();
                     if (now - lastReport >= 1_000_000_000L) {
-                        report(taken, inLua); taken = inLua = 0; lastReport = now;
+                        report(taken, inLua, reportBytes); taken = inLua = 0; reportBytes = -1; lastReport = now;
                         // The recording ended by itself: stop reading the game for nobody. Checked once
                         // a second; counting samples for this missed it in Standard mode, where the
                         // count is reset before it gets that far.
                         if (!ProfileRecorder.running()) break;
                     }
                 }
-                report(taken, inLua);
+                report(taken, inLua, reportBytes);
             } finally { wait.close(); }
         }
-        private void report(long taken, long inLua) {
+        private void report(long taken, long inLua, long allocated) {
             LuaSamplerEvent event = new LuaSamplerEvent();
-            event.taken = taken; event.inLua = inLua; event.periodMicros = periodNanos / 1000;
+            event.taken = taken; event.inLua = inLua; event.periodMicros = periodNanos / 1000; event.allocated = allocated;
             event.commit();
         }
 
@@ -296,6 +322,32 @@ final class ProfileRecorder {
             if (value == null || value.isEmpty()) return "?";
             if (value.length() > 240) value = value.substring(value.length() - 240);
             return value.replace('|', '/').replace('\n', ' ').replace('\r', ' ').replace('\t', ' ');
+        }
+    }
+
+    /**
+     * How many bytes a thread has allocated so far, from the JVM's own per-thread counter: a read is a
+     * short lookup, and nothing is hooked or instrumented. Absent where the runtime
+     * lacks the management module or the counter, and then the recording simply has no allocations.
+     */
+    static final class ThreadAllocation {
+        private final com.sun.management.ThreadMXBean threads;
+        private ThreadAllocation(com.sun.management.ThreadMXBean threads) { this.threads = threads; }
+
+        /** Null when unavailable. A runtime without the module fails to link this class; the caller catches that. */
+        static ThreadAllocation open() {
+            try {
+                if (!(java.lang.management.ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean threads)
+                        || !threads.isThreadAllocatedMemorySupported()) return null;
+                // On by default; turned on only if someone turned it off.
+                if (!threads.isThreadAllocatedMemoryEnabled()) threads.setThreadAllocatedMemoryEnabled(true);
+                return new ThreadAllocation(threads);
+            } catch (RuntimeException | LinkageError unavailable) { return null; }
+        }
+
+        /** -1 when the thread has ended or the counter is off. */
+        long of(Thread thread) {
+            try { return threads.getThreadAllocatedBytes(thread.threadId()); } catch (RuntimeException unavailable) { return -1; }
         }
     }
 

@@ -419,6 +419,12 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileMoreActions" xml:space="preserve"><value>Więcej</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skrypty (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kod gry (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokacja pamięci</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Przydzielono</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Pamięć przydzielona przez wątek gry, gdy w wybranym zakresie działały skrypty tego moda, łącznie z wywoływanymi przez nie funkcjami gry. Im więcej przydziałów, tym częściej pamięć jest czyszczona (GC). Szacunek na podstawie próbek, tak jak czas.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Cały wątek gry, ze skryptami i bez: {0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Własne: przydzielone, gdy działała sama funkcja. Łącznie: także gdy działały funkcje przez nią wywołane.</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>W tym zakresie nie zarejestrowano przydziałów pamięci przez skrypty.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Jak korzystać z wykresu</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Nagranie wydajności</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Pokaż wszystko</value></data>

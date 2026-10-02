@@ -51,9 +51,9 @@ public sealed partial class ProfilerPage : UserControl
     private string rangeSummary = "";
     // A newly opened recording's bars rise from the baseline once, the first time the graph is drawn.
     private bool chartEntrance;
-    private List<ResultGroup> luaGroups = [], javaGroups = [], listedGroups = [];
+    private List<ResultGroup> luaGroups = [], javaGroups = [], allocationGroups = [], listedGroups = [];
     // The owner picked in each tab; a new range keeps it when the owner is still there.
-    private string? luaSelection, javaSelection;
+    private string? luaSelection, javaSelection, allocationSelection;
     private App App => (App)Application.Current;
 
     public ProfilerPage()
@@ -102,6 +102,8 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
+        AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
+        if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
         var thread = ThreadBox.SelectedIndex;
         ThreadBox.Items.Clear();
@@ -289,6 +291,9 @@ public sealed partial class ProfilerPage : UserControl
         ThreadBox.IsEnabled = loaded.GameThread >= 0;
         if (loaded.GameThread < 0) ThreadBox.SelectedIndex = 1;
         chartEntrance = Motion;
+        AllocationTab.Visibility = loaded.HasLuaAllocations ? Visibility.Visible : Visibility.Collapsed;
+        if (!loaded.HasLuaAllocations && ReferenceEquals(ResultTabs.SelectedItem, AllocationTab)) ResultTabs.SelectedItem = LuaTab;
+        ApplyLayout(ActualWidth);
         ApplyMemoryPanel();
         RenderChart();
         Analyze();
@@ -698,9 +703,12 @@ public sealed partial class ProfilerPage : UserControl
         return label;
     }
 
-    private static string Bytes(long bytes) => bytes >= 1L << 30
-        ? (bytes / (double)(1L << 30)).ToString("N1", Localizer.Culture) + " GB"
-        : (bytes / (double)(1L << 20)).ToString("N0", Localizer.Culture) + " MB";
+    // Memory readings are hundreds of megabytes and more; a function's allocations can be a few kilobytes.
+    private static string Bytes(long bytes) =>
+        bytes >= 1L << 30 ? (bytes / (double)(1L << 30)).ToString("N1", Localizer.Culture) + " GB"
+        : bytes >= 10L << 20 ? (bytes / (double)(1L << 20)).ToString("N0", Localizer.Culture) + " MB"
+        : bytes >= 1L << 20 ? (bytes / (double)(1L << 20)).ToString("N1", Localizer.Culture) + " MB"
+        : (bytes / 1024.0).ToString("N0", Localizer.Culture) + " KB";
 
     private string CollectionText(int count, double pausedMilliseconds) =>
         $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds))}";
@@ -960,16 +968,21 @@ public sealed partial class ProfilerPage : UserControl
 
     // ---- Layout ----
 
-    private void ProfilerPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void ProfilerPage_SizeChanged(object sender, SizeChangedEventArgs e) => ApplyLayout(e.NewSize.Width);
+
+    private void ApplyLayout(double width)
     {
         // Narrow: the recording tools go below the title, and the functions below their owners.
-        var narrowHeader = e.NewSize.Width < 760;
+        var narrowHeader = width < 760;
         Grid.SetRow(Toolbar, narrowHeader ? 1 : 0);
         Grid.SetColumn(Toolbar, narrowHeader ? 0 : 1);
         Grid.SetColumnSpan(Toolbar, narrowHeader ? 2 : 1);
         Toolbar.Margin = new Thickness(0, narrowHeader ? 0 : 9, 0, 0);
-        var stacked = e.NewSize.Width < 720;
-        GroupColumn.Width = stacked ? new GridLength(1, GridUnitType.Star) : new GridLength(300);
+        var stacked = width < 720;
+        // The owner list is as wide as the tabs over it need, at least 300: a third tab, or a language with long
+        // names, would otherwise be cut off.
+        ResultTabs.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        GroupColumn.Width = stacked ? new GridLength(1, GridUnitType.Star) : new GridLength(Math.Max(300, Math.Ceiling(ResultTabs.DesiredSize.Width)));
         DetailColumn.Width = new GridLength(stacked ? 0 : 1, GridUnitType.Star);
         GroupRow.Height = stacked ? new GridLength(200) : new GridLength(1, GridUnitType.Star);
         DetailRow.Height = new GridLength(stacked ? 1 : 0, GridUnitType.Star);
@@ -983,13 +996,21 @@ public sealed partial class ProfilerPage : UserControl
 
     // ---- Results ----
 
-    private enum DetailKind { Lua, Java, Threads, Pauses }
+    private enum DetailKind { Lua, Java, Threads, Pauses, Allocation }
+    private enum ResultTab { Lua, Java, Allocation }
 
-    /// <summary>One entry of the owner list: a mod, the game's scripts, a part of the game code, the threads, the pauses.</summary>
+    /// <summary>
+    /// One entry of the owner list: a mod, the game's scripts, a part of the game code, the threads, the pauses. A mod
+    /// in the allocation tab has its bytes and its functions' allocations instead of shares of time.
+    /// </summary>
     private sealed record ResultGroup(string Key, string Name, double? Share, int Samples, DetailKind Kind,
-        IReadOnlyList<ProfileShare> Rows, IReadOnlyList<ProfilePause> Pauses);
+        IReadOnlyList<ProfileShare> Rows, IReadOnlyList<ProfilePause> Pauses, long Bytes = 0, IReadOnlyList<ProfileAllocation>? Allocations = null);
 
-    private bool JavaShown => ReferenceEquals(ResultTabs.SelectedItem, JavaTab);
+    private ResultTab Tab =>
+        ReferenceEquals(ResultTabs.SelectedItem, JavaTab) ? ResultTab.Java
+        : ReferenceEquals(ResultTabs.SelectedItem, AllocationTab) ? ResultTab.Allocation : ResultTab.Lua;
+
+    private SelectorBarItem TabItem => Tab switch { ResultTab.Java => JavaTab, ResultTab.Allocation => AllocationTab, _ => LuaTab };
 
     private void ResultTabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) => ShowTab();
 
@@ -1019,10 +1040,12 @@ public sealed partial class ProfilerPage : UserControl
         // A handful of samples cannot carry percentages; say so instead of showing confident numbers.
         FewSamplesInfo.IsOpen = range.Samples < 20;
 
-        luaGroups = range.LuaGroups.Select(group => new ResultGroup(group.Key,
-            group.Key == ProfileAnalysis.GameOwner ? Localizer.Get("ProfileOwnerGame")
-            : group.Key == ProfileAnalysis.UnknownOwner ? Localizer.Get("ProfileOwnerUnknown") : group.Key,
+        luaGroups = range.LuaGroups.Select(group => new ResultGroup(group.Key, OwnerName(group.Key),
             group.Self, group.Samples, DetailKind.Lua, group.Rows, [])).ToList();
+        // The share only sizes the bar; the number shown is the bytes.
+        allocationGroups = range.LuaAllocationGroups.Select(group => new ResultGroup(group.Key, OwnerName(group.Key),
+            range.LuaAllocated > 0 ? (double)group.Self / range.LuaAllocated : 0, group.Samples, DetailKind.Allocation, [], [],
+            group.Self, group.Rows)).ToList();
         javaGroups = range.MethodGroups.Select(group => new ResultGroup(group.Key, Localizer.Get($"ProfileGroup.{group.Key}"),
             group.Self, group.Samples, DetailKind.Java, group.Rows, [])).ToList();
         if (range.Threads.Count > 1)
@@ -1033,23 +1056,39 @@ public sealed partial class ProfilerPage : UserControl
         ShowTab();
     }
 
+    private static string OwnerName(string key) =>
+        key == ProfileAnalysis.GameOwner ? Localizer.Get("ProfileOwnerGame")
+        : key == ProfileAnalysis.UnknownOwner ? Localizer.Get("ProfileOwnerUnknown") : key;
+
     private void ShowTab()
     {
         if (shown is not { } range) return;
-        var java = JavaShown;
-        listedGroups = java ? javaGroups : luaGroups;
+        var tab = Tab;
+        var java = tab == ResultTab.Java;
+        listedGroups = tab switch { ResultTab.Java => javaGroups, ResultTab.Allocation => allocationGroups, _ => luaGroups };
         if (listedGroups.Count == 0)
         {
             SetSplitVisible(false);
-            ResultMessage.Text = Localizer.Get(java ? "ProfileFewSamples" : recording?.LuaPeriod > 0 ? "ProfileLuaNone" : "ProfileNoLua");
+            ResultMessage.Text = Localizer.Get(java ? "ProfileFewSamples" : recording?.LuaPeriod is not > 0 ? "ProfileNoLua"
+                : tab == ResultTab.Allocation ? "ProfileAllocationNone" : "ProfileLuaNone");
             return;
         }
         SetSplitVisible(true);
         GroupNameHeading.Text = Localizer.Get(java ? "ProfileListJavaOwner" : "ProfileListLuaOwner");
-        GroupShareText.Text = Localizer.Get(java ? "ProfileListJavaShare" : "ProfileListLuaShare");
-        AppToolTip.SetTip(GroupShareHeading, Localizer.Get(java ? "ProfileListJavaShareTip" : "ProfileListLuaShareTip"));
+        GroupShareText.Text = Localizer.Get(tab switch
+        {
+            ResultTab.Java => "ProfileListJavaShare", ResultTab.Allocation => "ProfileListAllocation", _ => "ProfileListLuaShare",
+        });
+        AppToolTip.SetTip(GroupShareHeading, tab switch
+        {
+            ResultTab.Java => Localizer.Get("ProfileListJavaShareTip"),
+            // With the whole game thread's figure, which tells whether the scripts or the game's own code allocate more.
+            ResultTab.Allocation => Localizer.Get("ProfileListAllocationTip") + (range.GameThreadAllocated is { } whole
+                ? "\n" + Localizer.Format("ProfileAllocationGameThreadFormat", Bytes(whole)) : ""),
+            _ => Localizer.Get("ProfileListLuaShareTip"),
+        });
         // Only the scripts have a whole worth stating, beside the heading: the game code's items always add up to all of it.
-        GroupShareTotal.Text = java ? "" : Percent(range.LuaShare);
+        GroupShareTotal.Text = tab switch { ResultTab.Java => "", ResultTab.Allocation => Bytes(range.LuaAllocated), _ => Percent(range.LuaShare) };
         GroupShareTotal.Visibility = java ? Visibility.Collapsed : Visibility.Visible;
         AutomationProperties.SetName(GroupShareHeading, java ? GroupShareText.Text : $"{GroupShareText.Text} {GroupShareTotal.Text}");
         // Bars are relative to the largest owner, so the list reads as a ranking; the number is the real share.
@@ -1058,7 +1097,7 @@ public sealed partial class ProfilerPage : UserControl
         GroupList.Items.Clear();
         for (var position = 0; position < listedGroups.Count; position++)
             GroupList.Items.Add(GroupItem(listedGroups[position], largest, position));
-        var remembered = java ? javaSelection : luaSelection;
+        var remembered = tab switch { ResultTab.Java => javaSelection, ResultTab.Allocation => allocationSelection, _ => luaSelection };
         var index = Math.Max(0, listedGroups.FindIndex(group => group.Key == remembered));
         GroupList.SelectedIndex = index;
         updatingGroups = false;
@@ -1069,7 +1108,12 @@ public sealed partial class ProfilerPage : UserControl
     {
         if (updatingGroups || GroupList.SelectedIndex < 0 || GroupList.SelectedIndex >= listedGroups.Count) return;
         var group = listedGroups[GroupList.SelectedIndex];
-        if (JavaShown) javaSelection = group.Key; else luaSelection = group.Key;
+        switch (Tab)
+        {
+            case ResultTab.Java: javaSelection = group.Key; break;
+            case ResultTab.Allocation: allocationSelection = group.Key; break;
+            default: luaSelection = group.Key; break;
+        }
         ShowGroup(group);
     }
 
@@ -1121,7 +1165,8 @@ public sealed partial class ProfilerPage : UserControl
 
     /// <summary>The number beside an owner: its share, or for the pauses how many there were, with a unit so it is not read as a share.</summary>
     private static string ValueOf(ResultGroup group) =>
-        group.Share is { } share ? Percent(share)
+        group.Kind == DetailKind.Allocation ? Bytes(group.Bytes)
+        : group.Share is { } share ? Percent(share)
         : group.Kind == DetailKind.Pauses ? Localizer.Format("ProfilePauseCount", group.Pauses.Count.ToString("N0", Localizer.Culture)) : "";
 
     /// <summary>The right pane: the chosen owner's functions as a table with a heading over every column.</summary>
@@ -1143,7 +1188,7 @@ public sealed partial class ProfilerPage : UserControl
     private string? SamplesOf(ResultGroup group)
     {
         if (group.Samples <= 0) return null;
-        var total = group.Kind == DetailKind.Lua ? shown?.LuaSamples ?? 0 : shown?.Samples ?? 0;
+        var total = group.Kind is DetailKind.Lua or DetailKind.Allocation ? shown?.LuaSamples ?? 0 : shown?.Samples ?? 0;
         return $"{group.Samples.ToString("N0", Localizer.Culture)}/{total.ToString("N0", Localizer.Culture)}";
     }
 
@@ -1159,11 +1204,11 @@ public sealed partial class ProfilerPage : UserControl
         var numbers = new[] { Fixed(64), Fixed(64), Fixed(60) };
         var columns = group.Kind switch
         {
-            DetailKind.Lua => [Star(3), Star(2), .. numbers],
+            DetailKind.Lua or DetailKind.Allocation => [Star(3), Star(2), .. numbers],
             DetailKind.Pauses => [Fixed(90), Fixed(90), Star(1), Star(2)],
             _ => (GridLength[])[Star(1), .. numbers],
         };
-        var columnsTip = Localizer.Get("ProfileColumnsTip");
+        var columnsTip = Localizer.Get(group.Kind == DetailKind.Allocation ? "ProfileAllocationColumnsTip" : "ProfileColumnsTip");
         (string, string?, bool)[] Numbers() =>
         [
             (Localizer.Get("ProfileColumnSelf"), columnsTip, true),
@@ -1172,7 +1217,8 @@ public sealed partial class ProfilerPage : UserControl
         ];
         (string Text, string? Tip, bool Right)[] header = group.Kind switch
         {
-            DetailKind.Lua => [(Localizer.Get("ProfileColumnFunction"), null, false), (Localizer.Get("ProfileColumnFile"), null, false), .. Numbers()],
+            DetailKind.Lua or DetailKind.Allocation =>
+                [(Localizer.Get("ProfileColumnFunction"), null, false), (Localizer.Get("ProfileColumnFile"), null, false), .. Numbers()],
             DetailKind.Java => [(Localizer.Get("ProfileColumnMethod"), null, false), .. Numbers()],
             DetailKind.Threads => [(Localizer.Get("ProfileColumnThread"), null, false), .. Numbers()],
             _ =>
@@ -1197,6 +1243,16 @@ public sealed partial class ProfilerPage : UserControl
                     (pause.Kind, null, false), (detail, detail, false),
                 ]);
             }
+            return (columns, header, rows);
+        }
+        if (group.Allocations is { } allocations)
+        {
+            foreach (var row in allocations)
+                rows.Add(
+                [
+                    (row.Name, row.Name, false), (LuaFileName(row.Detail), row.Detail, false),
+                    (Bytes(row.Self), null, true), (Bytes(row.Total), null, true), (row.Samples.ToString("N0", Localizer.Culture), null, true),
+                ]);
             return (columns, header, rows);
         }
         foreach (var row in group.Rows)
@@ -1251,7 +1307,7 @@ public sealed partial class ProfilerPage : UserControl
         }.Where(part => !string.IsNullOrEmpty(part))));
         text.AppendLine(rangeSummary);
         text.AppendLine();
-        text.AppendLine(JavaShown ? JavaTab.Text : LuaTab.Text);
+        text.AppendLine(TabItem.Text);
         if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);
         else
         {

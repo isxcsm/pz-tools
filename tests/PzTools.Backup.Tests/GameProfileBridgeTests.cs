@@ -52,6 +52,15 @@ public sealed partial class GameSaveClientTests
         // The heap is read four times a second while the recording runs.
         Assert.True(recording.Heap.Count >= 4, $"heap readings: {recording.Heap.Count}");
         Assert.All(recording.Heap, item => Assert.True(item.Used > 0 && item.Used <= item.Committed));
+        // The game thread's garbage, read from its JVM counter: given to the mod function each Lua sample found running,
+        // and counted for the whole thread once a second.
+        Assert.True(recording.HasLuaAllocations);
+        var allocations = Assert.Single(range.LuaAllocationGroups);
+        Assert.Equal("ExampleMod", allocations.Key);
+        Assert.True(allocations.Self > 1024 * 1024, $"allocated: {allocations.Self}");
+        Assert.Equal("heavyWork", allocations.Rows[0].Name);
+        Assert.Equal(range.LuaAllocated, allocations.Self);
+        Assert.True(range.GameThreadAllocated > 1024 * 1024, $"game thread: {range.GameThreadAllocated}");
 
         // The shared file names the mod and the script, never the folders above them.
         using var text = new StreamReader(new GZipStream(File.OpenRead(output), CompressionMode.Decompress));

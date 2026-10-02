@@ -419,6 +419,12 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileMoreActions" xml:space="preserve"><value>Altro</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Script (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Codice del gioco (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Allocazione di memoria</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Allocata</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memoria allocata dal thread del gioco mentre gli script di questa mod erano in esecuzione nell'intervallo scelto, comprese le funzioni del gioco che hanno chiamato. Più si alloca, più spesso la memoria viene ripulita (GC). Una stima dai campioni, come il tempo.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Tutto il thread del gioco, script e non: {0}</value></data>
+  <data name="ProfileAllocationColumnsTip" xml:space="preserve"><value>Propria: allocata mentre era in esecuzione la funzione stessa. Totale: anche mentre erano in esecuzione le funzioni che ha chiamato.</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>In questo intervallo non sono state registrate allocazioni degli script.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Come usare il grafico</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Registrazione delle prestazioni</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Mostra tutto</value></data>
