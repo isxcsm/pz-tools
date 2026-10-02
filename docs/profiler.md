@@ -362,6 +362,16 @@ requested period.
 ## Files
 
 Each recording is one file, `%LOCALAPPDATA%\PzTools\profiles\profile-<date>-<time>.pzprof`.
+The list names it by what it is: *Last 2 min · Today 3:43 PM*, *Recording 1 min 20 s ·
+Detailed · Yesterday 9:10 PM* (Standard, the usual mode, goes unsaid; older ones show
+their date). What a recording is lies inside it, its length at its very end, so each is
+read once in the background and kept in `%LOCALAPPDATA%\PzTools\profiles-index.json`, by
+file name, size and time; until then it is listed by its time. The pencil beside the
+list renames the selected recording in place: type over the name, Enter or clicking
+elsewhere keeps it, Esc does not, and an empty name gives the saved one back. The name
+is the file's, so whoever is sent the file sees it too, ahead of the rest: *mod A added ·
+Recording 3 min · Today 3:43 PM*. Characters a file name cannot hold become `_`, and a
+name already taken gets a number.
 *Open recording* copies a `.pzprof` file from elsewhere into that folder, keeping its
 time, and lists it with the others; a file that is not a readable recording is refused
 and nothing is copied. *Save as* copies the selected recording to a place you choose.

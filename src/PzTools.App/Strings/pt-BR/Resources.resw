@@ -377,7 +377,6 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Gravando o desempenho do jogo…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>Processando a gravação…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Gravação de desempenho</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Excluir esta gravação? Essa ação não pode ser desfeita.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Ainda não há gravações.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Não foi possível abrir esta gravação. O arquivo está danificado ou foi criado por uma versão mais recente.</value></data>
@@ -428,6 +427,14 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileSearch" xml:space="preserve"><value>Pesquisar</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Comparar com</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca do último minuto, que é salvo como gravação. Modo: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Últimos {0} min</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Gravação {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} min</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Hoje {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Ontem {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Renomear</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Backup automático pausado</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Teclas de atalho</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Também funcionam no jogo. Enquanto o PZ Tools estiver aberto, as teclas definidas aqui ficam indisponíveis para outros programas. Cada uma responde com um som e um aviso acima da cabeça do seu personagem.</value></data>

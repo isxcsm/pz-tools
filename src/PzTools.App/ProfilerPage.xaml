@@ -71,6 +71,7 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <!-- Saves the last minutes the game keeps (Settings > Performance), right after a stutter. A disabled button
              shows no tooltip; its holder carries it, which says why when it cannot. -->
@@ -100,9 +101,17 @@
         <ComboBox x:Name="RecordingList" Grid.Column="5" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   SelectionChanged="RecordingList_SelectionChanged"
                   AutomationProperties.AutomationId="ProfileRecordingList" />
-        <ComboBox x:Name="ThreadBox" Grid.Column="6" MinWidth="130" VerticalAlignment="Center"
+        <!-- In the list's place while the selected recording is renamed. -->
+        <TextBox x:Name="RenameBox" Grid.Column="5" MinWidth="160" VerticalAlignment="Center" Visibility="Collapsed"
+                 KeyDown="RenameBox_KeyDown" LostFocus="RenameBox_LostFocus" AutomationProperties.AutomationId="ProfileRenameBox" />
+        <Button x:Name="RenameButton" Grid.Column="6" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+                Style="{StaticResource SubtleButtonStyle}" Click="RenameButton_Click" IsEnabled="False"
+                AutomationProperties.AutomationId="ProfileRenameButton">
+          <FontIcon Glyph="&#xE70F;" FontSize="16" />
+        </Button>
+        <ComboBox x:Name="ThreadBox" Grid.Column="7" MinWidth="130" VerticalAlignment="Center"
                   SelectionChanged="ThreadBox_SelectionChanged" />
-        <Button x:Name="MoreButton" Grid.Column="7" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+        <Button x:Name="MoreButton" Grid.Column="8" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
                 Style="{StaticResource SubtleButtonStyle}">
           <FontIcon Glyph="&#xE712;" FontSize="16" />
           <Button.Flyout>

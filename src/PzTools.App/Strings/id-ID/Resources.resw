@@ -377,7 +377,6 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Merekam performa game…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>Memproses rekaman…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Rekaman performa</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Hapus rekaman ini? Tindakan ini tidak dapat dibatalkan.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Belum ada rekaman.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman ini tidak dapat dibuka. File rusak atau dibuat oleh versi yang lebih baru.</value></data>
@@ -428,6 +427,14 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileSearch" xml:space="preserve"><value>Cari</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Bandingkan dengan</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Baru saja tersendat? Tekan ini: game menyimpan sekitar satu menit terakhir, dan itu disimpan sebagai rekaman. Mode: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} menit terakhir</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Rekaman {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} dtk</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} mnt</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} mnt {1} dtk</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Hari ini {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Kemarin {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Ganti nama</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Pencadangan otomatis dijeda</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Tombol pintas</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Juga berfungsi di dalam game. Selama PZ Tools berjalan, tombol yang diatur di sini tidak bisa dipakai program lain. Setiap tombol menjawab dengan suara dan pesan di atas kepala karakter Anda.</value></data>

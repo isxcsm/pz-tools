@@ -7,6 +7,9 @@ namespace PzTools.Profiling;
 /// <summary>One stack sample. <see cref="Native"/>: the thread was inside a native call, not running Java.</summary>
 public readonly record struct ProfileSample(long Time, int Thread, int Stack, bool Native);
 public readonly record struct ProfileFrame(long Start, long Duration);
+
+/// <summary>What a recording is: the game's last minutes saved, or a recording; its mode; how long, in microseconds.</summary>
+public sealed record ProfileRecordingSummary(bool Rolling, bool Detailed, long DurationMicros);
 /// <summary>
 /// One Lua sample. <see cref="Allocated"/>: the bytes the game thread allocated since the sampler's previous look, which
 /// count for the function found running, as the sample's time does; -1 when the recording does not have them.
@@ -66,6 +69,30 @@ public sealed class ProfileRecording
     public DateTimeOffset? StartedUtc =>
         long.TryParse(Information.GetValueOrDefault("startEpochMillis"), NumberStyles.None, CultureInfo.InvariantCulture, out var millis) && millis > 0
             ? DateTimeOffset.FromUnixTimeMilliseconds(millis) : null;
+
+    /// <summary>
+    /// What a recording is, for a list of them, without reading its records: its information lines, the length the
+    /// converter wrote at its end (a recording without it is read whole). Still a whole decompression, so done once.
+    /// </summary>
+    public static ProfileRecordingSummary ReadSummary(string path)
+    {
+        var information = new Dictionary<string, string>(StringComparer.Ordinal);
+        using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan))
+        using (var gzip = new GZipStream(file, CompressionMode.Decompress))
+        using (var reader = new StreamReader(gzip, Encoding.UTF8, false, 1 << 16))
+        {
+            if (reader.ReadLine() != Signature) throw new InvalidDataException("Not a PZ Tools recording, or a newer format.");
+            while (reader.ReadLine() is { } line)
+            {
+                if (!line.StartsWith("I\t", StringComparison.Ordinal)) continue;
+                var fields = line.Split('\t');
+                if (fields.Length == 3) information[fields[1]] = fields[2];
+            }
+        }
+        var duration = long.TryParse(information.GetValueOrDefault("durationMicros"), NumberStyles.None, CultureInfo.InvariantCulture, out var micros)
+            ? micros : Load(path).Duration;
+        return new(information.GetValueOrDefault("endedBy") == "rolling", information.GetValueOrDefault("mode") == "detailed", duration);
+    }
 
     public static ProfileRecording Load(string path)
     {

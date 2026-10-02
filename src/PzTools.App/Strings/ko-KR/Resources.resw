@@ -376,7 +376,6 @@
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>게임 성능을 기록하고 있습니다…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>녹화 내용을 정리하고 있습니다…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>성능 녹화</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>이 녹화 기록을 삭제하시겠습니까? 되돌릴 수 없습니다.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>녹화 기록이 없습니다.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>녹화 파일을 열 수 없습니다. 파일이 손상되었거나 더 새 버전에서 만든 파일입니다.</value></data>
@@ -427,6 +426,14 @@
   <data name="ProfileSearch" xml:space="preserve"><value>검색</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>비교 대상</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>방금 끊겼다면 누르세요. 게임이 기록해 둔 직전 약 1분을 녹화로 저장합니다. 기록 방식: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>직전 {0}분</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>녹화 {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0}초</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0}분</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0}분 {1}초</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>오늘 {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>어제 {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>이름 바꾸기</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>자동 백업 멈춤</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>단축키</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>게임 중에도 동작합니다. 지정한 키는 PZ Tools가 켜져 있는 동안 다른 프로그램에서 쓸 수 없습니다. 누르면 소리와 캐릭터 머리 위 말풍선으로 알려 줍니다.</value></data>

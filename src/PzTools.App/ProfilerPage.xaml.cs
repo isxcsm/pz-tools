@@ -103,6 +103,9 @@ public sealed partial class ProfilerPage : UserControl
         OpenFolderItem.Text = Localizer.Get("AdvancedFiles.OpenFolder");
         DeleteItem.Text = Localizer.Get("DeleteAction");
         AppToolTip.SetTip(MoreButton, Localizer.Get("ProfileMoreActions"));
+        AppToolTip.SetTip(RenameButton, Localizer.Get("ProfileRename"));
+        AutomationProperties.SetName(RenameButton, Localizer.Get("ProfileRename"));
+        AutomationProperties.SetName(RenameBox, Localizer.Get("ProfileRename"));
         AutomationProperties.SetName(MoreButton, Localizer.Get("ProfileMoreActions"));
         ZoomAllButton.Content = Localizer.Get("ProfileZoomAll");
         ZoomSelectionButton.Content = Localizer.Get("ProfileZoomSelection");
@@ -329,15 +332,16 @@ public sealed partial class ProfilerPage : UserControl
         var files = service.List();
         updatingList = true;
         RecordingList.Items.Clear();
-        foreach (var file in files)
-            RecordingList.Items.Add(new RecordingItem(file, Localizer.Format("ProfileRecordingItemFormat",
-                file.CreatedUtc.ToLocalTime().ToString("g", Localizer.Culture), file.Bytes / 1024.0)));
+        foreach (var file in files) RecordingList.Items.Add(new RecordingItem(file, Describe(file)));
         var index = select is null ? -1 : files.ToList().FindIndex(file => file.Path.Equals(select, StringComparison.OrdinalIgnoreCase));
         if (index < 0 && files.Count > 0) index = 0;
         RecordingList.SelectedIndex = index;
         RecordingList.PlaceholderText = Localizer.Get("ProfileEmpty");
         updatingList = false;
-        DeleteItem.IsEnabled = SaveAsItem.IsEnabled = index >= 0;
+        DeleteItem.IsEnabled = SaveAsItem.IsEnabled = RenameButton.IsEnabled = index >= 0;
+        UpdateRecordingTip();
+        // Recordings not yet read are listed by their time; once read, the list says what they are.
+        if (files.Any(file => file.Summary is null)) _ = FillSummariesAsync();
         var path = index < 0 ? null : files[index].Path;
         // With nothing recorded yet, the empty page says how to make a recording.
         if (path is null) Clear(Localizer.Get("ProfileIdleHint"));
@@ -347,8 +351,121 @@ public sealed partial class ProfilerPage : UserControl
     private void RecordingList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (updatingList) return;
-        DeleteItem.IsEnabled = SaveAsItem.IsEnabled = RecordingList.SelectedItem is RecordingItem;
+        DeleteItem.IsEnabled = SaveAsItem.IsEnabled = RenameButton.IsEnabled = RecordingList.SelectedItem is RecordingItem;
+        UpdateRecordingTip();
         if (RecordingList.SelectedItem is RecordingItem item) _ = LoadAsync(item.File.Path);
+    }
+
+    // ---- Names ----
+
+    /// <summary>
+    /// "Last 2 min · Today 3:43 PM", "Recording 1 min 20 s · Detailed · Yesterday 9:10 PM", with the name given first.
+    /// Standard is the usual mode and goes unsaid; a recording not read yet shows its time alone.
+    /// </summary>
+    private static string Describe(ProfileFile file)
+    {
+        var parts = new List<string>();
+        if (file.Named) parts.Add(file.Name);
+        if (file.Summary is { DurationMicros: >= 0 } summary)
+        {
+            parts.Add(summary.Rolling
+                ? Localizer.Format("ProfileKindRollingFormat", Math.Max(1, (int)Math.Round(summary.DurationMicros / 60_000_000.0)))
+                : Localizer.Format("ProfileKindRecordingFormat", Length(summary.DurationMicros)));
+            if (summary.Detailed) parts.Add(Localizer.Get("ProfileModeDetailed"));
+        }
+        parts.Add(When(file.CreatedUtc.ToLocalTime()));
+        return string.Join(" · ", parts);
+    }
+
+    private static string Length(long micros)
+    {
+        var seconds = (long)Math.Round(micros / 1_000_000.0);
+        if (seconds < 60) return Localizer.Format("ProfileDurationSecondsFormat", Math.Max(1, seconds));
+        return seconds % 60 == 0 ? Localizer.Format("ProfileDurationMinutesFormat", seconds / 60)
+            : Localizer.Format("ProfileDurationMinutesSecondsFormat", seconds / 60, seconds % 60);
+    }
+
+    private static string When(DateTimeOffset local)
+    {
+        var time = local.ToString("t", Localizer.Culture);
+        var days = (DateTime.Today - local.Date).Days;
+        return days == 0 ? Localizer.Format("ProfileWhenTodayFormat", time)
+            : days == 1 ? Localizer.Format("ProfileWhenYesterdayFormat", time)
+            : local.ToString("g", Localizer.Culture);
+    }
+
+    // The file behind the selected name, and its size: what the list leaves out.
+    private void UpdateRecordingTip()
+    {
+        AppToolTip.SetTip(RecordingList, RecordingList.SelectedItem is RecordingItem item
+            ? $"{item.File.Name}{ProfileRecording.Extension} · {Bytes(item.File.Bytes)}" : null);
+    }
+
+    private bool fillingSummaries;
+
+    private async Task FillSummariesAsync()
+    {
+        if (service is not { } profiles || fillingSummaries) return;
+        fillingSummaries = true;
+        try
+        {
+            if (await profiles.FillSummariesAsync() && ReferenceEquals(service, profiles))
+                RefreshList((RecordingList.SelectedItem as RecordingItem)?.File.Path ?? loadedPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or OperationCanceledException) { }
+        finally { fillingSummaries = false; }
+    }
+
+    // The pencil turns the list into a box holding the name, selected: type over it, Enter or leaving keeps it, Esc
+    // does not. Emptied, the recording takes its saved name back.
+    private bool renaming;
+
+    private void RenameButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (RecordingList.SelectedItem is not RecordingItem item) return;
+        renaming = true;
+        RenameBox.Text = item.File.Named ? item.File.Name : "";
+        RenameBox.PlaceholderText = Describe(item.File with { Name = "profile-00000000-000000" });
+        RenameBox.Visibility = Visibility.Visible;
+        RecordingList.Visibility = Visibility.Collapsed;
+        RenameBox.Focus(FocusState.Programmatic);
+        RenameBox.SelectAll();
+    }
+
+    private void RenameBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; EndRename(keep: true); }
+        else if (e.Key == Windows.System.VirtualKey.Escape) { e.Handled = true; EndRename(keep: false); }
+    }
+
+    private void RenameBox_LostFocus(object sender, RoutedEventArgs e) => EndRename(keep: true);
+
+    private void EndRename(bool keep)
+    {
+        if (!renaming) return;
+        renaming = false;
+        RenameBox.Visibility = Visibility.Collapsed;
+        RecordingList.Visibility = Visibility.Visible;
+        if (!keep || service is not { } profiles || RecordingList.SelectedItem is not RecordingItem item) return;
+        try
+        {
+            var renamed = profiles.Rename(item.File.Path, RenameBox.Text);
+            if (renamed.Equals(item.File.Path, StringComparison.Ordinal)) return;
+            // The open recording and the one compared with are the same files under their new name.
+            if (item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)) loadedPath = renamed;
+            if (item.File.Path.Equals(baselinePath, StringComparison.OrdinalIgnoreCase)) baselinePath = renamed;
+            RefreshList(renamed);
+            if (renamed.Equals(baselinePath, StringComparison.OrdinalIgnoreCase)
+                && RecordingList.Items.OfType<RecordingItem>().FirstOrDefault(other => other.File.Path == renamed) is { } baselineItem)
+            {
+                baselineName = baselineItem.Text;
+                ShowComparison();
+            }
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+        }
     }
 
     private async Task LoadAsync(string path)

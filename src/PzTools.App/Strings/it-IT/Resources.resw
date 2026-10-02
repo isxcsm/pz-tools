@@ -377,7 +377,6 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Registrazione delle prestazioni del gioco…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>Elaborazione della registrazione…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Registrazione delle prestazioni</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Eliminare questa registrazione? L'operazione non può essere annullata.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Ancora nessuna registrazione.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossibile aprire questa registrazione. Il file è danneggiato o è stato creato con una versione più recente.</value></data>
@@ -428,6 +427,14 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileSearch" xml:space="preserve"><value>Cerca</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Confronta con</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Ha appena scattato? Premi qui: il gioco ha conservato circa l'ultimo minuto, che viene salvato come registrazione. Modalità: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Ultimi {0} min</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Registrazione {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} min</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Oggi {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Ieri {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Rinomina</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Backup automatici in pausa</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Tasti di scelta rapida</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Funzionano anche nel gioco. Finché PZ Tools è in esecuzione, i tasti impostati qui non sono disponibili per gli altri programmi. Ognuno risponde con un suono e un messaggio sopra la testa del personaggio.</value></data>

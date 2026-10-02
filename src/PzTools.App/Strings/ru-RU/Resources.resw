@@ -377,7 +377,6 @@
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Записывается производительность игры…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>Обработка записи…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Запись производительности</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Удалить эту запись? Это действие нельзя отменить.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Записей пока нет.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не удаётся открыть эту запись. Файл повреждён или создан в более новой версии.</value></data>
@@ -428,6 +427,14 @@
   <data name="ProfileSearch" xml:space="preserve"><value>Поиск</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Сравнить с</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Последние {0} мин</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Запись {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} с</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} мин</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} мин {1} с</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Сегодня {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Вчера {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Переименовать</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Автоматическое копирование приостановлено</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Горячие клавиши</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Работают и в игре. Пока PZ Tools запущен, заданные здесь клавиши недоступны другим программам. Каждая отвечает звуком и сообщением над головой вашего персонажа.</value></data>

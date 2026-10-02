@@ -384,7 +384,6 @@
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>กำลังบันทึกประสิทธิภาพของเกม…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>กำลังประมวลผลการบันทึก…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>การบันทึกประสิทธิภาพ</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>ลบการบันทึกนี้ใช่ไหม การลบนี้ย้อนกลับไม่ได้</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>ยังไม่มีการบันทึก</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกนี้ไม่ได้ ไฟล์เสียหายหรือสร้างจากเวอร์ชันที่ใหม่กว่า</value></data>
@@ -435,6 +434,14 @@
   <data name="ProfileSearch" xml:space="preserve"><value>ค้นหา</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>เปรียบเทียบกับ</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณหนึ่งนาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} นาทีล่าสุด</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>บันทึก {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} วินาที</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} นาที</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} นาที {1} วินาที</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>วันนี้ {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>เมื่อวาน {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>เปลี่ยนชื่อ</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>หยุดการสำรองอัตโนมัติชั่วคราว</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>ปุ่มลัด</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>ใช้ได้ในเกมด้วย ขณะที่ PZ Tools ทำงาน ปุ่มที่ตั้งไว้ที่นี่จะใช้กับโปรแกรมอื่นไม่ได้ แต่ละปุ่มจะตอบด้วยเสียงและข้อความเหนือหัวตัวละคร</value></data>

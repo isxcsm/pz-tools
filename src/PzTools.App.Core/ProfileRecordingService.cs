@@ -10,7 +10,12 @@ public enum ProfileSessionState { Idle, Starting, Recording, Converting }
 public sealed record ProfileSession(ProfileSessionState State, bool Detailed = false,
     DateTimeOffset? RecordingSinceUtc = null, bool LuaAvailable = true, bool HasFrames = true, int LimitSeconds = 0);
 
-public sealed record ProfileFile(string Path, string Name, DateTimeOffset CreatedUtc, long Bytes);
+/// <param name="Summary">What the recording is, once read; null until then.</param>
+public sealed record ProfileFile(string Path, string Name, DateTimeOffset CreatedUtc, long Bytes, ProfileRecordingSummary? Summary = null)
+{
+    /// <summary>Whether someone named it; otherwise it has the name it was saved under, "profile-" and its time.</summary>
+    public bool Named => !ProfileRecordingService.IsAutomaticName(Name);
+}
 
 /// <summary>
 /// The rolling recording: whether the user wants the game to keep its last minute, in which mode, and whether the
@@ -25,7 +30,7 @@ public sealed record ProfileRolling(bool Wanted = false, bool Detailed = false, 
 /// The files live in their own folder, outside the log and telemetry databases, so a long recording
 /// cannot grow those and a single file can be handed to someone else.
 /// </summary>
-public sealed class ProfileRecordingService(string directory, Func<OperationCoordinator?> operations, Func<int>? gameCount = null,
+public sealed partial class ProfileRecordingService(string directory, Func<OperationCoordinator?> operations, Func<int>? gameCount = null,
     ProfilerRuntimeOptions? options = null)
 {
     private readonly Func<int> countGames = gameCount ?? GameProcesses.Count;
@@ -340,12 +345,101 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
         if (!System.IO.Directory.Exists(Directory)) return [];
         try
         {
+            var index = Summaries();
             return new DirectoryInfo(Directory).EnumerateFiles("*" + ProfileRecording.Extension)
                 .Select(file => new ProfileFile(file.FullName, System.IO.Path.GetFileNameWithoutExtension(file.Name),
-                    file.LastWriteTimeUtc, file.Length))
+                    file.LastWriteTimeUtc, file.Length, index.Find(file)))
                 .OrderByDescending(file => file.CreatedUtc).ToArray();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { return []; }
+    }
+
+    // ---- Names and summaries ----
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^profile-\d{8}-\d{6}(-\d+)?$")]
+    private static partial System.Text.RegularExpressions.Regex AutomaticName();
+
+    /// <summary>A name the app gave on saving: "profile-", the date and time, and a number when two met.</summary>
+    public static bool IsAutomaticName(string name) => AutomaticName().IsMatch(name);
+
+    // What each recording is, read once and kept beside the recordings' folder (not in it: that folder is the user's),
+    // by file name, size and time, so a file replaced under the same name is read again.
+    private ProfileSummaryIndex? summaries;
+    private readonly object summaryGate = new();
+    private string SummaryIndexPath => System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Directory)!, "profiles-index.json");
+
+    private ProfileSummaryIndex Summaries()
+    {
+        lock (summaryGate) return summaries ??= ProfileSummaryIndex.Load(SummaryIndexPath);
+    }
+
+    /// <summary>
+    /// Reads what the listed recordings without one are, in the background, and keeps it. True when any was read: the
+    /// list then has more to say.
+    /// </summary>
+    public Task<bool> FillSummariesAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        var index = Summaries();
+        var read = false;
+        foreach (var file in List().Where(file => file.Summary is null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ProfileRecordingSummary summary;
+            try { summary = ProfileRecording.ReadSummary(file.Path); }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or FormatException)
+            {
+                // Not a readable recording: listed by its time alone, and not read again until it changes.
+                summary = new ProfileRecordingSummary(false, false, -1);
+            }
+            index.Set(new FileInfo(file.Path), summary);
+            read = true;
+        }
+        if (read) index.Save(SummaryIndexPath, Directory);
+        return read;
+    }, cancellationToken);
+
+    /// <summary>
+    /// Gives a listed recording a name of its own, or its saved name back when <paramref name="name"/> is empty, and
+    /// returns where it now is. The name is the file's: whoever is sent the file sees it too. Characters a file name
+    /// cannot hold are replaced; a name already taken gets a number.
+    /// </summary>
+    public string Rename(string path, string name)
+    {
+        var full = System.IO.Path.GetFullPath(path);
+        if (!string.Equals(System.IO.Path.GetDirectoryName(full), Directory, StringComparison.OrdinalIgnoreCase)
+            || !full.EndsWith(ProfileRecording.Extension, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+            throw new ArgumentException("Not a recording in the recordings folder.", nameof(path));
+        var clean = CleanName(name);
+        if (clean.Length == 0)
+        {
+            var current = System.IO.Path.GetFileNameWithoutExtension(full);
+            if (IsAutomaticName(current)) return full;
+            clean = "profile-" + File.GetLastWriteTime(full).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        }
+        var target = System.IO.Path.Combine(Directory, clean + ProfileRecording.Extension);
+        if (string.Equals(target, full, StringComparison.Ordinal)) return full;
+        // Only the letters' case differs: the same file, renamed in place.
+        if (!string.Equals(target, full, StringComparison.OrdinalIgnoreCase))
+            for (var suffix = 2; File.Exists(target); suffix++)
+                target = System.IO.Path.Combine(Directory, $"{clean} ({suffix}){ProfileRecording.Extension}");
+        var summary = Summaries().Find(new FileInfo(full));
+        File.Move(full, target);
+        if (summary is not null)
+        {
+            Summaries().Set(new FileInfo(target), summary);
+            Summaries().Save(SummaryIndexPath);
+        }
+        return target;
+    }
+
+    private static string CleanName(string name)
+    {
+        var invalid = System.IO.Path.GetInvalidFileNameChars();
+        var cleaned = new string(name.Trim().Select(character => invalid.Contains(character) ? '_' : character).ToArray()).Trim(' ', '.');
+        // Windows refuses these whatever follows them.
+        if (System.Text.RegularExpressions.Regex.IsMatch(cleaned, @"^(CON|PRN|AUX|NUL|COM\d|LPT\d)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            cleaned = "_" + cleaned;
+        return cleaned.Length > 80 ? cleaned[..80].TrimEnd(' ', '.') : cleaned;
     }
 
     public void Delete(string path)

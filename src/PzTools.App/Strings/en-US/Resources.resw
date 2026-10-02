@@ -456,6 +456,14 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileSearch" xml:space="preserve"><value>Search</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Compare with</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last minute, and it is saved as a recording. Mode: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Last {0} min</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Recording {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} min</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Today {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Yesterday {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Rename</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 to 10 minutes. A longer one costs the game the same, only more disk.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Length (minutes)</value></data>
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detailed shows more but slows the game a little (about 10%) for as long as it is on. Use it while hunting a stutter.</value></data>
@@ -518,7 +526,6 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileLoadFailed" xml:space="preserve"><value>This recording cannot be opened. The file is damaged or was made by a newer version.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>No recordings yet.</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Delete this recording? This cannot be undone.</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Performance recording</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>Processing the recording…</value></data>
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Recording game performance…</value></data>

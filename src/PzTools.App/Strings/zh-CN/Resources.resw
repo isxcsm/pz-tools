@@ -377,7 +377,6 @@
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>正在录制游戏性能…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>正在处理录制内容…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>性能录制</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要删除这条录制吗？此操作无法撤销。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>还没有录制记录。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开这条录制。文件已损坏，或由更新的版本创建。</value></data>
@@ -428,6 +427,14 @@
   <data name="ProfileSearch" xml:space="preserve"><value>搜索</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>对比对象</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>最近 {0} 分钟</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>录制 {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} 秒</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} 分钟</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} 分 {1} 秒</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>今天 {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>昨天 {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>重命名</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>自动备份已暂停</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>快捷键</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>在游戏中也能使用。PZ Tools 运行期间，这里设置的键其他程序无法使用。按下后会以提示音和角色头顶的提示告知。</value></data>

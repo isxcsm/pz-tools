@@ -346,6 +346,42 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public async Task Recordings_AreListedByWhatTheyAre_ReadOnce_AndRenamedAsFiles()
+    {
+        using var temp = new TempDirectory();
+        var service = new PzTools.App.Core.ProfileRecordingService(temp.GetPath("profiles"), () => null);
+        Directory.CreateDirectory(service.Directory);
+        var path = Path.Combine(service.Directory, "profile-20261002-154213.pzprof");
+        await File.WriteAllBytesAsync(path, Compress(Sample + "\nI|endedBy|rolling\nI|durationMicros|120000000"));
+
+        // Listed by its time until read; read once, in the background, and kept.
+        var file = Assert.Single(service.List());
+        Assert.Equal((false, (ProfileRecordingSummary?)null), (file.Named, file.Summary));
+        Assert.True(await service.FillSummariesAsync());
+        Assert.Equal(new ProfileRecordingSummary(true, false, 120_000_000), Assert.Single(service.List()).Summary);
+        Assert.False(await service.FillSummariesAsync());
+        var reopened = new PzTools.App.Core.ProfileRecordingService(temp.GetPath("profiles"), () => null);
+        Assert.NotNull(Assert.Single(reopened.List()).Summary);
+
+        // The name is the file's; what a file name cannot hold is replaced, and what it is goes along.
+        var renamed = service.Rename(path, "  mod A: after?  ");
+        Assert.Equal(Path.Combine(service.Directory, "mod A_ after_.pzprof"), renamed);
+        file = Assert.Single(service.List());
+        Assert.True(file.Named);
+        Assert.Equal(new ProfileRecordingSummary(true, false, 120_000_000), file.Summary);
+        // A name already taken gets a number.
+        var other = Path.Combine(service.Directory, "other.pzprof");
+        File.Copy(renamed, other);
+        Assert.Equal(Path.Combine(service.Directory, "mod A_ after_ (2).pzprof"), service.Rename(other, "mod A: after?"));
+        // Emptied, it takes back a saved name of its own time; only recordings in the folder are renamed.
+        var back = service.Rename(renamed, "");
+        Assert.True(PzTools.App.Core.ProfileRecordingService.IsAutomaticName(Path.GetFileNameWithoutExtension(back)));
+        Assert.Equal(back, service.Rename(back, " "));
+        Assert.Throws<ArgumentException>(() => service.Rename(temp.GetPath("elsewhere.pzprof"), "x"));
+        Assert.False(PzTools.App.Core.ProfileRecordingService.IsAutomaticName("profile-2026"));
+    }
+
+    [Fact]
     public async Task Rolling_WithoutAGame_WaitsForOne_AndSavesNothing()
     {
         using var temp = new TempDirectory();

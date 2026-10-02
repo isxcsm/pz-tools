@@ -377,7 +377,6 @@
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>ゲームのパフォーマンスを記録しています…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>記録を処理しています…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>パフォーマンス記録</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>この記録を削除しますか？ 元に戻すことはできません。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>記録はまだありません。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>この記録を開けません。ファイルが破損しているか、より新しいバージョンで作成されています。</value></data>
@@ -428,6 +427,14 @@
   <data name="ProfileSearch" xml:space="preserve"><value>検索</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>比較対象</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>直前 {0} 分</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>記録 {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} 秒</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} 分</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} 分 {1} 秒</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>今日 {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>昨日 {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>名前を変更</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>自動バックアップ一時停止中</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>ショートカットキー</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>ゲーム中も使えます。PZ Toolsの実行中は、ここで設定したキーをほかのプログラムで使えなくなります。押すと音とキャラクターの頭上のメッセージでお知らせします。</value></data>

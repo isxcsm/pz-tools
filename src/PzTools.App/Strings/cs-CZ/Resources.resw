@@ -472,6 +472,14 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Spouští se uchovávání poslední minuty…</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat poslední minutu.</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Přejmenovat</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Včera {0}</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Dnes {0}</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} min</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Posledních {0} min</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Záznam {0}</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 až 10 minut. Delší délka hru zatěžuje stejně, jen zabere víc místa na disku.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Délka (minuty)</value></data>
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>Podrobný ukáže víc, ale po celou dobu zapnutí hru mírně zpomalí (asi o 10 %). Používejte ho při hledání zaseknutí.</value></data>
@@ -519,7 +527,6 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Tento záznam nelze otevřít. Soubor je poškozený nebo byl vytvořen novější verzí.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Zatím žádné záznamy.</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Smazat tento záznam? Tuto akci nelze vrátit zpět.</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Záznam výkonu</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>Zpracovává se záznam…</value></data>
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Zaznamenává se výkon hry…</value></data>

@@ -377,7 +377,6 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Oyun performansı kaydediliyor…</value></data>
   <data name="ProfilePhaseConverting" xml:space="preserve"><value>Kayıt işleniyor…</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Performans kaydı</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Bu kayıt silinsin mi? Bu işlem geri alınamaz.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Henüz kayıt yok.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Bu kayıt açılamıyor. Dosya bozuk ya da daha yeni bir sürümle oluşturulmuş.</value></data>
@@ -428,6 +427,14 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileSearch" xml:space="preserve"><value>Ara</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Şununla karşılaştır</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Son {0} dk</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Kayıt {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} sn</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} dk</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} dk {1} sn</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Bugün {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Dün {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Yeniden adlandır</value></data>
   <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Otomatik yedekleme duraklatıldı</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Kısayol tuşları</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Oyunda da çalışır. PZ Tools çalıştığı sürece burada atanan tuşlar başka programlarca kullanılamaz. Her biri bir ses ve karakterinizin başının üstünde bir notla yanıt verir.</value></data>
