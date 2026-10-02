@@ -19,7 +19,7 @@ public sealed partial class MainWindowShell
         ("blocked", "Windows 보안 차단"),
         ("game-link", "게임 연결 끊김"),
         ("game-restart", "게임 다시 시작 필요"),
-        ("projectors", "정보 갱신 실패"),
+        ("projectors", "불러오기 실패"),
         ("update", "새 버전"),
         ("notice-success", "결과: 성공"),
         ("notice-info", "결과: 안내"),
@@ -45,8 +45,9 @@ public sealed partial class MainWindowShell
             case "projectors":
                 previewProjectors = new ProjectorHealthView(
                 [
+                    new ProjectorStatus("state", ProjectorHealth.Faulted, "preview", DateTimeOffset.UtcNow),
+                    new ProjectorStatus("backup", ProjectorHealth.Faulted, "preview", DateTimeOffset.UtcNow),
                     new ProjectorStatus("details", ProjectorHealth.Faulted, "preview", DateTimeOffset.UtcNow),
-                    new ProjectorStatus("scheduler", ProjectorHealth.Faulted, "preview", DateTimeOffset.UtcNow),
                 ]);
                 ApplyProjectorHealth();
                 break;

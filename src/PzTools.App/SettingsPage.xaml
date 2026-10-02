@@ -29,19 +29,30 @@
           <!-- Reflow transitions are attached after the initial expanded layout.
                MainWindowShell owns the page entrance animation. -->
 
-          <!-- The app's version and its updates: a newer release is offered here until the app is updated. -->
-          <toolkit:SettingsExpander x:Name="UpdateSection" IsExpanded="True" Header="버전 정보"
+          <!-- The app's version and its updates, folded: the version and whether it is the newest show on the line
+               itself; checking now and the notice's switch are inside. A newer release is offered there, and in the
+               pane, until the app is updated. -->
+          <toolkit:SettingsExpander x:Name="UpdateSection" IsExpanded="False" Header="버전 정보"
                                     AutomationProperties.AutomationId="UpdateSection">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <ProgressRing x:Name="UpdateCheckProgress" Width="16" Height="16" MinWidth="16" MinHeight="16"
-                            IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
-              <Button x:Name="UpdateDownloadButton" Style="{StaticResource AccentButtonStyle}" Visibility="Collapsed"
-                      Click="UpdateDownload_Click" AutomationProperties.AutomationId="UpdateDownloadButton" />
-              <Button x:Name="UpdateCheckButton" Click="UpdateCheck_Click" AutomationProperties.AutomationId="UpdateCheckButton" />
+            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+              <TextBlock x:Name="UpdateVersionText" HorizontalAlignment="Right" />
+              <TextBlock x:Name="UpdateStatusText" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         MaxWidth="320" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                         AutomationProperties.LiveSetting="Polite" />
             </StackPanel>
             <toolkit:SettingsExpander.Items>
-              <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="새 버전 알림">
+              <toolkit:SettingsCard x:Name="UpdateCheckCard" Header="업데이트 확인">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ProgressRing x:Name="UpdateCheckProgress" Width="16" Height="16" MinWidth="16" MinHeight="16"
+                                IsActive="False" Visibility="Collapsed" VerticalAlignment="Center" />
+                  <Button x:Name="UpdateDownloadButton" Style="{StaticResource AccentButtonStyle}" Visibility="Collapsed"
+                          Click="UpdateDownload_Click" AutomationProperties.AutomationId="UpdateDownloadButton" />
+                  <Button x:Name="UpdateCheckButton" Click="UpdateCheck_Click" AutomationProperties.AutomationId="UpdateCheckButton" />
+                </StackPanel>
+              </toolkit:SettingsCard>
+              <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="새 버전 알림">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE7ED;" /></toolkit:SettingsCard.HeaderIcon>
                 <ToggleSwitch x:Name="UpdateAutoToggle" Toggled="SettingChanged" AutomationProperties.AutomationId="UpdateAutoToggle" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>

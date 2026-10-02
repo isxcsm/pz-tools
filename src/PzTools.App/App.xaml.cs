@@ -148,8 +148,8 @@ public partial class App : Application
         _ = CheckForUpdatesAsync(updateLoop.Token);
     }
 
-    // A while after the start, then every hour: the checker itself asks GitHub at most once a day. A failed check is
-    // silent; the settings say when the last one succeeded, and checking there reports its failure.
+    // A while after the start, then every hour (unless the last check is under an hour old, after a restart). A failed
+    // check is silent; the settings say when the last one succeeded, and checking there reports its failure.
     private async Task CheckForUpdatesAsync(CancellationToken cancellationToken)
     {
         try

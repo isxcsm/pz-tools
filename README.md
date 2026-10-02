@@ -29,7 +29,7 @@ WinUI components and the Java Attach runtime are included; no separate Java inst
 2. Open Settings, choose your language and check the save and backup folders. Keep those folders separate.
 3. Create a manual backup and confirm it completes. Automatic backups default to **every 5 minutes**, keeping **20 automatic backups**.
 
-Once a day the app asks GitHub whether a newer release is out (one request to `api.github.com`; nothing else is sent and nothing is downloaded by itself). A new version shows as one line in the sidebar until you update; clicking it opens the release page. *Settings → Version* shows your version, checks on demand, and turns the notice (and the daily check) off.
+About once an hour while it runs, the app asks GitHub whether a newer release is out (one request to `api.github.com`; nothing else is sent and nothing is downloaded by itself). A new version shows as one line in the sidebar until you update; clicking it opens the release page. *Settings → Version* shows your version, checks on demand, and turns the notice (and the check) off.
 
 To update, close the app and extract the new package into a fresh folder. Do not mix builds. Your settings live under `%LOCALAPPDATA%\PzTools`; saves and backups stay in their configured folders, and a newer version keeps using them: a backup folder is brought up to date in place the first time the new version opens it. See [settings and paths](docs/configuration.md).
 

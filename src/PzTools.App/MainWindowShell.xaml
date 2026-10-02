@@ -4,30 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:PzTools.App">
   <UserControl.Resources>
-    <Style x:Key="OperationCardStyle" TargetType="Border">
-      <Setter Property="Padding" Value="12" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-    </Style>
+    <!-- The cards' look is shared with every card in the pane: CardStyles.xaml. -->
     <Style x:Key="SuspendedCountdownTextStyle" TargetType="TextBlock" BasedOn="{StaticResource SecondaryTextStyle}">
       <Setter Property="Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
-    </Style>
-    <!-- Colours for operation cards built in code. Set through styles, so they follow the window's
-         theme (and its changes) like XAML does; a brush looked up in code follows Windows' theme instead. -->
-    <Style x:Key="OperationCardSecondaryTextStyle" TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
-    </Style>
-    <Style x:Key="OperationSucceededIconStyle" TargetType="FontIcon">
-      <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}" />
-    </Style>
-    <Style x:Key="OperationFailedIconStyle" TargetType="FontIcon">
-      <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}" />
-    </Style>
-    <Style x:Key="OperationDegradedIconStyle" TargetType="FontIcon">
-      <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}" />
-    </Style>
-    <Style x:Key="OperationNeutralIconStyle" TargetType="FontIcon">
-      <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
     </Style>
   </UserControl.Resources>
   <Grid>
@@ -158,11 +137,33 @@
       </NavigationViewItem>
     </NavigationView.MenuItems>
     <NavigationView.PaneFooter>
-      <StackPanel x:Name="ProgressCards" Spacing="8" Margin="16,8,16,12">
+      <StackPanel x:Name="ProgressCards" Spacing="6" Margin="16,8,16,12">
+        <StackPanel.Resources>
+          <!-- An action in a card, and the update line: a plain grey fill and no border, set apart from the
+               white cards as something to press without a frame or a colour of its own. Darker under the
+               pointer, lighter while pressed. The ✕ buttons keep the subtle style, which these keys leave alone. -->
+          <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+              <ResourceDictionary x:Key="Default">
+                <SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" />
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF" />
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0DFFFFFF" />
+              </ResourceDictionary>
+              <ResourceDictionary x:Key="Light">
+                <SolidColorBrush x:Key="ButtonBackground" Color="#0F000000" />
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#17000000" />
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0A000000" />
+              </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+          </ResourceDictionary>
+        </StackPanel.Resources>
         <!-- One card per piece of work, filled from OperationCardStack: lowest priority on top,
              the newest card of the highest priority just above the fixed schedule line. The result
              of an action that runs no worker is a card here too, with the user's other work. -->
-        <StackPanel x:Name="OperationCards" Spacing="8" Visibility="Collapsed">
+        <StackPanel x:Name="OperationCards" Spacing="6" Visibility="Collapsed">
           <StackPanel.ChildrenTransitions>
             <TransitionCollection>
               <AddDeleteThemeTransition />
@@ -172,79 +173,20 @@
         </StackPanel>
         <!-- Cards that need the user's attention. They outrank every status card, so they sit closest
              to the fixed schedule line, and they never expire: they leave when the condition clears or
-             through one of their own buttons. Every such card has the same shape: title, message, then
-             its buttons, if it has any. -->
-        <StackPanel x:Name="InteractiveCards" Spacing="8" Visibility="Collapsed">
-          <!-- A newer release, one line until the app is updated: clicking it opens the release's page. The
-               notice is turned off in the settings, not here. -->
-          <!-- A plain grey fill and no border: set apart from the white status cards as something to press, without
-               a frame or a colour of its own. Darker under the pointer, lighter while pressed. -->
-          <Button x:Name="UpdateCard" Visibility="Collapsed" Click="UpdateCard_Click"
-                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,9" CornerRadius="8"
-                  AutomationProperties.AutomationId="UpdateCard">
-            <Button.Resources>
-              <ResourceDictionary>
-                <ResourceDictionary.ThemeDictionaries>
-                  <ResourceDictionary x:Key="Default">
-                    <SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" />
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1FFFFFFF" />
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0DFFFFFF" />
-                  </ResourceDictionary>
-                  <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="ButtonBackground" Color="#0F000000" />
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#17000000" />
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0A000000" />
-                  </ResourceDictionary>
-                </ResourceDictionary.ThemeDictionaries>
-                <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
-                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
-                <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
-              </ResourceDictionary>
-            </Button.Resources>
-            <Grid ColumnSpacing="8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <TextBlock x:Name="UpdateCardText" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-              <FontIcon Grid.Column="1" Glyph="&#xE72A;" FontSize="12" VerticalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </Grid>
-          </Button>
-          <Border x:Name="ProjectorStatusCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
-            <StackPanel Spacing="8">
-              <TextBlock x:Name="ProjectorStatusTitle" Text="일부 정보를 갱신할 수 없음" TextWrapping="Wrap" />
-              <TextBlock x:Name="ProjectorStatusMessage" TextWrapping="Wrap" Opacity="0.8" />
-            </StackPanel>
-          </Border>
-          <Border x:Name="ComponentBlockedCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
-            <StackPanel Spacing="8">
-              <TextBlock x:Name="ComponentBlockedTitle" TextWrapping="Wrap" />
-              <TextBlock x:Name="ComponentBlockedMessage" TextWrapping="Wrap" Opacity="0.8" />
-              <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Button x:Name="ComponentBlockedOpenButton" Click="ComponentBlockedOpen_Click"
-                        HorizontalAlignment="Stretch" />
-                <Button x:Name="ComponentBlockedCloseButton" Grid.Column="1" Click="ComponentBlockedClose_Click"
-                        HorizontalAlignment="Stretch" />
-              </Grid>
-            </StackPanel>
-          </Border>
-          <Border x:Name="GameLinkCard" Visibility="Collapsed" Style="{StaticResource OperationCardStyle}">
-            <StackPanel Spacing="8">
-              <TextBlock x:Name="GameLinkTitle" TextWrapping="Wrap" />
-              <TextBlock x:Name="GameLinkMessage" TextWrapping="Wrap" Opacity="0.8" />
-              <Button x:Name="GameLinkCloseButton" Click="GameLinkClose_Click" HorizontalAlignment="Stretch" />
-            </StackPanel>
-          </Border>
+             through the ✕ that shows while the pointer or the keyboard is on them. Every such card says what
+             happened in its title, then at most one line and one action. -->
+        <StackPanel x:Name="InteractiveCards" Spacing="6" Visibility="Collapsed">
+          <!-- Each in the shape every attention card shares (AttentionCard); the shell sets the words and when they show. -->
+          <!-- Part of the saves page that could not be read for a while; it is tried again on its own. -->
+          <local:AttentionCard x:Name="LoadFailureCard" Visibility="Collapsed" Closed="LoadFailureClose_Click" />
+          <local:AttentionCard x:Name="ComponentBlockedCard" Visibility="Collapsed"
+                               Closed="ComponentBlockedClose_Click" Action="ComponentBlockedOpen_Click" />
+          <local:AttentionCard x:Name="GameLinkCard" Visibility="Collapsed" Closed="GameLinkClose_Click" />
         </StackPanel>
-        <Border Padding="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8">
+        <Border Padding="{StaticResource CardPadding}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="{StaticResource CardCornerRadius}">
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-            <FontIcon Glyph="&#xE787;" FontSize="14" VerticalAlignment="Top" Margin="0,3,0,0" />
+            <FontIcon Glyph="&#xE787;" FontSize="13" VerticalAlignment="Top" Margin="0,2,0,0" />
             <StackPanel Grid.Column="1" Spacing="4">
               <TextBlock x:Name="NextBackupText" Text="다음 백업: 대기 중"
                          TextWrapping="Wrap" Style="{StaticResource SecondaryTextStyle}" FontSize="12" />
@@ -257,6 +199,23 @@
             </StackPanel>
           </Grid>
         </Border>
+        <!-- About the app itself rather than the game or its saves, so it has its own place, last, set apart from the
+             cards and close to Settings, where its details are: a newer release, one line until the app is updated, pressed to
+             open the release's page. The notice is turned off in the settings, not here. Its bottom margin takes back
+             the pane's, so it sits against Settings, while the next-backup line keeps that gap when it is hidden. -->
+        <Button x:Name="UpdateCard" Visibility="Collapsed" Click="UpdateCard_Click" Margin="0,6,0,-12"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12,8" CornerRadius="4"
+                AutomationProperties.AutomationId="UpdateCard">
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="UpdateCardText" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <FontIcon Grid.Column="1" Glyph="&#xE72A;" FontSize="11" VerticalAlignment="Center"
+                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </Grid>
+        </Button>
       </StackPanel>
     </NavigationView.PaneFooter>
     <Grid x:Name="PageContent" Background="Transparent" Padding="{StaticResource PageContentPadding}">

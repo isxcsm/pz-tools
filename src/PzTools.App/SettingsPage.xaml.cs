@@ -67,6 +67,7 @@ public sealed partial class SettingsPage : UserControl
         }
         SettingsTitleText.Text = Localizer.Get("SettingsTitle.Text");
         UpdateSection.Header = Localizer.Get("UpdateSection.Header");
+        UpdateCheckCard.Header = Localizer.Get("UpdateCheckSetting.Header");
         UpdateAutoSettingCard.Header = Localizer.Get("UpdateAutoSetting.Header");
         UpdateAutoSettingCard.Description = Localizer.Get("UpdateAutoSetting.Description");
         UpdateCheckButton.Content = Localizer.Get("UpdateCheckNow");
@@ -587,17 +588,17 @@ public sealed partial class SettingsPage : UserControl
     // A check asked for here: it runs whatever the last one was, and its failure is said in the line.
     private bool checkingUpdates, updateCheckFailed;
 
-    /// <summary>The version line: this version, then whether a newer one can be had, as last asked.</summary>
+    /// <summary>The version line: this version, and under it whether a newer one can be had, as last asked.</summary>
     internal void ApplyUpdate()
     {
         if (App.Updates is not { } updates) return;
-        var current = "v" + updates.Current.ToString(3);
         var available = updates.Available;
-        UpdateSection.Description = checkingUpdates ? Localizer.Format("UpdateStatusChecking", current)
-            : updateCheckFailed ? Localizer.Format("UpdateStatusFailed", current)
-            : available is not null ? Localizer.Format("UpdateStatusAvailable", current, "v" + available.Version.ToString(3))
-            : updates.State.CheckedAt is null ? Localizer.Format("UpdateStatusUnknown", current)
-            : Localizer.Format("UpdateStatusCurrent", current);
+        UpdateVersionText.Text = "v" + updates.Current.ToString(3);
+        UpdateStatusText.Text = checkingUpdates ? Localizer.Get("UpdateStatusChecking")
+            : updateCheckFailed ? Localizer.Get("UpdateStatusFailed")
+            : available is not null ? Localizer.Format("UpdateStatusAvailable", "v" + available.Version.ToString(3))
+            : updates.State.CheckedAt is null ? Localizer.Get("UpdateStatusUnknown")
+            : Localizer.Get("UpdateStatusCurrent");
         UpdateDownloadButton.Visibility = available is null ? Visibility.Collapsed : Visibility.Visible;
         UpdateCheckProgress.IsActive = checkingUpdates;
         UpdateCheckProgress.Visibility = checkingUpdates ? Visibility.Visible : Visibility.Collapsed;

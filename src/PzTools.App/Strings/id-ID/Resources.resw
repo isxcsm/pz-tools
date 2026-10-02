@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Simpanan saat ini</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Folder simpanan</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Menyalin simpanan saat ini</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Simpanan saat ini tidak dapat diekspor ketika sedang dimainkan. Keluar dari permainan lalu coba lagi.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Tidak dapat mengekspor saat bermain. Keluar dari gim.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Cadangan tidak dapat dipulihkan ketika sedang bermain. Keluar dari permainan lalu coba lagi.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Pilih cadangan di daftar untuk memulihkannya</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Simpanan tidak dapat dihapus ketika sedang dimainkan. Keluar dari permainan lalu coba lagi.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Karakter tidak dapat dipulihkan ketika sedang bermain. Keluar dari permainan lalu coba lagi.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Tidak dapat memulihkan saat bermain. Keluar dari gim.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Belum ada cadangan</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Cadangkan sekarang</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Pulihkan</value></data>
@@ -54,14 +54,14 @@
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Menyimpan sejumlah ini cadangan otomatis terbaru dan menghapus yang lebih lama (1–100). Cadangan manual tidak dihitung dan tidak pernah dihapus.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Cadangkan saat karakter mati</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Saat karakter mati, pencadangan otomatis berhenti agar cadangan yang dibuat saat masih hidup tidak tergeser. Aktifkan untuk menyimpan satu cadangan pada saat kematian.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Berkas simpanan terus berubah selama pencadangan. Tunggu hingga gim selesai menyimpan, lalu coba cadangkan lagi.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Simpanan terus berubah, jadi tidak dicadangkan. Coba lagi sebentar lagi.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Cadangan berikutnya: menunggu</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistem</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Terang</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Gelap</value></data>
-  <data name="HostNotReady" xml:space="preserve"><value>Aplikasi belum siap. Tunggu sebentar lalu coba lagi.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools masih dalam proses memulai. Tunggu sebentar lalu coba lagi.</value></data>
-  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Pencadangan otomatis tidak dapat dimulai.</value></data>
+  <data name="HostNotReady" xml:space="preserve"><value>Masih bersiap. Coba lagi sebentar lagi.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>Masih memulai. Coba lagi sebentar lagi.</value></data>
+  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Pencadangan otomatis gagal dimulai</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Mode permainan: {0}</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Karakter: {0}</value></data>
   <data name="VersionSurvivalFormat" xml:space="preserve"><value>Waktu bertahan hidup: {0}</value></data>
@@ -78,18 +78,13 @@
   <data name="Importing" xml:space="preserve"><value>Mengimpor</value></data>
   <data name="Restoring" xml:space="preserve"><value>Memulihkan</value></data>
   <data name="ExportingDynamic" xml:space="preserve"><value>Mengekspor</value></data>
-  <data name="TelemetryProgressUnavailable" xml:space="preserve"><value>Informasi progres tidak tersedia.</value></data>
-  <data name="BackupScanPhase" xml:space="preserve"><value>Memeriksa berkas simpanan</value></data>
-  <data name="BackupHashPhase" xml:space="preserve"><value>Memeriksa perubahan isi berkas</value></data>
   <data name="LogPhase.hash" xml:space="preserve"><value>Membandingkan isi berkas</value></data>
   <data name="BackupCopyPhase" xml:space="preserve"><value>Menyalin berkas simpanan</value></data>
   <data name="BackupCopyRetryPhase" xml:space="preserve"><value>Berkas berubah · menyalin ulang</value></data>
-  <data name="BackupCapturePhase" xml:space="preserve"><value>Mencadangkan berkas simpanan</value></data>
   <data name="ArchiveRestorePhase" xml:space="preserve"><value>Memulihkan ke folder sementara</value></data>
   <data name="ArchiveCompressPhase" xml:space="preserve"><value>Mengompresi</value></data>
   <data name="ArchiveFinalizePhase" xml:space="preserve"><value>Menyelesaikan</value></data>
   <data name="Processing" xml:space="preserve"><value>Memproses</value></data>
-  <data name="ProcessingNow" xml:space="preserve"><value>Memproses</value></data>
   <data name="AutomaticBackupOff" xml:space="preserve"><value>Pencadangan otomatis nonaktif</value></data>
   <data name="NextBackupWaitingDynamic" xml:space="preserve"><value>Cadangan berikutnya: menunggu</value></data>
   <data name="Unknown" xml:space="preserve"><value>Tidak diketahui</value></data>
@@ -97,8 +92,8 @@
   <data name="Import" xml:space="preserve"><value>Impor</value></data>
   <data name="Cancel" xml:space="preserve"><value>Batal</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Impor arsip</value></data>
-  <data name="InvalidArchiveFormat" xml:space="preserve"><value>Arsip cadangan ini tidak dapat diimpor. Pastikan berkas tidak rusak.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Rasio kompresi arsip ini jauh lebih tinggi dari biasanya sehingga tidak dapat diimpor dengan aman.</value></data>
+  <data name="InvalidArchiveFormat" xml:space="preserve"><value>Berkas ini tidak dapat diimpor. Pastikan berkas diekspor oleh PZ Tools.</value></data>
+  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Tidak diimpor: arsip ini tidak aman.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Cadangan manual</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Pulihkan cadangan yang dipilih?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Ganti berkas saat ini untuk “{0}” dengan cadangan “{1}”. Kemajuan setelah cadangan tersebut akan hilang. Jika pemulihan terhenti, buka kembali PZ Tools sebelum memuat simpanan ini di gim.</value></data>
@@ -107,21 +102,14 @@
   <data name="ArchiveFileType" xml:space="preserve"><value>Cadangan simpanan PZ Tools</value></data>
   <data name="ExportArchiveTitle" xml:space="preserve"><value>Ekspor ZIP</value></data>
   <data name="OperationSucceeded" xml:space="preserve"><value>Selesai.</value></data>
-  <data name="OperationNoChange" xml:space="preserve"><value>Tidak ada berkas yang berubah.</value></data>
+  <data name="OperationNoChange" xml:space="preserve"><value>Tidak ada yang berubah.</value></data>
   <data name="OperationBusy" xml:space="preserve"><value>Dilewati: ada operasi lain berjalan.</value></data>
-  <data name="OperationFailed" xml:space="preserve"><value>Operasi gagal.</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>Gagal. Periksa log.</value></data>
   <data name="NoPlayHistory" xml:space="preserve"><value>Belum ada riwayat bermain</value></data>
-  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Informasi cadangan berikutnya tidak tersedia.</value></data>
-  <data name="ProjectorStatusTitle" xml:space="preserve"><value>Sebagian informasi tidak dapat diperbarui</value></data>
-  <data name="ProjectorStatusMessage" xml:space="preserve"><value>Informasi yang tidak diperbarui: {0}</value></data>
-  <data name="ProjectorArea.State" xml:space="preserve"><value>Status simpanan</value></data>
-  <data name="ProjectorArea.Backup" xml:space="preserve"><value>Daftar cadangan</value></data>
+  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Waktu pencadangan berikutnya tidak diketahui</value></data>
   <data name="ProjectorArea.Schedule" xml:space="preserve"><value>Pencadangan berikutnya</value></data>
-  <data name="ProjectorArea.Details" xml:space="preserve"><value>Detail simpanan</value></data>
-  <data name="ProjectorArea.Logs" xml:space="preserve"><value>Operasi dan log</value></data>
-  <data name="ProjectorArea.Other" xml:space="preserve"><value>Informasi layar</value></data>
-  <data name="OperationCancelled" xml:space="preserve"><value>Operasi dibatalkan.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>Operasi selesai dengan masalah. Periksa log sebelum menjalankannya lagi.</value></data>
+  <data name="OperationCancelled" xml:space="preserve"><value>Dibatalkan.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>Selesai dengan masalah. Periksa log.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Log</value></data>
   <data name="LogLevel.Trace" xml:space="preserve"><value>Pelacakan</value></data>
   <data name="LogLevel.Information" xml:space="preserve"><value>Informasi</value></data>
@@ -165,7 +153,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>{0:N0} lagi</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Informasi teknis</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Salin detail</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Detail log disalin ke papan klip.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Disalin.</value></data>
   <data name="Close" xml:space="preserve"><value>Tutup</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Catatan mentah</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Memuat log…</value></data>
@@ -271,12 +259,11 @@
   <data name="RenameRevisionTitle" xml:space="preserve"><value>Sunting nama cadangan</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>Ganti nama {0}</value></data>
   <data name="ClearRevisionNameLabel" xml:space="preserve"><value>Kosongkan nama</value></data>
-  <data name="RevisionRenamed" xml:space="preserve"><value>Nama cadangan telah diubah.</value></data>
+  <data name="RevisionRenamed" xml:space="preserve"><value>Nama diubah.</value></data>
   <data name="DeleteSaveTitle" xml:space="preserve"><value>Hapus simpanan</value></data>
   <data name="DeletingSave" xml:space="preserve"><value>Menghapus simpanan</value></data>
   <data name="DeleteSaveValidatePhase" xml:space="preserve"><value>Memeriksa berkas simpanan…</value></data>
   <data name="DeleteSaveDiscoverPhase" xml:space="preserve"><value>Mencari berkas yang akan dihapus…</value></data>
-  <data name="OperationDiscoveredFormat" xml:space="preserve"><value>{0} · {1:N0} ditemukan</value></data>
   <data name="DeleteSaveFilesPhase" xml:space="preserve"><value>Menghapus berkas simpanan…</value></data>
   <data name="DeleteSaveBackupsPhase" xml:space="preserve"><value>Menghapus cadangan terkait…</value></data>
   <data name="DeleteRevisionTitle" xml:space="preserve"><value>Hapus cadangan</value></data>
@@ -284,16 +271,16 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Hapus semua cadangan “{0}”</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Hapus semua cadangan</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Hapus seluruh {1} cadangan “{0}”?&#xA;&#xA;Berkas simpanan saat ini tetap disimpan. Cadangan yang dihapus langsung hilang dari daftar dan tidak dapat lagi dipulihkan atau diekspor. Ruang yang digunakannya akan dibersihkan nanti. Tindakan ini tidak dapat dibatalkan.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Cadangan dihapus. Simpanan tetap ada.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Semua dihapus. Simpanan tidak diubah.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Hapus simpanan {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Hapus {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Hapus simpanan “{0}”?&#xA;&#xA;Target: {1}&#xA;Folder simpanan yang dipilih beserta seluruh berkasnya akan dihapus permanen, bersama semua cadangan simpanan ini. Keranjang Sampah dan folder pemulihan tidak digunakan. Tindakan ini tidak dapat dibatalkan. Cadangan yang dihapus tidak dapat dipulihkan atau diekspor; ruang yang digunakannya akan dibersihkan nanti.</value></data>
   <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>Hapus “{1}” dari “{0}”?&#xA;&#xA;Simpanan saat ini dan cadangan lain tetap disimpan. Cadangan yang dihapus tidak dapat lagi dipulihkan atau diekspor. Ruang yang digunakannya akan dibersihkan nanti.</value></data>
-  <data name="SaveDeletedPermanently" xml:space="preserve"><value>Folder simpanan telah dihapus permanen dan semua cadangannya dihapus dari daftar.</value></data>
-  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Folder simpanan telah dihapus, tetapi cadangannya tidak dapat dihapus. Periksa daftar cadangan.</value></data>
-  <data name="RevisionDeleted" xml:space="preserve"><value>Cadangan yang dipilih telah dihapus.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Status simpanan berubah. Berhenti bermain dan tunggu hingga status diperbarui sebelum mencoba lagi.</value></data>
-  <data name="MutationRefreshFailed" xml:space="preserve"><value>Operasi selesai, tetapi daftar belum dapat diperbarui saat ini. Jangan ulangi operasi. Periksa daftar lagi sebentar nanti.</value></data>
+  <data name="SaveDeletedPermanently" xml:space="preserve"><value>Simpanan dan cadangannya dihapus.</value></data>
+  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Simpanan dihapus, tetapi cadangannya masih ada.</value></data>
+  <data name="RevisionDeleted" xml:space="preserve"><value>Dihapus.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Simpanan berubah. Keluar dari gim lalu coba lagi.</value></data>
+  <data name="MutationRefreshFailed" xml:space="preserve"><value>Selesai, tetapi daftar mungkin terlambat diperbarui. Jangan jalankan lagi.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Pencadangan</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Pemulihan</value></data>
   <data name="LogComponent.Archive" xml:space="preserve"><value>Arsip</value></data>
@@ -312,26 +299,24 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Pembersihan cadangan</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Operasi lain</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Operasi tercatat: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Anda tidak memiliki izin untuk mengakses berkas atau folder yang diperlukan. Periksa izinnya, lalu coba lagi.</value></data>
-  <data name="OperationError.FileMissing" xml:space="preserve"><value>Berkas atau folder yang diperlukan tidak ditemukan. Periksa jalurnya.</value></data>
-  <data name="OperationError.Generic" xml:space="preserve"><value>Operasi tidak dapat diselesaikan. Lihat Log untuk detailnya.</value></data>
-  <data name="OperationCardWaiting" xml:space="preserve"><value>Operasi menunggu</value></data>
-  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Keamanan Windows memblokir komponen</value></data>
-  <data name="ComponentBlockedMessage" xml:space="preserve"><value>Kebijakan keamanan Windows (misalnya Smart App Control) mencegah komponen berikut dijalankan: {0}. Pencadangan otomatis dan beberapa fitur mungkin tidak berfungsi. Periksa Keamanan Windows → Kontrol aplikasi &amp; browser.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Tidak ada izin untuk mengakses berkas atau folder.</value></data>
+  <data name="OperationError.FileMissing" xml:space="preserve"><value>Berkas atau folder tidak ditemukan.</value></data>
+  <data name="OperationError.Generic" xml:space="preserve"><value>Tidak dapat diselesaikan. Periksa log.</value></data>
+  <data name="OperationCardWaiting" xml:space="preserve"><value>Menunggu</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Diblokir oleh Keamanan Windows</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>PZ Tools tidak dapat berfungsi dengan baik sampai blokirnya dibuka.</value></data>
   <data name="CardOpenSettings" xml:space="preserve"><value>Buka pengaturan</value></data>
-  <data name="CardAcknowledge" xml:space="preserve"><value>OK</value></data>
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools akan ditutup karena kesalahan tak terduga. Laporan kesalahan: {0}</value></data>
-  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Kebijakan keamanan Windows (misalnya Smart App Control) memblokir komponen PZ Tools. Periksa Keamanan Windows → Kontrol aplikasi &amp; browser.</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Keamanan Windows memblokir PZ Tools. Periksa pengaturan Kontrol Aplikasi Cerdas.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Membersihkan cadangan</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Pembersihan ditunda demi cadangan atau gim.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Akan dirapikan lain kali.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Menghapus cadangan lama</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Menghapus berkas sementara</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Menghapus cadangan dari simpanan yang dihapus</value></data>
   <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>Mengambil kembali ruang tak terpakai</value></data>
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>{0:N1} MB ruang cadangan tak terpakai telah diambil kembali.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Dicadangkan: {0}</value></data>
-  <data name="BackupGameSavePhase" xml:space="preserve"><value>Memeriksa apakah gim sedang dimainkan dan menyimpan jika perlu…</value></data>
-  <data name="BackupPreparingPhase" xml:space="preserve"><value>Menyiapkan pencadangan</value></data>
+  <data name="BackupGameSavePhase" xml:space="preserve"><value>Menyimpan gim</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Simpan gim sebelum pencadangan</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Memeriksa apakah gim perlu disimpan sebelum pencadangan.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Tahap penyimpanan gim selesai. Pencadangan kini akan dilanjutkan.</value></data>
@@ -342,8 +327,8 @@
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Hitung mundur penyimpanan di dalam gim</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Menampilkan hitung mundur di atas karakter mulai 5 detik sebelum pencadangan otomatis menyimpan gim, lalu hasilnya. Pencadangan yang dimulai dari aplikasi langsung menyimpan tanpa tampilan itu. Jika dimatikan, pencadangan otomatis juga menyimpan tanpa tampilan itu.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Menyimpan gim tepat sebelum pencadangan agar kemajuan terbaru ikut tercadangkan. Gim bisa tersendat sekitar setengah detik saat menyimpan. Jika dimatikan, kemajuan yang belum disimpan bisa tidak masuk ke cadangan, jadi sebaiknya tetap diaktifkan.</value></data>
-  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Pencadangan berikutnya: menunggu dimulai</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Pencadangan berikutnya: menunggu operasi saat ini selesai</value></data>
+  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Pencadangan berikutnya: segera</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Pencadangan berikutnya: setelah operasi ini</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Pulihkan karakter</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Pulihkan / hidupkan kembali karakter</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Pulihkan {0}?
@@ -358,8 +343,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Karakter dipulihkan.</value></data>
   <data name="HealCharacterRevived" xml:space="preserve"><value>Karakter dihidupkan kembali.</value></data>
   <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Hidup kembali. Barang didapat: {0}.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Pemulihan dihentikan karena barang tidak dapat diambil kembali dengan aman. Simpanan tidak diubah.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Perubahan sebelumnya pada simpanan perlu diselesaikan. Buka kembali PZ Tools sebelum memuat simpanan ini di gim.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Dihentikan: barang tidak dapat dipulihkan dengan aman. Simpanan tidak diubah.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Perubahan sebelumnya belum selesai. Mulai ulang PZ Tools sebelum memuat simpanan ini.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Pemulihan karakter</value></data>
   <data name="ProfilerNavigation" xml:space="preserve"><value>Performa</value></data>
   <data name="ProfileRecordStart" xml:space="preserve"><value>Mulai merekam</value></data>
@@ -375,15 +360,15 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileNoFrames" xml:space="preserve"><value>Batas frame tidak dapat dibaca, jadi rekaman ini tidak memiliki grafik frame.</value></data>
   <data name="ProfileRecordingTitle" xml:space="preserve"><value>Merekam performa</value></data>
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Merekam performa game…</value></data>
-  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Memproses rekaman…</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Membuat berkas rekaman</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Rekaman performa</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Hapus rekaman ini? Tindakan ini tidak dapat dibatalkan.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Belum ada rekaman.</value></data>
-  <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman ini tidak dapat dibuka. File rusak atau dibuat oleh versi yang lebih baru.</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman tidak dapat dibuka. Berkas rusak atau dari versi yang lebih baru.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya) · Klik item di daftar: bagiannya di setiap batang (klik lagi untuk berhenti; selama ditampilkan, arahkan ke item lain untuk pratinjau)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Salin isi yang ditampilkan sebagai teks</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Salin teks</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Hasil performa telah disalin.</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Disalin.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Jalankan game untuk merekam.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} tidak dimulai karena game tidak sedang berjalan.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} tidak dimulai karena ada lebih dari satu game yang berjalan.</value></data>
@@ -467,17 +452,17 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Menahan pencadangan otomatis selama {0} menit. Tekan lagi, atau tunggu {0} menit, untuk melanjutkan. Pencadangan saat karakter mati tetap berjalan.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Tampilkan status</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Menampilkan waktu hingga pencadangan berikutnya, pencadangan terakhir, dan apa yang sedang direkam di atas karakter.</value></data>
-  <data name="HotKeyTaken" xml:space="preserve"><value>Program lain memakai tombol ini, jadi tombol ini tidak berfungsi.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Dipakai program lain.</value></data>
   <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Hanya berfungsi saat “Simpan menit-menit terakhir terus-menerus” aktif.</value></data>
   <data name="HotKeyPress" xml:space="preserve"><value>Tekan tombol… (Esc untuk batal)</value></data>
   <data name="HotKeyNone" xml:space="preserve"><value>Tidak ada</value></data>
   <data name="HotKeyClearFormat" xml:space="preserve"><value>Hapus tombol pintas {0}</value></data>
   <data name="HotKeyUnknownKey" xml:space="preserve"><value>Tombol ini tidak bisa dipakai.</value></data>
-  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Huruf dan angka harus dipakai bersama Ctrl atau Alt.</value></data>
-  <data name="HotKeyDuplicate" xml:space="preserve"><value>Tombol ini sudah dipakai tindakan lain.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Tekan bersama Ctrl atau Alt.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Sudah dipakai tindakan lain.</value></data>
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
-  <data name="HotKeyNoSave" xml:space="preserve"><value>Tidak ada simpanan yang bisa dicadangkan. Muat simpanan di game, lalu tekan lagi.</value></data>
-  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Belum ada yang bisa disimpan. Game harus berjalan, dengan “Simpan menit-menit terakhir terus-menerus” aktif di Pengaturan.</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Tidak ada simpanan untuk dicadangkan. Muat simpanan di gim.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Belum ada menit terakhir untuk disimpan. Aktifkan “Simpan menit-menit terakhir terus-menerus” di pengaturan.</value></data>
   <data name="ProfileRollingOff" xml:space="preserve"><value>Aktifkan “Simpan menit-menit terakhir terus-menerus” di Pengaturan &gt; Performa untuk memakai ini.</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Simpan {0} mnt terakhir</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Menyimpan {0} mnt terakhir…</value></data>
@@ -491,7 +476,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 sampai 10 menit. Durasi lebih panjang tidak menambah beban game, hanya memakai lebih banyak ruang disk.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Mulai menyimpan menit terakhir setelah game berjalan.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Mulai menyimpan menit terakhir…</value></data>
-  <data name="ProfileError.NotRolling" xml:space="preserve"><value>Game tidak menyimpan menit terakhir (game atau tautannya dimulai ulang). Mulai sekarang disimpan lagi.</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>Belum ada menit terakhir untuk disimpan. Merekam lagi mulai sekarang.</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Mengambil menit terakhir</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Berhenti membandingkan</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Dibandingkan dengan seluruh {0}</value></data>
@@ -561,16 +546,16 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Seberapa banyak rentang terpilih skrip ini sedang berjalan. Termasuk waktu fungsi game yang dipanggil skrip.</value></data>
   <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Seberapa banyak waktu jalan kode game dalam rentang terpilih yang dipakai item ini. Fungsi game yang dipanggil skrip Lua dihitung sebagai 'Game dasar' di sini. Tunggu dan henti panjang menampilkan jumlah, bukan porsi.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0}×</value></data>
-  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Game tidak sedang berjalan. Jalankan game lalu coba lagi.</value></data>
-  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Ada lebih dari satu game yang berjalan, jadi target tidak dapat ditentukan.</value></data>
-  <data name="ProfileError.Link" xml:space="preserve"><value>Tidak dapat terhubung ke game. Jika Anda baru memperbarui game atau PZ Tools, mulai ulang game.</value></data>
-  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools telah diperbarui. Mulai ulang game sekali untuk merekam.</value></data>
-  <data name="ProfileError.Busy" xml:space="preserve"><value>Operasi lain sedang berlangsung. Coba lagi sebentar lagi.</value></data>
-  <data name="ProfileError.Convert" xml:space="preserve"><value>Rekaman selesai, tetapi hasilnya tidak dapat diproses. Periksa log untuk detailnya.</value></data>
-  <data name="ProfileError.Generic" xml:space="preserve"><value>Perekaman gagal. Periksa log untuk detailnya.</value></data>
-  <data name="RecoveryError.Busy" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan simpanan ini. Berhenti bermain dan tunggu hingga operasi selesai, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>Simpanan ini memiliki perubahan yang belum selesai. Keluar dari gim secara normal, lalu coba lagi. Simpanan asli tidak diubah.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Tidak dapat menentukan karakter mana yang dipulihkan. Fitur ini hanya untuk simpanan pemain tunggal, dan jika simpanan memiliki beberapa karakter, salah satunya harus dipilih. Simpanan tidak diubah.</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Gim tidak sedang berjalan.</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Ada lebih dari satu gim berjalan. Sisakan satu saja.</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>Tidak dapat terhubung ke gim. Coba mulai ulang gim.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>Mulai ulang gim sekali untuk merekam.</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>Ada operasi lain berjalan. Coba lagi sebentar lagi.</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>Tidak dapat membuat berkas rekaman. Periksa log.</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>Tidak dapat merekam. Periksa log.</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>Gim atau operasi lain sedang memakai simpanan ini. Simpanan tidak diubah.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>Gim tidak menutup simpanan ini dengan benar. Muat di gim lalu keluar secara normal. Simpanan tidak diubah.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Hanya simpanan pemain tunggal yang bisa dipulihkan. Simpanan tidak diubah.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Simpanan ini memiliki beberapa karakter. Pilih karakter yang ingin dipulihkan; karakter lain tidak diubah.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Mencari zombi atau mayat karakter…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Pilih dari mana barang-barang diambil kembali.</value></data>
@@ -584,22 +569,21 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="HealRemainsNone" xml:space="preserve"><value>Hidupkan kembali tanpa barang</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Zombi atau mayat karakter ini tidak ditemukan. Karakter akan dihidupkan kembali tanpa barang.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Zombi atau mayat karakter tidak dapat dicari sebelumnya. Pemulihan akan mencarinya lagi.</value></data>
-  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Zombi atau mayat yang dipilih telah berubah sementara itu. Buka jendela pemulihan lagi. Simpanan tidak diubah.</value></data>
-  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Karakter yang dipilih sudah tidak ada di simpanan ini. Simpanan mungkin telah berubah sementara itu; silakan coba lagi. Simpanan tidak diubah.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Simpanan ini tidak dapat disunting dengan aman. Pastikan versi PZ Tools mendukung versi gim Anda. Simpanan asli tidak diubah.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Zombi atau mayat yang dipilih berubah. Pilih lagi. Simpanan tidak diubah.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Karakter yang dipilih tidak ditemukan. Coba lagi. Simpanan tidak diubah.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Simpanan ini tidak dapat dipulihkan. Coba perbarui PZ Tools. Simpanan tidak diubah.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Waktu bertahan hidup tidak tersedia · memeriksa kembali</value></data>
-  <data name="OperationError.FileInUse" xml:space="preserve"><value>Gim atau operasi lain sedang menggunakan berkas yang diperlukan. Tunggu hingga penyimpanan atau operasi itu selesai, lalu coba lagi.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Save berubah saat sedang diekspor. Keluar dari game, lalu ekspor lagi. File yang sudah ada tetap disimpan.</value></data>
-  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Data cadangan ini rusak dan tidak dapat dibaca. Pilih cadangan lain. Save saat ini dan file yang sudah ada tidak berubah.</value></data>
-  <data name="OperationError.DiskFull" xml:space="preserve"><value>Ruang kosong tidak cukup. Kosongkan ruang pada drive tujuan, lalu coba lagi.</value></data>
-  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Berkas aplikasi yang diperlukan tidak ditemukan. Ekstrak seluruh unduhan ke satu folder atau pasang ulang PZ Tools, lalu buka kembali.</value></data>
-  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Folder cadangan ini menggunakan format penyimpanan yang berbeda. Pilih folder cadangan baru yang kosong di Pengaturan. Simpan folder lama jika cadangannya masih diperlukan dan jangan hapus simpanan gim Anda.</value></data>
-  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Tunggu hingga operasi saat ini selesai sebelum mengganti folder atau memulai ulang PZ Tools.</value></data>
-  <data name="OperationError.Configuration" xml:space="preserve"><value>Pengaturan tidak dapat diterapkan. Periksa nilai yang dimasukkan dan berkas yang diedit melalui pengaturan lanjutan.</value></data>
-  <data name="OperationError.RestartFailed" xml:space="preserve"><value>PZ Tools tidak dapat dimulai ulang. Setelah operasi yang berjalan selesai, tutup aplikasi dan buka kembali.</value></data>
-  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Folder yang dipilih tidak dapat digunakan, jadi pengaturan sebelumnya dipulihkan. Periksa lokasi folder dan izinnya.</value></data>
-  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Folder baru tidak dapat digunakan dan pengaturan sebelumnya tidak dapat dipulihkan. Periksa lokasi folder di Pengaturan sebelum melanjutkan.</value></data>
-  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Menggunakan kembali data identik yang sudah dicadangkan</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>Gim atau operasi lain sedang memakai berkas ini. Coba lagi sebentar lagi.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Simpanan berubah saat diekspor. Keluar dari gim lalu coba lagi.</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Cadangan ini rusak. Pilih cadangan lain. Simpanan tidak diubah.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>Ruang disk tidak cukup.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Ada berkas PZ Tools yang hilang. Ekstrak lagi paket yang diunduh.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Versi ini tidak dapat membuka folder cadangan ini. Pilih folder baru di pengaturan. Jangan hapus folder lama.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Coba lagi setelah operasi saat ini selesai.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>Pengaturan tidak dapat diterapkan. Periksa nilai yang dimasukkan.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>Tidak dapat memulai ulang. Tutup lalu buka lagi aplikasi.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Folder ini tidak dapat dipakai, jadi pengaturan sebelumnya dikembalikan.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Folder tidak dapat diganti. Periksa folder di pengaturan.</value></data>
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Menggunakan kembali data identik yang sudah dicadangkan</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Aktif</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Nonaktif</value></data>
@@ -608,7 +592,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Gim dijeda</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Memeriksa status gim</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Jalankan hanya satu sesi Project Zomboid</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Hasil pencadangan sebelumnya tidak diketahui, jadi interval ini dilewati.</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Pencadangan kali ini dilewati</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Hapus filter</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Hapus semua</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · klik untuk memfilter</value></data>
@@ -668,8 +652,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Saat ini tidak diterapkan karena gim tidak dapat dijangkau.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Cadangan berikutnya (tanpa menyimpan gim)</value></data>
   <data name="GameLinkCardMessage" xml:space="preserve"><value>Pencadangan dilakukan tanpa menyimpan gim.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Status gim tidak dapat dibaca</value></data>
-  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Pencadangan dilakukan tanpa menyimpan gim. PZ Tools telah diperbarui; mulai ulang gim untuk menyambung kembali.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Tidak terhubung ke gim</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Mulai ulang gim.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilitas dan status</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Tidak ada log dengan tingkat {0} atau lebih tinggi.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Tidak ada log yang cocok dengan filter yang dipilih.</value></data>
@@ -704,13 +688,21 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} hari lalu</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>Versi</value></data>
   <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Pemberitahuan versi baru</value></data>
-  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Sekali sehari memeriksa GitHub apakah ada versi baru, lalu memberi tahu dengan satu baris di bilah samping. Tidak mengunduh apa pun dengan sendirinya.</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Memberi tahu di bilah samping jika ada versi baru.</value></data>
   <data name="UpdateCheckNow" xml:space="preserve"><value>Periksa sekarang</value></data>
   <data name="UpdateDownload" xml:space="preserve"><value>Unduh</value></data>
-  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · Sudah versi terbaru</value></data>
-  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · Versi baru tersedia: {1}</value></data>
-  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · Belum memeriksa pembaruan</value></data>
-  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · Memeriksa…</value></data>
-  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · Tidak dapat memeriksa pembaruan. Periksa koneksi internet.</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>Sudah versi terbaru</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>Versi baru tersedia: {0}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>Belum memeriksa pembaruan</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>Memeriksa…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>Tidak dapat memeriksa pembaruan. Periksa koneksi internet.</value></data>
   <data name="UpdateCardFormat" xml:space="preserve"><value>Unduh versi baru {0}</value></data>
+  <data name="GameLinkRestartTitle" xml:space="preserve"><value>PZ Tools telah diperbarui</value></data>
+  <data name="SavesUnavailable" xml:space="preserve"><value>Daftar simpanan tidak dapat dimuat.</value></data>
+  <data name="OperationDiscoveredItemsFormat" xml:space="preserve"><value>{0:N0} berkas ditemukan</value></data>
+  <data name="LoadFailed.State" xml:space="preserve"><value>Daftar simpanan gagal dimuat</value></data>
+  <data name="LoadFailed.Backup" xml:space="preserve"><value>Daftar cadangan gagal dimuat</value></data>
+  <data name="LoadFailed.Details" xml:space="preserve"><value>Detail simpanan gagal dimuat</value></data>
+  <data name="LoadFailedRetrying" xml:space="preserve"><value>Mencoba lagi.</value></data>
+  <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Periksa pembaruan</value></data>
 </root>

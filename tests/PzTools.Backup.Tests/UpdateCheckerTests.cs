@@ -75,7 +75,7 @@ public sealed class UpdateCheckerTests
         Assert.Null(checker.Available);
         Assert.NotNull(checker.State.CheckedAt);
 
-        clock.Now += TimeSpan.FromHours(19);
+        clock.Now += UpdateChecker.Interval - TimeSpan.FromMinutes(1);
         await new UpdateChecker(path, new Version(0, 2, 1), github, clock).CheckAsync(force: false);
         Assert.Equal(1, github.Requests);
         await checker.CheckAsync(force: true);

@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>เซฟปัจจุบัน</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>โฟลเดอร์เซฟ</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>กำลังคัดลอกเซฟปัจจุบัน</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>ส่งออกเซฟปัจจุบันขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>ส่งออกขณะเล่นไม่ได้ กรุณาออกจากเกม</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>กู้คืนข้อมูลสำรองขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>เลือกแบ็กอัปที่ต้องการกู้คืนจากรายการ</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>ลบเซฟขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>รักษาตัวละครขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>รักษาขณะเล่นไม่ได้ กรุณาออกจากเกม</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>ยังไม่มีข้อมูลสำรอง</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>สำรองตอนนี้</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>กู้คืน</value></data>
@@ -54,13 +54,13 @@
   <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุดไว้ตามจำนวนนี้และลบรายการที่เก่ากว่า (1–100) ข้อมูลสำรองด้วยตนเองจะไม่ถูกนับและไม่ถูกลบ</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครเสียชีวิต</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>เมื่อตัวละครเสียชีวิต การสำรองอัตโนมัติจะหยุด เพื่อไม่ให้ข้อมูลสำรองตอนยังมีชีวิตถูกดันออก เปิดเพื่อเก็บข้อมูลสำรองหนึ่งรายการ ณ ตอนที่เสียชีวิต</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>ไฟล์เซฟเปลี่ยนแปลงต่อเนื่องระหว่างสำรองข้อมูล รอให้เกมบันทึกเสร็จแล้วลองสำรองอีกครั้ง</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนแปลงไม่หยุด จึงสำรองข้อมูลไม่ได้ ลองอีกครั้งในอีกสักครู่</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>สำรองครั้งถัดไป: รออยู่</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>ตามระบบ</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>สว่าง</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>มืด</value></data>
-  <data name="HostNotReady" xml:space="preserve"><value>แอปยังไม่พร้อม กรุณาลองอีกครั้งในอีกสักครู่</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools กำลังเริ่มทำงาน กรุณาลองอีกครั้งในสักครู่</value></data>
+  <data name="HostNotReady" xml:space="preserve"><value>ยังเตรียมพร้อมอยู่ ลองอีกครั้งในอีกสักครู่</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>ยังเริ่มทำงานอยู่ ลองอีกครั้งในอีกสักครู่</value></data>
   <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>เริ่มการสำรองอัตโนมัติไม่ได้</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>โหมดเกม: {0}</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>ตัวละคร: {0}</value></data>
@@ -78,18 +78,13 @@
   <data name="Importing" xml:space="preserve"><value>กำลังนำเข้า</value></data>
   <data name="Restoring" xml:space="preserve"><value>กำลังกู้คืน</value></data>
   <data name="ExportingDynamic" xml:space="preserve"><value>กำลังส่งออก</value></data>
-  <data name="TelemetryProgressUnavailable" xml:space="preserve"><value>ไม่สามารถดูข้อมูลความคืบหน้าได้</value></data>
-  <data name="BackupScanPhase" xml:space="preserve"><value>กำลังตรวจสอบไฟล์เซฟ</value></data>
-  <data name="BackupHashPhase" xml:space="preserve"><value>กำลังตรวจสอบการเปลี่ยนแปลงเนื้อหาไฟล์</value></data>
   <data name="LogPhase.hash" xml:space="preserve"><value>เปรียบเทียบเนื้อหาไฟล์</value></data>
   <data name="BackupCopyPhase" xml:space="preserve"><value>กำลังคัดลอกไฟล์เซฟ</value></data>
   <data name="BackupCopyRetryPhase" xml:space="preserve"><value>ไฟล์เปลี่ยนแปลง · กำลังคัดลอกใหม่</value></data>
-  <data name="BackupCapturePhase" xml:space="preserve"><value>กำลังสำรองไฟล์เซฟ</value></data>
   <data name="ArchiveRestorePhase" xml:space="preserve"><value>กำลังกู้คืนไปยังโฟลเดอร์ชั่วคราว</value></data>
   <data name="ArchiveCompressPhase" xml:space="preserve"><value>กำลังบีบอัด</value></data>
   <data name="ArchiveFinalizePhase" xml:space="preserve"><value>กำลังดำเนินการขั้นสุดท้าย</value></data>
   <data name="Processing" xml:space="preserve"><value>กำลังประมวลผล</value></data>
-  <data name="ProcessingNow" xml:space="preserve"><value>กำลังประมวลผล</value></data>
   <data name="AutomaticBackupOff" xml:space="preserve"><value>ปิดการสำรองอัตโนมัติแล้ว</value></data>
   <data name="NextBackupWaitingDynamic" xml:space="preserve"><value>สำรองครั้งถัดไป: รออยู่</value></data>
   <data name="Unknown" xml:space="preserve"><value>ไม่ทราบ</value></data>
@@ -97,8 +92,8 @@
   <data name="Import" xml:space="preserve"><value>นำเข้า</value></data>
   <data name="Cancel" xml:space="preserve"><value>ยกเลิก</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>นำเข้าไฟล์สำรอง</value></data>
-  <data name="InvalidArchiveFormat" xml:space="preserve"><value>นำเข้าข้อมูลสำรองนี้ไม่ได้ กรุณาตรวจสอบว่าไฟล์เสียหายหรือไม่</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>อัตราการบีบอัดของไฟล์นี้สูงผิดปกติ จึงไม่สามารถนำเข้าอย่างปลอดภัยได้</value></data>
+  <data name="InvalidArchiveFormat" xml:space="preserve"><value>นำเข้าไฟล์นี้ไม่ได้ ตรวจสอบว่าเป็นไฟล์ที่ส่งออกจาก PZ Tools</value></data>
+  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>ไม่ได้นำเข้า เพราะไฟล์บีบอัดไม่ปลอดภัย</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>กู้คืนข้อมูลสำรองที่เลือกหรือไม่?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>แทนที่ไฟล์ปัจจุบันของ “{0}” ด้วยข้อมูลสำรอง “{1}” ความคืบหน้าหลังจากสำรองครั้งนั้นจะหายไป หากการกู้คืนถูกขัดจังหวะ ให้เปิด PZ Tools อีกครั้งก่อนโหลดเซฟนี้ในเกม</value></data>
@@ -107,21 +102,14 @@
   <data name="ArchiveFileType" xml:space="preserve"><value>ข้อมูลสำรองเซฟ PZ Tools</value></data>
   <data name="ExportArchiveTitle" xml:space="preserve"><value>ส่งออก ZIP</value></data>
   <data name="OperationSucceeded" xml:space="preserve"><value>เสร็จสิ้น</value></data>
-  <data name="OperationNoChange" xml:space="preserve"><value>ไม่มีไฟล์เปลี่ยนแปลง</value></data>
+  <data name="OperationNoChange" xml:space="preserve"><value>ไม่มีอะไรเปลี่ยนแปลง</value></data>
   <data name="OperationBusy" xml:space="preserve"><value>ข้ามเนื่องจากมีงานอื่นกำลังทำอยู่</value></data>
-  <data name="OperationFailed" xml:space="preserve"><value>ดำเนินการไม่สำเร็จ</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>ไม่สำเร็จ โปรดดูบันทึกเหตุการณ์</value></data>
   <data name="NoPlayHistory" xml:space="preserve"><value>ไม่มีประวัติการเล่น</value></data>
-  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>ไม่มีข้อมูลการสำรองครั้งถัดไป</value></data>
-  <data name="ProjectorStatusTitle" xml:space="preserve"><value>รีเฟรชข้อมูลบางส่วนไม่ได้</value></data>
-  <data name="ProjectorStatusMessage" xml:space="preserve"><value>ข้อมูลที่ยังไม่อัปเดต: {0}</value></data>
-  <data name="ProjectorArea.State" xml:space="preserve"><value>สถานะเซฟ</value></data>
-  <data name="ProjectorArea.Backup" xml:space="preserve"><value>รายการสำรอง</value></data>
+  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>ไม่ทราบเวลาสำรองครั้งถัดไป</value></data>
   <data name="ProjectorArea.Schedule" xml:space="preserve"><value>การสำรองครั้งถัดไป</value></data>
-  <data name="ProjectorArea.Details" xml:space="preserve"><value>รายละเอียดเซฟ</value></data>
-  <data name="ProjectorArea.Logs" xml:space="preserve"><value>การทำงานและบันทึกเหตุการณ์</value></data>
-  <data name="ProjectorArea.Other" xml:space="preserve"><value>ข้อมูลบนหน้าจอ</value></data>
-  <data name="OperationCancelled" xml:space="preserve"><value>ยกเลิกการทำงานแล้ว</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>งานสิ้นสุดแล้ว แต่ยังมีปัญหาที่ต้องตรวจสอบ กรุณาดูบันทึกเหตุการณ์ก่อนเริ่มงานซ้ำ</value></data>
+  <data name="OperationCancelled" xml:space="preserve"><value>ยกเลิกแล้ว</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>เสร็จแล้วแต่มีปัญหา โปรดดูบันทึกเหตุการณ์</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>บันทึกเหตุการณ์</value></data>
   <data name="LogLevel.Trace" xml:space="preserve"><value>ติดตาม</value></data>
   <data name="LogLevel.Information" xml:space="preserve"><value>ข้อมูล</value></data>
@@ -165,7 +153,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>อีก {0:N0} รายการ</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>ข้อมูลทางเทคนิค</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>คัดลอกรายละเอียด</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>คัดลอกรายละเอียดบันทึกไปยังคลิปบอร์ดแล้ว</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>คัดลอกแล้ว</value></data>
   <data name="Close" xml:space="preserve"><value>ปิด</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>บันทึกต้นฉบับ</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>กำลังโหลดบันทึก…</value></data>
@@ -271,12 +259,11 @@
   <data name="RenameRevisionTitle" xml:space="preserve"><value>แก้ไขชื่อข้อมูลสำรอง</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>เปลี่ยนชื่อ {0}</value></data>
   <data name="ClearRevisionNameLabel" xml:space="preserve"><value>ล้างชื่อ</value></data>
-  <data name="RevisionRenamed" xml:space="preserve"><value>เปลี่ยนชื่อข้อมูลสำรองแล้ว</value></data>
+  <data name="RevisionRenamed" xml:space="preserve"><value>เปลี่ยนชื่อแล้ว</value></data>
   <data name="DeleteSaveTitle" xml:space="preserve"><value>ลบเซฟ</value></data>
   <data name="DeletingSave" xml:space="preserve"><value>กำลังลบเซฟ</value></data>
   <data name="DeleteSaveValidatePhase" xml:space="preserve"><value>กำลังตรวจสอบไฟล์เซฟ…</value></data>
   <data name="DeleteSaveDiscoverPhase" xml:space="preserve"><value>กำลังค้นหาไฟล์ที่จะลบ…</value></data>
-  <data name="OperationDiscoveredFormat" xml:space="preserve"><value>{0} · พบ {1:N0} รายการ</value></data>
   <data name="DeleteSaveFilesPhase" xml:space="preserve"><value>กำลังลบไฟล์เซฟ…</value></data>
   <data name="DeleteSaveBackupsPhase" xml:space="preserve"><value>กำลังลบข้อมูลสำรองที่เกี่ยวข้อง…</value></data>
   <data name="DeleteRevisionTitle" xml:space="preserve"><value>ลบข้อมูลสำรอง</value></data>
@@ -286,7 +273,7 @@
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>ลบข้อมูลสำรองทั้ง {1} รายการของ “{0}” หรือไม่?
 
 ไฟล์เซฟปัจจุบันจะยังคงอยู่ ข้อมูลสำรองที่ลบจะหายจากรายการทันทีและไม่สามารถกู้คืนหรือส่งออกได้อีก พื้นที่ที่ใช้จะว่างลงภายหลัง การกระทำนี้ย้อนกลับไม่ได้</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>ลบข้อมูลสำรองแล้ว เซฟยังอยู่</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>ลบทั้งหมดแล้ว เซฟยังเหมือนเดิม</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>ลบเซฟ {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>ลบ {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>ลบเซฟ “{0}” หรือไม่?
@@ -296,11 +283,11 @@
   <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>ลบ “{1}” จาก “{0}” หรือไม่?
 
 เซฟปัจจุบันและข้อมูลสำรองอื่นจะยังคงอยู่ ข้อมูลสำรองที่ลบจะกู้คืนหรือส่งออกไม่ได้อีก พื้นที่ที่ใช้จะว่างลงภายหลัง</value></data>
-  <data name="SaveDeletedPermanently" xml:space="preserve"><value>ลบโฟลเดอร์เซฟถาวรแล้ว และนำข้อมูลสำรองทั้งหมดออกจากรายการแล้ว</value></data>
-  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>ลบโฟลเดอร์เซฟแล้ว แต่ลบข้อมูลสำรองไม่ได้ โปรดตรวจสอบรายการสำรอง</value></data>
-  <data name="RevisionDeleted" xml:space="preserve"><value>ลบข้อมูลสำรองที่เลือกแล้ว</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>สถานะเซฟเปลี่ยนไป โปรดหยุดเล่นและรอให้สถานะอัปเดตก่อนลองใหม่</value></data>
-  <data name="MutationRefreshFailed" xml:space="preserve"><value>การทำงานเสร็จแล้ว แต่ยังอัปเดตรายการทันทีไม่ได้ อย่าทำซ้ำ โปรดตรวจสอบรายการอีกครั้งในอีกสักครู่</value></data>
+  <data name="SaveDeletedPermanently" xml:space="preserve"><value>ลบเซฟและข้อมูลสำรองแล้ว</value></data>
+  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>ลบเซฟแล้ว แต่ข้อมูลสำรองยังเหลืออยู่</value></data>
+  <data name="RevisionDeleted" xml:space="preserve"><value>ลบแล้ว</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>เซฟเปลี่ยนไปแล้ว ออกจากเกมแล้วลองอีกครั้ง</value></data>
+  <data name="MutationRefreshFailed" xml:space="preserve"><value>เสร็จแล้ว แต่รายการอาจอัปเดตช้า อย่าทำซ้ำ</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>การสำรองข้อมูล</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>การกู้คืน</value></data>
   <data name="LogComponent.Archive" xml:space="preserve"><value>ไฟล์บีบอัด</value></data>
@@ -319,26 +306,24 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>การล้างข้อมูลสำรอง</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>การทำงานอื่น</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>บันทึกการทำงาน: {0}</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>คุณไม่มีสิทธิ์เข้าถึงไฟล์หรือโฟลเดอร์ที่จำเป็น กรุณาตรวจสอบสิทธิ์แล้วลองอีกครั้ง</value></data>
-  <data name="OperationError.FileMissing" xml:space="preserve"><value>ไม่พบไฟล์หรือโฟลเดอร์ที่จำเป็น โปรดตรวจสอบพาธ</value></data>
-  <data name="OperationError.Generic" xml:space="preserve"><value>ทำงานไม่สำเร็จ ดูรายละเอียดในบันทึกเหตุการณ์</value></data>
-  <data name="OperationCardWaiting" xml:space="preserve"><value>การทำงานกำลังรอ</value></data>
-  <data name="ComponentBlockedTitle" xml:space="preserve"><value>ความปลอดภัยของ Windows บล็อกคอมโพเนนต์</value></data>
-  <data name="ComponentBlockedMessage" xml:space="preserve"><value>นโยบายความปลอดภัยของ Windows (เช่น Smart App Control) ป้องกันไม่ให้คอมโพเนนต์ต่อไปนี้เริ่มทำงาน: {0} การสำรองข้อมูลอัตโนมัติและบางฟีเจอร์อาจใช้งานไม่ได้ โปรดตรวจสอบ ความปลอดภัยของ Windows → การควบคุมแอปและเบราว์เซอร์</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>ไม่มีสิทธิ์เข้าถึงไฟล์หรือโฟลเดอร์</value></data>
+  <data name="OperationError.FileMissing" xml:space="preserve"><value>ไม่พบไฟล์หรือโฟลเดอร์</value></data>
+  <data name="OperationError.Generic" xml:space="preserve"><value>ทำไม่สำเร็จ โปรดดูบันทึกเหตุการณ์</value></data>
+  <data name="OperationCardWaiting" xml:space="preserve"><value>กำลังรอ</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>ถูกความปลอดภัยของ Windows บล็อก</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>PZ Tools จะทำงานได้ไม่เต็มที่จนกว่าจะปลดบล็อก</value></data>
   <data name="CardOpenSettings" xml:space="preserve"><value>เปิดการตั้งค่า</value></data>
-  <data name="CardAcknowledge" xml:space="preserve"><value>ตกลง</value></data>
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools จะปิดเนื่องจากข้อผิดพลาดที่ไม่คาดคิด บันทึกข้อผิดพลาด: {0}</value></data>
-  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>นโยบายความปลอดภัยของ Windows (เช่น Smart App Control) บล็อกคอมโพเนนต์ของ PZ Tools โปรดตรวจสอบ ความปลอดภัยของ Windows → การควบคุมแอปและเบราว์เซอร์</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>ความปลอดภัยของ Windows บล็อก PZ Tools ไว้ โปรดตรวจสอบการตั้งค่า การควบคุมแอปอัจฉริยะ</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>กำลังล้างข้อมูลสำรอง</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>เลื่อนการล้างเพื่อการสำรองหรือตัวเกม</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>จะจัดระเบียบใหม่ในครั้งถัดไป</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>ลบข้อมูลสำรองเก่า</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>ลบไฟล์ชั่วคราว</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>ลบข้อมูลสำรองของเซฟที่ถูกลบ</value></data>
   <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>กำลังคืนพื้นที่ที่ไม่ได้ใช้</value></data>
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>คืนพื้นที่สำรองข้อมูลที่ไม่ได้ใช้แล้ว {0:N1} MB</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>บันทึกเมื่อ: {0}</value></data>
-  <data name="BackupGameSavePhase" xml:space="preserve"><value>กำลังตรวจสอบว่ากำลังเล่นอยู่หรือไม่ และบันทึกเกมหากจำเป็น…</value></data>
-  <data name="BackupPreparingPhase" xml:space="preserve"><value>กำลังเตรียมการสำรองข้อมูล</value></data>
+  <data name="BackupGameSavePhase" xml:space="preserve"><value>กำลังบันทึกเกม</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>กำลังตรวจสอบว่าต้องบันทึกเกมก่อนสำรองหรือไม่</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>ขั้นตอนบันทึกเกมเสร็จแล้ว ระบบจะสำรองข้อมูลต่อ</value></data>
@@ -349,8 +334,8 @@
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>นับถอยหลังการบันทึกในเกม</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อนที่การสำรองอัตโนมัติจะบันทึกเกม แล้วแสดงผลการบันทึก การสำรองที่เริ่มจากแอปจะบันทึกทันทีโดยไม่แสดง หากปิด การสำรองอัตโนมัติก็จะบันทึกโดยไม่แสดงเช่นกัน</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกเกมก่อนสำรองทันทีเพื่อให้รวมความคืบหน้าล่าสุด เกมอาจสะดุดประมาณครึ่งวินาทีขณะบันทึก หากปิด ความคืบหน้าที่ยังไม่ได้บันทึกอาจไม่อยู่ในข้อมูลสำรอง จึงแนะนำให้เปิดไว้</value></data>
-  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอเริ่ม</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: รอให้งานปัจจุบันเสร็จ</value></data>
+  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: เริ่มเร็ว ๆ นี้</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: หลังงานปัจจุบันเสร็จ</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>รักษาตัวละคร</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>รักษา / ชุบชีวิตตัวละคร</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>ฟื้นฟูตัวละคร {0} หรือไม่?
@@ -365,8 +350,8 @@
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>รักษาตัวละครแล้ว</value></data>
   <data name="HealCharacterRevived" xml:space="preserve"><value>ตัวละครฟื้นคืนชีพแล้ว</value></data>
   <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>ฟื้นคืนชีพแล้ว ได้ไอเทมคืน {0} ชิ้น</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>หยุดการฟื้นฟูเพราะไม่สามารถนำสิ่งของกลับมาได้อย่างปลอดภัย เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>ต้องดำเนินการแก้ไขเซฟครั้งก่อนให้เสร็จ โปรดเปิด PZ Tools ใหม่ก่อนโหลดเซฟนี้ในเกม</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>หยุดแล้ว เพราะนำสิ่งของกลับมาอย่างปลอดภัยไม่ได้ เซฟยังเหมือนเดิม</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>การแก้ไขครั้งก่อนยังไม่เสร็จ เปิด PZ Tools ใหม่ก่อนโหลดเซฟนี้</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>การฟื้นฟูตัวละคร</value></data>
   <data name="ProfilerNavigation" xml:space="preserve"><value>ประสิทธิภาพ</value></data>
   <data name="ProfileRecordStart" xml:space="preserve"><value>เริ่มบันทึก</value></data>
@@ -382,15 +367,15 @@
   <data name="ProfileNoFrames" xml:space="preserve"><value>อ่านขอบเขตของเฟรมไม่ได้ การบันทึกนี้จึงไม่มีกราฟเฟรม</value></data>
   <data name="ProfileRecordingTitle" xml:space="preserve"><value>กำลังบันทึกประสิทธิภาพ</value></data>
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>กำลังบันทึกประสิทธิภาพของเกม…</value></data>
-  <data name="ProfilePhaseConverting" xml:space="preserve"><value>กำลังประมวลผลการบันทึก…</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>กำลังสร้างไฟล์การบันทึก</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>การบันทึกประสิทธิภาพ</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>ลบการบันทึกนี้ใช่ไหม การลบนี้ย้อนกลับไม่ได้</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>ยังไม่มีการบันทึก</value></data>
-  <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกนี้ไม่ได้ ไฟล์เสียหายหรือสร้างจากเวอร์ชันที่ใหม่กว่า</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกไม่ได้ ไฟล์เสียหายหรือมาจากเวอร์ชันที่ใหม่กว่า</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์) · คลิกรายการในลิสต์: แสดงส่วนของรายการนั้นในแต่ละแท่ง (คลิกอีกครั้งเพื่อยกเลิก ระหว่างแสดง ชี้รายการอื่นเพื่อดูตัวอย่าง)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>คัดลอกเนื้อหาที่แสดงเป็นข้อความ</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกข้อความ</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>คัดลอกผลประสิทธิภาพแล้ว</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>คัดลอกแล้ว</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>เปิดเกมเพื่อเริ่มบันทึก</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะเกมไม่ได้เปิดอยู่</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะมีเกมเปิดอยู่มากกว่าหนึ่งเกม</value></data>
@@ -474,17 +459,17 @@
   <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>พักการสำรองอัตโนมัติ {0} นาที กดอีกครั้งหรือรอ {0} นาทีเพื่อทำต่อ การสำรองเมื่อตัวละครเสียชีวิตยังทำตามปกติ</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>แสดงสถานะ</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>แสดงเวลาที่เหลือก่อนการสำรองครั้งถัดไป การสำรองล่าสุด และสิ่งที่กำลังบันทึกไว้เหนือตัวละคร</value></data>
-  <data name="HotKeyTaken" xml:space="preserve"><value>โปรแกรมอื่นใช้ปุ่มนี้อยู่ จึงไม่มีผล</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>โปรแกรมอื่นใช้ปุ่มนี้อยู่</value></data>
   <data name="HotKeyNeedsRolling" xml:space="preserve"><value>ใช้ได้เฉพาะเมื่อเปิด “เก็บนาทีล่าสุดไว้ตลอด” อยู่</value></data>
   <data name="HotKeyPress" xml:space="preserve"><value>กดปุ่ม… (Esc เพื่อยกเลิก)</value></data>
   <data name="HotKeyNone" xml:space="preserve"><value>ไม่มี</value></data>
   <data name="HotKeyClearFormat" xml:space="preserve"><value>ล้างปุ่มลัด {0}</value></data>
   <data name="HotKeyUnknownKey" xml:space="preserve"><value>ใช้ปุ่มนี้ไม่ได้</value></data>
-  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>ตัวอักษรและตัวเลขต้องกดร่วมกับ Ctrl หรือ Alt</value></data>
-  <data name="HotKeyDuplicate" xml:space="preserve"><value>ปุ่มนี้ถูกใช้กับการทำงานอื่นแล้ว</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>กดร่วมกับ Ctrl หรือ Alt</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>ปุ่มนี้ใช้กับการทำงานอื่นแล้ว</value></data>
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
-  <data name="HotKeyNoSave" xml:space="preserve"><value>ไม่พบเซฟที่จะสำรอง โหลดเซฟในเกมแล้วกดอีกครั้ง</value></data>
-  <data name="ProfileRollingNotReady" xml:space="preserve"><value>ยังไม่มีอะไรให้บันทึก เกมต้องทำงานอยู่ และต้องเปิด “เก็บนาทีล่าสุดไว้ตลอด” ในการตั้งค่า</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>ไม่มีเซฟที่จะสำรอง โหลดเซฟในเกมก่อน</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>ไม่มีนาทีล่าสุดให้บันทึก เปิด “เก็บนาทีล่าสุดไว้ตลอด” ในการตั้งค่า</value></data>
   <data name="ProfileRollingOff" xml:space="preserve"><value>เปิด “เก็บนาทีล่าสุดไว้ตลอด” ใน การตั้งค่า &gt; ประสิทธิภาพ เพื่อใช้งานนี้</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>บันทึก {0} นาทีล่าสุด</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>กำลังบันทึก {0} นาทีล่าสุด…</value></data>
@@ -498,7 +483,7 @@
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ถึง 10 นาที ยิ่งยาวก็ไม่ทำให้เกมหนักขึ้น แค่ใช้พื้นที่ดิสก์มากขึ้น</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>จะเริ่มเก็บนาทีล่าสุดเมื่อเกมทำงาน</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>กำลังเริ่มเก็บนาทีล่าสุด…</value></data>
-  <data name="ProfileError.NotRolling" xml:space="preserve"><value>เกมไม่ได้เก็บนาทีล่าสุดไว้ (เกมหรือการเชื่อมต่อเริ่มใหม่) จะเริ่มเก็บใหม่ตั้งแต่ตอนนี้</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>ไม่มีนาทีล่าสุดให้บันทึก จะเริ่มเก็บใหม่ตั้งแต่ตอนนี้</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>ดึงนาทีล่าสุด</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>หยุดเปรียบเทียบ</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>เปรียบเทียบกับ {0} ทั้งหมด</value></data>
@@ -568,16 +553,16 @@
   <data name="ProfileListLuaShareTip" xml:space="preserve"><value>สัดส่วนของช่วงที่เลือกที่สคริปต์นี้กำลังทำงาน รวมเวลาของฟังก์ชันเกมที่สคริปต์เรียกใช้ด้วย</value></data>
   <data name="ProfileListJavaShareTip" xml:space="preserve"><value>สัดส่วนของเวลาทำงานของโค้ดเกมในช่วงที่เลือกที่เป็นของรายการนี้ ฟังก์ชันเกมที่สคริปต์ Lua เรียกใช้จะนับเป็น 'เกมหลัก' ที่นี่ การรอและการหยุดนิ่งนาน ๆ จะแสดงเป็นจำนวนครั้งแทนสัดส่วน</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} ครั้ง</value></data>
-  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>เกมไม่ได้เปิดอยู่ เปิดเกมแล้วลองอีกครั้ง</value></data>
-  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>มีเกมเปิดอยู่มากกว่าหนึ่งตัว จึงเลือกเป้าหมายไม่ได้</value></data>
-  <data name="ProfileError.Link" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ หากคุณเพิ่งอัปเดตเกมหรือ PZ Tools ให้เปิดเกมใหม่</value></data>
-  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools ได้รับการอัปเดตแล้ว รีสตาร์ตเกมหนึ่งครั้งเพื่อบันทึก</value></data>
-  <data name="ProfileError.Busy" xml:space="preserve"><value>กำลังทำงานอย่างอื่นอยู่ โปรดลองอีกครั้งในอีกสักครู่</value></data>
-  <data name="ProfileError.Convert" xml:space="preserve"><value>บันทึกเสร็จแล้ว แต่ประมวลผลผลลัพธ์ไม่ได้ ดูรายละเอียดได้ในล็อก</value></data>
-  <data name="ProfileError.Generic" xml:space="preserve"><value>บันทึกไม่สำเร็จ ดูรายละเอียดได้ในล็อก</value></data>
-  <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรือการทำงานอื่นกำลังใช้เซฟนี้ โปรดหยุดเล่นแล้วลองใหม่ ไฟล์ต้นฉบับไม่ได้ถูกเปลี่ยนแปลง</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>เซฟนี้มีการเปลี่ยนแปลงที่ยังไม่เสร็จสมบูรณ์ กรุณาออกจากเกมตามปกติแล้วลองอีกครั้ง เซฟต้นฉบับยังไม่ถูกแก้ไข</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>ไม่สามารถระบุได้ว่าจะฟื้นฟูตัวละครใด ใช้ได้กับเซฟผู้เล่นคนเดียวเท่านั้น และหากเซฟมีตัวละครหลายตัว ต้องเลือกหนึ่งตัว เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>เกมไม่ได้เปิดอยู่</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>มีเกมเปิดอยู่มากกว่าหนึ่งตัว ปิดให้เหลือตัวเดียว</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ ลองเปิดเกมใหม่</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>ต้องเปิดเกมใหม่หนึ่งครั้งจึงจะบันทึกได้</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>กำลังทำงานอื่นอยู่ ลองอีกครั้งในอีกสักครู่</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>สร้างไฟล์การบันทึกไม่ได้ โปรดดูบันทึกเหตุการณ์</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>บันทึกไม่สำเร็จ โปรดดูบันทึกเหตุการณ์</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้เซฟนี้ เซฟยังเหมือนเดิม</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>เกมปิดเซฟนี้ไม่ถูกต้อง โหลดเซฟในเกมแล้วออกตามปกติ เซฟยังเหมือนเดิม</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>รักษาได้เฉพาะเซฟผู้เล่นคนเดียว เซฟยังเหมือนเดิม</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>เซฟนี้มีตัวละครหลายตัว เลือกตัวละครที่จะฟื้นฟู ตัวละครอื่นจะไม่ถูกเปลี่ยนแปลง</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>กำลังค้นหาซอมบี้หรือศพของตัวละคร…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>เลือกว่าจะเอาข้าวของคืนจากที่ใด</value></data>
@@ -591,22 +576,21 @@
   <data name="HealRemainsNone" xml:space="preserve"><value>ฟื้นคืนชีพโดยไม่เอาข้าวของ</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>ไม่พบซอมบี้หรือศพของตัวละครนี้ ตัวละครจะฟื้นคืนชีพโดยไม่มีข้าวของ</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>ไม่สามารถค้นหาซอมบี้หรือศพของตัวละครล่วงหน้าได้ การฟื้นฟูจะค้นหาอีกครั้ง</value></data>
-  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>ซอมบี้หรือศพที่เลือกเปลี่ยนไปในระหว่างนั้น โปรดเปิดหน้าต่างฟื้นฟูอีกครั้ง เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
-  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>ตัวละครที่เลือกไม่อยู่ในเซฟนี้แล้ว เซฟอาจเปลี่ยนไปในระหว่างนั้น โปรดลองอีกครั้ง เซฟไม่ได้ถูกเปลี่ยนแปลง</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>ไม่สามารถแก้ไขเซฟนี้ได้อย่างปลอดภัย โปรดตรวจสอบว่า PZ Tools รุ่นที่ใช้รองรับเกมรุ่นนี้ เซฟต้นฉบับไม่ได้ถูกแก้ไข</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>ซอมบี้หรือศพที่เลือกเปลี่ยนไป เลือกใหม่อีกครั้ง เซฟยังเหมือนเดิม</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>ไม่พบตัวละครที่เลือก ลองอีกครั้ง เซฟยังเหมือนเดิม</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>รักษาเซฟนี้ไม่ได้ ลองอัปเดต PZ Tools เซฟยังเหมือนเดิม</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านเวลาที่รอดชีวิตไม่ได้ · จะตรวจสอบอีกครั้ง</value></data>
-  <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ที่จำเป็น รอให้การบันทึกหรืองานนั้นเสร็จแล้วลองอีกครั้ง</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>เซฟมีการเปลี่ยนแปลงระหว่างส่งออก ออกจากเกมแล้วส่งออกอีกครั้ง ไฟล์เดิมยังคงอยู่</value></data>
-  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>ข้อมูลของแบ็กอัปนี้เสียหายและอ่านไม่ได้ โปรดเลือกแบ็กอัปอื่น เซฟปัจจุบันและไฟล์เดิมไม่ได้ถูกเปลี่ยนแปลง</value></data>
-  <data name="OperationError.DiskFull" xml:space="preserve"><value>พื้นที่ว่างไม่เพียงพอ กรุณาเพิ่มพื้นที่ว่างในไดรฟ์ปลายทางแล้วลองอีกครั้ง</value></data>
-  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>ไฟล์ที่จำเป็นของแอปขาดหายไป กรุณาแตกไฟล์ที่ดาวน์โหลดทั้งหมดไว้ในโฟลเดอร์เดียวกัน หรือติดตั้ง PZ Tools ใหม่แล้วเปิดอีกครั้ง</value></data>
-  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>โฟลเดอร์สำรองนี้ใช้รูปแบบการจัดเก็บต่างจากแอปปัจจุบัน กรุณาเลือกโฟลเดอร์สำรองใหม่ที่ว่างในหน้าการตั้งค่า เก็บโฟลเดอร์เดิมไว้หากยังต้องใช้ข้อมูลสำรอง และอย่าลบเซฟเกม</value></data>
-  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>รอให้งานปัจจุบันเสร็จก่อนเปลี่ยนโฟลเดอร์หรือเริ่ม PZ Tools ใหม่</value></data>
-  <data name="OperationError.Configuration" xml:space="preserve"><value>ไม่สามารถใช้การตั้งค่าได้ กรุณาตรวจสอบค่าที่กรอกและไฟล์ที่แก้ไขในการตั้งค่าขั้นสูง</value></data>
-  <data name="OperationError.RestartFailed" xml:space="preserve"><value>ไม่สามารถเริ่ม PZ Tools ใหม่ได้ เมื่องานที่กำลังทำอยู่เสร็จแล้ว ให้ปิดแอปและเปิดอีกครั้ง</value></data>
-  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>ไม่สามารถใช้โฟลเดอร์ที่เลือกได้ จึงคืนค่าการตั้งค่าเดิมแล้ว กรุณาตรวจสอบตำแหน่งโฟลเดอร์และสิทธิ์การเข้าถึง</value></data>
-  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>ไม่สามารถใช้โฟลเดอร์ใหม่หรือคืนค่าการตั้งค่าเดิมได้ กรุณาตรวจสอบตำแหน่งโฟลเดอร์ในการตั้งค่าก่อนดำเนินการต่อ</value></data>
-  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ ลองอีกครั้งในอีกสักครู่</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนระหว่างส่งออก ออกจากเกมแล้วลองอีกครั้ง</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>ข้อมูลสำรองนี้เสียหาย เลือกข้อมูลสำรองอื่น เซฟยังเหมือนเดิม</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>พื้นที่ว่างไม่เพียงพอ</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>ไฟล์ของ PZ Tools ขาดหายไป แตกไฟล์บีบอัดที่ดาวน์โหลดมาอีกครั้ง</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>เวอร์ชันนี้เปิดโฟลเดอร์สำรองนี้ไม่ได้ เลือกโฟลเดอร์ใหม่ในการตั้งค่า อย่าลบโฟลเดอร์เดิม</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>ลองอีกครั้งเมื่องานปัจจุบันเสร็จ</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>ใช้การตั้งค่าไม่ได้ ตรวจสอบค่าที่กรอก</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>เริ่มใหม่ไม่ได้ ปิดแอปแล้วเปิดอีกครั้ง</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>ใช้โฟลเดอร์นี้ไม่ได้ จึงกลับไปใช้การตั้งค่าเดิม</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>เปลี่ยนโฟลเดอร์ไม่ได้ ตรวจสอบตำแหน่งโฟลเดอร์ในการตั้งค่า</value></data>
   <data name="LogPhase.deduplication" xml:space="preserve"><value>กำลังใช้ข้อมูลเดิมที่ตรงกันจากข้อมูลสำรอง</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>เปิด</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>ปิด</value></data>
@@ -615,7 +599,7 @@
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>เกมหยุดชั่วคราว</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>กำลังตรวจสอบสถานะเกม</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>กรุณาเปิดเกมเพียงเกมเดียว</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>ไม่ทราบผลการสำรองข้อมูลครั้งก่อน จึงข้ามรอบนี้</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>ข้ามการสำรองรอบนี้</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>ล้างตัวกรอง</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>ล้างทั้งหมด</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · คลิกเพื่อกรอง</value></data>
@@ -675,8 +659,8 @@
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ขณะนี้ไม่มีผลเพราะเชื่อมต่อกับเกมไม่ได้</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>สำรองครั้งถัดไป (ไม่บันทึกเกม)</value></data>
   <data name="GameLinkCardMessage" xml:space="preserve"><value>สำรองข้อมูลโดยไม่บันทึกเกมก่อน</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>อ่านสถานะของเกมไม่ได้</value></data>
-  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>สำรองข้อมูลโดยไม่บันทึกเกมก่อน PZ Tools ได้รับการอัปเดตแล้ว ให้เริ่มเกมใหม่เพื่อเชื่อมต่ออีกครั้ง</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>ไม่ได้เชื่อมต่อกับเกม</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>กรุณาเปิดเกมใหม่</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>ความเข้ากันได้และสถานะ</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>ไม่มีบันทึกระดับ{0}ขึ้นไป</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>ไม่มีบันทึกที่ตรงกับตัวกรองที่เลือก</value></data>
@@ -711,13 +695,21 @@
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} วันที่แล้ว</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>เวอร์ชัน</value></data>
   <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>แจ้งเตือนเวอร์ชันใหม่</value></data>
-  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>ตรวจที่ GitHub วันละครั้งว่ามีเวอร์ชันใหม่หรือไม่ ถ้ามีจะแจ้งเป็นหนึ่งบรรทัดในแถบด้านข้าง จะไม่ดาวน์โหลดเอง</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>แจ้งในแถบด้านข้างเมื่อมีเวอร์ชันใหม่</value></data>
   <data name="UpdateCheckNow" xml:space="preserve"><value>ตรวจเลย</value></data>
   <data name="UpdateDownload" xml:space="preserve"><value>ไปดาวน์โหลด</value></data>
-  <data name="UpdateStatusCurrent" xml:space="preserve"><value>{0} · เป็นเวอร์ชันล่าสุด</value></data>
-  <data name="UpdateStatusAvailable" xml:space="preserve"><value>{0} · มีเวอร์ชันใหม่: {1}</value></data>
-  <data name="UpdateStatusUnknown" xml:space="preserve"><value>{0} · ยังไม่ได้ตรวจหาอัปเดต</value></data>
-  <data name="UpdateStatusChecking" xml:space="preserve"><value>{0} · กำลังตรวจ…</value></data>
-  <data name="UpdateStatusFailed" xml:space="preserve"><value>{0} · ตรวจหาอัปเดตไม่ได้ โปรดตรวจการเชื่อมต่ออินเทอร์เน็ต</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>เป็นเวอร์ชันล่าสุด</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>มีเวอร์ชันใหม่: {0}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>ยังไม่ได้ตรวจหาอัปเดต</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>กำลังตรวจ…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>ตรวจหาอัปเดตไม่ได้ โปรดตรวจการเชื่อมต่ออินเทอร์เน็ต</value></data>
   <data name="UpdateCardFormat" xml:space="preserve"><value>รับเวอร์ชันใหม่ {0}</value></data>
+  <data name="GameLinkRestartTitle" xml:space="preserve"><value>PZ Tools อัปเดตแล้ว</value></data>
+  <data name="SavesUnavailable" xml:space="preserve"><value>โหลดรายการเซฟไม่ได้</value></data>
+  <data name="OperationDiscoveredItemsFormat" xml:space="preserve"><value>พบไฟล์ {0:N0} ไฟล์</value></data>
+  <data name="LoadFailed.State" xml:space="preserve"><value>โหลดรายการเซฟไม่ได้</value></data>
+  <data name="LoadFailed.Backup" xml:space="preserve"><value>โหลดรายการข้อมูลสำรองไม่ได้</value></data>
+  <data name="LoadFailed.Details" xml:space="preserve"><value>โหลดข้อมูลเซฟไม่ได้</value></data>
+  <data name="LoadFailedRetrying" xml:space="preserve"><value>กำลังลองอีกครั้ง</value></data>
+  <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>ตรวจหาอัปเดต</value></data>
 </root>

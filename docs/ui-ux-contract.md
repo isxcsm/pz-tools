@@ -160,7 +160,7 @@ There are three kinds of card, and each has a fixed place:
 | --- | --- | --- |
 | Automatic work | Background cleanup and automatic backups | When finished and its time is up |
 | The user's work | Everything the user started, including the result of an action that runs no worker | When finished and its time is up |
-| Needs attention | A condition the user should know about or act on | When the condition clears, or through its own button |
+| Needs attention | A condition the user should know about or act on | When the condition clears, or through its ✕ |
 
 ### One card per piece of work
 
@@ -188,7 +188,18 @@ Cards stack above the fixed next-backup line. From top to bottom:
 | | Automatic backups |
 | | What the user asked for: manual backup, restore, export, import, character recovery, deletion, performance recording, and the results of actions that run no worker |
 | | Cards that need attention ([below](#cards-that-need-attention)) |
-| Bottom | The next-backup line |
+| | The next-backup line |
+| Bottom | A newer release of the app: one grey line, right above Settings |
+
+The release line is about the app itself, not the game or its saves, so it has a fixed
+place of its own, last, next to Settings where the version and its details are. It stays
+until the app is updated or the notice is turned off in Settings, and pressing it opens
+the release's page. While the pane is folded to its icons it becomes a dot on the
+Settings icon. Other notices about the app itself, should there be any, would join it
+there.
+
+All cards share one measure: the title in 13-point type, everything else in 12 (as the
+next-backup line), 12 × 10 pixels of padding and 6 between cards.
 
 Within one priority, a new card enters at the bottom and pushes older cards up.
 
@@ -204,9 +215,12 @@ and the next-backup line always stay.
 ### How long cards stay
 
 - A running card stays visible. Its title is on the left and the percentage, when known,
-  on the right; below the progress bar the current step is on the left and the amount
-  (*4.5 / 16.0 MB*, or a count) on the right. Each is one line, shortened with an ellipsis
-  if it has to be, so the card keeps its height while the numbers change.
+  on the right; below the progress bar the amount (*4.5 / 16.0 MB*, or a count) is on the
+  right. A step is named on the left only when it explains a wait: the game saving before
+  a backup (it may stall a moment) and a recording being made into a file after it
+  stopped; while the total is still unknown, the count of files found so far. How the
+  work is done inside is for the logs. Each is one line, shortened with an ellipsis if it
+  has to be, so the card keeps its height while the numbers change.
 - Card titles use the normal weight. The default Korean font has no semibold, so a
   semibold title would be drawn fully bold; hierarchy comes from colour instead.
 - A finished card expires on its own. Success and *no change* use the success lifetime
@@ -253,22 +267,47 @@ nothing to do shows no card.
 
 These cards form their own group below the operation stack, directly above the
 next-backup line, because they outrank every status card. They never expire: each leaves
-when its condition clears, or through its own button. All have the same shape: a title,
-a message, then their buttons, if any.
+when its condition clears, or through the ✕ that shows at its corner while the pointer
+is on the card or the keyboard is in it (still reachable with Tab when unseen).
 
 | Card | Leaves |
 | --- | --- |
-| Some information cannot be updated ([projector failures](#projector-failures)) | When the failing part works again |
-| App components blocked by Windows | When nothing is blocked any more, or through **OK** |
-| The game cannot be read ([game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read)) | When the game can be read again, or through **OK** |
+| Part of the saves page keeps failing to load ([projector failures](#projector-failures)) | When it loads again, or through ✕ |
+| App components blocked by Windows | When nothing is blocked any more, or through ✕ |
+| The game cannot be read ([game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read)), or PZ Tools was updated and the game needs a restart | When the game can be read again, or through ✕ |
 
-The blocked-components card reports app components that a Windows security policy (for
-example Smart App Control) refused to start:
+The blocked-components card reports that a Windows security policy (for example Smart App
+Control) refused to start part of the app. Which files were refused is in the logs, not
+on the card.
 
-- **Open settings** opens the Smart App Control page of Windows Security.
-- **OK** closes the card.
+- **Open settings** opens the Smart App Control page of Windows Security. The app never
+  suggests turning it off: once off, Smart App Control cannot be turned back on without
+  reinstalling Windows.
 - The card also leaves when a later check finds nothing blocked. It comes back only if a
   different set of components is blocked.
+
+### Writing a card
+
+Cards are read by players, in a pane about 200 pixels wide. Every card, notice and error
+message follows these rules, in Korean first and in every translation:
+
+- **A card only when there is something to know or do.** A passing state the user can do
+  nothing about gets no card; one that lasts says precisely what is wrong (see
+  [projector failures](#projector-failures)). Messages live in the pane's cards, never in
+  banners on a page.
+- **Title, at most one line, at most one action.** The title says what happened, without
+  a final period; the line says what to do or what it means, as a sentence; an action is
+  a plain grey button with an arrow. Nothing needed is hidden in a tooltip or behind a
+  click.
+- **What happened first, then what to do.** *PZ Tools was updated* / *Restart the game.*,
+  not the other way round. The line does not repeat the title.
+- **The player's words.** No technical terms, file names or inner workings, and no words
+  that leave the reader guessing (*some information*). Names the user must find are kept:
+  a Windows setting, a menu or setting of the app, a key, a version.
+- **Nothing irreversible is suggested.** An action opens the place to decide, no more.
+- **"The save is unchanged"** is said only after work that could have changed a save
+  (recovery, restore, deletion), and briefly.
+- **"Check the logs"** ends a failure whose reason the card cannot give.
 
 The app checks this by starting every worker executable with a no-op `--probe` argument:
 at startup, then every five minutes while something is blocked and every six hours
@@ -277,14 +316,21 @@ otherwise.
 ### Projector failures
 
 A projector turns stored data into the views the screen shows (see
-[where the data comes from](#where-the-data-comes-from)). When one fails, a card in the
-[needs-attention group](#cards-that-need-attention) says so, and some actions are blocked:
+[where the data comes from](#where-the-data-comes-from)). It tries again on its own, and
+there is nothing for the user to do. A failure that passes within ten seconds (a file
+briefly locked) is not shown. One that lasts is said precisely, and some actions are
+blocked meanwhile.
 
-| Failed projector | Effect |
-| --- | --- |
-| State | Restore and live export are blocked |
-| Backup | Restore and revision export are blocked |
-| Scheduler | The next-backup time is replaced by an *unavailable* status |
+| Failed projector | Said where | Effect |
+| --- | --- | --- |
+| State | A card *Could not load the save list* / *Trying again.*; an empty list also says it in its place | Restore and live export are blocked |
+| Backup | The same card, for the backup list | Restore, revision export, deletion and renaming of backups are blocked |
+| Details | The same card, for the save details | — |
+| Scheduler | The next-backup line: *Next backup time unknown* | — |
+| Telemetry | The logs page says it could not load | — |
+
+Only one load card shows, for the first of state, backup and details that fails. Its ✕
+keeps it closed until everything has loaded again.
 
 These failures do not by themselves block a manual backup. A successful projection
 clears the failure.

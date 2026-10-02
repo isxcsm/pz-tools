@@ -49,10 +49,10 @@ through [AppWorkers.targets](../build/AppWorkers.targets).
   are not kept apart from your local app configuration automatically.
 
 **Previewing the sidebar's cards.** Cards for states that are hard to bring about (a
-component blocked by Windows Security, a lost or outdated game connection, a view that
-cannot be refreshed, a new release, the results of an action) can be shown without
-them: *Settings → Advanced → Card preview* picks one and shows it, and *Clear all* puts
-the real state back. For a scripted run, `PZTOOLS_PREVIEW_CARDS=blocked,update` (or
+component blocked by Windows Security, a lost or outdated game connection, part of the
+saves page that keeps failing to load, a new release, the results of an action) can be
+shown without them: *Settings → Advanced → Card preview* picks one and shows it, and
+*Clear all* puts the real state back. For a scripted run, `PZTOOLS_PREVIEW_CARDS=blocked,update` (or
 `all`) shows those cards from the start; the keys are listed in
 [`MainWindowShell.CardPreview.cs`](../src/PzTools.App/MainWindowShell.CardPreview.cs).
 The cards go through the same code as the real state, so the preview shows what users

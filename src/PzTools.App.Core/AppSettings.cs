@@ -33,7 +33,7 @@ public sealed record AppSettings(
     bool RollingDetailed = false,
     int RollingMinutes = AppSettings.DefaultRollingMinutes,
     HotKeySettings? HotKeys = null,
-    // Once a day the app asks GitHub for its latest release, and says so when there is a newer one.
+    // About once an hour the app asks GitHub for its latest release, and says so when there is a newer one.
     bool CheckForUpdates = true)
 {
     public HotKeySettings Keys => HotKeys ?? new();

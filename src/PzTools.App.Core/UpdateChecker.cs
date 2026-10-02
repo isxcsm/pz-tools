@@ -12,7 +12,7 @@ public sealed record UpdateRelease(Version Version, string Tag, Uri Page);
 public sealed record UpdateState(DateTimeOffset? CheckedAt = null, UpdateRelease? Latest = null);
 
 /// <summary>
-/// Asks GitHub for the latest release of PZ Tools, no more than once a day unless asked, and keeps the answer. Nothing
+/// Asks GitHub for the latest release of PZ Tools, about once an hour unless asked, and keeps the answer. Nothing
 /// is downloaded or installed: a newer release stays offered, one click from its page in the browser, until the app is
 /// updated to it.
 /// </summary>
@@ -22,8 +22,11 @@ public sealed class UpdateChecker
     /// <summary>The releases page, for when a release names no page of its own in this repository.</summary>
     public static readonly Uri ReleasesPage = new($"https://github.com/{Repository}/releases/latest");
     private static readonly Uri LatestRelease = new($"https://api.github.com/repos/{Repository}/releases/latest");
-    /// <summary>An automatic check waits this long after the last one; GitHub allows 60 unsigned requests an hour.</summary>
-    public static readonly TimeSpan Interval = TimeSpan.FromHours(20);
+    /// <summary>
+    /// An automatic check waits this long after the last one, a little under the app's hourly look so that every look
+    /// asks; GitHub allows 60 unsigned requests an hour from one address. A restart within it does not ask again.
+    /// </summary>
+    public static readonly TimeSpan Interval = TimeSpan.FromMinutes(55);
 
     private readonly string statePath;
     private readonly HttpMessageHandler? handler;
