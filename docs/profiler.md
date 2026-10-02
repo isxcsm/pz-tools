@@ -72,6 +72,27 @@ The Lua sampler reads interpreter objects from another thread without stopping t
 A sample can be one call out of date; it cannot crash the game, and one sample is only one
 vote among many.
 
+When something does not fit, the profiler is what stops, and only it:
+
+- The game loop reaches the profiler through one small relay that needs nothing but Java's
+  base module. While no recording runs it is one read per frame, and the recorder and the
+  flight recorder behind it are not even loaded. Whatever the recorder throws during a
+  recording ends that recording's frame marks (the game's log says so once); the state
+  observer that times backups, which shares the per-frame call, carries on. A game whose
+  Java runtime lacks the flight recorder refuses to start a recording and nothing else.
+- The hook in `GameWindow.logic` is one call added at its start, through Java's standard
+  retransformation: changes other Java agents made to the class stay, and if another
+  agent retransforms it later, the call is put back on top of theirs. The class hierarchy
+  this needs is read from the class files rather than by loading classes inside the
+  transformation, which could disturb another agent's; loading is the last resort. A
+  failure to put the call back is counted in the bridge's diagnostics.
+- The per-thread allocation counter is a setting of the whole JVM. It is on by default;
+  if another agent turned it off, a recording turns it on and turns it off again at its
+  end.
+- Other users of the flight recorder can record at the same time. While a PZ Tools
+  recording runs, its sampling rate applies to theirs too, as the flight recorder works
+  with the most detailed setting any recording asks for.
+
 ## Reading the result
 
 The recording tools share the title line: record, mode, which recording, which thread,

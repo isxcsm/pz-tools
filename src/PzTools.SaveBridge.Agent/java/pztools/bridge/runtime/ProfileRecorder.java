@@ -57,6 +57,8 @@ final class ProfileRecorder {
     private static FrameEvent open;
     // The thread that runs the game loop, and with it the game's Lua: whose allocations the Lua sampler reads.
     private static volatile Thread gameThread;
+    // What the game loop calls through ProfileFrames while a recording runs; one instance, so it detaches only itself.
+    private static final Runnable FRAME_MARK = ProfileRecorder::frame;
 
     private ProfileRecorder() { }
 
@@ -129,6 +131,7 @@ final class ProfileRecorder {
             luaThread.start();
         }
         active = true;
+        ProfileFrames.attach(FRAME_MARK);
         return status();
     }
 
@@ -136,6 +139,7 @@ final class ProfileRecorder {
         if (recording == null) throw new IllegalStateException("not-recording");
         String result = status();
         active = false;
+        ProfileFrames.detach(FRAME_MARK);
         open = null;
         stopLua();
         Recording current = recording;
@@ -155,6 +159,7 @@ final class ProfileRecorder {
         Recording current = recording;
         if (!active || current == null || current.getState() == RecordingState.RUNNING) return;
         active = false; open = null;
+        ProfileFrames.detach(FRAME_MARK);
         stopLua();
         TimerResolution.restore();
     }
@@ -171,6 +176,7 @@ final class ProfileRecorder {
     /** Payload replacement or shutdown: leave nothing running that belongs to a retiring class loader. */
     static synchronized void closeQuietly() {
         active = false; open = null;
+        ProfileFrames.detach(FRAME_MARK);
         stopLua();
         Recording current = recording;
         recording = null;
@@ -276,7 +282,7 @@ final class ProfileRecorder {
                     }
                 }
                 report(taken, inLua, reportBytes);
-            } finally { wait.close(); }
+            } finally { wait.close(); if (allocation != null) allocation.close(); }
         }
         private void report(long taken, long inLua, long allocated) {
             LuaSamplerEvent event = new LuaSamplerEvent();
@@ -332,17 +338,28 @@ final class ProfileRecorder {
      */
     static final class ThreadAllocation {
         private final com.sun.management.ThreadMXBean threads;
-        private ThreadAllocation(com.sun.management.ThreadMXBean threads) { this.threads = threads; }
+        private final boolean enabledHere;
+        private ThreadAllocation(com.sun.management.ThreadMXBean threads, boolean enabledHere) {
+            this.threads = threads; this.enabledHere = enabledHere;
+        }
 
         /** Null when unavailable. A runtime without the module fails to link this class; the caller catches that. */
         static ThreadAllocation open() {
             try {
                 if (!(java.lang.management.ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean threads)
                         || !threads.isThreadAllocatedMemorySupported()) return null;
-                // On by default; turned on only if someone turned it off.
-                if (!threads.isThreadAllocatedMemoryEnabled()) threads.setThreadAllocatedMemoryEnabled(true);
-                return new ThreadAllocation(threads);
+                // On by default. Turned on only if someone turned it off, and turned off again by {@link #close()}:
+                // the setting is the whole JVM's, and another agent may have its reasons.
+                boolean enable = !threads.isThreadAllocatedMemoryEnabled();
+                if (enable) threads.setThreadAllocatedMemoryEnabled(true);
+                return new ThreadAllocation(threads, enable);
             } catch (RuntimeException | LinkageError unavailable) { return null; }
+        }
+
+        /** Leaves the JVM's setting as it was found. */
+        void close() {
+            if (!enabledHere) return;
+            try { threads.setThreadAllocatedMemoryEnabled(false); } catch (RuntimeException ignored) { }
         }
 
         /** -1 when the thread has ended or the counter is off. */
