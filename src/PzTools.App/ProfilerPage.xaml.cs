@@ -1780,7 +1780,11 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(TimeBreakdownPanel, TimeBreakdownText(breakdown));
     }
 
-    private static string BreakdownPercent(double share) => (share * 100).ToString("0.0", Localizer.Culture) + "%";
+    // Two decimals, as the owner lists; a share that is there but rounds to nothing (a collection's fraction of a
+    // millisecond in a long range) says so rather than reading as none.
+    private static string BreakdownPercent(double share) => share > 0 && share < 0.00005
+        ? "<" + 0.01.ToString("0.00", Localizer.Culture) + "%"
+        : (share * 100).ToString("0.00", Localizer.Culture) + "%";
 
     // The same figures as one line of text, for the screen reader and the copied results.
     private string TimeBreakdownText(ProfileTimeBreakdown breakdown) => string.Join("  ",
