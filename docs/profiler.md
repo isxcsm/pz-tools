@@ -9,6 +9,14 @@ recording is running.
 ## Recording
 
 Start the game, press **Start recording**, reproduce the lag, press **Stop recording**.
+
+Loading can be measured too. Start a recording at the main menu, then load a save (the
+world loading and the mods' scripts run at that time), or change the mod list so the
+game reloads the mods' scripts. Standard mode is enough. The frame graph shows the
+loading as one long frame; the *Scripts* tab says which mod's scripts took the time,
+and *Game code* what the game itself was loading. What happens before the main menu
+cannot be recorded, as the game is not running yet; it is the same scripts as a reload
+plus the game's own start, which neither players nor mod authors can change.
 A recording also ends by itself when the game exits or when its time limit is reached
 (30 minutes in Standard mode, 10 minutes in Detailed mode).
 
@@ -125,7 +133,7 @@ starts with the range line followed by these figures.
 The results are in tabs, *Scripts (Lua)* and *Game code (Java)*, and *Memory allocation*
 for recordings that have allocations. Each tab is split in
 two: owners on the left (mods, the game's scripts, parts of the game code, with a bar
-relative to the largest), and the chosen owner's functions on the right as a table with a
+relative to the largest and the share with two decimals), and the chosen owner's functions on the right as a table with a
 heading over every column. The owner list has headings too, and the one over its numbers
 says what they are when the pointer rests on it: in *Scripts* (*Range time*) the share
 of the range a mod's scripts were running, game functions they called included, with the

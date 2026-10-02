@@ -1138,7 +1138,7 @@ public sealed partial class ProfilerPage : UserControl
             _ => Localizer.Get("ProfileListLuaShareTip"),
         });
         // Only the scripts have a whole worth stating, beside the heading: the game code's items always add up to all of it.
-        GroupShareTotal.Text = tab switch { ResultTab.Java => "", ResultTab.Allocation => Bytes(range.LuaAllocated), _ => Percent(range.LuaShare) };
+        GroupShareTotal.Text = tab switch { ResultTab.Java => "", ResultTab.Allocation => Bytes(range.LuaAllocated), _ => FinePercent(range.LuaShare) };
         GroupShareTotal.Visibility = java ? Visibility.Collapsed : Visibility.Visible;
         AutomationProperties.SetName(GroupShareHeading, java ? GroupShareText.Text : $"{GroupShareText.Text} {GroupShareTotal.Text}");
         // Bars are relative to the largest owner, so the list reads as a ranking; the number is the real share.
@@ -1216,7 +1216,7 @@ public sealed partial class ProfilerPage : UserControl
     /// <summary>The number beside an owner: its share, or for the pauses how many there were, with a unit so it is not read as a share.</summary>
     private static string ValueOf(ResultGroup group) =>
         group.Kind == DetailKind.Allocation ? Bytes(group.Bytes)
-        : group.Share is { } share ? Percent(share)
+        : group.Share is { } share ? FinePercent(share)
         : group.Kind == DetailKind.Pauses ? Localizer.Format("ProfilePauseCount", group.Pauses.Count.ToString("N0", Localizer.Culture)) : "";
 
     /// <summary>The right pane: the chosen owner's functions as a table with a heading over every column.</summary>
@@ -1719,9 +1719,7 @@ public sealed partial class ProfilerPage : UserControl
         element.StartAnimation(grow);
     }
 
-    private static string Percent(double share) => (share * 100).ToString("0.0", Localizer.Culture) + "%";
-
-    // The tables' parts, finer than the owner list's: many small parts must still add up visibly.
+    // Two decimals everywhere, the owner list's shares as the tables' parts: small ones must still add up visibly.
     private static string FinePercent(double share) => (share * 100).ToString("0.00", Localizer.Culture) + "%";
 
     private static string LuaFileName(string file)
