@@ -588,13 +588,13 @@ public sealed partial class SettingsPage : UserControl
     // A check asked for here: it runs whatever the last one was, and its failure is said in the line.
     private bool checkingUpdates, updateCheckFailed;
 
-    /// <summary>The version line: this version, and under it whether a newer one can be had, as last asked.</summary>
+    /// <summary>The version line: whether a newer one can be had, as last asked, and this version as its value.</summary>
     internal void ApplyUpdate()
     {
         if (App.Updates is not { } updates) return;
         var available = updates.Available;
         UpdateVersionText.Text = "v" + updates.Current.ToString(3);
-        UpdateStatusText.Text = checkingUpdates ? Localizer.Get("UpdateStatusChecking")
+        UpdateSection.Description = checkingUpdates ? Localizer.Get("UpdateStatusChecking")
             : updateCheckFailed ? Localizer.Get("UpdateStatusFailed")
             : available is not null ? Localizer.Format("UpdateStatusAvailable", "v" + available.Version.ToString(3))
             : updates.State.CheckedAt is null ? Localizer.Get("UpdateStatusUnknown")

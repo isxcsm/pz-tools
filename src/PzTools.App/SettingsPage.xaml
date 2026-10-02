@@ -29,17 +29,12 @@
           <!-- Reflow transitions are attached after the initial expanded layout.
                MainWindowShell owns the page entrance animation. -->
 
-          <!-- The app's version and its updates, folded: the version and whether it is the newest show on the line
-               itself; checking now and the notice's switch are inside. A newer release is offered there, and in the
+          <!-- The app's version and its updates, folded: whether it is the newest is the line's description and the
+               version its value, as every other setting; checking now and the notice's switch are inside. A newer release is offered there, and in the
                pane, until the app is updated. -->
           <toolkit:SettingsExpander x:Name="UpdateSection" IsExpanded="False" Header="버전 정보"
                                     AutomationProperties.AutomationId="UpdateSection">
-            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
-              <TextBlock x:Name="UpdateVersionText" HorizontalAlignment="Right" />
-              <TextBlock x:Name="UpdateStatusText" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
-                         MaxWidth="320" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                         AutomationProperties.LiveSetting="Polite" />
-            </StackPanel>
+            <TextBlock x:Name="UpdateVersionText" VerticalAlignment="Center" />
             <toolkit:SettingsExpander.Items>
               <toolkit:SettingsCard x:Name="UpdateCheckCard" Header="업데이트 확인">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
