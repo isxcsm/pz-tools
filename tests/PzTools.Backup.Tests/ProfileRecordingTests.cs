@@ -78,6 +78,13 @@ public sealed class ProfileRecordingTests
         Assert.Equal(1.0, slow.Methods.Single(row => row.Name == "zombie.GameWindow.logic").Total, 3);
         Assert.Equal([ProfileAnalysis.LuaRuntime, ProfileAnalysis.JavaRuntime], slow.MethodGroups.Select(group => group.Key));
         Assert.Equal(0.75, slow.MethodGroups[0].Self, 3);
+        // Within its group a method's total counts the group's own samples: the interpreter was under the map lookup
+        // too, but that sample ended in Java's own code, so the group's row stops at the group's 75%.
+        var inGroup = Assert.Single(slow.MethodGroups[0].Rows);
+        Assert.Equal((0.75, 0.75), (Math.Round(inGroup.Self, 3), Math.Round(inGroup.Total, 3)));
+        Assert.Equal(0.25, Assert.Single(slow.MethodGroups[1].Rows).Total, 3);
+        // A method that only called into other groups (the game loop) has no row in any group.
+        Assert.DoesNotContain(slow.MethodGroups.SelectMany(group => group.Rows), row => row.Name == "zombie.GameWindow.logic");
 
         // Every Lua sample is 10 ms of a 40 ms range. The mod ran three of the four, once through a file of unknown origin.
         Assert.Equal(4, slow.LuaSamples);

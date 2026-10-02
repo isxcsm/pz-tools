@@ -386,6 +386,10 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Samples: how many samples ended in the function.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} of the whole range, about {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} of this owner's allocations</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Package</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Self: the part of this group's running time spent directly in that method. The group is 100%; resting the pointer on a number gives its part of all the running time.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Total: the part of this group's running time spent in that method and in this group's code it called. The group is 100%; resting the pointer on a number gives its part of all the running time.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} of all the running time</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>{0} more</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Self</value></data>

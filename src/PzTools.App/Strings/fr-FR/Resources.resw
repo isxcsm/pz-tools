@@ -458,6 +458,10 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Échantillons : combien se sont terminés dans la fonction.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} de toute la plage, environ {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} des allocations de ce propriétaire</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Paquet</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Propre : la part du temps d’exécution de ce groupe passée directement dans cette méthode. Le groupe vaut 100 % ; au survol d’un nombre s’affiche sa part de tout le temps d’exécution.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Total : la part du temps d’exécution de ce groupe passée dans cette méthode et dans le code de ce groupe qu’elle a appelé. Le groupe vaut 100 % ; au survol d’un nombre s’affiche sa part de tout le temps d’exécution.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} de tout le temps d’exécution</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>{0} de plus</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Répartition par thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Longues attentes et pauses</value></data>

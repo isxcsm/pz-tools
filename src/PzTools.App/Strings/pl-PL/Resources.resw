@@ -458,6 +458,10 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Próbki: ile próbek zakończyło się w funkcji.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} całego zakresu, około {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} przydziałów tego właściciela</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Pakiet</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Własne: część czasu działania tej grupy spędzona bezpośrednio w tej metodzie. Grupa to 100%; po najechaniu na liczbę widać jej część całego czasu działania.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Łącznie: część czasu działania tej grupy spędzona w tej metodzie i w wywołanym przez nią kodzie tej grupy. Grupa to 100%; po najechaniu na liczbę widać jej część całego czasu działania.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} całego czasu działania</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>Pozostałe: {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Udział według wątków</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Długie oczekiwania i pauzy</value></data>

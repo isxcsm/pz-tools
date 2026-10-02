@@ -458,6 +458,10 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Stichproben: wie viele in der Funktion endeten.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} des ganzen Bereichs, etwa {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} der Belegung dieses Besitzers</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Paket</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Selbst: der Teil der Laufzeit dieser Gruppe, der direkt in der Methode verging. Die Gruppe ist 100 %; beim Daraufzeigen auf eine Zahl erscheint ihr Teil an der gesamten Laufzeit.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Gesamt: der Teil der Laufzeit dieser Gruppe in der Methode und dem von ihr aufgerufenen Code dieser Gruppe. Die Gruppe ist 100 %; beim Daraufzeigen auf eine Zahl erscheint ihr Teil an der gesamten Laufzeit.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} der gesamten Laufzeit</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>{0} weitere</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Anteil pro Thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Lange Wartezeiten und Pausen</value></data>

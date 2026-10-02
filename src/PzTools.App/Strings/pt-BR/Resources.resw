@@ -458,6 +458,10 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Amostras: quantas terminaram na função.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} do intervalo inteiro, cerca de {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} das alocações deste dono</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Pacote</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Próprio: a parte do tempo de execução deste grupo gasta diretamente nesse método. O grupo é 100%; passe o ponteiro sobre um número para ver a parte dele em todo o tempo de execução.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Total: a parte do tempo de execução deste grupo gasta nesse método e no código deste grupo que ele chamou. O grupo é 100%; passe o ponteiro sobre um número para ver a parte dele em todo o tempo de execução.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} de todo o tempo de execução</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>Mais {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Participação por thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Esperas e pausas longas</value></data>

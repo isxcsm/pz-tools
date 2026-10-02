@@ -465,6 +465,10 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>ตัวอย่าง: จำนวนที่จบในฟังก์ชันนั้น</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} ของทั้งช่วง ประมาณ {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} ของการจัดสรรของเจ้าของนี้</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>แพ็กเกจ</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>เฉพาะตัว: ส่วนของเวลาทำงานของกลุ่มนี้ที่ใช้ในเมธอดนั้นโดยตรง กลุ่มคือ 100% ชี้เมาส์ที่ตัวเลขเพื่อดูส่วนของเวลาทำงานทั้งหมด</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>รวม: ส่วนของเวลาทำงานของกลุ่มนี้ที่ใช้ในเมธอดนั้นและโค้ดของกลุ่มนี้ที่มันเรียก กลุ่มคือ 100% ชี้เมาส์ที่ตัวเลขเพื่อดูส่วนของเวลาทำงานทั้งหมด</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} ของเวลาทำงานทั้งหมด</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>อีก {0} รายการ</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>สัดส่วนตามเธรด</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>การรอและการหยุดชะงักนาน ๆ</value></data>

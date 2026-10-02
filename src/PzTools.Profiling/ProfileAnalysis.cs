@@ -135,6 +135,10 @@ public static class ProfileAnalysis
         double weightSum = 0;
         var count = 0;
         var seen = new HashSet<int>();
+        // Per group, each method's total over the samples that ended in that group's code: the group's table counts its
+        // own samples only, as a script owner's does, so a total never exceeds the group.
+        var groupOf = new string?[recording.Methods.Count];
+        var totalInGroup = new Dictionary<(string Group, int Method), double>();
         for (var index = first; index < samples.Length && samples[index].Time < end; index++)
         {
             var sample = samples[index];
@@ -148,23 +152,40 @@ public static class ProfileAnalysis
             if (stack.Length == 0) continue;
             var self = methodSelf.GetValueOrDefault(stack[0]);
             methodSelf[stack[0]] = (self.Weight + weight, self.Count + 1);
+            var group = groupOf[stack[0]] ??= GroupOf(recording.Methods[stack[0]]);
             // Recursion must not count one sample twice for the same method.
             seen.Clear();
             foreach (var method in stack)
-                if (seen.Add(method)) methodTotal[method] = methodTotal.GetValueOrDefault(method) + weight;
+                if (seen.Add(method))
+                {
+                    methodTotal[method] = methodTotal.GetValueOrDefault(method) + weight;
+                    if ((groupOf[method] ??= GroupOf(recording.Methods[method])) == group)
+                        totalInGroup[(group, method)] = totalInGroup.GetValueOrDefault((group, method)) + weight;
+                }
         }
-        var allMethods = methodTotal
+        var indexed = methodTotal
             .Select(item =>
             {
                 var self = methodSelf.GetValueOrDefault(item.Key);
-                return new ProfileShare(recording.Methods[item.Key], "", self.Weight / Math.Max(1, weightSum), item.Value / Math.Max(1, weightSum), self.Count);
+                return (Method: item.Key, Row: new ProfileShare(recording.Methods[item.Key], "", self.Weight / Math.Max(1, weightSum),
+                    item.Value / Math.Max(1, weightSum), self.Count));
             })
-            .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal)
+            .OrderByDescending(item => item.Row.Self).ThenByDescending(item => item.Row.Total).ThenBy(item => item.Row.Name, StringComparer.Ordinal)
             .ToArray();
+        var allMethods = indexed.Select(item => item.Row).ToArray();
         var methods = allMethods.Take(maximumRows).ToArray();
-        // A sample belongs to the group of the code that was actually running, so group shares add up to the whole.
-        var methodGroups = allMethods.GroupBy(row => GroupOf(row.Name))
-            .Select(group => new ProfileGroup(group.Key, group.Sum(row => row.Self), group.Sum(row => row.Samples), group.Take(maximumRows).ToArray()))
+        // A sample belongs to the group of the code that was actually running, so group shares add up to the whole. A
+        // group's rows are its own methods, their totals over its own samples (still shares of the whole), so the
+        // group's figure bounds them; a method that only called into other groups has none and is left out.
+        var methodGroups = indexed.GroupBy(item => groupOf[item.Method] ??= GroupOf(item.Row.Name))
+            .Select(group =>
+            {
+                var rows = group
+                    .Select(item => item.Row with { Total = totalInGroup.GetValueOrDefault((group.Key, item.Method)) / Math.Max(1, weightSum) })
+                    .Where(row => row.Total > 0)
+                    .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal);
+                return new ProfileGroup(group.Key, group.Sum(item => item.Row.Self), group.Sum(item => item.Row.Samples), rows.Take(maximumRows).ToArray());
+            })
             .Where(group => group.Samples > 0)
             .OrderByDescending(group => group.Self).ThenBy(group => group.Key, StringComparer.Ordinal).ToArray();
         var allThreads = threadWeight.Values.Sum(item => item.Weight);

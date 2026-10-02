@@ -458,6 +458,10 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>サンプル: その関数で終わったサンプル数。</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>範囲全体の {0}、約 {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>この所有者の割り当ての {0}</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>パッケージ</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>自身: このグループの実行時間のうち、そのメソッドの中で直接使った割合です。グループ全体が 100% で、数値にポインターを置くと実行時間全体に対する値が表示されます。</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>合計: このグループの実行時間のうち、そのメソッドとそれが呼び出したこのグループのコードに使った割合です。グループ全体が 100% で、数値にポインターを置くと実行時間全体に対する値が表示されます。</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>実行時間全体の {0}</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>残り {0} 件</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>スレッド別の割合</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長い待機と一時停止</value></data>

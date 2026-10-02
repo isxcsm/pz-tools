@@ -114,6 +114,15 @@ tab also lists *Share by thread* (with *All threads*) and *Long waits and pauses
 narrow window the table moves below the owner list; in a wide one the owner list is as
 wide as the tabs above it need.
 
+A part of the game code's table reads like a script owner's list: method, package, *Self*
+and *Total* as parts of the group (the group being 100%), the same gauges, two decimals,
+and the methods past the first 30 gathered into one closed *N more* row with their sum.
+It counts the samples that ended in the group's own code, so a method's *Total* is what it
+and the group's code it called took, never more than the group; a method that only called
+into other groups, such as the game loop, has no row. Resting the pointer on a number
+gives its part of all the running time. A light group's parts can look large: PZ Tools'
+own code, for one, is usually around a tenth of a percent of the game thread.
+
 *Memory allocation* has the same owners as *Scripts*, ranked by the bytes the game thread
 allocated while their functions ran (*Allocated*, with all scripts together beside the
 heading; resting the pointer on the heading adds the whole game thread's figure, scripts

@@ -458,6 +458,10 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Örnekler: işlevde biten örnek sayısı.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>Tüm aralığın {0} kadarı, yaklaşık {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>Bu sahibin ayırdığı belleğin {0} kadarı</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Paket</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Kendi: bu grubun çalışma süresinin doğrudan o yöntemde geçen kısmı. Grup %100'dür; bir sayının üzerine gelince tüm çalışma süresindeki payı görünür.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Toplam: bu grubun çalışma süresinin o yöntemde ve çağırdığı bu gruba ait kodda geçen kısmı. Grup %100'dür; bir sayının üzerine gelince tüm çalışma süresindeki payı görünür.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>Tüm çalışma süresinin {0} kadarı</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>{0} tane daha</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>İş parçacığına göre pay</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Uzun beklemeler ve duraklamalar</value></data>

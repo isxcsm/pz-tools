@@ -457,6 +457,10 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>샘플: 그 함수에서 끝난 샘플 수.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>구간 전체의 {0}, 약 {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>이 모드 할당량의 {0}</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>패키지</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>자체: 이 그룹의 실행 시간 중 그 메서드 안에서 직접 쓴 비율입니다. 그룹 전체가 100%이고, 숫자에 마우스를 올리면 전체 실행 시간 대비 값이 나옵니다.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>포함: 이 그룹의 실행 시간 중 그 메서드와 그 메서드가 부른 이 그룹 코드에 쓴 비율입니다. 그룹 전체가 100%이고, 숫자에 마우스를 올리면 전체 실행 시간 대비 값이 나옵니다.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>전체 실행 시간의 {0}</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>나머지 {0}개</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>스레드별 비중</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>긴 대기·멈춤</value></data>

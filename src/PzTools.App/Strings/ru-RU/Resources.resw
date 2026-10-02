@@ -458,6 +458,10 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Выборки: сколько завершилось в функции.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} всего диапазона, около {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} выделений этого владельца</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Пакет</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Собственное: доля времени работы этой группы непосредственно в этом методе. Группа — 100%; при наведении на число видна его доля всего времени работы.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Всего: доля времени работы этой группы в этом методе и вызванном им коде этой группы. Группа — 100%; при наведении на число видна его доля всего времени работы.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} всего времени работы</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>Ещё {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Доля по потокам</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Долгие ожидания и паузы</value></data>

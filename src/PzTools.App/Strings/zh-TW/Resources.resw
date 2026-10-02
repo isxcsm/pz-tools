@@ -458,6 +458,10 @@
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>樣本：結束於該函式的樣本數。</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>占整個範圍的 {0}，約 {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>占此擁有者配置量的 {0}</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>套件</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>自身：此群組執行時間中直接花在該方法裡的比例。整個群組為 100%，將游標停在數字上可查看占全部執行時間的值。</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>總計：此群組執行時間中花在該方法及其呼叫的本群組程式碼上的比例。整個群組為 100%，將游標停在數字上可查看占全部執行時間的值。</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>占全部執行時間的 {0}</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>其餘 {0} 項</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各執行緒占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長時間等待和停頓</value></data>

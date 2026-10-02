@@ -458,6 +458,10 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Sampel: berapa sampel yang berakhir di fungsi itu.</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} dari seluruh rentang, sekitar {1}</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} dari alokasi pemilik ini</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Paket</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Sendiri: bagian waktu jalan grup ini yang dihabiskan langsung di metode itu. Grup adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh waktu jalan.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Total: bagian waktu jalan grup ini yang dihabiskan di metode itu dan kode grup ini yang dipanggilnya. Grup adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh waktu jalan.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} dari seluruh waktu jalan</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>{0} lainnya</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Porsi per thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Waktu tunggu dan jeda yang lama</value></data>

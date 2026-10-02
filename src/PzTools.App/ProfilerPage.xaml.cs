@@ -27,6 +27,8 @@ public sealed partial class ProfilerPage : UserControl
     private const double SlowFrameMilliseconds = 1000.0 / 30;
     // The functions of one owner get a pane of their own, so it can list more of them than a card could.
     private const int RowsPerGroup = 30;
+    // What the analysis keeps per group: enough that a group's gathered rest is its real rest.
+    private const int MaximumGroupRows = 5000;
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromMilliseconds(500) };
     // Whether there is a game to record, checked while the page is open. -1 until the first check.
     private readonly DispatcherTimer gameClock = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -1033,7 +1035,8 @@ public sealed partial class ProfilerPage : UserControl
         var end = selectionEnd ?? current.Duration;
         var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
         ProfileRange range;
-        try { range = await Task.Run(() => ProfileAnalysis.Analyze(current, start, end, thread, RowsPerGroup)); }
+        // Every row of a group, not the first few: the table shows the first and gathers the rest into one row with its sum.
+        try { range = await Task.Run(() => ProfileAnalysis.Analyze(current, start, end, thread, MaximumGroupRows)); }
         catch (Exception) { return; }
         if (version != analysisVersion || !ReferenceEquals(current, recording)) return;
         ShowRange(range);
@@ -1361,7 +1364,9 @@ public sealed partial class ProfilerPage : UserControl
 
     private void ToggleNode(ResultGroup group, string path)
     {
-        var open = openPaths[$"{group.Kind}|{group.Key}"];
+        // A list's "rest" row can be opened before the owner's tree was ever shown.
+        var key = $"{group.Kind}|{group.Key}";
+        if (!openPaths.TryGetValue(key, out var open)) openPaths[key] = open = [];
         if (!open.Remove(path)) open.Add(path);
         ShowGroup(group);
     }
@@ -1386,7 +1391,7 @@ public sealed partial class ProfilerPage : UserControl
         var numbers = new[] { Fixed(84), Fixed(96), Fixed(60) };
         var columns = group.Kind switch
         {
-            DetailKind.Lua or DetailKind.Allocation => [Star(3), Star(2), .. numbers],
+            DetailKind.Lua or DetailKind.Allocation or DetailKind.Java => [Star(3), Star(2), .. numbers],
             DetailKind.Pauses => [Fixed(90), Fixed(90), Star(1), Star(2)],
             _ => (GridLength[])[Star(1), .. numbers],
         };
@@ -1396,9 +1401,11 @@ public sealed partial class ProfilerPage : UserControl
         {
             DetailKind.Allocation => ("ProfileAllocationSelfTip", "ProfileAllocationTotalTip"),
             DetailKind.Lua when tree is not null => ("ProfileLuaSelfTip", "ProfileLuaTotalTip"),
+            DetailKind.Java => ("ProfileJavaSelfTip", "ProfileJavaTotalTip"),
             _ => ("ProfileColumnSelfTip", "ProfileColumnTotalTip"),
         };
-        var samplesTip = tree is null ? null : Localizer.Get(callTree ? "ProfileColumnSamplesTreeTip" : "ProfileColumnSamplesListTip");
+        var samplesTip = group.Kind == DetailKind.Java ? Localizer.Get("ProfileColumnSamplesListTip")
+            : tree is null ? null : Localizer.Get(callTree ? "ProfileColumnSamplesTreeTip" : "ProfileColumnSamplesListTip");
         (string, string?, bool)[] Numbers() =>
         [
             (Localizer.Get("ProfileColumnSelf"), Localizer.Get(selfTip), true),
@@ -1409,7 +1416,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             DetailKind.Lua or DetailKind.Allocation =>
                 [(Localizer.Get("ProfileColumnFunction"), null, false), (Localizer.Get("ProfileColumnFile"), null, false), .. Numbers()],
-            DetailKind.Java => [(Localizer.Get("ProfileColumnMethod"), null, false), .. Numbers()],
+            DetailKind.Java => [(Localizer.Get("ProfileColumnMethod"), null, false), (Localizer.Get("ProfileColumnPackage"), null, false), .. Numbers()],
             DetailKind.Threads => [(Localizer.Get("ProfileColumnThread"), null, false), .. Numbers()],
             _ =>
             [
@@ -1474,24 +1481,70 @@ public sealed partial class ProfilerPage : UserControl
                     if (restOpen) foreach (var row in rest) rows.Add(Line(row, "  "));
                 }
             }
-            // Bars against the table's largest total, so the heaviest line fills its column and the rest compare to it.
-            var largest = rows.Max(line => line.Bar ?? 0);
-            if (largest > 0)
-                for (var index = 0; index < rows.Count; index++)
-                    if (rows[index].Bar is { } bar) rows[index] = rows[index] with { Bar = bar / largest };
+            ScaleBars(rows);
+            return (columns, header, rows);
+        }
+        if (group.Kind == DetailKind.Java)
+        {
+            // Like a script owner's list: the group is 100%, gauges behind the numbers, the long tail in one closed row.
+            foreach (var row in group.Rows.Take(RowsPerGroup)) rows.Add(MethodLine(group, row));
+            if (group.Rows.Count > RowsPerGroup)
+            {
+                var rest = group.Rows.Skip(RowsPerGroup).ToArray();
+                var path = "list/*";
+                var restOpen = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var open) && open.Contains(path);
+                var whole = group.Share ?? 0;
+                var self = rest.Sum(row => row.Self);
+                // Its total is left empty: the methods call one another, so their totals do not add up.
+                rows.Add(new(
+                [
+                    (Localizer.Format("ProfileRestFormat", rest.Length.ToString("N0", Localizer.Culture)), null, false), ("", null, false),
+                    (FinePercent(whole > 0 ? self / whole : 0), Localizer.Format("ProfileShareOfRunFormat", FinePercent(self)), true), ("", null, true),
+                    (rest.Sum(row => row.Samples).ToString("N0", Localizer.Culture), null, true),
+                ], Tree: new TreeItem(null, 0, path, true, restOpen)));
+                if (restOpen) foreach (var row in rest) rows.Add(MethodLine(group, row, "  "));
+            }
+            ScaleBars(rows);
             return (columns, header, rows);
         }
         foreach (var row in group.Rows)
-        {
-            (string, string?, bool)[] name = group.Kind switch
-            {
-                DetailKind.Lua => [(row.Name, row.Name, false), (LuaFileName(row.Detail), row.Detail, false)],
-                DetailKind.Java => [(ShortMethod(row.Name), row.Name, false)],
-                _ => [(row.Name, row.Name, false)],
-            };
-            rows.Add(new([.. name, (FinePercent(row.Self), null, true), (FinePercent(row.Total), null, true), (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
-        }
+            rows.Add(new([(row.Name, row.Name, false), (FinePercent(row.Self), null, true), (FinePercent(row.Total), null, true),
+                (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
         return (columns, header, rows);
+    }
+
+    // Bars against the table's largest total, so the heaviest line fills its column and the rest compare to it.
+    private static void ScaleBars(List<TableLine> rows)
+    {
+        var largest = rows.Count == 0 ? 0 : rows.Max(line => line.Bar ?? 0);
+        if (largest <= 0) return;
+        for (var index = 0; index < rows.Count; index++)
+            if (rows[index].Bar is { } bar) rows[index] = rows[index] with { Bar = bar / largest };
+    }
+
+    /// <summary>
+    /// A method's line in a part of the game code: its parts of the group, the group being 100%, with what they are of all
+    /// the running time one hover away; the self gauge is its own part of its total, as in the script tables.
+    /// </summary>
+    private static TableLine MethodLine(ResultGroup group, ProfileShare row, string indent = "")
+    {
+        var whole = group.Share ?? 0;
+        (string, string?, bool) Part(double share) =>
+            (FinePercent(whole > 0 ? share / whole : 0), Localizer.Format("ProfileShareOfRunFormat", FinePercent(share)), true);
+        var package = PackageOf(row.Name);
+        return new TableLine(
+        [
+            (indent + ShortMethod(row.Name), row.Name, false), (package, package, false),
+            Part(row.Self), Part(row.Total), (row.Samples.ToString("N0", Localizer.Culture), null, true),
+        ], whole > 0 ? Math.Clamp(row.Total / whole, 0, 1) : 0, null, row.Total > 0 ? Math.Clamp(row.Self / row.Total, 0, 1) : 0);
+    }
+
+    // "zombie.iso.IsoCell.render" is in "zombie.iso"; the class and method are the name's column.
+    private static string PackageOf(string method)
+    {
+        var last = method.LastIndexOf('.');
+        var previous = last <= 0 ? -1 : method.LastIndexOf('.', last - 1);
+        return previous <= 0 ? "" : method[..previous];
     }
 
     /// <param name="bar">How full the gauge behind the total is (0..1), for a script function; none elsewhere.</param>

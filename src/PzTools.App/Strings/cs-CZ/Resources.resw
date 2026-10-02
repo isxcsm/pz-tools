@@ -378,6 +378,10 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Podíl podle vláken</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Vzorky</value></data>
   <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} alokací tohoto vlastníka</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} celé doby běhu</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Celkem: část doby běhu této skupiny strávená v dané metodě a v kódu této skupiny, který volala. Skupina je 100 %; po najetí myší na číslo se ukáže jeho část celé doby běhu.</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Balíček</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Vlastní: část doby běhu této skupiny strávená přímo v dané metodě. Skupina je 100 %; po najetí myší na číslo se ukáže jeho část celé doby běhu.</value></data>
   <data name="ProfileRestFormat" xml:space="preserve"><value>Dalších {0}</value></data>
   <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} celého úseku, asi {1}</value></data>
   <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Vzorky: kolik vzorků skončilo ve funkci.</value></data>
