@@ -68,6 +68,14 @@ public sealed partial class MainWindowShell : UserControl
     private string? displayedDetailSaveId;
     private ScheduleStatusView? schedule;
     private ProjectorHealthView? projectorHealth;
+    // What the cards show in place of the real state while a developer build previews them (MainWindowShell.CardPreview);
+    // always null in a published app, which compiles nothing that sets them.
+#pragma warning disable CS0649
+    private BlockedComponentsView? previewBlocked;
+    private GameLinkView? previewGameLink;
+    private ProjectorHealthView? previewProjectors;
+    private UpdateRelease? previewUpdate;
+#pragma warning restore CS0649
     private SaveListView? saveListSnapshot;
     private bool hostStartFailed;
     private bool narrow;
@@ -298,6 +306,9 @@ public sealed partial class MainWindowShell : UserControl
         UpdateSaveListPlaceholder();
         if (App.Updates is { } updates) { updates.Changed -= Updates_Changed; updates.Changed += Updates_Changed; }
         ApplyUpdate();
+#if PZTOOLS_DEV_TOOLS
+        PreviewCardsFromEnvironment();
+#endif
         var host = App.Host;
         if (host is null) return;
         viewSubscription ??= host.Views.Subscribe((_, _) =>
@@ -1368,6 +1379,7 @@ public sealed partial class MainWindowShell : UserControl
     // user closes it or Windows stops blocking, and comes back only if a different set gets blocked.
     private void ApplyBlockedComponents(BlockedComponentsView view)
     {
+        view = previewBlocked ?? view;
         blockedComponents = view;
         var signature = string.Join("|", view.Components);
         if (view.Components.Count == 0) dismissedBlockedComponents = null;
@@ -1384,6 +1396,7 @@ public sealed partial class MainWindowShell : UserControl
     // closed until the game has been readable again and is lost anew; the schedule line keeps saying so.
     private void ApplyGameLink(GameLinkView view)
     {
+        view = previewGameLink ?? view;
         gameLink = view;
         SettingsRoot.ApplyGameLink(view);
         if (!view.LinkUnavailable) gameLinkDismissed = false;
@@ -1430,9 +1443,9 @@ public sealed partial class MainWindowShell : UserControl
     }
 
     // The newer release to point at, unless the notice is turned off in the settings.
-    private UpdateRelease? UpdateNotice() =>
-        App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.CheckForUpdates == false
-            ? null : App.Updates?.Available;
+    private UpdateRelease? UpdateNotice() => previewUpdate
+        ?? (App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.CheckForUpdates == false
+            ? null : App.Updates?.Available);
 
     private void UpdateCard_Click(object sender, RoutedEventArgs e)
     {
@@ -1470,7 +1483,8 @@ public sealed partial class MainWindowShell : UserControl
         UpdateSaveListPlaceholder();
         if (projectorHealth?.IsFaulted("telemetry") == true)
             LogsRoot.ShowLoadFailure();
-        var faults = projectorHealth?.Projectors
+        // The card alone follows a card preview; the pages keep the real health.
+        var faults = (previewProjectors ?? projectorHealth)?.Projectors
             .Where(item => item.Health == ProjectorHealth.Faulted).ToArray() ?? [];
         ProjectorStatusCard.Visibility = faults.Length == 0
             ? Visibility.Collapsed : Visibility.Visible;

@@ -32,6 +32,9 @@ public sealed partial class SettingsPage : UserControl
         applyTimer.IsRepeating = false;
         applyTimer.Tick += ApplyTimer_Tick;
         BuildHotKeyCards();
+#if PZTOOLS_DEV_TOOLS
+        BuildCardPreview();
+#endif
         ApplyLocalizedText();
         PrepareForNavigation();
         loading = false;
@@ -331,6 +334,38 @@ public sealed partial class SettingsPage : UserControl
             HotKeySection.Items.Add(card);
         }
     }
+
+#if PZTOOLS_DEV_TOOLS
+    // Developer builds only, and in Korean only: the sidebar's cards on demand (MainWindowShell.CardPreview).
+    private void BuildCardPreview()
+    {
+        var choice = new ComboBox { MinWidth = 180 };
+        foreach (var (key, name) in MainWindowShell.CardPreviews) choice.Items.Add(new ComboBoxItem { Content = name, Tag = key });
+        choice.SelectedIndex = 0;
+        var show = new Button { Content = "띄우기" };
+        var clear = new Button { Content = "모두 지우기" };
+        show.Click += (_, _) =>
+        {
+            if (App.MainWindow.Content is MainWindowShell shell && choice.SelectedItem is ComboBoxItem { Tag: string key }) shell.PreviewCard(key);
+        };
+        clear.Click += (_, _) => (App.MainWindow.Content as MainWindowShell)?.ClearCardPreviews();
+        var holder = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        holder.Children.Add(choice);
+        holder.Children.Add(show);
+        holder.Children.Add(clear);
+        SetInputName(choice, "카드 미리보기");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(choice, "CardPreviewChoice");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(show, "CardPreviewShow");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(clear, "CardPreviewClear");
+        AdvancedSection.Items.Add(new SettingsCard
+        {
+            Header = "카드 미리보기 (개발용)",
+            Description = "사이드바 카드를 실제 상황 없이 띄워 모양과 버튼을 확인합니다. 배포판에는 없습니다.",
+            HeaderIcon = new SymbolIcon(Symbol.Preview),
+            Content = holder,
+        });
+    }
+#endif
 
     private void UpdateHotKeyCards()
     {

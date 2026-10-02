@@ -30,7 +30,7 @@ if (-not [string]::IsNullOrWhiteSpace($GameBridgeOutput)) {
 & $DotNetPath publish `
     (Join-Path $repositoryRoot 'src/PzTools.App/PzTools.App.csproj') `
     -c $Configuration -p:Platform=x64 -r win-x64 --self-contained false --force `
-    -p:CopyOutputSymbolsToPublishDirectory=false -o $outputPath @publishProperties
+    -p:CopyOutputSymbolsToPublishDirectory=false -p:PzToolsDistribution=true -o $outputPath @publishProperties
 if ($LASTEXITCODE -ne 0) { throw 'WinUI 앱 게시에 실패했습니다.' }
 
 Write-Host "PzTools 앱 게시 완료: $outputPath"

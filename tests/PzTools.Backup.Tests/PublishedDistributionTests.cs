@@ -28,6 +28,19 @@ public sealed class PublishedDistributionTests
     }
 
     [DistributionFact]
+    public void PublishedAppCarriesNoDeveloperTools()
+    {
+        // The card preview is compiled only without PzToolsDistribution: neither its method names nor its variable's
+        // name may be in the published app.
+        var app = File.ReadAllBytes(Path.Combine(Root, "PzTools.App.dll"));
+        foreach (var name in new[] { "PreviewCard", "PZTOOLS_PREVIEW_CARDS" })
+        {
+            Assert.Equal(-1, app.AsSpan().IndexOf(System.Text.Encoding.UTF8.GetBytes(name)));
+            Assert.Equal(-1, app.AsSpan().IndexOf(System.Text.Encoding.Unicode.GetBytes(name)));
+        }
+    }
+
+    [DistributionFact]
     public void RuntimePayloadPreservesUiSqliteAndGameBridgeWithoutUnusedComponents()
     {
         string[] required = ["PzTools.App.pri", "Microsoft.ui.xaml.dll", "Microsoft.WinUI.dll",

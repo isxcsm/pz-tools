@@ -48,6 +48,19 @@ through [AppWorkers.targets](../build/AppWorkers.targets).
 - Development runs use the same documented user data paths as an installed app. They
   are not kept apart from your local app configuration automatically.
 
+**Previewing the sidebar's cards.** Cards for states that are hard to bring about (a
+component blocked by Windows Security, a lost or outdated game connection, a view that
+cannot be refreshed, a new release, the results of an action) can be shown without
+them: *Settings → Advanced → Card preview* picks one and shows it, and *Clear all* puts
+the real state back. For a scripted run, `PZTOOLS_PREVIEW_CARDS=blocked,update` (or
+`all`) shows those cards from the start; the keys are listed in
+[`MainWindowShell.CardPreview.cs`](../src/PzTools.App/MainWindowShell.CardPreview.cs).
+The cards go through the same code as the real state, so the preview shows what users
+see, but not whether the state is detected. Previewed warnings and errors write nothing
+to the log. This exists in every build except a published app:
+[`publish-app.ps1`](../scripts/publish-app.ps1) passes `PzToolsDistribution=true`,
+which compiles none of it, and the published-folder tests check that.
+
 ## Publish a runnable folder
 
 ```powershell
