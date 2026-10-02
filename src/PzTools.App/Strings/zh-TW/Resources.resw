@@ -493,6 +493,7 @@
   <data name="ProfilePhase.Save" xml:space="preserve"><value>取出最近記錄</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>停止比較</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>正在與 {0} 全程比較</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>比較：{0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>± 數值：該項在範圍時間中的占比比比較錄製增加（紅）或減少（綠）了多少個百分點。</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>

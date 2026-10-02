@@ -493,6 +493,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Letzte Minute übernehmen</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Vergleich beenden</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Verglichen mit ganz {0}</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Vergleich: {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>±-Werte: um wie viele Prozentpunkte der Zeit des Bereichs ein Anteil gegenüber demselben Anteil dort gewachsen (rot) oder geschrumpft (grün) ist.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>

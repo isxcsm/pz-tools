@@ -522,6 +522,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Taking the last minute</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Stop comparing</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Compared with all of {0}</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Compared with {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>± figures: how many points of the range's time a part gained (red) or lost (green) against the same part there.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>

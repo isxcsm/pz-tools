@@ -493,6 +493,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Mengambil menit terakhir</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Berhenti membandingkan</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Dibandingkan dengan seluruh {0}</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Dibandingkan dengan {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>Angka ±: berapa poin waktu rentang yang bertambah (merah) atau berkurang (hijau) pada suatu bagian dibanding bagian yang sama di sana.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} poin</value></data>

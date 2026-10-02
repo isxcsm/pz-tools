@@ -88,7 +88,7 @@ public sealed partial class ProfilerPage : UserControl
             if (App.HotKeys is { } keys) keys.Changed -= HotKeys_Changed;
         };
         // Text and grid lines drawn in code hold the brush of the theme they were drawn in.
-        ActualThemeChanged += (_, _) => { RenderChart(); if (shown is not null) ShowRange(shown); };
+        ActualThemeChanged += (_, _) => { RenderChart(); ShowComparison(); if (shown is not null) ShowRange(shown); };
         // Escape closes the search; the box's own text field handles the key first, so handled keys are heard too.
         DetailSearch.AddHandler(KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(DetailSearch_KeyDown), true);
     }
@@ -134,9 +134,10 @@ public sealed partial class ProfilerPage : UserControl
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
-        CompareText.Text = Localizer.Get("ProfileCompare");
-        AppToolTip.SetTip(CompareButton, Localizer.Get("ProfileCompare"));
         AutomationProperties.SetName(CompareButton, Localizer.Get("ProfileCompare"));
+        AppToolTip.SetTip(CompareClearButton, Localizer.Get("ProfileCompareOff"));
+        AutomationProperties.SetName(CompareClearButton, Localizer.Get("ProfileCompareOff"));
+        ShowComparison();
         AutomationProperties.SetName(ThreadBox, Localizer.Get("ProfileThreadName"));
 
         DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
@@ -549,7 +550,7 @@ public sealed partial class ProfilerPage : UserControl
     private void HideResults()
     {
         ChartPanel.Visibility = ResultsGrid.Visibility = Visibility.Collapsed;
-        FewSamplesInfo.IsOpen = CompareInfo.IsOpen = false;
+        FewSamplesInfo.IsOpen = false;
     }
 
     private async void ImportItem_Click(object sender, RoutedEventArgs e)
@@ -836,31 +837,7 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is null) return;
         var (start, end, frames) = shown is { } range ? (range.Start, range.End, range.Frames)
             : (0L, recording.Duration, ProfileAnalysis.FrameStatistics(recording, 0, recording.Duration));
-        // On the line: the range, the average, the worst 1%. Each number has its name: the whole recording by its
-        // length alone ("0–80 s (80 s)" said the length twice, unnamed), a selection by its length with where it lies.
-        // The frame count and the slowest frame are one hover away, and in the copied text.
-        // A selection is a chip with its clear button, like a filter; the whole recording is plain text.
-        var whole = start == 0 && end == recording.Duration;
-        List<(string?, string)> items = [];
-        string? selectionLine = null;
-        if (whole) items.Add((Localizer.Get("ProfileRangeWhole"), Seconds(end - start)));
-        else selectionLine = SetStats(SelectionText,
-            [(Localizer.Get("ProfileRangeSelected"), $"{Seconds(end - start)} ({SecondsNumber(start)}–{Seconds(end)})")])[0];
-        SelectionChip.Visibility = whole ? Visibility.Collapsed : Visibility.Visible;
-        var more = new List<string>();
-        // One frame has one time; average, slowest and worst 1% would repeat it three times.
-        if (frames.Count == 1) items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(frames.SlowestMilliseconds)));
-        else if (frames.Count > 1)
-        {
-            // Players read frame rates, the 1% low too; the frame time the graph is scaled in follows each.
-            items.Add((Localizer.Get("ProfileStatAverage"), FrameRate(frames.AverageMilliseconds)));
-            items.Add((Localizer.Get("ProfileStatWorst"), FrameRate(frames.OnePercentWorstMilliseconds)));
-            more.Add($"{Localizer.Get("ProfileStatFrames")} {frames.Count.ToString("N0", Localizer.Culture)}");
-            more.Add($"{Localizer.Get("ProfileStatSlowest")} {Milliseconds(frames.SlowestMilliseconds)}");
-        }
-        var lines = SetStats(ChartInfo, items);
-        if (selectionLine is not null) lines.Insert(0, selectionLine);
-        lines.AddRange(more);
+        var lines = ShowRangeLine(start, end, frames, out var compared);
         // Collections stop the game without leaving samples, so the tables cannot show them. They and the
         // memory peaks stand on the memory panel's line under the bars, and in the copied text, which starts with this line.
         var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
@@ -879,7 +856,75 @@ public sealed partial class ProfilerPage : UserControl
                 lines.Add(Localizer.Format("ProfileWaitingSamplesFormat", current.WaitingSamples.ToString("N0", Localizer.Culture)));
         }
         lines.Add(Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
+        // Compared, what with and the figures before → after, under the rest.
+        comparisonSummary = compared ?? "";
+        if (compared is not null) lines.Add(compared);
         AppToolTip.SetTip(ChartInfo, string.Join("\n", lines));
+    }
+
+    // The comparison as one line of text, for the copy: what with, and the frames before → after.
+    private string comparisonSummary = "";
+
+    /// <summary>
+    /// The range line above the graph: the range, the average, the worst 1%, each number with its name. The whole
+    /// recording is named by its length alone ("0–80 s (80 s)" said the length twice, unnamed); a selection is a chip
+    /// with its ✕, like a filter, its length first and where it lies after. Compared, each frame rate is followed by how
+    /// far it moved, and <paramref name="compared"/> says from what. Returns the line as text, with the frame count and
+    /// slowest frame after it, which are one hover away.
+    /// </summary>
+    private List<string> ShowRangeLine(long start, long end, ProfileFrameStatistics frames, out string? compared)
+    {
+        compared = null;
+        var whole = start == 0 && end == recording!.Duration;
+        List<(string?, string)> items = [];
+        string? selectionLine = null;
+        if (whole) items.Add((Localizer.Get("ProfileRangeWhole"), Seconds(end - start)));
+        else selectionLine = SetStats(SelectionText,
+            [(Localizer.Get("ProfileRangeSelected"), $"{Seconds(end - start)} ({SecondsNumber(start)}–{Seconds(end)})")])[0];
+        SelectionChip.Visibility = whole ? Visibility.Collapsed : Visibility.Visible;
+        if (selectionLine is not null) AutomationProperties.SetName(SelectionChip, $"{selectionLine}, {Localizer.Get("ProfileClearSelection")}");
+        var more = new List<string>();
+        Dictionary<int, (string, Brush)>? notes = null;
+        // One frame has one time; average, slowest and worst 1% would repeat it three times.
+        if (frames.Count == 1) items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(frames.SlowestMilliseconds)));
+        else if (frames.Count > 1)
+        {
+            // Players read frame rates, the 1% low too; the frame time the graph is scaled in follows each.
+            items.Add((Localizer.Get("ProfileStatAverage"), FrameRate(frames.AverageMilliseconds)));
+            items.Add((Localizer.Get("ProfileStatWorst"), FrameRate(frames.OnePercentWorstMilliseconds)));
+            more.Add($"{Localizer.Get("ProfileStatFrames")} {frames.Count.ToString("N0", Localizer.Culture)}");
+            more.Add($"{Localizer.Get("ProfileStatSlowest")} {Milliseconds(frames.SlowestMilliseconds)}");
+            if (baselineRange is { } other && other.Frames.Count > 1)
+            {
+                notes = new()
+                {
+                    [items.Count - 2] = RateChange(other.Frames.AverageMilliseconds, frames.AverageMilliseconds),
+                    [items.Count - 1] = RateChange(other.Frames.OnePercentWorstMilliseconds, frames.OnePercentWorstMilliseconds),
+                };
+                string Change(string name, double before, double after) =>
+                    Localizer.Format("ProfileChangeFormat", Localizer.Get(name), Rate(before), Rate(after));
+                compared = Localizer.Format("ProfileCompareTitle", baselineName ?? "") + ": "
+                    + Change("ProfileStatAverage", other.Frames.AverageMilliseconds, frames.AverageMilliseconds) + " · "
+                    + Change("ProfileStatWorst", other.Frames.OnePercentWorstMilliseconds, frames.OnePercentWorstMilliseconds);
+            }
+        }
+        var lines = SetStats(ChartInfo, items, notes);
+        if (selectionLine is not null) lines.Insert(0, selectionLine);
+        lines.AddRange(more);
+        return lines;
+    }
+
+    private static string Rate(double milliseconds) => milliseconds > 0
+        ? $"{(1000 / milliseconds).ToString("N1", Localizer.Culture)} {Localizer.Get("ProfileStatFps")}" : Milliseconds(milliseconds);
+
+    // How far a frame rate moved against the compared recording: ▲ more frames (green), ▼ fewer (red), and what rounds
+    // to nothing muted.
+    private (string Text, Brush Brush) RateChange(double beforeMilliseconds, double afterMilliseconds)
+    {
+        if (beforeMilliseconds <= 0 || afterMilliseconds <= 0) return ("", Muted);
+        var change = Math.Round(1000 / afterMilliseconds - 1000 / beforeMilliseconds, 1);
+        var size = Math.Abs(change).ToString("0.0", Localizer.Culture);
+        return change > 0 ? ("▲" + size, SuccessProbe.Background) : change < 0 ? ("▼" + size, CriticalProbe.Background) : ("±0", Muted);
     }
 
     /// <summary>
@@ -1165,7 +1210,10 @@ public sealed partial class ProfilerPage : UserControl
     /// Writes "name value" pairs on one line: names muted, values in the normal colour, wide gaps between the pairs
     /// instead of separator characters. Returns the same pairs one per line, for a tooltip or a screen reader.
     /// </summary>
-    private List<string> SetStats(TextBlock target, IEnumerable<(string? Label, string Value)> items)
+    // A note follows an item's value in its own colour, such as how a figure changed against the compared recording;
+    // notes are keyed by the item's position.
+    private List<string> SetStats(TextBlock target, IEnumerable<(string? Label, string Value)> items,
+        IReadOnlyDictionary<int, (string Text, Brush Brush)>? notes = null)
     {
         target.Inlines.Clear();
         var lines = new List<string>();
@@ -1174,7 +1222,13 @@ public sealed partial class ProfilerPage : UserControl
             if (lines.Count > 0) target.Inlines.Add(new Run { Text = "  " });
             if (label is not null) target.Inlines.Add(new Run { Text = label + " ", Foreground = Muted });
             target.Inlines.Add(new Run { Text = value });
-            lines.Add(label is null ? value : label + " " + value);
+            var line = label is null ? value : label + " " + value;
+            if (notes is not null && notes.TryGetValue(lines.Count, out var note))
+            {
+                target.Inlines.Add(new Run { Text = " " + note.Text, Foreground = note.Brush });
+                line += " " + note.Text;
+            }
+            lines.Add(line);
         }
         AutomationProperties.SetName(target, string.Join(", ", lines));
         return lines;
@@ -1301,6 +1355,19 @@ public sealed partial class ProfilerPage : UserControl
         Canvas.SetLeft(MemoryHoverLine, Math.Clamp(x, 0, ChartWidth));
         MemoryHoverLine.Height = MemorySurface.ActualHeight;
         MemoryHoverLine.Visibility = Visibility.Visible;
+        // While dragging, the line follows the range being drawn rather than the frame under the pointer: its length,
+        // where it lies, and its frames, so the size of the drag reads as it grows.
+        if (selecting && selectionStart is { } dragStart && selectionEnd is { } dragEnd && Math.Abs(x - pressX) >= 4)
+        {
+            ShowRangeLine(dragStart, dragEnd, ProfileAnalysis.FrameStatistics(recording, dragStart, dragEnd), out _);
+            // The memory panel's line too: the range's collections and peaks, as it will read once let go.
+            var (dragCollections, dragPaused) = ProfileAnalysis.CollectionsIn(recording, dragStart, dragEnd);
+            var (dragHeap, dragVideo) = ProfileAnalysis.MemoryPeaksIn(recording, dragStart, dragEnd);
+            SetLaneInfo(dragCollections > 0 ? CollectionText(dragCollections, dragPaused) : null,
+                dragHeap is { } heapPeak ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heapPeak)}" : null,
+                dragVideo is { } videoPeak ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(videoPeak)}" : null);
+            return;
+        }
         var frame = ProfileAnalysis.FrameAt(recording, time);
         List<(string?, string)> items = [(null, Seconds(time))];
         string? collection = null;
@@ -1564,7 +1631,22 @@ public sealed partial class ProfilerPage : UserControl
         // Only the scripts have a whole worth stating, beside the heading: the game code's items always add up to all of it.
         GroupShareTotal.Text = tab switch { ResultTab.Java => "", ResultTab.Allocation => Bytes(range.LuaAllocated), _ => FinePercent(range.LuaShare) };
         GroupShareTotal.Visibility = java ? Visibility.Collapsed : Visibility.Visible;
-        AutomationProperties.SetName(GroupShareHeading, java ? GroupShareText.Text : $"{GroupShareText.Text} {GroupShareTotal.Text}");
+        // Compared, the scripts' part beside it moved by so many points, with before → after and what the ± figures
+        // in the rows mean in the heading's tip. Bytes depend on how long each recording ran and are not compared.
+        GroupShareDelta.Visibility = Visibility.Collapsed;
+        if (tab == ResultTab.Lua && baselineRange is { } other)
+        {
+            var delta = range.LuaShare - other.LuaShare;
+            GroupShareDelta.Text = DeltaText(delta);
+            GroupShareDelta.Foreground = DeltaBrush(delta);
+            GroupShareDelta.Visibility = Visibility.Visible;
+            AppToolTip.SetTip(GroupShareHeading, Localizer.Get("ProfileListLuaShareTip") + "\n\n"
+                + Localizer.Format("ProfileCompareTitle", baselineName ?? "") + "\n"
+                + Localizer.Format("ProfileChangeFormat", Localizer.Get("ProfileTabLua"), FinePercent(other.LuaShare), FinePercent(range.LuaShare))
+                + "\n" + Localizer.Get("ProfileCompareNote"));
+        }
+        AutomationProperties.SetName(GroupShareHeading, java ? GroupShareText.Text
+            : $"{GroupShareText.Text} {GroupShareTotal.Text}" + (GroupShareDelta.Visibility == Visibility.Visible ? " " + GroupShareDelta.Text : ""));
         // Bars are relative to the largest owner, so the list reads as a ranking; the number is the real share.
         var largest = listedGroups.Max(group => group.Share ?? 0);
         updatingGroups = true;
@@ -1685,31 +1767,26 @@ public sealed partial class ProfilerPage : UserControl
         (baselinePath, baselineName, baseline, baselineRange) = (null, null, null, null);
         baselineMatches.Clear();
         baselineShares.Clear();
-        CompareInfo.IsOpen = false;
+        ShowComparison();
         if (shown is not null) ShowTab();
     }
 
-    private void CompareInfo_CloseButtonClick(InfoBar sender, object args) => ClearBaseline();
-
-    /// <summary>The bar over the results: what the shown range is compared with, and how the frames changed.</summary>
+    /// <summary>
+    /// The comparison has no bar of its own: the compare button names what the shown range is compared with, and each
+    /// figure carries its change where it stands — the frame rates on the line above the graph, the scripts' part
+    /// beside the list's total, each owner and function in its row.
+    /// </summary>
     private void ShowComparison()
     {
-        if (baselineRange is not { } other || shown is not { } range) { CompareInfo.IsOpen = false; return; }
-        CompareInfo.Title = Localizer.Format("ProfileCompareTitle", baselineName ?? "");
-        string Change(string name, string before, string after) => Localizer.Format("ProfileChangeFormat", Localizer.Get(name), before, after);
-        static string Rate(double milliseconds) => milliseconds > 0
-            ? $"{(1000 / milliseconds).ToString("N1", Localizer.Culture)} {Localizer.Get("ProfileStatFps")}" : Milliseconds(milliseconds);
-        var parts = new List<string>();
-        if (other.Frames.Count > 0 && range.Frames.Count > 0)
-        {
-            // In frame rates like the line above the graph, the average and the 1% low alike.
-            parts.Add(Change("ProfileStatAverage", Rate(other.Frames.AverageMilliseconds), Rate(range.Frames.AverageMilliseconds)));
-            parts.Add(Change("ProfileStatWorst", Rate(other.Frames.OnePercentWorstMilliseconds), Rate(range.Frames.OnePercentWorstMilliseconds)));
-        }
-        parts.Add(Change("ProfileTabLua", FinePercent(other.LuaShare), FinePercent(range.LuaShare)));
-        CompareInfo.Message = string.Join(" · ", parts) + "\n" + Localizer.Get("ProfileCompareNote");
-        CompareInfo.IsOpen = true;
+        var name = baselineRange is not null ? baselineName : null;
+        CompareText.Text = name is null ? Localizer.Get("ProfileCompare") : Localizer.Format("ProfileCompareWithFormat", name);
+        CompareText.Foreground = CompareIcon.Foreground = name is null ? PrimaryTextProbe.Background : AccentTextProbe.Background;
+        CompareClearButton.Visibility = name is null ? Visibility.Collapsed : Visibility.Visible;
+        AppToolTip.SetTip(CompareButton, name is null ? Localizer.Get("ProfileCompare") : Localizer.Format("ProfileCompareTitle", name));
+        if (recording is not null && HoverLine.Visibility == Visibility.Collapsed) ShowDefaultChartInfo();
     }
+
+    private void CompareClearButton_Click(object sender, RoutedEventArgs e) => ClearBaseline();
 
     // Owners and lines compared: the scripts' and the game code's, as parts of the range. Bytes depend on how long each
     // recording ran, and the threads and pauses are no parts.
@@ -2587,7 +2664,7 @@ public sealed partial class ProfilerPage : UserControl
             ThreadBox.SelectedItem as string,
         }.Where(part => !string.IsNullOrEmpty(part))));
         text.AppendLine(rangeSummary);
-        if (CompareInfo.IsOpen) text.AppendLine($"{CompareInfo.Title}: {CompareInfo.Message.Replace("\n", " · ")}");
+        if (comparisonSummary.Length > 0) text.AppendLine(comparisonSummary);
         text.AppendLine();
         text.AppendLine(TabItem.Text);
         if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);
@@ -2595,6 +2672,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             // The list as it reads: its headings (with the scripts' total), then each owner, and compared, the change.
             var share = GroupShareTotal.Text.Length > 0 ? $"{GroupShareText.Text} {GroupShareTotal.Text}" : GroupShareText.Text;
+            if (GroupShareDelta.Visibility == Visibility.Visible) share += " " + GroupShareDelta.Text;
             var compared = listedGroups.Any(group => OwnerDelta(group) is not null);
             (string Text, string? Tip, bool Right)[] Line(string name, string value, string change) =>
                 compared ? [(name, null, false), (value, null, true), (change, null, true)] : [(name, null, false), (value, null, true)];

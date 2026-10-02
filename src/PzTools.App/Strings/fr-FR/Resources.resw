@@ -493,6 +493,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Récupération de la dernière minute</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Arrêter la comparaison</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparé à tout {0}</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Comparé à {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>Chiffres ± : combien de points du temps de la plage une part a gagnés (rouge) ou perdus (vert) par rapport à la même part là-bas.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pts</value></data>

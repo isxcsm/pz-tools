@@ -493,6 +493,7 @@
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Получение последней минуты</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Прекратить сравнение</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Сравнение со всей записью {0}</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Сравнение: {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>Числа ±: на сколько процентных пунктов времени диапазона доля выросла (красный) или снизилась (зелёный) по сравнению с той же долей там.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} п. п.</value></data>

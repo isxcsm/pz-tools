@@ -493,6 +493,7 @@
   <data name="ProfilePhase.Save" xml:space="preserve"><value>直前の記録を取り出し</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>比較をやめる</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} 全体と比較中</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>比較: {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>± の数値: 範囲の時間に占めるその項目の割合が、比較先より何ポイント増えた (赤) か減った (緑) か。</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pt</value></data>

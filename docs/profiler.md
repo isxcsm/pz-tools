@@ -197,7 +197,9 @@ keeps to the frames, so it stays one line in every language. A range of one fram
 that frame's time alone. Resting the pointer on the line adds the frame count (how many
 frames the range holds, not frames per second), the slowest frame, the sample count and
 recording mode; while the pointer is over the graph the line shows the
-time and frame under it instead. The **?** beside it lists the graph's mouse controls.
+time and frame under it instead, and while dragging a selection, the range being drawn
+(its length, where it lies, its frames, and under the graph its memory figures), so the
+size of the drag reads as it grows. The **?** beside it lists the graph's mouse controls.
 
 Under the graph, a line carries the range's other figures, the memory ones in their lines'
 colours: heap peak, video memory peak, and garbage collections (*GC 3 times, paused
@@ -279,9 +281,12 @@ and leaving it empty closes it.
 
 **Comparing two recordings.** *Compare with* on the title line lists the other
 recordings; pick one, say from before a mod was added or updated, and the shown range is
-compared with the whole of it. A bar over the results names it and sets the frames side
-by side (the average and worst 1% frame rates, and the scripts' part of the time),
-before → after. The
+compared with the whole of it. There is no bar of its own: the button then names the
+recording compared with, in the accent colour, with a ✕ beside it to stop, and each figure
+carries its change where it stands. On the line above the graph the average and worst 1%
+frame rates are followed by ▲ (more frames per second, green) or ▼ (fewer, red), their
+before → after one hover away; the scripts' part beside the list's heading by how many
+points it moved. The
 owner list in *Scripts* and *Game code* gains a small figure beside each part, and the
 table a *Change* column: how many percentage points of the range's time the owner or the
 function gained (red) or lost (green) against the same one there. Parts are compared, not
@@ -290,7 +295,7 @@ and its file from *media/lua/* on, so a mod moved from the workshop to a local c
 updated, still matches. In the tree a row is matched by its whole path; a path the other
 recording never took counts as all gain. *Memory allocation* is not compared, as its bytes
 depend on how long each recording ran. The comparison stays while other recordings and
-ranges are shown; close the bar, or choose *Stop comparing*, to end it.
+ranges are shown; press the ✕ beside the button, or choose *Stop comparing*, to end it.
 
 Tree and list count the same samples, those that ended in the chosen owner's functions,
 and their percentages are parts of the owner, the owner being 100%: the question there is
