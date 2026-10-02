@@ -89,6 +89,8 @@ public sealed partial class ProfilerPage : UserControl
         };
         // Text and grid lines drawn in code hold the brush of the theme they were drawn in.
         ActualThemeChanged += (_, _) => { RenderChart(); if (shown is not null) ShowRange(shown); };
+        // Escape closes the search; the box's own text field handles the key first, so handled keys are heard too.
+        DetailSearch.AddHandler(KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(DetailSearch_KeyDown), true);
     }
 
     internal void ApplyLocalizedText()
@@ -134,6 +136,8 @@ public sealed partial class ProfilerPage : UserControl
 
         DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
         AutomationProperties.SetName(DetailSearch, Localizer.Get("ProfileSearch"));
+        AppToolTip.SetTip(SearchButton, Localizer.Get("ProfileSearch") + " (Ctrl+F)");
+        AutomationProperties.SetName(SearchButton, Localizer.Get("ProfileSearch"));
         if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
         var thread = ThreadBox.SelectedIndex;
@@ -1866,8 +1870,7 @@ public sealed partial class ProfilerPage : UserControl
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
         CallTreeToggle.IsOn = callTree;
-        // Pauses have no names to look for.
-        DetailSearch.Visibility = group.Kind == DetailKind.Pauses ? Visibility.Collapsed : Visibility.Visible;
+        UpdateSearch();
 
         var (columns, header, rows) = Table(group);
         DetailHeader.Child = TableRow(columns, header, header: true);
@@ -1957,10 +1960,80 @@ public sealed partial class ProfilerPage : UserControl
     // What the table is narrowed to: rows whose name or file holds this text, any case. Kept across owners and ranges.
     private string search = "";
 
+    // Opened by the button or Ctrl+F. The box stays while it holds text, so rows narrowed by a search always show why.
+    private bool searchOpen;
+
     private void DetailSearch_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
-        search = DetailSearch.Text.Trim();
+        var text = DetailSearch.Text.Trim();
+        if (text == search) return;
+        search = text;
         if (shownGroup is { } group) ShowGroup(group);
+    }
+
+    /// <summary>The search box in the name's place while open or holding text; the button otherwise. Pauses have no names to look for.</summary>
+    private void UpdateSearch()
+    {
+        var available = shownGroup?.Kind != DetailKind.Pauses;
+        var open = available && (searchOpen || search.Length > 0);
+        DetailName.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
+        DetailSearch.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        SearchButton.Visibility = available && !open ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OpenSearch()
+    {
+        if (shownGroup?.Kind == DetailKind.Pauses) return;
+        searchOpen = true;
+        UpdateSearch();
+        // Just made visible, the box has no template yet until a layout pass.
+        DetailSearch.UpdateLayout();
+        DetailSearch.Focus(FocusState.Programmatic);
+    }
+
+    private void CloseSearch()
+    {
+        searchOpen = false;
+        // The box tells of a text set here only later, so the table and the box follow now.
+        if (DetailSearch.Text.Length > 0) DetailSearch.Text = "";
+        if (search.Length > 0)
+        {
+            search = "";
+            if (shownGroup is { } group) ShowGroup(group);
+        }
+        UpdateSearch();
+    }
+
+    private void SearchButton_Click(object sender, RoutedEventArgs e) => OpenSearch();
+
+    private void SearchAccelerator_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (DetailCard.Visibility != Visibility.Visible || shownGroup is null) return;
+        args.Handled = true;
+        OpenSearch();
+    }
+
+    private void DetailSearch_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Escape) return;
+        e.Handled = true;
+        CloseSearch();
+        if (SearchButton.Visibility == Visibility.Visible)
+        {
+            SearchButton.UpdateLayout();
+            SearchButton.Focus(FocusState.Keyboard);
+        }
+    }
+
+    private void DetailSearch_LostFocus(object sender, RoutedEventArgs e)
+    {
+        // Focus moving inside the box (its clear button) is not leaving it; leaving it empty closes it.
+        if (search.Length > 0 || !searchOpen) return;
+        for (var element = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(XamlRoot) as DependencyObject; element is not null;
+             element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element))
+            if (element == DetailSearch) return;
+        searchOpen = false;
+        UpdateSearch();
     }
 
     private bool Matches(string name, string file = "") =>

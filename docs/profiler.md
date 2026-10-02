@@ -179,8 +179,8 @@ The line above the graph shows the range, the average frame with its frame rate 
 worst 1%; the frame count and the slowest frame are one hover away and in the copied text.
 Beside them, which thread the results count, the game's or all of them: a choice for the
 whole analysis, both tabs. The chosen owner's table is a card of its own, level with the
-tabs: the owner's name across it with its samples, then the search, the **Call tree**
-toggle and the copy button.
+tabs, title and tools in one line: the owner's name with its samples, then the search
+button, the **Call tree** switch and the copy button.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
 line above the graph describes the range the results show: its start, end and length,
@@ -261,10 +261,12 @@ line itself. So in the list a function's lines' *Samples*, those that ended ther
 to the function's, and in the tree a node's lines' samples add up to the node's. *Line
 unknown* is a frame the game gave no line for.
 
-The **search** box beside the owner's name narrows the table to the rows whose name or
-file holds the text, in any case; in the tree it keeps the paths that lead to a match,
-opened down to it. It applies to the game code's methods and the threads too, and holds
-while other owners and ranges are shown.
+The **search** button (or Ctrl+F) opens a box in the owner's name's place; it narrows the
+table to the rows whose name or file holds the text, in any case; in the tree it keeps the
+paths that lead to a match, opened down to it. It applies to the game code's methods and
+the threads too, and holds while other owners and ranges are shown. The box stays open as
+long as it holds text, so a narrowed table always shows why; Escape clears and closes it,
+and leaving it empty closes it.
 
 **Comparing two recordings.** *Compare with* on the title line lists the other
 recordings; pick one, say from before a mod was added or updated, and the shown range is
