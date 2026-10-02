@@ -1837,6 +1837,11 @@ public sealed partial class ProfilerPage : UserControl
     private ProfileRange? baselineRange;
     private int baselineVersion, baselineLoadVersion;
     private CancellationTokenSource? baselineCancel;
+    // A recording chosen but not yet loaded and analysed. A long one takes seconds; past a moment the button says so,
+    // and its ✕ takes the choice back.
+    private string? pendingPath, pendingName;
+    private bool pendingShown;
+    private static readonly TimeSpan PendingDelay = TimeSpan.FromMilliseconds(250);
     // Matched once per tree shown: the current tree's nodes to the baseline's, and the baseline's functions' parts.
     private readonly Dictionary<ProfileCallNode, IReadOnlyDictionary<ProfileCallNode, ProfileCallNode>> baselineMatches =
         new(ReferenceEqualityComparer.Instance);
@@ -1852,7 +1857,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             var choice = new ToggleMenuFlyoutItem
             {
-                Text = item.Text, IsChecked = item.File.Path.Equals(baselinePath, StringComparison.OrdinalIgnoreCase),
+                Text = item.Text, IsChecked = item.File.Path.Equals(pendingPath ?? baselinePath, StringComparison.OrdinalIgnoreCase),
             };
             // The click has already flipped the check: checked is a new choice, unchecked the current one taken back.
             choice.Click += (_, _) => { if (choice.IsChecked) _ = SetBaselineAsync(item.File.Path, item.Text); else ClearBaseline(); };
@@ -1861,7 +1866,7 @@ public sealed partial class ProfilerPage : UserControl
         // An empty menu would look broken: it says why there is nothing to choose.
         if (CompareMenu.Items.Count == 0)
             CompareMenu.Items.Add(new MenuFlyoutItem { Text = Localizer.Get("ProfileCompareNone"), IsEnabled = false });
-        if (baselinePath is not null)
+        if (baselinePath is not null || pendingPath is not null)
         {
             CompareMenu.Items.Add(new MenuFlyoutSeparator());
             var off = new MenuFlyoutItem { Text = Localizer.Get("ProfileCompareOff") };
@@ -1875,17 +1880,35 @@ public sealed partial class ProfilerPage : UserControl
         // Loading has its own count: a thread changed meanwhile analyses the old baseline again, which must not make
         // this newer choice look outdated.
         var version = ++baselineLoadVersion;
+        (pendingPath, pendingName, pendingShown) = (path, name, false);
+        _ = ShowPendingLaterAsync(version);
         ProfileRecording? loaded = null;
         try { loaded = await Task.Run(() => ProfileRecording.Load(path)); }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) { }
         if (version != baselineLoadVersion) return;
         if (loaded is null || loaded.Duration <= 0)
         {
+            EndPending();
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileLoadFailed"));
             return;
         }
         (baselinePath, baselineName, baseline, baselineRange) = (path, name, loaded, null);
         await AnalyzeBaselineAsync();
+    }
+
+    // A choice ready within a moment never flashes the loading state.
+    private async Task ShowPendingLaterAsync(int version)
+    {
+        await Task.Delay(PendingDelay);
+        if (version != baselineLoadVersion || pendingPath is null) return;
+        pendingShown = true;
+        ShowComparison();
+    }
+
+    private void EndPending()
+    {
+        (pendingPath, pendingName, pendingShown) = (null, null, false);
+        ShowComparison();
     }
 
     // The whole baseline, on the thread chosen for the shown recording.
@@ -1911,6 +1934,8 @@ public sealed partial class ProfilerPage : UserControl
         baselineRange = range;
         baselineMatches.Clear();
         baselineShares.Clear();
+        // The old baseline analysed again for another thread leaves a newer choice still loading.
+        if (string.Equals(pendingPath, baselinePath, StringComparison.OrdinalIgnoreCase)) (pendingPath, pendingName, pendingShown) = (null, null, false);
         ShowComparison();
         if (shown is not null) ShowTab();
     }
@@ -1921,6 +1946,7 @@ public sealed partial class ProfilerPage : UserControl
         baselineLoadVersion++;
         baselineCancel?.Cancel();
         (baselinePath, baselineName, baseline, baselineRange) = (null, null, null, null);
+        (pendingPath, pendingName, pendingShown) = (null, null, false);
         baselineMatches.Clear();
         baselineShares.Clear();
         ShowComparison();
@@ -1935,10 +1961,23 @@ public sealed partial class ProfilerPage : UserControl
     private void ShowComparison()
     {
         var name = baselineRange is not null ? baselineName : null;
-        CompareText.Text = name is null ? Localizer.Get("ProfileCompare") : Localizer.Format("ProfileCompareWithFormat", name);
-        CompareText.Foreground = CompareIcon.Foreground = name is null ? PrimaryTextProbe.Background : AccentTextProbe.Background;
-        CompareClearButton.Visibility = name is null ? Visibility.Collapsed : Visibility.Visible;
-        AppToolTip.SetTip(CompareButton, name is null ? Localizer.Get("ProfileCompare") : Localizer.Format("ProfileCompareTitle", name));
+        var loading = pendingShown && pendingName is not null;
+        CompareProgress.IsActive = loading;
+        CompareProgress.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+        CompareIcon.Visibility = loading ? Visibility.Collapsed : Visibility.Visible;
+        if (loading)
+        {
+            CompareText.Text = Localizer.Format("ProfileCompareLoadingFormat", pendingName!);
+            CompareText.Foreground = SecondaryTextProbe.Background;
+            AppToolTip.SetTip(CompareButton, CompareText.Text);
+        }
+        else
+        {
+            CompareText.Text = name is null ? Localizer.Get("ProfileCompare") : Localizer.Format("ProfileCompareWithFormat", name);
+            CompareText.Foreground = CompareIcon.Foreground = name is null ? PrimaryTextProbe.Background : AccentTextProbe.Background;
+            AppToolTip.SetTip(CompareButton, name is null ? Localizer.Get("ProfileCompare") : Localizer.Format("ProfileCompareTitle", name));
+        }
+        CompareClearButton.Visibility = name is null && !loading ? Visibility.Collapsed : Visibility.Visible;
         if (recording is not null && HoverLine.Visibility == Visibility.Collapsed) ShowDefaultChartInfo();
     }
 

@@ -496,6 +496,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileCompareOff" xml:space="preserve"><value>Zakończ porównanie</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Porównanie z całym nagraniem {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Porównanie: {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>Wczytywanie {0}…</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>Liczby ±: o ile punktów procentowych czasu zakresu część zyskała (czerwony) lub straciła (zielony) względem tej samej części tam.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>

@@ -290,7 +290,9 @@ and leaving it empty closes it.
 
 **Comparing two recordings.** *Compare with* on the title line lists the other
 recordings; pick one, say from before a mod was added or updated, and the shown range is
-compared with the whole of it. There is no bar of its own: the button then names the
+compared with the whole of it. A long recording takes a few seconds to read; meanwhile the
+button turns a small ring and says it is loading, and its ✕ takes the choice back. There
+is no bar of its own: the button then names the
 recording compared with, in the accent colour, with a ✕ beside it to stop, and each figure
 carries its change where it stands. On the line above the graph the average and worst 1%
 frame rates are followed by ▲ (more frames per second, green) or ▼ (fewer, red), their

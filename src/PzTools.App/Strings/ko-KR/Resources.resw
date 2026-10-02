@@ -495,6 +495,7 @@
   <data name="ProfileCompareOff" xml:space="preserve"><value>비교 끄기</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} 전체와 비교 중</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>비교: {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>{0} 불러오는 중…</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>± 숫자: 범위 시간 중 그 항목의 비율이 비교 녹화보다 몇 %p 늘었는지(빨강) 줄었는지(초록)입니다.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0}%p</value></data>

@@ -496,6 +496,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Parar de comparar</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparado com toda {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Comparado com {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>Carregando {0}…</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>Números ±: quantos pontos do tempo do intervalo uma parte ganhou (vermelho) ou perdeu (verde) em relação à mesma parte lá.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} p.p.</value></data>

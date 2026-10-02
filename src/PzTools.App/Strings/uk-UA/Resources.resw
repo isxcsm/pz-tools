@@ -496,6 +496,7 @@
   <data name="ProfileCompareOff" xml:space="preserve"><value>Припинити порівняння</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Порівняння з усім записом {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Порівняння: {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>Завантаження {0}…</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>Числа ±: на скільки відсоткових пунктів часу діапазону частка зросла (червоний) чи зменшилася (зелений) порівняно з тією ж часткою там.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} в. п.</value></data>

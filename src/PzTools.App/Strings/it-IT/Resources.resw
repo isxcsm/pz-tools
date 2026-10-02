@@ -496,6 +496,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileCompareOff" xml:space="preserve"><value>Interrompi il confronto</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Confrontato con tutta {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Confronto: {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>Caricamento di {0}…</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>Cifre ±: quanti punti del tempo dell'intervallo una parte ha guadagnato (rosso) o perso (verde) rispetto alla stessa parte lì.</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} p.p.</value></data>

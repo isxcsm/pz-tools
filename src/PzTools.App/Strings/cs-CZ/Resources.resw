@@ -477,6 +477,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Porovnáno s celým záznamem {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Porovnání: {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>Načítání {0}…</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Porovnat s</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Žádný jiný záznam k porovnání</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Vlákna</value></data>

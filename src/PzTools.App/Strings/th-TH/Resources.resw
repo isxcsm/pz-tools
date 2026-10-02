@@ -503,6 +503,7 @@
   <data name="ProfileCompareOff" xml:space="preserve"><value>หยุดเปรียบเทียบ</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>เปรียบเทียบกับ {0} ทั้งหมด</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>เทียบกับ {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>กำลังโหลด {0}…</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareNote" xml:space="preserve"><value>ตัวเลข ±: สัดส่วนเวลาของช่วงที่ส่วนนั้นเพิ่มขึ้น (แดง) หรือลดลง (เขียว) กี่จุดเมื่อเทียบกับส่วนเดียวกันในอีกการบันทึก</value></data>
   <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} จุด</value></data>

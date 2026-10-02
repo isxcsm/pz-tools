@@ -126,6 +126,8 @@
           <!-- While comparing, it names the recording compared with, in the accent colour; the ✕ beside it ends it. -->
           <StackPanel Orientation="Horizontal" Spacing="8">
             <FontIcon x:Name="CompareIcon" Glyph="&#xE8AB;" FontSize="14" />
+            <!-- In the icon's place while a recording chosen takes a while to load. -->
+            <ProgressRing x:Name="CompareProgress" Width="14" Height="14" MinWidth="14" MinHeight="14" IsActive="False" Visibility="Collapsed" />
             <TextBlock x:Name="CompareText" MaxWidth="320" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
           </StackPanel>
           <DropDownButton.Flyout>
