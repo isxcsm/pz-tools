@@ -399,7 +399,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Start the game to record.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} did not start because the game is not running.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} did not start because more than one game is running.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Frames</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Frame count</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Frame</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Average</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Slowest</value></data>

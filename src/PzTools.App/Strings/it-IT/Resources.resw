@@ -387,7 +387,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Avvia il gioco per registrare.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} non è stato avviato perché il gioco non è in esecuzione.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} non è stato avviato perché è in esecuzione più di un gioco.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Fotogrammi</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>N. fotogrammi</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Fotogramma</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Media</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Più lento</value></data>

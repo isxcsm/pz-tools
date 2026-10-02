@@ -387,7 +387,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Lancez le jeu pour enregistrer.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} n'a pas démarré, car le jeu n'est pas lancé.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} n'a pas démarré, car plusieurs jeux sont lancés.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Images</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Nombre d’images</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Image</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Moyenne</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>La plus lente</value></data>

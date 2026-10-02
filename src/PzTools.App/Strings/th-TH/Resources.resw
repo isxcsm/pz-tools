@@ -394,7 +394,7 @@
   <data name="ProfileNeedsGame" xml:space="preserve"><value>เปิดเกมเพื่อเริ่มบันทึก</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะเกมไม่ได้เปิดอยู่</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะมีเกมเปิดอยู่มากกว่าหนึ่งเกม</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>เฟรม</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>จำนวนเฟรม</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>เฟรม</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>เฉลี่ย</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>ช้าที่สุด</value></data>

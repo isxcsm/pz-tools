@@ -387,7 +387,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Kayıt için oyunu başlatın.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>Oyun çalışmadığı için {0} başlatılmadı.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>Birden fazla oyun çalıştığı için {0} başlatılmadı.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Kare</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Kare sayısı</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Kare</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Ortalama</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>En yavaş</value></data>

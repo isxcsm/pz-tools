@@ -387,7 +387,7 @@
   <data name="ProfileNeedsGame" xml:space="preserve"><value>ゲームを起動すると記録できます。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ゲームが起動していないため、{0}を開始しませんでした。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ゲームが複数起動しているため、{0}を開始しませんでした。</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>フレーム</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>フレーム数</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>フレーム</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>平均</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>最も遅い</value></data>

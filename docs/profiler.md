@@ -69,7 +69,9 @@ while a recording starts, runs or is being processed.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
 line above the graph describes the range the results show: its start, end and length,
-then frames, average, slowest and worst 1 %, and when the range had any, garbage collections
+then the frame count (how many frames the range holds, not frames per second), the average
+frame time with its frame rate (*135.0 ms (7.4 fps)*), slowest and worst 1 %, and when the
+range had any, garbage collections
 (*GC 3 times, paused 120 ms*), names muted and numbers not. A collection stops the game
 without leaving samples, so the tables cannot show it; this line, which also heads the
 copied text, does. A range of one frame shows that frame's time alone. Resting the pointer

@@ -387,7 +387,7 @@
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустіть гру, щоб записувати.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не розпочато, бо гру не запущено.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0}: не розпочато, бо запущено більше однієї гри.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Кадри</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Кількість кадрів</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Кадр</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Середнє</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Найповільніший</value></data>

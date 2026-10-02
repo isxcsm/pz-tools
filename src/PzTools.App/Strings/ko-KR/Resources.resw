@@ -386,7 +386,7 @@
   <data name="ProfileNeedsGame" xml:space="preserve"><value>게임을 실행하면 녹화할 수 있습니다.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>게임이 실행 중이 아니어서 {0} 작업을 시작하지 않았습니다.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>게임이 둘 이상 실행 중이어서 {0} 작업을 시작하지 않았습니다.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>프레임</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>프레임 수</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>프레임</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>평균</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>가장 느림</value></data>

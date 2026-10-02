@@ -387,7 +387,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Inicia el juego para grabar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} no se inició porque el juego no está en ejecución.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} no se inició porque hay más de un juego en ejecución.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Fotogramas</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>N.º de fotogramas</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Fotograma</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Media</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Más lento</value></data>

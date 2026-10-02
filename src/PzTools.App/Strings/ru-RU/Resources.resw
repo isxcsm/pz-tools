@@ -387,7 +387,7 @@
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустите игру, чтобы записывать.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не запущено, потому что игра не запущена.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0}: не запущено, потому что запущено больше одной игры.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Кадры</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Число кадров</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Кадр</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Среднее</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Самый медленный</value></data>

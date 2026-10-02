@@ -387,7 +387,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Jalankan game untuk merekam.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} tidak dimulai karena game tidak sedang berjalan.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} tidak dimulai karena ada lebih dari satu game yang berjalan.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Frame</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Jumlah frame</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Frame</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Rata-rata</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Paling lambat</value></data>

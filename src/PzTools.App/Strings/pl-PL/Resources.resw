@@ -387,7 +387,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Uruchom grę, aby nagrywać.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>Nie rozpoczęto: {0}, ponieważ gra nie jest uruchomiona.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>Nie rozpoczęto: {0}, ponieważ uruchomiono więcej niż jedną grę.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Klatki</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Liczba klatek</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Klatka</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Średnio</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Najwolniejsza</value></data>

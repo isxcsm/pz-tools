@@ -387,7 +387,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Abra o jogo para gravar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} não foi iniciado porque o jogo não está em execução.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} não foi iniciado porque há mais de um jogo em execução.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Quadros</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Nº de quadros</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Quadro</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Média</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Mais lento</value></data>
