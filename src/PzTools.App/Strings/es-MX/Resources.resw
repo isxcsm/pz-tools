@@ -714,4 +714,5 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código del juego</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Otros scripts</value></data>
 </root>

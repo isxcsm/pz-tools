@@ -713,4 +713,5 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
+  <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Other scripts</value></data>
 </root>

@@ -713,4 +713,5 @@
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>스크립트</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>대기</value></data>
+  <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>다른 스크립트</value></data>
 </root>

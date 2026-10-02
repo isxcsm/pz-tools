@@ -1769,15 +1769,27 @@ public sealed partial class ProfilerPage : UserControl
         var breakdown = range.Samples < 20 ? null : ProfileAnalysis.TimeBreakdown(range);
         TimeBreakdownPanel.Visibility = breakdown is null ? Visibility.Collapsed : Visibility.Visible;
         if (breakdown is null) return;
-        ScriptsColumn.Width = new GridLength(breakdown.Scripts, GridUnitType.Star);
+        // The mod chosen in the scripts' list, as its own part of the scripts: the list's figure, on the same scale,
+        // so "how much of this stutter was this mod" reads off the bar.
+        var chosen = Tab == ResultTab.Lua && GroupList.SelectedIndex >= 0 && GroupList.SelectedIndex < listedGroups.Count
+            && listedGroups[GroupList.SelectedIndex] is { Kind: DetailKind.Lua, Share: { } part } owner
+            ? (Name: owner.Name, Share: Math.Min(part, breakdown.Scripts)) : default((string Name, double Share)?);
+        var others = breakdown.Scripts - (chosen?.Share ?? 0);
+        SelectedColumn.Width = new GridLength(chosen?.Share ?? 0, GridUnitType.Star);
+        ScriptsColumn.Width = new GridLength(others, GridUnitType.Star);
+        OtherScriptsBar.Opacity = ScriptsDot.Opacity = chosen is null ? 1 : 0.4;
+        SelectedLegend.Visibility = chosen is null ? Visibility.Collapsed : Visibility.Visible;
+        SelectedLabel.Text = chosen?.Name ?? "";
+        SelectedValue.Text = chosen is { } mod ? BreakdownPercent(mod.Share) : "";
+        ScriptsLabel.Text = Localizer.Get(chosen is null ? "ProfileBreakdownScripts" : "ProfileBreakdownOtherScripts");
+        ScriptsValue.Text = BreakdownPercent(others);
         GameColumn.Width = new GridLength(breakdown.GameCode, GridUnitType.Star);
         CollectionsColumn.Width = new GridLength(breakdown.Collections, GridUnitType.Star);
         SpareColumn.Width = new GridLength(breakdown.Waiting, GridUnitType.Star);
-        ScriptsValue.Text = BreakdownPercent(breakdown.Scripts);
         GameValue.Text = BreakdownPercent(breakdown.GameCode);
         CollectionsValue.Text = BreakdownPercent(breakdown.Collections);
         SpareValue.Text = BreakdownPercent(breakdown.Waiting);
-        AutomationProperties.SetName(TimeBreakdownPanel, TimeBreakdownText(breakdown));
+        AutomationProperties.SetName(TimeBreakdownPanel, TimeBreakdownText());
     }
 
     // Two decimals, as the owner lists; a share that is there but rounds to nothing (a collection's fraction of a
@@ -1786,11 +1798,14 @@ public sealed partial class ProfilerPage : UserControl
         ? "<" + 0.01.ToString("0.00", Localizer.Culture) + "%"
         : (share * 100).ToString("0.00", Localizer.Culture) + "%";
 
-    // The same figures as one line of text, for the screen reader and the copied results.
-    private string TimeBreakdownText(ProfileTimeBreakdown breakdown) => string.Join("  ",
+    // The figures as shown, as one line of text, for the screen reader and the copied results.
+    private string TimeBreakdownText() => string.Join("  ", new[]
+    {
         TimeBreakdownTitle.Text,
-        $"{ScriptsLabel.Text} {BreakdownPercent(breakdown.Scripts)}", $"{GameLabel.Text} {BreakdownPercent(breakdown.GameCode)}",
-        $"{CollectionsLabel.Text} {BreakdownPercent(breakdown.Collections)}", $"{SpareLabel.Text} {BreakdownPercent(breakdown.Waiting)}");
+        SelectedLegend.Visibility == Visibility.Visible ? $"{SelectedLabel.Text} {SelectedValue.Text}" : "",
+        $"{ScriptsLabel.Text} {ScriptsValue.Text}", $"{GameLabel.Text} {GameValue.Text}",
+        $"{CollectionsLabel.Text} {CollectionsValue.Text}", $"{SpareLabel.Text} {SpareValue.Text}",
+    }.Where(part => part.Length > 0));
 
     private static string OwnerName(string key) =>
         key == ProfileAnalysis.GameOwner ? Localizer.Get("ProfileOwnerGame")
@@ -2241,6 +2256,8 @@ public sealed partial class ProfilerPage : UserControl
     /// <summary>The right pane: the chosen owner's functions as a table with a heading over every column.</summary>
     private void ShowGroup(ResultGroup group)
     {
+        // The bar above the tabs follows the chosen mod.
+        if (shown is not null) ShowTimeBreakdown(shown);
         // Above the table, outside it: whose functions these are and its samples out of the tab's.
         // Its share is not repeated here; the list beside shows it.
         DetailName.Text = group.Name;
@@ -2953,8 +2970,7 @@ public sealed partial class ProfilerPage : UserControl
         }.Where(part => !string.IsNullOrEmpty(part))));
         text.AppendLine(rangeSummary);
         if (comparisonSummary.Length > 0) text.AppendLine(comparisonSummary);
-        if (TimeBreakdownPanel.Visibility == Visibility.Visible && shown is not null && ProfileAnalysis.TimeBreakdown(shown) is { } breakdown)
-            text.AppendLine(TimeBreakdownText(breakdown));
+        if (TimeBreakdownPanel.Visibility == Visibility.Visible) text.AppendLine(TimeBreakdownText());
         text.AppendLine();
         text.AppendLine(TabItem.Text);
         if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);

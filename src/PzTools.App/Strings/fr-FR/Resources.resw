@@ -714,4 +714,5 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Code du jeu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attente</value></data>
+  <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Autres scripts</value></data>
 </root>

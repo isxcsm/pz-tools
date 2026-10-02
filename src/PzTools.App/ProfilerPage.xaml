@@ -313,20 +313,29 @@
           </Grid.RowDefinitions>
           <Grid x:Name="TimeBreakdownBar" Height="6" CornerRadius="3">
             <Grid.ColumnDefinitions>
+              <ColumnDefinition x:Name="SelectedColumn" Width="0" />
               <ColumnDefinition x:Name="ScriptsColumn" Width="0" />
               <ColumnDefinition x:Name="GameColumn" Width="0" />
               <ColumnDefinition x:Name="CollectionsColumn" Width="0" />
               <ColumnDefinition x:Name="SpareColumn" Width="*" />
             </Grid.ColumnDefinitions>
+            <!-- The chosen mod's part of the scripts, solid; the other scripts beside it, lighter. -->
             <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-            <Rectangle Grid.Column="1" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
-            <Rectangle Grid.Column="2" Fill="{ThemeResource SystemFillColorCautionBrush}" />
-            <Rectangle Grid.Column="3" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
+            <Rectangle x:Name="OtherScriptsBar" Grid.Column="1" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+            <Rectangle Grid.Column="2" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
+            <Rectangle Grid.Column="3" Fill="{ThemeResource SystemFillColorCautionBrush}" />
+            <Rectangle Grid.Column="4" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
           </Grid>
           <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="16">
             <TextBlock x:Name="TimeBreakdownTitle" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="SelectedLegend" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+              <TextBlock x:Name="SelectedLabel" FontSize="12" MaxWidth="240" TextTrimming="CharacterEllipsis"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+              <TextBlock x:Name="SelectedValue" FontSize="12" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Ellipse x:Name="ScriptsDot" Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
               <TextBlock x:Name="ScriptsLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="ScriptsValue" FontSize="12" />
             </StackPanel>

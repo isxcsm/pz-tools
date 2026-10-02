@@ -223,8 +223,11 @@ functions they called included), *Game code* (the game's own code running), *GC 
 (collections stopping the game) and *Waiting* (the thread waiting: for the next frame
 usually, or, in a stutter, stuck on a file or another thread). The four add up to the
 range. It answers at a glance whether a stutter was the scripts, the game or the memory,
-which adding up the two tabs cannot: they count the same time two ways (below). It is
-shown for the game thread with enough samples, and goes into the copied text.
+which adding up the two tabs cannot: they count the same time two ways (below). The mod
+chosen in *Scripts* stands apart within the scripts' part, solid beside the lighter
+*Other scripts*, with its name and its figure from the list: how much of this stretch
+was that mod. It is shown for the game thread with enough samples, and goes into the
+copied text.
 
 The results are in tabs, *Scripts (Lua)* and *Game code (Java)*, and *Memory allocation*
 for recordings that have allocations. Each tab is split in

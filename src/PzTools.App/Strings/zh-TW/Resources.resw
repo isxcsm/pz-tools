@@ -714,4 +714,5 @@
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>腳本</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>遊戲程式碼</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
+  <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他腳本</value></data>
 </root>
