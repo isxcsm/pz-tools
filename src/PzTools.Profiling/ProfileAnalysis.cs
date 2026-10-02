@@ -77,6 +77,13 @@ public sealed class ProfileCallNode
 public sealed record ProfileFunctionTotal(int Function, string Name, string File, int SelfSamples, int Samples,
     long AllocatedSelf, long AllocatedTotal);
 
+/// <summary>
+/// One line of a Lua function: <see cref="Samples"/> found it at that line, whatever it had called from there (a
+/// recursive call counted once, at its outermost call); <see cref="SelfSamples"/> found it running that line itself.
+/// Line 0 is a frame the interpreter gave no line for.
+/// </summary>
+public sealed record ProfileLineTotal(int Line, int SelfSamples, int Samples, long AllocatedSelf, long AllocatedTotal);
+
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
 
@@ -371,6 +378,35 @@ public static class ProfileAnalysis
         Walk(tree);
         return totals.Values.OrderByDescending(row => row.SelfSamples).ThenByDescending(row => row.Samples)
             .ThenBy(row => row.Name, StringComparer.Ordinal).ToArray();
+    }
+
+    /// <summary>
+    /// One function's lines in a range, counting the samples that ended in <paramref name="owner"/>'s functions, as the
+    /// owner's table does: where in the function the time (and the bytes) went. Most samples first.
+    /// </summary>
+    public static IReadOnlyList<ProfileLineTotal> LinesIn(ProfileRecording recording, long start, long end, string owner, int function)
+    {
+        var lines = new Dictionary<int, ProfileLineTotal>();
+        var lua = recording.LuaSamples;
+        for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
+        {
+            var stack = recording.LuaStacks[lua[index].Stack];
+            if (stack.Length == 0 || !OwnerOf(recording.LuaFunctions[stack[0].Function].File).Equals(owner, StringComparison.OrdinalIgnoreCase))
+                continue;
+            // The function's outermost call on the stack: the line it was at, whatever it had called from there.
+            var depth = stack.Length - 1;
+            while (depth >= 0 && stack[depth].Function != function) depth--;
+            if (depth < 0) continue;
+            // Running the line itself, the outer call being innermost; a line that called anything, itself included, is
+            // only the total's, so a line's self never exceeds its total.
+            var allocated = Math.Max(0, lua[index].Allocated);
+            var own = depth == 0;
+            var at = stack[depth].Line;
+            var total = lines.GetValueOrDefault(at) ?? new(at, 0, 0, 0, 0);
+            lines[at] = new(at, total.SelfSamples + (own ? 1 : 0), total.Samples + 1,
+                total.AllocatedSelf + (own ? allocated : 0), total.AllocatedTotal + allocated);
+        }
+        return lines.Values.OrderByDescending(line => line.Samples).ThenByDescending(line => line.SelfSamples).ThenBy(line => line.Line).ToArray();
     }
 
     /// <summary>

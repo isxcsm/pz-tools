@@ -425,6 +425,9 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alocação de memória</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Árvore de chamadas</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa as funções deste dono pelos caminhos de chamada que levaram a elas: no topo a função mais externa, como um tratador de evento, e dentro o que ela chamou. Só contam as amostras que terminaram em funções deste dono. Desligado: uma lista simples das funções.</value></data>
+  <data name="ProfileSearch" xml:space="preserve"><value>Pesquisar</value></data>
+  <data name="ProfileLineFormat" xml:space="preserve"><value>Linha {0}</value></data>
+  <data name="ProfileLineUnknown" xml:space="preserve"><value>Linha desconhecida</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Recolher</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alocado</value></data>

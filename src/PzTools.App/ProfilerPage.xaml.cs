@@ -114,6 +114,8 @@ public sealed partial class ProfilerPage : UserControl
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
+        DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
+        AutomationProperties.SetName(DetailSearch, Localizer.Get("ProfileSearch"));
         if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
         var thread = ThreadBox.SelectedIndex;
@@ -1412,6 +1414,8 @@ public sealed partial class ProfilerPage : UserControl
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
         CallTreeToggle.IsOn = callTree;
+        // Pauses have no names to look for.
+        DetailSearch.Visibility = group.Kind == DetailKind.Pauses ? Visibility.Collapsed : Visibility.Visible;
 
         var (columns, header, rows) = Table(group);
         DetailHeader.Child = TableRow(columns, header, header: true);
@@ -1464,25 +1468,51 @@ public sealed partial class ProfilerPage : UserControl
     private static IEnumerable<ProfileCallNode> Branches(ProfileCallNode node, bool allocation) =>
         allocation ? node.Children.Where(child => child.AllocatedTotal > 0).OrderByDescending(child => child.AllocatedTotal) : node.Children;
 
-    /// <summary>The rows the tree shows: every open node's children, in order. All closed at first.</summary>
+    // ---- Search ----
+
+    // What the table is narrowed to: rows whose name or file holds this text, any case. Kept across owners and ranges.
+    private string search = "";
+
+    private void DetailSearch_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        search = DetailSearch.Text.Trim();
+        if (shownGroup is { } group) ShowGroup(group);
+    }
+
+    private bool Matches(string name, string file = "") =>
+        search.Length == 0 || name.Contains(search, StringComparison.OrdinalIgnoreCase) || file.Contains(search, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The rows the tree shows: every open node's children, in order. All closed at first. While searching, only the
+    /// paths that lead to a match, opened down to it.
+    /// </summary>
     private List<TreeItem> TreeRows(ResultGroup group, ProfileCallNode root)
     {
         var allocation = group.Kind == DetailKind.Allocation;
         var key = $"{group.Kind}|{group.Key}";
         if (!openPaths.TryGetValue(key, out var open)) openPaths[key] = open = [];
+        var filtering = search.Length > 0;
+        var holds = new Dictionary<ProfileCallNode, bool>();
+        bool Holds(ProfileCallNode node)
+        {
+            if (holds.TryGetValue(node, out var found)) return found;
+            return holds[node] = Matches(node.Name, node.File) || Branches(node, allocation).Any(Holds);
+        }
+        IEnumerable<ProfileCallNode> Shown(ProfileCallNode node) =>
+            filtering ? Branches(node, allocation).Where(Holds) : Branches(node, allocation);
         var rows = new List<TreeItem>();
         void Add(ProfileCallNode child, int depth, string path)
         {
             if (rows.Count >= MaximumTreeRows) return;
             var childPath = path + "/" + child.Function;
-            var hasChildren = Branches(child, allocation).Any();
-            var isOpen = hasChildren && open.Contains(childPath);
+            var hasChildren = Shown(child).Any();
+            var isOpen = hasChildren && (filtering || open.Contains(childPath));
             rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen));
             if (isOpen) Walk(child, depth + 1, childPath);
         }
         void Walk(ProfileCallNode node, int depth, string path)
         {
-            var branches = Branches(node, allocation).ToList();
+            var branches = Shown(node).ToList();
             foreach (var child in branches.Take(MaximumSiblings)) Add(child, depth, path);
             if (branches.Count <= MaximumSiblings || rows.Count >= MaximumTreeRows) return;
             var rest = branches.Skip(MaximumSiblings).ToList();
@@ -1576,7 +1606,8 @@ public sealed partial class ProfilerPage : UserControl
         // A node by its name; the rest of a level muted, as it is no function.
         var label = line.Cells[0].Text.Trim();
         var text = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
-        if (item.Node is null) text.Foreground = Muted;
+        // The rest of a level and a function's lines are no functions of their own: muted.
+        if (item.Path.EndsWith("/*", StringComparison.Ordinal) || item.Path.StartsWith("line/", StringComparison.Ordinal)) text.Foreground = Muted;
         // The full name only where the screen cuts it short; a name shown whole needs no tip repeating it.
         else text.IsTextTrimmedChanged += (_, _) => AppToolTip.SetTip(text, text.IsTextTrimmed ? label : null);
         Grid.SetColumn(text, 1);
@@ -1687,23 +1718,38 @@ public sealed partial class ProfilerPage : UserControl
                 }
             else
             {
-                var functions = ProfileAnalysis.FunctionsIn(tree);
+                IReadOnlyList<ProfileFunctionTotal> functions = ProfileAnalysis.FunctionsIn(tree).Where(row => Matches(row.Name, row.File)).ToArray();
                 if (allocation)
                     functions = functions.Where(row => row.AllocatedTotal > 0).OrderByDescending(row => row.AllocatedSelf)
                         .ThenByDescending(row => row.AllocatedTotal).ToArray();
-                // The list counts the samples that ended in each function, as it always has.
-                TableLine Line(ProfileFunctionTotal row, string indent = "") => FunctionLine(tree, allocation, row.Name, row.File,
-                    row.SelfSamples, row.Samples, row.SelfSamples, row.AllocatedSelf, row.AllocatedTotal, indent);
-                foreach (var row in functions.Take(RowsPerGroup)) rows.Add(Line(row));
+                var open = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var opened) ? opened : [];
+                // The list counts the samples that ended in each function, as it always has. Each function opens into
+                // its lines: where in it the time went, what to change.
+                void Add(ProfileFunctionTotal row, string indent)
+                {
+                    var path = $"lines/{row.Function}";
+                    var isOpen = open.Contains(path);
+                    rows.Add(FunctionLine(tree, allocation, row.Name, row.File, row.SelfSamples, row.Samples, row.SelfSamples,
+                        row.AllocatedSelf, row.AllocatedTotal, indent, new TreeItem(null, indent.Length / 2, path, true, isOpen)));
+                    if (!isOpen || shown is not { } range) return;
+                    IEnumerable<ProfileLineTotal> lines = ProfileAnalysis.LinesIn(recording!, range.Start, range.End, group.Key, row.Function);
+                    if (allocation) lines = lines.Where(line => line.AllocatedTotal > 0).OrderByDescending(line => line.AllocatedTotal);
+                    foreach (var line in lines)
+                        rows.Add(FunctionLine(tree, allocation,
+                            line.Line > 0 ? Localizer.Format("ProfileLineFormat", line.Line.ToString(Localizer.Culture)) : Localizer.Get("ProfileLineUnknown"),
+                            row.File, line.SelfSamples, line.Samples, line.Samples, line.AllocatedSelf, line.AllocatedTotal, indent + "  ",
+                            new TreeItem(null, indent.Length / 2 + 1, $"line/{row.Function}/{line.Line}", false, false)));
+                }
+                foreach (var row in functions.Take(RowsPerGroup)) Add(row, "");
                 if (functions.Count > RowsPerGroup)
                 {
                     var rest = functions.Skip(RowsPerGroup).ToArray();
                     var path = "list/*";
-                    var restOpen = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var open) && open.Contains(path);
+                    var restOpen = open.Contains(path);
                     rows.Add(RestLine(tree, allocation, rest.Length, rest.Sum(row => row.SelfSamples), rest.Sum(row => row.Samples),
                         rest.Sum(row => row.SelfSamples), rest.Sum(row => row.AllocatedSelf), rest.Sum(row => row.AllocatedTotal),
                         totals: false, "", new TreeItem(null, 0, path, true, restOpen)));
-                    if (restOpen) foreach (var row in rest) rows.Add(Line(row, "  "));
+                    if (restOpen) foreach (var row in rest) Add(row, "  ");
                 }
             }
             ScaleBars(rows);
@@ -1712,10 +1758,11 @@ public sealed partial class ProfilerPage : UserControl
         if (group.Kind == DetailKind.Java)
         {
             // Like a script owner's list: the group is 100%, gauges behind the numbers, the long tail in one closed row.
-            foreach (var row in group.Rows.Take(RowsPerGroup)) rows.Add(MethodLine(group, row));
-            if (group.Rows.Count > RowsPerGroup)
+            var methods = group.Rows.Where(row => Matches(row.Name)).ToArray();
+            foreach (var row in methods.Take(RowsPerGroup)) rows.Add(MethodLine(group, row));
+            if (methods.Length > RowsPerGroup)
             {
-                var rest = group.Rows.Skip(RowsPerGroup).ToArray();
+                var rest = methods.Skip(RowsPerGroup).ToArray();
                 var path = "list/*";
                 var restOpen = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var open) && open.Contains(path);
                 var whole = group.Share ?? 0;
@@ -1732,7 +1779,7 @@ public sealed partial class ProfilerPage : UserControl
             ScaleBars(rows);
             return (columns, header, rows);
         }
-        foreach (var row in group.Rows)
+        foreach (var row in group.Rows.Where(row => Matches(row.Name)))
             rows.Add(new([(row.Name, row.Name, false), (FinePercent(row.Self), null, true), (FinePercent(row.Total), null, true),
                 (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
         return (columns, header, rows);

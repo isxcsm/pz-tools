@@ -425,6 +425,9 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Bellek ayırma</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Çağrı ağacı</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Bu sahibin işlevlerini onlara götüren çağrı yollarına göre gruplar: en dıştaki işlev, örneğin bir olay işleyicisi, üstte; çağırdıkları içeride. Yalnızca bu sahibin işlevlerinde biten örnekler sayılır. Kapalı: düz bir işlev listesi.</value></data>
+  <data name="ProfileSearch" xml:space="preserve"><value>Ara</value></data>
+  <data name="ProfileLineFormat" xml:space="preserve"><value>{0}. satır</value></data>
+  <data name="ProfileLineUnknown" xml:space="preserve"><value>Satır bilinmiyor</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Genişlet</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Daralt</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Ayrılan</value></data>

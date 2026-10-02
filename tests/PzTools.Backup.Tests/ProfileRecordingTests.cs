@@ -402,6 +402,26 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void LinesIn_SplitsAFunctionByItsLines_ForTheOwnersSamplesOnly()
+    {
+        // One more sample, in a recursion: slow at 12 called by slow at 14.
+        var recording = Load(Sample + "\nLK|3|0:12 0:14 1:80\nL|1048000|3\nLA|1015000|1000\nLA|1025000|3000\nLA|1035000|5000\nLA|1045000|200\nLA|1048000|700");
+        // The mod's samples in slow: twice at 12 on their own, once at 12 under itself at 14. The outer call's line
+        // takes it, so the recursion is counted once, and as a call: 14 ran nothing itself.
+        Assert.Equal([(12, 2, 2, 6000L, 6000L), (14, 0, 1, 0L, 700L)],
+            ProfileAnalysis.LinesIn(recording, 0, 50_000, "SlowMod", 0)
+                .Select(line => (line.Line, line.SelfSamples, line.Samples, line.AllocatedSelf, line.AllocatedTotal)));
+        // slow called helper at 13, a sample the unknown owner's: counted there, as a total only.
+        Assert.Equal([(13, 0, 1)], ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.UnknownOwner, 0)
+            .Select(line => (line.Line, line.SelfSamples, line.Samples)));
+        // OnTick in the game's samples only: at 81 on its own; its calls at 80 ended in other owners.
+        Assert.Equal([(81, 1, 1)], ProfileAnalysis.LinesIn(recording, 0, 50_000, ProfileAnalysis.GameOwner, 1)
+            .Select(line => (line.Line, line.SelfSamples, line.Samples)));
+        // Only the range's samples.
+        Assert.Equal(1, ProfileAnalysis.LinesIn(recording, 0, 20_000, "SlowMod", 0).Single().Samples);
+    }
+
+    [Fact]
     public void Allocations_AreAbsentFromRecordingsMadeBeforeThem()
     {
         var recording = Load(Sample);

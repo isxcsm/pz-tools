@@ -425,6 +425,9 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>内存分配</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>调用树</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>按调用路径分组显示此所属方的函数：最外层的函数（如事件处理函数）在上，展开后显示它调用的函数。只统计结束于此所属方函数的样本。关闭后显示函数列表。</value></data>
+  <data name="ProfileSearch" xml:space="preserve"><value>搜索</value></data>
+  <data name="ProfileLineFormat" xml:space="preserve"><value>第 {0} 行</value></data>
+  <data name="ProfileLineUnknown" xml:space="preserve"><value>行号未知</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展开</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>折叠</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>分配量</value></data>

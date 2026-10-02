@@ -425,6 +425,9 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Asignación de memoria</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Árbol de llamadas</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa las funciones de este propietario por las rutas de llamada que llevaron a ellas: arriba la función más externa, como un controlador de eventos, y dentro lo que llamó. Solo cuentan las muestras que terminaron en funciones de este propietario. Desactivado: una lista simple de funciones.</value></data>
+  <data name="ProfileSearch" xml:space="preserve"><value>Buscar</value></data>
+  <data name="ProfileLineFormat" xml:space="preserve"><value>Línea {0}</value></data>
+  <data name="ProfileLineUnknown" xml:space="preserve"><value>Línea desconocida</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Contraer</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Asignado</value></data>

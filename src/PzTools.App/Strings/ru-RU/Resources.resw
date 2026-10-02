@@ -425,6 +425,9 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Выделение памяти</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Дерево вызовов</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Группирует функции этого владельца по путям вызовов, которые к ним привели: наверху самая внешняя функция, например обработчик события, внутри — то, что она вызвала. Учитываются только выборки, завершившиеся в функциях этого владельца. Выключено: простой список функций.</value></data>
+  <data name="ProfileSearch" xml:space="preserve"><value>Поиск</value></data>
+  <data name="ProfileLineFormat" xml:space="preserve"><value>Строка {0}</value></data>
+  <data name="ProfileLineUnknown" xml:space="preserve"><value>Строка неизвестна</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Развернуть</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Свернуть</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Выделено</value></data>

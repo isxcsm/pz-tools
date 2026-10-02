@@ -258,6 +258,7 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <!-- The name with the copy button right after it. Left-aligned, this grid is only as wide as both need,
                so the button follows the name; when space runs short the name's star column shrinks and trims. -->
@@ -279,10 +280,13 @@
               </StackPanel>
             </Button>
           </Grid>
+          <!-- Narrows the table to rows whose name or file holds the text; a tree keeps the paths that lead to them. -->
+          <TextBox x:Name="DetailSearch" Grid.Column="1" Width="170" Margin="0,0,0,-7" VerticalAlignment="Bottom"
+                   TextChanged="DetailSearch_TextChanged" AutomationProperties.AutomationId="ProfileDetailSearch" />
           <!-- The scripts' functions as a list, or as the call paths that led to them. -->
-          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="1" MinWidth="0" Margin="0,0,0,-7" VerticalAlignment="Bottom" Visibility="Collapsed"
+          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" Margin="0,0,0,-7" VerticalAlignment="Bottom" Visibility="Collapsed"
                         Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
-          <TextBlock x:Name="DetailSamples" Grid.Column="2" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
+          <TextBlock x:Name="DetailSamples" Grid.Column="3" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
         </Grid>
         <Border x:Name="GroupCard" Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

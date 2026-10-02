@@ -179,6 +179,18 @@ a copy carries the tree as indented text. A path deeper than the 24 innermost fu
 the recorder keeps starts at the 24th. The list is still the way to see a helper that
 many paths call: the tree splits its cost among them, the list adds it up.
 
+In the list each function opens into its lines, the line it was at when sampled, most
+samples first (in *Memory allocation*, most bytes): what to change, not only where. A
+line's *Total* counts the samples that found the function there, whatever it had called
+from that line; its *Self* those where it was running the line itself. A recursive
+function is counted at its outermost call. *Line unknown* is a frame the game gave no
+line for.
+
+The **search** box beside the owner's name narrows the table to the rows whose name or
+file holds the text, in any case; in the tree it keeps the paths that lead to a match,
+opened down to it. It applies to the game code's methods and the threads too, and holds
+while other owners and ranges are shown.
+
 Tree and list count the same samples, those that ended in the chosen owner's functions,
 and their percentages are parts of the owner, the owner being 100%: the question there is
 where inside it the time went, and parts of a long range shrank to 0.0%. They have two
