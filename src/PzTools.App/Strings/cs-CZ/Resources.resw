@@ -417,6 +417,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}×, pozastavení {1}</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Nejpomalejší</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Průměr</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatFrames" xml:space="preserve"><value>Počet snímků</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Snímek</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Záznam výkonu</value></data>

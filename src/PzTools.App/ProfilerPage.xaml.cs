@@ -508,10 +508,11 @@ public sealed partial class ProfilerPage : UserControl
         else if (frames.Count > 1)
         {
             items.Add((Localizer.Get("ProfileStatFrames"), frames.Count.ToString("N0", Localizer.Culture)));
+            items.Add((Localizer.Get("ProfileStatAverage"), Milliseconds(frames.AverageMilliseconds)));
             // Players know frame rates better than frame times: "135 ms" alone was read against the frame count.
-            items.Add((Localizer.Get("ProfileStatAverage"), frames.AverageMilliseconds > 0
-                ? $"{Milliseconds(frames.AverageMilliseconds)} ({(1000 / frames.AverageMilliseconds).ToString("N1", Localizer.Culture)} fps)"
-                : Milliseconds(frames.AverageMilliseconds)));
+            // Its own pair, a name and a number like the others.
+            if (frames.AverageMilliseconds > 0)
+                items.Add((Localizer.Get("ProfileStatFps"), (1000 / frames.AverageMilliseconds).ToString("N1", Localizer.Culture)));
             items.Add((Localizer.Get("ProfileStatSlowest"), Milliseconds(frames.SlowestMilliseconds)));
             items.Add((Localizer.Get("ProfileStatWorst"), Milliseconds(frames.OnePercentWorstMilliseconds)));
         }
