@@ -705,4 +705,5 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="LoadFailed.Details" xml:space="preserve"><value>Détails de la partie indisponibles</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Nouvelle tentative en cours.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Rechercher les mises à jour</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Ouvrir la page de téléchargement</value></data>
 </root>

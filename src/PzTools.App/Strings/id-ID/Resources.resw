@@ -705,4 +705,5 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="LoadFailed.Details" xml:space="preserve"><value>Detail simpanan gagal dimuat</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Mencoba lagi.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Periksa pembaruan</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Buka halaman unduhan</value></data>
 </root>

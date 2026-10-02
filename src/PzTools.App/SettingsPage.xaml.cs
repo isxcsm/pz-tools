@@ -68,6 +68,8 @@ public sealed partial class SettingsPage : UserControl
         SettingsTitleText.Text = Localizer.Get("SettingsTitle.Text");
         UpdateSection.Header = Localizer.Get("UpdateSection.Header");
         UpdateCheckCard.Header = Localizer.Get("UpdateCheckSetting.Header");
+        UpdateReleasePageCard.Header = Localizer.Get("UpdateReleasePage.Header");
+        SetInputName(UpdateReleasePageCard, UpdateReleasePageCard.Header);
         UpdateAutoSettingCard.Header = Localizer.Get("UpdateAutoSetting.Header");
         UpdateAutoSettingCard.Description = Localizer.Get("UpdateAutoSetting.Description");
         UpdateCheckButton.Content = Localizer.Get("UpdateCheckNow");
@@ -622,6 +624,8 @@ public sealed partial class SettingsPage : UserControl
             ApplyUpdate();
         }
     }
+
+    private void UpdateReleasePage_Click(object sender, RoutedEventArgs e) => App.OpenReleasePage(UpdateChecker.ReleasesPage);
 
     private void UpdateDownload_Click(object sender, RoutedEventArgs e)
     {

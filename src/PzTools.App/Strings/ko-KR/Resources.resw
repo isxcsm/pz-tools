@@ -704,4 +704,5 @@
   <data name="LoadFailed.Details" xml:space="preserve"><value>세이브 정보를 불러오지 못함</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>다시 시도하는 중입니다.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>업데이트 확인</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>다운로드 페이지 열기</value></data>
 </root>

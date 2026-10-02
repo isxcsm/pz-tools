@@ -705,4 +705,5 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="LoadFailed.Details" xml:space="preserve"><value>Nie wczytano szczegółów zapisu</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Ponawianie próby.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Sprawdzanie aktualizacji</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Otwórz stronę pobierania</value></data>
 </root>

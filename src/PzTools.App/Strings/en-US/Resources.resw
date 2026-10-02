@@ -704,4 +704,5 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="LoadFailed.Details" xml:space="preserve"><value>Could not load the save details</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Trying again.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Open the download page</value></data>
 </root>

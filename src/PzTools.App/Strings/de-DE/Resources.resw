@@ -705,4 +705,5 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="LoadFailed.Details" xml:space="preserve"><value>Spielstanddetails nicht geladen</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Neuer Versuch läuft.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Nach Updates suchen</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Downloadseite öffnen</value></data>
 </root>

@@ -705,4 +705,5 @@
   <data name="LoadFailed.Details" xml:space="preserve"><value>Не вдалося завантажити відомості про збереження</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Повторна спроба.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Перевірка оновлень</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Відкрити сторінку завантаження</value></data>
 </root>

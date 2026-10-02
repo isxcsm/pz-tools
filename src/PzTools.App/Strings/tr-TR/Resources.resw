@@ -705,4 +705,5 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="LoadFailed.Details" xml:space="preserve"><value>Kayıt ayrıntıları yüklenemedi</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Yeniden deneniyor.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Güncellemeleri denetle</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>İndirme sayfasını aç</value></data>
 </root>

@@ -705,4 +705,5 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="LoadFailed.Details" xml:space="preserve"><value>Údaje o uložené hře nelze načíst</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>Probíhá nový pokus.</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Kontrola aktualizací</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Otevřít stránku ke stažení</value></data>
 </root>

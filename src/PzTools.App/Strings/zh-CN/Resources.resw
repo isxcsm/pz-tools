@@ -705,4 +705,5 @@
   <data name="LoadFailed.Details" xml:space="preserve"><value>无法加载存档信息</value></data>
   <data name="LoadFailedRetrying" xml:space="preserve"><value>正在重试。</value></data>
   <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>检查更新</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>打开下载页面</value></data>
 </root>

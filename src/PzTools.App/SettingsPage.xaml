@@ -46,8 +46,14 @@
                   <Button x:Name="UpdateCheckButton" Click="UpdateCheck_Click" AutomationProperties.AutomationId="UpdateCheckButton" />
                 </StackPanel>
               </toolkit:SettingsCard>
+              <!-- Where the newest version is downloaded, in the browser, whatever the last check found. -->
+              <toolkit:SettingsCard x:Name="UpdateReleasePageCard" Header="다운로드 페이지 열기" IsClickEnabled="True"
+                                    Click="UpdateReleasePage_Click" AutomationProperties.AutomationId="UpdateReleasePageCard">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE774;" /></toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.ActionIcon><FontIcon Glyph="&#xE8A7;" /></toolkit:SettingsCard.ActionIcon>
+              </toolkit:SettingsCard>
               <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="새 버전 알림">
-                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE7ED;" /></toolkit:SettingsCard.HeaderIcon>
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xEA8F;" /></toolkit:SettingsCard.HeaderIcon>
                 <ToggleSwitch x:Name="UpdateAutoToggle" Toggled="SettingChanged" AutomationProperties.AutomationId="UpdateAutoToggle" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
