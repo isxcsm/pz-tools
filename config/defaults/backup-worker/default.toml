@@ -17,9 +17,10 @@ format_version = 1
 save_game_before_backup = true
 
 # With pre-backup game saving enabled, show a five-second overhead countdown before
-# saving, then a game-save completion message. Off skips both the messages and the
-# five-second delay, but still saves the game. Applies to the next backup; the app
-# setting takes precedence. Does not announce completion of backup file collection.
+# an automatic backup saves the game, then a game-save completion message. A backup
+# started from the app saves at once, without messages. Off skips the messages but
+# still saves the game. Applies to the next backup; the app setting takes precedence.
+# Does not announce completion of backup file collection.
 game_save_countdown = true
 
 # Always check these files during every backup, even if their timestamps look
@@ -29,6 +30,8 @@ always_include = ["players.db", "vehicles.db", "thumb.png"]
 # When Windows change tracking is unavailable, read file contents and compare
 # them with the previous backup. Keep true to detect edits even when file sizes
 # and timestamps stay the same. This reads more data and can make backups slower.
+# On a local NTFS drive, files last written well before the previous backup began
+# are not read again: there, every write moves a file's timestamps.
 # false checks only names, sizes, timestamps and other file information; it can
 # miss content changes. Files in always_include are still copied either way.
 # A file with no previous comparison hash is copied once to establish a baseline.
@@ -42,6 +45,11 @@ full_scan_hash_comparison = true
 # Compression reduces storage space; "auto" chooses the usual compression.
 checksum = "auto"
 compression = "auto"
+# How hard new data is compressed, 1 (fastest) to 11. Typical backups compress only the few
+# MB that changed, so a higher level costs little time there; a first full backup of a large
+# save takes longer. On a save's files, 3 stored 12% less than 1 for 2.5 times the CPU time;
+# above 5 the size hardly shrinks while the time keeps growing. Existing data is unchanged.
+compression_level = 3
 # Reuse stored content when different revisions contain identical files. This
 # saves disk space but requires checksum = "sha256" and extra processing time.
 content_deduplication = false
@@ -115,7 +123,7 @@ journal_batch_size = 4096
 # more diagnostic writes; the upper bound stays below the app's default stale-worker timeout.
 heartbeat_interval_ms = 2000
 # Wait this long to connect to the running game's save bridge (5-120 seconds). If connection
-# fails, no save command is sent and the backup fails.
+# fails, no save command is sent and the backup uses the files on disk, with a warning.
 game_connection_timeout_seconds = 30
 # Wait this long for the game's save response after sending the command (30-600 seconds).
 # Timeout means completion is UNKNOWN, not cancelled: the game may still be saving. The backup

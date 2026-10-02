@@ -82,7 +82,7 @@ public sealed class RepositoryHousekeepingTests
             UPDATE source_state SET current_revision=1;
             INSERT INTO packs(pack_id,relative_path,format_version,byte_length,status,created_run_index,created_utc)
                 VALUES(X'00000000000000000000000000000002','packs/protected.pzpack',1,1,'Committed',2,'2000-01-01T00:00:00+00:00');
-            UPDATE runs SET status='Running' WHERE run_index=3;
+            UPDATE workflow_runs SET status='Running' WHERE run_index=3;
             UPDATE workflow_stages SET status='Running' WHERE run_index=4;
             UPDATE workflow_runs SET completed_utc=NULL WHERE run_index=5;
             UPDATE workflow_stages SET completed_utc='2099-01-01T00:00:00+00:00' WHERE run_index=6;
@@ -92,9 +92,9 @@ public sealed class RepositoryHousekeepingTests
         var nextRun = await ScalarAsync(repository, "SELECT next_run_index FROM repository_info;");
         await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
         var result = await repository.PruneCompletedHistoryAsync(lease, DateTimeOffset.UtcNow.AddDays(-90), 2);
-        Assert.Equal(new CompletedHistoryCleanup(2, 2, 2), result);
-        Assert.Equal(0, await ScalarAsync(repository, "SELECT COUNT(*) FROM runs WHERE run_index IN (9,10);"));
-        Assert.Equal(10, await ScalarAsync(repository, "SELECT COUNT(*) FROM runs;"));
+        Assert.Equal(new CompletedHistoryCleanup(2, 2), result);
+        Assert.Equal(0, await ScalarAsync(repository, "SELECT COUNT(*) FROM workflow_runs WHERE run_index IN (9,10);"));
+        Assert.Equal(10, await ScalarAsync(repository, "SELECT COUNT(*) FROM workflow_runs;"));
         Assert.Equal(nextRun, await ScalarAsync(repository, "SELECT next_run_index FROM repository_info;"));
         await AssertHealthyAsync(repository);
     }
@@ -109,13 +109,13 @@ public sealed class RepositoryHousekeepingTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.PruneCompletedHistoryAsync(
             lease, DateTimeOffset.UtcNow.AddDays(-90), 1, 2, new CancellationToken(true)));
         Assert.Equal(6, await ScalarAsync(repository, "SELECT COUNT(*) FROM workflow_stages;"));
-        Assert.Equal(new CompletedHistoryCleanup(2, 2, 2), await repository.PruneCompletedHistoryAsync(
+        Assert.Equal(new CompletedHistoryCleanup(2, 2), await repository.PruneCompletedHistoryAsync(
             lease, DateTimeOffset.UtcNow.AddDays(-90), 1, 2));
-        Assert.Equal(new CompletedHistoryCleanup(2, 2, 2), await repository.PruneCompletedHistoryAsync(
+        Assert.Equal(new CompletedHistoryCleanup(2, 2), await repository.PruneCompletedHistoryAsync(
             lease, DateTimeOffset.UtcNow.AddDays(-90), 1, 2));
-        Assert.Equal(new CompletedHistoryCleanup(1, 1, 1), await repository.PruneCompletedHistoryAsync(
+        Assert.Equal(new CompletedHistoryCleanup(1, 1), await repository.PruneCompletedHistoryAsync(
             lease, DateTimeOffset.UtcNow.AddDays(-90), 1, 2));
-        Assert.Equal(new CompletedHistoryCleanup(0, 0, 0), await repository.PruneCompletedHistoryAsync(
+        Assert.Equal(new CompletedHistoryCleanup(0, 0), await repository.PruneCompletedHistoryAsync(
             lease, DateTimeOffset.UtcNow.AddDays(-90), 1, 2));
         await AssertHealthyAsync(repository);
     }
@@ -129,8 +129,8 @@ public sealed class RepositoryHousekeepingTests
         await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
         var result = await new RepositoryHousekeepingService().RunAsync(repository, lease, null, 0,
             new MaintenanceOptions { Housekeeping = new(HistoryRetentionDays: 0, MinimumRetainedRuns: 1, VacuumEnabled: false) });
-        Assert.Equal(new CompletedHistoryCleanup(0, 0, 0), result.History);
-        Assert.Equal(6, await ScalarAsync(repository, "SELECT COUNT(*) FROM runs;"));
+        Assert.Equal(new CompletedHistoryCleanup(0, 0), result.History);
+        Assert.Equal(6, await ScalarAsync(repository, "SELECT COUNT(*) FROM workflow_runs;"));
         Assert.Equal("disabled", result.Vacuum.Status);
     }
 
@@ -183,8 +183,6 @@ public sealed class RepositoryHousekeepingTests
     {
         for (var index = 1; index <= count; index++)
             await ExecuteAsync(repository, $"""
-                INSERT INTO runs(run_index,source_id,status,started_utc,completed_utc)
-                    VALUES({index},1,'Succeeded','2000-01-01T00:00:00+00:00','2000-01-01T00:00:00+00:00');
                 INSERT INTO workflow_runs(run_index,pipeline,source_id,owner_component,status,started_utc,completed_utc)
                     VALUES({index},'backup',1,'fixture','Succeeded','2000-01-01T00:00:00+00:00','2000-01-01T00:00:00+00:00');
                 INSERT INTO workflow_stages(run_index,producer,status,started_utc,completed_utc)

@@ -76,17 +76,17 @@ public sealed class RunIndexAllocator
             version.Transaction = transaction;
             version.CommandText = "SELECT schema_version FROM control_info WHERE singleton=1;";
             var rawVersion = await version.ExecuteScalarAsync(cancellationToken)
-                ?? throw new InvalidDataException("control.db 메타데이터가 없습니다.");
+                ?? throw new InvalidDataException("control.db has no metadata.");
             var stored = Convert.ToInt32(rawVersion, CultureInfo.InvariantCulture);
             if (stored > CurrentSchemaVersion)
-                throw new InvalidDataException($"지원하지 않는 control.db 스키마 버전 {stored}입니다.");
+                throw new InvalidDataException($"control.db schema version {stored} is not supported.");
             if (stored != CurrentSchemaVersion)
-                throw new InvalidDataException($"control.db 스키마 버전 {stored}을 마이그레이션할 수 없습니다.");
+                throw new InvalidDataException($"control.db schema version {stored} cannot be migrated.");
             await using var sequence = connection.CreateCommand();
             sequence.Transaction = transaction;
             sequence.CommandText = "SELECT 1 FROM run_sequence WHERE singleton=1;";
             if (await sequence.ExecuteScalarAsync(cancellationToken) is null)
-                throw new InvalidDataException("control.db 번호 시퀀스가 없습니다.");
+                throw new InvalidDataException("control.db has no run number sequence.");
             return;
         }
 

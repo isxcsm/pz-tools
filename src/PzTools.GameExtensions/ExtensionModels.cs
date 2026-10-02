@@ -21,7 +21,14 @@ public static partial class ExtensionIds
 }
 
 [System.Text.Json.Serialization.JsonConverter(typeof(VehicleDrivetrainPreferenceConverter))]
-public sealed record VehicleDrivetrainPreference(bool TorqueEnabled = true, bool ReverseEnabled = true, bool SteeringEnabled = true);
+// The light is an addition to the game rather than a correction of its driving, so it has its own
+// switch apart from the three driving options. Like them it starts on.
+public sealed record VehicleDrivetrainPreference(bool TorqueEnabled = true, bool ReverseEnabled = true, bool SteeringEnabled = true,
+    bool AreaLightEnabled = true);
+/// <summary>
+/// One extension's saved request. Each options property belongs to the extension of that name and is null for the others.
+/// Properties of extensions that no longer exist (an earlier "screenLook") are ignored when read and dropped on the next write.
+/// </summary>
 public sealed record ExtensionPreference(bool Enabled = false, bool ForceVersion = false,
     VehicleDrivetrainPreference? VehicleDrivetrain = null);
 public sealed record ExtensionConfiguration(int SchemaVersion, long Revision,

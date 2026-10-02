@@ -60,28 +60,36 @@
             <toolkit:SettingsExpander.Items>
           <toolkit:SettingsCard x:Name="SavesPathSettingCard" Header="세이브 폴더">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Folder" /></toolkit:SettingsCard.HeaderIcon>
-            <Grid x:Name="SavesPathEditor" Width="420" ColumnSpacing="8">
+            <Grid x:Name="SavesPathEditor" Width="500" ColumnSpacing="8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <TextBox x:Name="SavesPath" LostFocus="PathSettingChanged" />
               <Button x:Name="SavesBrowseButton" Grid.Column="1"
                       Style="{StaticResource SubtleButtonStyle}"
                       Content="찾아보기" Tag="saves" Click="BrowseFolder_Click" />
+              <Button x:Name="SavesOpenButton" Grid.Column="2"
+                      Style="{StaticResource SubtleButtonStyle}"
+                      Content="폴더 열기" Tag="saves" Click="OpenPathFolder_Click" />
             </Grid>
           </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="BackupPathSettingCard" Header="백업 폴더">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="SyncFolder" /></toolkit:SettingsCard.HeaderIcon>
-            <Grid x:Name="BackupPathEditor" Width="420" ColumnSpacing="8">
+            <Grid x:Name="BackupPathEditor" Width="500" ColumnSpacing="8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <TextBox x:Name="BackupPath" LostFocus="PathSettingChanged" />
               <Button x:Name="BackupBrowseButton" Grid.Column="1"
                       Style="{StaticResource SubtleButtonStyle}"
                       Content="찾아보기" Tag="backup" Click="BrowseFolder_Click" />
+              <Button x:Name="BackupOpenButton" Grid.Column="2"
+                      Style="{StaticResource SubtleButtonStyle}"
+                      Content="폴더 열기" Tag="backup" Click="OpenPathFolder_Click" />
             </Grid>
           </toolkit:SettingsCard>
 

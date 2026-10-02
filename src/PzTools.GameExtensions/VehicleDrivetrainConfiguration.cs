@@ -29,15 +29,21 @@ public static class VehicleDrivetrainConfiguration
             ["rpm_response_seconds"] = (0.12, 0.04, 0.5), ["direction_speed_mps"] = (0.15, 0.05, 0.3),
             ["forward_governor_start_fraction"] = (1, 0.75, 1), ["reverse_governor_start_fraction"] = (1, 0.5, 1),
             ["shift_hysteresis_fraction"] = (0.08, 0.04, 0.15), ["demand_downshift_fraction"] = (0.48, 0.25, 0.6),
-            ["steering_initial_rate"] = (1.8, 0.1, 3), ["steering_full_rate"] = (7.5, 0.5, 8),
-            ["steering_ramp_seconds"] = (0.1, 0.05, 1), ["steering_return_rate"] = (8, 0.5, 10),
-            ["steering_countersteer_rate"] = (8, 0.5, 12),
-            ["steering_high_speed_rate_factor"] = (0.6, 0.2, 1),
+            ["area_light_radius"] = (8, 3, 20), ["area_light_brightness"] = (0.6, 0.1, 1),
         };
     private static readonly IReadOnlyDictionary<string, bool> Booleans = new Dictionary<string, bool>(StringComparer.Ordinal)
     {
         ["torque_enabled"] = true, ["reverse_enabled"] = true, ["steering_enabled"] = true,
+        ["steering_precise_input"] = true, ["area_light_enabled"] = true,
         ["low_mode"] = false, ["probe_only"] = false, ["diagnostics_enabled"] = false,
+    };
+    // Steering now follows the game's own response, so its rates are no longer tunable. An override
+    // file written for an earlier build may still name them: read them as numbers and drop them,
+    // rather than refusing the whole file over settings that no longer do anything.
+    private static readonly HashSet<string> Retired = new(StringComparer.Ordinal)
+    {
+        "steering_initial_rate", "steering_full_rate", "steering_ramp_seconds", "steering_return_rate",
+        "steering_countersteer_rate", "steering_high_speed_rate_factor",
     };
 
     public static IReadOnlyDictionary<string, string> Load(string bridgeDirectory, string runtimeRoot,
@@ -50,12 +56,13 @@ public static class VehicleDrivetrainConfiguration
         try { Apply(values, Read(overridePath)); }
         catch (FileNotFoundException) { }
         catch (DirectoryNotFoundException) { }
-        // The three visible switches have one source of truth, including before the first
+        // The visible switches have one source of truth, including before the first
         // settings write. A TOML override must not disagree with the defaults shown by the UI.
         preference ??= new VehicleDrivetrainPreference();
         values["torque_enabled"] = preference.TorqueEnabled ? "true" : "false";
         values["reverse_enabled"] = preference.ReverseEnabled ? "true" : "false";
         values["steering_enabled"] = preference.SteeringEnabled ? "true" : "false";
+        values["area_light_enabled"] = preference.AreaLightEnabled ? "true" : "false";
         Validate(values);
         return new ReadOnlyDictionary<string, string>(values);
     }
@@ -115,6 +122,10 @@ public static class VehicleDrivetrainConfiguration
                     throw new InvalidDataException(key + " is outside its finite allowed range.");
                 destination[key] = number.ToString("R", CultureInfo.InvariantCulture);
             }
+            else if (Retired.Contains(key))
+            {
+                if (value is not (long or double)) throw new InvalidDataException(key + " must be a number.");
+            }
             else throw new InvalidDataException("Unknown vehicle drivetrain setting: " + key);
         }
     }
@@ -135,7 +146,5 @@ public static class VehicleDrivetrainConfiguration
             throw new InvalidDataException("RPM tuning requires idle_rpm < launch_rpm < every redline.");
         if (launch > minimumRedline * up / Math.Sqrt(Number("gear_ratio_span")) + 1e-9)
             throw new InvalidDataException("launch_rpm exceeds the lowest post-upshift RPM of the supported profiles.");
-        if (Number("steering_initial_rate") > Number("steering_full_rate"))
-            throw new InvalidDataException("steering_initial_rate must not exceed steering_full_rate.");
     }
 }

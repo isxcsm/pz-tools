@@ -64,8 +64,8 @@ scheduler_restart_attempts = 3
 # Delay before the first scheduler restart (100-10000 ms). Each following retry doubles this
 # delay. A longer delay reduces repeated launches after a fault.
 scheduler_restart_base_ms = 1000
-# After a child with a window accepts a close request, wait this long before terminating it
-# (100-10000 ms). Headless workers do not wait for a window-close message.
+# After a child accepts a stop request, wait this long for it to finish before terminating it
+# (100-10000 ms). A child that does not listen for the request is terminated at once.
 shutdown_grace_ms = 2000
 # Maximum pictures read at once (1-16). Lower values reduce disk pressure;
 # higher values can fill the picture list faster but use more memory and I/O.

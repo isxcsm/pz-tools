@@ -40,6 +40,7 @@ public final class ExtensionControlTest {
         catch (java.io.IOException expected) { }
         session.close();
         residentFailureSurvivesReconnect();
+        moduleScope();
         pausedPendingOff();
         lifecycleRelease();
         worldIdentity();
@@ -64,6 +65,42 @@ public final class ExtensionControlTest {
                 check(modules.applies.get() == 0, "Status inspection attempted to enable the module");
             } finally { session.close(); }
         }
+    }
+    /** A fourth field names one module; three fields still mean the host as a whole. */
+    private static void moduleScope() throws Exception {
+        var modules = new ModularFixture();
+        var session = new ExtensionControl.Session(null, zombie.GameWindow.class, System::nanoTime, () -> modules);
+        String epoch = "c".repeat(32);
+        try {
+            check(session.command("STATUS\tm1\t" + epoch + "\tpztools.first-module").split("\t", -1)[2].equals("Active"), "A module's own state was not reported");
+            check(session.command("PING\tm2\t" + epoch + "\tpztools.second-module").split("\t", -1)[2].equals("Pending"), "The other module's state was not its own");
+            check(session.command("STATUS\tm3\t" + epoch).split("\t", -1)[2].equals("Disabled"), "The host's own state was confused with a module's");
+            check(session.command("OFF\tm4\t" + epoch + "\tpztools.first-module").split("\t", -1)[2].equals("Disabled")
+                && modules.off.equals(List.of("pztools.first-module")) && modules.closes.get() == 0, "OFF for one module retired something else");
+            check(session.command("STATUS\tm5\t" + epoch + "\tpztools.second-module").split("\t", -1)[2].equals("Pending"), "Retiring one module changed the other");
+            check(session.command("OFF\tm6\t" + epoch).split("\t", -1)[2].equals("Disabled") && modules.closes.get() == 1, "OFF without a module is every module");
+            for (String invalid : List.of("Not.A.Module", "spaces here", ""))
+                try { session.command("STATUS\tbad" + invalid.length() + "\t" + epoch + "\t" + invalid); throw new AssertionError("Invalid module identity accepted"); }
+                catch (java.io.IOException expected) { }
+        } finally { session.close(); }
+        // A host that cannot address one module says so; it is never silently treated as the whole host.
+        var older = new ExtensionControl.Session(null, zombie.GameWindow.class, System::nanoTime, FixtureModules::new);
+        try {
+            try { older.command("OFF\tx1\t" + epoch + "\tpztools.first-module"); throw new AssertionError("Module command was widened to the host"); }
+            catch (java.io.IOException expected) { }
+        } finally { older.close(); }
+    }
+    public static final class ModularFixture implements ContinuousModules {
+        final List<String> off = new ArrayList<>();
+        final AtomicInteger closes = new AtomicInteger();
+        private Status state(String value) { return new Status(value, null, RuntimeIdentity.processId(), null, null, -1, null, null, ""); }
+        public Status apply(Apply request, java.lang.instrument.Instrumentation i, ClassLoader l, String version) { return state("Pending"); }
+        public void tick(ContinuousProvider.Context context) { }
+        public void revoke(String reason) { }
+        public Status deactivate(String reason) { closes.incrementAndGet(); return state("Disabled"); }
+        public Status status() { return state("Disabled"); }
+        public Status status(String module) { return state(off.contains(module) ? "Disabled" : module.equals("pztools.first-module") ? "Active" : "Pending"); }
+        public Status deactivate(String module, String reason) { off.add(module); return state("Disabled"); }
     }
     private static void worldIdentity() throws Exception {
         zombie.GameWindow.mode="normal"; zombie.GameWindow.gameThread=Thread.currentThread();

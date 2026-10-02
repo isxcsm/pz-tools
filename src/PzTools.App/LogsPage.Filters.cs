@@ -19,12 +19,13 @@ public sealed partial class LogsPage
     private string timeFromText = "", timeThroughText = "";
     private FlyoutBase? filterFlyout;
     private Action<bool>? stopFilterEdit;
-    private static readonly string[] Categories = ["All", "Backup", "Restore", "Recovery", "Archive", "State", "Schedule", "Maintenance", "Other"];
+    private static readonly string[] Categories = ["All", "Backup", "Restore", "Recovery", "Archive", "Profile", "State", "Schedule", "Maintenance", "Other"];
 
     private static string CategoryLabel(string category) => Localizer.Get(category switch
     {
         "All" => "All",
         "Recovery" => "LogActivity.CharacterRecovery",
+        "Profile" => "LogActivity.Profile",
         _ => $"LogComponent.{category}",
     });
 
@@ -33,9 +34,14 @@ public sealed partial class LogsPage
         DismissFilterEditor(commitPending: true);
         LogNumberHeader.Text = Localizer.Get("LogNumberHeader");
         LogLevelHeader.Text = Localizer.Get("LogLevelHeader");
-        LogTimeHeader.Text = Localizer.Format("LogTimeHeaderFormat", LogTimeFormatter.ShortZoneName);
+        LogTimeHeader.Text = Localizer.Get("LogTimeHeader");
         LogMessageHeader.Text = Localizer.Get("LogMessageHeader");
         LogRunHeader.Text = Localizer.Get("LogRunHeader");
+        // Rows made after this (the list is rebuilt on a language change) read the same widths.
+        LogColumns.Fit(LogLevelHeader.Text, LogTimeHeader.Text, LogRunHeader.Text);
+        LevelHeaderColumn.Width = LogColumns.Level;
+        TimeHeaderColumn.Width = LogColumns.Time;
+        RunHeaderColumn.Width = LogColumns.Run;
         HeaderHint(LogNumberButton, LogNumberHeader.Text);
         HeaderHint(LogTimeButton, LogTimeHeader.Text);
         HeaderHint(LogMessageButton, Localizer.Get("LogComponentFilter"));
@@ -166,7 +172,7 @@ public sealed partial class LogsPage
         var from = new TextBox { Text = initial.FromText, PlaceholderText = "yyyy-MM-dd HH:mm", MinWidth = 0 };
         var through = new TextBox { Text = initial.ThroughText, PlaceholderText = "yyyy-MM-dd HH:mm", MinWidth = 0 };
         var content = new StackPanel { Width = 340, Spacing = 12 };
-        content.Children.Add(new TextBlock { Text = Localizer.Format("LogLocalTimeHint", LogTimeFormatter.ShortZoneName), TextWrapping = TextWrapping.Wrap });
+        content.Children.Add(new TextBlock { Text = Localizer.Get("LogLocalTimeHint"), TextWrapping = TextWrapping.Wrap });
         var recent = new Button { Content = Localizer.Get("LogTimeRecentDay"), Style = (Style)Resources["LogPageButtonStyle"] };
         Action applySelection = () => { };
         recent.Click += (_, _) =>
@@ -221,7 +227,7 @@ public sealed partial class LogsPage
     {
         var flyout = new Flyout { Content = content };
         var timer = DispatcherQueue.CreateTimer();
-        timer.Interval = TimeSpan.FromMilliseconds(250);
+        timer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).LogFilterDebounceMs);
         timer.IsRepeating = false;
         var dirty = false;
         var stopped = false;

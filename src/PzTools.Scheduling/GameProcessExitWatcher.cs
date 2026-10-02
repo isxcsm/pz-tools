@@ -6,9 +6,6 @@ namespace PzTools.Scheduling;
 /// <summary>Wakes state collection as soon as a watched game process exits.</summary>
 public sealed class GameProcessExitWatcher : IDisposable
 {
-    private static readonly string[] GameProcessNames =
-        ["ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid"];
-
     private readonly object gate = new();
     private readonly Dictionary<int, (DiagnosticsProcess Process, EventHandler Handler)> watched = [];
     private readonly SemaphoreSlim exitSignal = new(0, 1);
@@ -17,15 +14,13 @@ public sealed class GameProcessExitWatcher : IDisposable
 
     public void Refresh()
     {
-        foreach (var name in GameProcessNames)
-        {
-            DiagnosticsProcess[] processes;
-            try { processes = DiagnosticsProcess.GetProcessesByName(name); }
-            catch (Exception exception) when (
-                exception is InvalidOperationException or Win32Exception)
-            { continue; }
-            foreach (var process in processes) Watch(process);
-        }
+        DiagnosticsProcess[] processes;
+        // Called every wake-up; the runtime observer lists processes as often, so share its recent list.
+        try { processes = PzTools.Process.Contracts.GameProcessFinder.Find(PzTools.Process.Contracts.GameProcessFinder.WatchSnapshotAge); }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or Win32Exception)
+        { return; }
+        foreach (var process in processes) Watch(process);
     }
 
     // Takes ownership of the Process object, including when it was already watched.

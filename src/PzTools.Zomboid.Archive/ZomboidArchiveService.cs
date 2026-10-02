@@ -116,35 +116,50 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         var parent = Path.GetDirectoryName(output)
             ?? throw new ArgumentException("Archive output must have a parent.", nameof(outputPath));
         Directory.CreateDirectory(parent);
+        // Earlier versions restored the revision into a folder here first; remove what an
+        // interrupted export of theirs left behind.
         var stagingRoot = Path.Combine(repository.RepositoryPath, ".pztools");
-        Directory.CreateDirectory(stagingRoot);
-        CleanupDirectories(stagingRoot, "archive-export-");
-        var staging = Path.Combine(stagingRoot, $"archive-export-{Guid.NewGuid():N}");
-        try
-        {
-            var source = await repository.GetSourceByIdAsync(sourceId, cancellationToken);
-            async Task ReportRestoreAsync(RestoreProgress value, CancellationToken token)
-            {
-                if (progress is not null && value.Event is "workload.discovered" or "file.restore.progress" or "file.restore.completed")
-                    await progress(new ArchiveProgress(
-                        "archive.restore", value.CompletedItems, value.TotalItems,
-                        value.CompletedBytes, value.TotalBytes, value.RelativePath), token);
-            }
-            await new RevisionRestorer().RestoreAsync(
-                repository, sourceId, revision, staging, ReportRestoreAsync, cancellationToken);
-            var (mode, saveName) = SplitSaveId(source.SourceKey);
-            var playersPath = Path.Combine(staging, "players.db");
-            var manifest = new ZomboidArchiveManifest(
-                FormatMarker, CurrentVersion, source.SourceKey, mode, saveName,
-                File.Exists(playersPath) ? File.GetLastWriteTimeUtc(playersPath) : null,
-                sourceId, revision, DateTimeOffset.UtcNow);
+        if (Directory.Exists(stagingRoot)) CleanupDirectories(stagingRoot, "archive-export-");
 
-            return await CompressDirectoryAsync(staging, output, manifest, progress, cancellationToken);
-        }
-        finally
-        {
-            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
-        }
+        var source = await repository.GetSourceByIdAsync(sourceId, cancellationToken);
+        var (mode, saveName) = SplitSaveId(source.SourceKey);
+        var savePrefix = $"{mode}/{saveName}/";
+        DateTime? playersModified = null;
+        // The revision is read from the repository straight into the archive. Restoring it to a
+        // folder first would write, flush and read back every one of the save's many small files.
+        return await WriteArchiveAsync(output, mode, savePrefix, async (archive, token) =>
+            {
+                async Task ReportAsync(RestoreProgress value, CancellationToken reportToken)
+                {
+                    if (progress is not null && value.Event is "workload.discovered" or "file.restore.progress" or "file.restore.completed")
+                        await progress(new ArchiveProgress(
+                            "archive.compress", value.CompletedItems, value.TotalItems,
+                            value.CompletedBytes, value.TotalBytes,
+                            value.RelativePath is null ? null : savePrefix + value.RelativePath), reportToken);
+                }
+                var restored = await new RevisionRestorer().ReadAsync(repository, sourceId, revision,
+                    (directory, _) =>
+                    {
+                        if (!IsRootManifest(directory.RelativePath))
+                            archive.CreateEntry(savePrefix + directory.RelativePath + "/", CompressionLevel.NoCompression);
+                        return Task.CompletedTask;
+                    },
+                    (file, _) =>
+                    {
+                        if (StringComparer.OrdinalIgnoreCase.Equals(file.RelativePath, "players.db"))
+                            playersModified = file.ModifiedUtc.UtcDateTime;
+                        // The archive's own manifest takes that name; a stored file with it is left out.
+                        return Task.FromResult(IsRootManifest(file.RelativePath)
+                            ? Stream.Null
+                            : archive.CreateEntry(savePrefix + file.RelativePath, CompressionLevel.Optimal).Open());
+                    },
+                    ReportAsync, token);
+                return restored.Files;
+            },
+            () => new ZomboidArchiveManifest(
+                FormatMarker, CurrentVersion, source.SourceKey, mode, saveName,
+                playersModified, sourceId, revision, DateTimeOffset.UtcNow),
+            progress, cancellationToken);
     }
 
     public async Task<ArchiveExportResult> ExportLiveAsync(
@@ -167,46 +182,62 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         void ValidateUnchanged()
         {
             if (!original.SequenceEqual(ReadSnapshot(source)))
-                throw new IOException("The current save changed during export. Stop playing and try again.");
+                throw new IOException("export-save-changed: The current save changed during export. Stop playing and try again.");
         }
-        var staging = Path.Combine(Path.GetTempPath(), $"pztools-live-export-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(staging);
-        try
+        // The save is compressed straight into the archive. A private copy first would write every
+        // one of its many small files twice, and would add nothing: the save is compared with the
+        // listing taken above once the archive is complete, and any change discards the archive.
+        var savePrefix = SavePrefix(manifest);
+        var entries = original.Where(item => !IsRootManifest(item.RelativePath)).ToArray();
+        var files = entries.Where(entry => !entry.IsDirectory).ToArray();
+        long totalItems = files.LongLength;
+        long totalBytes = files.Sum(file => file.Length);
+        async Task<int> WriteContentAsync(ZipArchive archive, CancellationToken token)
         {
-            var files = original.Where(item => !item.IsDirectory).ToArray();
-            var totalBytes = files.Sum(item => item.Length);
-            long completed = 0, bytes = 0;
             if (progress is not null)
-                await progress(new ArchiveProgress("archive.snapshot", 0, files.Length, 0, totalBytes, null), cancellationToken);
-            foreach (var directory in original.Where(item => item.IsDirectory))
-                Directory.CreateDirectory(Path.Combine(staging, directory.RelativePath));
+                await progress(new ArchiveProgress("archive.compress", 0, totalItems, 0, totalBytes, null), token);
+            foreach (var directory in entries.Where(entry => entry.IsDirectory))
+                archive.CreateEntry(savePrefix + directory.RelativePath.Replace('\\', '/') + "/", CompressionLevel.NoCompression);
+            long completedItems = 0;
+            long completedBytes = 0;
             foreach (var file in files)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var target = Path.Combine(staging, file.RelativePath);
-                await using (var input = new FileStream(Path.Combine(source, file.RelativePath),
-                    FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous))
-                await using (var destination = new FileStream(target, FileMode.CreateNew,
-                    FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous))
-                    await CopyEntryBoundedAsync(input, destination, file.Length, cancellationToken,
-                        progress is null ? null : (copied, token) => progress(new ArchiveProgress(
-                            "archive.snapshot", completed, files.Length, bytes + copied,
-                            totalBytes, file.RelativePath), token));
-                File.SetLastWriteTimeUtc(target, file.LastWriteUtc);
-                completed++;
-                bytes += file.Length;
+                token.ThrowIfCancellationRequested();
+                var relative = savePrefix + file.RelativePath.Replace('\\', '/');
+                var zipEntry = archive.CreateEntry(relative, CompressionLevel.Optimal);
+                // No FileStream buffer: the copy reads in large blocks itself, and a buffer per
+                // file would be allocated for each of a save's many small files.
+                await using var input = new FileStream(
+                    Path.Combine(source, file.RelativePath), FileMode.Open, FileAccess.Read, FileShare.Read,
+                    0, FileOptions.SequentialScan);
+                await using var destination = zipEntry.Open();
+                await CopyEntryBoundedAsync(input, destination, file.Length, token,
+                    progress is null ? null : (copied, reportToken) => progress(new ArchiveProgress(
+                        "archive.compress", completedItems, totalItems, completedBytes + copied,
+                        totalBytes, relative), reportToken));
+                completedItems++;
+                completedBytes += file.Length;
                 if (progress is not null)
-                    await progress(new ArchiveProgress("archive.snapshot", completed, files.Length,
-                        bytes, totalBytes, file.RelativePath), cancellationToken);
+                    await progress(new ArchiveProgress(
+                        "archive.compress", completedItems, totalItems, completedBytes, totalBytes, relative), token);
             }
-            ValidateUnchanged();
-            return await CompressDirectoryAsync(staging, output, manifest, progress, cancellationToken, ValidateUnchanged);
+            return files.Length;
         }
-        finally
+        try
         {
-            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+            return await WriteArchiveAsync(output, manifest.Mode, savePrefix, WriteContentAsync,
+                () => manifest, progress, cancellationToken, ValidateUnchanged);
+        }
+        catch (InvalidDataException exception) when (exception.Message.StartsWith("Archive entry ", StringComparison.Ordinal))
+        {
+            // A file that grew or shrank after it was listed.
+            throw new IOException("export-save-changed: The current save changed during export. Stop playing and try again.", exception);
         }
     }
+
+
+    private static bool IsRootManifest(string relativePath) =>
+        StringComparer.OrdinalIgnoreCase.Equals(relativePath.Replace('\\', '/'), ManifestEntryName);
 
     private sealed record SnapshotEntry(string RelativePath, bool IsDirectory, long Length, DateTime LastWriteUtc);
 
@@ -232,8 +263,14 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         return entries.OrderBy(item => item.RelativePath, StringComparer.Ordinal).ToArray();
     }
 
-    private static async Task<ArchiveExportResult> CompressDirectoryAsync(
-        string staging, string output, ZomboidArchiveManifest manifest,
+    /// <summary>
+    /// Writes an archive to a temporary file next to the output: the mode and save folders,
+    /// the content, then the manifest. The output is replaced only when all of it succeeded.
+    /// </summary>
+    private static async Task<ArchiveExportResult> WriteArchiveAsync(
+        string output, string mode, string savePrefix,
+        Func<ZipArchive, CancellationToken, Task<int>> writeContent,
+        Func<ZomboidArchiveManifest> manifest,
         Func<ArchiveProgress, CancellationToken, Task>? progress,
         CancellationToken cancellationToken, Action? validateBeforePublish = null)
     {
@@ -241,68 +278,30 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         var temporary = output + $".{Guid.NewGuid():N}.tmp";
         try
         {
-
-            var savePrefix = SavePrefix(manifest);
-            var files = EnumerateExportFiles().Select(file => new FileInfo(file)).ToArray();
-            long totalItems = files.LongLength;
-            long totalBytes = files.Sum(file => file.Length);
-            if (progress is not null)
-                await progress(new ArchiveProgress(
-                    "archive.compress", 0, totalItems, 0, totalBytes, null), cancellationToken);
-            long completedItems = 0;
-            long completedBytes = 0;
+            int files;
+            ZomboidArchiveManifest written;
             await using (var stream = new FileStream(
                 temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
                 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
             using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
             {
-                archive.CreateEntry(manifest.Mode + "/", CompressionLevel.NoCompression);
+                archive.CreateEntry(mode + "/", CompressionLevel.NoCompression);
                 archive.CreateEntry(savePrefix, CompressionLevel.NoCompression);
-                foreach (var directory in Directory.EnumerateDirectories(
-                             staging, "*", SearchOption.AllDirectories))
-                {
-                    var relative = savePrefix + Path.GetRelativePath(staging, directory).Replace('\\', '/') + "/";
-                    archive.CreateEntry(relative, CompressionLevel.NoCompression);
-                }
-                foreach (var file in files)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var relative = savePrefix + Path.GetRelativePath(staging, file.FullName).Replace('\\', '/');
-                    var zipEntry = archive.CreateEntry(relative, CompressionLevel.Optimal);
-                    await using var input = new FileStream(
-                        file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
-                        1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    await using var destination = zipEntry.Open();
-                    await CopyEntryBoundedAsync(input, destination, input.Length, cancellationToken,
-                        progress is null ? null : (copied, token) => progress(new ArchiveProgress(
-                            "archive.compress", completedItems, totalItems, completedBytes + copied,
-                            totalBytes, relative), token));
-                    completedItems++;
-                    completedBytes += input.Length;
-                    if (progress is not null)
-                        await progress(new ArchiveProgress(
-                            "archive.compress", completedItems, totalItems,
-                            completedBytes, totalBytes, relative), cancellationToken);
-                }
+                files = await writeContent(archive, cancellationToken);
                 if (progress is not null)
                     await progress(new ArchiveProgress(
                         "archive.finalize", 0, 0, 0, 0, null), cancellationToken);
+                written = manifest();
                 var manifestEntry = archive.CreateEntry(savePrefix + ManifestEntryName, CompressionLevel.Optimal);
                 await using var manifestStream = manifestEntry.Open();
                 await JsonSerializer.SerializeAsync(
-                    manifestStream, manifest, JsonOptions, cancellationToken);
+                    manifestStream, written, JsonOptions, cancellationToken);
             }
             cancellationToken.ThrowIfCancellationRequested();
             validateBeforePublish?.Invoke();
             File.Move(temporary, output, overwrite: true);
             return new ArchiveExportResult(
-                output, manifest.SourceId, manifest.Revision, checked((int)completedItems), new FileInfo(output).Length);
-
-            IEnumerable<string> EnumerateExportFiles() =>
-                Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories)
-                    .Where(file => !StringComparer.OrdinalIgnoreCase.Equals(
-                        Path.GetRelativePath(staging, file).Replace('\\', '/'),
-                        ManifestEntryName));
+                output, written.SourceId, written.Revision, files, new FileInfo(output).Length);
         }
         finally
         {
@@ -426,7 +425,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                     || (double)entry.Length / Math.Max(1, entry.CompressedLength)
                     > safety.MaximumCompressionRatio))
                 throw new InvalidDataException(
-                    $"Archive entry '{entry.FullName}' has an unsafe compression ratio.");
+                    $"archive-unsafe-ratio: Archive entry '{entry.FullName}' has an unsafe compression ratio.");
         }
         return archive.Entries;
     }

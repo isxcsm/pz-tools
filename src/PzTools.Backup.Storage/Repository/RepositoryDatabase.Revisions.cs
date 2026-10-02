@@ -89,7 +89,7 @@ public sealed partial class RepositoryDatabase
             """
             SELECT state.current_revision
             FROM source_state AS state
-            JOIN runs AS run ON run.source_id = state.source_id
+            JOIN worker_runs AS run ON run.source_id = state.source_id
             WHERE state.source_id = $sourceId
               AND run.run_index = $runIndex
               AND run.status = 'Running';
@@ -126,9 +126,13 @@ public sealed partial class RepositoryDatabase
             ? BackupKind.Automatic : BackupKind.Manual;
         command.CommandText =
             """
-            INSERT INTO revisions(source_id, revision, run_index, created_utc, display_name, backup_kind)
-            VALUES ($sourceId, $revision, $runIndex, $createdUtc, $displayName, $kind);
+            INSERT INTO revisions(source_id, revision, run_index, created_utc, display_name, backup_kind, game_version)
+            VALUES ($sourceId, $revision, $runIndex, $createdUtc, $displayName, $kind, $gameVersion);
             """;
+        var gameVersion = request.GameVersion?.Trim();
+        if (gameVersion is { Length: > 80 } || gameVersion?.Any(char.IsControl) == true)
+            throw new ArgumentException("Game version must be at most 80 printable characters.", nameof(request));
+        command.Parameters.AddWithValue("$gameVersion", string.IsNullOrEmpty(gameVersion) ? DBNull.Value : gameVersion);
         command.Parameters.AddWithValue("$sourceId", request.SourceId);
         command.Parameters.AddWithValue("$revision", revision);
         command.Parameters.AddWithValue("$createdUtc", createdUtc.ToString("O"));
@@ -248,22 +252,7 @@ public sealed partial class RepositoryDatabase
         CancellationToken cancellationToken,
         WorkflowStatus workflowStatus = WorkflowStatus.Succeeded)
     {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText =
-            """
-            UPDATE runs
-            SET status = 'Succeeded', completed_utc = $completedUtc
-            WHERE run_index = $runIndex AND status = 'Running';
-            """;
-        command.Parameters.AddWithValue("$completedUtc", DateTimeOffset.UtcNow.ToString("O"));
-        command.Parameters.AddWithValue("$runIndex", runIndex);
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
-        {
-            throw new InvalidOperationException($"Run {runIndex} is not Running.");
-        }
-
-        await CompleteLegacyWorkflowInTransactionAsync(
+        await CompleteBackupStageInTransactionAsync(
             connection,
             transaction,
             runIndex,

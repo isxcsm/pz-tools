@@ -14,8 +14,7 @@ public final class DrivetrainConfig {
         "idle_torque_fraction", "forward_torque_boost_fraction", "rpm_response_seconds", "direction_speed_mps",
         "forward_governor_start_fraction", "reverse_governor_start_fraction", "shift_hysteresis_fraction",
         "demand_downshift_fraction", "torque_enabled", "reverse_enabled", "steering_enabled",
-        "steering_initial_rate", "steering_full_rate", "steering_ramp_seconds", "steering_return_rate",
-        "steering_countersteer_rate", "steering_high_speed_rate_factor");
+        "steering_precise_input", "area_light_enabled", "area_light_radius", "area_light_brightness");
 
     public final double forceScale;
     public final double lowGearBoost;
@@ -45,16 +44,18 @@ public final class DrivetrainConfig {
     public final double reverseGovernorStartFraction;
     public final double shiftHysteresisFraction;
     public final double demandDownshiftFraction;
-    public final double steeringInitialRate;
-    public final double steeringFullRate;
-    public final double steeringRampSeconds;
-    public final double steeringReturnRate;
-    public final double steeringCountersteerRate;
-    public final double steeringHighSpeedRateFactor;
     public final boolean torqueEnabled;
     public final boolean reverseEnabled;
     public final boolean steeringEnabled;
+    /** Time the steering keys off the game thread instead of once per frame; off gives the game's own timing. */
+    public final boolean steeringPreciseInput;
     public final boolean lowMode;
+    /** Light the ground around the occupied vehicle while its headlights are lit. */
+    public final boolean areaLightEnabled;
+    /** Reach of that light in tiles. */
+    public final int areaLightRadius;
+    /** 0..1; how strongly that light lifts the darkness at its centre. */
+    public final double areaLightBrightness;
 
     private DrivetrainConfig(Map<String, String> values) {
         for (String key : values.keySet()) {
@@ -92,17 +93,10 @@ public final class DrivetrainConfig {
         reverseGovernorStartFraction = number(values, "reverse_governor_start_fraction", 1.0, 0.50, 1.0);
         shiftHysteresisFraction = number(values, "shift_hysteresis_fraction", 0.08, 0.04, 0.15);
         demandDownshiftFraction = number(values, "demand_downshift_fraction", 0.48, 0.25, 0.60);
-        steeringInitialRate = number(values, "steering_initial_rate", 1.8, 0.1, 3.0);
-        steeringFullRate = number(values, "steering_full_rate", 7.5, 0.5, 8.0);
-        steeringRampSeconds = number(values, "steering_ramp_seconds", 0.1, 0.05, 1.0);
-        steeringReturnRate = number(values, "steering_return_rate", 8.0, 0.5, 10.0);
-        steeringCountersteerRate = number(values, "steering_countersteer_rate", 8.0, 0.5, 12.0);
-        steeringHighSpeedRateFactor = number(values, "steering_high_speed_rate_factor", 0.6, 0.2, 1.0);
-        if (steeringInitialRate > steeringFullRate)
-            throw new IllegalArgumentException("steering_initial_rate must not exceed steering_full_rate");
         torqueEnabled = flag(values, "torque_enabled", true);
         reverseEnabled = flag(values, "reverse_enabled", true);
         steeringEnabled = flag(values, "steering_enabled", true);
+        steeringPreciseInput = flag(values, "steering_precise_input", true);
         if (upshiftRpmFraction - downshiftRpmFraction + 1.0e-12 < 0.15) {
             throw new IllegalArgumentException("upshift_rpm_fraction must exceed downshift_rpm_fraction by at least 0.15");
         }
@@ -114,6 +108,9 @@ public final class DrivetrainConfig {
         if (launchRpm > minimumRedline * upshiftRpmFraction / Math.sqrt(gearRatioSpan) + 1.0e-9)
             throw new IllegalArgumentException("launch_rpm exceeds the lowest post-upshift RPM of the supported profiles");
         lowMode = flag(values, "low_mode", false);
+        areaLightEnabled = flag(values, "area_light_enabled", true);
+        areaLightRadius = (int) Math.round(number(values, "area_light_radius", 8.0, 3.0, 20.0));
+        areaLightBrightness = number(values, "area_light_brightness", 0.6, 0.1, 1.0);
     }
 
     public static DrivetrainConfig defaults() { return new DrivetrainConfig(Map.of()); }

@@ -6,6 +6,15 @@ namespace PzTools.Backup.Storage.Repository;
 
 public sealed partial class RepositoryDatabase
 {
+    /// <summary>The counter that moves whenever the backup catalog changes; one row, read without locking writers.</summary>
+    public async Task<long> ReadChangeRevisionAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT repository_change_revision FROM repository_info WHERE singleton=1;";
+        return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+    }
+
     public Task<RepositoryCatalogSnapshot> ReadCatalogIfChangedAsync(
         long lastSeenRevision,
         CancellationToken cancellationToken = default) =>
@@ -18,8 +27,55 @@ public sealed partial class RepositoryDatabase
     {
         if (lastSeenRevision < -1)
             throw new ArgumentOutOfRangeException(nameof(lastSeenRevision));
+        if (!holdReader)
+        {
+            await using var connection = await OpenConnectionAsync(cancellationToken);
+            return await ReadCatalogIfChangedAsync(connection, lastSeenRevision, metadataFileRelativePath, cancellationToken);
+        }
+        await heldGate.WaitAsync(cancellationToken);
+        try
+        {
+            heldReader ??= await OpenConnectionAsync(cancellationToken);
+            try { return await ReadCatalogIfChangedAsync(heldReader, lastSeenRevision, metadataFileRelativePath, cancellationToken); }
+            catch
+            {
+                // Whatever failed, the next read starts from a fresh connection.
+                heldReader.Dispose();
+                heldReader = null;
+                throw;
+            }
+        }
+        finally { heldGate.Release(); }
+    }
 
-        await using var connection = await OpenConnectionAsync(cancellationToken);
+    // Opt-in, for a process that checks the catalog every second for as long as it runs (the app's
+    // projections). A connection per check made SQLite create the -wal and -shm files on open and delete
+    // them when the last connection closed, every second, each time also scanned by file-system filters.
+    // The check uses a short read transaction, so writers, checkpoints and VACUUM are never held up.
+    private readonly SemaphoreSlim heldGate = new(1, 1);
+    private SqliteConnection? heldReader;
+    private bool holdReader;
+
+    public void HoldReadConnection() => holdReader = true;
+
+    public void ReleaseReadConnection()
+    {
+        heldGate.Wait();
+        try
+        {
+            holdReader = false;
+            heldReader?.Dispose();
+            heldReader = null;
+        }
+        finally { heldGate.Release(); }
+    }
+
+    private static async Task<RepositoryCatalogSnapshot> ReadCatalogIfChangedAsync(
+        SqliteConnection connection,
+        long lastSeenRevision,
+        string? metadataFileRelativePath,
+        CancellationToken cancellationToken)
+    {
         using var transaction = connection.BeginTransaction(deferred: true);
         await using var revisionCommand = connection.CreateCommand();
         revisionCommand.Transaction = transaction;
@@ -68,7 +124,8 @@ public sealed partial class RepositoryDatabase
                     reader.IsDBNull(12) ? null : reader.GetString(12),
                     Enum.Parse<BackupKind>(reader.GetString(13)),
                     reader.IsDBNull(14) ? null : reader.GetDouble(14), reader.GetBoolean(15),
-                    reader.IsDBNull(16) ? null : reader.GetString(16)));
+                    reader.IsDBNull(16) ? null : reader.GetString(16),
+                    reader.IsDBNull(17) ? null : reader.GetString(17)));
             }
         }
         transaction.Commit();
@@ -307,6 +364,60 @@ public sealed partial class RepositoryDatabase
         return candidates;
     }
 
+    /// <summary>
+    /// The stored object each of these paths currently holds in the source's catalog, keyed by path key
+    /// (normalized, invariant upper case). Paths without a live file version are absent.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, CurrentFileObject>> ReadCurrentFileObjectsAsync(
+        long sourceId,
+        IEnumerable<string> relativePaths,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(relativePaths);
+        var keys = relativePaths.Select(path => BackupPath.NormalizeRelative(path).ToUpperInvariant())
+            .Distinct(StringComparer.Ordinal).ToArray();
+        var result = new Dictionary<string, CurrentFileObject>(keys.Length, StringComparer.Ordinal);
+        if (keys.Length == 0) return result;
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT path.path_key, object.object_id, object.pack_id, pack.relative_path,
+                   object.pack_offset, object.stored_length, object.original_length,
+                   object.checksum_algorithm, object.checksum,
+                   object.compression_algorithm, object.flags, object.content_hash
+            FROM json_each($keys) AS wanted
+            JOIN paths AS path ON path.path_key = wanted.value
+            JOIN entry_versions AS entry
+              ON entry.source_id = $sourceId AND entry.path_id = path.path_id
+             AND entry.valid_to_revision IS NULL
+            JOIN stored_objects AS object ON object.object_id = entry.object_id
+            JOIN packs AS pack ON pack.pack_id = object.pack_id
+            WHERE entry.entry_kind = 'File' AND entry.tombstone = 0 AND pack.status = 'Committed';
+            """;
+        command.Parameters.AddWithValue("$sourceId", sourceId);
+        command.Parameters.AddWithValue("$keys", System.Text.Json.JsonSerializer.Serialize(keys));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            result[reader.GetString(0)] = new CurrentFileObject(
+                new DeduplicationCandidate(
+                    reader.GetGuid(1),
+                    reader.GetGuid(2),
+                    reader.GetString(3),
+                    reader.GetInt64(4),
+                    reader.GetInt64(5),
+                    reader.GetInt64(6),
+                    StorageAlgorithmCodec.Checksum(reader.GetInt32(7)),
+                    reader.IsDBNull(8) ? [] : (byte[])reader.GetValue(8),
+                    StorageAlgorithmCodec.Compression(reader.GetInt32(9)),
+                    reader.GetInt32(10)),
+                reader.IsDBNull(11) ? null : (byte[])reader.GetValue(11));
+        }
+
+        return result;
+    }
+
     public async Task<IReadOnlyList<RevisionEntry>> ReadRevisionEntriesAsync(
         long sourceId,
         long revision,
@@ -399,6 +510,38 @@ public sealed partial class RepositoryDatabase
                 reader.GetInt64(2),
                 reader.GetString(3),
                 reader.GetInt64(4)));
+        }
+
+        return packs;
+    }
+
+    /// <summary>
+    /// Bytes each committed pack still stores for registered objects. Garbage collection removes
+    /// unreferenced object rows, so after it the difference from the file size is dead space.
+    /// </summary>
+    public async Task<IReadOnlyList<PackUsage>> ReadPackUsageAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT pack.pack_id, pack.relative_path, pack.byte_length, pack.status, pack.created_run_index,
+                   COALESCE(SUM(object.stored_length), 0)
+            FROM packs AS pack
+            LEFT JOIN stored_objects AS object ON object.pack_id = pack.pack_id
+            WHERE pack.status = 'Committed'
+            GROUP BY pack.pack_id
+            ORDER BY pack.pack_id;
+            """;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var packs = new List<PackUsage>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            packs.Add(new PackUsage(
+                new RepositoryPack(reader.GetGuid(0), reader.GetString(1), reader.GetInt64(2),
+                    reader.GetString(3), reader.GetInt64(4)),
+                reader.GetInt64(5)));
         }
 
         return packs;

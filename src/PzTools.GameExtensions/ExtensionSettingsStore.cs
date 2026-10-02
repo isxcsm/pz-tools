@@ -31,6 +31,7 @@ public sealed class ExtensionSettingsStore
 
     public ExtensionConfiguration SetEnabled(string id, bool enabled, long expectedRevision) =>
         Update(id, expectedRevision, existing => existing with { Enabled = enabled });
+
     public ExtensionConfiguration SetPreference(string id, ExtensionPreference preference, long expectedRevision) =>
         Update(id, expectedRevision, _ => preference);
     private ExtensionConfiguration Update(string id, long expectedRevision, Func<ExtensionPreference, ExtensionPreference> change)

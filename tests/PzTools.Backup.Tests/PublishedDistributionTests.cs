@@ -13,7 +13,7 @@ public sealed class PublishedDistributionTests
     {
         string[] components = ["App", "Backup.Cli", "Backup.Runner", "Backup.Scheduler",
             "Maintenance.Cli", "Maintenance.Runner", "State.Collector.Cli", "State.Reactor.Cli",
-            "State.Runner", "State.Scheduler", "Zomboid.Archive.Cli", "Zomboid.Recovery.Cli"];
+            "State.Runner", "State.Scheduler", "Zomboid.Archive.Cli", "Zomboid.Recovery.Cli", "Profiler.Cli"];
         foreach (var component in components)
         {
             var prefix = Path.Combine(Root, "PzTools." + component);
@@ -68,6 +68,9 @@ public sealed class PublishedDistributionTests
             Directory.GetFiles(extensions, "*.jar").Select(Path.GetFileName).Order());
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-seamless-save.jar")));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-test-save.jar")));
+        // The retired screen look ships nothing any more.
+        Assert.False(File.Exists(Path.Combine(extensions, "pztools-screen-look.jar")));
+        Assert.False(File.Exists(Path.Combine(extensions, "screen-look.toml")));
         foreach (var name in payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)))
         {
             using var jar = ZipFile.OpenRead(Path.Combine(extensions, name));
@@ -80,8 +83,9 @@ public sealed class PublishedDistributionTests
             Assert.NotNull(runtime.GetEntry("pztools/extensions/runtime/ContinuousRuntime.class"));
         }
         var cataloguePath = Path.Combine(extensions, "catalog.tsv");
-        var vehicle = Assert.Single(ExtensionCatalog.ReadFile(cataloguePath));
-        Assert.Equal(ExtensionIds.VehicleDrivetrain, vehicle.Id);
+        var catalogue = ExtensionCatalog.ReadFile(cataloguePath);
+        Assert.Equal([ExtensionIds.VehicleDrivetrain], catalogue.Select(item => item.Id).Order());
+        var vehicle = catalogue.Single(item => item.Id == ExtensionIds.VehicleDrivetrain);
         Assert.Equal("vehicle.drivetrain.v1", Assert.Single(vehicle.Capabilities));
         Assert.Equal(new GameVersionSupport(VersionSupportScope.Major, "42", "42"), vehicle.SupportedVersions);
         var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(ExtensionIds.VehicleDrivetrain + "\t", StringComparison.Ordinal)).Split('\t');
@@ -111,7 +115,7 @@ public sealed class PublishedDistributionTests
         var packagedConfiguration = Tomlyn.TomlSerializer.Deserialize<Tomlyn.Model.TomlTable>(
             File.ReadAllText(Path.Combine(extensions, "vehicle-drivetrain.toml")))!;
         Assert.Equal(configuration.Keys.Order(StringComparer.Ordinal), packagedConfiguration.Keys.Order(StringComparer.Ordinal));
-        Assert.Equal(40, configuration.Count);
+        Assert.Equal(39, configuration.Count);
         Assert.Equal("1", configuration["schema_version"]);
         Assert.Equal("1", configuration["low_gear_boost"]);
         Assert.Equal("1", configuration["reverse_force_ratio"]);
@@ -123,11 +127,7 @@ public sealed class PublishedDistributionTests
         Assert.Equal("0", configuration["reverse_max_speed_kph"]);
         Assert.Equal("1", configuration["reverse_governor_start_fraction"]);
         Assert.Equal("0.8", configuration["reverse_ramp_seconds"]);
-        Assert.Equal("1.8", configuration["steering_initial_rate"]);
-        Assert.Equal("7.5", configuration["steering_full_rate"]);
-        Assert.Equal("0.1", configuration["steering_ramp_seconds"]);
-        Assert.Equal("8", configuration["steering_return_rate"]);
-        Assert.Equal("8", configuration["steering_countersteer_rate"]);
+        Assert.Equal("true", configuration["steering_precise_input"]);
         Assert.False(Directory.Exists(Path.Combine(temporaryRuntime.Path, "extensions")));
     }
 

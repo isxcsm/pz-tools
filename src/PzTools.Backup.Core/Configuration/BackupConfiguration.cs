@@ -203,6 +203,7 @@ public static class BackupConfiguration
             {
                 ["checksum"] = ToConfigName(options.Storage.Checksum),
                 ["compression"] = ToConfigName(options.Storage.Compression),
+                ["compression_level"] = options.Storage.CompressionLevel,
                 ["content_deduplication"] = options.Storage.ContentDeduplication,
                 ["verify_staged_copies"] = options.Storage.VerifyStagedCopies,
             },
@@ -250,6 +251,10 @@ public static class BackupConfiguration
             throw new BackupConfigurationException(
                 "Content deduplication requires checksum = 'sha256'.");
         }
+
+        if (options.Storage.CompressionLevel is < StorageOptions.MinimumCompressionLevel or > StorageOptions.MaximumCompressionLevel)
+            throw new BackupConfigurationException(
+                $"storage.compression_level must be between {StorageOptions.MinimumCompressionLevel} and {StorageOptions.MaximumCompressionLevel}.");
 
         if (options.Telemetry.BatchSize is < 1 or > 4096)
             throw new BackupConfigurationException(
@@ -386,7 +391,7 @@ public static class BackupConfiguration
 
         EnsureOnlyKeys(
             table,
-            ["checksum", "compression", "content_deduplication", "verify_staged_copies"],
+            ["checksum", "compression", "compression_level", "content_deduplication", "verify_staged_copies"],
             "storage");
         return new StorageOptions(
             GetEnum(table, "checksum", DefaultStorage.Checksum, ParseChecksum),
@@ -400,7 +405,8 @@ public static class BackupConfiguration
                 table,
                 "verify_staged_copies",
                 DefaultStorage.VerifyStagedCopies,
-                "storage"));
+                "storage"),
+            GetInt32(table, "compression_level", DefaultStorage.CompressionLevel, "storage"));
     }
 
     private static TelemetryOptions ParseTelemetry(TomlTable root)

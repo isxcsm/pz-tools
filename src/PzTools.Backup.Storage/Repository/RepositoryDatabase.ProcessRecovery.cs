@@ -65,8 +65,6 @@ public sealed partial class RepositoryDatabase
                     WHERE run_index=$run AND status='Running';
                 UPDATE workflow_runs SET status='Abandoned',completed_utc=$now,failure_code='process-interrupted'
                     WHERE run_index=$run AND status='Running';
-                UPDATE runs SET status='Abandoned',completed_utc=$now,failure_code='process-interrupted'
-                    WHERE run_index=$run AND status='Running';
                 """;
             command.Parameters.AddWithValue("$run", run);
             command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));

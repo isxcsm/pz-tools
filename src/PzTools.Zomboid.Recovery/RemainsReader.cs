@@ -63,7 +63,9 @@ internal sealed record SurvivorIdentity(string First, string Last, bool Female)
     public string Name => (First + " " + Last).Trim();
     public bool Named => First is not ("" or "None") && Last is not ("" or "None");
 }
-internal sealed record Appearance(byte[] Exact, byte[] Stable, bool Distinctive);
+/// <param name="Lasting">Stable without the skin texture number, which the game renumbers when the
+/// character rises: what a player zombie keeps of the character however long it has walked.</param>
+internal sealed record Appearance(byte[] Exact, byte[] Stable, bool Distinctive, byte[] Lasting);
 internal sealed record CharacterIdentity(float X, float Y, float Z, SurvivorIdentity? Descriptor, Appearance Visual, RecoveryIdentityMetadata Metadata)
 {
     public bool Matches(CharacterIdentity other, bool reanimated)
@@ -108,15 +110,20 @@ internal static class RemainsFormat
         var start = r.Position; var flags = r.Byte(); if ((flags & ~126) != 0) throw RemainsReader.Invalid();
         using var stable = new MemoryStream(); stable.WriteByte(flags);
         foreach (var bit in new[] { 4, 2, 8 }) if ((flags & bit) != 0) { var p = r.Position; r.Skip(3); stable.Write(r.Bytes.AsSpan(p, 3)); }
+        var skin = (int)stable.Position + 1;
         var p0 = r.Position; r.Skip(2); stable.Write(r.Bytes.AsSpan(p0, 2)); var rot = r.Position; r.Byte();
         foreach (var bit in new[] { 64, 16, 32 }) if ((flags & bit) != 0) { var p = r.Position; r.Text(); stable.Write(r.Bytes.AsSpan(p, r.Position - p)); }
         for (var i = 0; i < 3; i++) r.Skip(r.Byte());
         for (var n = r.Byte(); n > 0; n--) ItemVisual(r);
         r.Text(); var flags2 = r.Byte(); if ((flags2 & ~6) != 0) throw RemainsReader.Invalid();
         stable.WriteByte(flags2); foreach (var bit in new[] { 4, 2 }) if ((flags2 & bit) != 0) { var p = r.Position; r.Skip(3); stable.Write(r.Bytes.AsSpan(p, 3)); }
-        var exact = r.Slice(start); exact[rot - start] = 255;
+        // The game rewrites two fields when the character rises: the rot stage, and the skin texture
+        // number, which HumanVisual.getSkinTexture clamps to the shorter zombie skin list (human skin 4 of
+        // a woman becomes zombie skin 3). Neither can identify the character.
+        var exact = r.Slice(start); exact[rot - start] = 255; exact[p0 + 1 - start] = 255;
+        var lasting = stable.ToArray(); lasting[skin] = 255;
         // Default/all-zero synthetic visuals cannot establish identity on their own.
-        return new(exact, stable.ToArray(), (flags & 14) != 0 && (flags & 48) != 0);
+        return new(exact, stable.ToArray(), (flags & 14) != 0 && (flags & 48) != 0, lasting);
     }
     public static void ItemVisual(RemainsReader r)
     {

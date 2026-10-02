@@ -20,6 +20,7 @@ public sealed class PackWriter : IAsyncDisposable
     private bool promoted;
     private bool preserveTemporary;
     private string? invalidReason;
+    private readonly int compressionLevel;
 
     private PackWriter(
         string repositoryPath,
@@ -28,9 +29,11 @@ public sealed class PackWriter : IAsyncDisposable
         string temporaryPath,
         string finalPath,
         FileStream stream,
-        FileStream indexEntries)
+        FileStream indexEntries,
+        int compressionLevel)
     {
         this.repositoryPath = repositoryPath;
+        this.compressionLevel = compressionLevel;
         RunIndex = runIndex;
         PackId = packId;
         this.temporaryPath = temporaryPath;
@@ -60,9 +63,12 @@ public sealed class PackWriter : IAsyncDisposable
     public static async Task<PackWriter> CreateAsync(
         string repositoryPath,
         long runIndex,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int compressionLevel = StorageOptions.DefaultCompressionLevel)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryPath);
+        ArgumentOutOfRangeException.ThrowIfLessThan(compressionLevel, StorageOptions.MinimumCompressionLevel);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(compressionLevel, StorageOptions.MaximumCompressionLevel);
         var absoluteRepositoryPath = Path.GetFullPath(repositoryPath);
         var stagingPath = Path.Combine(absoluteRepositoryPath, "staging");
         var packsPath = Path.Combine(absoluteRepositoryPath, "packs");
@@ -94,7 +100,8 @@ public sealed class PackWriter : IAsyncDisposable
             temporaryPath,
             finalPath,
             stream,
-            indexEntries);
+            indexEntries,
+            compressionLevel);
         try
         {
             await writer.WriteHeaderAsync(cancellationToken);
@@ -151,7 +158,7 @@ public sealed class PackWriter : IAsyncDisposable
             BrotliStream? compressor = null;
             if (compressionAlgorithm == CompressionAlgorithm.Brotli)
             {
-                compressor = new BrotliStream(stream, CompressionLevel.Fastest, leaveOpen: true);
+                compressor = new BrotliStream(stream, new BrotliCompressionOptions { Quality = compressionLevel }, leaveOpen: true);
                 payloadDestination = compressor;
             }
 

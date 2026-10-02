@@ -50,10 +50,20 @@ public sealed record ReactorResult(
     long BeforeRevision,
     long AfterRevision,
     int Transitions,
-    int OutboxMessages);
+    int OutboxMessages,
+    // True when applying the batches changed nothing but removing them: the same observations
+    // again would change nothing either.
+    bool Settled = false);
 
 public sealed record StateCollectionResult(
     CollectionBatch Batch,
+    LaneStatus DiscoveryStatus);
+
+public sealed record StateObservationSet(
+    DateTimeOffset StartedUtc,
+    long ElapsedMilliseconds,
+    bool DiscoveryComplete,
+    IReadOnlyList<SaveObservation> Saves,
     LaneStatus DiscoveryStatus);
 
 public sealed record SchedulerOutboxMessage(

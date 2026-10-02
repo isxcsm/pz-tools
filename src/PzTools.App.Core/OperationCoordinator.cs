@@ -20,7 +20,9 @@ public sealed record AppOperationResult(
     ProcessOutcome Outcome,
     int? ExitCode,
     string? Error,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    // The worker's own result, when it has one worth showing (for example what a revival recovered).
+    JsonElement Result = default);
 
 public sealed class OperationCoordinator(
     RepositoryDatabase repository,
@@ -30,7 +32,8 @@ public sealed class OperationCoordinator(
     RunIndexAllocator runIndexes,
     string operationsRoot,
     AppRuntimeOptions? runtimeOptions = null,
-    LogInboxStore? diagnostics = null)
+    LogInboxStore? diagnostics = null,
+    Func<string, string?>? gameVersion = null)
 {
     private readonly AppRuntimeOptions runtime = runtimeOptions ?? new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> gates =
@@ -67,7 +70,7 @@ public sealed class OperationCoordinator(
             await using var admission = await TryAcquireAsync([
                 (OperationScope.RepositoryWrite, repository.RepositoryPath),
                 (OperationScope.SaveWrite, sourcePath)], cancellationToken);
-            if (admission is null) throw new IOException("Another operation is using this save.");
+            if (admission is null) throw new IOException("operation-busy: Another operation is using this save.");
             var result = await OperationMutexSet.TryRunAsync([
                 new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath),
                 new OperationMutexRequest(OperationMutexScope.SaveWrite, sourcePath)],
@@ -89,7 +92,7 @@ public sealed class OperationCoordinator(
                     return deleted;
                 },
                 cancellationToken);
-            return result.Acquired ? result.Value! : throw new IOException("Another operation is using this save.");
+            return result.Acquired ? result.Value! : throw new IOException("operation-busy: Another operation is using this save.");
         }
         finally { Interlocked.Decrement(ref runningDeletions); }
     }
@@ -101,7 +104,7 @@ public sealed class OperationCoordinator(
         {
             await using var admission = await TryAcquireAsync(
                 [(OperationScope.RepositoryWrite, repository.RepositoryPath)], cancellationToken);
-            if (admission is null) throw new IOException("Another operation is using the backup repository.");
+            if (admission is null) throw new IOException("operation-busy: Another operation is using the backup repository.");
             var result = await OperationMutexSet.TryRunAsync([
                 new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath)],
                 async token =>
@@ -110,7 +113,7 @@ public sealed class OperationCoordinator(
                     await repository.MarkRevisionDeletedAsync(lease, sourceId, revision, cancellationToken: token);
                     return true;
                 }, cancellationToken);
-            if (!result.Acquired) throw new IOException("Another operation is using the backup repository.");
+            if (!result.Acquired) throw new IOException("operation-busy: Another operation is using the backup repository.");
         }
         finally { Interlocked.Decrement(ref runningDeletions); }
     }
@@ -123,7 +126,7 @@ public sealed class OperationCoordinator(
         {
             await using var admission = await TryAcquireAsync(
                 [(OperationScope.RepositoryWrite, repository.RepositoryPath)], cancellationToken);
-            if (admission is null) throw new IOException("Another operation is using the backup repository.");
+            if (admission is null) throw new IOException("operation-busy: Another operation is using the backup repository.");
             var result = await OperationMutexSet.TryRunAsync([
                 new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath)],
                 async token =>
@@ -131,7 +134,7 @@ public sealed class OperationCoordinator(
                     await using var lease = RepositoryWriterLease.Acquire(repository.RepositoryPath);
                     return await repository.MarkAllRevisionsDeletedAsync(lease, sourceId, saveId, token);
                 }, cancellationToken);
-            return result.Acquired ? result.Value : throw new IOException("Another operation is using the backup repository.");
+            return result.Acquired ? result.Value : throw new IOException("operation-busy: Another operation is using the backup repository.");
         }
         finally { Interlocked.Decrement(ref runningDeletions); }
     }
@@ -142,7 +145,7 @@ public sealed class OperationCoordinator(
     {
         await using var admission = await TryAcquireAsync(
             [(OperationScope.RepositoryWrite, repository.RepositoryPath)], cancellationToken);
-        if (admission is null) throw new IOException("Another operation is using the backup repository.");
+        if (admission is null) throw new IOException("operation-busy: Another operation is using the backup repository.");
         var result = await OperationMutexSet.TryRunAsync([
             new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repository.RepositoryPath)],
             async token =>
@@ -151,7 +154,7 @@ public sealed class OperationCoordinator(
                 await repository.RenameRevisionAsync(lease, sourceId, revision, displayName, token);
                 return true;
             }, cancellationToken);
-        if (!result.Acquired) throw new IOException("Another operation is using the backup repository.");
+        if (!result.Acquired) throw new IOException("operation-busy: Another operation is using the backup repository.");
     }
 
     public async Task<ArchiveInspection> InspectArchiveAsync(
@@ -248,6 +251,8 @@ public sealed class OperationCoordinator(
                     "--save-game",
                     "--run-index", workflow.RunIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     "--worker-directory", workerDirectory,
+                    // Saves carry no version of their own; record what the game reports while this save is loaded.
+                    .. gameVersion?.Invoke(sourcePath) is { } version ? new[] { "--game-version", version } : [],
                 ],
                 "backup-runner",
                 workflow.RunIndex,
@@ -407,14 +412,35 @@ public sealed class OperationCoordinator(
 
     public Task<AppOperationResult> RecoverCharacterAsync(
         string savesRoot, string saveId, CancellationToken cancellationToken = default,
-        string? operationId = null)
+        string? operationId = null, long? playerId = null, string? remains = null)
     {
         var source = Path.GetFullPath(Path.Combine(savesRoot, saveId));
-        return RunArchiveAsync("character-recovery", source, OperationScope.SaveWrite,
-            ["--saves-root", savesRoot, "--save-id", saveId,
-             "--repository", repository.RepositoryPath],
+        string[] arguments = ["--saves-root", savesRoot, "--save-id", saveId,
+            "--repository", repository.RepositoryPath];
+        if (playerId is { } player)
+            arguments = [.. arguments, "--player-id", player.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        if (remains is not null) arguments = [.. arguments, "--remains", remains];
+        return RunArchiveAsync("character-recovery", source, OperationScope.SaveWrite, arguments,
             cancellationToken, "character-recovery", "PzTools.Zomboid.Recovery.Cli.exe", operationId);
     }
+
+    /// <summary>
+    /// One recording of the running game, from start to converted file. It returns when the worker
+    /// ends: after <paramref name="stopFile"/> appears, at the time limit, or when the game exits.
+    /// Nothing here touches a save or the repository, so it runs alongside backups.
+    /// </summary>
+    /// <param name="progress">Lines the worker reports while it runs: "recording ..." and "converting".</param>
+    public Task<AppOperationResult> RecordProfileAsync(
+        string outputPath, string stopFile, bool detailed, int maximumSeconds,
+        Action<string>? progress = null, CancellationToken cancellationToken = default, string? operationId = null) =>
+        RunArchiveAsync("profile", Path.GetFullPath(outputPath), OperationScope.SaveWrite,
+            [
+                "record", "--output", Path.GetFullPath(outputPath), "--stop-file", Path.GetFullPath(stopFile),
+                "--mode", detailed ? "detailed" : "general",
+                "--max-seconds", maximumSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--bridge", Path.Combine(workerDirectory, "save-bridge"),
+            ], cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId,
+            line => { if (line.StartsWith("PROFILE\t", StringComparison.Ordinal)) progress?.Invoke(line["PROFILE\t".Length..]); });
 
     private async Task<AppOperationResult> RunArchiveAsync(
         string kind,
@@ -424,13 +450,16 @@ public sealed class OperationCoordinator(
         CancellationToken cancellationToken,
         string component = "archive-worker",
         string executable = "PzTools.Zomboid.Archive.Cli.exe",
-        string? operationId = null)
+        string? operationId = null,
+        Action<string>? standardOutput = null)
     {
-        var prefix = component == "archive-worker" ? $"archive-{kind}" : kind;
+        var prefix = component == "archive-worker" ? $"archive-{kind}" : component == "profiler" ? component : kind;
         operationId ??= $"{prefix}:{Guid.NewGuid():N}";
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
         await using var admission = await TryAcquireAsync(component == "character-recovery"
             ? [(scope, identity), (OperationScope.RepositoryWrite, repository.RepositoryPath)]
+            // Only one recording at a time, whatever its file is called.
+            : component == "profiler" ? [(scope, Path.Combine(operationsRoot, "profiler"))]
             : [(scope, identity)], cancellationToken);
         if (admission is null)
             return new AppOperationResult(operationId, 0, ProcessOutcome.Busy, null, "operation-busy");
@@ -456,12 +485,13 @@ public sealed class OperationCoordinator(
                 invocation,
                 component,
                 runIndex,
-                cancellationToken);
+                cancellationToken,
+                standardOutput);
             var outcome = execution.Outcome;
             finalStatus = ToOperationStatus(outcome);
             return new AppOperationResult(
                 operationId, runIndex, outcome, execution.ExitCode,
-                execution.Error, execution.ErrorMessage);
+                execution.Error, execution.ErrorMessage, execution.Result);
         }
         catch (OperationCanceledException)
         {
@@ -510,12 +540,13 @@ public sealed class OperationCoordinator(
         IReadOnlyList<string> arguments,
         string expectedComponent,
         long expectedRunIndex,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<string>? observeOutput = null)
     {
         var standardOutput = new StringBuilder();
         var standardError = new StringBuilder();
         var exit = await launcher.RunAsync(executable, arguments,
-            line => standardOutput.AppendLine(line),
+            line => { standardOutput.AppendLine(line); observeOutput?.Invoke(line); },
             line =>
             {
                 standardError.AppendLine(line);
@@ -528,9 +559,13 @@ public sealed class OperationCoordinator(
                     Guid.NewGuid().ToString("N"), "app-dispatch", Guid.Empty, 0, DateTimeOffset.UtcNow,
                     LogLevel.Error, expectedComponent, expectedRunIndex, "run.failed",
                     JsonSerializer.Serialize(new { failureCode = exit.FailureCode ?? "launch-failed",
-                        phase = "process-launch", message = standardError.ToString(), path = executable }))]);
+                        phase = "process-launch", message = standardError.ToString(), path = executable,
+                        nativeErrorCode = exit.NativeErrorCode }))]);
+            // Keep the code in front of Windows' own text so the user-facing mapping can recognise a policy block.
             return new ValidatedExecution(ProcessOutcome.Failed, exit.ExitCode,
-                exit.FailureCode ?? "launch-failed", standardError.ToString(), default);
+                exit.FailureCode ?? LaunchFailure.Failed,
+                exit.FailureCode == LaunchFailure.Blocked ? $"{LaunchFailure.Blocked}: {standardError}" : standardError.ToString(),
+                default);
         }
         try
         {

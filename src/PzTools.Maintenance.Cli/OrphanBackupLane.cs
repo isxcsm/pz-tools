@@ -35,6 +35,13 @@ internal static class OrphanBackupLane
                         await repository.ReserveWorkflowAsync("maintenance-lane", null, owner, null, run, token);
                         await repository.AttachWorkflowStageAsync(run, owner, token);
                         var timer = Stopwatch.StartNew();
+                        ProcessTelemetryHeartbeat? heartbeat = null;
+                        var announced = false;
+                        async Task StopHeartbeatAsync()
+                        {
+                            if (heartbeat is not null) await heartbeat.DisposeAsync();
+                            heartbeat = null;
+                        }
                         try
                         {
                             using var gameplayWatch = GameplayWorkGate.WatchForGameplay(cancellation);
@@ -48,41 +55,84 @@ internal static class OrphanBackupLane
                                     JsonSerializer.Serialize(recovery), configurationPath);
                             await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
                             var result = await new OrphanBackupCleanupService().RunAsync(repository, lease, savesRoot, token,
-                                item => BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
-                                    "maintenance.orphanbackups.removed", JsonSerializer.Serialize(new
+                                async item =>
+                                {
+                                    // The first confirmed orphan is when this once-a-minute check turns into real work.
+                                    if (!announced)
                                     {
-                                        saveId = item.SaveId,
-                                        removedRevisions = item.Revisions,
-                                    }), configurationPath), collectPaths: false);
+                                        announced = true;
+                                        await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
+                                            "maintenance.orphanbackups.started",
+                                            JsonSerializer.Serialize(new { lane, planned = true }), configurationPath);
+                                        heartbeat = ProcessTelemetryHeartbeat.Start(
+                                            repositoryPath, owner, run, configurationPath, TimeSpan.FromSeconds(3));
+                                    }
+                                    await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
+                                        "maintenance.orphanbackups.removed", JsonSerializer.Serialize(new
+                                        {
+                                            saveId = item.SaveId,
+                                            removedRevisions = item.Revisions,
+                                        }), configurationPath);
+                                }, collectPaths: false);
                             var housekeeping = await new RepositoryHousekeepingService().RunAsync(
                                 repository, lease, null, run, options, token);
+                            // Last: the steps above free objects, and only data still needed should be copied.
+                            var reclaimed = await new PackSpaceReclaimer().RunAsync(
+                                repository, lease, options.PackReclamation, async plan =>
+                                {
+                                    announced = true;
+                                    await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
+                                        "maintenance.packreclamation.started", JsonSerializer.Serialize(new
+                                        {
+                                            lane, planned = true, packs = plan.Packs.Count,
+                                            packBytes = plan.PackBytes, liveBytes = plan.LiveBytes,
+                                        }), configurationPath);
+                                    heartbeat ??= ProcessTelemetryHeartbeat.Start(
+                                        repositoryPath, owner, run, configurationPath, TimeSpan.FromSeconds(3));
+                                }, token);
                             var failedFiles = result.FilesThatCouldNotBeDeleted
-                                .Concat(housekeeping.FilesThatCouldNotBeDeleted).ToArray();
+                                .Concat(housekeeping.FilesThatCouldNotBeDeleted)
+                                .Concat(reclaimed.FilesThatCouldNotBeDeleted).ToArray();
                             var status = failedFiles.Length == 0
                                 ? WorkflowStatus.Succeeded : WorkflowStatus.Degraded;
                             await FinishAsync(status);
+                            await StopHeartbeatAsync();
+                            if (reclaimed.RewrittenPacks > 0)
+                                await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
+                                    "maintenance.packreclamation.completed", JsonSerializer.Serialize(new
+                                    {
+                                        outcome = status.ToString(),
+                                        planned = true,
+                                        AffectedItems = reclaimed.RewrittenPacks,
+                                        reclaimedBytes = reclaimed.ReclaimedBytes,
+                                        relocatedObjects = reclaimed.RelocatedObjects,
+                                    }), configurationPath);
                             if (housekeeping.AffectedItems > 0 || housekeeping.Vacuum.Status == "compacted")
                                 await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
                                     "maintenance.database.completed", JsonSerializer.Serialize(new
                                     {
                                         outcome = status.ToString(),
+                                        housekeeping.AffectedItems,
                                         database = housekeeping.ToDetail(),
                                         failureCode = failedFiles.Length == 0 ? null : "file-delete-failed",
                                     }), configurationPath);
-                            if (failedFiles.Length > 0)
+                            if (result.Removed.Count > 0 || failedFiles.Length > 0)
                                 await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
                                 "maintenance.orphanbackups.completed", JsonSerializer.Serialize(new
                                 {
                                     outcome = status.ToString(),
+                                    planned = result.Removed.Count > 0,
+                                    AffectedItems = result.Removed.Sum(item => item.Revisions),
                                     removed = result.Removed,
                                     result.DeferredSources,
-                                    failureCode = "file-delete-failed",
+                                    failureCode = failedFiles.Length == 0 ? null : "file-delete-failed",
                                     failedFileCount = failedFiles.Length,
                                     failedFiles = failedFiles.Take(8).Select(Path.GetFileName).ToArray(),
                                 }), configurationPath);
                             return (status == WorkflowStatus.Succeeded ? ProcessOutcome.Succeeded : ProcessOutcome.Degraded,
                                 (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, status.ToString(),
-                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions) + housekeeping.AffectedItems,
+                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions)
+                                        + housekeeping.AffectedItems + reclaimed.RewrittenPacks,
                                     housekeeping.ToDetail()), run);
                         }
                         catch (Exception exception)
@@ -90,6 +140,12 @@ internal static class OrphanBackupLane
                             var status = exception is OperationCanceledException ? WorkflowStatus.Cancelled
                                 : exception is RepositoryBusyException ? WorkflowStatus.Busy : WorkflowStatus.Failed;
                             await FinishAsync(status);
+                            await StopHeartbeatAsync();
+                            // A yield after an announced start needs its closing event; an unannounced one stays silent.
+                            if (status == WorkflowStatus.Cancelled && announced)
+                                await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
+                                    "maintenance.orphanbackups.cancelled", FailureTelemetry.FromException(
+                                        "cancelled", exception, status: status.ToString(), operation: "maintenance"), configurationPath);
                             if (status == WorkflowStatus.Failed)
                                 await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, owner, run,
                                     "maintenance.orphanbackups.failed", FailureTelemetry.FromException(

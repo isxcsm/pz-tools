@@ -10,10 +10,21 @@ public final class GameWindow {
     public static String mode;
     public static long ticks;
     private static int memoryOnlyState;
-    public static final class States { public Object current = new zombie.gameStates.IngameState(); }
+    public static final class States {
+        public Object current = new zombie.gameStates.IngameState();
+        // Like the game's state machine: a state that yields to another waits here.
+        private final java.util.Stack<Object> yieldStack = new java.util.Stack<>();
+    }
 
     public static boolean isIngameState() { return states.current instanceof zombie.gameStates.IngameState; }
-    private static void logic() { ticks++; zombie.characters.IsoPlayer.tickHalo(); }
+    private static boolean busy;
+    private static double sink;
+    private static void logic() { ticks++; zombie.characters.IsoPlayer.tickHalo(); if (busy) simulateWork(); }
+    // Something for a profile recording to see: a few milliseconds of plain Java each frame.
+    private static void simulateWork() {
+        long until = System.nanoTime() + 8_000_000L;
+        while (System.nanoTime() < until) for (int i = 1; i < 2000; i++) sink += Math.sqrt(i);
+    }
 
     public static void save(boolean flag) throws IOException {
         if (Thread.currentThread() != gameThread || !flag) throw new IOException("Wrong save invocation");
@@ -73,11 +84,19 @@ public final class GameWindow {
                 states.current = new zombie.gameStates.MainScreenState();
                 zombie.core.Core.exiting = true;
             }
+            // A debug tool yields the game and runs on top of it; the world stays loaded.
+            if (consumeSignal(Path.of(args[0], "open-debug-tool"))) {
+                states.yieldStack.push(states.current);
+                states.current = new zombie.gameStates.DebugChunkState();
+            }
+            if (consumeSignal(Path.of(args[0], "close-debug-tool")) && !states.yieldStack.isEmpty())
+                states.current = states.yieldStack.pop();
             if (consumeSignal(Path.of(args[0], "die-player"))) zombie.characters.IsoPlayer.die();
             if (consumeSignal(Path.of(args[0], "respawn-player"))) zombie.characters.IsoPlayer.respawn();
             if (consumeSignal(Path.of(args[0], "ambiguous-players"))) zombie.characters.IsoPlayer.numPlayers = 2;
             if (consumeSignal(Path.of(args[0], "single-player"))) zombie.characters.IsoPlayer.numPlayers = 1;
             if (consumeSignal(Path.of(args[0], "fail-save"))) mode = "throw";
+            if (consumeSignal(Path.of(args[0], "busy-game"))) busy = true;
             if (consumeSignal(Path.of(args[0], "sleep-player"))) zombie.characters.IsoPlayer.getInstance().asleep = true;
             if (consumeSignal(Path.of(args[0], "wake-player"))) zombie.characters.IsoPlayer.getInstance().asleep = false;
             if (consumeSignal(Path.of(args[0], "pause-game"))) zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(0);
@@ -89,6 +108,12 @@ public final class GameWindow {
                 Path staged = Path.of(args[0], "halo-state.tmp");
                 zombie.characters.IsoPlayer.inspectHalo(staged);
                 Files.move(staged, Path.of(args[0], "halo-state.txt"), StandardCopyOption.REPLACE_EXISTING);
+            }
+            if (consumeSignal(Path.of(args[0], "inspect-stamp"))) {
+                var data = zombie.characters.IsoPlayer.getInstance().getModData();
+                Path staged = Path.of(args[0], "stamp-state.tmp");
+                Files.writeString(staged, data.rawget("pztools.recovery.id") + "\n" + data.rawget("pztools.recovery.primary"));
+                Files.move(staged, Path.of(args[0], "stamp-state.txt"), StandardCopyOption.REPLACE_EXISTING);
             }
             if (consumeSignal(Path.of(args[0], "inspect-control"))) {
                 String endpoint = System.getProperty("pztools.bridge.control.v1", "");

@@ -22,12 +22,11 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal("true", values["torque_enabled"]);
         Assert.Equal("true", values["reverse_enabled"]);
         Assert.Equal("true", values["steering_enabled"]);
-        Assert.Equal("1.8", values["steering_initial_rate"]);
-        Assert.Equal("7.5", values["steering_full_rate"]);
-        Assert.Equal("0.1", values["steering_ramp_seconds"]);
-        Assert.Equal("8", values["steering_return_rate"]);
-        Assert.Equal("8", values["steering_countersteer_rate"]);
-        Assert.Equal("0.6", values["steering_high_speed_rate_factor"]);
+        Assert.Equal("true", values["steering_precise_input"]);
+        Assert.Equal("true", values["area_light_enabled"]);
+        Assert.Equal("8", values["area_light_radius"]);
+        Assert.Equal("0.6", values["area_light_brightness"]);
+        Assert.DoesNotContain("steering_full_rate", values.Keys);
         Assert.Equal("1", values["forward_governor_start_fraction"]);
         Assert.Equal("1", values["reverse_governor_start_fraction"]);
         Assert.Equal("0", VehicleDrivetrainConfiguration.Parse("")["reverse_max_speed_kph"]);
@@ -92,14 +91,8 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("reverse_max_speed_kph = 36")]
     [InlineData("reverse_max_speed_kph = nan")]
     [InlineData("reverse_max_speed_kph = inf")]
-    [InlineData("steering_initial_rate = 0")]
-    [InlineData("steering_full_rate = inf")]
-    [InlineData("steering_ramp_seconds = 0")]
-    [InlineData("steering_return_rate = 11")]
-    [InlineData("steering_countersteer_rate = nan")]
-    [InlineData("steering_high_speed_rate_factor = 0.19")]
-    [InlineData("steering_high_speed_rate_factor = 1.01")]
-    [InlineData("steering_initial_rate = 3\nsteering_full_rate = 2")]
+    [InlineData("steering_precise_input = 1")]
+    [InlineData("steering_full_rate = 'fast'")]
     public void InvalidOrAmbiguousConfigurationIsRejected(string text) =>
         Assert.Throws<InvalidDataException>(() => VehicleDrivetrainConfiguration.Parse(text));
 
@@ -115,10 +108,6 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("forward_torque_boost_fraction", "0", "0")]
     [InlineData("forward_torque_boost_fraction", "0.05", "0.05")]
     [InlineData("forward_torque_boost_fraction", "0.10", "0.1")]
-    [InlineData("steering_return_rate", "0.5", "0.5")]
-    [InlineData("steering_return_rate", "10.0", "10")]
-    [InlineData("steering_countersteer_rate", "0.5", "0.5")]
-    [InlineData("steering_countersteer_rate", "12.0", "12")]
     public void VehicleRelativeReverseSentinelAndExplicitBoundaryValuesAreAccepted(string key, string value, string canonical)
     {
         var parsed = VehicleDrivetrainConfiguration.Parse($"{key} = {value}");
@@ -152,6 +141,15 @@ public sealed class VehicleDrivetrainConfigurationTests
     }
 
     [Fact]
+    public void RetiredSteeringRatesInAnOlderOverrideFileAreIgnoredNotRejected()
+    {
+        var values = VehicleDrivetrainConfiguration.Parse("steering_full_rate = 7.5\nsteering_high_speed_rate_factor = 0.6\nforce_scale = 0.9\nsteering_precise_input = false\n");
+        Assert.Equal("0.9", values["force_scale"]);
+        Assert.Equal("false", values["steering_precise_input"]);
+        Assert.DoesNotContain(values.Keys, key => key.StartsWith("steering_", StringComparison.Ordinal) && key is not ("steering_enabled" or "steering_precise_input"));
+    }
+
+    [Fact]
     public void BoundedProfileTuningIsIncludedInTheFlatWireContract()
     {
         var values = VehicleDrivetrainConfiguration.Parse("""
@@ -173,7 +171,7 @@ public sealed class VehicleDrivetrainConfigurationTests
             shift_hysteresis_fraction = 0.1
             demand_downshift_fraction = 0.5
             """);
-        Assert.Equal(41, values.Count);
+        Assert.Equal(39, values.Count);
         Assert.Equal("4", values["gear_ratio_span"]);
         Assert.Equal("700", values["idle_rpm"]);
         Assert.Equal("6000", values["generic_redline_rpm"]);
@@ -248,8 +246,9 @@ public sealed class VehicleDrivetrainConfigurationTests
         Directory.CreateDirectory(temp.GetPath("runtime/extensions"));
         File.WriteAllText(temp.GetPath("bridge/extensions/vehicle-drivetrain.toml"), "schema_version = 1");
         File.WriteAllText(temp.GetPath("runtime/extensions/vehicle-drivetrain.toml"),
-            "torque_enabled = false\nreverse_enabled = false\nsteering_enabled = false\nprobe_only = true\n");
+            "torque_enabled = false\nreverse_enabled = false\nsteering_enabled = false\narea_light_enabled = false\nprobe_only = true\n");
         var defaults = VehicleDrivetrainConfiguration.Load(temp.GetPath("bridge"), temp.GetPath("runtime"));
+        Assert.Equal("true", defaults["area_light_enabled"]);
         Assert.Equal("true", defaults["torque_enabled"]);
         Assert.Equal("true", defaults["reverse_enabled"]);
         Assert.Equal("true", defaults["steering_enabled"]);
@@ -299,8 +298,42 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal(torque ? "true" : "false", values["torque_enabled"]);
         Assert.Equal(reverse ? "true" : "false", values["reverse_enabled"]);
         Assert.Equal(steering ? "true" : "false", values["steering_enabled"]);
+        Assert.Equal("true", values["area_light_enabled"]);
         Assert.DoesNotContain("probeOnly", File.ReadAllText(store.FilePath));
         Assert.DoesNotContain("lowMode", File.ReadAllText(store.FilePath));
+    }
+
+    [Theory]
+    [InlineData("area_light_radius = 2")]
+    [InlineData("area_light_radius = 21")]
+    [InlineData("area_light_brightness = 0")]
+    [InlineData("area_light_brightness = 1.1")]
+    [InlineData("area_light_enabled = 1")]
+    public void AreaLightTuningIsBounded(string toml) =>
+        Assert.Throws<InvalidDataException>(() => VehicleDrivetrainConfiguration.Parse(toml));
+
+    [Fact]
+    public void AreaLightSwitchRoundTripsAndTuningComesFromToml()
+    {
+        using var temp = new TempDirectory();
+        var store = new ExtensionSettingsStore(temp.Path);
+        var options = new VehicleDrivetrainPreference(AreaLightEnabled: true);
+        store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, false, options), 0);
+        var saved = store.Read().Extensions[ExtensionIds.VehicleDrivetrain];
+        Assert.Equal(options, saved.VehicleDrivetrain);
+        Assert.Matches("\"areaLightEnabled\":\\s*true", File.ReadAllText(store.FilePath));
+        Directory.CreateDirectory(temp.GetPath("extensions"));
+        File.WriteAllText(temp.GetPath("extensions/vehicle-drivetrain.toml"), "schema_version = 1\narea_light_radius = 12\narea_light_brightness = 0.35\n");
+        var values = VehicleDrivetrainConfiguration.Load(temp.Path, temp.GetPath("overrides"), saved.VehicleDrivetrain);
+        Assert.Equal("true", values["area_light_enabled"]);
+        Assert.Equal("12", values["area_light_radius"]);
+        Assert.Equal("0.35", values["area_light_brightness"]);
+        // On when not written, like the other switches (files from before the light existed lack it);
+        // an old observation-only file still turns it off.
+        foreach (var json in new[] { "{}", "{\"steeringEnabled\":true}" })
+            Assert.True(System.Text.Json.JsonSerializer.Deserialize<VehicleDrivetrainPreference>(json)!.AreaLightEnabled);
+        foreach (var json in new[] { "{\"areaLightEnabled\":false}", "{\"probeOnly\":true}", "{\"probeOnly\":true,\"areaLightEnabled\":true}" })
+            Assert.False(System.Text.Json.JsonSerializer.Deserialize<VehicleDrivetrainPreference>(json)!.AreaLightEnabled);
     }
 
     [Theory]
@@ -318,7 +351,9 @@ public sealed class VehicleDrivetrainConfigurationTests
         File.WriteAllText(store.FilePath, original);
         var read = store.Read();
         Assert.Equal(7, read.Revision);
-        Assert.Equal(new VehicleDrivetrainPreference(torque, reverse, steering), read.Extensions[ExtensionIds.VehicleDrivetrain].VehicleDrivetrain);
+        // The light was never written by these files: on, unless the file is an old observation-only one.
+        var light = !json.Contains("\"probeOnly\":true", StringComparison.Ordinal);
+        Assert.Equal(new VehicleDrivetrainPreference(torque, reverse, steering, light), read.Extensions[ExtensionIds.VehicleDrivetrain].VehicleDrivetrain);
         Assert.Equal(original, File.ReadAllText(store.FilePath));
     }
 
@@ -356,13 +391,13 @@ public sealed class VehicleDrivetrainConfigurationTests
         using var temp = new TempDirectory();
         var views = new RevisionedViewStore();
         RuntimeExtensionStatus? state = null;
-        var controller = new GameExtensionController(temp.Path, views, () => false, extensionStatus: () => state);
+        var controller = new GameExtensionController(temp.Path, views, () => false, extensionStatus: _ => state);
         var before = await controller.RefreshAsync();
-        Assert.Null(before.VehicleStatus);
+        Assert.Null(before.StatusOf(ExtensionIds.VehicleDrivetrain));
         state = new(RuntimeExtensionState.Pending, "waiting-for-game");
         await controller.RefreshRuntimeAsync(default);
         var first = views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0);
-        Assert.Equal(state, first.Snapshot!.VehicleStatus);
+        Assert.Equal(state, first.Snapshot!.StatusOf(ExtensionIds.VehicleDrivetrain));
         Assert.False(first.Snapshot.GameSavingEnabled);
         Assert.All(first.Snapshot.Cards, card => Assert.False(card.Enabled));
         await controller.RefreshRuntimeAsync(default);

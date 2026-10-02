@@ -2,46 +2,80 @@
 
 [User guide](../README.md)
 
-Documentation is maintained in English. The app's interface languages are managed separately.
+The [user guide](../README.md) covers installing and everyday use. The pages below go
+further. They are in English; the app's interface languages are managed separately.
 
-## Use and configuration
+## Start here
 
-- [Configuration](configuration.md) — preferences, paths and backup policy
-- [Deployment layout](deployment-layout.md) — app files versus user data
-- [CLI commands](cli.md) — backup, restore, ZIP and maintenance
-- [Advanced runtime settings](runtime-configuration.md) — component tuning
-- [Game-save bridge](save-bridge.md) — saving before capture and compatibility
-- [Runtime observation](runtime-pause-backups.md) — pause/sleep-aware timing
-- [Character state and death](runtime-character-death.md) — live observations and death-triggered backups
-- [Character recovery](character-recovery.md) — healing, revival and inventory limits
-- [Game extensions](game-extensions.md) — optional vehicle controls
-- [Vehicle acceptance checks](e2e-vehicle-drivetrain.md) — testing and rollback
+- [How PZ Tools fits together](overview.md): the map. What runs where, what one
+  backup does, and how the app follows the game. Read this before any design page.
+- [Glossary](glossary.md): the terms the other pages use without explaining, such as
+  revision, run index, lease, WATCH and generation.
 
-## Design references
+## Using PZ Tools
 
-- Storage: [repository](repository-format.md), [packs](pack-format.md), [compact representation](compact-repository-format.md), [paths](path-normalization.md), [housekeeping](repository-housekeeping.md)
-- Capture: [USN tracking](usn-journal.md), [stable copies and memory limits](stable-capture.md)
-- Runtime: [process architecture](process-architecture.md), [telemetry](telemetry.md), [JVM reload](module-reload.md), [vehicle model](vehicle-drivetrain-design.md)
-- UI: [interaction contract](ui-ux-contract.md), [assets](ui-assets.md), [localization](localization.md)
+For people running the app who want more detail than the user guide.
+
+| Page | Read it when you want to know… |
+| --- | --- |
+| [Configuration](configuration.md) | What each setting does, where settings are stored, and how backup limits work |
+| [Game-aware backup timing](runtime-pause-backups.md) | Why the countdown paused, or why a backup ran without a game save |
+| [Death backups](runtime-character-death.md) | When a death backup is made, why periodic backups stop after a death, and what the last-save report shows |
+| [Saving the game before a backup](save-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
+| [Character recovery](character-recovery.md) | What healing, revival and inventory recovery can and cannot do |
+| [Game extensions](game-extensions.md) | What the optional in-game features are and when their settings take effect |
+| [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares |
+| [Vehicle test guide](e2e-vehicle-drivetrain.md) | How to test the vehicle extension in a real game, tune it and back out |
+| [Command line](cli.md) | How to run backup, restore, ZIP and maintenance without the app |
+| [Advanced component settings](runtime-configuration.md) | How to tune the background programs' settings files: timeouts, buffers and polling intervals |
+| [Files and folders](deployment-layout.md) | Which files belong to the app, to you, and to a backup folder, and the limits for importing ZIP files |
+
+## How it works
+
+Design pages. Each explains one part; the [overview](overview.md) shows how they connect.
+
+**Backups and storage**
+
+- [Repository format](repository-format.md): what a backup folder contains and when a backup counts as saved
+- [Pack format](pack-format.md) and [compact storage](compact-repository-format.md): how file contents are stored
+- [Path identities](path-normalization.md): how file names and case-only renames are recorded
+- [Housekeeping](repository-housekeeping.md): trimming, reclaiming space and removing backups of deleted saves
+- [USN change tracking](usn-journal.md) and [stable capture](stable-capture.md): finding changed files and copying files the game may be writing
+
+**Processes and the game**
+
+- [Process architecture](process-architecture.md): the schedulers, runners and workers, and which database each owns
+- [Telemetry](telemetry.md): the diagnostic records behind progress cards and logs
+- [Component updates](module-reload.md): replacing code inside a running game without a restart
+- [Vehicle model](vehicle-drivetrain-design.md): how the vehicle extension computes and applies driving forces
+
+**Interface**
+
+- [UI contract](ui-ux-contract.md): the rules for changing the app's screens
+- [UI assets](ui-assets.md): app icons, logo and illustrations
+- [Localization](localization.md): interface languages and translation
 
 ## Contributing
 
-- [Development and validation](development.md)
-- [Documentation maintenance](documentation-maintenance.md)
+- [Development and validation](development.md): building, tests and integration checks
+- [Documentation maintenance](documentation-maintenance.md): where a new page goes and how to write it
 - [Third-party notices](../THIRD_PARTY_NOTICES.md)
 
 <a id="measurements-and-history"></a>
-## Measurements and history
+## History and measurements
 
-These records describe specific workloads or earlier work, not current guarantees or an active backlog.
+Records of earlier work, kept in [history/](history/). Each describes the code and
+the measurements of its time. They are not current instructions, guarantees or a
+to-do list, and they are not updated.
 
-- [Backup tuning](backup-tuning.md) and [performance profiling](performance-profile.md)
-- [Verification report](verification-report.md)
-- [Storage performance](storage-performance.md) and [hotpaths](storage-hotpaths.md)
-- [Gameplay background load](gameplay-background-load.md)
-- [Active-backup follow-up](active-backup-followup.md)
-- [Connection and merge review](connection-startup-and-merge-review.md)
-- [Fingerprint reconciliation](fingerprint-followup.md)
-- [Localization review](localization-review.md)
-- [Historical application plan](implementation-roadmap.md)
-- [Computer-use diagnosis](computer-use-diagnosis.md)
+- [Backup tuning](history/backup-tuning.md) and [performance profiling](history/performance-profile.md)
+- [Verification report](history/verification-report.md)
+- [Storage performance](history/storage-performance.md) and [storage hotpaths](history/storage-hotpaths.md)
+- [Compact storage measurements](history/compact-repository-measurements.md) and [path normalization measurements](history/path-normalization-measurements.md)
+- [Gameplay background load](history/gameplay-background-load.md)
+- [Active-backup follow-up](history/active-backup-followup.md)
+- [Connection and merge review](history/connection-startup-and-merge-review.md)
+- [Fingerprint reconciliation](history/fingerprint-followup.md)
+- [Localization review](history/localization-review.md)
+- [Historical application plan](history/implementation-roadmap.md)
+- [Computer-use diagnosis](history/computer-use-diagnosis.md)

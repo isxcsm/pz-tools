@@ -3,7 +3,8 @@ using PzTools.Process.Hosting;
 
 namespace PzTools.App.Core;
 
-public sealed record ManagedProcessExit(bool Started, int? ExitCode, string? FailureCode);
+// NativeErrorCode: why Windows would not start it, as its own number (5 is access denied).
+public sealed record ManagedProcessExit(bool Started, int? ExitCode, string? FailureCode, int? NativeErrorCode = null);
 
 public interface IManagedProcessLauncher
 {
@@ -25,7 +26,7 @@ public sealed class ManagedProcessLauncher(int shutdownGraceMs = 2000) : IManage
         var result = await new ChildProcessHost().RunAsync(executable, arguments,
             cancellationToken, standardOutput, standardError, captureOutput: false, shutdownGraceMs: shutdownGraceMs).ConfigureAwait(false);
         if (!result.Started && !string.IsNullOrWhiteSpace(result.StandardError)) standardError?.Invoke(result.StandardError);
-        return new(result.Started, result.ExitCode, result.FailureCode);
+        return new(result.Started, result.ExitCode, result.FailureCode, result.NativeErrorCode);
     }
 }
 

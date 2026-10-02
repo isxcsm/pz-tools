@@ -3,22 +3,30 @@ using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Zomboid.Recovery;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 const string component = "character-recovery";
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;
 ProcessTelemetrySession? telemetry = null;
 try
 {
-    runIndex = long.Parse(Required("--run-index"), System.Globalization.CultureInfo.InvariantCulture);
+    runIndex = CommandLine.Int64(Required("--run-index"), "--run-index");
     var root = Required("--saves-root");
     var saveId = Required("--save-id");
+    // Only when the save holds several characters: the one the user chose.
+    long? playerId = CommandLine.Optional(args, "--player-id") is { } player
+        ? CommandLine.Int64(player, "--player-id") : null;
+    // A dead character's remains as the user chose them in the preview, or "none" to revive without them.
+    var remains = CommandLine.Optional(args, "--remains");
     telemetry = await ProcessTelemetrySession.StartAsync(Required("--telemetry-identity"), component, runIndex);
     telemetry.RecordEvent("run.started");
     await using var heartbeat = ProcessTelemetryHeartbeat.Start(telemetry);
     var locked = await OperationMutexSet.TryRunAsync([
         new OperationMutexRequest(OperationMutexScope.SaveWrite, Path.Combine(root, saveId)),
         new OperationMutexRequest(OperationMutexScope.RepositoryAccess, Required("--repository"))],
-        token => new CharacterRecoveryService().RecoverAsync(root, saveId, token));
+        token => new CharacterRecoveryService().RecoverAsync(root, saveId, playerId, remains, token));
     var outcome = locked.Acquired ? ProcessOutcome.Succeeded : ProcessOutcome.Busy;
     telemetry.RecordEvent(locked.Acquired ? "run.committed" : "run.busy",
         locked.Acquired ? System.Text.Json.JsonSerializer.Serialize(locked.Value) : null);
@@ -39,10 +47,4 @@ catch (Exception exception)
 }
 finally { if (telemetry is not null) await telemetry.DisposeAsync(); }
 
-string Required(string key)
-{
-    var matches = args.Select((value, index) => (value, index)).Where(x => x.value == key).ToArray();
-    if (matches.Length != 1 || matches[0].index + 1 >= args.Length)
-        throw new ArgumentException($"{key} is required exactly once.");
-    return args[matches[0].index + 1];
-}
+string Required(string key) => CommandLine.Required(args, key);

@@ -34,6 +34,29 @@ public static class LanguageCatalog
     public static SupportedLanguage Parse(string value) => TryParse(value, out var language)
         ? language : throw new ArgumentException($"Unsupported language '{value}'.", nameof(value));
 
+    /// <summary>
+    /// Backups store the name they were given in the language of that day. A name nobody edited
+    /// is recognised in every language, so the list can show it in the language of today.
+    /// </summary>
+    public static bool IsDefaultBackupName(string? name, long revision)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        var trimmed = name.Trim();
+        // Workers write the plain number; the app writes it as its language groups digits ("1,000", "1.000",
+        // "1 000"), when a cleared name is saved as the default. Both are the default name.
+        var numbers = All.Select(language => revision.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo(language.Tag)))
+            .Prepend(revision.ToString(System.Globalization.CultureInfo.InvariantCulture)).Distinct();
+        foreach (var number in numbers)
+        {
+            var suffix = " " + number;
+            if (!trimmed.EndsWith(suffix, StringComparison.Ordinal)) continue;
+            var prefix = trimmed[..^suffix.Length];
+            if (All.Any(language => prefix == language.BackupName
+                || prefix == language.ManualBackupName || prefix == language.AutomaticBackupName)) return true;
+        }
+        return false;
+    }
+
     private static Dictionary<string, SupportedLanguage> CreateNames()
     {
         var names = new Dictionary<string, SupportedLanguage>(StringComparer.OrdinalIgnoreCase);

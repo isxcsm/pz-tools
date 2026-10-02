@@ -12,7 +12,7 @@ public enum RuntimeSleep { Unknown, Awake, Asleep }
 public enum RuntimeMode { Unsupported, LocalSinglePlayer, Networked }
 public enum RuntimeQuality { Unknown, Fresh, Stale, Unsupported, Ambiguous, Offline }
 [Flags]
-public enum ScheduleHold { None = 0, Disabled = 1, NoWorld = 2, GamePaused = 4, Unknown = 8, Unsupported = 16, Ambiguous = 32, Sleeping = 64, GameOffline = 128 }
+public enum ScheduleHold { None = 0, Disabled = 1, NoWorld = 2, GamePaused = 4, Unknown = 8, Unsupported = 16, Ambiguous = 32, Sleeping = 64, GameOffline = 128, CharacterDead = 256 }
 public enum ScheduleDisposition { Default, Preserve, Consume, CompletionUnknown }
 
 /// <summary>Durations belong to one observer/clock epoch, never to the host's UTC clock.</summary>
@@ -25,6 +25,11 @@ public sealed record RuntimeSnapshot(
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
     public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
     public bool IsWorldReady => Phase == WorldPhase.Ready && Mode == RuntimeMode.LocalSinglePlayer && SavePath is not null;
+    /// <summary>
+    /// The observer's initial snapshot, repeated until the game's main loop first runs. A game that runs
+    /// but cannot be read is sampled too: its Unknown moves past sequence 0 within a tenth of a second.
+    /// </summary>
+    public bool IsBeforeFirstFrame => Sequence == 0 && Phase == WorldPhase.Unknown;
     public RuntimeSnapshot Validate()
     {
         if (!Id(ProcessSession) || !Id(ObserverEpoch) || !Id(WorldSession)
@@ -73,12 +78,44 @@ public sealed record RuntimeSnapshot(
 /// <summary>Current state, not a complete event history. Only committed semantic revisions may be published.</summary>
 public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quality, RuntimeSnapshot? Snapshot,
     long StateRevision = 0, long AgeMilliseconds = 0, string? Reason = null, string AuthorityEpoch = "",
-    RuntimeExtensionStatus? Extension = null)
+    RuntimeExtensionStatus? Extension = null,
+    IReadOnlyDictionary<string, RuntimeExtensionStatus>? Extensions = null)
 {
+    /// <summary>
+    /// A module's own status. <see cref="Extension"/> is about the connection as a whole and stands
+    /// for any module that has not reported on its own.
+    /// </summary>
+    public RuntimeExtensionStatus? ExtensionFor(string moduleId) =>
+        Extensions is not null && Extensions.TryGetValue(moduleId, out var own) ? own : Extension;
     public string SemanticKey => $"{StreamEpoch}/{Quality}/{Snapshot?.SemanticKey}/{Reason}";
     public bool IsFresh => Quality == RuntimeQuality.Fresh && AgeMilliseconds <= 2000
         && Snapshot is { SampleAgeMilliseconds: <= 2000 };
     public static RuntimeObservation Unknown(string? reason = null) => new("", RuntimeQuality.Unknown, null, Reason: reason);
+    /// <summary>
+    /// The played character is dead. Periodic backups of a dead character only push the backups
+    /// made while it was alive out of the retained history, so they wait for a new life.
+    /// </summary>
+    public bool IsCharacterDead => IsFresh && Snapshot is { IsWorldReady: true, CharacterLife: RuntimeCharacterLife.Dead };
+    /// <summary>
+    /// Connected, but the game has not run a frame yet: its observer samples on the main loop, which
+    /// starts only after the initial load, and that load can take minutes.
+    /// </summary>
+    public const string GameStartingReason = "game-starting";
+    /// <summary>The game still runs a bridge older than this app's; it connects again after a game restart.</summary>
+    public const string RestartRequiredReason = "runtime-restart-required";
+    /// <summary>
+    /// A game is running but its state cannot be read: the connection failed, or it answers without
+    /// a recognisable game state (for example after a game update). An absent game, a second game,
+    /// multiplayer, a game still starting and a loading world are known states, not an unusable link.
+    /// </summary>
+    public bool IsLinkUnusable => Quality is RuntimeQuality.Unknown && Reason != GameStartingReason
+        || Quality is RuntimeQuality.Stale
+        || Quality == RuntimeQuality.Fresh && Snapshot is { Phase: WorldPhase.Unknown };
+    /// <summary>The running game's version, only while it has this save loaded; a save records no version itself.</summary>
+    public string? GameVersionFor(string savePath) =>
+        IsFresh && Snapshot is { IsWorldReady: true, GameVersion: { } version } && !string.IsNullOrWhiteSpace(version)
+        && StringComparer.OrdinalIgnoreCase.Equals(Snapshot.SavePath, Path.TrimEndingDirectorySeparator(Path.GetFullPath(savePath)))
+            ? version.Trim() : null;
     public RuntimeObservation Validate()
     {
         if (!Enum.IsDefined(Quality) || StateRevision < 0 || AgeMilliseconds < 0
@@ -87,6 +124,15 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
             throw new InvalidDataException("Invalid runtime observation.");
         var normalized = Snapshot?.Validate();
         Extension?.Validate();
+        if (Extensions is { } modules)
+        {
+            if (modules.Count > 64) throw new InvalidDataException("Too many extension statuses.");
+            foreach (var (id, status) in modules)
+            {
+                if (string.IsNullOrEmpty(id) || id.Length > 80 || status is null) throw new InvalidDataException("Invalid extension status entry.");
+                status.Validate();
+            }
+        }
         if (Quality == RuntimeQuality.Fresh && normalized is null) throw new InvalidDataException("Missing live snapshot.");
         return ReferenceEquals(normalized, Snapshot) ? this : this with { Snapshot = normalized };
     }

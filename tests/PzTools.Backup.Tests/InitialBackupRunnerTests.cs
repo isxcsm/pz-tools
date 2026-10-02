@@ -61,7 +61,7 @@ public sealed class InitialBackupRunnerTests
         Assert.Equal(1, await ScalarAsync(connection, "SELECT COUNT(*) FROM packs;"));
         Assert.Equal("Succeeded", await TextScalarAsync(
             connection,
-            "SELECT status FROM runs WHERE run_index = 1;"));
+            "SELECT status FROM worker_runs WHERE run_index = 1;"));
 
         var packPath = Directory.GetFiles(Path.Combine(repositoryPath, "packs"), "*.pzpack").Single();
         await using var pack = await PackReader.OpenAsync(packPath, verifyPayloads: true);
@@ -104,7 +104,7 @@ public sealed class InitialBackupRunnerTests
         Assert.Equal(0, await ScalarAsync(connection, "SELECT COUNT(*) FROM packs;"));
         Assert.Equal("Failed", await TextScalarAsync(
             connection,
-            "SELECT status FROM runs WHERE run_index = 1;"));
+            "SELECT status FROM worker_runs WHERE run_index = 1;"));
         var failure = Assert.Single(await telemetry.ReadEventsAsync(1),
             item => item.Name == "run.failed");
         using (var details = System.Text.Json.JsonDocument.Parse(failure.PayloadJson!))
@@ -150,7 +150,7 @@ public sealed class InitialBackupRunnerTests
         Assert.Equal(0, await ScalarAsync(connection, "SELECT COUNT(*) FROM revisions;"));
         Assert.Equal("Succeeded", await TextScalarAsync(
             connection,
-            "SELECT status FROM runs WHERE run_index = 1;"));
+            "SELECT status FROM worker_runs WHERE run_index = 1;"));
     }
 
     private static InitialBackupRunner CreateRunner(ICheckpointBoundaryProvider boundaryProvider)

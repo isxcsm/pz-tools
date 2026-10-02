@@ -1,95 +1,148 @@
-# Advanced runtime configuration
+# Advanced component settings
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
 
-Operational tuning is read at the owning process boundary and passed to the
-implementation. Libraries do not repeatedly read TOML during a scan or copy.
-Code defaults remain as fallbacks for omitted keys and direct library callers;
-they do not override an explicitly configured value. App-owned preferences and
-explicit CLI flags keep their existing precedence over TOML defaults.
+Each background program in PZ Tools (each [component](glossary.md#component)) has its
+own settings file with tuning values: timeouts, buffer sizes, batch sizes and how often
+things are checked or refreshed. The defaults suit normal use. This page is for someone
+who wants to adjust a component, for example for a slow disk, or who is investigating
+a problem. Everyday preferences, where the files live and which setting wins are on the
+[configuration](configuration.md) page.
 
-| Editable file | Operational settings |
+## What each file controls
+
+The files are under `%LOCALAPPDATA%/PzTools/config/`. Each one starts as a copy of the
+template listed here, which explains every key in English: its unit, its allowed range
+and what changing it does.
+
+| Editable file | What it tunes |
 | --- | --- |
-| `app/default.toml` | Projection frequency, telemetry catch-up/read grace/stale threshold, card lifetime, thumbnail budget/parallelism, explicit refresh retries/timeouts, scheduler restart/backoff, shutdown grace, settings/filter debounce, active-operation progress frequency (legacy key: `export_progress_interval_ms`) |
-| `backup-worker/default.toml` | Unstable-file attempts/backoff, copy/hash buffer, bounded small-file staging pool, capture reader/queue limits, full-scan hash batch/reader limits, progress frequency, scan/USN batches, backup heartbeat, JVM connection/queue/completion timeouts |
-| `backup-scheduler/default.toml` | Due-work polling frequency (not the user's backup interval) |
-| `state-scheduler/default.toml` | State collection, wake polling, independent confirmation delay, interrupted/orphan cleanup interval |
-| `maintenance-worker/default.toml` | Deleted-revision reclamation batch and writer-contention retry delay (not retention policy) |
-| `archive-worker/default.toml` | Existing archive safeguards, character/thumbnail preview budgets, progress/heartbeat frequency |
-| `restore-worker/default.toml`, `character-recovery/default.toml` | Diagnostic retention, progress/heartbeat frequency |
+| [`app/default.toml`](../config/defaults/app/default.toml) | Stored logs, plus: how often lists and progress are refreshed; telemetry catch-up, read grace and stale threshold; how long operation cards stay; thumbnail memory budget and parallel reads; retries and timeouts of an explicit refresh; scheduler restart and back-off; shutdown grace; settings and log-filter debounce; progress frequency of running operations (key `export_progress_interval_ms`, which keeps an older name but applies to every operation) |
+| [`backup-worker/default.toml`](../config/defaults/backup-worker/default.toml) | Attempts and back-off for files that keep changing, copy and hash buffer, the small-file staging pool, capture reader and queue limits, full-scan hash batch and reader limits, progress frequency, scan and USN batches, backup heartbeat, and the timeouts for connecting to the game, queueing a save and waiting for it to finish |
+| [`backup-scheduler/default.toml`](../config/defaults/backup-scheduler/default.toml) | How often it checks whether a backup is due (not your backup interval), and how early it starts preparing a due backup |
+| [`state-scheduler/default.toml`](../config/defaults/state-scheduler/default.toml) | State checks, wake-up polling, the delay between the two independent confirmation checks, how often interrupted work and orphan backups are cleaned up, and the extension-control connection |
+| [`maintenance-worker/default.toml`](../config/defaults/maintenance-worker/default.toml) | Batch size for reclaiming deleted revisions, retry delay when another job holds the writer lock, run-history trimming, VACUUM and pack rewriting thresholds. It does not set how many backups are kept. |
+| [`archive-worker/default.toml`](../config/defaults/archive-worker/default.toml) | ZIP safeguards, memory budgets for character and thumbnail previews, progress and heartbeat frequency |
+| [`restore-worker/default.toml`](../config/defaults/restore-worker/default.toml), [`character-recovery/default.toml`](../config/defaults/character-recovery/default.toml), [`profiler/default.toml`](../config/defaults/profiler/default.toml) | Diagnostic retention, progress and heartbeat frequency |
 
-The templates document units, accepted ranges and consequences in English.
-Invalid operational ranges fail configuration validation; they do not disable
-consistency checks or turn bounded waits into infinite waits. The app keeps the
-settings-repair UI available when its runtime file is invalid, but does not start
-workers with rejected configuration. Editing a file never changes an operation
-already in progress. Use **Apply settings and restart** for a consistent reload.
+Every file also has a `[telemetry]` section; see [telemetry](telemetry.md). A limit of
+zero there keeps its documented meaning: unlimited.
 
-Save queue timeout is distinct from completion timeout: only a still-queued call
-can be cancelled safely. An already-running game save is not interrupted and an
-unknown completion does not permit capture or automatic retry. The extended bridge
-protocol transports configured deadlines to the JVM. Compatible payload updates
-reload at an idle boundary; an incompatible resident bootstrap requires a game
-restart. See [component reload](module-reload.md) for that distinction.
+## Changing a setting
 
-## Intentionally not editable
+1. Edit the file. The template's comments give the allowed range.
+2. Use **Apply settings and restart**. This is the way to reload settings consistently.
+3. Before stopping anything, the app checks every installed component's section names,
+   key names, value types and ranges. A value outside its range fails this check.
 
-- Binary formats, schema versions, field sizes/offsets, OS/API constants and
-  enum/status codes describe data contracts, not preferences.
-- Authentication sizes, allowed commands, parser/manifest hard limits, path
-  validation, lock ordering, database integrity pragmas and atomic-write ordering
-  are safety boundaries, not switches to bypass validation.
-- Low-level OS/SQLite transport buffers, socket handshake guards, private bounded
-  diagnostic buffers and internal synchronization checks remain implementation
-  details. The supported workload/copy budgets and user-facing timeouts above are
-  the tuning interface, not every allocation or lock-wait primitive.
-- Animation geometry/durations, responsive breakpoints and layout dimensions
-  remain part of the UI design; data refresh and I/O concurrency are configurable.
-- Game-format recovery targets and two-independent-observation confirmation are
-  correctness rules. Recovery does not erase negative traits.
-- Benchmark data sizes, seeds and synthetic test timeouts are test inputs.
+Editing a file never changes an operation that is already running.
 
-No startup migration rewrites existing editable files. New installations and the
-explicit reset action use the checked-in templates. Existing installations use
-fallbacks for omitted settings until those keys are explicitly added.
+A key you leave out uses the built-in default. A value you set explicitly is never
+replaced by a built-in default. Choices made in the app and options given on the
+command line still take priority over these files.
 
-## Shared validation and derived display data
+Existing files are never rewritten, not even at startup after an update. New
+installations and **Restore defaults** use the current templates. An existing
+installation uses the built-in default for any key it does not contain, until you add
+that key yourself.
 
-Worker option readers in `ComponentOptions` are shared by preflight validation and
-worker startup. Apply-and-restart checks every installed component's section names,
-key names, value types and ranges before stopping the current host. Telemetry limits
-of zero keep their documented unlimited meaning. App and backup options retain
-their dedicated schemas; no runtime code rewrites existing TOML files.
+## Limits
 
-`app/runtime.character_metadata_batch_size` bounds background attempts to fill
-missing backup character summaries, including failed reads. The retry interval is
-`character_metadata_retry_seconds`. New backups collect the summary from their
-captured `players.db`; the current schema stores survival duration and an explicit completion
-flag, so an unavailable duration is not confused with pending work. The collector
-also handles interrupted metadata collection. It reads packs outside the writer
-lease, retains completed reads across writer contention, and advances past failures.
-It also stores the last character-summary read error. A failed read
-is displayed as unavailable with a retry notice, not as an indefinitely running
-progress indicator. Successful retries clear the error. Display projectors never
-modify the repository or extract revision files.
+**Out-of-range values are rejected, not worked around.** An invalid value fails
+validation. It never turns off a consistency check or turns a bounded wait into an
+endless one. If the app's own file is invalid, the app still opens its settings repair
+screen, but it does not start workers with a rejected configuration.
 
-Live character snapshots are cached by file version in the background state
-projector, not read from UI callbacks. Revision thumbnails follow realized list rows;
-recycled rows and save switches cancel their pending reads. Bitmap creation remains
-on the UI thread, while pack and database reads run in the background.
+**Save timeouts are not all the same.** The game-save settings in the backup worker
+have separate timeouts for waiting in the game's queue and for waiting for the save to
+finish. Only a save that is still queued can be cancelled safely. A save the game has
+already started is not interrupted. When it is unknown whether a save finished, the
+backup does not capture files and does not retry automatically. See
+[when the game is not saved](save-bridge.md#admission-and-failures).
 
-## Process contracts and disposable operation telemetry
+**New timeouts may need a game restart.** The configured deadlines are sent to the
+[save bridge](glossary.md#save-bridge) in the game. A compatible [payload](glossary.md#payload)
+update is picked up at an idle moment; an incompatible [bootstrap](glossary.md#bootstrap)
+still loaded in the game needs a game restart. See [component updates](module-reload.md).
 
-All process boundaries use `ProcessResultValidator`: required envelope fields,
-component identity, run index, and exit status must agree. Missing output is never
-treated as success. App-side protocol failures retain stderr in the durable log
-inbox, separately from the machine-readable error code. Managed child processes
-share one Job Object implementation and one teardown path.
+### Deliberately not editable
 
-Archive, restore, and character-recovery telemetry is disposable after the worker
-has stopped and every available event has been imported into `logs.db`. A session
-activity lock prevents premature retirement, including during historical replay.
-Cleanup removes only known telemetry files and empty directories under the owned
-operations root; unknown files and reparse points are preserved. The central log
-retention settings continue to control the imported diagnostics. This is ongoing
-lifecycle management, not a one-off migration or a TOML rewrite.
+Some values look like settings but are not offered, because changing them would break
+data, safety or correctness:
+
+- **Data contracts.** Binary formats, schema versions, field sizes and offsets, OS and
+  API constants, and enum and status codes.
+- **Safety boundaries.** Authentication sizes, allowed commands, hard limits of parsers
+  and manifests, path validation, lock ordering, database integrity pragmas and the
+  order of atomic writes. They are not switches for bypassing validation.
+- **Implementation details.** Low-level OS and SQLite transport buffers, socket
+  handshake guards, private bounded diagnostic buffers and internal synchronization
+  checks. The workload and copy budgets and the user-facing timeouts above are the
+  tuning interface, not every allocation or lock wait.
+- **UI design.** Animation geometry and durations, responsive breakpoints and layout
+  dimensions. Data refresh and I/O concurrency are configurable.
+- **Correctness rules.** The game-format targets of character recovery, and the rule
+  that two independent observations are needed to confirm a change. Recovery does not
+  erase negative traits.
+- **Test inputs.** Benchmark data sizes, seeds and synthetic test timeouts.
+
+## How it works inside
+
+### Reading settings
+
+Tuning values are read once, where a process starts, and handed to the code that uses
+them. Libraries do not read TOML again during a scan or a copy. Built-in defaults exist
+for keys that are left out and for code that calls a library directly.
+
+The worker option readers in `ComponentOptions` are shared by the pre-restart check and
+by worker startup, so both apply the same rules. App and backup options keep their own
+schemas. No runtime code rewrites existing TOML files.
+
+### Character summaries in the backup list
+
+The backup list shows a summary of the character in each backup. For older backups
+that lack one, the app fills it in the background:
+
+- `app/runtime.character_metadata_batch_size` limits how many attempts are made per
+  refresh, failed reads included.
+- `character_metadata_retry_seconds` sets how long to wait before trying again.
+
+New backups take the summary from their captured `players.db`. The stored summary
+includes survival time and an explicit "complete" flag, so a missing survival time is
+not mistaken for work still pending. The collector also picks up collection that was
+interrupted.
+
+The collector reads packs without holding the [writer lock](glossary.md#writer-lock),
+keeps reads it has finished even when a writer gets in the way, and moves on past
+failures. It stores the last read error. A failed read is shown as unavailable with a
+retry notice, not as a progress indicator that never ends; a successful retry clears
+the error. The code that prepares data for display never changes the repository and
+never extracts files from a revision.
+
+Live character snapshots are cached per file version by the background state
+projector, not read from UI callbacks. Revision thumbnails are loaded for the rows
+actually shown in the list; recycled rows and switching saves cancel their pending
+reads. Bitmaps are created on the UI thread; pack and database reads run in the
+background.
+
+### Results from other processes
+
+Every process boundary uses `ProcessResultValidator`: the required envelope fields,
+the component identity, the [run index](glossary.md#run-index) and the exit status
+must agree. Missing output never counts as success. When the app sees a protocol
+failure, it keeps the process's stderr in the durable log inbox, separately from the
+machine-readable error code. Child processes all use one Job Object implementation and
+one teardown path. The result format is described under
+[results and exit codes](cli.md#results-and-exit-codes).
+
+### Cleaning up operation telemetry
+
+The [telemetry](glossary.md#telemetry) of archive, restore and character-recovery runs
+is temporary. It is removed once the worker has stopped and every available event has
+been imported into `logs.db`. A session activity lock prevents removal too early,
+including while old events are being replayed.
+
+Cleanup removes only known telemetry files and empty directories under the operations
+folder PZ Tools owns. Unknown files and reparse points are left alone. The central log
+settings go on controlling how long the imported diagnostics are kept. This cleanup
+runs continuously; it is not a one-off migration and does not rewrite TOML.

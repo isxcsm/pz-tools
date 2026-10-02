@@ -70,11 +70,13 @@ public sealed class GameExtensionEditTests
     [InlineData(GameExtensionSetting.Reverse, true)]
     [InlineData(GameExtensionSetting.Steering, false)]
     [InlineData(GameExtensionSetting.Steering, true)]
+    [InlineData(GameExtensionSetting.AreaLight, false)]
+    [InlineData(GameExtensionSetting.AreaLight, true)]
     public async Task AFeatureEditPreservesOtherFeaturesAndCommonPreferences(GameExtensionSetting setting, bool value)
     {
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.Path);
-        var original = new VehicleDrivetrainPreference(!value, !value, !value);
+        var original = new VehicleDrivetrainPreference(!value, !value, !value, !value);
         store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, true, original), 0);
         var controller = new GameExtensionController(temp.Path, new RevisionedViewStore());
 
@@ -84,7 +86,8 @@ public sealed class GameExtensionEditTests
         {
             GameExtensionSetting.Torque => original with { TorqueEnabled = value },
             GameExtensionSetting.Reverse => original with { ReverseEnabled = value },
-            _ => original with { SteeringEnabled = value }
+            GameExtensionSetting.Steering => original with { SteeringEnabled = value },
+            _ => original with { AreaLightEnabled = value }
         };
         var card = result.Cards.Single(item => item.Definition.Id == ExtensionIds.VehicleDrivetrain);
         Assert.Equal(new ExtensionPreference(true, true, expected), store.Read().Extensions[card.Definition.Id]);

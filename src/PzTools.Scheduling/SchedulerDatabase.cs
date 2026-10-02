@@ -288,99 +288,127 @@ public sealed partial class SchedulerDatabase
         CancellationToken cancellationToken = default,
         TimeSpan? preparationLead = null)
     {
-        var lead = preparationLead ?? TimeSpan.Zero;
-        if (lead < TimeSpan.Zero || lead > TimeSpan.FromSeconds(30))
-            throw new ArgumentOutOfRangeException(nameof(preparationLead));
+        var lead = ValidateLead(preparationLead);
         await using var connection = await OpenAsync(cancellationToken);
         using var transaction = connection.BeginTransaction();
         try
         {
-            var control = await TryReadControlAsync(
-                connection, transaction, cancellationToken)
-                ?? throw new InvalidOperationException(
-                    "The backup scheduler has not been configured.");
-            var changed = await ApplyPendingCommandsAsync(
-                connection, transaction, control, now, cancellationToken);
-            if (changed)
-            {
-                await IncrementRevisionAsync(connection, transaction, cancellationToken);
-                control = (await TryReadControlAsync(
-                    connection, transaction, cancellationToken))!;
-            }
-
-            if (!control.AutomaticEnabled)
-            {
-                transaction.Commit();
-                return null;
-            }
-
-            if (control.Mode == SchedulerMode.Ambiguous)
-            {
-                transaction.Commit();
-                return null;
-            }
-
-            await using (var retireFinal = connection.CreateCommand())
-            {
-                retireFinal.Transaction = transaction;
-                retireFinal.CommandText = "DELETE FROM pending_backup_runs WHERE kind='Final' OR (kind='RunOnce' AND pending_id GLOB 'state-transition:*');";
-                if (await retireFinal.ExecuteNonQueryAsync(cancellationToken) > 0)
-                    await IncrementRevisionAsync(connection, transaction, cancellationToken);
-            }
-            var pending = await ReadFirstPendingAsync(
-                connection, transaction, cancellationToken);
-            if (pending is not null)
-            {
-                PzTools.Process.Contracts.GameRuntime.RuntimeSaveTicket? deathTicket = null;
-                if (pending.PendingId.StartsWith(RuntimeDeathPolicy.Prefix, StringComparison.Ordinal))
-                {
-                    deathTicket = await ReadDeathTicketAsync(connection, transaction, pending.PendingId, pending.Target.SourcePath, cancellationToken);
-                    if (deathTicket is null)
-                    {
-                        await using var retire = connection.CreateCommand(); retire.Transaction = transaction;
-                        retire.CommandText = "DELETE FROM pending_backup_runs WHERE pending_id=$id;";
-                        retire.Parameters.AddWithValue("$id", pending.PendingId); await retire.ExecuteNonQueryAsync(cancellationToken);
-                        await IncrementRevisionAsync(connection, transaction, cancellationToken);
-                        transaction.Commit(); return null;
-                    }
-                }
-                transaction.Commit();
-                return new BackupTickAdmission(
-                    $"backup-scheduler:pending:{pending.PendingId}:{pending.AttemptSequence}",
-                    pending.Kind,
-                    pending.Target,
-                    control.RepositoryPath,
-                    pending.EnqueuedUtc,
-                    control.Generation,
-                    pending.PendingId, deathTicket);
-            }
-
-            if (await RuntimeEnabledAsync(connection, transaction, cancellationToken)
-                || control.Mode != SchedulerMode.Continuous
-                || control.CurrentTarget is null
-                || control.NextDueUtc > now + lead)
-            {
-                transaction.Commit();
-                return null;
-            }
-
-            var periodic = new BackupTickAdmission(
-                // Busy 재시도는 새 workflow를 쓰되, 완료 후 상태 확정 전 재시작은 같은 admission을 복구합니다.
-                control.PeriodicAdmissionId,
-                BackupAdmissionKind.Periodic,
-                control.CurrentTarget,
-                control.RepositoryPath,
-                control.NextDueUtc,
-                control.Generation,
-                PendingCommandId: null);
+            var admission = await PrepareBackupTickCoreAsync(connection, transaction, now, lead, cancellationToken);
             transaction.Commit();
-            return periodic;
+            return admission;
         }
         catch
         {
             transaction.Rollback();
             throw;
         }
+    }
+
+    /// <summary>
+    /// What a runtime-scheduled tick reads, on one connection: the runtime schedule, the prepared tick
+    /// and the control state after it, in that order. The scheduler asks every second, also while idle.
+    /// </summary>
+    public async Task<(RuntimeScheduleStorage Storage, BackupTickAdmission? Admission, BackupSchedulerState Control)>
+        PrepareRuntimeTickAsync(DateTimeOffset now, TimeSpan preparationLead, CancellationToken cancellationToken = default)
+    {
+        var lead = ValidateLead(preparationLead);
+        await using var connection = await OpenAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            var storage = await ReadRuntimeScheduleCoreAsync(connection, transaction, cancellationToken);
+            var admission = await PrepareBackupTickCoreAsync(connection, transaction, now, lead, cancellationToken);
+            var control = await ReadBackupStateCoreAsync(connection, transaction, cancellationToken);
+            transaction.Commit();
+            return (storage, admission, control);
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    private static TimeSpan ValidateLead(TimeSpan? preparationLead)
+    {
+        var lead = preparationLead ?? TimeSpan.Zero;
+        if (lead < TimeSpan.Zero || lead > TimeSpan.FromSeconds(30))
+            throw new ArgumentOutOfRangeException(nameof(preparationLead));
+        return lead;
+    }
+
+    private static async Task<BackupTickAdmission?> PrepareBackupTickCoreAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        DateTimeOffset now,
+        TimeSpan lead,
+        CancellationToken cancellationToken)
+    {
+        var control = await TryReadControlAsync(
+            connection, transaction, cancellationToken)
+            ?? throw new InvalidOperationException(
+                "The backup scheduler has not been configured.");
+        var changed = await ApplyPendingCommandsAsync(
+            connection, transaction, control, now, cancellationToken);
+        if (changed)
+        {
+            await IncrementRevisionAsync(connection, transaction, cancellationToken);
+            control = (await TryReadControlAsync(
+                connection, transaction, cancellationToken))!;
+        }
+
+        if (!control.AutomaticEnabled || control.Mode == SchedulerMode.Ambiguous)
+            return null;
+
+        await using (var retireFinal = connection.CreateCommand())
+        {
+            retireFinal.Transaction = transaction;
+            retireFinal.CommandText = "DELETE FROM pending_backup_runs WHERE kind='Final' OR (kind='RunOnce' AND pending_id GLOB 'state-transition:*');";
+            if (await retireFinal.ExecuteNonQueryAsync(cancellationToken) > 0)
+                await IncrementRevisionAsync(connection, transaction, cancellationToken);
+        }
+        var pending = await ReadFirstPendingAsync(
+            connection, transaction, cancellationToken);
+        if (pending is not null)
+        {
+            PzTools.Process.Contracts.GameRuntime.RuntimeSaveTicket? deathTicket = null;
+            if (pending.PendingId.StartsWith(RuntimeDeathPolicy.Prefix, StringComparison.Ordinal))
+            {
+                deathTicket = await ReadDeathTicketAsync(connection, transaction, pending.PendingId, pending.Target.SourcePath, cancellationToken);
+                if (deathTicket is null)
+                {
+                    await using var retire = connection.CreateCommand(); retire.Transaction = transaction;
+                    retire.CommandText = "DELETE FROM pending_backup_runs WHERE pending_id=$id;";
+                    retire.Parameters.AddWithValue("$id", pending.PendingId); await retire.ExecuteNonQueryAsync(cancellationToken);
+                    await IncrementRevisionAsync(connection, transaction, cancellationToken);
+                    return null;
+                }
+            }
+            return new BackupTickAdmission(
+                $"backup-scheduler:pending:{pending.PendingId}:{pending.AttemptSequence}",
+                pending.Kind,
+                pending.Target,
+                control.RepositoryPath,
+                pending.EnqueuedUtc,
+                control.Generation,
+                pending.PendingId, deathTicket);
+        }
+
+        if (await RuntimeEnabledAsync(connection, transaction, cancellationToken)
+            || control.Mode != SchedulerMode.Continuous
+            || control.CurrentTarget is null
+            || control.NextDueUtc > now + lead)
+            return null;
+
+        return new BackupTickAdmission(
+            // Busy 재시도는 새 workflow를 쓰되, 완료 후 상태 확정 전 재시작은 같은 admission을 복구합니다.
+            control.PeriodicAdmissionId,
+            BackupAdmissionKind.Periodic,
+            control.CurrentTarget,
+            control.RepositoryPath,
+            control.NextDueUtc,
+            control.Generation,
+            PendingCommandId: null);
     }
 
     public async Task FinishBackupTickAsync(
@@ -481,12 +509,64 @@ public sealed partial class SchedulerDatabase
         }
     }
 
-    public async Task<BackupSchedulerState> ReadBackupStateIfChangedAsync(
-        long lastSeenRevision,
-        CancellationToken cancellationToken = default)
+    // Opt-in, for a process that reads this database every second for as long as it runs (the app's
+    // projections). A connection per read made SQLite create the -wal and -shm files on open and delete
+    // them when the last connection closed, every second, each time also scanned by file-system filters.
+    // Reads still use short transactions, so writers and checkpoints are never held up.
+    private readonly SemaphoreSlim heldGate = new(1, 1);
+    private SqliteConnection? heldReader;
+    private bool holdReader;
+
+    public void HoldReadConnection() => holdReader = true;
+
+    public void ReleaseReadConnection()
     {
-        await using var connection = await OpenAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
+        heldGate.Wait();
+        try
+        {
+            holdReader = false;
+            heldReader?.Dispose();
+            heldReader = null;
+        }
+        finally { heldGate.Release(); }
+    }
+
+    private async Task<T> ReadAsync<T>(Func<SqliteConnection, Task<T>> read, CancellationToken cancellationToken)
+    {
+        if (!holdReader)
+        {
+            await using var connection = await OpenAsync(cancellationToken);
+            return await read(connection);
+        }
+        await heldGate.WaitAsync(cancellationToken);
+        try
+        {
+            heldReader ??= await OpenAsync(cancellationToken);
+            try { return await read(heldReader); }
+            catch
+            {
+                // Whatever failed, the next read starts from a fresh connection.
+                heldReader.Dispose();
+                heldReader = null;
+                throw;
+            }
+        }
+        finally { heldGate.Release(); }
+    }
+
+    public Task<BackupSchedulerState> ReadBackupStateIfChangedAsync(
+        long lastSeenRevision,
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(connection => ReadBackupStateIfChangedAsync(connection, lastSeenRevision, cancellationToken), cancellationToken);
+
+    private static async Task<BackupSchedulerState> ReadBackupStateIfChangedAsync(
+        SqliteConnection connection,
+        long lastSeenRevision,
+        CancellationToken cancellationToken)
+    {
+        // Only reads: a deferred transaction gives a consistent snapshot without taking the write
+        // lock that the schedulers and the app would otherwise wait on every second.
+        using var transaction = connection.BeginTransaction(deferred: true);
         var revision = await ReadRevisionAsync(connection, transaction, cancellationToken);
         if (revision == lastSeenRevision)
         {
@@ -495,15 +575,23 @@ public sealed partial class SchedulerDatabase
                 false, revision, "", false, TimeSpan.FromMinutes(1), null,
                 SchedulerMode.Paused, 0, 0, 0, DateTimeOffset.MinValue, null, null);
         }
+        var state = await ReadBackupStateCoreAsync(connection, transaction, cancellationToken, revision);
+        transaction.Commit();
+        return state;
+    }
+
+    private static async Task<BackupSchedulerState> ReadBackupStateCoreAsync(
+        SqliteConnection connection, SqliteTransaction transaction, CancellationToken cancellationToken,
+        long? revision = null)
+    {
         var state = await TryReadControlAsync(connection, transaction, cancellationToken)
             ?? throw new InvalidOperationException(
                 "The backup scheduler has not been configured.");
         var pending = await CountPendingAsync(connection, transaction, cancellationToken);
-        transaction.Commit();
         return state with
         {
             Modified = true,
-            SchedulerRevision = revision,
+            SchedulerRevision = revision ?? await ReadRevisionAsync(connection, transaction, cancellationToken),
             PendingRuns = pending,
         };
     }
@@ -553,7 +641,9 @@ public sealed partial class SchedulerDatabase
             await update.ExecuteNonQueryAsync(cancellationToken);
         }
         transaction.Commit();
-        return due <= now;
+        // A due time is never more than one interval ahead. Further means the clock was set back:
+        // check now rather than stopping state checks until the old time comes round again.
+        return due <= now || due > now.Add(interval);
     }
 
     public async Task AdvanceStateDueAsync(
@@ -568,8 +658,10 @@ public sealed partial class SchedulerDatabase
             "SELECT next_due_utc FROM state_scheduler WHERE singleton=1;";
         var value = (string?)await read.ExecuteScalarAsync(cancellationToken)
             ?? now.ToString("O");
-        var due = DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
-        do { due = due.Add(interval); } while (due <= now);
+        var due = DateTimeOffset.Parse(value, CultureInfo.InvariantCulture).Add(interval);
+        // After sleep, a clock change or a long stop, start a fresh interval instead of stepping
+        // through every missed one (or keeping a time the clock has been set back from).
+        if (due <= now || due > now.Add(interval)) due = now.Add(interval);
         await using var update = connection.CreateCommand();
         update.CommandText =
             "UPDATE state_scheduler SET interval_seconds=$interval,next_due_utc=$due "

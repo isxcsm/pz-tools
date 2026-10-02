@@ -62,12 +62,14 @@ public sealed class SafeRevisionRestoreService
         var rollback = Path.Combine(parent, $".{leaf}.pztools-rollback-{token}");
         var journalPath = JournalPath(target);
         var journal = new RestoreJournal(2, target, staging, rollback, "restoring");
+        var swapStarted = false;
+        RestoreResult restored;
 
         try
         {
             await WriteJournalAsync(journalPath, journal, cancellationToken);
             var restorer = new RevisionRestorer();
-            var restored = observer is null
+            restored = observer is null
                 ? await restorer.RestoreAsync(
                     repository, sourceId, revision, staging, cancellationToken)
                 : await restorer.RestoreAsync(
@@ -75,21 +77,48 @@ public sealed class SafeRevisionRestoreService
             journal = journal with { Phase = "prepared", StagingIdentity = ReadDirectoryIdentity(staging) };
             await WriteJournalAsync(journalPath, journal, cancellationToken);
 
-            if (Directory.Exists(target)) Directory.Move(target, rollback);
+            if (Directory.Exists(target))
+            {
+                Directory.Move(target, rollback);
+                swapStarted = true;
+            }
             await WriteJournalAsync(journalPath, journal with { Phase = "original-moved" }, cancellationToken);
             Directory.Move(staging, target);
+            swapStarted = true;
             await WriteJournalAsync(journalPath, journal with { Phase = "installed" }, cancellationToken);
-
-            await RecoverAsync(target, CancellationToken.None);
-            return new SafeRestoreResult(
-                restored.SourceId, restored.Revision, restored.Files, restored.Directories, target);
         }
         catch
         {
-            await RecoverAsync(target, CancellationToken.None);
-            if (Directory.Exists(staging)) DeleteOperationDirectory(staging);
+            // A cleanup problem must not replace the reason the restore failed;
+            // anything left behind is reconciled by the interrupted-operation sweep.
+            try
+            {
+                // Until the swap starts the save is untouched, so the failure only
+                // has this operation's own staging and marker to discard.
+                if (swapStarted || Directory.Exists(rollback)) await RecoverAsync(target, CancellationToken.None);
+                else DiscardUnpublished(journalPath, staging);
+            }
+            catch (Exception cleanup) when (IsCleanupFailure(cleanup)) { }
             throw;
         }
+
+        // The restored save is installed. A rollback that cannot be removed yet
+        // stays journaled for the sweep instead of reporting the restore as failed.
+        try { await RecoverAsync(target, CancellationToken.None); }
+        catch (Exception cleanup) when (IsCleanupFailure(cleanup)) { }
+        return new SafeRestoreResult(
+            restored.SourceId, restored.Revision, restored.Files, restored.Directories, target);
+    }
+
+    private static bool IsCleanupFailure(Exception exception) =>
+        exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException;
+
+    private static void DiscardUnpublished(string journalPath, string staging)
+    {
+        // Marker first: leftover staging without a journal never hides the save.
+        File.Delete(journalPath + ".tmp");
+        File.Delete(journalPath);
+        if (Directory.Exists(staging)) DeleteOperationDirectory(staging);
     }
 
     public async Task RecoverAsync(string targetPath, CancellationToken cancellationToken = default)
@@ -108,8 +137,9 @@ public sealed class SafeRevisionRestoreService
                 stream, cancellationToken: cancellationToken);
         }
         journal = ValidateJournal(path, target, journal);
-        EnsureSaveIsInactive(target);
 
+        // Recovery never writes into an existing target, so a save that is being
+        // played again must not keep its journal (and its backups) waiting.
         var targetExists = DirectoryIsPresent(target);
         var rollbackExists = DirectoryIsPresent(journal.RollbackPath);
         var stagingExists = DirectoryIsPresent(journal.StagingPath);
@@ -138,9 +168,11 @@ public sealed class SafeRevisionRestoreService
         {
             throw new IOException("restore-target-conflict: recovery inventory was preserved");
         }
+        // The save is settled here and any remaining staging is disposable. Remove
+        // the marker first so a staging file that cannot be deleted yet hides nothing.
+        File.Delete(path);
         if (stagingExists)
             DeleteOperationDirectory(journal.StagingPath);
-        File.Delete(path);
     }
 
     public Task<SaveRecoverySweep> RecoverUnderSavesRootAsync(
@@ -161,11 +193,11 @@ public sealed class SafeRevisionRestoreService
         }
         catch (IOException exception)
         {
-            throw new IOException("The save is currently in use and cannot be restored.", exception);
+            throw new IOException("save-in-use: The save is currently in use and cannot be restored.", exception);
         }
         catch (UnauthorizedAccessException exception)
         {
-            throw new IOException("The save cannot be opened for an exclusive restore.", exception);
+            throw new IOException("save-in-use: The save cannot be opened for an exclusive restore.", exception);
         }
     }
 

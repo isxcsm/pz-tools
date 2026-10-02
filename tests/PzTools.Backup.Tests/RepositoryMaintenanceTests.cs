@@ -363,10 +363,8 @@ public sealed class RepositoryMaintenanceTests
             new UsnDeltaPlanner())
             .RunAsync(repository, telemetry, lease, source, storage, telemetryOptions);
 
-        var result = await new PackCompactor().CompactAsync(
-            repository,
-            lease,
-            maximumSourcePackBytes: long.MaxValue);
+        var result = await new PackCompactor().RewriteAsync(
+            repository, lease, await repository.ReadPacksAsync());
 
         Assert.Equal(2, result.SourcePacks);
         Assert.Equal(2, result.RelocatedObjects);
@@ -384,6 +382,98 @@ public sealed class RepositoryMaintenanceTests
         var collected = await repository.CollectGarbageAsync(lease);
         Assert.Equal(2, collected.DeletedPacks);
         Assert.Single(await repository.ReadPacksAsync());
+    }
+
+    [Fact]
+    public async Task PackSpaceReclamation_RewritesAMostlyDeadPack_AndKeepsEveryRetainedBackupRestorable()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        var bigPath = Path.Combine(sourcePath, "big.bin");
+        byte[] Version(int seed) { var bytes = new byte[1_500_000]; new Random(seed).NextBytes(bytes); return bytes; }
+        await File.WriteAllBytesAsync(bigPath, Version(1));
+        await File.WriteAllTextAsync(Path.Combine(sourcePath, "keep.txt"), "never changes");
+        var repositoryPath = temp.GetPath("repository");
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
+        var telemetry = await TelemetryStore.CreateOrOpenAsync(repositoryPath);
+        await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
+        var source = await repository.AddOrGetSourceAsync(lease, "main", sourcePath);
+        var metadata = new WindowsFileMetadataReader();
+        var storage = new StorageOptions(ChecksumAlgorithm.Sha256, CompressionAlgorithm.None, ContentDeduplication: false);
+        var telemetryOptions = new TelemetryOptions(TelemetryMode.Off, 8, 5, 10, 32);
+        await new InitialBackupRunner(new StreamingFullScanner(metadata), new StableFileCapturer(metadata),
+            new FixedBoundaryProvider()).RunAsync(repository, telemetry, lease, source, storage, telemetryOptions);
+        foreach (var seed in new[] { 2, 3 })
+        {
+            await File.WriteAllBytesAsync(bigPath, Version(seed));
+            await new IncrementalBackupRunner(new StreamingFullScanner(metadata), new StableFileCapturer(metadata),
+                metadata, new FullScanJournal(), new UsnDeltaPlanner())
+                .RunAsync(repository, telemetry, lease, source, storage, telemetryOptions);
+        }
+        // Backups 2 and 3 still need keep.txt from the first pack; its large file is no longer needed.
+        await repository.MarkRevisionDeletedAsync(lease, source.SourceId, 1);
+        await repository.CompactDeletedRevisionsAsync(lease, source.SourceId);
+        await repository.CollectGarbageAsync(lease);
+        Assert.Equal(3, (await repository.ReadPacksAsync()).Count);
+        long PackBytes() => Directory.GetFiles(Path.Combine(repositoryPath, "packs"), "*.pzpack").Sum(path => new FileInfo(path).Length);
+        var before = PackBytes();
+        var options = new PackReclamationOptions(MinimumReclaimMib: 1);
+        var announced = 0;
+
+        var result = await new PackSpaceReclaimer().RunAsync(repository, lease, options, plan =>
+        {
+            announced++;
+            Assert.Single(plan.Packs);
+            return Task.CompletedTask;
+        });
+
+        Assert.Equal("Succeeded", result.Status);
+        Assert.Equal(1, announced);
+        Assert.Equal(1, result.RewrittenPacks);
+        Assert.Equal(1, result.RelocatedObjects);
+        Assert.Empty(result.FilesThatCouldNotBeDeleted);
+        Assert.True(result.ReclaimedBytes > 1_400_000, result.ReclaimedBytes.ToString());
+        Assert.Equal(before - result.ReclaimedBytes, PackBytes());
+        var packs = await repository.ReadPacksAsync();
+        Assert.Equal(3, packs.Count);
+        Assert.All(packs, item => Assert.Equal("Committed", item.Status));
+        foreach (var (revision, seed) in new[] { (2L, 2), (3L, 3) })
+        {
+            var restore = temp.GetPath($"restore-{revision}");
+            await new RevisionRestorer().RestoreAsync(repository, source.SourceId, revision, restore);
+            Assert.Equal(Version(seed), await File.ReadAllBytesAsync(Path.Combine(restore, "big.bin")));
+            Assert.Equal("never changes", await File.ReadAllTextAsync(Path.Combine(restore, "keep.txt")));
+        }
+        Assert.Empty((await new RepositoryVerifier().VerifyAsync(repository)).Issues);
+        // The rewritten pack is fully live, so nothing is copied again.
+        Assert.Equal("below-threshold", (await new PackSpaceReclaimer().RunAsync(repository, lease, options)).Status);
+    }
+
+    [Fact]
+    public void PackSpaceReclamation_PlansSparsestPacksFirst_WithinItsThresholdsAndBudget()
+    {
+        const long mib = 1048576;
+        PackUsage Pack(int id, long size, long live) =>
+            new(new RepositoryPack(new Guid(id, 0, 0, new byte[8]), $"packs/{id}.pzpack", size, "Committed", id), live);
+        var halfLive = Pack(1, 40 * mib, 20 * mib);   // Not below 50%.
+        var sparse = Pack(2, 40 * mib, 10 * mib);
+        var sparser = Pack(3, 40 * mib, 2 * mib);
+        var dead = Pack(4, 40 * mib, 0);              // Garbage collection's job, not a rewrite.
+        PackUsage[] usage = [halfLive, sparse, sparser, dead];
+
+        var plan = PackSpaceReclaimer.Plan(usage, new PackReclamationOptions())!;
+        Assert.Equal([sparser.Pack, sparse.Pack], plan.Packs);
+        Assert.Equal(80 * mib, plan.PackBytes);
+        Assert.Equal(12 * mib, plan.LiveBytes);
+
+        // The copy budget stops a pass; the sparsest pack is taken even when it alone exceeds it.
+        Assert.Equal([sparser.Pack], PackSpaceReclaimer.Plan(usage, new PackReclamationOptions(MaximumCopyMib: 5))!.Packs);
+        Assert.Equal([sparser.Pack], PackSpaceReclaimer.Plan(usage, new PackReclamationOptions(MaximumCopyMib: 1))!.Packs);
+        // Too little to recover is not worth copying anything.
+        Assert.Null(PackSpaceReclaimer.Plan(usage, new PackReclamationOptions(MinimumReclaimMib: 100)));
+        Assert.Null(PackSpaceReclaimer.Plan(usage, new PackReclamationOptions(Enabled: false)));
+        Assert.Null(PackSpaceReclaimer.Plan([halfLive, dead], new PackReclamationOptions(MinimumReclaimMib: 1)));
     }
 
     private static EntryVersionRegistration EntryDirectory(

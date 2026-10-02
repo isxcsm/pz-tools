@@ -36,7 +36,14 @@
     <ProjectReference Include="..\..\src\PzTools.App.Core\PzTools.App.Core.csproj" />
     <ProjectReference Include="..\..\src\PzTools.Zomboid.Archive\PzTools.Zomboid.Archive.csproj" />
     <ProjectReference Include="..\..\src\PzTools.Control\PzTools.Control.csproj" />
+    <ProjectReference Include="..\..\src\PzTools.Profiling\PzTools.Profiling.csproj" />
   </ItemGroup>
 
+  <!-- The scheduler is an executable; its extension coordinator is compiled into the tests from the same source. -->
+  <ItemGroup><Compile Include="..\..\src\PzTools.State.Scheduler\RuntimeExtensionCoordinator.cs" Link="Scheduler\RuntimeExtensionCoordinator.cs" /></ItemGroup>
+
   <ItemGroup><None Include="..\game-extensions\version-support.tsv" Link="version-support.tsv" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+
+  <!-- A repository made by the schema 5 build (52511b6): three manual backups of a small save. -->
+  <ItemGroup><None Update="Fixtures\repository-schema5.zip" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

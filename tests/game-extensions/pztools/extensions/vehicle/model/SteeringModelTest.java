@@ -1,209 +1,171 @@
 package pztools.extensions.vehicle.model;
 
-import java.util.Map;
-
 public final class SteeringModelTest {
-    private static final int[] FRAME_RATES={30,60,90,120,144,240};
     public static void main(String[] args) {
-        var config=DrivetrainConfig.defaults();
-        neutralRampTimes(config);
-        continuousCountersteering(config);
-        counterFloorCrossover();
-        rapidLatestIntent(config);
-        releaseAndReset(config);
-        floatInputDeadZone(config);
-        invalidInputsAndBounds(config);
-        System.out.println("PASS steering model: continuous latest-intent countersteer, exact rate-floor integration, fast release, float dead-zone boundaries, neutral ramp timing, bounds/resets and 30-240 Hz independence");
+        wholeUpdatesAreTheGamesOwnStep();
+        partialHoldsComposeAndAreOrdered();
+        tapLengthDecidesTheAngleNotTheFrameRate();
+        speedSlowsSteeringLikeTheGame();
+        invalidInputsDecline();
+        heldInputFollowsTheGamesConfirmation();
+        heldInputDropsWhatTheGameNeverAccepted();
+        heldInputReportsDisagreement();
+        System.out.println("PASS steering model: exact game step for whole updates, composable partial holds, frame-rate independent taps, game-confirmed held time");
     }
 
-    private static void neutralRampTimes(DrivetrainConfig current) {
-        var baseline=DrivetrainConfig.parse(Map.of("steering_initial_rate","0.6","steering_full_rate","2.5","steering_ramp_seconds","0.3"));
-        near(current.steeringInitialRate,1.8,"initial rate preserved");
-        near(current.steeringFullRate,7.5,"sustained rate preserved");
-        near(current.steeringRampSeconds,.1,"ramp duration preserved");
-        near(current.steeringHighSpeedRateFactor,.6,"speed attenuation preserved");
-        var model=new SteeringModel(current);
-        double first=model.step(1,0,.9,0,100,1d/60);
-        check(first<0 && first>-.05,"neutral first response is immediate and gradual");
-        double second=model.step(1,first,.9,0,100,1d/60);
-        check(Math.abs(second-first)>Math.abs(first),"neutral held input increases rate");
-        var fast=new SteeringModel(DrivetrainConfig.parse(Map.of("steering_initial_rate","3.0","steering_full_rate","8.0","steering_ramp_seconds","0.05")));
-        check(Math.abs(fast.step(1,0,.9,0,100,1d/60))>Math.abs(first),"rates honor configuration");
-        for(int hz:FRAME_RATES)
-            for(double input:new double[]{-1,1})
-                for(double cap:new double[]{.15,.4,.9,1.4})
-                    for(double speed:new double[]{0,35,-65,100,150}) {
-                        double oldTime=fullLockTime(baseline,input,cap,speed,hz);
-                        double newTime=fullLockTime(current,input,cap,speed,hz);
-                        check(Math.abs(newTime-oldTime/3)<=1d/hz+1e-12,
-                            "neutral full-lock time remains one third: "+oldTime+" -> "+newTime+" at "+hz+" Hz");
-                        double factor=1+(current.steeringHighSpeedRateFactor-1)*Math.min(1,Math.abs(speed)/100);
-                        double exactOld=.3+(1/factor-.3*(.6+2.5)/2)/2.5;
-                        check(oldTime+1e-12>=exactOld && oldTime-exactOld<=1d/hz+1e-12,"baseline full-lock timing");
-                        check(newTime+1e-12>=exactOld/3 && newTime-exactOld/3<=1d/hz+1e-12,"neutral full-lock timing preserved");
-                    }
+    /** The game's lines, in the game's own float arithmetic. */
+    private static float gameHeld(float steering,float input,float multiplier,float factor) { return steering-(input+steering)*.06f*multiplier*factor; }
+    private static float gameReleased(float steering,float multiplier) {
+        if(Math.abs(steering)<=.04) return 0;
+        return steering>0?Math.max(steering-.04f*multiplier,0):Math.min(steering+.04f*multiplier,0);
     }
 
-    private static void continuousCountersteering(DrivetrainConfig config) {
-        near(config.steeringReturnRate,8,"default release rate");
-        near(config.steeringCountersteerRate,8,"default countersteer rate");
-        check(config.steeringCountersteerRate>=config.steeringFullRate,"default floor covers the complete ramp");
-        for(int hz:FRAME_RATES)
-            for(double sign:new double[]{-1,1})
-                for(double cap:new double[]{.15,.4,.9,1.4})
-                    for(double speed:new double[]{0,35,-65,100,150}) {
-                        var model=new SteeringModel(config);
-                        double angle=sign*cap, duration=2/config.steeringCountersteerRate;
-                        for(double time=0;time<duration-1e-12;) {
-                            double dt=Math.min(1d/hz,duration-time);
-                            double before=angle;
-                            angle=model.step(sign,angle,cap,speed,100,dt);
-                            time+=dt;
-                            near(angle,sign*cap*(1-config.steeringCountersteerRate*time),"constant counter rate before and after center");
-                            near(Math.abs(angle-before)/(cap*dt),config.steeringCountersteerRate,"no center rate drop");
-                        }
-                        near(angle,-sign*cap,"opposite lock reached in 250 ms without a center phase");
-                        near(advance(new SteeringModel(config),0,sign*cap,cap,speed,1/config.steeringReturnRate,hz),0,
-                            "release reaches center in 125 ms");
-                        // A center crossing inside the very first frame must retain the same intent rate.
-                        double close=new SteeringModel(config).step(sign,sign*cap*.001,cap,speed,100,1d/hz);
-                        near(close,sign*cap*(.001-config.steeringCountersteerRate/hz),"near-center reversal does not restart the neutral ramp");
-                    }
-    }
-
-    private static void counterFloorCrossover() {
-        var config=DrivetrainConfig.parse(Map.of("steering_countersteer_rate","4.0"));
-        for(int hz:FRAME_RATES)
-            for(double speed:new double[]{0,100,-100})
-                for(double duration:new double[]{.027,.075,.1,.17,.28}) {
-                    double factor=1+(config.steeringHighSpeedRateFactor-1)*Math.min(1,Math.abs(speed)/100);
-                    double initial=config.steeringInitialRate*factor, full=config.steeringFullRate*factor;
-                    double crossover=(4-initial)*config.steeringRampSeconds/(full-initial);
-                    double rampEnd=Math.min(duration,config.steeringRampSeconds);
-                    double expected=4*Math.min(duration,crossover);
-                    if(duration>crossover)
-                        expected+=(4+initial+(full-initial)*rampEnd/config.steeringRampSeconds)*(rampEnd-crossover)/2
-                            +full*Math.max(0,duration-config.steeringRampSeconds);
-                    double angle=advance(new SteeringModel(config),1,1,1,speed,duration,hz);
-                    near(angle,Math.max(-1,1-expected),"counter=4 exact floor/ramp crossover at "+hz+" Hz");
-                }
-        // The ramp clock must advance even while the actual wheels are still on the old side.
-        var slow=DrivetrainConfig.parse(Map.of("steering_initial_rate","0.6","steering_full_rate","2.5",
-            "steering_ramp_seconds","0.3","steering_countersteer_rate","0.5"));
-        for(int hz:FRAME_RATES) {
-            var model=new SteeringModel(slow);
-            double before=advance(model,1,1,1,0,.35,hz);
-            check(before>0,"test remains before center after the ramp duration");
-            double after=model.step(1,before,1,0,100,.01);
-            near((before-after)/.01,slow.steeringFullRate,"held time advances before center");
-        }
-        for(double floor:new double[]{.5,2}) {
-            var flat=DrivetrainConfig.parse(Map.of("steering_initial_rate","1.0","steering_full_rate","1.0",
-                "steering_countersteer_rate",Double.toString(floor)));
-            near(new SteeringModel(flat).step(1,.4,.4,0,100,.01),.4-Math.max(1,floor)*.4*.01,
-                "flat ramp has no divide-by-zero boundary");
-        }
-    }
-
-    private static void rapidLatestIntent(DrivetrainConfig config) {
-        double[] reference=trajectory(config,60,1);
-        for(int hz:FRAME_RATES)
-            for(int speedSign:new int[]{-1,1}) {
-                double[] actual=trajectory(config,hz,speedSign);
-                for(int i=0;i<actual.length;i++) near(actual[i],reference[i],"rapid latest-input frame/speed-sign independence, segment "+i);
+    private static void wholeUpdatesAreTheGamesOwnStep() {
+        for(float multiplier:new float[]{.25f,.5f,1f,2f,4f}) for(float input:new float[]{-1f,1f,.5f}) for(float speed:new float[]{0,40,95,150,-30}) {
+            float factor=Math.max(.1f,1-speed/100f), game=.3f; double model=.3;
+            for(int update=0;update<40;update++) {
+                game=gameHeld(game,input,multiplier,factor);
+                model=SteeringModel.step(input,model,multiplier,speed,100,1,true);
+                near(model,game,1e-4,"held update equals the game's line");
             }
-        // Reverse twice before either motion can finish; the latest target wins immediately.
-        var model=new SteeringModel(config);
-        double left=model.step(1,0,.9,0,100,.02);
-        double right=model.step(-1,left,.9,0,100,.005);
-        check(right>left && right<0,"opposite intent starts before reaching center");
-        double leftAgain=model.step(1,right,.9,0,100,.005);
-        check(leftAgain<right,"second reversal immediately follows the latest input");
-        near((right-leftAgain)/(.9*.005),config.steeringCountersteerRate,"rapid reversal retains counter floor on either side");
-        double released=model.step(0,leftAgain,.9,0,100,.005);
-        check(Math.abs(released)<Math.abs(leftAgain),"release immediately replaces the turning target");
-    }
-
-    private static void releaseAndReset(DrivetrainConfig config) {
-        for(int hz:FRAME_RATES) {
-            var model=new SteeringModel(config);
-            double angle=model.step(1,.9,.9,0,100,1d/hz);
-            angle=advance(model,0,angle,.9,0,1/config.steeringReturnRate,hz);
-            near(angle,0,"release centers without overshoot");
-            near(model.step(1,angle,.9,0,100,1d/hz),new SteeringModel(config).step(1,0,.9,0,100,1d/hz),
-                "release clears counter intent and held ramp before a fresh neutral press");
-            model.reset();
-            near(model.step(-1,.3,.4,0,100,1d/hz),new SteeringModel(config).step(-1,.3,.4,0,100,1d/hz),
-                "explicit reset rebases actual angle and intent");
-        }
-    }
-
-    private static void floatInputDeadZone(DrivetrainConfig config) {
-        double dt=1d/60;
-        for(int sign:new int[]{-1,1}) for(float magnitude:new float[]{Math.nextDown(.1f),.1f,Math.nextUp(.1f)}) {
-            float input=sign*magnitude;
-            double angle=new SteeringModel(config).step(input,0,.9,0,100,dt);
-            if(magnitude>.1f) check(angle*sign<0,"the first float above the dead zone still steers");
-            else {
-                near(angle,0,"float boundary and its inward neighbor remain neutral for either sign");
-                double returning=new SteeringModel(config).step(input,.4,.9,0,100,dt);
-                near(returning,new SteeringModel(config).step(0,.4,.9,0,100,dt),
-                    "float dead-zone input has the same return behavior as released input");
+            for(int update=0;update<40;update++) {
+                game=gameReleased(game,multiplier);
+                model=SteeringModel.step(0,model,multiplier,speed,100,0,false);
+                near(model,game,1e-4,"released update equals the game's line");
             }
         }
+        near(SteeringModel.step(0,.04,1,0,100,0,false),0,0,"the game's snap to centre is kept");
+        // Input inside the dead zone is a release, whatever the measurement said.
+        near(SteeringModel.step(.1f,.5,1,0,100,1,true),SteeringModel.step(0,.5,1,0,100,0,false),0,"dead-zone input releases");
+        near(SteeringModel.step(Math.nextUp(.1f),0,1,0,100,1,true),-Math.nextUp(.1f)*.06f,1e-9,"first float above the dead zone steers");
     }
 
-    private static void invalidInputsAndBounds(DrivetrainConfig config) {
-        double dt=1d/60;
+    private static void partialHoldsComposeAndAreOrdered() {
+        for(double multiplier:new double[]{.5,1,2}) for(double speed:new double[]{0,60}) {
+            double whole=SteeringModel.step(1,.2,multiplier,speed,100,1,true);
+            // A press confirmed one update late carries its time over: two updates' worth in one.
+            double twice=SteeringModel.step(1,SteeringModel.step(1,.2,multiplier,speed,100,1,true),multiplier,speed,100,1,true);
+            near(SteeringModel.step(1,.2,multiplier,speed,100,2,true),twice,1e-12,"carried time equals the updates it stands for");
+            // Splitting one held update into parts changes nothing.
+            double perUpdate=SteeringModel.APPROACH*multiplier*SteeringModel.speedFactor(speed,100);
+            double half=1-Math.sqrt(1-perUpdate);
+            double split=.2-(1+.2)*half; split=split-(1+split)*half;
+            near(split,whole,1e-12,"two half shares close the same distance as one update");
+        }
+        // Released before the update ended: steer first, then return for the rest.
+        double keep=1-SteeringModel.APPROACH, back=SteeringModel.RETURN;
+        double steered=-.5-(1-.5)*(1-Math.pow(keep,.25));
+        near(SteeringModel.step(1,-.5,1,0,100,.25,false),steered+back*.75,1e-12,"a key let go mid-update returns for the remainder");
+        near(SteeringModel.step(1,0,1,0,100,.25,false),0,0,"a short tap from centre is back at centre by the end of its update");
+        // Still down at the end: the return belongs to the time before the press.
+        near(SteeringModel.step(1,.5,1,0,100,.25,true),(.5-back*.75)-(1+.5-back*.75)*(1-Math.pow(keep,.25)),1e-12,
+            "a key pressed mid-update steers from where the return left off");
+        near(SteeringModel.step(1,.01,1,0,100,.5,true),-(1-Math.pow(keep,.5)),1e-12,"return snaps to centre within its share before steering");
+    }
+
+    private static void tapLengthDecidesTheAngleNotTheFrameRate() {
+        // The same 40 ms tap from rest, measured exactly, at different frame rates and phases:
+        // how far the wheels got by the moment the key was let go.
+        double reference=Double.NaN;
+        for(int hz:new int[]{30,60,90,144,240}) for(double phase:new double[]{0,.3,.7}) {
+            double frame=1d/hz, multiplier=60d/hz, start=phase*frame, end=start+.040, angle=0;
+            for(int index=0;index<hz;index++) {
+                double from=index*frame, to=from+frame;
+                double held=Math.max(0,Math.min(to,end)-Math.max(from,start))/frame;
+                boolean heldAtEnd=end>=to && start<to;
+                if(held>0) angle=SteeringModel.step(1,angle,multiplier,0,100,held,heldAtEnd);
+                // The update that contains the release has already begun returning; take that back out.
+                if(to>=end) { angle-=SteeringModel.RETURN*multiplier*(1-held); break; }
+            }
+            if(Double.isNaN(reference)) reference=angle;
+            // What remains is the game's own per-update rounding, far below a whole frame's worth.
+            near(angle,reference,8e-3,"a measured tap steers the same at "+hz+" Hz, phase "+phase);
+        }
+        // Counted in whole 60 Hz frames, the same tap lands on two or three frames: a 30 % spread.
+        double two=0, three=0;
+        for(int i=0;i<2;i++) two=SteeringModel.step(1,two,1,0,100,1,true);
+        for(int i=0;i<3;i++) three=SteeringModel.step(1,three,1,0,100,1,true);
+        check(Math.abs(three-two)>.05 && Math.abs(reference-two)<Math.abs(three-two) && Math.abs(reference-three)<Math.abs(three-two),
+            "exact timing lies between the two whole-frame outcomes");
+    }
+
+    private static void speedSlowsSteeringLikeTheGame() {
+        near(SteeringModel.speedFactor(0,100),1,0,"standing still: full rate");
+        near(SteeringModel.speedFactor(50,100),.5,1e-12,"half speed: half rate");
+        near(SteeringModel.speedFactor(100,100),.1f,1e-12,"top speed keeps the game's floor");
+        near(SteeringModel.speedFactor(250,100),.1f,1e-12,"beyond top speed keeps the floor");
+        near(SteeringModel.speedFactor(-50,100),1.5,1e-12,"the game uses the signed speed");
+        check(Math.abs(SteeringModel.step(1,0,1,90,100,1,true))<Math.abs(SteeringModel.step(1,0,1,10,100,1,true)),"fast is slower to steer");
+    }
+
+    private static void invalidInputsDecline() {
         double[][] invalid={
-            {Double.NaN,0,.9,0,100,dt},{Double.POSITIVE_INFINITY,0,.9,0,100,dt},{1.01,0,.9,0,100,dt},
-            {1,Double.NaN,.9,0,100,dt},{1,Double.POSITIVE_INFINITY,.9,0,100,dt},
-            {1,0,0,0,100,dt},{1,0,-.1,0,100,dt},{1,0,Math.PI+.01,0,100,dt},{1,0,Double.NaN,0,100,dt},
-            {1,0,.9,Double.NaN,100,dt},{1,0,.9,0,0,dt},{1,0,.9,0,Double.POSITIVE_INFINITY,dt},
-            {1,0,.9,0,100,0},{1,0,.9,0,100,-1},{1,0,.9,0,100,Double.NaN},{1,0,.9,0,100,config.maxDtSeconds+.001}
+            {Double.NaN,0,1,0,100,1},{1.01,0,1,0,100,1},{1,Double.NaN,1,0,100,1},{1,4,1,0,100,1},
+            {1,0,0,0,100,1},{1,0,-1,0,100,1},{1,0,Double.NaN,0,100,1},{1,0,Double.POSITIVE_INFINITY,0,100,1},
+            {1,0,1,Double.NaN,100,1},{1,0,1,0,0,1},{1,0,1,0,Double.NaN,1},
+            {1,0,1,0,100,-.1},{1,0,1,0,100,Double.NaN},{1,0,1,0,100,SteeringModel.MAXIMUM_HELD_FRACTION+.01},
+            // The game's own step would overshoot here (fast-forward): such updates are left to the game.
+            {1,0,17,0,100,1},{1,0,10,-80,100,1},
         };
-        for(double[] args:invalid) {
-            var model=new SteeringModel(config);
-            model.step(1,.9,.9,0,100,dt);
-            check(Double.isNaN(model.step(args[0],args[1],args[2],args[3],args[4],args[5])),"invalid input declines without a game value");
-            near(model.step(-1,.3,.4,0,100,dt),new SteeringModel(config).step(-1,.3,.4,0,100,dt),
-                "invalid input clears actual angle, held time and counter intent");
-        }
-        var model=new SteeringModel(config);
-        double angle=model.step(0,100,.4,0,100,.01);
-        near(angle,.4-config.steeringReturnRate*.4*.01,"initial actual angle is clamped");
-        advance(model,1,angle,.9,0,1,60);
-        near(model.step(1,-.9,.2,100,100,dt),-.2,"changed maximum angle remains authoritative");
-        near(new SteeringModel(config).step(.1,.2,.4,0,100,.01),.2-config.steeringReturnRate*.4*.01,"input dead zone retains return behavior");
+        for(double[] a:invalid) check(Double.isNaN(SteeringModel.step(a[0],a[1],a[2],a[3],a[4],a[5],true)),"invalid input declines without a value");
+        check(Double.isFinite(SteeringModel.step(1,0,16,0,100,1,true)),"the largest non-overshooting step is accepted");
     }
 
-    private static double fullLockTime(DrivetrainConfig config,double input,double cap,double speed,int hz) {
-        var model=new SteeringModel(config);
-        for(int frame=1;frame<=hz*2;frame++) {
-            double angle=model.step(input,0,cap,speed,100,1d/hz);
-            check(Double.isFinite(angle) && Math.abs(angle)<=cap,"full-lock angle cap preserved");
-            if(Math.abs(angle+input*cap)<1e-12) return (double)frame/hz;
-        }
-        throw new AssertionError("full lock not reached within the expected bound");
+    private static final long UPDATE=16_000_000L;
+    private static void heldInputFollowsTheGamesConfirmation() {
+        var held=new HeldInput();
+        // Press 6 ms before the update ends: the game has not seen it yet.
+        check(held.update(0,0,6_000_000L,UPDATE,false,true),"measurement accepted");
+        near(held.fraction,0,0,"nothing is steered before the game accepts the press");
+        // Next update the game confirms it; the carried time is spent with this update's.
+        check(held.update(1,0,UPDATE,UPDATE,false,true),"confirmed");
+        near(held.fraction,1+6d/16,1e-12,"time before the confirmation is not lost");
+        check(held.heldAtEnd,"still down");
+        check(held.update(1,0,UPDATE,UPDATE,false,true),"held");
+        near(held.fraction,1,0,"a key held throughout is exactly one update");
+        // Released 4 ms into the update while the game's input still says right.
+        check(held.update(1,0,4_000_000L,UPDATE,false,false),"release update");
+        near(held.fraction,.25,1e-12,"only the time actually held counts"); check(!held.heldAtEnd,"released by the end");
+        // The game's input lags one more update: nothing was held, so it is a release.
+        check(held.update(1,0,0,UPDATE,false,false),"stale input");
+        near(held.fraction,0,0,"a released key steers nothing, whatever the stale input says");
+        // Left key, game input negative.
+        check(held.update(-1,UPDATE/2,0,UPDATE,true,false),"left");
+        near(held.fraction,.5,1e-12,"left is measured on its own key"); check(held.heldAtEnd,"left still down");
     }
-    private static double[] trajectory(DrivetrainConfig config,int hz,int speedSign) {
-        double[] inputs={1,-1,1,0,-1,1,0,1}, durations={.071,.043,.029,.017,.081,.023,.137,.047};
-        double[] result=new double[inputs.length];
-        var model=new SteeringModel(config); double angle=0;
-        for(int i=0;i<inputs.length;i++) result[i]=angle=advance(model,inputs[i],angle,.7,45*speedSign,durations[i],hz);
-        return result;
+
+    private static void heldInputDropsWhatTheGameNeverAccepted() {
+        var held=new HeldInput();
+        // Typing in a text box: the key is down for a long time and the game never reports input.
+        for(int update=0;update<50;update++) check(held.update(0,0,UPDATE,UPDATE,false,true),"gated update");
+        check(held.update(1,0,UPDATE,UPDATE,false,true),"gate opens");
+        check(held.fraction<=1+HeldInput.CONFIRMATION_UPDATES,"time typed into a text box is not replayed as steering: "+held.fraction);
+        // Both keys down: the game reports neutral, and neither side may build up credit.
+        held.reset();
+        for(int update=0;update<10;update++) check(held.update(0,UPDATE,UPDATE,UPDATE,true,true),"both down");
+        check(held.update(1,0,UPDATE,UPDATE,false,true),"one remains");
+        check(held.fraction<=SteeringModel.MAXIMUM_HELD_FRACTION,"credit is bounded");
+        // A tap the game never saw at all is dropped after the confirmation window.
+        held.reset();
+        check(held.update(0,0,5_000_000L,UPDATE,false,false),"unseen tap");
+        for(int update=0;update<HeldInput.CONFIRMATION_UPDATES;update++) check(held.update(0,0,0,UPDATE,false,false),"waiting");
+        check(held.update(1,0,UPDATE,UPDATE,false,true),"later press");
+        near(held.fraction,1,0,"an old unseen tap does not add to a later press");
     }
-    private static double advance(SteeringModel model,double input,double angle,double cap,double speed,double duration,int hz) {
-        double target=input==0?0:-Math.signum(input)*cap*Math.min(1,Math.abs(input));
-        for(double time=0;time<duration-1e-12;) {
-            double dt=Math.min(1d/hz,duration-time), before=angle;
-            angle=model.step(input,angle,cap,speed,100,dt);
-            check(Double.isFinite(angle) && Math.abs(angle)<=cap,"trajectory respects the current angle cap");
-            check(Math.abs(target-angle)<=Math.abs(target-before)+1e-12,"each step follows the latest target");
-            time+=dt;
-        }
-        return angle;
+
+    private static void heldInputReportsDisagreement() {
+        var held=new HeldInput();
+        // The game keeps steering right although the bound key was never seen down: wrong keys are being watched.
+        boolean trusted=true;
+        for(int update=0;update<HeldInput.MISMATCH_UPDATES;update++) trusted=held.update(1,0,0,UPDATE,false,false);
+        check(!trusted,"persistent disagreement hands steering back to the game's input");
+        check(!held.update(1,0,0,0,false,false),"an empty span cannot be measured");
+        check(!held.update(1,0,-1,UPDATE,false,false),"negative time is rejected");
+        check(!held.update(Double.NaN,0,0,UPDATE,false,false),"invalid input is rejected");
     }
-    private static void near(double value,double expected,String reason) { check(Double.isFinite(value)&&Math.abs(value-expected)<1e-9,reason+": "+value+" vs "+expected); }
+
+    private static void near(double value,double expected,double tolerance,String reason) {
+        check(Double.isFinite(value)&&Math.abs(value-expected)<=tolerance,reason+": "+value+" vs "+expected);
+    }
     private static void check(boolean value,String reason) { if(!value)throw new AssertionError(reason); }
 }

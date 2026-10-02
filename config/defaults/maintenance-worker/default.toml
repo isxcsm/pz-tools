@@ -1,8 +1,8 @@
 # Technical records for backup cleanup. The app's retention setting limits only
 # automatic backups. Manual/unknown backups are excluded from automatic-count
 # trimming, but explicit deletion and the existing orphan-save policy still apply.
-# Set the automatic backup count in the app. Cleanup can remove data no retained
-# backup uses; it does not automatically repack data files.
+# Set the automatic backup count in the app. Cleanup removes data no retained
+# backup uses and rewrites data files that are mostly unused (see below).
 
 [telemetry]
 # Keep records of cleanup work and failures. Turning this off removes details
@@ -47,3 +47,18 @@ vacuum_minimum_free_percent = 25
 # Larger databases retain reusable space instead of starting an automatic full
 # rebuild. Insufficient disk space, active work or lock contention defer VACUUM.
 vacuum_maximum_database_mib = 256
+
+# A data file is deleted only when no retained backup needs anything in it. A
+# manual or older backup that still needs a few files keeps the whole file, so
+# unused space builds up. While the game is closed, cleanup rewrites such files
+# into one new file holding only the data still needed. Every copied item is
+# checksum-verified and the old files stay until the replacement is committed.
+pack_reclamation_enabled = true
+# Rewrite a data file when less than this percent of it is still needed (10-90).
+# Lower values copy less often but leave more unused space on disk.
+pack_reclamation_sparse_percent = 50
+# Start only when at least this much space, in MiB, can be recovered in total.
+pack_reclamation_minimum_mib = 16
+# Copy at most about this much needed data per pass, in MiB (1-4096). Later
+# passes continue. Needs free disk space of about twice this amount plus 64 MiB.
+pack_reclamation_maximum_copy_mib = 128

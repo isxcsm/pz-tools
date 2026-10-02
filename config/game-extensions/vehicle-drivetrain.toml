@@ -1,10 +1,11 @@
 # Experimental normalized game-force profile. Native force/time calibration and driving E2E remain pending.
 # Optional overrides: <runtimeRoot>/extensions/vehicle-drivetrain.toml (same flat keys).
 schema_version = 1
-# The app's three feature preferences (including unwritten UI defaults) override these transport defaults.
+# The app's feature preferences (including unwritten UI defaults) override these transport defaults.
 torque_enabled = true            # Forward acceleration and transmission; independent of reverse/steering
 reverse_enabled = true           # Smooth reverse launch and direction transitions
-steering_enabled = true          # Progressive keyboard steering; gamepads retain original behavior
+steering_enabled = true          # Keyboard steering by the time a key is really held; gamepads retain original behavior
+area_light_enabled = true        # Light the ground around the vehicle you are in while its headlights are lit
 force_scale = 1.0                 # 0.25..1.5; not an SI horsepower conversion
 forward_torque_boost_fraction = 0.10 # 0..0.10; RPM-curve boost above the base forward force (0 disables only this boost)
 low_gear_boost = 1.0              # 1.0..1.6; default adds no extra first-gear boost
@@ -36,14 +37,12 @@ shift_hysteresis_fraction = 0.08 # 0.04..0.15; lower-gear RPM separation from it
 demand_downshift_fraction = 0.48 # 0.25..0.60; kick-down request RPM threshold with >80% demand
 # Cross-check: min(redlines) * upshift_rpm_fraction / sqrt(gear_ratio_span) >= launch_rpm.
 # Low-mode over-rev protection and final torque fade remain bounded algorithm guards, not bypass options.
-# Center-to-lock response is time-compressed 3x: input rates x3, ramp duration /3.
-steering_initial_rate = 1.8     # 0.1..3.0; normalized steering travel per second on first input
-steering_full_rate = 7.5        # 0.5..8.0; sustained input; must be >= steering_initial_rate
-steering_ramp_seconds = 0.1     # 0.05..1.0; first-input to full steering rate
-steering_return_rate = 8.0      # 0.5..10.0; release-to-center rate
-steering_countersteer_rate = 8.0 # 0.5..12.0; latest opposite-input rate floor, retained through center
-steering_high_speed_rate_factor = 0.6 # 0.2..1.0; rate fraction at maximum speed; original angle cap is preserved
-# Developer-only controls. Not exposed by the three user-facing switches.
+# Keyboard steering keeps the game's own response curve, speed scaling and angle limits.
+steering_precise_input = true    # Time the steering keys about every millisecond instead of once per frame; false = the game's per-frame timing
+# The light around the vehicle. It is placed the way the game places a lightbar's glow and is never saved.
+area_light_radius = 8            # 3..20 tiles; whole numbers
+area_light_brightness = 0.6      # 0.1..1.0
+# Developer-only controls. Not exposed by the user-facing switches.
 low_mode = false
 probe_only = false               # Observe without committing force/RPM/gear changes
 diagnostics_enabled = false      # Bounded latest sample and one-second aggregate driving diagnostics

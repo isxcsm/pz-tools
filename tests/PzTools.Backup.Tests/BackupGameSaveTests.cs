@@ -92,9 +92,7 @@ public sealed class BackupGameSaveTests
     [InlineData("save-failed")]
     [InlineData("completion-unknown")]
     [InlineData("queue-timeout")]
-    [InlineData("connection-timeout")]
-    [InlineData("attach-failed")]
-    [InlineData("bridge-not-built")]
+    // A game that could not be reached at all is the one exception; see GameLinkFallbackTests.
     [InlineData("unsupported-game")]
     [InlineData("multiple-games")]
     [InlineData("saving-disabled")]

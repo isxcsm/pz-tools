@@ -13,16 +13,19 @@ public sealed class RuntimeSnapshotStore(TimeProvider? timeProvider = null)
     private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
     private Stamped? current;
     public void Publish(RuntimeObservation value) => Volatile.Write(ref current, new(value.Validate(), clock.GetTimestamp()));
+    /// <summary>Changes, by reference, whenever something is published.</summary>
+    internal object? Version => Volatile.Read(ref current);
     public RuntimeObservation Read()
     {
         var value = Volatile.Read(ref current);
         if (value is null) return RuntimeObservation.Unknown("connecting");
         var elapsed = Math.Max(0, (long)clock.GetElapsedTime(value.Timestamp).TotalMilliseconds);
         var age = Math.Min(long.MaxValue - elapsed, value.Observation.AgeMilliseconds) + elapsed;
-        var extension = value.Observation.Extension;
+        RuntimeExtensionStatus? Aged(RuntimeExtensionStatus? status) => status is null ? null
+            : status with { AgeMilliseconds = Math.Min(long.MaxValue - elapsed, status.AgeMilliseconds) + elapsed };
         var result = value.Observation with { AgeMilliseconds = age,
-            Extension = extension is null ? null : extension with {
-                AgeMilliseconds = Math.Min(long.MaxValue - elapsed, extension.AgeMilliseconds) + elapsed } };
+            Extension = Aged(value.Observation.Extension),
+            Extensions = value.Observation.Extensions?.ToDictionary(pair => pair.Key, pair => Aged(pair.Value)!, StringComparer.Ordinal) };
         return result.Quality == RuntimeQuality.Fresh && (!result.IsFresh
             || result.Snapshot!.SampleAgeMilliseconds > 2000 - Math.Min(age, 2000))
             ? result with { Quality = RuntimeQuality.Stale, Reason = "stale-game-sample" } : result;
@@ -50,13 +53,26 @@ public static class RuntimeStateFeed
             {
                 await pipe.WaitForConnectionAsync(token);
                 using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
+                // Sent when something was published, and at least every second so the follower, which gives
+                // up after two silent seconds, keeps the line. Ages are worked out on receipt, so an
+                // unchanged observation need not be sent again; with no game that is almost always.
+                object? sentObservation = null, sentExtensions = null;
+                long sentAt = 0;
                 while (pipe.IsConnected)
                 {
-                    using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    deadline.CancelAfter(TimeSpan.FromSeconds(2));
-                    var observation = source.Read();
-                    if (extensions is not null) observation = observation with { Extension = extensions.Read() };
-                    await writer.WriteLineAsync(RuntimeJson.Write(observation).AsMemory(), deadline.Token);
+                    var observationVersion = source.Version;
+                    var extensionsVersion = extensions?.Version;
+                    if (sentAt == 0 || !ReferenceEquals(observationVersion, sentObservation)
+                        || !ReferenceEquals(extensionsVersion, sentExtensions)
+                        || Stopwatch.GetElapsedTime(sentAt) >= TimeSpan.FromSeconds(1))
+                    {
+                        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        deadline.CancelAfter(TimeSpan.FromSeconds(2));
+                        var observation = source.Read();
+                        if (extensions is not null) observation = observation with { Extension = extensions.Read(), Extensions = extensions.ReadModules() };
+                        await writer.WriteLineAsync(RuntimeJson.Write(observation).AsMemory(), deadline.Token);
+                        (sentObservation, sentExtensions, sentAt) = (observationVersion, extensionsVersion, Stopwatch.GetTimestamp());
+                    }
                     await Task.Delay(250, token);
                 }
             }
@@ -93,14 +109,9 @@ public static class RuntimeStateFeed
 
     public static async Task<string> ReadBoundedAsync(StreamReader reader, CancellationToken token)
     {
-        var text = new StringBuilder();
-        var buffer = new char[1];
-        while (await reader.ReadAsync(buffer.AsMemory(), token) != 0)
-        {
-            if (buffer[0] == '\n') return text.ToString();
-            if (buffer[0] != '\r') text.Append(buffer[0]);
-            if (text.Length > 65536) throw new InvalidDataException("Oversized runtime frame.");
-        }
-        throw new EndOfStreamException("Runtime feed ended.");
+        // Whole lines from the reader's buffer: reading one character per await cost more than the feed itself.
+        // The pipe is the current user's own; the bound guards against a corrupt frame, not a hostile one.
+        var line = await reader.ReadLineAsync(token) ?? throw new EndOfStreamException("Runtime feed ended.");
+        return line.Length <= 65536 ? line : throw new InvalidDataException("Oversized runtime frame.");
     }
 }

@@ -25,6 +25,12 @@ public sealed class AppHost : IAsyncDisposable
     private readonly AppHostPaths paths;
     private readonly IManagedProcessLauncher launcher;
     private readonly Func<int, TimeSpan> restartDelay;
+    // Retry cadence after repeated failures, and the run time after which earlier failures stop counting.
+    private readonly TimeSpan schedulerRecovery;
+    private readonly bool dispatchCleanupOnExit;
+    private readonly bool checkComponentLaunch;
+    public static ViewKey BlockedComponentsViewKey { get; } = new("blocked-components");
+    public static ViewKey GameLinkViewKey { get; } = new("game-link");
     private readonly CancellationTokenSource lifetime = new();
     private readonly List<Task> supervisors = [];
     private readonly Dictionary<string, SchedulerHostStatus> schedulerStatuses =
@@ -32,6 +38,7 @@ public sealed class AppHost : IAsyncDisposable
     private readonly object statusGate = new();
     private bool started;
     private readonly RuntimeSnapshotStore runtimeSnapshot = new();
+    private readonly SaveGameVersionMemory saveVersions;
     private readonly ExtensionRuntimeDiagnostics extensionDiagnostics;
     private readonly SemaphoreSlim refreshGate = new(1, 1);
     private readonly SemaphoreSlim settingsGate = new(1, 1);
@@ -47,8 +54,14 @@ public sealed class AppHost : IAsyncDisposable
         RevisionedViewStore? views = null,
         ProjectionHost? projections = null,
         TelemetrySourceCatalog? telemetrySources = null,
-        Func<int, TimeSpan>? restartDelay = null)
+        Func<int, TimeSpan>? restartDelay = null,
+        TimeSpan? schedulerRecovery = null,
+        bool dispatchCleanupOnExit = false,
+        bool checkComponentLaunch = false)
     {
+        this.dispatchCleanupOnExit = dispatchCleanupOnExit;
+        this.checkComponentLaunch = checkComponentLaunch;
+        this.schedulerRecovery = schedulerRecovery ?? TimeSpan.FromSeconds(60);
         this.paths = paths with
         {
             RuntimeRoot = Path.GetFullPath(paths.RuntimeRoot),
@@ -82,13 +95,15 @@ public sealed class AppHost : IAsyncDisposable
         TelemetrySources = telemetrySources ?? new TelemetrySourceCatalog();
         Settings = new AppSettingsService(this.paths.RuntimeRoot, HasRunningOperation);
         extensionDiagnostics = new(this.paths.RuntimeRoot, () => LogInbox);
+        Profiles = new ProfileRecordingService(Path.Combine(this.paths.RuntimeRoot, "profiles"), () => Operations);
+        saveVersions = new SaveGameVersionMemory(this.paths.RuntimeRoot);
         GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
             () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
             Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"),
             () => { var o = runtimeSnapshot.Read(); var s = o.Snapshot; var result = s?.LastSave;
                 return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; },
-            () => ExtensionActivationView.SelectCurrentStatus(runtimeSnapshot.Read()),
+            moduleId => ExtensionActivationView.SelectCurrentStatus(runtimeSnapshot.Read(), moduleId),
             () => { var o = runtimeSnapshot.Read(); return o.IsFresh && o.Snapshot?.IsWorldReady == true; },
             extensionDiagnostics);
     }
@@ -98,12 +113,14 @@ public sealed class AppHost : IAsyncDisposable
     public TelemetrySourceCatalog TelemetrySources { get; }
     public AppSettingsService Settings { get; }
     public GameExtensionController GameExtensions { get; }
+    public ProfileRecordingService Profiles { get; }
     public SettingsProjector SettingsProjector { get; }
     public RepositoryDatabase? Repository { get; private set; }
     public SchedulerDatabase? Scheduler { get; private set; }
     public string? ActiveSavesRoot { get; private set; }
     public OperationCoordinator? Operations { get; private set; }
     public TelemetryProjectionHost? Telemetry { get; private set; }
+    private StateDatabase? stateDatabase;
     public LogInboxStore? LogInbox { get; private set; }
     public ThumbnailCache Thumbnails { get; }
 
@@ -126,6 +143,10 @@ public sealed class AppHost : IAsyncDisposable
         var state = await StateDatabase.CreateOrOpenAsync(paths.StateDatabasePath, cancellationToken);
         var scheduler = await SchedulerDatabase.CreateOrOpenAsync(
             paths.SchedulerDatabasePath, cancellationToken);
+        // The projections read both every second for as long as the app runs.
+        state.HoldReadConnection();
+        scheduler.HoldReadConnection();
+        stateDatabase = state;
         Scheduler = scheduler;
         var settings = Settings.Load();
         foreach (var (identity, component) in new[]
@@ -142,6 +163,7 @@ public sealed class AppHost : IAsyncDisposable
             (settings.BackupRoot, "archive-worker"),
             (settings.BackupRoot, "restore-worker"),
             (settings.BackupRoot, "character-recovery"),
+            (settings.BackupRoot, "profiler"),
         })
         {
             if (component != "backup-worker")
@@ -196,13 +218,18 @@ public sealed class AppHost : IAsyncDisposable
                 recovery.Problems.Count == 0 ? "maintenance.recovery.completed" : "maintenance.recovery.failed",
                 System.Text.Json.JsonSerializer.Serialize(recovery));
         }
+        // The backup projection checks its catalog every second as well.
+        repository.HoldReadConnection();
         Repository = repository;
         Operations = new OperationCoordinator(
             repository, paths.WorkerDirectory, TelemetrySources, launcher,
             new RunIndexAllocator(paths.ControlDatabasePath),
-            paths.OperationsRoot!, runtime, LogInbox);
+            paths.OperationsRoot!, runtime, LogInbox,
+            // A manual backup made with the game closed records the version the save was last played with.
+            VersionForNewBackup);
 
         supervisors.Add(RuntimeStateFeed.FollowAsync(scheduler.DatabasePath, runtimeSnapshot, lifetime.Token));
+        supervisors.Add(RememberSaveVersionsAsync(lifetime.Token));
         var stateProjector = new StateProjector(state, Views, observationBoundary,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.PausePeriodicDuringGame == true
                 ? runtimeSnapshot.Read() : null);
@@ -219,6 +246,12 @@ public sealed class AppHost : IAsyncDisposable
         Projections.AddLoop("scheduler", schedulerProjector.ProjectOnceAsync, projectionInterval);
         Projections.AddLoop("game-extensions", GameExtensions.RefreshRuntimeAsync, projectionInterval);
         Projections.AddLoop("details", composer.ComposeOnceAsync, projectionInterval);
+        var gameLink = new GameLinkMonitor();
+        Projections.AddLoop("game-link", _ =>
+        {
+            Views.Publish(GameLinkViewKey, gameLink.Update(runtimeSnapshot.Read()));
+            return Task.CompletedTask;
+        }, projectionInterval);
         Projections.AddLoop("telemetry", token => telemetry.ProjectOnceAsync(cancellationToken: token),
             projectionInterval);
         Projections.AddLoop("health", _ =>
@@ -261,8 +294,55 @@ public sealed class AppHost : IAsyncDisposable
             Path.Combine(paths.WorkerDirectory, "PzTools.State.Scheduler.exe"),
             stateArguments,
             lifetime.Token));
+        if (checkComponentLaunch) supervisors.Add(MonitorComponentLaunchAsync(lifetime.Token));
         // 과거 작업 로그의 발견은 첫 세이브 목록/상세 투영을 막지 않습니다.
         await RegisterHistoricalOperationTelemetrySourcesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// The game version of a save as it is now: the running game's while it has the save loaded, otherwise
+    /// the last one this app saw it loaded with. A save file records no version of its own.
+    /// </summary>
+    public SaveGameVersion? CurrentSaveVersion(string savePath)
+    {
+        if (runtimeSnapshot.Read().GameVersionFor(savePath) is { } running)
+        {
+            saveVersions.Remember(savePath, running, DateTimeOffset.UtcNow);
+            return new(running, SaveVersionBasis.RunningGame);
+        }
+        return saveVersions.Recall(savePath);
+    }
+
+    /// <summary>
+    /// The version a new backup of this save records: the running game's, else the last one seen with the save,
+    /// else the one its newest backup recorded. A save is only ever played by one version at a time, and a manual
+    /// backup with the game closed captures what that last session left.
+    /// </summary>
+    private string? VersionForNewBackup(string savePath)
+    {
+        if (CurrentSaveVersion(savePath) is { } known) return known.Version;
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(savePath));
+        return Views.ReadIfChanged<BackupCatalogView>(ViewKey.BackupCatalog, 0).Snapshot?.Sources
+            .FirstOrDefault(source => StringComparer.OrdinalIgnoreCase.Equals(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(source.RootPath)), root))?.Revisions
+            .Where(revision => !string.IsNullOrWhiteSpace(revision.GameVersion))
+            .MaxBy(revision => revision.Revision)?.GameVersion?.Trim();
+    }
+
+    // Remembers which version each save was played with, even while nobody looks at it in the app.
+    private async Task RememberSaveVersionsAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var observation = runtimeSnapshot.Read();
+                if (observation.Snapshot?.SavePath is { } path && observation.GameVersionFor(path) is { } version)
+                    saveVersions.Remember(path, version, DateTimeOffset.UtcNow);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
 
     public ValueTask DisposeAsync()
@@ -275,6 +355,8 @@ public sealed class AppHost : IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+        // While workers can still run: a recording left alone would keep the game recording until its time limit.
+        await Profiles.StopAndWaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
         lifetime.Cancel();
         Projections.RequestStop();
         try
@@ -287,11 +369,28 @@ public sealed class AppHost : IAsyncDisposable
             await Task.WhenAll(
                 WaitForSupervisorsAsync(),
                 DrainProjectionsAsync()).ConfigureAwait(false);
+            await DispatchExitCleanupAsync().ConfigureAwait(false);
         }
         finally
         {
             await extensionDiagnostics.FlushAsync().ConfigureAwait(false);
             lifetime.Dispose();
+        }
+
+        // Cleanup only runs while the game is closed, and the app is often closed right after the
+        // game. Leave one detached pass behind; it defers by itself if the game is still running.
+        async Task DispatchExitCleanupAsync()
+        {
+            if (!dispatchCleanupOnExit || Repository is not { } repository || ActiveSavesRoot is not { } savesRoot) return;
+            try
+            {
+                await new OrphanCleanupDispatcher(repository.RepositoryPath, savesRoot,
+                    paths.WorkerDirectory, paths.ControlDatabasePath).TickAsync(DateTimeOffset.UtcNow).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Closing the app must not fail because optional cleanup could not be started.
+            }
         }
 
         async Task WaitForSupervisorsAsync()
@@ -307,6 +406,11 @@ public sealed class AppHost : IAsyncDisposable
             await refreshGate.WaitAsync().ConfigureAwait(false);
             refreshGate.Release();
             await Projections.DisposeAsync().ConfigureAwait(false);
+            // The connections the projections keep open; with the loop stopped, close them.
+            Telemetry?.Dispose();
+            stateDatabase?.ReleaseReadConnection();
+            Scheduler?.ReleaseReadConnection();
+            Repository?.ReleaseReadConnection();
         }
     }
 
@@ -376,6 +480,38 @@ public sealed class AppHost : IAsyncDisposable
             .RefreshLogViewAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Keeps the failure of an action that ran no worker (a rename, a setting, work refused before it started)
+    /// in the logs. Its card expires; the log entry and the unread badge stay until the user has seen them.
+    /// Never throws: a failed log write must not turn one failure into two.
+    /// </summary>
+    public void RecordActionIssue(string title, string message, bool failed)
+    {
+        if (LogInbox is not { } inbox) return;
+        var id = Guid.NewGuid();
+        var entry = new LogEntryView($"app-action:{id:N}", $"app-action:{id:N}", id, 1, DateTimeOffset.UtcNow,
+            failed ? LogLevel.Error : LogLevel.Warning, "app", 0, "app.action.failed",
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                failureCode = "app-action",
+                outcome = failed ? "Failed" : "Degraded",
+                title,
+                message,
+            }));
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await inbox.AppendAsync([entry], lifetime.Token).ConfigureAwait(false);
+                if (Telemetry is { } telemetry) await telemetry.RefreshLogViewAsync(lifetime.Token).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // The card has already told the user; the log is a second chance, not a requirement.
+            }
+        });
+    }
+
     public async Task<LogsView> AcknowledgeAllLogIssuesAsync(
         CancellationToken cancellationToken = default)
     {
@@ -383,6 +519,39 @@ public sealed class AppHost : IAsyncDisposable
             .AcknowledgeAllAsync(cancellationToken);
         return await (Telemetry ?? throw new InvalidOperationException("Log projection is not ready."))
             .RefreshLogViewAsync(cancellationToken);
+    }
+
+    private async Task MonitorComponentLaunchAsync(CancellationToken token)
+    {
+        var check = new ComponentLaunchCheck(launcher);
+        IReadOnlyList<string> previous = [];
+        while (!token.IsCancellationRequested)
+        {
+            IReadOnlyList<string> blocked;
+            try { blocked = await check.FindBlockedAsync(paths.WorkerDirectory, token).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
+            catch (Exception) { blocked = previous; } // The check itself must never disturb the app.
+            Views.Publish(BlockedComponentsViewKey, new BlockedComponentsView(blocked), comparer: BlockedComponentsView.Comparer);
+            if (blocked.Count > 0 && !blocked.SequenceEqual(previous, StringComparer.OrdinalIgnoreCase) && LogInbox is { } inbox)
+            {
+                try
+                {
+                    await inbox.AppendAsync([new LogEntryView(
+                        Guid.NewGuid().ToString("N"), "app-dispatch", Guid.Empty, 0, DateTimeOffset.UtcNow,
+                        LogLevel.Error, "app", 0, "component.launch.blocked",
+                        System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            failureCode = LaunchFailure.Blocked, phase = "component-check", components = blocked,
+                            message = "Windows application control refused to start these components.",
+                        }))], token).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (exception is IOException or Microsoft.Data.Sqlite.SqliteException) { }
+            }
+            previous = blocked;
+            // Verdicts are reputation-based and can change; look again sooner while something is blocked.
+            try { await Task.Delay(blocked.Count > 0 ? TimeSpan.FromMinutes(5) : TimeSpan.FromHours(6), token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
+        }
     }
 
     private async Task SuperviseAsync(
@@ -400,6 +569,7 @@ public sealed class AppHost : IAsyncDisposable
                 restart == 0 ? SchedulerHostState.Starting : SchedulerHostState.Restarting,
                 restart, null, null));
             ManagedProcessExit exit;
+            var launched = System.Diagnostics.Stopwatch.GetTimestamp();
             try
             {
                 var running = launcher.RunAsync(
@@ -421,12 +591,18 @@ public sealed class AppHost : IAsyncDisposable
                     null,
                     $"launcher-{exception.GetType().Name}");
             }
+            // A scheduler that ran for a while had recovered; one early burst must not count for the whole session.
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(launched) >= schedulerRecovery) restart = 0;
             if (++restart > maximumRestarts)
             {
                 PublishStatus(new SchedulerHostStatus(
                     name, SchedulerHostState.Faulted, restart - 1,
                     exit.ExitCode, exit.FailureCode));
-                return;
+                // Automatic backups depend on these processes. Report the fault, then keep
+                // trying at a slow cadence instead of staying down until the app restarts.
+                restart = maximumRestarts;
+                await Task.Delay(schedulerRecovery, token);
+                continue;
             }
             await Task.Delay(restartDelay(restart), token);
         }
@@ -448,7 +624,7 @@ public sealed class AppHost : IAsyncDisposable
 
     public bool HasRunningOperation() =>
         Operations?.IsDeletionRunning == true || Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
-            .Any(item => item.Status == OperationStatus.Running) == true;
+            .Any(item => item.Status == OperationStatus.Running && item.Kind != "profile") == true;
 
     private void RegisterTelemetrySources(
         AppSettings settings,
@@ -516,6 +692,7 @@ public sealed class AppHost : IAsyncDisposable
                      ("archive-worker", "archive-*"),
                      ("restore-worker", "restore-*"),
                      ("character-recovery", "character-recovery-*"),
+                     ("profiler", "profiler-*"),
                  })
         {
             var operationRoot = Path.Combine(paths.OperationsRoot!, component);

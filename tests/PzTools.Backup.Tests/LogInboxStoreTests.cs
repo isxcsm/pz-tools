@@ -216,7 +216,7 @@ public sealed class LogInboxStoreTests
                 OperationStatus.Succeeded, completed, completed),
             Transient: true, LogsOnly: true));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        using var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
         projector.ConfigureLogs(new LogProjectionOptions(LogLevel.Information, 100));
         await projector.ProjectOnceAsync();
 
@@ -228,7 +228,7 @@ public sealed class LogInboxStoreTests
         Assert.Contains("archive-export-old", await inbox.ReadImportedSourcesAsync());
 
         var restartedViews = new RevisionedViewStore();
-        var restartedProjector = new TelemetryProjectionHost(new TelemetrySourceCatalog(), restartedViews,
+        using var restartedProjector = new TelemetryProjectionHost(new TelemetrySourceCatalog(), restartedViews,
             logInbox: await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db")));
         restartedProjector.ConfigureLogs(new LogProjectionOptions(LogLevel.Information, 100));
         await restartedProjector.ProjectOnceAsync();
@@ -278,7 +278,7 @@ public sealed class LogInboxStoreTests
         var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
         var views = new RevisionedViewStore();
 
-        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        using var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
         projector.ConfigureRecordingLevel(LogLevel.Information);
         await projector.ProjectOnceAsync();
 

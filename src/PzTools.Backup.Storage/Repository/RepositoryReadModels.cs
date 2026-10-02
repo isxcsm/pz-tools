@@ -29,6 +29,8 @@ public sealed record RepositoryPack(
     string Status,
     long CreatedRunIndex);
 
+public sealed record PackUsage(RepositoryPack Pack, long LiveBytes);
+
 public sealed record CompactionObject(
     Guid ObjectId,
     Guid PackId,
@@ -53,6 +55,9 @@ public sealed record DeduplicationCandidate(
     string CompressionAlgorithm,
     int Flags);
 
+/// <param name="ContentHash">The object's change fingerprint (first 16 bytes of SHA-256), when recorded.</param>
+public sealed record CurrentFileObject(DeduplicationCandidate Object, byte[]? ContentHash);
+
 public sealed record RevisionReference(long SourceId, long Revision);
 
 public sealed record CurrentTrackedPath(
@@ -74,7 +79,8 @@ public sealed record RepositoryRevisionSummary(
     BackupKind Kind = BackupKind.Unknown,
     double? HoursSurvived = null,
     bool CharacterMetadataRead = false,
-    string? CharacterMetadataError = null);
+    string? CharacterMetadataError = null,
+    string? GameVersion = null);
 
 public sealed record RepositorySourceHistory(
     long SourceId,

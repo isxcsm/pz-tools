@@ -135,6 +135,46 @@ public sealed class DeduplicatingFileCapturer(StableFileCapturer capturer) : IAs
 
     }
 
+    /// <summary>
+    /// The game rewrites the chunks it has loaded on every save, mostly with the bytes they already had.
+    /// When a staged file has the length and change fingerprint of the object its path already holds, and
+    /// every byte compares equal, that object is reused instead of stored again. Null otherwise. The
+    /// fingerprint only picks the candidate; equality is decided by the byte comparison.
+    /// </summary>
+    internal async Task<StoredFileCapture?> TryReuseCurrentAsync(
+        RepositoryDatabase repository,
+        StagedFileCapture staged,
+        CurrentFileObject current,
+        CancellationToken cancellationToken = default,
+        Func<FileCopyProgress, ValueTask>? progress = null)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (staged.ContentHash is not { } fingerprint || current.ContentHash is not { } previous
+            || staged.Content.Length != current.Object.OriginalLength
+            || !fingerprint.AsSpan().SequenceEqual(previous))
+            return null;
+        try
+        {
+            if (!await ContentEqualsAsync(repository.RepositoryPath, staged.Content, current.Object, cancellationToken))
+                return null;
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException)
+        {
+            // An unreadable earlier pack must not fail this backup: store a fresh copy instead.
+            return null;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        if (progress is not null)
+            await progress(new FileCopyProgress(staged.Content.Length, staged.Content.Length, 1, "deduplication"));
+        var candidate = current.Object;
+        var descriptor = new PackObjectDescriptor(
+            candidate.ObjectId, candidate.PackOffset, PayloadOffset: 0,
+            candidate.OriginalLength, candidate.StoredLength,
+            Enum.Parse<ChecksumAlgorithm>(candidate.ChecksumAlgorithm), candidate.Checksum,
+            Enum.Parse<CompressionAlgorithm>(candidate.CompressionAlgorithm), candidate.Flags);
+        return new StoredFileCapture(staged.Reuse(descriptor), candidate.PackId, Reused: true);
+    }
+
     private void ValidateCapture(RepositoryDatabase repository, PackWriter writer,
         ChecksumAlgorithm checksum, CompressionAlgorithm compression, bool contentDeduplication)
     {

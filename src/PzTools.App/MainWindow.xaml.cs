@@ -9,10 +9,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Content.AddHandler(UIElement.PointerPressedEvent,
-            new PointerEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
-        Content.AddHandler(UIElement.KeyDownEvent,
-            new KeyEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
+        // Clicks and keys close tooltips through the shell (MainWindowShell), which the window may replace.
         Activated += (_, args) =>
         {
             if (args.WindowActivationState == WindowActivationState.Deactivated) AppToolTip.CloseCurrent();

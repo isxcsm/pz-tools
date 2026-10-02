@@ -5,24 +5,63 @@ namespace PzTools.Zomboid.Recovery;
 
 public sealed record CharacterRecoveryResult(string Name, bool Resurrected, int RecoveredItems = 0);
 
+/// <summary>What recovery would do, read before asking. <see cref="SearchesRemains"/>: the character is
+/// dead with nothing on them, so their belongings are looked for in <see cref="Candidates"/>.</summary>
+public sealed record CharacterRecoveryPreview(string Name, bool Dead, bool SearchesRemains,
+    IReadOnlyList<RemainsCandidate> Candidates);
+
 public sealed class CharacterRecoveryService
 {
+    /// <summary>The remains choice that revives without belongings.</summary>
+    public const string NoRemains = "none";
+
+    /// <summary>
+    /// Reads the save without changing or locking it: the chosen character, and when they are dead with
+    /// an empty inventory, every zombie or corpse that may hold their belongings.
+    /// </summary>
+    public async Task<CharacterRecoveryPreview> PreviewAsync(string savesRoot, string saveId, long? playerId,
+        CancellationToken cancellationToken = default)
+    {
+        var (save, _) = ResolveSave(savesRoot, saveId);
+        var database = Path.Combine(save, "players.db");
+        RejectLinks(database);
+        await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = database, Mode = SqliteOpenMode.ReadOnly, Pooling = false, DefaultTimeout = 1,
+        }.ToString());
+        await connection.OpenAsync(cancellationToken);
+        var character = await ReadCharacterAsync(connection, playerId, cancellationToken);
+        var healed = PlayerHealthEditor.Heal(character.Blob, character.Version, out var layout);
+        if (!character.Dead || !ZombieInventoryRecovery.IsEmpty(healed, layout))
+            return new(character.Name, character.Dead, false, []);
+        return new(character.Name, true, true, await WorldRemainsRecovery.ListAsync(save, healed, cancellationToken));
+    }
+
     /// <summary>
     /// Reanimated-player inventory is moved with a durable multi-file edit when identified.
     /// No additional backup is retained by this operation.
     /// An exclusive read/write guard rejects a running game and prevents it opening the old DB
     /// during preparation. Each file is atomically replaced; a durable journal coordinates pairs.
     /// </summary>
-    public async Task<CharacterRecoveryResult> RecoverAsync(string savesRoot, string saveId,
-        CancellationToken cancellationToken = default)
+    public Task<CharacterRecoveryResult> RecoverAsync(string savesRoot, string saveId,
+        CancellationToken cancellationToken = default) =>
+        RecoverAsync(savesRoot, saveId, playerId: null, remains: null, cancellationToken);
+
+    public Task<CharacterRecoveryResult> RecoverAsync(string savesRoot, string saveId, long? playerId,
+        CancellationToken cancellationToken = default) =>
+        RecoverAsync(savesRoot, saveId, playerId, remains: null, cancellationToken);
+
+    /// <param name="playerId">The localPlayers row to recover. Required when the save holds more than one
+    /// character (local split screen); otherwise the only character is used, whatever its id. The game
+    /// gives a new character the lowest free id and overwrites a dead character's row, so an earlier
+    /// character is never in the table to be chosen.</param>
+    /// <param name="remains">For a dead character with an empty inventory: the key of the remains to take
+    /// the belongings from (see <see cref="PreviewAsync"/>), <see cref="NoRemains"/> to revive without
+    /// them, or null to use the only candidate there is.</param>
+    public async Task<CharacterRecoveryResult> RecoverAsync(string savesRoot, string saveId, long? playerId,
+        string? remains, CancellationToken cancellationToken)
     {
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(savesRoot));
-        var segments = saveId.Replace('\\', '/').Split('/');
-        if (segments.Length != 2 || segments.Any(s => string.IsNullOrWhiteSpace(s) || s is "." or ".."
-                || s.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            || segments[0].Equals("Multiplayer", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("recovery-singleplayer-only");
-        var save = Path.Combine(root, segments[0], segments[1]);
+        var (save, segments) = ResolveSave(savesRoot, saveId);
         var database = Path.Combine(save, "players.db");
         RejectLinks(database);
         if (File.Exists(Path.Combine(Path.GetDirectoryName(save)!, $".{segments[1]}.pztools-restore.json")))
@@ -35,7 +74,7 @@ public sealed class CharacterRecoveryService
         var staging = Path.Combine(Path.GetDirectoryName(save)!, $".{segments[1]}.pztools-staging-{Guid.NewGuid():N}");
         Directory.CreateDirectory(staging);
         var stagedDatabase = Path.Combine(staging, "players.db");
-        RemainsRecoveryPlan? remains = null;
+        RemainsRecoveryPlan? plan = null;
         var recoveredItems = 0;
         var files = new List<PreparedSaveFile>();
         try
@@ -66,28 +105,19 @@ public sealed class CharacterRecoveryService
                     if ((long)(await network.ExecuteScalarAsync(cancellationToken))! > 0)
                         throw new InvalidDataException("recovery-singleplayer-only");
                 }
-                await using var query = connection.CreateCommand();
-                query.CommandText = "SELECT id,name,worldversion,data,isDead FROM localPlayers ORDER BY id;";
-                byte[] blob; long id; long version;
-                await using (var reader = await query.ExecuteReaderAsync(cancellationToken))
+                var character = await ReadCharacterAsync(connection, playerId, cancellationToken);
+                var (id, version) = (character.Id, character.Version);
+                (name, dead) = (character.Name, character.Dead);
+                var healed = PlayerHealthEditor.Heal(character.Blob, version, out var layout);
+                if (dead && ZombieInventoryRecovery.IsEmpty(healed, layout) && remains != NoRemains)
                 {
-                    if (!await reader.ReadAsync(cancellationToken))
-                        throw new InvalidDataException("recovery-no-character");
-                    id = reader.GetInt64(0); name = reader.GetString(1); version = reader.GetInt64(2);
-                    blob = (byte[])reader.GetValue(3); dead = reader.GetBoolean(4);
-                    if (id != 1 || await reader.ReadAsync(cancellationToken))
-                        throw new InvalidDataException("recovery-ambiguous-character");
-                }
-                var healed = PlayerHealthEditor.Heal(blob, version, out var layout);
-                if (dead && ZombieInventoryRecovery.IsEmpty(healed, layout))
-                {
-                    remains = await WorldRemainsRecovery.FindAsync(save, healed, layout, cancellationToken);
-                    if (remains is null) throw new InvalidDataException("recovery-inventory-unavailable");
-                    healed = remains.Player;
-                    recoveredItems = remains.Items;
+                    plan = await WorldRemainsRecovery.FindAsync(save, healed, layout, remains, cancellationToken);
+                    if (plan is null) throw new InvalidDataException("recovery-inventory-unavailable");
+                    healed = plan.Player;
+                    recoveredItems = plan.Items;
                     var stagedWorld = Path.Combine(staging, "remains.bin");
-                    await File.WriteAllBytesAsync(stagedWorld, remains.UpdatedWorldFile, cancellationToken);
-                    files.Add(new(remains.RelativePath, stagedWorld, remains.OriginalHash));
+                    await File.WriteAllBytesAsync(stagedWorld, plan.UpdatedWorldFile, cancellationToken);
+                    files.Add(new(plan.RelativePath, stagedWorld, plan.OriginalHash));
                 }
                 // Idempotence also re-parses every edited boundary after optional fields shrink.
                 if (!PlayerHealthEditor.Heal(healed, version).AsSpan().SequenceEqual(healed))
@@ -119,12 +149,47 @@ public sealed class CharacterRecoveryService
         }
         finally
         {
-            if (remains is not null) await remains.DisposeAsync();
+            if (plan is not null) await plan.DisposeAsync();
             // Exact newly-created staging directory only; never clean the original/save parent.
             try { Directory.Delete(staging, recursive: true); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+    private static (string Save, string[] Segments) ResolveSave(string savesRoot, string saveId)
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(savesRoot));
+        var segments = saveId.Replace('\\', '/').Split('/');
+        if (segments.Length != 2 || segments.Any(s => string.IsNullOrWhiteSpace(s) || s is "." or ".."
+                || s.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            || segments[0].Equals("Multiplayer", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("recovery-singleplayer-only");
+        return (Path.Combine(root, segments[0], segments[1]), segments);
+    }
+
+    private sealed record StoredCharacter(long Id, string Name, long Version, byte[] Blob, bool Dead);
+
+    private static async Task<StoredCharacter> ReadCharacterAsync(SqliteConnection connection, long? playerId,
+        CancellationToken cancellationToken)
+    {
+        await using var query = connection.CreateCommand();
+        query.CommandText = "SELECT id,name,worldversion,data,isDead FROM localPlayers ORDER BY id;";
+        await using var reader = await query.ExecuteReaderAsync(cancellationToken);
+        var rows = 0;
+        StoredCharacter? chosen = null;
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows++;
+            var rowId = reader.GetInt64(0);
+            if (playerId is { } wanted ? rowId != wanted : rows > 1) continue;
+            chosen = new(rowId, reader.GetString(1), reader.GetInt64(2), (byte[])reader.GetValue(3), reader.GetBoolean(4));
+        }
+        if (rows == 0) throw new InvalidDataException("recovery-no-character");
+        // Without a choice, several characters cannot be told apart.
+        if (playerId is null && rows > 1) throw new InvalidDataException("recovery-ambiguous-character");
+        // The chosen character is gone, e.g. the save changed after the list was read.
+        return chosen ?? throw new InvalidDataException("recovery-character-missing");
     }
 
     private static void CheckSidecars(string database)

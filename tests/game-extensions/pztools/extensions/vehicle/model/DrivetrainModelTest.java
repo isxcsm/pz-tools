@@ -36,7 +36,7 @@ public final class DrivetrainModelTest {
         near(c.reverseGovernorStartFraction, 1.0, 0.0, "default reverse governor does not reduce force before the limit");
         near(c.forwardGovernorStartFraction, 1.0, 0.0, "forward governor does not preempt the reference speed");
         check(c.torqueEnabled && c.reverseEnabled && c.steeringEnabled, "independent options default on within the disabled module");
-        near(c.steeringHighSpeedRateFactor, 0.6, 0.0, "high-speed steering rate defaults to moderate independent reduction");
+        check(c.steeringPreciseInput, "precise key timing defaults on; off gives the game's per-frame timing");
         near(c.maxDtSeconds, 0.1, 0.0, "bounded timestep");
         check(!c.lowMode, "low mode opt in");
         reject(Map.of("force_scale", "NaN"));
@@ -52,17 +52,11 @@ public final class DrivetrainModelTest {
         reject(Map.of("torque_enabled", "yes"));
         reject(Map.of("reverse_enabled", "1"));
         reject(Map.of("steering_enabled", "TRUE"));
-        reject(Map.of("steering_initial_rate", "3.1"));
-        reject(Map.of("steering_full_rate", "0.4"));
-        reject(Map.of("steering_ramp_seconds", "0.04"));
-        reject(Map.of("steering_return_rate", "10.1"));
-        reject(Map.of("steering_countersteer_rate", "NaN"));
-        reject(Map.of("steering_high_speed_rate_factor", "0.19"));
-        reject(Map.of("steering_high_speed_rate_factor", "1.01"));
-        reject(Map.of("steering_high_speed_rate_factor", "NaN"));
-        near(DrivetrainConfig.parse(Map.of("steering_high_speed_rate_factor", "0.2")).steeringHighSpeedRateFactor, 0.2, 0.0, "high-speed steering factor lower bound");
-        near(DrivetrainConfig.parse(Map.of("steering_high_speed_rate_factor", "1")).steeringHighSpeedRateFactor, 1.0, 0.0, "high-speed steering factor can retain full response");
-        reject(Map.of("steering_initial_rate", "3", "steering_full_rate", "2.5"));
+        reject(Map.of("steering_precise_input", "1"));
+        check(!DrivetrainConfig.parse(Map.of("steering_precise_input", "false")).steeringPreciseInput, "precise key timing can be switched off");
+        // The old rate settings are gone: steering follows the game, so there is nothing left to tune.
+        for (String removed : new String[]{"steering_initial_rate", "steering_full_rate", "steering_ramp_seconds", "steering_return_rate", "steering_countersteer_rate", "steering_high_speed_rate_factor"})
+            reject(Map.of(removed, "1"));
         DrivetrainConfig independent = DrivetrainConfig.parse(Map.of("torque_enabled", "false", "reverse_enabled", "true", "steering_enabled", "false"));
         check(!independent.torqueEnabled && independent.reverseEnabled && !independent.steeringEnabled, "settings do not couple independent adapter gates");
         reject(Map.of("schema_version", "2"));

@@ -158,17 +158,24 @@ public sealed class RevisionRestoreTests
         Assert.Single(discovery.Collect(root).Saves);
         var observedStagedMarker = false;
 
-        await new SafeRevisionRestoreService().RestoreReplacingAsync(
-            context.Repository, context.Source.SourceId, 1, target, (_, _) =>
+        // The restore worker owns the save lock for the whole operation.
+        var locked = await PzTools.Process.Hosting.OperationMutexSet.TryRunAsync(
+            [new(PzTools.Process.Hosting.OperationMutexScope.SaveWrite, target)], async token =>
             {
-                var result = discovery.Collect(root);
-                Assert.False(result.Complete);
-                Assert.Empty(result.Saves);
-                observedStagedMarker |= Directory.EnumerateDirectories(Path.GetDirectoryName(target)!)
-                    .Where(path => !StringComparer.OrdinalIgnoreCase.Equals(path, target))
-                    .Any(path => File.Exists(Path.Combine(path, "map_ver.bin")));
-                return Task.CompletedTask;
+                await new SafeRevisionRestoreService().RestoreReplacingAsync(
+                    context.Repository, context.Source.SourceId, 1, target, (_, _) =>
+                    {
+                        var result = discovery.Collect(root);
+                        Assert.False(result.Complete);
+                        Assert.Empty(result.Saves);
+                        observedStagedMarker |= Directory.EnumerateDirectories(Path.GetDirectoryName(target)!)
+                            .Where(path => !StringComparer.OrdinalIgnoreCase.Equals(path, target))
+                            .Any(path => File.Exists(Path.Combine(path, "map_ver.bin")));
+                        return Task.CompletedTask;
+                    }, token);
+                return true;
             });
+        Assert.True(locked.Acquired);
 
         Assert.True(observedStagedMarker);
         var completed = discovery.Collect(root);

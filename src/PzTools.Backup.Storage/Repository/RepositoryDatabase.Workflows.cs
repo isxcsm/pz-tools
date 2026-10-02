@@ -347,26 +347,7 @@ public sealed partial class RepositoryDatabase
         return count;
     }
 
-    public async Task<int> RecoverAbandonedWorkflowStagesAsync(
-        string producer,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(producer);
-        await using var connection = await OpenConnectionAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText =
-            """
-            UPDATE workflow_stages
-            SET status='Abandoned',completed_utc=$completed,
-                failure_code='process-interrupted'
-            WHERE producer=$producer AND status='Running';
-            """;
-        command.Parameters.AddWithValue("$completed", DateTimeOffset.UtcNow.ToString("O"));
-        command.Parameters.AddWithValue("$producer", producer);
-        return await command.ExecuteNonQueryAsync(cancellationToken);
-    }
-
-    public async Task<bool> StartMaintenanceStageAsync(
+    public async Task StartMaintenanceStageAsync(
         RepositoryWriterLease lease,
         long sourceId,
         long runIndex,
@@ -406,20 +387,7 @@ public sealed partial class RepositoryDatabase
                 await stage.ExecuteNonQueryAsync(cancellationToken);
                 await StampWorkflowProcessAsync(connection, transaction, runIndex, "maintenance-worker", cancellationToken);
             }
-
-            await using var legacy = connection.CreateCommand();
-            legacy.Transaction = transaction;
-            legacy.CommandText =
-                """
-                INSERT OR IGNORE INTO runs(run_index, source_id, status, started_utc)
-                VALUES ($runIndex, $sourceId, 'Running', $startedUtc);
-                """;
-            legacy.Parameters.AddWithValue("$runIndex", runIndex);
-            legacy.Parameters.AddWithValue("$sourceId", sourceId);
-            legacy.Parameters.AddWithValue("$startedUtc", startedUtc);
-            var createdLegacyRun = await legacy.ExecuteNonQueryAsync(cancellationToken) == 1;
             transaction.Commit();
-            return createdLegacyRun;
         }
         catch
         {
@@ -431,33 +399,12 @@ public sealed partial class RepositoryDatabase
     public async Task CompleteMaintenanceStageAsync(
         RepositoryWriterLease lease,
         long runIndex,
-        bool ownsLegacyRun,
         WorkflowStatus status,
         string? failureCode = null,
         CancellationToken cancellationToken = default)
     {
         EnsureLease(lease);
         EnsureTerminalStatus(status);
-        if (ownsLegacyRun)
-        {
-            await using var connection = await OpenConnectionAsync(cancellationToken);
-            await using var legacy = connection.CreateCommand();
-            legacy.CommandText =
-                """
-                UPDATE runs SET status = $status, completed_utc = $completedUtc,
-                    failure_code = $failureCode
-                WHERE run_index = $runIndex AND status = 'Running';
-                """;
-            var legacyStatus = status is WorkflowStatus.Cancelled or WorkflowStatus.Abandoned
-                ? status.ToString()
-                : status == WorkflowStatus.Succeeded ? "Succeeded" : "Failed";
-            legacy.Parameters.AddWithValue("$status", legacyStatus);
-            legacy.Parameters.AddWithValue("$completedUtc", DateTimeOffset.UtcNow.ToString("O"));
-            legacy.Parameters.AddWithValue("$failureCode", (object?)failureCode ?? DBNull.Value);
-            legacy.Parameters.AddWithValue("$runIndex", runIndex);
-            await legacy.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         await CompleteWorkflowStageAsync(
             runIndex, "maintenance-worker", status, failureCode, cancellationToken);
         var workflow = await ReadWorkflowAsync(runIndex, cancellationToken);
@@ -581,7 +528,7 @@ public sealed partial class RepositoryDatabase
         }
     }
 
-    private static async Task CompleteLegacyWorkflowInTransactionAsync(
+    private static async Task CompleteBackupStageInTransactionAsync(
         SqliteConnection connection,
         SqliteTransaction? transaction,
         long runIndex,
@@ -608,7 +555,7 @@ public sealed partial class RepositoryDatabase
             if (await stage.ExecuteNonQueryAsync(cancellationToken) != 1)
             {
                 throw new InvalidOperationException(
-                    $"Backup workflow stage for run {runIndex} is not Running.");
+                    $"Run {runIndex} does not exist or is already completed.");
             }
         }
 

@@ -4,12 +4,19 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.*;
 import java.util.UUID;
 
-/** Game-thread-only life facts; no save DB, metadata writes or retained strong player reference. */
+/**
+ * Game-thread-only life facts; no save DB or retained strong player reference. Its one write is the
+ * character's recovery ID, when a living player has none (see RecoveryStamp.IdentityWriter).
+ */
 final class LiveCharacter {
     record Facts(String life, String character, String death, String sleep) {
         static final Facts UNKNOWN = new Facts("Unknown", null, null, "Unknown");
     }
+    private static final long STAMP_INTERVAL_NANOS = 2_000_000_000L;
     private static Facts facts = Facts.UNKNOWN;
+    private final RecoveryStamp.IdentityWriter identities = new RecoveryStamp.IdentityWriter();
+    private WeakReference<Object> stamped = new WeakReference<>(null);
+    private long nextStamp;
     private Method instance, isDead, isAsleep;
     private Field count;
     private final Object[] none = new Object[0];
@@ -22,6 +29,7 @@ final class LiveCharacter {
             try { isAsleep = player.getMethod("isAsleep"); }
             catch (NoSuchMethodException unavailable) { isAsleep = null; }
         } catch (ReflectiveOperationException | LinkageError unavailable) { instance = null; }
+        nextStamp = System.nanoTime();
     }
     Facts read(String worldId) {
         if (instance == null) return Facts.UNKNOWN;
@@ -30,6 +38,18 @@ final class LiveCharacter {
             Object player = instance.invoke(null, none);
             String life = player == null ? "Unknown" : (boolean)isDead.invoke(player, none) ? "Dead" : "Alive";
             String sleep = "Unknown";
+            // A new character, or one loaded from a save made without PZ Tools, gets an ID long before a
+            // death is likely. Once a player object has one it is not looked at again, so a normal frame
+            // costs one reference comparison; until then it is tried every two seconds. A failure only
+            // loses the ID.
+            if (life.equals("Alive") && player != stamped.get()) {
+                long now = System.nanoTime();
+                if (now - nextStamp >= 0) {
+                    nextStamp = now + STAMP_INTERVAL_NANOS;
+                    try { if (identities.ensure(player)) stamped = new WeakReference<>(player); }
+                    catch (ReflectiveOperationException | RuntimeException unavailable) { /* Life remains valid. */ }
+                }
+            }
             if (player != null) {
                 if (life.equals("Dead")) sleep = "Awake";
                 else if (isAsleep != null) {

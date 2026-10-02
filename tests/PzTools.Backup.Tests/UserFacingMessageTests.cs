@@ -13,18 +13,31 @@ public sealed class UserFacingMessageTests
     [Theory]
     [InlineData("repository-reset-required: incompatible schema", "OperationError.RepositoryIncompatible")]
     [InlineData("  REPOSITORY-RESET-REQUIRED", "OperationError.RepositoryIncompatible")]
+    [InlineData("backup-data-damaged: Object 1 checksum does not match.", "OperationError.BackupDamaged")]
+    [InlineData("The current save changed during export. Stop playing and try again.", "OperationError.ExportSaveChanged")]
+    [InlineData("The save is currently in use and cannot be restored.", "OperationError.FileInUse")]
+    [InlineData("The save cannot be opened for an exclusive restore.", "OperationError.FileInUse")]
     [InlineData("Application workers are missing. Missing: backup.exe", "OperationError.WorkersMissing")]
     [InlineData("The configured worker directory is incomplete: path", "OperationError.WorkersMissing")]
     [InlineData("Another operation is using this repository", "OperationError.FileInUse")]
     [InlineData("실행 중인 작업과 충돌하여 설정을 적용할 수 없습니다.", "OperationError.SettingsBusy")]
     [InlineData("Cannot start workers: invalid app runtime configuration. invalid value", "OperationError.Configuration")]
     [InlineData("설정 파일을 확인해 주세요: settings.toml", "OperationError.Configuration")]
+    [InlineData("settings-busy: a running operation uses the save or backup folder.", "OperationError.SettingsBusy")]
+    [InlineData("export-save-changed: The current save changed during export. Stop playing and try again.", "OperationError.ExportSaveChanged")]
+    [InlineData("save-in-use: The save is currently in use and cannot be restored.", "OperationError.FileInUse")]
+    [InlineData("operation-busy: Another operation is using this save.", "OperationError.FileInUse")]
+    [InlineData("workers-missing: Application workers are missing. Rebuild or reinstall the complete application: C:\\app", "OperationError.WorkersMissing")]
+    [InlineData("capture-unstable: File 'C:\\save\\map_1_1.bin' could not be captured stably: copy length changed.", "OperationError.SaveChanged")]
+    [InlineData("settings-invalid: C:\\settings.toml", "OperationError.Configuration")]
     [InlineData("The source file could not be captured stably after 3 attempts.", "OperationError.SaveChanged")]
     [InlineData("save-edit-recovery-required: access is denied", "RecoveryError.PendingEdit")]
     [InlineData("recovery-inventory-unavailable: missing candidate", "RecoveryError.Inventory")]
     [InlineData("recovery-save-busy: in use", "RecoveryError.Busy")]
     [InlineData("recovery-pending-journal: pending changes", "RecoveryError.Journal")]
     [InlineData("recovery-ambiguous-character: two characters", "RecoveryError.Ambiguous")]
+    [InlineData("recovery-character-missing", "RecoveryError.CharacterChanged")]
+    [InlineData("recovery-remains-changed", "RecoveryError.RemainsChanged")]
     [InlineData("recovery-singleplayer-only", "RecoveryError.Ambiguous")]
     [InlineData("recovery-unsupported-format: unknown version", "RecoveryError.Unsupported")]
     [InlineData("recovery-linked-path: unsafe path", "RecoveryError.Unsupported")]
@@ -41,10 +54,46 @@ public sealed class UserFacingMessageTests
     [InlineData("C:\\games\\save-edit-review\\file.bin")]
     [InlineData("C:\\games\\recovery-save-busy\\file.bin")]
     [InlineData("repository-reset-required-other")]
+    [InlineData("backup-data-damaged-elsewhere")]
     [InlineData("recovery-save-busyness")]
     [InlineData("recovery-new-failure")]
     public void UnknownMessagesAndUserPaths_AreNotTreatedAsDiagnosticCodes(string? message) =>
         Assert.Equal(UserFacingErrorCatalog.Generic, UserFacingErrorCatalog.FromProcessError(message));
+
+    // A logged failure is explained from its code, type and Windows error number; its message may be in
+    // whatever language Windows used, as the Korean ones below are.
+    [Theory]
+    [InlineData(null, "UnauthorizedAccessException", "액세스가 거부되었습니다.", "0x80070005", "OperationError.AccessDenied")]
+    [InlineData(null, "IOException", "다른 프로세스가 파일을 사용 중이기 때문에 액세스할 수 없습니다.", "0x80070020", "OperationError.FileInUse")]
+    [InlineData(null, "IOException", "디스크 공간이 부족합니다.", "0x80070070", "OperationError.DiskFull")]
+    [InlineData(null, "DirectoryNotFoundException", "경로의 일부를 찾을 수 없습니다.", "0x80070003", "OperationError.FileMissing")]
+    [InlineData("profile-game-not-running", "GameSaveException", "No game.", "0x80131500", "ProfileError.GameNotRunning")]
+    [InlineData("backup-data-damaged", "InvalidDataException", "backup-data-damaged: pack 3", "0x80131501", "OperationError.BackupDamaged")]
+    [InlineData("launch-blocked", null, "Windows application control refused to start these components.", null, "OperationError.BlockedByPolicy")]
+    [InlineData(null, "InvalidOperationException", "Something unexpected.", "0x80131509", "OperationError.Generic")]
+    [InlineData(null, null, "No details.", null, "OperationError.Generic")]
+    public void LoggedFailures_AreExplainedWithoutReadingTheirWording(string? code, string? type, string message, string? hResult, string key) =>
+        Assert.Equal(key, UserFacingErrorCatalog.FromDiagnostics(code, type, message, hResult));
+
+    // Starting a worker that Windows refuses: a Win32Exception, whose HResult is only E_FAIL and whose number says why.
+    [Theory]
+    [InlineData("5", "OperationError.AccessDenied")]
+    [InlineData("2", "OperationError.FileMissing")]
+    [InlineData("4551", "OperationError.BlockedByPolicy")]
+    [InlineData("1234", "OperationError.Generic")]
+    public void Win32Failures_AreExplainedByTheirOwnNumber(string native, string key) =>
+        Assert.Equal(key, UserFacingErrorCatalog.FromDiagnostics("orphan-cleanup-launch-failed", "Win32Exception",
+            "액세스가 거부되었습니다.", "0x80004005", native));
+
+    [Fact]
+    public void Win32Failures_KeepTheirNumberInTheLog()
+    {
+        var payload = PzTools.Process.Contracts.FailureTelemetry.FromException("launch-failed", new System.ComponentModel.Win32Exception(5));
+        var diagnostics = PzTools.Projections.LogDiagnostics.Parse(payload)!;
+        Assert.Equal(("5", "0x80004005"), (diagnostics.NativeErrorCode, diagnostics.HResult));
+        Assert.Equal("OperationError.AccessDenied", UserFacingErrorCatalog.FromDiagnostics(diagnostics.FailureCode,
+            diagnostics.ExceptionType, diagnostics.Message, diagnostics.HResult, diagnostics.NativeErrorCode));
+    }
 
     [Theory]
     [InlineData(5, "OperationError.AccessDenied")]
@@ -76,7 +125,8 @@ public sealed class UserFacingMessageTests
         Assert.Equal("OperationError.FileMissing", UserFacingErrorCatalog.FromException(new DirectoryNotFoundException("없음")));
         Assert.Equal("OperationCancelled", UserFacingErrorCatalog.FromArchiveError(new OperationCanceledException()));
         Assert.Equal("InvalidArchiveFormat", UserFacingErrorCatalog.FromArchiveError(new InvalidDataException("Invalid header")));
-        Assert.Equal("UnsafeArchiveCompression", UserFacingErrorCatalog.FromArchiveError(new InvalidDataException("unsafe compression ratio")));
+        Assert.Equal("UnsafeArchiveCompression", UserFacingErrorCatalog.FromArchiveError(
+            new InvalidDataException("archive-unsafe-ratio: Archive entry 'map_1_1.bin' has an unsafe compression ratio.")));
         Assert.Equal(UserFacingErrorCatalog.Generic, UserFacingErrorCatalog.FromArchiveError(new IOException("Unknown read failure")));
     }
 
@@ -90,7 +140,7 @@ public sealed class UserFacingMessageTests
         Assert.Equal("OperationError.Configuration", UserFacingErrorCatalog.FromConfigurationError(new InvalidDataException("ui.language value is invalid")));
         Assert.Equal("OperationError.AccessDenied", UserFacingErrorCatalog.FromConfigurationError(denied));
         Assert.Equal("OperationError.WorkersMissing", UserFacingErrorCatalog.FromException(
-            new DirectoryNotFoundException("The configured worker directory is incomplete: private path")));
+            new DirectoryNotFoundException("workers-missing: The configured worker directory is incomplete: private path")));
     }
 
     [Theory]

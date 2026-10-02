@@ -91,6 +91,23 @@ public sealed record OperationView(
 
 public sealed record OperationsView(IReadOnlyList<OperationView> Operations);
 
+/// <summary>How long a finished operation stays on screen: the same rule for the projection and the app.</summary>
+public static class OperationCardLifetime
+{
+    public static TimeSpan Of(OperationStatus status, bool maintenance, TimeSpan success, TimeSpan failure) =>
+        // Postponed cleanup is not a failure to dwell on.
+        status is OperationStatus.Succeeded or OperationStatus.NoChange
+            || maintenance && status == OperationStatus.Cancelled ? success : failure;
+
+    public static bool IsExpired(OperationStatus status, DateTimeOffset? completedUtc, DateTimeOffset now,
+        bool maintenance, TimeSpan success, TimeSpan failure)
+    {
+        if (status is OperationStatus.Running or OperationStatus.Waiting) return false;
+        if (completedUtc is null) return true;
+        return now - completedUtc.Value > Of(status, maintenance, success, failure);
+    }
+}
+
 public sealed record ProducerMetricsView(
     string Producer,
     int RunCount,
@@ -144,13 +161,21 @@ public sealed class TelemetryProjectionHost(
     TimeSpan? successCardLifetime = null,
     TimeSpan? failureCardLifetime = null,
     Func<TelemetrySourceRegistration, bool>? retireSource = null,
-    int readTimeoutSeconds = 1)
+    int readTimeoutSeconds = 1) : IDisposable
 {
+    // One read-only connection per source, kept open. Opening one costs a schema load on its first
+    // statement, and doing that for every source every second was most of the app's idle CPU. An open
+    // connection also says whether anyone wrote since the last read (PRAGMA data_version) without
+    // reading. It never holds a transaction between reads, so writers and checkpoints are not held up.
+    // Closed when the source goes away and before this host deletes a retired source's files.
+    private readonly Dictionary<string, OpenSource> connections = new(StringComparer.OrdinalIgnoreCase);
     private readonly TimeSpan InitialDatabaseReadGrace = initialReadGrace ?? TimeSpan.FromSeconds(2);
     private readonly int maximumPagesPerProjection = maximumPagesPerProjection > 0
         ? maximumPagesPerProjection
         : throw new ArgumentOutOfRangeException(nameof(maximumPagesPerProjection));
     private readonly TimeSpan staleAfter = heartbeatTimeout ?? TimeSpan.FromSeconds(10);
+    // In memory only, on purpose: each app start replays what the sources retain, because that replay
+    // rebuilds the operation cards and run metrics. Retention bounds it (runs and size per source).
     private readonly Dictionary<string, SourceCursor> cursors =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTimeOffset> initialReadFailures =
@@ -203,6 +228,8 @@ public sealed class TelemetryProjectionHost(
             cursors.Remove(removed);
             RemoveSourceState(removed);
         }
+        foreach (var removed in connections.Keys.Where(id => !registeredIds.Contains(id)).ToArray())
+            CloseConnection(removed);
         foreach (var removed in initialReadFailures.Keys
                      .Where(id => !registeredIds.Contains(id)).ToArray())
             initialReadFailures.Remove(removed);
@@ -215,14 +242,18 @@ public sealed class TelemetryProjectionHost(
                 && !PzTools.Process.Telemetry.ProcessTelemetryActivity.IsActive(source.Identity, source.Component);
             if (!source.Enabled)
             {
+                CloseConnection(source.SourceId);
                 initialReadFailures.Remove(source.SourceId);
                 healthViews.Add(Health(source, null, TelemetryHealth.Disabled, null, "disabled"));
                 if (completedSource)
                     historicalSourcesFullyRead.Add(source.SourceId);
                 continue;
             }
-            if (!File.Exists(source.DatabasePath))
+            // An open connection already proves the file is there; checking costs a file-system call per
+            // source every second.
+            if (!connections.ContainsKey(source.SourceId) && !File.Exists(source.DatabasePath))
             {
+                CloseConnection(source.SourceId);
                 var health = workflowRunning
                     && now - source.CurrentWorkflow!.StartedUtc > staleAfter
                     ? TelemetryHealth.Stale : TelemetryHealth.Waiting;
@@ -233,10 +264,10 @@ public sealed class TelemetryProjectionHost(
 
             try
             {
-                var page = await TelemetryDatabaseReader.ReadAsync(
+                var page = await ReadSourceAsync(
                     source, cursors.GetValueOrDefault(source.SourceId),
                     (int)Math.Min((long)maximumPagesPerProjection * 512, int.MaxValue),
-                    cancellationToken, readTimeoutSeconds);
+                    cancellationToken);
                 initialReadFailures.Remove(source.SourceId);
                 if (page.Reset) RemoveSourceState(source.SourceId);
                 foreach (var telemetryEvent in page.Events)
@@ -513,13 +544,37 @@ public sealed class TelemetryProjectionHost(
             || name == "progress.snapshot"
             || IsCompletedFileEvent(name))
             return null;
+        if (name.StartsWith("maintenance.", StringComparison.Ordinal))
+        {
+            // Background cleanup is logged when it has real work; routine no-op checks stay trace-only.
+            if (name.EndsWith(".started", StringComparison.Ordinal))
+                return IsPlannedMaintenance(payload) ? LogLevel.Information : LogLevel.Trace;
+            // Yielding to a backup or to the game postpones the work; it is not a fault.
+            if (name.EndsWith(".cancelled", StringComparison.Ordinal)) return LogLevel.Information;
+            if (name == "maintenance.recovery.completed") return LogLevel.Information;
+        }
+        // An automatic backup that preparation put off: the game paused or changed state during the
+        // countdown, or the world stopped being played. It is tried again on its own (seconds later,
+        // measured), and the log says it was skipped; nothing failed, so nothing to warn about.
+        if (name == "run.cancelled" && payload is { ValueKind: JsonValueKind.Object } cancelled
+            && cancelled.TryGetProperty("failureCode", out var code) && code.ValueKind == JsonValueKind.String
+            && code.GetString() is "source-deferred" or "source-skipped")
+            return LogLevel.Information;
+        // The backup went ahead without the game's own save: worth seeing, though nothing failed.
+        if (name == "source.prepare.completed" && payload is { ValueKind: JsonValueKind.Object } prepared
+            && LogDiagnostics.ReadOutcome(prepared) == "save-unavailable")
+            return LogLevel.Warning;
         if (name.Contains("critical", StringComparison.OrdinalIgnoreCase))
             return LogLevel.Critical;
         if (name.EndsWith(".failed", StringComparison.Ordinal)
             || name.Contains("error", StringComparison.OrdinalIgnoreCase))
             return LogLevel.Error;
+        // Work that did not start because other work was running: the card says so and it can simply be
+        // started again. Nothing failed, so it is no problem to acknowledge in the logs.
+        if (name.EndsWith(".busy", StringComparison.Ordinal)) return LogLevel.Information;
+        // Work that could not start because what it needs is absent, such as a recording with no game running.
+        if (name.EndsWith(".unavailable", StringComparison.Ordinal)) return LogLevel.Information;
         if (name.Contains("warning", StringComparison.OrdinalIgnoreCase)
-            || name.EndsWith(".busy", StringComparison.Ordinal)
             || name.EndsWith(".degraded", StringComparison.Ordinal)
             || name.EndsWith(".cancelled", StringComparison.Ordinal))
             return LogLevel.Warning;
@@ -544,6 +599,8 @@ public sealed class TelemetryProjectionHost(
                             && started.ValueKind == JsonValueKind.False => LogLevel.Trace,
                         ProcessOutcome.Failed => LogLevel.Error,
                         ProcessOutcome.Busy or ProcessOutcome.Degraded or ProcessOutcome.Cancelled => LogLevel.Warning,
+                        _ when name.StartsWith("maintenance.", StringComparison.Ordinal)
+                            && (IsPlannedMaintenance(value) || AffectedMaintenanceItems(value) > 0) => LogLevel.Information,
                         _ => LogLevel.Trace,
                     };
                 }
@@ -553,6 +610,13 @@ public sealed class TelemetryProjectionHost(
         }
         return LogLevel.Information;
     }
+
+    private static bool IsPlannedMaintenance(JsonElement? payload) =>
+        payload is { ValueKind: JsonValueKind.Object } value
+        && value.TryGetProperty("planned", out var planned) && planned.ValueKind == JsonValueKind.True;
+
+    private static long AffectedMaintenanceItems(JsonElement payload) =>
+        ReadInt64(payload, "affectedItems") ?? 0;
 
     private IReadOnlyList<OperationView> BuildOperations(
         IReadOnlyList<TelemetrySourceRegistration> registrations,
@@ -600,23 +664,22 @@ public sealed class TelemetryProjectionHost(
                 if (sourcesCatchingUp.Contains(source.SourceId)) continue;
                 if (item.Value.IsUnfinished
                     && now - item.Value.LastEventUtc > staleAfter) continue;
+                if (item.Value.IsMaintenance && !item.Value.ShowMaintenance(now)) continue;
                 result.Add(item.Value.ToView(source.SourceId, null, health.Health, null));
             }
         }
         return result.Where(item => !dismissedOperations.ContainsKey(item.OperationId))
-            .Where(item => !IsTerminalExpired(item.Status, item.CompletedUtc, now))
+            .Where(item => !IsTerminalExpired(item.Status, item.CompletedUtc, now, IsMaintenanceProducer(item.Producer)))
             .OrderByDescending(item => item.RunIndex).ToArray();
     }
 
+    private static bool IsMaintenanceProducer(string producer) =>
+        producer.StartsWith("maintenance", StringComparison.Ordinal);
+
     private bool IsTerminalExpired(
-        OperationStatus status, DateTimeOffset? completedUtc, DateTimeOffset now)
-    {
-        if (status is OperationStatus.Running or OperationStatus.Waiting) return false;
-        if (completedUtc is null) return true;
-        var lifetime = status is OperationStatus.Succeeded or OperationStatus.NoChange
-            ? successCardLifetime ?? TimeSpan.FromSeconds(5) : failureCardLifetime ?? TimeSpan.FromSeconds(10);
-        return now - completedUtc.Value > lifetime;
-    }
+        OperationStatus status, DateTimeOffset? completedUtc, DateTimeOffset now, bool maintenance = false) =>
+        OperationCardLifetime.IsExpired(status, completedUtc, now, maintenance,
+            successCardLifetime ?? TimeSpan.FromSeconds(5), failureCardLifetime ?? TimeSpan.FromSeconds(10));
 
     private MetricsView BuildMetrics()
     {
@@ -659,6 +722,8 @@ public sealed class TelemetryProjectionHost(
             if (workflow.Status is OperationStatus.Running or OperationStatus.Waiting) continue;
             if (!historicalSourcesFullyRead.Contains(source.SourceId)) continue;
             if (!dismiss && !expired) continue;
+            // Its files are about to be deleted: let go of them first.
+            CloseConnection(source.SourceId);
             if (retireSource is not null && (logInbox is null || !retireSource(source))) continue;
             if (retireSource is not null)
                 await logInbox!.ForgetImportedSourceAsync(source.SourceId, cancellationToken);
@@ -681,6 +746,78 @@ public sealed class TelemetryProjectionHost(
             lastSourceHealth.Remove(source.SourceId);
             dismissedOperations.TryRemove(workflow.OperationId, out _);
         }
+    }
+
+    private async Task<TelemetryReadPage> ReadSourceAsync(
+        TelemetrySourceRegistration source, SourceCursor? cursor, int maximumEvents, CancellationToken cancellationToken)
+    {
+        var open = await ConnectionForAsync(source, cancellationToken);
+        try
+        {
+            // Read before the events, so a write that lands during the read is seen as a change next time.
+            var version = await TelemetryDatabaseReader.DataVersionAsync(open.Connection, cancellationToken);
+            if (cursor is not null && !open.HasMore && open.DataVersion == version)
+                // Exactly what reading would have returned: nothing after the cursor.
+                return new TelemetryReadPage(cursor.InstanceId, cursor.EventId, cursor.LastEventUtc,
+                    cursor.MinimumEventId, Reset: false, HasMore: false, RetainedRunIndexes: null, Events: []);
+            var page = await TelemetryDatabaseReader.ReadAsync(open.Connection, source.DatabaseKind, cursor, maximumEvents, cancellationToken);
+            open.DataVersion = version;
+            open.HasMore = page.HasMore;
+            return page;
+        }
+        catch
+        {
+            // Whatever went wrong (locked, initialising, replaced), the next read starts from a new connection.
+            CloseConnection(source.SourceId);
+            throw;
+        }
+    }
+
+    private async Task<OpenSource> ConnectionForAsync(TelemetrySourceRegistration source, CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (connections.TryGetValue(source.SourceId, out var open)
+            && StringComparer.OrdinalIgnoreCase.Equals(open.Path, source.DatabasePath))
+            return open;
+        CloseConnection(source.SourceId);
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = source.DatabasePath,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+            // Microsoft.Data.Sqlite retries BUSY independently of PRAGMA busy_timeout. Bound the
+            // provider's timeout so one unavailable source cannot hold the entire progress
+            // projection for its default thirty seconds.
+            DefaultTimeout = readTimeoutSeconds > 0 ? readTimeoutSeconds
+                : throw new ArgumentOutOfRangeException(nameof(readTimeoutSeconds)),
+        }.ToString());
+        try { await connection.OpenAsync(cancellationToken); }
+        catch { await connection.DisposeAsync(); throw; }
+        open = new OpenSource(source.DatabasePath, connection);
+        connections[source.SourceId] = open;
+        return open;
+    }
+
+    private void CloseConnection(string sourceId)
+    {
+        if (connections.Remove(sourceId, out var open)) open.Connection.Dispose();
+    }
+
+    private bool disposed;
+
+    /// <summary>Closes every source's connection. Call after the projection loop has stopped.</summary>
+    public void Dispose()
+    {
+        disposed = true;
+        foreach (var sourceId in connections.Keys.ToArray()) CloseConnection(sourceId);
+    }
+
+    private sealed class OpenSource(string path, SqliteConnection connection)
+    {
+        public string Path { get; } = path;
+        public SqliteConnection Connection { get; } = connection;
+        public long? DataVersion { get; set; }
+        public bool HasMore { get; set; }
     }
 
     private void RemoveSourceState(string sourceId)
@@ -745,10 +882,31 @@ public sealed class TelemetryProjectionHost(
 
         public bool IsUnfinished => status is OperationStatus.Waiting or OperationStatus.Running;
         public DateTimeOffset LastEventUtc { get; private set; }
+        public bool IsMaintenance { get; } = IsMaintenanceProducer(producer);
+        private bool planned, shownRunning;
+        private DateTimeOffset startedUtc;
+
+        /// <summary>
+        /// Background cleanup gets a card only while it is visibly working: at once when it announced
+        /// real work, otherwise after it has run long enough to matter. A finished run keeps the card it
+        /// already had; one that was never shown appears only if it needs attention.
+        /// </summary>
+        public bool ShowMaintenance(DateTimeOffset now)
+        {
+            if (status == OperationStatus.Running)
+                return shownRunning |= planned || now - startedUtc >= TimeSpan.FromSeconds(2);
+            return status != OperationStatus.Waiting
+                && (shownRunning || status is OperationStatus.Failed or OperationStatus.Degraded);
+        }
 
         public void Apply(NormalizedTelemetryEvent item)
         {
             LastEventUtc = item.OccurredUtc;
+            if (IsMaintenance && item.Name.EndsWith(".started", StringComparison.Ordinal))
+            {
+                startedUtc = item.OccurredUtc;
+                planned |= IsPlannedMaintenance(item.Payload);
+            }
             if (item.Name == "file.capture.started" && item.Payload is JsonElement started
                 && started.TryGetProperty("path", out var path)
                 && path.ValueKind == JsonValueKind.String)
@@ -890,6 +1048,16 @@ public sealed class TelemetryProjectionHost(
             "run.failed" => OperationStatus.Failed,
             "run.cancelled" => OperationStatus.Cancelled,
             "run.busy" => OperationStatus.Busy,
+            // Did not start, like work that found other work running; the card names what was missing.
+            "run.unavailable" => OperationStatus.Busy,
+            // Interrupted-operation recovery reports inside a cleanup run; it is a log entry, not that run's state.
+            _ when item.Name.StartsWith("maintenance.", StringComparison.Ordinal)
+                && !item.Name.StartsWith("maintenance.recovery.", StringComparison.Ordinal) =>
+                item.Name.EndsWith(".started", StringComparison.Ordinal) ? OperationStatus.Running
+                : item.Name.EndsWith(".failed", StringComparison.Ordinal) ? OperationStatus.Failed
+                : item.Name.EndsWith(".cancelled", StringComparison.Ordinal) ? OperationStatus.Cancelled
+                : item.Name.EndsWith(".completed", StringComparison.Ordinal) && current == OperationStatus.Waiting
+                    ? OperationStatus.Succeeded : current,
             _ when item.Name.EndsWith(".completed", StringComparison.Ordinal)
                 && current == OperationStatus.Waiting => OperationStatus.Succeeded,
             _ => current,
@@ -937,29 +1105,23 @@ public sealed class TelemetryProjectionHost(
 
     private static class TelemetryDatabaseReader
     {
+        public static async Task<long> DataVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA data_version;";
+            return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        }
+
         public static async Task<TelemetryReadPage> ReadAsync(
-            TelemetrySourceRegistration source,
+            SqliteConnection connection,
+            TelemetryDatabaseKind kind,
             SourceCursor? cursor,
             int maximumEvents,
-            CancellationToken cancellationToken,
-            int timeoutSeconds)
+            CancellationToken cancellationToken)
         {
-            var connectionString = new SqliteConnectionStringBuilder
-            {
-                DataSource = source.DatabasePath,
-                Mode = SqliteOpenMode.ReadOnly,
-                Pooling = false,
-                DefaultTimeout = timeoutSeconds > 0 ? timeoutSeconds
-                    : throw new ArgumentOutOfRangeException(nameof(timeoutSeconds)),
-            }.ToString();
-            await using var connection = new SqliteConnection(connectionString);
-            await connection.OpenAsync(cancellationToken);
-            // Microsoft.Data.Sqlite retries BUSY independently of PRAGMA busy_timeout.
-            // Bound the provider's timeout so one unavailable source cannot hold the
-            // entire progress projection for its default thirty seconds.
             try
             {
-                return source.DatabaseKind == TelemetryDatabaseKind.Backup
+                return kind == TelemetryDatabaseKind.Backup
                     ? await ReadBackupAsync(connection, cursor, maximumEvents, cancellationToken)
                     : await ReadProcessAsync(connection, cursor, maximumEvents, cancellationToken);
             }

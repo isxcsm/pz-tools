@@ -88,6 +88,14 @@ public sealed class RuntimePausePolicyTests
         Assert.True(Step(unknown, Sample()).CompletionUncertain);
         Assert.True(Step(unknown, Sample()).Hold.HasFlag(ScheduleHold.Unknown));
         Assert.False(Step(unknown, Sample(), generation: 2).CompletionUncertain);
+        // It is a one-interval pause, not a permanent stop: play time runs it down and clears it.
+        Assert.Equal(300_000, unknown.RemainingMilliseconds);
+        var waiting = Step(Step(unknown, Sample()), Sample(299_000));
+        Assert.True(waiting.CompletionUncertain);
+        var resumed = Step(waiting, Sample(300_000));
+        Assert.False(resumed.CompletionUncertain);
+        Assert.Equal(ScheduleHold.None, resumed.Hold);
+        Assert.Equal(0, resumed.RemainingMilliseconds);
         var consumed = ActiveTimeSchedulePolicy.Complete(state with { RemainingMilliseconds = -620_000 }, ScheduleDisposition.Consume);
         Assert.Equal(280_000, consumed.RemainingMilliseconds);
         Assert.Equal(1, consumed.Slot);

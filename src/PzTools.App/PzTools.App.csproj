@@ -39,11 +39,17 @@
              CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\LICENSE" Link="LICENSE"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\licenses\Apache-2.0.txt" Link="licenses\Apache-2.0.txt"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PzTools.App.Core\PzTools.App.Core.csproj" />
     <ProjectReference Include="..\PzTools.Projections\PzTools.Projections.csproj" />
     <ProjectReference Include="..\PzTools.Zomboid.Archive\PzTools.Zomboid.Archive.csproj" />
+    <!-- Read-only preview of a revival, before the user confirms; the edit itself runs in its worker. -->
+    <ProjectReference Include="..\PzTools.Zomboid.Recovery\PzTools.Zomboid.Recovery.csproj" />
   </ItemGroup>
   <Import Project="..\..\build\AppWorkers.targets" />
   <Target Name="CopyApplicationPriToPublishDirectory" AfterTargets="Publish">
@@ -51,4 +57,9 @@
           DestinationFiles="$(PublishDir)$(AssemblyName).pri"
           Condition="Exists('$(TargetDir)$(AssemblyName).pri')" />
   </Target>
+  <ItemGroup>
+    <!-- Long-running and mostly idle: small timer-driven work items wake the pool every second, and a
+         worker spinning for the next item after each one cost more CPU than the work itself. -->
+    <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.UnfairSemaphoreSpinLimit" Value="0" />
+  </ItemGroup>
 </Project>

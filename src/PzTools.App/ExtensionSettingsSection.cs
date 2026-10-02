@@ -2,7 +2,6 @@ using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
 using PzTools.App.Core;
 using PzTools.GameExtensions;
 using PzTools.Process.Contracts.GameRuntime;
@@ -31,17 +30,15 @@ internal sealed class ExtensionSettingsSection
         Control = new SettingsExpander
         {
             Header = title, Description = description, Content = enabled.Control, IsExpanded = initiallyExpanded,
-            HeaderIcon = new ImageIcon
-            {
-                Width = 20, Height = 20,
-                Source = new SvgImageSource(new Uri("ms-appx:///Assets/Navigation/extensions.svg")),
-            },
+            // A plain glyph in the text colour, one per extension, so the sections tell apart at a glance.
+            HeaderIcon = new FontIcon { Glyph = HeaderGlyph(id), FontSize = 20 },
         };
         if (id == ExtensionIds.VehicleDrivetrain)
         {
             AddOption(GameExtensionSetting.Torque, "VehicleDrivetrain.Torque", "VehicleDrivetrain.TorqueDescription");
             AddOption(GameExtensionSetting.Reverse, "VehicleDrivetrain.Reverse", "VehicleDrivetrain.ReverseDescription");
             AddOption(GameExtensionSetting.Steering, "VehicleDrivetrain.Steering", "VehicleDrivetrain.SteeringDescription");
+            AddOption(GameExtensionSetting.AreaLight, "VehicleDrivetrain.AreaLight", "VehicleDrivetrain.AreaLightDescription");
         }
         Control.Items.Add(new SettingsCard { Header = statusTitle, Description = details });
         AddOption(GameExtensionSetting.ForceVersion, "GameExtensions.ForceVersion", "GameExtensions.ForceWarning");
@@ -54,6 +51,12 @@ internal sealed class ExtensionSettingsSection
             Control.Items.Add(row.Card);
         }
     }
+
+    private static string HeaderGlyph(string id) => id switch
+    {
+        ExtensionIds.VehicleDrivetrain => "\uE804", // car
+        _ => "\uEA86",                              // puzzle piece: an extension
+    };
 
     private void CompleteInitialLayout(object sender, RoutedEventArgs args)
     {
@@ -84,6 +87,7 @@ internal sealed class ExtensionSettingsSection
                 GameExtensionSetting.Torque => preference.TorqueEnabled,
                 GameExtensionSetting.Reverse => preference.ReverseEnabled,
                 GameExtensionSetting.Steering => preference.SteeringEnabled,
+                GameExtensionSetting.AreaLight => preference.AreaLightEnabled,
                 _ => throw new InvalidOperationException("Unknown extension setting row."),
             };
             row.Update(value, activation.CanEditOptions);
@@ -93,7 +97,7 @@ internal sealed class ExtensionSettingsSection
     private static string? ActivationHint(GameExtensionsView view, ExtensionCardView card, ExtensionActivationView activation)
     {
         if (activation.FailureReason is not null) return Localizer.Get("GameExtensions.InitializationFailed");
-        if (activation.IsBusy) return Localizer.Get(view.VehicleStatus?.Reason == "safe-boundary"
+        if (activation.IsBusy) return Localizer.Get(view.StatusOf(card.Definition.Id)?.Reason == "safe-boundary"
             ? "GameExtensions.ApplyWhenSafe" : "GameExtensions.Applying");
         if (card.Enabled && !view.RuntimeWorldReady) return Localizer.Get("GameExtensions.WorldRequired");
         if (!activation.IsPerSave && !card.CanEnable) return StatusText(card);
@@ -162,7 +166,7 @@ internal sealed class ExtensionSettingsSection
         }
     }
 
-    private sealed class SettingToggle
+    internal sealed class SettingToggle
     {
         public ToggleSwitch Control { get; } = new();
         private bool reflecting, savedValue;

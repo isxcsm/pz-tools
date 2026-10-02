@@ -1,0 +1,143 @@
+# Performance recording
+
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+
+The **Performance** page records what the running game is doing and shows where the time
+went: which part of the game, which mod, which function. Nothing is measured unless a
+recording is running.
+
+## Recording
+
+Start the game, press **Start recording**, reproduce the lag, press **Stop recording**.
+A recording also ends by itself when the game exits or when its time limit is reached
+(30 minutes in Standard mode, 10 minutes in Detailed mode).
+
+**Start recording** is available while exactly one game is running, or before the first
+check has answered; the page checks every two seconds, and resting the pointer on the button says what is missing. Nothing
+is logged for that. If the game closes just as a recording starts, the recording's card
+says so and the log keeps it as information (`run.unavailable`), not as an error. A
+recording that really fails is logged once, by the recording itself, and its card gives
+the reason.
+
+| Mode | Java samples | Lua samples | Extra |
+| --- | --- | --- | --- |
+| Standard | every 10 ms | every 10 ms | garbage-collection pauses |
+| Detailed | 1 ms requested, about 1.5–2 ms in practice | every 1 ms | lock waits, parked threads, slow file reads/writes, JVM stop-the-world operations |
+
+Both modes are sampling: the game's code is not rewritten or instrumented. Detailed mode
+samples more often and records why a thread was *not* running; it costs the game some
+frame rate (roughly 10% in a synthetic test) and writes about ten times as much.
+
+While a recording runs the game's timer resolution is raised to 1 ms, as games and media
+players commonly do; otherwise Windows would round every sampling period up to 15.6 ms.
+It is restored when the recording ends.
+
+Backups, saving and game extensions keep working during a recording. Recording control
+uses the ordinary short request channel to the game; if a backup's save request is using
+it, start or stop simply waits for it.
+
+## What depends on the game version
+
+| Part | Source | If the game changes |
+| --- | --- | --- |
+| Java stack samples, native-call samples, GC and pause events | The JVM's own flight recorder (`jdk.jfr`) | Unaffected: it depends on Java, not on game code |
+| Frame boundaries | The existing game-loop hook (`GameWindow.logic`) | The recording still works; there is no frame graph, only the time axis |
+| Lua function and mod attribution | Reads the Lua interpreter's call stack (`LuaManager.thread`, Kahlua call frames) from a sampler thread | The recording still works; the page says mod information is unavailable |
+
+The Lua sampler reads interpreter objects from another thread without stopping the game.
+A sample can be one call out of date; it cannot crash the game, and one sample is only one
+vote among many.
+
+## Reading the result
+
+The recording tools share the title line: record, mode, which recording, which thread,
+and a **…** menu with *Open recording*, *Save as*, *Open folder* and *Delete*. In a narrow
+window they move below the title. What the recording is doing appears under that line only
+while a recording starts, runs or is being processed.
+
+The frame graph stays in place; drag the handle under it to make it taller or shorter. The
+line above the graph describes the range the results show: its start, end and length,
+then frames, average, slowest and worst 1 %, names muted and numbers not. A range of one
+frame shows that frame's time alone. Resting the pointer on the line adds the sample count,
+garbage collections and recording mode; while the pointer is over the graph the line shows
+the time and frame under it instead. The **?** beside it lists the graph's mouse controls.
+
+The results are in two tabs, *Scripts (Lua)* and *Game code (Java)*. Each tab is split in
+two: owners on the left (mods, the game's scripts, parts of the game code, with a bar
+relative to the largest), and the chosen owner's functions on the right as a table with a
+heading over every column. The owner list has headings too, and the one over its numbers
+says what they are when the pointer rests on it: in *Scripts* (*Range time*) the share
+of the range a mod's scripts were running, game functions they called included, with the
+figure for all scripts together beside the heading; in *Game code* (*Run share*) the share of the game
+code's running time, where game functions called from Lua count as the base game. *Long
+waits and pauses* shows a count with its unit instead of a share. Above the table, on the line of the tabs, stand the owner's
+name and its samples out of the tab's, such as *Samples 9/70*. The copy button beside the
+name puts what the page shows on the clipboard as text (the recording, the range,
+the tab's owner list with its headings, and the chosen owner's table, columns lined up), ready to paste into a
+message to a mod's author. The
+chosen owner stays chosen when the range changes, if it is still there. The *Game code*
+tab also lists *Share by thread* (with *All threads*) and *Long waits and pauses*. In a
+narrow window the table moves below the owner list.
+
+- **Frame graph.** One bar per slice of time, as tall as the slowest frame in that slice,
+  so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per
+  second) are highlighted. Wheel zooms around the pointer, right-button drag or the
+  scroll bar moves, double-click shows everything.
+- **Range.** Drag to select a range, or click to select one frame. With nothing selected
+  the whole recording is analysed.
+- **Shares.** *Self* is time spent in the function itself, *Total* includes what it
+  called; resting the pointer on either heading says so. Every row shows its sample count. A warning appears below 20 samples: a single
+  16 ms frame holds one or two Standard samples, so one frame is only meaningful in
+  Detailed mode or when it is a long one.
+- **Grouping.** Lua functions are grouped by owner: each mod (from the `mods/<name>/`
+  part of the script path), the game's own scripts (`media/lua/...`), and *unknown origin*
+  when the path does not say. Java methods are grouped by package: base game (`zombie.`),
+  Lua engine (`se.krka.kahlua.`), Java built-ins, PZ Tools, and bundled libraries for
+  everything else. A Java mod is not guessed from its package name; it appears under
+  bundled libraries.
+- **Threads.** The default view is the game thread. *All threads* includes rendering,
+  loading and background threads, each sample weighted by its own sampling period.
+
+Percentages are estimates. A sample stands for the usual gap between samples of its
+kind, measured from the recording itself, because the recorder cannot always keep the
+requested period.
+
+## Files
+
+Each recording is one file, `%LOCALAPPDATA%\PzTools\profiles\profile-<date>-<time>.pzprof`.
+*Open recording* copies a `.pzprof` file from elsewhere into that folder, keeping its
+time, and lists it with the others; a file that is not a readable recording is refused
+and nothing is copied. *Save as* copies the selected recording to a place you choose.
+Recordings are not written to the log or telemetry databases; those only receive the
+start, finish and failure of a recording, which is what the operation card and the log
+page show.
+
+The file is gzip-compressed text: tables of method names and stacks, then samples that
+refer to them by number. Identical stacks are stored once.
+
+What a recording contains, if you pass a file on: it contains Java method names, thread names, mod
+folder names, Lua script paths from `mods/` or `media/` downward, and file *names* of
+slow reads and writes. It does not contain folders above those (which would include the
+Windows user name), save contents, or chat. The raw flight recording that the game
+writes first does contain full paths; it is converted and deleted as soon as the
+recording ends, and leftovers of an interrupted run are deleted when the next recording
+starts.
+
+## Processes
+
+`PzTools.Profiler.Cli record` is one process per recording. It asks the game to start
+(`PROFILE_START`), waits for the stop file, the time limit or the game's exit, asks the
+game to stop (`PROFILE_STOP`) and converts the flight recording with the bundled Java
+runtime, outside the game. The app only starts this worker and reads the finished file.
+If the app or the worker is closed mid-recording, the game stops recording at the time
+limit and also stops sampling Lua and timing frames, so an abandoned recording costs
+nothing afterwards. The next recording ends any leftover first.
+
+## Limits
+
+- Only a local game process started normally is supported; the recorder attaches the
+  same way the save bridge does. See [game-save bridge](save-bridge.md).
+- Time spent inside native code (rendering driver, physics, sound) is attributed to the
+  Java method that called it, not to anything inside the native library.
+- A thread that is asleep or waiting produces no samples. In Detailed mode long waits are
+  listed under *Long waits and pauses* instead.

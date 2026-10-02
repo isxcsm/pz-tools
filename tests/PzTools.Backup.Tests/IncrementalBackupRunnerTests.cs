@@ -136,6 +136,187 @@ public sealed class IncrementalBackupRunnerTests
     }
 
     [Fact]
+    public async Task FullScanOnLocalNtfs_TrustsMetadataThatSettledBeforeTheLastRevision()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        var lockedPath = Path.Combine(sourcePath, "map_1_1.bin");
+        await File.WriteAllBytesAsync(lockedPath, [1, 2, 3]);
+        await using var setup = await CreateInitialAsync(temp, sourcePath);
+        Assert.True(LocalVolume.IsLocalNtfs(sourcePath), "The test folder must be on local NTFS.");
+        // As if the file had been written well before the run that made revision 1.
+        await MoveLatestRevisionRunStartAsync(setup.Repository, TimeSpan.FromMinutes(5));
+        var runner = CreateIncrementalRunner(new WindowsFileMetadataReader(), new UnavailableJournal());
+
+        // Locked so that it cannot be read: a content comparison would fail the run.
+        await using (new FileStream(lockedPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var result = await runner.RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry);
+            Assert.Equal(BackupScanMode.FullScan, result.ScanMode);
+            Assert.Null(result.Revision);
+        }
+    }
+
+    [Fact]
+    public async Task FullScanOnLocalNtfs_StillComparesFilesWrittenAroundTheLastRun()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        var lockedPath = Path.Combine(sourcePath, "map_1_1.bin");
+        await File.WriteAllBytesAsync(lockedPath, [1, 2, 3]);
+        // Written moments before the run began: inside the margin, so its content is compared.
+        await using var setup = await CreateInitialAsync(temp, sourcePath);
+        var runner = CreateIncrementalRunner(new WindowsFileMetadataReader(), new UnavailableJournal());
+
+        await using (new FileStream(lockedPath, FileMode.Open, FileAccess.Read, FileShare.None))
+            await Assert.ThrowsAnyAsync<IOException>(() =>
+                runner.RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry));
+    }
+
+    [Fact]
+    public async Task FullScanOnLocalNtfs_ASameSizeRewriteWithItsOldTimeRestoredIsStillCaptured()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        var path = Path.Combine(sourcePath, "map_1_1.bin");
+        await File.WriteAllBytesAsync(path, [1, 2, 3]);
+        await using var setup = await CreateInitialAsync(temp, sourcePath);
+        await MoveLatestRevisionRunStartAsync(setup.Repository, TimeSpan.FromMinutes(5));
+        var written = File.GetLastWriteTimeUtc(path);
+        await File.WriteAllBytesAsync(path, [9, 9, 9]);
+        File.SetLastWriteTimeUtc(path, written); // The change time still moves.
+        var runner = CreateIncrementalRunner(new WindowsFileMetadataReader(), new UnavailableJournal());
+
+        var result = await runner.RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry);
+
+        Assert.Equal(2, result.Revision);
+        var restore = temp.GetPath("restore");
+        await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, revision: 2, restore);
+        Assert.Equal([9, 9, 9], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_1.bin")));
+    }
+
+    [Fact]
+    public async Task RewriteWithTheSameBytes_ReusesItsObject_ButAMatchingFingerprintAloneDoesNot()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        var same = Path.Combine(sourcePath, "map_1_1.bin");
+        var changed = Path.Combine(sourcePath, "map_1_2.bin");
+        await File.WriteAllBytesAsync(same, [1, 2, 3, 4]);
+        await File.WriteAllBytesAsync(changed, [5, 6, 7, 8]);
+        await using var setup = await CreateInitialAsync(temp, sourcePath);
+        var objectsBefore = await CountObjectsAsync(setup.Repository);
+        var sameObject = await CurrentObjectAsync(setup.Repository, "map_1_1.bin");
+
+        // As the game saves: the same bytes written again, and new bytes of the same length.
+        await File.WriteAllBytesAsync(same, [1, 2, 3, 4]);
+        await File.WriteAllBytesAsync(changed, [9, 9, 9, 9]);
+        File.SetLastWriteTimeUtc(same, DateTime.UtcNow.AddMinutes(1));
+        // Make the changed file's old object claim the new fingerprint: only the byte comparison can tell.
+        await using (var connection = await setup.Repository.OpenConnectionAsync())
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText =
+                """
+                UPDATE stored_objects SET content_hash=$hash WHERE object_id=(
+                    SELECT entry.object_id FROM current_entry_catalog AS entry WHERE entry.path_key='MAP_1_2.BIN');
+                """;
+            command.Parameters.AddWithValue("$hash", ContentFingerprint.FromSha256(SHA256.HashData(new byte[] { 9, 9, 9, 9 })));
+            Assert.Equal(1, await command.ExecuteNonQueryAsync());
+        }
+        var metadata = new WindowsFileMetadataReader();
+        var capturer = new StableFileCapturer(metadata);
+        await using var deduplicating = new DeduplicatingFileCapturer(capturer);
+        var runner = new IncrementalBackupRunner(new StreamingFullScanner(metadata), capturer, metadata,
+            new UnavailableJournal(), new UsnDeltaPlanner(), deduplicatingCapturer: deduplicating);
+
+        var result = await runner.RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry);
+
+        Assert.Equal(2, result.Revision);
+        Assert.Equal(2, result.ChangedEntries);
+        Assert.Equal(objectsBefore + 1, await CountObjectsAsync(setup.Repository));
+        Assert.Equal(sameObject, await CurrentObjectAsync(setup.Repository, "map_1_1.bin"));
+        var restore = temp.GetPath("restore");
+        await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, revision: 2, restore);
+        Assert.Equal([1, 2, 3, 4], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_1.bin")));
+        Assert.Equal([9, 9, 9, 9], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_2.bin")));
+        var previous = temp.GetPath("previous");
+        await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, revision: 1, previous);
+        Assert.Equal([5, 6, 7, 8], await File.ReadAllBytesAsync(Path.Combine(previous, "map_1_2.bin")));
+    }
+
+    private static async Task<long> CountObjectsAsync(RepositoryDatabase repository)
+    {
+        await using var connection = await repository.OpenConnectionAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM stored_objects;";
+        return Convert.ToInt64(await command.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<Guid> CurrentObjectAsync(RepositoryDatabase repository, string relativePath)
+    {
+        var current = await repository.ReadCurrentFileObjectsAsync(1, [relativePath]);
+        return Assert.Single(current).Value.Object.ObjectId;
+    }
+
+    [FatVolumeFact]
+    public async Task FullScanOnFat_BacksUpAndCapturesASameSizeRewriteWithItsOldTimeRestored()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = Path.Combine(Environment.GetEnvironmentVariable("PZTOOLS_TEST_FAT_DIR")!, "pz-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sourcePath);
+        try
+        {
+            var path = Path.Combine(sourcePath, "map_1_1.bin");
+            await File.WriteAllBytesAsync(path, [1, 2, 3]);
+            Assert.False(LocalVolume.IsLocalNtfs(sourcePath), "PZTOOLS_TEST_FAT_DIR must not be on NTFS.");
+            // FAT32 refuses the newer file-ID query; reading metadata must still work.
+            Assert.Equal(FileIdentityCodec.EncodedLength, FileIdentityCodec.Encode(new WindowsFileMetadataReader().ReadPath(path).Identity).Length);
+            await using var setup = await CreateInitialAsync(temp, sourcePath);
+            await MoveLatestRevisionRunStartAsync(setup.Repository, TimeSpan.FromMinutes(5));
+            var written = File.GetLastWriteTimeUtc(path);
+            await File.WriteAllBytesAsync(path, [9, 9, 9]);
+            File.SetLastWriteTimeUtc(path, written); // FAT keeps no change time: only the content differs.
+            var runner = CreateIncrementalRunner(new WindowsFileMetadataReader(), new UnavailableJournal());
+
+            var result = await runner.RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry);
+
+            Assert.Equal(2, result.Revision);
+            var restore = temp.GetPath("restore");
+            await new RevisionRestorer().RestoreAsync(setup.Repository, setup.Source.SourceId, revision: 2, restore);
+            Assert.Equal([9, 9, 9], await File.ReadAllBytesAsync(Path.Combine(restore, "map_1_1.bin")));
+        }
+        finally
+        {
+            Directory.Delete(sourcePath, recursive: true);
+        }
+    }
+
+    private sealed class FatVolumeFactAttribute : FactAttribute
+    {
+        public FatVolumeFactAttribute()
+        {
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PZTOOLS_TEST_FAT_DIR")))
+            {
+                Skip = "Set PZTOOLS_TEST_FAT_DIR to a folder on a FAT32 or exFAT drive.";
+            }
+        }
+    }
+
+    private static async Task MoveLatestRevisionRunStartAsync(RepositoryDatabase repository, TimeSpan later)
+    {
+        await using var connection = await repository.OpenConnectionAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE workflow_stages SET started_utc=$started WHERE producer='backup-worker' AND run_index=(SELECT MAX(run_index) FROM revisions);";
+        command.Parameters.AddWithValue("$started", DateTimeOffset.UtcNow.Add(later).ToString("O"));
+        Assert.Equal(1, await command.ExecuteNonQueryAsync());
+    }
+
+    [Fact]
     public async Task Run_MissingCatalogIdentityReportsFullScanFallback()
     {
         using var temp = new TempDirectory();

@@ -111,6 +111,7 @@ public sealed class IncrementalBackupRunner(
             failurePhase = "planning";
             await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Phase,
                 "planning.started"), cancellationToken);
+            metadataTrustedFiles = 0;
             var boundary = TryQueryBoundary(source.RootPath);
             var planningProgress = new BackupPlanningProgress(telemetry, tuning.ProgressIntervalMs, cancellationToken);
             var mode = BackupScanMode.FullScan;
@@ -172,6 +173,8 @@ public sealed class IncrementalBackupRunner(
                         mode = mode.ToString(),
                         count = pending.Count,
                         fallback = fullScanReason,
+                        // Unchanged-looking files left uncompared because their metadata settled earlier.
+                        metadataTrusted = metadataTrustedFiles,
                     })),
                 cancellationToken);
 
@@ -219,9 +222,15 @@ public sealed class IncrementalBackupRunner(
             await telemetry.EmitAsync(
                 new TelemetryEvent(TelemetryEventScope.Phase, "capture.started"),
                 cancellationToken);
-            long completedFiles = 0;
-            long completedFileBytes = 0;
-            long lastCopyProgress = 0;
+            var progress = new BackupCaptureProgress(telemetry, workloadItems, workloadBytes,
+                tuning.ProgressIntervalMs, cancellationToken);
+            // A changed file may hold the bytes its path already stores: the game rewrites every chunk it
+            // has loaded on each save. Each is compared with that object before it is stored again.
+            var currentObjects = deduplicatingCapturer is null ? null
+                : await repository.ReadCurrentFileObjectsAsync(source.SourceId,
+                    pending.Where(item => !item.Tombstone && item.Kind == CatalogEntryKind.File)
+                        .Select(item => item.RelativePath), cancellationToken);
+            var reusedFiles = 0;
             async IAsyncEnumerable<PendingEntry> CaptureEntries(
                 [EnumeratorCancellation] CancellationToken token)
             {
@@ -233,46 +242,30 @@ public sealed class IncrementalBackupRunner(
                         entries.Add(item.ToRegistration(ObjectId: null));
                         continue;
                     }
-                    packWriter ??= await PackWriter.CreateAsync(repository.RepositoryPath, run.RunIndex, token);
+                    packWriter ??= await PackWriter.CreateAsync(repository.RepositoryPath, run.RunIndex, token, storageOptions.CompressionLevel);
                     yield return item;
                 }
             }
-            async ValueTask CopyProgress(FileCopyProgress copy)
-            {
-                var now = Stopwatch.GetTimestamp();
-                if (Stopwatch.GetElapsedTime(lastCopyProgress, now)
-                        < TimeSpan.FromMilliseconds(tuning.ProgressIntervalMs)
-                    && !(copy.Attempt > 1 && copy.CopiedBytes == 0))
-                    return;
-                lastCopyProgress = now;
-                await telemetry.EmitAsync(
-                    new TelemetryEvent(
-                        TelemetryEventScope.Phase,
-                        "progress.snapshot",
-                        JsonSerializer.Serialize(new
-                        {
-                            phase = copy.Attempt > 1 ? "copy.retry" : copy.Phase,
-                            completedItems = completedFiles,
-                            totalItems = workloadItems,
-                            completedBytes = completedFileBytes + copy.CopiedBytes,
-                            totalBytes = workloadBytes,
-                            attempt = copy.Attempt,
-                        })), cancellationToken);
-            }
             await foreach (var prepared in FileCapturePipeline.PrepareAsync(
                 CaptureEntries(cancellationToken), fileCapturer as StableFileCapturer,
-                item => ToAbsolutePath(source.RootPath, item.RelativePath),
+                item => BackupRunSteps.ToAbsolutePath(source.RootPath, item.RelativePath),
                 () => packWriter!.CreateCaptureStagingStream(), tuning, storageOptions.ContentDeduplication,
-                item => currentFile = item.RelativePath, CopyProgress, cancellationToken))
+                item => currentFile = item.RelativePath, progress.ReportAsync, cancellationToken))
             {
                 var item = prepared.Entry;
                 currentFile = item.RelativePath;
                 await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Raw, "file.capture.started",
                     JsonSerializer.Serialize(new { path = item.RelativePath })), cancellationToken);
-                var stored = await prepared.CaptureAsync(repository, fileCapturer, deduplicatingCapturer,
+                StoredFileCapture? stored = null;
+                if (currentObjects is not null && prepared.Staged is { } staged
+                    && currentObjects.TryGetValue(BackupPath.NormalizeRelative(item.RelativePath).ToUpperInvariant(), out var current))
+                    stored = await deduplicatingCapturer!.TryReuseCurrentAsync(
+                        repository, staged, current, cancellationToken, progress.ReportAsync);
+                stored ??= await prepared.CaptureAsync(repository, fileCapturer, deduplicatingCapturer,
                     packWriter!, checksum, compression, storageOptions.ContentDeduplication,
-                    cancellationToken, CopyProgress);
+                    cancellationToken, progress.ReportAsync);
                 var captured = stored.Capture;
+                if (stored.Reused) reusedFiles++;
                 if (!stored.Reused)
                 {
                     objects.Add(new StoredObjectRegistration(
@@ -303,22 +296,16 @@ public sealed class IncrementalBackupRunner(
                             reused = stored.Reused,
                         })),
                     cancellationToken);
-                completedFiles++;
-                completedFileBytes += captured.SourceMetadata.Length;
+                progress.FileDone(captured.SourceMetadata.Length);
                 currentFile = null;
             }
             await telemetry.EmitAsync(
-                new TelemetryEvent(TelemetryEventScope.Phase, "capture.completed"),
+                new TelemetryEvent(TelemetryEventScope.Phase, "capture.completed",
+                    JsonSerializer.Serialize(new { reusedFiles })),
                 cancellationToken);
 
             failurePhase = "pack";
-            CommittedPack? committedPack = null;
-            if (packWriter is not null && packWriter.ObjectCount > 0)
-            {
-                FailureInjector.ThrowIfRequested(BackupFailurePoint.BeforePackFlush);
-                committedPack = await packWriter.SealAndPromoteAsync(cancellationToken);
-                FailureInjector.ThrowIfRequested(BackupFailurePoint.AfterPackPromotion);
-            }
+            var committedPack = await BackupRunSteps.SealPackAsync(packWriter, FailureInjector, cancellationToken);
 
             failurePhase = "commit";
             FailureInjector.ThrowIfRequested(BackupFailurePoint.BeforeRepositoryCommit);
@@ -339,7 +326,8 @@ public sealed class IncrementalBackupRunner(
                     entries,
                     RequestedRevision: executionOptions?.Revision,
                     NameLanguage: executionOptions?.NameLanguage
-                        ?? PzTools.Process.Contracts.SupportedLanguage.Korean),
+                        ?? PzTools.Process.Contracts.SupportedLanguage.Korean,
+                    GameVersion: executionOptions?.GameVersion),
                 cancellationToken,
                 () => FailureInjector.ThrowIfRequested(BackupFailurePoint.DuringRepositoryCommit));
             FailureInjector.ThrowIfRequested(BackupFailurePoint.AfterRepositoryCommit);
@@ -358,61 +346,15 @@ public sealed class IncrementalBackupRunner(
                 checkpoint,
                 fullScanReason);
         }
-        catch (SimulatedProcessCrashException)
-        {
-            if (packWriter is not null)
-            {
-                await packWriter.AbandonForCrashSimulationAsync();
-            }
-
-            throw;
-        }
-        catch (BackupPreparationDeferredException exception) when (failurePhase == "source.prepare")
-        {
-            await repository.CompleteRunAsync(lease, run.RunIndex, RunStatus.Cancelled, "source-deferred", CancellationToken.None);
-            await telemetry.EmitAsync(new TelemetryEvent(TelemetryEventScope.Run, "run.cancelled",
-                BackupFailureTelemetry.CreateDeferred(source, exception)), CancellationToken.None);
-            await telemetry.CompleteAsync(RunStatus.Cancelled, "source-deferred", CancellationToken.None);
-            throw;
-        }
-        catch (OperationCanceledException exception)
-        {
-            packWriter?.Invalidate("backup run was cancelled");
-            await CompleteFailedAsync(
-                repository,
-                telemetry,
-                lease,
-                run.RunIndex,
-                RunStatus.Cancelled,
-                "cancelled",
-                BackupFailureTelemetry.Create(source, RunStatus.Cancelled,
-                    "cancelled", exception, failurePhase, currentFile));
-            throw;
-        }
         catch (Exception exception)
         {
-            packWriter?.Invalidate("backup run failed");
-            await CompleteFailedAsync(
-                repository,
-                telemetry,
-                lease,
-                run.RunIndex,
-                RunStatus.Failed,
-                exception.GetType().Name,
-                BackupFailureTelemetry.Create(source, RunStatus.Failed,
-                    exception.GetType().Name, exception, failurePhase, currentFile));
+            await BackupRunSteps.RecordEndAsync(exception, repository, telemetry, lease, run.RunIndex, source,
+                packWriter, failurePhase, currentFile, cancellationToken);
             throw;
         }
         finally
         {
-            try
-            {
-                if (deduplicatingCapturer is not null) await deduplicatingCapturer.EndRunAsync();
-            }
-            finally
-            {
-                if (packWriter is not null) await packWriter.DisposeAsync();
-            }
+            await BackupRunSteps.DisposeAsync(deduplicatingCapturer, packWriter);
         }
     }
 
@@ -484,9 +426,19 @@ public sealed class IncrementalBackupRunner(
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var comparer = new FullScanContentComparer(metadataReader, tuning);
             var batch = new List<(FullScanEntry Entry, byte[]? PreviousHash)>(tuning.FullScanHashBatchSize);
+            var settledBefore = await MetadataSettledBeforeAsync(repository, source, cancellationToken);
             await foreach (var (entry, previousHash) in scan.EnumerateContentComparisonsAsync(cancellationToken))
             {
                 if (changedPaths.Contains(entry.RelativePath)) continue;
+                // Same size, times, attributes and identity as the catalog, and last written well before
+                // the run that made the newest revision began: that run already saw this content.
+                if (settledBefore is { } limit && entry.ModifiedUtc < limit && entry.ChangedUtc < limit)
+                {
+                    metadataTrustedFiles++;
+                    comparedFiles++;
+                    comparedBytes += entry.Length;
+                    continue;
+                }
                 batch.Add((entry, previousHash));
                 if (batch.Count == tuning.FullScanHashBatchSize) await CompareBatchAsync();
             }
@@ -516,6 +468,23 @@ public sealed class IncrementalBackupRunner(
         }
 
         return pending;
+    }
+
+    // Files whose content comparison was skipped because their metadata settled before the last revision.
+    private long metadataTrustedFiles;
+
+    // On a local NTFS volume read through handles, a file's last-write and change times move with every
+    // write, also while the writer keeps the file open (measured; directory listings, by contrast, lag).
+    // Timestamps step about every 2 ms, so a write right after the previous run read a file can keep its
+    // old time: everything last written after that run began, less a margin, is still compared. Files
+    // written through a memory mapping keep their time on NTFS; the game writes its saves with ordinary
+    // writes. Elsewhere (FAT, exFAT, network shares) every unchanged-looking file is compared, as before.
+    private async Task<DateTimeOffset?> MetadataSettledBeforeAsync(
+        RepositoryDatabase repository, RepositorySource source, CancellationToken cancellationToken)
+    {
+        if (metadataReader is not WindowsFileMetadataReader || !LocalVolume.IsLocalNtfs(source.RootPath)) return null;
+        var started = await repository.ReadLatestRevisionRunStartAsync(source.SourceId, cancellationToken);
+        return started?.Subtract(TimeSpan.FromSeconds(2));
     }
 
     private IBackupFailureInjector FailureInjector =>
@@ -646,7 +615,7 @@ public sealed class IncrementalBackupRunner(
 
     private PendingEntry? ReadCurrentEntry(string sourceRoot, string relativePath)
     {
-        var absolutePath = ToAbsolutePath(sourceRoot, relativePath);
+        var absolutePath = BackupRunSteps.ToAbsolutePath(sourceRoot, relativePath);
         FileCaptureMetadata metadata;
         try
         {
@@ -725,7 +694,7 @@ public sealed class IncrementalBackupRunner(
         string sourceRoot,
         string relativeRoot)
     {
-        var absolute = ToAbsolutePath(sourceRoot, relativeRoot);
+        var absolute = BackupRunSteps.ToAbsolutePath(sourceRoot, relativeRoot);
         var current = ReadCurrentEntry(sourceRoot, relativeRoot);
         if (current is null || current.Kind != CatalogEntryKind.Directory)
         {
@@ -797,26 +766,6 @@ public sealed class IncrementalBackupRunner(
             state.VolumeSerialNumber.ToString("X16", CultureInfo.InvariantCulture),
             state.JournalId.ToString("X16", CultureInfo.InvariantCulture),
             state.NextUsn);
-
-    private static string ToAbsolutePath(string root, string relativePath) =>
-        Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
-
-    private static async Task CompleteFailedAsync(
-        RepositoryDatabase repository,
-        TelemetryRunSession telemetry,
-        RepositoryWriterLease lease,
-        long runIndex,
-        RunStatus status,
-        string failureCode,
-        string failurePayload)
-    {
-        await repository.CompleteRunAsync(lease, runIndex, status, failureCode);
-        await telemetry.EmitAsync(new TelemetryEvent(
-            TelemetryEventScope.Run,
-            status == RunStatus.Cancelled ? "run.cancelled" : "run.failed",
-            failurePayload));
-        await telemetry.CompleteAsync(status, failureCode);
-    }
 
     private sealed record PendingEntry(
         string RelativePath,

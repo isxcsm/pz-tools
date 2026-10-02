@@ -14,6 +14,9 @@ public sealed class BackupGameSave(Func<string, CancellationToken, Task<string>>
         : this(new GameSaveClient(bridgeDirectory, connectionTimeoutSeconds, completionTimeoutSeconds,
             queueTimeoutSeconds, notificationLanguage, scheduledSaveUtc).SaveRunningGameAsync) { }
 
+    /// <summary>The game could not be reached; the backup continues with the files as they are on disk.</summary>
+    public const string SaveUnavailable = "save-unavailable";
+
     public async Task<GameSaveResult> PrepareAsync(string sourcePath, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -33,6 +36,11 @@ public sealed class BackupGameSave(Func<string, CancellationToken, Task<string>>
         {
             // These responses are produced before save(true), not after an uncertain save.
             return new(exception.Code, exception.Message);
+        }
+        catch (GameSaveException exception) when (exception.LinkUnavailable)
+        {
+            // Nothing was asked of the game. A backup of what is on disk beats no backup at all.
+            return new(SaveUnavailable, exception.Message);
         }
     }
 

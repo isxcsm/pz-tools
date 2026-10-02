@@ -49,6 +49,7 @@ public sealed partial class MainWindowShell
         displayedContent = page;
         HomeRoot.Visibility = page == HomeRoot ? Visibility.Visible : Visibility.Collapsed;
         GameExtensionsRoot.Visibility = page == GameExtensionsRoot ? Visibility.Visible : Visibility.Collapsed;
+        ProfilerRoot.Visibility = page == ProfilerRoot ? Visibility.Visible : Visibility.Collapsed;
         SettingsRoot.Visibility = page == SettingsRoot ? Visibility.Visible : Visibility.Collapsed;
         LogsRoot.Visibility = page == LogsRoot ? Visibility.Visible : Visibility.Collapsed;
         // Preserve realized save rows, selection bars and scroll offsets. Do not replace
@@ -56,9 +57,14 @@ public sealed partial class MainWindowShell
         var saves = page == SavesRoot;
         SavesRoot.Opacity = saves ? 1 : 0;
         SavesRoot.IsHitTestVisible = saves;
+        // Transparent is not gone: without this its buttons stayed in the Tab order and the screen reader's view.
+        SavesHost.IsEnabled = saves;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(SavesHost,
+            saves ? Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Content : Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
         if (refresh && page == SettingsRoot) SettingsRoot.CompleteInitialLayout();
         if (refresh && page == GameExtensionsRoot) _ = GameExtensionsRoot.RefreshForNavigationAsync();
         if (refresh && page == LogsRoot) LogsRoot.RefreshForNavigation();
+        if (refresh && page == ProfilerRoot) ProfilerRoot.RefreshForNavigation();
     }
 
     private void AnimateContent(bool entering, Action completed)

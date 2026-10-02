@@ -54,10 +54,21 @@ public sealed class CharacterRecoveryTests
         return (player, layout);
     }
 
-    internal static byte[] Zombie(string name, bool includeCard = true)
+    // Seen in a real save: a woman with human skin 4 rose with skin 3, as there are only four zombie skins.
+    [Fact]
+    public void ZombieInventory_MatchesAZombieWhoseSkinTheGameRenumbered()
+    {
+        var (player, layout) = EmptyPlayer();
+        var result = ZombieInventoryRecovery.Recover(player, layout, "Test", ZombieFile(Zombie("Test", skinTexture: 1)), Registry);
+        Assert.Equal(3, result.Items);
+        Assert.Throws<InvalidDataException>(() => ZombieInventoryRecovery.Recover(player, layout, "Test",
+            ZombieFile(Zombie("Other Test", skinTexture: 1)), Registry));
+    }
+
+    internal static byte[] Zombie(string name, bool includeCard = true, byte skinTexture = 2)
     {
         var w = new BigEndianWriter(); w.Byte(1); w.Byte(3); w.Zeros(24); w.Byte(0); w.Byte(1);
-        Descriptor(w, "None", "None"); Visual(w, name);
+        Descriptor(w, "None", "None"); Visual(w, name, skinTexture);
         w.String("inventoryfemale"); w.Byte(0); w.Short(includeCard ? 4 : 3);
         var card = new BigEndianWriter(); card.Short(1); card.Byte(255); card.Int(11); card.Byte(64);
         card.Int(8); card.String("ID card: " + name);
@@ -76,10 +87,10 @@ public sealed class CharacterRecoveryTests
         w.Int(0); w.String(first); w.String(last); w.String("Kate"); w.Int(1);
         w.String("base:unemployed"); w.Int(0); w.Int(0); w.String("VoiceFemale"); w.Zeros(8);
     }
-    internal static void Visual(BigEndianWriter w, string variant)
+    internal static void Visual(BigEndianWriter w, string variant, byte skinTexture = 2)
     {
         w.Byte(44); w.Byte(variant == "Test" ? (byte)70 : (byte)90); w.Byte(40); w.Byte(20);
-        w.Byte(255); w.Byte(200); w.Byte(100); w.Byte(0); w.Byte(2); w.Byte(255);
+        w.Byte(255); w.Byte(200); w.Byte(100); w.Byte(0); w.Byte(skinTexture); w.Byte(255);
         w.String("Short"); w.Zeros(4); w.String(""); w.Byte(4); w.Byte(70); w.Byte(40); w.Byte(20);
     }
     internal static byte[] ZombieFile(params byte[][] zombies)
@@ -161,6 +172,62 @@ public sealed class CharacterRecoveryTests
         query.CommandText = "SELECT data FROM localPlayers;";
         Assert.Equal(PlayerHealthEditor.Heal(blob, 249), (byte[])(await query.ExecuteScalarAsync())!);
         Assert.Empty(Directory.GetDirectories(Path.GetDirectoryName(Path.GetDirectoryName(workspace.Database)!)!, ".*"));
+    }
+
+    // v0.1.0 report: a save whose only character is not id 1 could not be revived.
+    [Fact]
+    public async Task Service_RecoversTheOnlyCharacterWhateverItsId()
+    {
+        using var workspace = new RecoveryWorkspace();
+        var blob = Sample.Create().Bytes;
+        await workspace.CreateDatabase(blob, id: 3);
+        var result = await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
+        Assert.True(result.Resurrected);
+        var row = Assert.Single(await workspace.ReadRows());
+        Assert.Equal((3L, false), (row.Id, row.Dead));
+        Assert.Equal(PlayerHealthEditor.Heal(blob, 249), row.Data);
+        workspace.AssertNoExtraCopies();
+    }
+
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(2L)]
+    public async Task Service_RecoversOnlyTheChosenCharacter(long chosen)
+    {
+        using var workspace = new RecoveryWorkspace();
+        var blob = Sample.Create().Bytes;
+        await workspace.CreateDatabase(blob, multiple: true);
+        var result = await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test", chosen);
+        Assert.Equal(chosen == 1 ? "Test" : "Other", result.Name);
+        var rows = await workspace.ReadRows();
+        Assert.Equal([1L, 2L], rows.Select(row => row.Id));
+        foreach (var row in rows)
+        {
+            Assert.Equal(row.Id != chosen, row.Dead);
+            Assert.Equal(row.Id == chosen ? PlayerHealthEditor.Heal(blob, 249) : blob, row.Data);
+        }
+    }
+
+    [Fact]
+    public async Task Service_RefusesAChosenCharacterThatIsGone()
+    {
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes);
+        var original = await File.ReadAllBytesAsync(workspace.Database);
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => new CharacterRecoveryService()
+            .RecoverAsync(workspace.Root, "Sandbox/Test", 2));
+        Assert.Equal("recovery-character-missing", error.Message);
+        Assert.Equal(original, await File.ReadAllBytesAsync(workspace.Database));
+        workspace.AssertNoExtraCopies();
+    }
+
+    [Fact]
+    public async Task CharacterList_ListsEveryLocalCharacterById()
+    {
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes, multiple: true, id: 4);
+        var characters = await new PzTools.Zomboid.State.CharacterNameReader().ListLocalAsync(workspace.Database);
+        Assert.Equal([(4L, "Test", true), (5L, "Other", true)], characters.Select(c => (c.Id, c.Name, c.Dead)));
     }
 
     [Theory]
@@ -248,16 +315,29 @@ public sealed class CharacterRecoveryTests
         public void AssertNoExtraCopies() =>
             Assert.Equal([Database], Directory.GetFiles(directory, "*", SearchOption.AllDirectories));
         public RecoveryWorkspace() => Directory.CreateDirectory(Path.GetDirectoryName(Database)!);
-        public async Task CreateDatabase(byte[] blob, int version = 249, bool multiple = false)
+        public async Task CreateDatabase(byte[] blob, int version = 249, bool multiple = false, long id = 1)
         {
             await using var connection = new SqliteConnection($"Data Source={Database};Pooling=False");
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "CREATE TABLE localPlayers(id INTEGER PRIMARY KEY,name TEXT,worldversion INTEGER,data BLOB,isDead BOOLEAN); "
-                + "INSERT INTO localPlayers VALUES(1,'Test',$version,$data,1);";
+                + "INSERT INTO localPlayers VALUES($id,'Test',$version,$data,1);";
+            command.Parameters.AddWithValue("$id", id);
             command.Parameters.AddWithValue("$version", version); command.Parameters.AddWithValue("$data", blob);
             await command.ExecuteNonQueryAsync();
-            if (multiple) { command.CommandText = "INSERT INTO localPlayers SELECT 2,name,worldversion,data,isDead FROM localPlayers;"; await command.ExecuteNonQueryAsync(); }
+            if (multiple) { command.CommandText = "INSERT INTO localPlayers SELECT $id+1,'Other',worldversion,data,isDead FROM localPlayers;"; await command.ExecuteNonQueryAsync(); }
+        }
+
+        public async Task<List<(long Id, bool Dead, byte[] Data)>> ReadRows()
+        {
+            await using var connection = new SqliteConnection($"Data Source={Database};Pooling=False");
+            await connection.OpenAsync();
+            var query = connection.CreateCommand();
+            query.CommandText = "SELECT id,isDead,data FROM localPlayers ORDER BY id;";
+            var rows = new List<(long, bool, byte[])>();
+            await using var reader = await query.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) rows.Add((reader.GetInt64(0), reader.GetBoolean(1), (byte[])reader.GetValue(2)));
+            return rows;
         }
         public void Dispose() => Directory.Delete(directory, true);
     }

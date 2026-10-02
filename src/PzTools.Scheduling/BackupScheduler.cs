@@ -19,6 +19,11 @@ public sealed class BackupScheduler(
 {
     private readonly HashSet<string> recoveredRepositories = (
         new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    // A busy repository (an export or a restore holds it) keeps the backup due. Without a pause the
+    // next one-second tick would allocate a run, reserve a workflow and start a runner only to hear
+    // "busy" again, for as long as the export lasts.
+    private static readonly TimeSpan BusyRetry = TimeSpan.FromSeconds(10);
+    private DateTimeOffset busyRetryAt = DateTimeOffset.MinValue;
 
     public async Task<BackupTickResult> TickAsync(
         DateTimeOffset now,
@@ -26,13 +31,17 @@ public sealed class BackupScheduler(
     {
         var selection = runtimeSchedule is null ? new RuntimeAdmissionSelection(false, null)
             : await runtimeSchedule.PrepareAsync(now, preparationLead ?? TimeSpan.Zero, cancellationToken);
-        var admission = selection.Enabled ? selection.Admission : await schedulerDatabase.PrepareBackupTickAsync(
+        // With a runtime controller the tick is prepared there either way; only without one is it done here.
+        var admission = runtimeSchedule is not null ? selection.Admission : await schedulerDatabase.PrepareBackupTickAsync(
             now, cancellationToken, preparationLead);
-        if (admission is null || !selection.Enabled && isTargetActive is not null && !isTargetActive(admission.Target))
+        if (admission is null || (!selection.Enabled || RuntimeScheduleController.IsFallback(admission))
+            && (isTargetActive is not null && !isTargetActive(admission.Target) || WaitsForNewCharacter(admission)))
         {
             return new BackupTickResult(
                 false, null, null, null, null, ProcessOutcome.Skipped);
         }
+        if (now < busyRetryAt)
+            return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
 
         var repository = await RepositoryDatabase.CreateOrOpenAsync(
             admission.RepositoryPath, cancellationToken);
@@ -56,11 +65,14 @@ public sealed class BackupScheduler(
                 workflow.RunIndex, cancellationToken);
             var workerStarted = stages.Any(stage => stage.Producer == "backup-worker");
             var recoveredOutcome = ToOutcome(workflow.Status);
+            // A reservation that never reached its worker left nothing in doubt, whatever ended it.
             if (runtimeSchedule is not null && admission.RuntimeTicket is not null)
                 await runtimeSchedule.FinishAsync(admission, null,
                     recoveredOutcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange ? ScheduleDisposition.Consume
-                    : recoveredOutcome is ProcessOutcome.Skipped or ProcessOutcome.Busy ? ScheduleDisposition.Preserve
+                    : recoveredOutcome is ProcessOutcome.Skipped or ProcessOutcome.Busy || !workerStarted ? ScheduleDisposition.Preserve
                     : ScheduleDisposition.CompletionUnknown, cancellationToken);
+            if (runtimeSchedule is not null)
+                await runtimeSchedule.FinishFallbackAsync(admission, workerStarted, recoveredOutcome, now, cancellationToken);
             await schedulerDatabase.FinishBackupTickAsync(
                 admission,
                 workerStarted,
@@ -80,6 +92,7 @@ public sealed class BackupScheduler(
         WorkerInvocation? backup = null;
         WorkerInvocation? maintenance = null;
         var outcome = ProcessOutcome.Failed;
+        var dispatched = false;
         try
         {
             // 독립 점검기가 저장소 잠금을 쥐고 있으면 먼저 양보를 요청합니다.
@@ -95,17 +108,26 @@ public sealed class BackupScheduler(
             // A stop/interval change can arrive while repository admission or yield is awaited.
             var currentSelection = runtimeSchedule is null ? new RuntimeAdmissionSelection(false, null)
                 : await runtimeSchedule.PrepareAsync(DateTimeOffset.UtcNow, preparationLead ?? TimeSpan.Zero, cancellationToken);
+            // Rechecked at the tick's own time (not the controller's clock read above), as when admitted.
             var currentAdmission = currentSelection.Enabled ? currentSelection.Admission
                 : await schedulerDatabase.PrepareBackupTickAsync(now, cancellationToken, preparationLead);
             bool valid = currentAdmission?.AdmissionId == admission.AdmissionId
-                && (currentSelection.Enabled || isTargetActive is null || isTargetActive(admission.Target));
+                && (currentSelection.Enabled && !RuntimeScheduleController.IsFallback(admission)
+                    || (isTargetActive is null || isTargetActive(admission.Target)) && !WaitsForNewCharacter(admission));
             if (!valid) backup = new WorkerInvocation(false, ProcessOutcome.Skipped,
                 "automatic-reservation-obsolete", ScheduleDisposition.Preserve);
             else if (admission.RuntimeTicket is not null)
-                backup = await (guardedBackupRunner ?? throw new InvalidOperationException("Guarded worker dispatch is unavailable."))(
-                    currentAdmission!, workflow.RunIndex, cancellationToken);
-            else backup = await backupRunner(admission.RepositoryPath, admission.Target, workflow.RunIndex,
-                admission.Kind == BackupAdmissionKind.Periodic ? admission.ScheduledUtc : null, cancellationToken);
+            {
+                var guarded = guardedBackupRunner ?? throw new InvalidOperationException("Guarded worker dispatch is unavailable.");
+                dispatched = true;
+                backup = await guarded(currentAdmission!, workflow.RunIndex, cancellationToken);
+            }
+            else
+            {
+                dispatched = true;
+                backup = await backupRunner(admission.RepositoryPath, admission.Target, workflow.RunIndex,
+                    admission.Kind == BackupAdmissionKind.Periodic ? admission.ScheduledUtc : null, cancellationToken);
+            }
             if (backup.Outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange)
             {
                 var bound = await repository.ReadWorkflowAsync(
@@ -207,9 +229,15 @@ public sealed class BackupScheduler(
         }
         finally
         {
+            busyRetryAt = outcome == ProcessOutcome.Busy ? now + BusyRetry : DateTimeOffset.MinValue;
+            // An error before the worker was dispatched (for example a busy scheduler database)
+            // means no save was requested: keep the slot instead of treating its outcome as unknown.
             if (runtimeSchedule is not null && admission.RuntimeTicket is not null)
                 await runtimeSchedule.FinishAsync(admission, backup,
-                    ScheduleDisposition.CompletionUnknown, CancellationToken.None);
+                    dispatched ? ScheduleDisposition.CompletionUnknown : ScheduleDisposition.Preserve,
+                    CancellationToken.None);
+            if (runtimeSchedule is not null)
+                await runtimeSchedule.FinishFallbackAsync(admission, backup?.Started == true, outcome, now, CancellationToken.None);
             await schedulerDatabase.FinishBackupTickAsync(
                 admission,
                 backup?.Started == true,
@@ -219,6 +247,12 @@ public sealed class BackupScheduler(
                 CancellationToken.None);
         }
     }
+
+    // Clock-time scheduling has no hold of its own: keep a periodic backup due while the played
+    // character is dead. The backup made at the moment of death is a separate, one-time request.
+    private bool WaitsForNewCharacter(BackupTickAdmission admission) =>
+        admission.Kind == BackupAdmissionKind.Periodic && runtimeSchedule?.Observation is { IsCharacterDead: true } observation
+        && StringComparer.OrdinalIgnoreCase.Equals(observation.Snapshot!.SavePath, admission.Target.SourcePath);
 
     private async Task TryRecordTelemetryAsync(
         long runIndex,

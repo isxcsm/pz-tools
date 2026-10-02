@@ -52,7 +52,9 @@ public final class SaveBridge {
                 String line = readLimited(input);
                 if (line == null) return;
                 String[] command = line.split("\t", -1);
-                boolean extension = (command[0].equals("PREPARE_SAVE") || command[0].equals("PREPARE_SAVE_ACTIVE"))
+                // Profile recording control: answered at once, never queued for the game thread.
+                if (ProfileControl.handles(command[0])) { output.println(ProfileControl.handle(command)); return; }
+                boolean extension =(command[0].equals("PREPARE_SAVE") || command[0].equals("PREPARE_SAVE_ACTIVE"))
                     && command.length == 8 && (command[7].equals("force") || command[7].equals("normal"))
                     && command[6].length() <= 80 && command[6].matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+");
                 boolean active = (command[0].equals("SAVE_ACTIVE") || command[0].equals("PROBE_ACTIVE")) && command.length == 6

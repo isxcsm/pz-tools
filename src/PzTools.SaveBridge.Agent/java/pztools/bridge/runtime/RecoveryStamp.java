@@ -25,6 +25,36 @@ public final class RecoveryStamp {
         write.invoke(data, "pztools.recovery.secondary", (double)secondary);
         write.invoke(data, "pztools.recovery.id", identity);
     }
+    /**
+     * Only the character ID, and only when the living player has none: used by the runtime observer so
+     * that a character who dies before their first backup is still recognisable. The game copies the
+     * player's modData to the corpse and the zombie, so the in-memory value is enough. Hand items are
+     * left to {@link #record}, at the save they describe. Lookups are resolved once and kept.
+     */
+    static final class IdentityWriter {
+        private Method modData, rawget, rawset;
+        private Class<?> table;
+        /** True once the player has a canonical ID, whether it was there or has just been written. */
+        boolean ensure(Object player) throws ReflectiveOperationException {
+            if (modData == null) modData = player.getClass().getMethod("getModData");
+            Object data = modData.invoke(player);
+            if (data == null) return false;
+            if (data.getClass() != table) {
+                rawget = data.getClass().getMethod("rawget", Object.class);
+                rawset = data.getClass().getMethod("rawset", Object.class, Object.class);
+                table = data.getClass();
+            }
+            Object existing = rawget.invoke(data, "pztools.recovery.id");
+            String identity = null;
+            if (existing instanceof String text) {
+                try { identity = UUID.fromString(text).toString(); } catch (IllegalArgumentException invalid) { }
+                if (text.equals(identity)) return true;
+            }
+            // As record does: an unreadable value is replaced, a readable one written in canonical form.
+            rawset.invoke(data, "pztools.recovery.id", identity != null ? identity : UUID.randomUUID().toString());
+            return true;
+        }
+    }
     private static int itemId(Object item) throws ReflectiveOperationException {
         return item == null ? -1 : ((Number)item.getClass().getMethod("getID").invoke(item)).intValue();
     }

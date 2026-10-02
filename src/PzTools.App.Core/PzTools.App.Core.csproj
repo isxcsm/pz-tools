@@ -14,6 +14,7 @@
     <ProjectReference Include="..\PzTools.Zomboid.Backup\PzTools.Zomboid.Backup.csproj" />
     <ProjectReference Include="..\PzTools.Zomboid.Archive\PzTools.Zomboid.Archive.csproj" />
     <ProjectReference Include="..\PzTools.Control\PzTools.Control.csproj" />
+    <ProjectReference Include="..\PzTools.Profiling\PzTools.Profiling.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\..\config\defaults\**\default.toml"

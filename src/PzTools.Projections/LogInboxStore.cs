@@ -34,6 +34,7 @@ public sealed class LogInboxStore
               AND ($category='All' OR (CASE
                     WHEN logs.component IN ('backup-worker','backup-runner') THEN 'Backup'
                     WHEN logs.component='character-recovery' THEN 'Recovery'
+                    WHEN logs.component='profiler' THEN 'Profile'
                     WHEN logs.component='restore-worker' OR logs.component LIKE 'restore-%' THEN 'Restore'
                     WHEN logs.component='archive-worker' OR logs.component LIKE 'archive-%' THEN 'Archive'
                     WHEN logs.component IN ('state-runner','state-collector','state-reactor','state-scheduler') THEN 'State'

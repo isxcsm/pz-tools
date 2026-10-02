@@ -14,6 +14,9 @@ using PzTools.Zomboid.Backup;
 using PzTools.SaveBridge;
 using PzTools.Process.Contracts.GameRuntime;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 return await BackupCli.RunAsync(args);
 
 internal static class BackupCli
@@ -26,6 +29,8 @@ internal static class BackupCli
             eventArgs.Cancel = true;
             cancellationSource.Cancel();
         };
+        // The app asks a worker to stop the same way: it ends at a safe point instead of being killed.
+        using var stopRequest = ProcessStopSignal.Listen(cancellationSource);
 
         try
         {
@@ -138,6 +143,7 @@ internal static class BackupCli
         Console.WriteLine("         [--require-active-game]  Skip automatic work if the selected world stops before capture.");
         Console.WriteLine("         [--save-game-before-backup <true|false>]  Override the game-save preference.");
         Console.WriteLine("         [--scheduled-utc <ISO 8601>]  Prepare ahead, then save/capture no earlier than this time.");
+        Console.WriteLine("         [--game-version <text>]  Record the running game's version with the new backup.");
         Console.WriteLine("  restore --repository <path> --source-id <id> --revision <n> --target <path>");
         Console.WriteLine("  verify --repository <path>       Verify every committed pack.");
         Console.WriteLine("  maintenance prune --repository <path> --source-id <id> --keep <n>");
@@ -183,7 +189,9 @@ internal static class BackupCli
             var gameSave = new BackupGameSave(Path.Combine(AppContext.BaseDirectory, "save-bridge"),
                 options.EffectiveTuning.GameConnectionTimeoutSeconds, options.EffectiveTuning.GameCompletionTimeoutSeconds,
                 options.EffectiveTuning.GameQueueTimeoutSeconds,
-                options.GameSaveCountdown
+                // In-game notices warn a player that the scheduler is about to save. A backup someone starts from
+                // the app is started by someone looking at the app: it saves at once, without notices or delay.
+                options.GameSaveCountdown && (request.RequireActiveGame || request.ScheduledUtc is not null)
                     ? LanguageCatalog.Get(options.NameLanguage).Tag : null, request.ScheduledUtc);
             var timing = new BackupTimingPreparation((path, token) => request.SaveGame && options.SaveGameBeforeBackup
                 ? gameSave.PrepareAsync(path, token) : Task.FromResult(new GameSaveResult("disabled")));
@@ -217,7 +225,7 @@ internal static class BackupCli
                 RevisionCharacterMetadataCollector.PopulateAsync).RunAsync(
                 options,
                 request.SourceId,
-                new BackupExecutionOptions(requestedRunIndex, request.Revision),
+                new BackupExecutionOptions(requestedRunIndex, request.Revision, GameVersion: request.GameVersion),
                 cancellationToken);
             runIndex = result.RunIndex;
             var outcome = result.Revision is null
@@ -285,16 +293,20 @@ internal static class BackupCli
         {
             var code = "game-save-" + exception.Code;
             await CompleteOwnedWorkflowAsync(ProcessOutcome.Failed, code);
+            // Only a save command that was sent without a usable answer leaves the game save in doubt.
             return WriteBackupFailure(runIndex, ProcessOutcome.Failed, started, code, exception.Message,
-                guardedRequest ? ScheduleDisposition.CompletionUnknown : ScheduleDisposition.Default);
+                !guardedRequest ? ScheduleDisposition.Default
+                : exception.SaveOutcomeUnknown ? ScheduleDisposition.CompletionUnknown
+                : ScheduleDisposition.Consume);
         }
         catch (Exception exception)
         {
             await CompleteOwnedWorkflowAsync(ProcessOutcome.Failed, "backup-failed");
+            // The save outcome is known here; a failed capture ends this slot and the next interval tries again.
             return WriteBackupFailure(
                 runIndex, ProcessOutcome.Failed, started,
                 "backup-failed", exception.Message,
-                guardedRequest ? ScheduleDisposition.CompletionUnknown : ScheduleDisposition.Default);
+                guardedRequest ? ScheduleDisposition.Consume : ScheduleDisposition.Default);
         }
 
         async Task CompleteOwnedWorkflowAsync(ProcessOutcome outcome, string? failureCode)
@@ -448,6 +460,12 @@ internal static class BackupCli
             _ = WriteFailure(ProcessOutcome.Failed, "invalid-arguments", exception.Message);
             return ProcessExitCodes.InvalidArguments;
         }
+        catch (Exception exception) when (IsDamagedBackupData(exception))
+        {
+            // The app tells the user the backup itself is unreadable, not that something went wrong.
+            RecordRestoreFailure("backup-data-damaged", exception);
+            return WriteFailure(ProcessOutcome.Failed, "backup-data-damaged", "backup-data-damaged: " + exception.Message);
+        }
         catch (Exception exception)
         {
             RecordRestoreFailure("restore-failed", exception);
@@ -472,6 +490,14 @@ internal static class BackupCli
                     "restore-worker", Math.Max(1, runIndex), outcome, started, code, message)));
             return ProcessExitCodes.FromOutcome(outcome);
         }
+    }
+
+    /// <summary>A stored object or pack failed its integrity checks.</summary>
+    internal static bool IsDamagedBackupData(Exception? exception)
+    {
+        for (; exception is not null; exception = exception.InnerException)
+            if (exception is PzTools.Backup.Storage.Packs.PackFormatException) return true;
+        return false;
     }
 
     private static async Task<int> VerifyAsync(

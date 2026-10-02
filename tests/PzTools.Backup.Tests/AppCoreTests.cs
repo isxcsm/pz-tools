@@ -597,7 +597,7 @@ public sealed class AppCoreTests
         Directory.CreateDirectory(workers);
         foreach (var name in new[] { "Backup.Scheduler", "State.Scheduler", "Backup.Runner",
                      "Maintenance.Runner", "State.Runner", "Zomboid.Archive.Cli", "Backup.Cli",
-                     "Maintenance.Cli", "State.Collector.Cli", "State.Reactor.Cli", "Zomboid.Recovery.Cli" })
+                     "Maintenance.Cli", "State.Collector.Cli", "State.Reactor.Cli", "Zomboid.Recovery.Cli", "Profiler.Cli" })
             File.WriteAllText(Path.Combine(workers, $"PzTools.{name}.exe"), "");
         Assert.Equal(workers, AppWorkerDirectoryResolver.Resolve(temp.Path));
         Assert.Equal(workers, AppWorkerDirectoryResolver.Resolve(temp.Path, workers));
@@ -1033,7 +1033,7 @@ public sealed class AppCoreTests
 
         await host.StartAsync();
 
-        Assert.Equal(13, Directory.GetFiles(host.Settings.ConfigurationRoot,
+        Assert.Equal(14, Directory.GetFiles(host.Settings.ConfigurationRoot,
             "default.toml", SearchOption.AllDirectories).Length);
         var backupConfig = await File.ReadAllTextAsync(
             ComponentRuntimePaths.GetIdentityDefaultPath(
@@ -1045,8 +1045,9 @@ public sealed class AppCoreTests
         var maintenanceConfig = await File.ReadAllTextAsync(
             ComponentRuntimePaths.GetIdentityDefaultPath(
                 temp.GetPath("backups"), "maintenance-worker", host.Settings.ConfigurationRoot));
+        // Unused pack space is reclaimed by default; the old merge-everything switch is gone.
+        Assert.Contains("pack_reclamation_enabled = true", maintenanceConfig);
         Assert.DoesNotContain("enable_pack_compaction", maintenanceConfig);
-        Assert.DoesNotContain("maximum_compaction_source_pack_mib", maintenanceConfig);
         Assert.DoesNotContain("retain_latest_revisions", maintenanceConfig);
 
         Assert.False(Directory.Exists(temp.GetPath("saves")));
@@ -1126,6 +1127,26 @@ public sealed class AppCoreTests
         });
         Assert.Equal(8, launcher.Attempts);
         await host.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task AppHost_KeepsRetryingFaultedSchedulersUntilTheyRunAgain()
+    {
+        using var temp = new TempDirectory();
+        var paths = await PrepareHostPathsAsync(temp);
+        var launcher = new RecoveringLauncher(failuresPerExecutable: 6); // More than the restart bound.
+        var host = new AppHost(paths, launcher, restartDelay: _ => TimeSpan.Zero,
+            schedulerRecovery: TimeSpan.FromMilliseconds(20));
+        try
+        {
+            await host.StartAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            // Both were reported Faulted on the way; only a later successful launch makes them Running.
+            while (launcher.Running < 2 || host.Views.ReadIfChanged<SchedulerHostView>(AppHost.SchedulerHostsViewKey, 0)
+                       .Snapshot!.Schedulers.Any(item => item.State != SchedulerHostState.Running))
+                await Task.Delay(20, timeout.Token);
+        }
+        finally { await host.DisposeAsync(); }
     }
 
     [Fact]
@@ -1288,6 +1309,27 @@ public sealed class AppCoreTests
         {
             Interlocked.Increment(ref attempts);
             return Task.FromResult(new ManagedProcessExit(true, 1, "fixture-failure"));
+        }
+    }
+
+    private sealed class RecoveringLauncher(int failuresPerExecutable) : IManagedProcessLauncher
+    {
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> attempts = new();
+        private int running;
+        public int Running => Volatile.Read(ref running);
+
+        public async Task<ManagedProcessExit> RunAsync(
+            string executable,
+            IReadOnlyList<string> arguments,
+            Action<string>? standardOutput,
+            Action<string>? standardError,
+            CancellationToken cancellationToken)
+        {
+            if (attempts.AddOrUpdate(executable, 1, (_, count) => count + 1) <= failuresPerExecutable)
+                return new ManagedProcessExit(true, 1, "fixture-failure");
+            Interlocked.Increment(ref running);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new ManagedProcessExit(true, 0, null);
         }
     }
 

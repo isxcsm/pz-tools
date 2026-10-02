@@ -29,6 +29,10 @@ public final class VerifyInstalledVehicleBytecode {
             catch(IllegalArgumentException expected) { }
             loader.requireAppliedOverrides();
             System.out.println("VERIFIED (not executed): controller resource, resolved-mode/offroad transform, JVM verification, access contracts and duplicate rejection");
+            System.out.println("Steering key bindings (optional, for precise key timing): "
+                +(VehicleDrivetrainProvider.verifySteeringBindings(loader)?"resolved":"NOT RESOLVED - keys will be timed per frame"));
+            System.out.println("Area light (optional, light around the vehicle): "
+                +(VehicleDrivetrainProvider.verifyAreaLight(loader)?"resolved":"NOT RESOLVED - the light stays off"));
             System.out.println("Controller canonical SHA-256: "+VehicleBytecode.sha256(VehicleBytecode.fingerprint(original,loader)));
             if(PrivateValidationAgent.instrumentation!=null) lifecycle(PrivateValidationAgent.instrumentation,loader,original);
             if(overrides!=null) System.out.println("Override evidence (no class initialization): "+overrides.classes().size()

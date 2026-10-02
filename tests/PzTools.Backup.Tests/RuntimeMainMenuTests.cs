@@ -132,7 +132,9 @@ public sealed class RuntimeMainMenuTests
                 AutomaticEnabled = false, Hold = ScheduleHold.GameOffline | ScheduleHold.NoWorld }, Now));
         Assert.Equal(new CountdownPresentation("SchedulerStatusUnavailable"),
             ScheduleCountdownPresentation.Resolve(view, Now, unavailable: true));
-        Assert.Equal(new CountdownPresentation(pauseAware ? "RuntimeBackupCompletionUnknown" : "RuntimeBackupMainMenu"),
+        // The skipped interval is shown with its remaining time; it ends by itself.
+        Assert.Equal(pauseAware ? new CountdownPresentation("RuntimeBackupCompletionUnknown", 300)
+                : new CountdownPresentation("RuntimeBackupMainMenu"),
             ScheduleCountdownPresentation.Resolve(view with { CompletionUncertain = true }, Now));
     }
 

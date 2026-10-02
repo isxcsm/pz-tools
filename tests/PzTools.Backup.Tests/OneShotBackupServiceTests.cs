@@ -142,13 +142,14 @@ public sealed class OneShotBackupServiceTests
             options.RepositoryPath, telemetry.DatabasePath, TelemetryDatabaseKind.Backup, true));
         var inbox = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
         var views = new RevisionedViewStore();
-        var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
-        projector.ConfigureRecordingLevel(LogLevel.Warning);
+        using var projector = new TelemetryProjectionHost(catalog, views, logInbox: inbox);
+        projector.ConfigureRecordingLevel(LogLevel.Information);
         await projector.ProjectOnceAsync();
+        // Deferred is retried on its own: recorded with its diagnostics, but not as a warning.
         var logged = Assert.Single((await inbox.ReadPageAsync(
-            new LogPageQuery(LogLevel.Warning, "All", "", 0))).Entries,
+            new LogPageQuery(LogLevel.Information, "All", "", 0))).Entries,
             item => item.RunIndex == runIndex && item.EventName == "run.cancelled");
-        Assert.Equal(LogLevel.Warning, logged.Level);
+        Assert.Equal(LogLevel.Information, logged.Level);
         Assert.Equal(cancelled.PayloadJson, logged.PayloadJson);
     }
 
@@ -398,7 +399,7 @@ public sealed class OneShotBackupServiceTests
         var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
         await using var connection = await repository.OpenConnectionAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM runs;";
+        command.CommandText = "SELECT COUNT(*) FROM worker_runs;";
         Assert.Equal(0L, await command.ExecuteScalarAsync());
     }
 

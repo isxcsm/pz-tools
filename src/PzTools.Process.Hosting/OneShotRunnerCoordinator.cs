@@ -33,7 +33,8 @@ public sealed class OneShotRunnerCoordinator(ChildProcessHost processHost)
         }
         var child = mutex.Value!;
         var outcome = ProcessOutcome.Failed;
-        var disposition = ScheduleDisposition.Default;
+        // A worker that never started cannot have left a game save in doubt.
+        var disposition = child.Started ? ScheduleDisposition.Default : ScheduleDisposition.Consume;
         var error = child.FailureCode;
         var message = child.StandardError;
         if (child.Started)

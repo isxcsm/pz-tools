@@ -4,15 +4,17 @@ using PzTools.Control;
 using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 try
 {
-    var repository = Path.GetFullPath(Value(args, "--repository", true)!);
+    var repository = Path.GetFullPath(CommandLine.Required(args, "--repository"));
     var mutexName = NamedMutexRunner.CreateName("MaintenanceDispatch", repository);
     var result = await NamedMutexRunner.TryRunAsync(
         mutexName, token => RunCoreAsync(args, token));
     if (result.Acquired) return result.Value;
-    var runText = Value(args, "--run-index", false);
-    var runIndex = runText is null ? 1 : long.Parse(runText, System.Globalization.CultureInfo.InvariantCulture);
+    var runIndex = CommandLine.OptionalInt64(CommandLine.Optional(args, "--run-index"), "--run-index") ?? 1;
     Console.WriteLine(ProcessResultJson.Serialize(
         ProcessResultEnvelope<object>.Success(
             "maintenance-runner", Math.Max(1, runIndex), ProcessOutcome.Busy,
@@ -33,21 +35,14 @@ RepositoryDatabase? repositoryDatabase = null;
 var ownsWorkflow = false;
 try
 {
-    var repository = Value(args, "--repository", true)!;
-    var sourceId = long.Parse(
-        Value(args, "--source-id", true)!,
-        System.Globalization.CultureInfo.InvariantCulture);
-    if (sourceId <= 0) throw new ArgumentOutOfRangeException("--source-id");
-    var runText = Value(args, "--run-index", false);
-    runIndex = runText is null
-        ? null
-        : long.Parse(runText, System.Globalization.CultureInfo.InvariantCulture);
-    if (runIndex is <= 0) throw new ArgumentOutOfRangeException("--run-index");
-    var runnerConfiguration = Value(args, "--config", false);
-    var workerConfiguration = Value(args, "--worker-config", false);
-    var workerDirectory = Value(args, "--worker-directory", false) ?? AppContext.BaseDirectory;
+    var repository = CommandLine.Required(args, "--repository");
+    var sourceId = CommandLine.Int64(CommandLine.Required(args, "--source-id"), "--source-id");
+    runIndex = CommandLine.OptionalInt64(CommandLine.Optional(args, "--run-index"), "--run-index");
+    var runnerConfiguration = CommandLine.Optional(args, "--config");
+    var workerConfiguration = CommandLine.Optional(args, "--worker-config");
+    var workerDirectory = CommandLine.Optional(args, "--worker-directory") ?? AppContext.BaseDirectory;
     var worker = Path.Combine(Path.GetFullPath(workerDirectory), "PzTools.Maintenance.Cli.exe");
-    var forwarded = RemoveRunnerOptions(
+    var forwarded = CommandLine.Without(
         args, "--worker-directory", "--config", "--worker-config");
     if (!forwarded.Contains("--dispatch-lanes", StringComparer.Ordinal))
     {
@@ -60,7 +55,7 @@ try
         repositoryDatabase = await RepositoryDatabase.OpenExistingAsync(repository);
         await repositoryDatabase.RecoverAbandonedWorkflowsAsync("maintenance-worker", sourceId);
         runIndex = await new RunIndexAllocator(
-            Value(args, "--control-db", false)).AllocateAsync();
+            CommandLine.Optional(args, "--control-db")).AllocateAsync();
         var workflow = await repositoryDatabase.ReserveWorkflowAsync(
             "maintenance", sourceId, "maintenance-worker", null, runIndex.Value);
         runIndex = workflow.RunIndex;
@@ -187,33 +182,3 @@ static WorkflowStatus ToWorkflowStatus(ProcessOutcome outcome) => outcome switch
     ProcessOutcome.Cancelled => WorkflowStatus.Cancelled,
     _ => WorkflowStatus.Failed,
 };
-
-static List<string> RemoveRunnerOptions(string[] arguments, params string[] optionNames)
-{
-    var names = new HashSet<string>(optionNames, StringComparer.Ordinal);
-    var forwarded = new List<string>();
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        if (!names.Contains(arguments[index]))
-        {
-            forwarded.Add(arguments[index]);
-            continue;
-        }
-        if (++index >= arguments.Length)
-            throw new ArgumentException($"{arguments[index - 1]} requires a value.");
-    }
-    return forwarded;
-}
-
-static string? Value(string[] values, string name, bool required)
-{
-    var matches = values
-        .Select((value, index) => (value, index))
-        .Where(item => item.value == name)
-        .Select(item => item.index)
-        .ToArray();
-    if (matches.Length > 1) throw new ArgumentException($"{name} may be specified only once.");
-    if (matches.Length == 1 && matches[0] + 1 < values.Length)
-        return values[matches[0] + 1];
-    return required ? throw new ArgumentException($"{name} is required.") : null;
-}

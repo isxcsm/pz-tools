@@ -150,7 +150,7 @@ public sealed class BackupProjector(
                     Enum.TryParse<CharacterState>(revision.CharacterState, out var state)
                         ? state : CharacterState.Unknown,
                     revision.HoursSurvived, !revision.CharacterMetadataRead && revision.CharacterMetadataError is null,
-                    revision.Kind, revision.CharacterMetadataError)).ToArray())).ToArray());
+                    revision.Kind, revision.CharacterMetadataError, revision.GameVersion)).ToArray())).ToArray());
         views.Publish(ViewKey.BackupCatalog, model, snapshot.RepositoryChangeRevision,
             ViewComparers.Backups);
         cursor = snapshot.RepositoryChangeRevision;
@@ -243,7 +243,8 @@ public sealed class SchedulerProjector(
             snapshot.AutomaticEnabled,
             snapshot.PendingRuns,
             periodicInProgress,
-            Hold: offline ? ScheduleHold.GameOffline | ScheduleHold.NoWorld : ScheduleHold.None,
+            Hold: offline ? ScheduleHold.GameOffline | ScheduleHold.NoWorld
+                : observation.IsCharacterDead ? ScheduleHold.CharacterDead : ScheduleHold.None,
             GamePhase: RuntimeScheduleProjection.ObservedGamePhase(observation));
         views.Publish(
             ViewKey.ScheduleStatus, model, cursor,

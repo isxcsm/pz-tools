@@ -180,6 +180,50 @@ public sealed partial class GameSaveClientTests
         await Client().RequestAsync(game.Pid, temp.Path, true);
         Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));
     }
+    // A character who dies before their first backup must still be recognisable in their remains.
+    [BridgeFact]
+    public async Task RuntimeObservation_GivesALivingCharacterARecoveryIdWithoutSaving()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        await using var watch = new RuntimeWatchCapture(game.Pid);
+        await watch.WaitAsync(s => s.IsWorldReady && s.CharacterLife == RuntimeCharacterLife.Alive);
+        var first = await InspectStampAsync(temp, stamp => Guid.TryParse(stamp[0], out _));
+        Assert.Equal("null", first[1]); // hand items are recorded by the save they describe
+        Assert.False(File.Exists(temp.GetPath("calls.txt")));
+        await Client().RequestAsync(game.Pid, temp.Path, true);
+        Assert.Equal(first[0], (await File.ReadAllLinesAsync(temp.GetPath("recovery-stamp.txt")))[0]);
+        await File.WriteAllTextAsync(temp.GetPath("respawn-player"), "respawn");
+        await InspectStampAsync(temp, stamp => Guid.TryParse(stamp[0], out _) && stamp[0] != first[0]);
+    }
+
+    [BridgeFact]
+    public async Task RuntimeObservation_LeavesADeadCharacterWithoutARecoveryId()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "dead-at-start");
+        await using var watch = new RuntimeWatchCapture(game.Pid);
+        var dead = await watch.WaitAsync(s => s.IsWorldReady && s.CharacterLife == RuntimeCharacterLife.Dead);
+        // Longer than the two-second check interval.
+        await watch.WaitAsync(s => s.ActiveMilliseconds >= dead.ActiveMilliseconds + 3000);
+        Assert.Equal("null", (await InspectStampAsync(temp, _ => true))[0]);
+    }
+
+    private static async Task<string[]> InspectStampAsync(TempDirectory temp, Func<string[], bool> accept)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var state = temp.GetPath("stamp-state.txt");
+        while (true)
+        {
+            File.Delete(state);
+            await File.WriteAllTextAsync(temp.GetPath("inspect-stamp"), "inspect", deadline.Token);
+            while (!File.Exists(state)) await Task.Delay(20, deadline.Token);
+            var stamp = await File.ReadAllLinesAsync(state, deadline.Token);
+            if (accept(stamp)) return stamp;
+            await Task.Delay(200, deadline.Token);
+        }
+    }
+
     private static string RuntimeBridgeDirectory() => Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")
         ?? throw new InvalidOperationException("Synthetic bridge fixture was not prepared.");
 

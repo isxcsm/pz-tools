@@ -7,7 +7,7 @@ public sealed record RepositoryHousekeepingResult(
     int CompactedRevisions, int RemovedEntryVersions, int RemovedObjects, CompletedHistoryCleanup History,
     RepositoryVacuumResult Vacuum, IReadOnlyList<string> FilesThatCouldNotBeDeleted, int RemovedPathRows = 0, int InspectedPathRows = 0, int InspectedEntryVersions = 0)
 {
-    public int AffectedItems => CompactedRevisions + RemovedEntryVersions + RemovedObjects + History.Runs + History.Workflows + History.Stages + RemovedPathRows;
+    public int AffectedItems => CompactedRevisions + RemovedEntryVersions + RemovedObjects + History.Workflows + History.Stages + RemovedPathRows;
     public string ToDetail() => JsonSerializer.Serialize(new
     {
         compactedRevisions = CompactedRevisions,
@@ -64,7 +64,7 @@ public sealed class RepositoryHousekeepingService
         // Exactly one dictionary pass per housekeeping cycle, sharing one inspection budget.
         var pathSweep = await repository.SweepUnreferencedPathsAsync(lease, policy.BatchSize, cancellationToken);
         var history = policy.HistoryRetentionDays == 0
-            ? new CompletedHistoryCleanup(0, 0, 0)
+            ? new CompletedHistoryCleanup(0, 0)
             : await repository.PruneCompletedHistoryAsync(
                 lease, DateTimeOffset.UtcNow.AddDays(-policy.HistoryRetentionDays),
                 policy.MinimumRetainedRuns, policy.BatchSize, cancellationToken);

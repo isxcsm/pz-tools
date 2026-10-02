@@ -21,3 +21,47 @@ public sealed class ApplicationInstanceLease : IDisposable
 
     public void Dispose() => marker.Dispose();
 }
+
+/// <summary>
+/// Lets a second launch ask the running instance to show its window instead of exiting silently,
+/// which looks like "the app does not start" when the first instance is hidden in the tray.
+/// </summary>
+public static class ApplicationActivationSignal
+{
+    private static string Name(string dataRoot) =>
+        NamedMutexRunner.CreateName("AppActivate", Path.GetFullPath(dataRoot));
+
+    /// <summary>Runs <paramref name="activate"/> on a pool thread each time another launch signals.</summary>
+    public static IDisposable Listen(string dataRoot, Action activate)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataRoot);
+        ArgumentNullException.ThrowIfNull(activate);
+        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Name(dataRoot));
+        var registration = ThreadPool.RegisterWaitForSingleObject(
+            signal, (_, timedOut) => { if (!timedOut) activate(); }, null, Timeout.Infinite, executeOnlyOnce: false);
+        return new Listener(signal, registration);
+    }
+
+    /// <summary>False when no instance is listening (for example it is still starting or shutting down).</summary>
+    public static bool TrySignal(string dataRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataRoot);
+        try
+        {
+            if (!EventWaitHandle.TryOpenExisting(Name(dataRoot), out var signal)) return false;
+            using (signal) return signal.Set();
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException) { return false; }
+    }
+
+    private sealed class Listener(EventWaitHandle signal, RegisteredWaitHandle registration) : IDisposable
+    {
+        public void Dispose()
+        {
+            // Wait until the pool lets go of the event; otherwise a launch right after closing could still open it.
+            using var released = new ManualResetEvent(false);
+            if (registration.Unregister(released)) released.WaitOne(TimeSpan.FromSeconds(5));
+            signal.Dispose();
+        }
+    }
+}

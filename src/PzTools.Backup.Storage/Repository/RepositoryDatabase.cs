@@ -42,7 +42,7 @@ public sealed partial class RepositoryDatabase
         var existingDatabase = Path.Combine(absolutePath, DatabaseFileName);
         if (File.Exists(existingDatabase) && new FileInfo(existingDatabase).Length > 0)
         {
-            // Pre-release format break: reject old data, never migrate or reset it.
+            // Schema 5 is upgraded in place; anything older is rejected, never migrated or reset.
             return await OpenExistingAsync(absolutePath, cancellationToken);
         }
         Directory.CreateDirectory(absolutePath);
@@ -100,10 +100,44 @@ public sealed partial class RepositoryDatabase
                 // Validate before any PRAGMA that could write to an incompatible repository.
                 var identity = await ReadExistingIdentityAsync(connection, token);
                 await ConfigureConnectionAsync(connection, token, enableWal: false);
-                return identity;
+                // A read-only probe, so it may be replayed with the rest of the initialization
+                // while Windows still holds a killed process's WAL-index mapping.
+                return (Identity: identity, Complete: await HasGameVersionAsync(connection, token));
             }, cancellationToken);
         await using var connection = initialized.Connection;
-        return new RepositoryDatabase(absolutePath, initialized.Value, SqliteOpenMode.ReadWrite);
+        if (!initialized.Value.Complete) await AddOptionalColumnsAsync(connection, cancellationToken);
+        var identity = initialized.Value.Identity;
+        if (identity.SchemaVersion == RepositorySchema.UpgradableVersion)
+        {
+            // Another process may have upgraded it first; either way it is now the current schema.
+            await RepositorySchemaUpgrade.UpgradeFrom5Async(absolutePath, cancellationToken);
+            identity = identity with { SchemaVersion = RepositorySchema.CurrentVersion };
+        }
+        return new RepositoryDatabase(absolutePath, identity, SqliteOpenMode.ReadWrite);
+    }
+
+    // Optional nullable columns are added in place: builds that do not know them name their
+    // columns explicitly, so the repository stays the same schema version and opens everywhere.
+    private static async Task AddOptionalColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var add = connection.CreateCommand();
+            add.CommandText = "ALTER TABLE revisions ADD COLUMN game_version TEXT NULL;";
+            await add.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (SqliteException) when (connection.State == System.Data.ConnectionState.Open)
+        {
+            // Another process may have added it between the check and the change.
+            if (!await HasGameVersionAsync(connection, cancellationToken)) throw;
+        }
+    }
+
+    private static async Task<bool> HasGameVersionAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM pragma_table_info('revisions') WHERE name='game_version';";
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
     }
 
     public async Task<RepositorySource> AddOrGetSourceAsync(
@@ -296,20 +330,6 @@ public sealed partial class RepositoryDatabase
             await StampWorkflowProcessAsync(connection, transaction, runIndex, "backup-worker", cancellationToken);
         }
 
-        await using (var insert = connection.CreateCommand())
-        {
-            insert.Transaction = transaction;
-            insert.CommandText =
-                """
-                INSERT INTO runs(run_index, source_id, status, started_utc)
-                VALUES ($runIndex, $sourceId, 'Running', $startedUtc);
-                """;
-            insert.Parameters.AddWithValue("$runIndex", runIndex);
-            insert.Parameters.AddWithValue("$sourceId", sourceId);
-            insert.Parameters.AddWithValue("$startedUtc", startedUtc.ToString("O"));
-            await insert.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         transaction.Commit();
         return new StartedRun(runIndex, sourceId, startedUtc, ownsWorkflow);
     }
@@ -331,25 +351,7 @@ public sealed partial class RepositoryDatabase
         using var transaction = connection.BeginTransaction();
         try
         {
-            await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText =
-                """
-                UPDATE runs
-                SET status = $status, completed_utc = $completedUtc, failure_code = $failureCode
-                WHERE run_index = $runIndex AND status = 'Running';
-                """;
-            command.Parameters.AddWithValue("$status", status.ToString());
-            command.Parameters.AddWithValue("$completedUtc", DateTimeOffset.UtcNow.ToString("O"));
-            command.Parameters.AddWithValue("$failureCode", (object?)failureCode ?? DBNull.Value);
-            command.Parameters.AddWithValue("$runIndex", runIndex);
-            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
-            {
-                throw new InvalidOperationException(
-                    $"Run {runIndex} does not exist or is already completed.");
-            }
-
-            await CompleteLegacyWorkflowInTransactionAsync(
+            await CompleteBackupStageInTransactionAsync(
                 connection,
                 transaction,
                 runIndex,
@@ -388,6 +390,31 @@ public sealed partial class RepositoryDatabase
             ? null
             : new SourceCheckpoint(reader.GetString(1), reader.GetString(2), reader.GetInt64(3));
         return new SourceState(sourceId, reader.GetInt64(0), checkpoint);
+    }
+
+    /// <summary>
+    /// When the run that made the source's newest revision started; null without a revision. The current
+    /// catalog reflects every write to the source before that moment. Maintenance runs are worker runs
+    /// too, so this is deliberately taken from the revision, not from the newest run.
+    /// </summary>
+    public async Task<DateTimeOffset?> ReadLatestRevisionRunStartAsync(
+        long sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT run.started_utc FROM revisions AS revision
+            JOIN worker_runs AS run ON run.run_index = revision.run_index
+            WHERE revision.source_id = $sourceId
+            ORDER BY revision.revision DESC LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$sourceId", sourceId);
+        return await command.ExecuteScalarAsync(cancellationToken) is string started
+            && DateTimeOffset.TryParse(started, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var value)
+            ? value : null;
     }
 
     public async Task<SqliteConnection> OpenConnectionAsync(
@@ -430,7 +457,7 @@ public sealed partial class RepositoryDatabase
             if (identity.FormatVersion != CurrentFormatVersion)
             {
                 throw new InvalidDataException(
-                    $"Unsupported repository format {identity.FormatVersion}.");
+                    $"repository-reset-required: unsupported repository format {identity.FormatVersion}.");
             }
 
             if (identity.SchemaVersion != schemaVersion)
@@ -492,13 +519,15 @@ public sealed partial class RepositoryDatabase
 
         var formatVersion = reader.GetInt32(1);
         var schemaVersion = reader.GetInt32(2);
-        if (formatVersion != CurrentFormatVersion || schemaVersion != RepositorySchema.CurrentVersion)
+        if (formatVersion != CurrentFormatVersion
+            || schemaVersion is not (RepositorySchema.CurrentVersion or RepositorySchema.UpgradableVersion))
             throw new InvalidDataException(
                 $"repository-reset-required: format/schema {formatVersion}/{schemaVersion} is incompatible with "
-                + $"{CurrentFormatVersion}/{RepositorySchema.CurrentVersion}. Use a new backup repository; no migration is provided.");
+                + $"{CurrentFormatVersion}/{RepositorySchema.CurrentVersion}. Use a new backup repository; only schema "
+                + $"{RepositorySchema.UpgradableVersion} is upgraded.");
         var identity = ReadIdentity(reader);
         await reader.DisposeAsync();
-        if (await RepositoryMigrationRunner.GetVersionAsync(connection, cancellationToken) != RepositorySchema.CurrentVersion)
+        if (await RepositoryMigrationRunner.GetVersionAsync(connection, cancellationToken) != schemaVersion)
             throw new InvalidDataException("repository-reset-required: inconsistent repository schema marker.");
         return identity;
     }

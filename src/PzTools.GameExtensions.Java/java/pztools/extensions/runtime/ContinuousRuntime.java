@@ -10,8 +10,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.*;
 
-/** One control owner, independent of CheckpointRuntime. No lifecycle lock crosses a game callback. */
+/**
+ * One continuous module's slot: its generation, configuration and revision. The host keeps one
+ * slot per module, so modules are applied, updated, faulted and retired independently of each
+ * other. Independent of CheckpointRuntime. No lifecycle lock crosses a game callback.
+ */
 final class ContinuousRuntime {
+    /** Capabilities that run for as long as they are on, as opposed to once per save. */
+    static final Set<String> CAPABILITIES = Set.of("vehicle.drivetrain.v1");
     private record Definition(String id, String version, String namespace, String entry, String jar, VersionSupport support) { }
     private final Object operations = new Object();
     private final AtomicReference<Generation> current = new AtomicReference<>();
@@ -20,6 +26,8 @@ final class ContinuousRuntime {
     private Path directory;
     ContinuousRuntime(Path directory) { this.directory = directory; }
     void relocate(Path next) { synchronized (operations) { directory = next; } }
+    /** Whether this slot holds a generation or a fault that must stay visible. */
+    boolean occupied() { return current.get() != null || poisoned; }
     private static ContinuousModules.Status empty(String state, String reason) {
         return new ContinuousModules.Status(state, reason, RuntimeIdentity.processId(), null, null, -1, null, null, "");
     }
@@ -29,6 +37,8 @@ final class ContinuousRuntime {
         final AtomicBoolean valid = new AtomicBoolean(true);
         final String world; final ClassLoader loader;
         volatile ContinuousModules.Apply pending;
+        /** What the provider was last given; an identical request is acknowledged without disturbing it. */
+        volatile Map<String, String> applied;
         volatile ContinuousProvider.Context context;
         volatile boolean activated, revoked;
         volatile long revision = -1;
@@ -77,6 +87,12 @@ final class ContinuousRuntime {
                     synchronized (old) {
                         if (old.revoked || request.expectedRevision() != old.revision || request.revision() <= old.revision)
                             return rejected("revision-conflict");
+                        // The settings revision is shared by every module. A change to another module
+                        // arrives here as a new revision of the same configuration: nothing to apply,
+                        // nothing to wait for, and the provider's state is left alone.
+                        if (old.activated && old.pending == null && request.config().equals(old.applied)) {
+                            old.revision = request.revision(); report = old.status("Active", null); return report;
+                        }
                         old.pending = request; report = old.status("Pending", "safe-boundary"); return report;
                     }
                 }
@@ -130,7 +146,7 @@ final class ContinuousRuntime {
             if ((p.length != 10 && p.length != 11) || !ids.add(p[0]) || ids.size() > 64)
                 throw new IllegalArgumentException("Invalid catalogue");
             if (!p[0].equals(id)) continue;
-            if (p.length != 11 || !p[10].equals("vehicle.drivetrain.v1")
+            if (p.length != 11 || !CAPABILITIES.contains(p[10])
                     || !p[2].matches("pztools\\.extensions\\.[A-Za-z0-9_.]+")
                     || !p[3].startsWith(p[2] + ".") || !p[3].matches("[A-Za-z0-9_.]+")
                     || !p[4].matches("[a-z0-9-]+\\.jar")) throw new IllegalArgumentException("Unsupported continuous capability");
@@ -151,15 +167,22 @@ final class ContinuousRuntime {
         try {
             context.requireGameThread();
             var pending = g.pending;
-            if (pending == null) return;
-            if (!g.provider.readyToActivate(context, pending.config())) return;
+            if (pending == null || !g.provider.readyToActivate(context, pending.config())) {
+                // A change that waits for a safe moment must not stall the active configuration's per-frame work.
+                if (g.activated && g.provider instanceof FrameListener listener) {
+                    listener.gameFrame();
+                    // Revoked while the frame ran: whatever it created is withdrawn again.
+                    if (g.revoked) g.provider.deactivate();
+                }
+                return;
+            }
             if (g.context == null) g.context = new ContinuousProvider.Context(context.processId(), context.worldId(),
                 context.worldIdentity(), context.gameThread(), context.gameClasses(), g.valid);
             if (!g.activated) { g.provider.activate(g.context, pending.config()); g.activated = true; }
             else g.provider.updateConfig(pending.config());
             synchronized (g) {
                 if (!g.revoked) {
-                    g.revision = pending.revision();
+                    g.revision = pending.revision(); g.applied = pending.config();
                     if (g.pending == pending) { g.pending = null; report = g.status("Active", null); }
                     // A newer request may still be waiting, but this callback's configuration is already applied.
                     else report = g.status("Pending", "safe-boundary");
@@ -174,7 +197,8 @@ final class ContinuousRuntime {
         if (current.get() == g) report = g.status("FaultedPassThrough", reason);
     }
     private static String failureReason(Generation g) {
-        if (VehicleHooks.failure() != null) return "vehicle-callback-failed";
+        // Only the module that owns the vehicle hook answers for a fault in it.
+        if (VehicleHooks.failure(g.provider) != null) return "vehicle-callback-failed";
         try {
             String value = g.provider.failureReason();
             return value == null ? null : "provider-failed:" + value.substring(0, Math.min(256, value.length()));

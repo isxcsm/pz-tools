@@ -6,6 +6,9 @@ using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Zomboid.Archive;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] args)
@@ -16,6 +19,7 @@ static async Task<int> RunAsync(string[] args)
         eventArgs.Cancel = true;
         cancellation.Cancel();
     };
+    using var stopRequest = ProcessStopSignal.Listen(cancellation);
     var started = DateTimeOffset.UtcNow;
     var runIndex = 1L;
     var operation = args.Length == 0 ? "unknown" : args[0];
@@ -79,15 +83,22 @@ static async Task<int> RunAsync(string[] args)
                             value.RelativePath);
                         return Task.CompletedTask;
                     }
+                    async Task<ArchiveExportResult> ExportRevisionAsync(CancellationToken token)
+                    {
+                        // Background cleanup rewrites and removes packs under the writer lease. Hold it
+                        // while the revision is read, as a restore does, so no pack moves underneath.
+                        await using var lease = RepositoryWriterLease.Acquire(identity);
+                        return await service.ExportAsync(
+                            await RepositoryDatabase.OpenExistingAsync(identity, token),
+                            RequiredInt64(args, "--source-id"), RequiredInt64(args, "--revision"),
+                            Required(args, "--output"), ReportAsync, token);
+                    }
                     var locked = await OperationMutexSet.TryRunAsync(
                         [new OperationMutexRequest(live ? OperationMutexScope.SaveWrite : OperationMutexScope.RepositoryAccess, identity)],
                         async token => live
                             ? await service.ExportLiveAsync(identity, Required(args, "--save-id"),
                                 Required(args, "--output"), ReportAsync, token)
-                            : await service.ExportAsync(
-                                await RepositoryDatabase.OpenExistingAsync(identity, token),
-                                RequiredInt64(args, "--source-id"), RequiredInt64(args, "--revision"),
-                                Required(args, "--output"), ReportAsync, token),
+                            : await ExportRevisionAsync(token),
                         cancellation.Token);
                     if (!locked.Acquired)
                     {
@@ -132,6 +143,12 @@ static async Task<int> RunAsync(string[] args)
                 "archive-worker", runIndex, ProcessOutcome.Succeeded, started, result)));
         return ProcessExitCodes.Success;
     }
+    catch (RepositoryBusyException)
+    {
+        // Cleanup or a backup holds the repository; the export can simply be tried again.
+        telemetry?.RecordEvent("run.busy");
+        return Busy(runIndex, started);
+    }
     catch (OperationCanceledException)
     {
         telemetry?.RecordEvent("run.cancelled");
@@ -153,6 +170,19 @@ static async Task<int> RunAsync(string[] args)
                 "invalid-arguments", exception.Message)));
         return ProcessExitCodes.InvalidArguments;
     }
+    catch (Exception exception) when (IsDamagedBackupData(exception))
+    {
+        // Exporting a backup whose stored data fails its integrity checks.
+        telemetry?.RecordEvent("run.failed", FailureTelemetry.FromException(
+            "backup-data-damaged", exception, status: "Failed",
+            phase: operation, path: currentRelativePath ?? diagnosticPath,
+            operation: operation, saveId: saveId));
+        Console.WriteLine(ProcessResultJson.Serialize(
+            ProcessResultEnvelope<object>.Failure(
+                "archive-worker", runIndex, ProcessOutcome.Failed, started,
+                "backup-data-damaged", "backup-data-damaged: " + exception.Message)));
+        return ProcessExitCodes.Failure;
+    }
     catch (Exception exception)
     {
         telemetry?.RecordEvent("run.failed", FailureTelemetry.FromException(
@@ -169,6 +199,13 @@ static async Task<int> RunAsync(string[] args)
     {
         if (telemetry is not null) await telemetry.DisposeAsync();
     }
+}
+
+static bool IsDamagedBackupData(Exception? exception)
+{
+    for (; exception is not null; exception = exception.InnerException)
+        if (exception is PzTools.Backup.Storage.Packs.PackFormatException) return true;
+    return false;
 }
 
 static int Busy(long runIndex, DateTimeOffset started)
@@ -189,34 +226,10 @@ static int Help()
     return 0;
 }
 
-static string Required(string[] args, string name)
-{
-    var indexes = args.Select((value, index) => (value, index))
-        .Where(item => item.value == name).Select(item => item.index).ToArray();
-    if (indexes.Length != 1 || indexes[0] + 1 >= args.Length)
-        throw new ArgumentException($"{name} is required exactly once.");
-    return args[indexes[0] + 1];
-}
+static string Required(string[] args, string name) => CommandLine.Required(args, name);
 
-static string? Optional(string[] args, string name)
-{
-    var indexes = args.Select((value, index) => (value, index))
-        .Where(item => item.value == name).Select(item => item.index).ToArray();
-    if (indexes.Length > 1 || indexes.Length == 1 && indexes[0] + 1 >= args.Length)
-        throw new ArgumentException($"{name} may be specified at most once and requires a value.");
-    return indexes.Length == 0 ? null : args[indexes[0] + 1];
-}
+static string? Optional(string[] args, string name) => CommandLine.Optional(args, name);
 
-static long RequiredInt64(string[] args, string name) =>
-    ReadInt64(args, name) ?? throw new ArgumentException($"{name} is required.");
+static long RequiredInt64(string[] args, string name) => CommandLine.Int64(Required(args, name), name);
 
-static long? ReadInt64(string[] args, string name)
-{
-    var index = Array.IndexOf(args, name);
-    if (index < 0) return null;
-    if (index + 1 >= args.Length
-        || !long.TryParse(args[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-        || value <= 0)
-        throw new ArgumentException($"{name} must be a positive integer.");
-    return value;
-}
+static long? ReadInt64(string[] args, string name) => CommandLine.OptionalInt64(Optional(args, name), name);

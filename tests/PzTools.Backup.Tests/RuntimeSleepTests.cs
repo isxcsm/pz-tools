@@ -32,16 +32,14 @@ public sealed class RuntimeSleepTests
     }
 
     [Fact]
-    public void UnknownSleepCannotAdvanceClock_AndReanchorsWithoutCatchUp()
+    public void UnknownSleepKeepsTheClockRunning_BecauseOnlyTheSleepPauseIsLost()
     {
         var state = Advance(new(1, 300_000, 300_000), Sample(0));
         state = Advance(state, Sample(120_000));
         state = Advance(state, Sample(180_000, RuntimeSleep.Unknown));
-        Assert.Equal(180_000, state.RemainingMilliseconds);
-        Assert.True(state.Hold.HasFlag(ScheduleHold.Unknown));
-        state = Advance(state, Sample(999_000));
-        Assert.Equal(180_000, state.RemainingMilliseconds);
-        Assert.Equal(179_000, Advance(state, Sample(1_000_000)).RemainingMilliseconds);
+        Assert.Equal(120_000, state.RemainingMilliseconds);
+        Assert.Equal(ScheduleHold.None, state.Hold);
+        Assert.Equal(119_000, Advance(state, Sample(181_000)).RemainingMilliseconds);
     }
 
     [Fact]
@@ -60,7 +58,6 @@ public sealed class RuntimeSleepTests
     }
 
     [Theory]
-    [InlineData(ScheduleHold.Unknown, "RuntimeBackupWaiting")]
     [InlineData(ScheduleHold.GamePaused, "RuntimeBackupPaused")]
     [InlineData(ScheduleHold.Sleeping, "RuntimeBackupSleeping")]
     public void SuspendedCountdownKeepsTheActualRemainderAndRequestsMutedPresentation(ScheduleHold hold, string key)
@@ -71,6 +68,31 @@ public sealed class RuntimeSleepTests
         var running = ScheduleCountdownPresentation.Resolve(view with { Hold = ScheduleHold.None }, DateTimeOffset.UtcNow);
         Assert.False(running.Suspended);
         Assert.Equal(180, running.RemainingSeconds);
+    }
+
+    [Fact]
+    public void UnknownGameStateIsShownWithoutATime_AndOnlyWhenItLasts()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var view = new ScheduleStatusView(1, SchedulerMode.Continuous, null, null, null, null, true, 0,
+            PauseAware: true, RemainingMilliseconds: 300_000, Hold: ScheduleHold.Unknown);
+        var checking = ScheduleCountdownPresentation.Resolve(view, now);
+        Assert.Equal(new CountdownPresentation("RuntimeBackupWaiting"), checking);
+        Assert.Equal(new CountdownPresentation("RuntimeBackupLoading"),
+            ScheduleCountdownPresentation.Resolve(view with { GamePhase = WorldPhase.Loading }, now));
+
+        var stabilizer = new CountdownDisplayStabilizer(TimeSpan.FromSeconds(3));
+        // App start: nothing was shown before, so the neutral text stays.
+        Assert.Equal("NextBackupWaitingDynamic", stabilizer.Apply(checking, now).MessageKey);
+        var offline = new CountdownPresentation("RuntimeBackupOffline");
+        Assert.Equal(offline, stabilizer.Apply(offline, now.AddSeconds(1)));
+        // The game connects: a brief unknown keeps the previous text.
+        Assert.Equal(offline, stabilizer.Apply(checking, now.AddSeconds(2)));
+        Assert.Equal(offline, stabilizer.Apply(checking, now.AddSeconds(4)));
+        Assert.Equal(checking, stabilizer.Apply(checking, now.AddSeconds(5))); // It lasted.
+        var running = new CountdownPresentation("ProjectorArea.Schedule", 300);
+        Assert.Equal(running, stabilizer.Apply(running, now.AddSeconds(6)));
+        Assert.Equal(running, stabilizer.Apply(checking, now.AddSeconds(7))); // A new wait starts over.
     }
 
     [Theory]

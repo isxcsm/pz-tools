@@ -38,7 +38,7 @@ public sealed partial class RepositoryDatabase
         command.Parameters.AddWithValue("$id", source.SourceId);
         command.CommandText = """
             SELECT EXISTS(SELECT 1 FROM workflow_runs WHERE source_id=$id AND status='Running')
-                OR EXISTS(SELECT 1 FROM runs WHERE source_id=$id AND status='Running');
+                OR EXISTS(SELECT 1 FROM worker_runs WHERE source_id=$id AND status='Running');
             """;
         if (Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture) != 0)
             return null;

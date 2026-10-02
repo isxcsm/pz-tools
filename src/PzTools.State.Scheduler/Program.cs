@@ -5,6 +5,9 @@ using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 using PzTools.State.Scheduler;
 
+// Launch check only: proves Windows allows this executable to start. No work, no output.
+if (args is ["--probe"]) return 0;
+
 if (args.FirstOrDefault() is "help" or "--help" or "-h")
 {
     Console.WriteLine("PzTools State Scheduler");
@@ -26,11 +29,12 @@ try
     var cleanupInterval = settings.CleanupIntervalSeconds;
     var schedulerDb = await SchedulerDatabase.CreateOrOpenAsync(schedulerPath);
     var stateDb = await StateDatabase.CreateOrOpenAsync(Required(options, "--state-db"));
+    // This process reads both every second for as long as it runs.
+    schedulerDb.HoldReadConnection();
+    stateDb.HoldReadConnection();
     var savesRoot = Required(options, "--saves-root");
-    var interval = TimeSpan.FromSeconds(long.Parse(
-        options.GetValueOrDefault("--interval-seconds")
-        ?? settings.IntervalSeconds.ToString(
-            System.Globalization.CultureInfo.InvariantCulture)));
+    var interval = TimeSpan.FromSeconds(CommandLine.OptionalInt64(
+        options.GetValueOrDefault("--interval-seconds"), "--interval-seconds") ?? settings.IntervalSeconds);
     var runtime = new RuntimeSnapshotStore();
     var extensions = new RuntimeExtensionStatusStore();
     bool useRuntime = false;
@@ -48,6 +52,7 @@ try
             options.GetValueOrDefault("--control-db"), cleanupInterval) : null;
     using var cancellation = new CancellationTokenSource();
     Console.CancelKeyPress += (_, eventArgs) => { eventArgs.Cancel = true; cancellation.Cancel(); };
+    using var stopRequest = ProcessStopSignal.Listen(cancellation);
     var mutex = NamedMutexRunner.CreateName("StateScheduler", schedulerDb.DatabasePath + "|" + stateDb.DatabasePath);
     var result = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {
@@ -91,7 +96,11 @@ try
                 continue;
             }
             if (await gameExitWatcher.WaitAsync(wakeInterval, token))
+            {
                 confirmationsRemaining = 2;
+                // Cleanup was deferred for the whole play session; start it now rather than up to a minute later.
+                orphanCleanup?.RequestNow();
+            }
         } while (!token.IsCancellationRequested);
         return 0;
         }
@@ -112,24 +121,8 @@ catch (Exception exception) when (
 }
 catch (Exception exception) { Console.Error.WriteLine(exception.Message); return 1; }
 
-static Dictionary<string, string?> Parse(string[] arguments)
-{
-    var allowed = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "--scheduler-db", "--state-db", "--saves-root", "--interval-seconds",
-        "--worker-directory", "--once", "--config", "--control-db", "--repository", "--runtime-root",
-    };
-    var result = new Dictionary<string, string?>(StringComparer.Ordinal);
-    for (var index = 0; index < arguments.Length; index++)
-    {
-        var name = arguments[index];
-        if (!allowed.Contains(name)) throw new ArgumentException($"Unknown option '{name}'.");
-        if (name == "--once") { result.Add(name, null); continue; }
-        if (++index >= arguments.Length) throw new ArgumentException($"{name} requires a value.");
-        var value = arguments[index];
-        result.Add(name, value);
-    }
-    return result;
-}
-static string Required(Dictionary<string, string?> values, string name) =>
-    values.TryGetValue(name, out var value) && value is not null ? value : throw new ArgumentException($"{name} is required.");
+static Dictionary<string, string?> Parse(string[] arguments) => CommandLine.Parse(arguments,
+    ["--scheduler-db", "--state-db", "--saves-root", "--interval-seconds",
+        "--worker-directory", "--config", "--control-db", "--repository", "--runtime-root"],
+    ["--once"]);
+static string Required(Dictionary<string, string?> values, string name) => CommandLine.Required(values, name);

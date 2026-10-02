@@ -23,6 +23,59 @@ public sealed class GameplayBackgroundTests
     }
 
     [Fact]
+    public async Task OrphanDispatch_RunsAtOnceWhenTheGameExits_InsteadOfWaitingOutTheInterval()
+    {
+        using var temp = new TempDirectory();
+        var playing = true;
+        var launches = new List<IReadOnlyList<string>>();
+        var dispatcher = new OrphanCleanupDispatcher(temp.GetPath("repo"), temp.GetPath("saves"),
+            temp.GetPath("workers"), shouldDefer: () => playing,
+            startDetached: (_, arguments, _) => launches.Add(arguments));
+        var now = DateTimeOffset.UtcNow;
+
+        await dispatcher.TickAsync(now);                 // Deferred during play; the interval restarts.
+        playing = false;
+        await dispatcher.TickAsync(now.AddSeconds(5));   // Still inside the interval.
+        Assert.Empty(launches);
+
+        dispatcher.RequestNow();                         // The game-exit signal.
+        await dispatcher.TickAsync(now.AddSeconds(6));
+        var launch = Assert.Single(launches);
+        Assert.Contains("OrphanBackups", launch);
+        await dispatcher.TickAsync(now.AddSeconds(7));   // One request is one dispatch.
+        Assert.Single(launches);
+    }
+
+    [Fact]
+    public async Task OrphanDispatch_SkipsAPassWhenNeitherSavesNorCatalogChanged()
+    {
+        using var temp = new TempDirectory();
+        await PzTools.Backup.Storage.Repository.RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repo"));
+        Directory.CreateDirectory(temp.GetPath("saves", "Sandbox", "First"));
+        var launches = 0;
+        var dispatcher = new OrphanCleanupDispatcher(temp.GetPath("repo"), temp.GetPath("saves"),
+            temp.GetPath("workers"), shouldDefer: () => false, startDetached: (_, _, _) => launches++);
+        var now = DateTimeOffset.UtcNow;
+
+        await dispatcher.TickAsync(now);
+        Assert.Equal(1, launches);
+        await dispatcher.TickAsync(now.AddMinutes(2));   // Nothing changed: no new pass.
+        Assert.Equal(1, launches);
+
+        Directory.CreateDirectory(temp.GetPath("saves", "Sandbox", "Second"));
+        await dispatcher.TickAsync(now.AddMinutes(4));   // A save appeared.
+        Assert.Equal(2, launches);
+        await dispatcher.TickAsync(now.AddMinutes(6));
+        Assert.Equal(2, launches);
+
+        await dispatcher.TickAsync(now.AddMinutes(70));  // Unchanged, but an hour has passed.
+        Assert.Equal(3, launches);
+        dispatcher.RequestNow();                         // The game exited: always a pass.
+        await dispatcher.TickAsync(now.AddMinutes(71));
+        Assert.Equal(4, launches);
+    }
+
+    [Fact]
     public async Task GameplayWatch_CancelsExistingMaintenanceWhenGameStarts()
     {
         using var cancellation = new CancellationTokenSource();
@@ -120,6 +173,53 @@ public sealed class GameplayBackgroundTests
         Assert.DoesNotContain(messages, message => message.Command == "FinalizeTarget");
         Assert.False(await database.HasPendingBatchesAsync());
         Assert.Equal(GameState.NotPlaying, (await database.ReadCurrentStateIfChangedAsync(-1)).Game);
+    }
+
+    [Fact]
+    public async Task InProcessStateCheck_WritesNothingOnceTheSameObservationsChangeNothing()
+    {
+        using var temp = new TempDirectory();
+        var database = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
+        var path = temp.GetPath("saves/Sandbox/World");
+        Directory.CreateDirectory(path);
+        await using (var connection = new SqliteConnection($"Data Source={Path.Combine(path, "players.db")};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TABLE localPlayers(id INTEGER,name TEXT,isDead INTEGER); INSERT INTO localPlayers VALUES(1,'Name',0);";
+            await command.ExecuteNonQueryAsync();
+        }
+        var pipeline = new StateCheckPipeline();
+        long runs = 0;
+        Task<long> Allocate(CancellationToken _) => Task.FromResult(++runs);
+        for (var check = 0; check < 6; check++)
+            Assert.Equal(ProcessOutcome.Succeeded, (await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate)).Outcome);
+        // The first checks record the save; after one that changed nothing, the same view takes no run number.
+        var settledAfter = runs;
+        Assert.InRange(settledAfter, 1, 3);
+        var before = await database.ReadDecisionStampAsync();
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(settledAfter, runs);
+        Assert.Equal(before, await database.ReadDecisionStampAsync());
+
+        // Anyone else changing the state ends the shortcut, and so does a changed save.
+        await database.WritePendingBatchAsync(new CollectionBatch("other", 99, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, 0, false, []));
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(settledAfter + 1, runs);
+        for (var check = 0; check < 4; check++) await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        var resettled = runs;
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(resettled, runs);
+        await using (var connection = new SqliteConnection($"Data Source={Path.Combine(path, "players.db")};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE localPlayers SET isDead=1;";
+            await command.ExecuteNonQueryAsync();
+        }
+        await pipeline.RunAsync(database, temp.GetPath("saves"), Allocate);
+        Assert.Equal(resettled + 1, runs);
+        Assert.False(await database.HasPendingBatchesAsync());
     }
 
     [Fact]

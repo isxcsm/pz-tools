@@ -13,6 +13,13 @@ public sealed class GameSaveException(string code, string message, string? diagn
     : Exception($"[{code}] {message}"), IFailureDiagnostics
 {
     public string Code { get; } = code;
+    /// <summary>The save command was sent but no usable answer came back; every other code is a known outcome.</summary>
+    public bool SaveOutcomeUnknown => Code is "completion-unknown" or "invalid-response";
+    /// <summary>
+    /// The game could not be reached at all and nothing was asked of it (a blocked helper, a game
+    /// update, a missing bridge). The files on disk can still be backed up as they are.
+    /// </summary>
+    public bool LinkUnavailable => Code is "attach-failed" or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
     public string? Diagnostics { get; } = diagnostics;
 }
 
@@ -27,27 +34,22 @@ public sealed class GameSaveClient(string bridgeDirectory,
 
     public async Task<string> SaveRunningGameAsync(string expectedSavePath,
         CancellationToken cancellationToken = default) =>
-        (await RequestRunningGameAsync(expectedSavePath, true, null, false, cancellationToken)).Detail;
-
-    public Task<GameSaveResponse> PrepareRunningGameAsync(string expectedSavePath, string providerId,
-        CancellationToken cancellationToken = default, bool forceVersion = false) =>
-        RequestRunningGameAsync(expectedSavePath, true, providerId, forceVersion, cancellationToken);
+        (await RequestRunningGameAsync(expectedSavePath, true, cancellationToken)).Detail;
 
     public async Task<string> ProbeRunningGameAsync(string expectedSavePath, CancellationToken cancellationToken = default) =>
-        (await RequestRunningGameAsync(expectedSavePath, false, null, false, cancellationToken)).Detail;
+        (await RequestRunningGameAsync(expectedSavePath, false, cancellationToken)).Detail;
 
-    private async Task<GameSaveResponse> RequestRunningGameAsync(string expectedSavePath, bool save, string? providerId, bool forceVersion,
+    private async Task<GameSaveResponse> RequestRunningGameAsync(string expectedSavePath, bool save,
         CancellationToken cancellationToken)
     {
-        var games = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
-            .SelectMany(DiagnosticsProcess.GetProcessesByName).ToArray();
+        var games = PzTools.Process.Contracts.GameProcessFinder.Find();
         try
         {
             if (games.Length != 1)
                 throw new GameSaveException(games.Length == 0 ? "game-not-running" : "multiple-games",
                     games.Length == 0 ? "Start the game and load the selected save first."
                         : "More than one game process is running. No process was selected.");
-            return await RequestCoreAsync(games[0].Id, expectedSavePath, save, providerId, cancellationToken, forceVersion);
+            return await RequestCoreAsync(games[0].Id, expectedSavePath, save, null, cancellationToken);
         }
         finally { foreach (var game in games) game.Dispose(); }
     }
@@ -57,6 +59,8 @@ public sealed class GameSaveClient(string bridgeDirectory,
         CancellationToken cancellationToken = default) =>
         (await RequestCoreAsync(processId, expectedSavePath, save, null, cancellationToken)).Detail;
 
+    // No shipped extension provides saves. The bridge integration tests drive module loading, reload,
+    // notices and live-character checks through a fixture provider, which is why this path remains.
     public Task<GameSaveResponse> RequestProviderAsync(int processId, string expectedSavePath, string providerId,
         CancellationToken cancellationToken = default, bool forceVersion = false) =>
         RequestCoreAsync(processId, expectedSavePath, true, providerId, cancellationToken, forceVersion);
@@ -105,7 +109,10 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 processId.ToString(System.Globalization.CultureInfo.InvariantCulture), jar,
                 ((IPEndPoint)listener.LocalEndpoint).Port.ToString(System.Globalization.CultureInfo.InvariantCulture), token })
                 start.ArgumentList.Add(argument);
-            helper = DiagnosticsProcess.Start(start) ?? throw new IOException("Could not start the attach helper.");
+            try { helper = DiagnosticsProcess.Start(start); }
+            catch (System.ComponentModel.Win32Exception blocked)
+            { throw new GameSaveException("attach-failed", "Could not start the attach helper: " + blocked.Message); }
+            if (helper is null) throw new GameSaveException("attach-failed", "Could not start the attach helper.");
             var output = helper.StandardOutput.ReadToEndAsync(cancellationToken);
             var error = helper.StandardError.ReadToEndAsync(cancellationToken);
             using var connectionDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -187,6 +194,12 @@ public sealed class GameSaveClient(string bridgeDirectory,
             throw new GameSaveException(sent ? "completion-unknown" : "connection-timeout",
                 sent ? "No completion response. The game may still be saving; do not assume success or retry immediately."
                     : "Could not connect to the game. No save command was sent.");
+        }
+        catch (Exception exception) when (sent && exception is IOException or ObjectDisposedException)
+        {
+            // A connection lost after submission is not evidence that the save did not run.
+            throw new GameSaveException("completion-unknown",
+                "The game connection was lost after the save command was sent; do not assume success or retry immediately.");
         }
         finally
         {

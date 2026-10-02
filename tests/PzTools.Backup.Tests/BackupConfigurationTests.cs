@@ -25,6 +25,22 @@ public sealed class BackupConfigurationTests
             basic + "[capture]\ngame_save_countdown = 'false'\n", repository, config));
     }
 
+    [Fact]
+    public void CompressionLevel_DefaultsTo3_RoundTrips_AndStaysInBrotliRange()
+    {
+        using var temp = new TempDirectory();
+        var repository = temp.GetPath("repository");
+        var config = temp.GetPath("default.toml");
+        const string basic = "format_version = 1\n[[sources]]\nid = 'test'\npath = 'world'\n";
+        Assert.Equal(3, BackupConfiguration.Parse(basic, repository, config).Storage.CompressionLevel);
+        var options = BackupConfiguration.Parse(basic + "[storage]\ncompression_level = 5\n", repository, config);
+        Assert.Equal(5, options.Storage.CompressionLevel);
+        Assert.Equal(5, BackupConfiguration.Parse(BackupConfiguration.Serialize(options), repository, config).Storage.CompressionLevel);
+        foreach (var invalid in new[] { "0", "12", "'3'" })
+            Assert.Throws<BackupConfigurationException>(() => BackupConfiguration.Parse(
+                basic + $"[storage]\ncompression_level = {invalid}\n", repository, config));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

@@ -33,8 +33,8 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
             {
                 // A shared read-only runtime feed serves pause policy and extension metadata.
                 // Disabling pause-aware scheduling does not disable other consumers or create a second watcher.
-                games = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
-                    .SelectMany(System.Diagnostics.Process.GetProcessesByName).ToArray();
+                // Checked every second while no game runs, from a process list shared with the exit watcher.
+                games = GameProcessFinder.Find(GameProcessFinder.WatchSnapshotAge);
                 if (games.Length != 1)
                 {
                     extensions.Publish(new(RuntimeExtensionState.Disabled, games.Length == 0 ? "no-game-process" : "multiple-games"));
@@ -58,22 +58,24 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                     catch (OperationCanceledException) { }
                 }
                 var exit = WatchExitAsync();
-                var control = new RuntimeExtensionCoordinator(bridgeDirectory, runtimeRoot, received, extensions, extensionOptions)
-                    .RunAsync(game.Id, stream, connection.Token);
+                // Extension control is optional; its failure must not end the observation that times backups.
+                var control = OptionalWorkSupervisor.RunAsync(
+                    stop => new RuntimeExtensionCoordinator(bridgeDirectory, runtimeRoot, received, extensions, extensionOptions)
+                        .RunAsync(game.Id, stream, stop),
+                    () => extensions.Publish(new(RuntimeExtensionState.FaultedPassThrough, "controller-failed")),
+                    connection.Token);
                 try
                 {
                     long lastConfigurationCheck = 0;
                     await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(game.Id, connection.Token))
                     {
-                        if (control.IsCompleted) { await control; throw new IOException("Extension controller stopped."); }
                         if (game.HasExited || game.StartTime.ToUniversalTime() != started) break;
                         failures = 0;
                         if (Stopwatch.GetElapsedTime(lastConfigurationCheck).TotalSeconds >= 2)
                         {
                             lastConfigurationCheck = Stopwatch.GetTimestamp();
 
-                            var currentGames = new[] { "ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid" }
-                                .SelectMany(System.Diagnostics.Process.GetProcessesByName).ToArray();
+                            var currentGames = GameProcessFinder.Find();
                             try
                             {
                                 if (currentGames.Length != 1 || currentGames[0].Id != game.Id)
@@ -84,6 +86,12 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                             }
                             finally { foreach (var process in currentGames) process.Dispose(); }
                         }
+                        if (snapshot.IsBeforeFirstFrame)
+                        {
+                            // Connected, but the game is still loading; that can take minutes.
+                            received.Publish(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason));
+                            continue;
+                        }
                         bool validPath = !snapshot.IsWorldReady || RuntimeSaveResolver.Resolve(snapshot, savesRoot) is not null;
                         received.Publish(validPath ? new(stream, RuntimeQuality.Fresh, snapshot)
                             : new(stream, RuntimeQuality.Unsupported, snapshot, Reason: "outside-configured-save-root"));
@@ -93,12 +101,12 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             { if (received.Read().Quality != RuntimeQuality.Offline) received.Publish(RuntimeObservation.Unknown("runtime-disconnected")); }
-            catch (Exception error) when (error is IOException or GameSaveException or InvalidOperationException
+            catch (Exception error) when (error is IOException or InvalidDataException or GameSaveException or InvalidOperationException
                 or System.ComponentModel.Win32Exception or FormatException or OverflowException or UnauthorizedAccessException
                 or Microsoft.Data.Sqlite.SqliteException)
             {
                 bool restart = error is GameSaveException { Code: "restart-required" };
-                received.Publish(RuntimeObservation.Unknown(restart ? "runtime-restart-required" : "runtime-unavailable"));
+                received.Publish(RuntimeObservation.Unknown(restart ? RuntimeObservation.RestartRequiredReason : "runtime-unavailable"));
                 if (restart) extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
             }
             finally { foreach (var game in games) game.Dispose(); }

@@ -49,13 +49,19 @@ public sealed record MaintenanceWorkerOptions(int RetainLatestRevisions, int Rev
     public int VacuumMinimumFreeMib { get; init; } = 4;
     public int VacuumMinimumFreePercent { get; init; } = 25;
     public int VacuumMaximumDatabaseMib { get; init; } = 256;
+    public bool PackReclamationEnabled { get; init; } = true;
+    public int PackReclamationSparsePercent { get; init; } = 50;
+    public int PackReclamationMinimumMib { get; init; } = 16;
+    public int PackReclamationMaximumCopyMib { get; init; } = 128;
 
     public static MaintenanceWorkerOptions Read(ComponentConfiguration config)
     {
         config.ValidateSection("maintenance", "retain_latest_revisions", "revision_batch_size", "writer_retry_delay_ms",
             "revision_compaction_max_delay_minutes", "history_retention_days", "history_minimum_runs",
             "database_cleanup_batch_size", "vacuum_enabled", "vacuum_minimum_free_mib",
-            "vacuum_minimum_free_percent", "vacuum_maximum_database_mib");
+            "vacuum_minimum_free_percent", "vacuum_maximum_database_mib",
+            "pack_reclamation_enabled", "pack_reclamation_sparse_percent",
+            "pack_reclamation_minimum_mib", "pack_reclamation_maximum_copy_mib");
         return new(config.GetInt32("maintenance", "retain_latest_revisions", 100, 1, int.MaxValue),
             config.GetInt32("maintenance", "revision_batch_size", 20, 1, 1000),
             config.GetInt32("maintenance", "writer_retry_delay_ms", 200, 50, 5000))
@@ -68,6 +74,10 @@ public sealed record MaintenanceWorkerOptions(int RetainLatestRevisions, int Rev
             VacuumMinimumFreeMib = config.GetInt32("maintenance", "vacuum_minimum_free_mib", 4, 1, int.MaxValue),
             VacuumMinimumFreePercent = config.GetInt32("maintenance", "vacuum_minimum_free_percent", 25, 1, 100),
             VacuumMaximumDatabaseMib = config.GetInt32("maintenance", "vacuum_maximum_database_mib", 256, 1, int.MaxValue),
+            PackReclamationEnabled = config.GetBoolean("maintenance", "pack_reclamation_enabled", true),
+            PackReclamationSparsePercent = config.GetInt32("maintenance", "pack_reclamation_sparse_percent", 50, 10, 90),
+            PackReclamationMinimumMib = config.GetInt32("maintenance", "pack_reclamation_minimum_mib", 16, 1, int.MaxValue),
+            PackReclamationMaximumCopyMib = config.GetInt32("maintenance", "pack_reclamation_maximum_copy_mib", 128, 1, 4096),
         };
     }
 }
@@ -118,7 +128,7 @@ public static class ComponentOptions
             "archive-worker" => ["archive", "preview", "telemetry"],
             "state-reactor" => ["state", "telemetry"],
             "backup-runner" or "maintenance-runner" or "state-runner" or "state-collector"
-                or "restore-worker" or "character-recovery" => ["telemetry"],
+                or "restore-worker" or "character-recovery" or "profiler" => ["telemetry"],
             _ => [],
         };
         if (sections.Length == 0) return;

@@ -23,7 +23,8 @@ public sealed partial class SettingsPage : UserControl
     public SettingsPage()
     {
         InitializeComponent();
-        foreach (var language in LanguageCatalog.All)
+        // Alphabetical by native name, independent of the current UI language, so every user finds theirs in the same place.
+        foreach (var language in LanguageCatalog.All.OrderBy(language => language.NativeName, StringComparer.InvariantCulture))
             LanguageCombo.Items.Add(new ComboBoxItem { Content = language.NativeName, Tag = language.Tag });
         applyTimer = DispatcherQueue.CreateTimer();
         applyTimer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).SettingsDebounceMs);
@@ -42,7 +43,7 @@ public sealed partial class SettingsPage : UserControl
     {
         // 작은 창에서는 SettingsCard의 기본 세로 배치를 사용하되 입력 영역도 넘치지 않게 합니다.
         var available = Math.Max(160, e.NewSize.Width - 72);
-        SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(420, available);
+        SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(500, available);
         IntervalEditor.Width = RetentionEditor.Width = Math.Min(340, available);
     }
 
@@ -75,12 +76,12 @@ public sealed partial class SettingsPage : UserControl
         BackupPathSettingCard.Header = Localizer.Get("BackupPathSetting.Header");
         SavesBrowseButton.Content = Localizer.Get("Browse.Content");
         BackupBrowseButton.Content = Localizer.Get("Browse.Content");
+        SavesOpenButton.Content = BackupOpenButton.Content = Localizer.Get("AdvancedFiles.OpenFolder");
         BackupSection.Header = Localizer.Get("AutomaticBackupSettings.Header");
         BackupSection.Description = Localizer.Get("AutomaticBackupSection.Description");
         AutomaticBackupSettingCard.Header = Localizer.Get("AutomaticBackupSetting.Header");
         AutomaticBackupSettingCard.Description = Localizer.Get("AutomaticBackupSetting.Description");
         PausePeriodicSettingCard.Header = Localizer.Get("PausePeriodicSetting.Header");
-        PausePeriodicSettingCard.Description = Localizer.Get("PausePeriodicSetting.Description");
         SetInputName(PausePeriodicToggle, PausePeriodicSettingCard.Header);
         IntervalSettingCard.Header = Localizer.Get("IntervalSetting.Header");
         IntervalSettingCard.Description =
@@ -88,11 +89,9 @@ public sealed partial class SettingsPage : UserControl
         RetentionSettingCard.Header = Localizer.Get("RetentionSetting.Header");
         RetentionSettingCard.Description = Localizer.Get("RetentionSetting.Description");
         DeathBackupSettingCard.Header = Localizer.Get("DeathBackupSetting.Header");
-        DeathBackupSettingCard.Description = Localizer.Get("DeathBackupSetting.Description");
         GameSaveSettingCard.Header = Localizer.Get("GameSaveSetting.Header");
-        GameSaveSettingCard.Description = Localizer.Get("GameSaveSetting.Description");
         GameSaveCountdownSettingCard.Header = Localizer.Get("GameSaveCountdownSetting.Header");
-        GameSaveCountdownSettingCard.Description = Localizer.Get("GameSaveCountdownSetting.Description");
+        UpdateAvailability();
         AdvancedSection.Header = Localizer.Get("AdvancedSettings.Header");
         AdvancedSection.Description = Localizer.Get("AdvancedSettings.Description");
         OpenConfigurationCard.Header = Localizer.Get("AdvancedFiles.OpenHeader");
@@ -120,6 +119,38 @@ public sealed partial class SettingsPage : UserControl
         SetInputName(OpenConfigurationFolderButton, OpenConfigurationFolderButton.Content);
         SetInputName(RestartForConfigurationButton, RestartForConfigurationButton.Content);
         SetInputName(ResetConfigurationButton, ResetConfigurationButton.Content);
+    }
+
+    private GameLinkView gameLink = GameLinkView.Available;
+
+    /// <summary>A setting that needs the game is locked, not changed, while the game cannot provide it.</summary>
+    internal void ApplyGameLink(GameLinkView view)
+    {
+        if (gameLink == view) return;
+        gameLink = view;
+        UpdateAvailability();
+    }
+
+    // Each switch depends on the settings above it and on what it needs from the game. Locking
+    // leaves the saved value alone, so everything returns by itself when the game can be read again.
+    private void UpdateAvailability()
+    {
+        // Toggles raise their events while the page is still being built.
+        if (AutomaticBackupToggle is null || PausePeriodicToggle is null || DeathBackupToggle is null || GameSaveToggle is null
+            || GameSaveCountdownToggle is null || PausePeriodicSettingCard is null || DeathBackupSettingCard is null
+            || GameSaveSettingCard is null || GameSaveCountdownSettingCard is null) return;
+        bool linked = !gameLink.LinkUnavailable;
+        PausePeriodicToggle.IsEnabled = linked;
+        DeathBackupToggle.IsEnabled = linked && AutomaticBackupToggle.IsOn;
+        GameSaveToggle.IsEnabled = linked;
+        GameSaveCountdownToggle.IsEnabled = linked && GameSaveToggle.IsOn;
+        string Describe(string key, string? note = null) => Localizer.Get(key)
+            + (linked ? note is null ? "" : " " + note : " " + Localizer.Get("SettingUnavailableGameLink"));
+        PausePeriodicSettingCard.Description = Describe("PausePeriodicSetting.Description",
+            gameLink.SleepUnavailable ? Localizer.Get("SettingSleepUnavailable") : null);
+        DeathBackupSettingCard.Description = Describe("DeathBackupSetting.Description");
+        GameSaveSettingCard.Description = Describe("GameSaveSetting.Description");
+        GameSaveCountdownSettingCard.Description = Describe("GameSaveCountdownSetting.Description");
     }
 
     private static void SetInputName(DependencyObject control, object header) =>
@@ -171,10 +202,9 @@ public sealed partial class SettingsPage : UserControl
             IntervalSlider.Value = IntervalNumber.Value = value.BackupIntervalMinutes;
             RetentionSlider.Value = RetentionNumber.Value = value.RetainedRevisions;
             DeathBackupToggle.IsOn = value.BackupOnDeath;
-            DeathBackupToggle.IsEnabled = value.AutomaticBackupEnabled;
             GameSaveToggle.IsOn = value.SaveGameBeforeBackup;
             GameSaveCountdownToggle.IsOn = value.GameSaveCountdown;
-            GameSaveCountdownToggle.IsEnabled = value.SaveGameBeforeBackup;
+            UpdateAvailability();
         }
         finally
         {
@@ -205,6 +235,32 @@ public sealed partial class SettingsPage : UserControl
         finally
         {
             button.IsEnabled = true;
+        }
+    }
+
+    // Opens the folder the box shows, applied or not. A missing folder is reported, not created:
+    // the path may be a typo.
+    private void OpenPathFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = ((sender as Button)?.Tag?.ToString() == "saves" ? SavesPath : BackupPath).Text.Trim();
+        try
+        {
+            if (folder.Length == 0 || !Directory.Exists(folder))
+            {
+                App.ShowSidebarNotification(InfoBarSeverity.Warning,
+                    Localizer.Get("PathSettings.Header"), Localizer.Get("OperationError.FileMissing"));
+                return;
+            }
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
+            {
+                Arguments = $"\"{Path.GetFullPath(folder)}\"",
+                UseShellExecute = false,
+            })?.Dispose();
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error,
+                Localizer.Get("PathSettings.Header"), UserFacingError.FromException(exception));
         }
     }
 
@@ -308,8 +364,7 @@ public sealed partial class SettingsPage : UserControl
 
     private async void AutomaticBackupToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (DeathBackupToggle is not null)
-            DeathBackupToggle.IsEnabled = AutomaticBackupToggle.IsOn;
+        UpdateAvailability();
         if (loading || !IsLoaded) return;
         // A pause switch must not be lost when navigating away before numeric debounce fires.
         requestedApply++;
@@ -319,10 +374,7 @@ public sealed partial class SettingsPage : UserControl
 
     private void SettingChanged(object sender, object e)
     {
-        if (GameSaveCountdownToggle is not null)
-            GameSaveCountdownToggle.IsEnabled = GameSaveToggle.IsOn;
-        if (AutomaticBackupToggle is not null && DeathBackupToggle is not null)
-            DeathBackupToggle.IsEnabled = AutomaticBackupToggle.IsOn;
+        UpdateAvailability();
         ScheduleApply();
     }
 

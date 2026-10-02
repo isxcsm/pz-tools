@@ -62,7 +62,7 @@ public sealed class ProcessTelemetrySession : IAsyncDisposable
         {
             if (stopping) return;
             // 종료 이벤트 앞에 최종 진행 상태를 놓아 종료 후 100%가 사라지지 않게 합니다.
-            if (name is "run.committed" or "run.failed" or "run.busy" or "run.cancelled")
+            if (name is "run.committed" or "run.failed" or "run.busy" or "run.cancelled" or "run.unavailable")
                 MoveLatestToQueue();
             events.Enqueue(new PendingEvent(name, payloadJson, null,
                 DateTimeOffset.UtcNow, Stopwatch.GetTimestamp()));

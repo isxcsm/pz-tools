@@ -5,22 +5,43 @@ using PzTools.Process.Contracts.GameRuntime;
 namespace PzTools.App.Core;
 
 public sealed record GameExtensionsView(IReadOnlyList<ExtensionCardView> Cards, bool GameSavingEnabled,
-    RuntimeSaveExecution? LastSave = null, RuntimeExtensionStatus? VehicleStatus = null, bool RuntimeWorldReady = false)
+    RuntimeSaveExecution? LastSave = null, IReadOnlyDictionary<string, RuntimeExtensionStatus>? Statuses = null, bool RuntimeWorldReady = false)
 {
+    /// <summary>What the game reports for one continuous module; null when nothing current is known.</summary>
+    public RuntimeExtensionStatus? StatusOf(string extensionId) => Statuses?.GetValueOrDefault(extensionId);
     public ExtensionActivationView ActivationFor(ExtensionCardView card) =>
         // Capability decides behavior; runtime evidence still belongs to one specific module.
-        ExtensionActivationView.Project(card, GameSavingEnabled, RuntimeWorldReady,
-            card.Definition.Id == ExtensionIds.VehicleDrivetrain ? VehicleStatus : null);
+        ExtensionActivationView.Project(card, GameSavingEnabled, RuntimeWorldReady, StatusOf(card.Definition.Id));
 }
 
 /// <summary>UI-independent controller. Disk I/O runs away from the dispatcher; only committed preferences are projected.</summary>
-public sealed class GameExtensionController(string runtimeRoot, RevisionedViewStore views, Func<bool>? gameSavingEnabled = null, Func<string?>? gameVersion = null, string? cataloguePath = null, Func<RuntimeSaveExecution?>? lastSave = null, Func<RuntimeExtensionStatus?>? extensionStatus = null, Func<bool>? runtimeWorldReady = null, ExtensionRuntimeDiagnostics? diagnostics = null)
+public sealed class GameExtensionController(string runtimeRoot, RevisionedViewStore views, Func<bool>? gameSavingEnabled = null, Func<string?>? gameVersion = null, string? cataloguePath = null, Func<RuntimeSaveExecution?>? lastSave = null, Func<string, RuntimeExtensionStatus?>? extensionStatus = null, Func<bool>? runtimeWorldReady = null, ExtensionRuntimeDiagnostics? diagnostics = null)
 {
     public static ViewKey ViewKey { get; } = new("game-extensions");
     private readonly GameExtensionService service = new(new ExtensionSettingsStore(runtimeRoot), gameVersion,
-        cataloguePath is null ? null : () => ExtensionCatalog.ReadFile(cataloguePath));
+        cataloguePath is { } catalogue ? () => ExtensionCatalog.ReadFile(catalogue) : null);
+    private readonly string settingsPath = new ExtensionSettingsStore(runtimeRoot).FilePath;
     private IReadOnlyList<ExtensionCardView>? cachedCards;
+    // What the cards are read from. The runtime refresh runs every second for the life of the app;
+    // while the settings file, the catalogue and the game version are as they were, the cards are too.
+    private (DateTime, long, DateTime, long, string?)? cardInputs;
     private readonly SemaphoreSlim gate = new(1, 1);
+
+    private (DateTime, long, DateTime, long, string?)? CardInputs()
+    {
+        try
+        {
+            var settings = new FileInfo(settingsPath);
+            var catalogue = cataloguePath is null ? null : new FileInfo(cataloguePath);
+            return (settings.Exists ? settings.LastWriteTimeUtc : default, settings.Exists ? settings.Length : -1,
+                catalogue is { Exists: true } ? catalogue.LastWriteTimeUtc : default, catalogue is { Exists: true } ? catalogue.Length : -1,
+                gameVersion?.Invoke());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     public async Task<GameExtensionsView> RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -85,6 +106,7 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
             GameExtensionSetting.Torque => options with { TorqueEnabled = value },
             GameExtensionSetting.Reverse => options with { ReverseEnabled = value },
             GameExtensionSetting.Steering => options with { SteeringEnabled = value },
+            GameExtensionSetting.AreaLight => options with { AreaLightEnabled = value },
             _ => throw new ArgumentOutOfRangeException(nameof(setting))
         };
         return service.SetVehicleDrivetrainPreference(options, current.SettingsRevision);
@@ -98,13 +120,20 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
             if (cachedCards is null)
             {
                 // Runtime failures still belong in logs when this settings page was never opened.
-                diagnostics?.Observe(extensionStatus?.Invoke());
+                foreach (var definition in ExtensionCatalog.BuiltIn)
+                    if (definition.ActivationKind == ExtensionActivationKind.Continuous)
+                        diagnostics?.Observe(definition.Id, extensionStatus?.Invoke(definition.Id));
                 return;
             }
             // The controller is not the only settings writer: the runtime owner rolls back
             // definitively rejected requests with a revision-checked write. Never keep that
-            // newer committed state hidden behind the UI's previous preference cache.
-            Publish(await Task.Run(service.ReadCards, token));
+            // newer committed state hidden behind the UI's previous preference cache: any change to
+            // the file is read again.
+            var inputs = CardInputs();
+            if (inputs is not null && inputs == cardInputs) { Publish(cachedCards!); return; }
+            var cards = await Task.Run(service.ReadCards, token);
+            cardInputs = inputs;
+            Publish(cards);
         }
         finally { gate.Release(); }
     }
@@ -118,9 +147,16 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
     private GameExtensionsView Publish(IReadOnlyList<ExtensionCardView> cards)
     {
         cachedCards = cards;
+        var statuses = new Dictionary<string, RuntimeExtensionStatus>(StringComparer.Ordinal);
+        foreach (var card in cards)
+        {
+            if (card.Definition.ActivationKind != ExtensionActivationKind.Continuous) continue;
+            var status = extensionStatus?.Invoke(card.Definition.Id);
+            if (status is not null) statuses[card.Definition.Id] = status;
+            diagnostics?.Observe(card.Definition.Id, status);
+        }
         var view = new GameExtensionsView(cards, gameSavingEnabled?.Invoke() ?? true, lastSave?.Invoke(),
-            extensionStatus?.Invoke(), runtimeWorldReady?.Invoke() ?? false);
-        diagnostics?.Observe(view.VehicleStatus);
+            statuses, runtimeWorldReady?.Invoke() ?? false);
         views.Publish(ViewKey, view, comparer: new ViewComparer());
         return view;
     }
@@ -128,9 +164,18 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
     {
         public bool Equals(GameExtensionsView? x, GameExtensionsView? y) =>
             ReferenceEquals(x, y) || x is not null && y is not null && x.GameSavingEnabled == y.GameSavingEnabled
-                && x.LastSave == y.LastSave && x.VehicleStatus == y.VehicleStatus
+                && x.LastSave == y.LastSave && SameStatuses(x.Statuses, y.Statuses)
                 && x.RuntimeWorldReady == y.RuntimeWorldReady && SameCards(x.Cards, y.Cards);
         public int GetHashCode(GameExtensionsView obj) => obj.Cards.Count;
+
+        private static bool SameStatuses(IReadOnlyDictionary<string, RuntimeExtensionStatus>? left, IReadOnlyDictionary<string, RuntimeExtensionStatus>? right)
+        {
+            if ((left?.Count ?? 0) != (right?.Count ?? 0)) return false;
+            if (left is null || right is null) return true;
+            foreach (var (id, status) in left)
+                if (!right.TryGetValue(id, out var other) || status != other) return false;
+            return true;
+        }
 
         private static bool SameCards(IReadOnlyList<ExtensionCardView> left, IReadOnlyList<ExtensionCardView> right)
         {

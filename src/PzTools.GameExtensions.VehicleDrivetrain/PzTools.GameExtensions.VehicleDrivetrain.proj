@@ -10,8 +10,13 @@
     <MSBuild Projects="..\PzTools.GameExtensions.Java\PzTools.GameExtensions.Java.proj" Targets="Build"
              Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
   </Target>
-  <Target Name="Build" DependsOnTargets="Runtime;ValidateBridgeToolchain"
-          Inputs="@(JavaSource);$(RuntimeJar);$(MSBuildProjectFullPath);$(BridgeJdkPath)\release"
+  <!-- A deleted source changes no timestamp; the list does, so its classes are not left in the JAR. -->
+  <Target Name="ListSources">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\obj\$(Configuration)" />
+    <WriteLinesToFile File="$(MSBuildProjectDirectory)\obj\$(Configuration)\java-sources.txt" Lines="@(JavaSource)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+  <Target Name="Build" DependsOnTargets="Runtime;ValidateBridgeToolchain;ListSources"
+          Inputs="@(JavaSource);$(MSBuildProjectDirectory)\obj\$(Configuration)\java-sources.txt;$(RuntimeJar);$(MSBuildProjectFullPath);$(BridgeJdkPath)\release"
           Outputs="$(ExtensionOutput)\pztools-vehicle-drivetrain.jar">
     <RemoveDir Directories="$(Classes)" />
     <MakeDir Directories="$(Classes);$(ExtensionOutput)" />
