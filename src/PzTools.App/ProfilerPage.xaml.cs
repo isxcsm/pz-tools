@@ -1329,7 +1329,10 @@ public sealed partial class ProfilerPage : UserControl
         item.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         item.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         item.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        item.Children.Add(new TextBlock { Text = group.Name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap });
+        // No tip but the full name, and that only where the screen cuts it short: the samples stand above the table.
+        var nameText = new TextBlock { Text = group.Name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
+        nameText.IsTextTrimmedChanged += (_, _) => AppToolTip.SetTip(nameText, nameText.IsTextTrimmed ? group.Name : null);
+        item.Children.Add(nameText);
         var value = new TextBlock { Text = ValueOf(group), Foreground = Muted };
         // The number, and before it a small graph mark while the owner is drawn over the frame graph.
         var trailing = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -1382,9 +1385,7 @@ public sealed partial class ProfilerPage : UserControl
             Grid.SetColumnSpan(bar, 2);
             item.Children.Add(bar);
         }
-        var samples = group.Samples > 0 ? $"\n{Localizer.Get("ProfileColumnSamples")} {group.Samples.ToString("N0", Localizer.Culture)}" : "";
         // How the highlight works is in the graph's help, not repeated on every row the pointer crosses.
-        AppToolTip.SetTip(item, group.Name + samples);
         AutomationProperties.SetName(item, group.Name + (value.Text.Length > 0 ? ", " + value.Text : ""));
         return item;
     }
