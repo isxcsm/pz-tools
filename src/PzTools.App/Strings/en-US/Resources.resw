@@ -458,7 +458,9 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileCompareNone" xml:space="preserve"><value>No other recording to compare with</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last minute, and it is saved as a recording. Mode: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Recording mode</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Click to hide or show this row</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Hotkey: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>New name (empty for the saved name)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Last {0} min</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Recording {0}</value></data>

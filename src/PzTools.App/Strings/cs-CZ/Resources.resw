@@ -474,7 +474,9 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Spouští se uchovávání poslední minuty…</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat poslední minutu.</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Režim záznamu</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Klávesová zkratka: {0}</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Kliknutím tento řádek skryjete nebo zobrazíte</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nový název (prázdný = automatický)</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Přejmenovat</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Včera {0}</value></data>

@@ -45,9 +45,9 @@
       <Border x:Name="CriticalProbe" Background="{ThemeResource SystemFillColorCriticalBrush}" />
     </StackPanel>
 
-    <!-- The title and everything about recordings share one line: record, mode, which recording, which thread,
-         and the rest (import, save, folder, delete) behind one menu. A narrow window moves the tools below the title. -->
-    <Grid x:Name="HeaderGrid" ColumnSpacing="24" RowSpacing="8">
+    <!-- Two lines. The title's: making a recording, at its right. The next: the recording shown, and what is done to
+         it. A narrow window moves the first line's tools below the title. -->
+    <Grid x:Name="HeaderGrid" ColumnSpacing="24">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
@@ -55,24 +55,14 @@
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" MinHeight="{StaticResource PageHeaderHeight}" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
       <!-- The tools sit on the title's baseline: their text lines up with the bottom of the title's letters,
            instead of their boxes being centred on the taller title. -->
       <TextBlock x:Name="PageTitle" Style="{StaticResource PageTitleTextStyle}" TextWrapping="NoWrap" VerticalAlignment="Top"
                  Margin="0,3,0,0" AutomationProperties.HeadingLevel="Level1" />
-      <!-- Two groups, set apart by thin lines: saving the last minutes the game keeps, and a recording with its mode. -->
-      <Grid x:Name="Toolbar" Grid.Column="1" ColumnSpacing="12" VerticalAlignment="Top" Margin="0,9,0,0">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
+      <StackPanel x:Name="CaptureBar" Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                  VerticalAlignment="Top" Margin="0,9,0,0">
         <!-- Saves the last minutes the game keeps (Settings > Performance), right after a stutter. A disabled button
              shows no tooltip; its holder carries it, which says why when it cannot. -->
         <Grid x:Name="SaveLastHost" Background="Transparent">
@@ -83,59 +73,65 @@
             </StackPanel>
           </Button>
         </Grid>
-        <Rectangle Grid.Column="1" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-        <!-- The recording and the mode it records in belong together, between the two lines. Its holder says why
+        <!-- Records; its arrow chooses the mode, said on the button only when it is Detailed. Its holder says why
              recording cannot start. -->
-        <Grid x:Name="RecordHost" Grid.Column="2" Background="Transparent">
-          <Button x:Name="RecordButton" MinWidth="120" Click="RecordButton_Click"
-                  AutomationProperties.AutomationId="ProfileRecordButton">
+        <Grid x:Name="RecordHost" Background="Transparent">
+          <SplitButton x:Name="RecordButton" MinWidth="120" Click="RecordButton_Click"
+                       AutomationProperties.AutomationId="ProfileRecordButton">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <FontIcon x:Name="RecordIcon" FontSize="14" Glyph="&#xE7C8;" />
               <TextBlock x:Name="RecordText" />
             </StackPanel>
-          </Button>
+            <SplitButton.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <RadioMenuFlyoutItem x:Name="ModeGeneralItem" GroupName="ProfileMode" Click="ModeItem_Click" />
+                <RadioMenuFlyoutItem x:Name="ModeDetailedItem" GroupName="ProfileMode" Click="ModeItem_Click" />
+              </MenuFlyout>
+            </SplitButton.Flyout>
+          </SplitButton>
         </Grid>
-        <ToggleSwitch x:Name="ModeSwitch" Grid.Column="3" VerticalAlignment="Center" MinWidth="0" Toggled="ModeSwitch_Toggled"
-                      AutomationProperties.AutomationId="ProfileModeSwitch" />
-        <Rectangle Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-        <!-- The recordings, and close beside them what is done to the selected one: rename it, delete it. -->
-        <Grid Grid.Column="5" ColumnSpacing="2">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <ComboBox x:Name="RecordingList" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                    SelectionChanged="RecordingList_SelectionChanged"
-                    AutomationProperties.AutomationId="ProfileRecordingList" />
-          <!-- In the list's place while the selected recording is renamed; its own X empties it. -->
-          <TextBox x:Name="RenameBox" MinWidth="160" VerticalAlignment="Center" Visibility="Collapsed"
-                   KeyDown="RenameBox_KeyDown" LostFocus="RenameBox_LostFocus" AutomationProperties.AutomationId="ProfileRenameBox" />
-          <Button x:Name="RenameButton" Grid.Column="1" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
-                  Style="{StaticResource SubtleButtonStyle}" Click="RenameButton_Click" IsEnabled="False"
-                  AutomationProperties.AutomationId="ProfileRenameButton">
-            <FontIcon Glyph="&#xE70F;" FontSize="16" />
-          </Button>
-          <!-- Asks before deleting. -->
-          <Button x:Name="DeleteButton" Grid.Column="2" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
-                  Style="{StaticResource SubtleButtonStyle}" Click="DeleteItem_Click" IsEnabled="False"
-                  AutomationProperties.AutomationId="ProfileDeleteButton">
-            <FontIcon Glyph="&#xE74D;" FontSize="16" />
-          </Button>
-        </Grid>
-        <Rectangle Grid.Column="6" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+      </StackPanel>
+      <!-- The recording shown, and close beside it what is done to it: rename, delete; then compare, and the rest. -->
+      <Grid x:Name="RecordingBar" Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="2" Margin="0,4,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MaxWidth="560" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <ComboBox x:Name="RecordingList" MinWidth="200" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                  SelectionChanged="RecordingList_SelectionChanged"
+                  AutomationProperties.AutomationId="ProfileRecordingList" />
+        <!-- In the list's place while the selected recording is renamed; its own X empties it. -->
+        <TextBox x:Name="RenameBox" MinWidth="200" VerticalAlignment="Center" Visibility="Collapsed"
+                 KeyDown="RenameBox_KeyDown" LostFocus="RenameBox_LostFocus" AutomationProperties.AutomationId="ProfileRenameBox" />
+        <Button x:Name="RenameButton" Grid.Column="1" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+                Style="{StaticResource SubtleButtonStyle}" Click="RenameButton_Click" IsEnabled="False"
+                AutomationProperties.AutomationId="ProfileRenameButton">
+          <FontIcon Glyph="&#xE70F;" FontSize="16" />
+        </Button>
+        <!-- Asks before deleting. -->
+        <Button x:Name="DeleteButton" Grid.Column="2" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+                Style="{StaticResource SubtleButtonStyle}" Click="DeleteItem_Click" IsEnabled="False"
+                AutomationProperties.AutomationId="ProfileDeleteButton">
+          <FontIcon Glyph="&#xE74D;" FontSize="16" />
+        </Button>
+        <Rectangle Grid.Column="3" Width="1" Height="20" Margin="8,0" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
         <!-- Another recording to set the shown one against; the menu lists them when it opens. -->
-        <DropDownButton x:Name="CompareButton" Grid.Column="7" VerticalAlignment="Center" IsEnabled="False"
+        <DropDownButton x:Name="CompareButton" Grid.Column="4" VerticalAlignment="Center" IsEnabled="False"
                         AutomationProperties.AutomationId="ProfileCompareButton">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <FontIcon Glyph="&#xE8AB;" FontSize="14" />
             <TextBlock x:Name="CompareText" />
           </StackPanel>
           <DropDownButton.Flyout>
-            <MenuFlyout x:Name="CompareMenu" Placement="BottomEdgeAlignedRight" Opening="CompareMenu_Opening" />
+            <MenuFlyout x:Name="CompareMenu" Placement="BottomEdgeAlignedLeft" Opening="CompareMenu_Opening" />
           </DropDownButton.Flyout>
         </DropDownButton>
-        <Button x:Name="MoreButton" Grid.Column="8" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+        <Button x:Name="MoreButton" Grid.Column="6" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
                 Style="{StaticResource SubtleButtonStyle}">
           <FontIcon Glyph="&#xE712;" FontSize="16" />
           <Button.Flyout>
@@ -154,7 +150,6 @@
         </Button>
       </Grid>
     </Grid>
-
     <!-- What the recording is doing; only while it records. -->
     <StackPanel x:Name="StatusPanel" Grid.Row="1" Spacing="2" Visibility="Collapsed" Margin="0,4,0,4">
       <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
@@ -178,15 +173,20 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <!-- The range the results describe; while the pointer is over the graph, the frame under it.
                Names are muted and numbers are not, so the eye finds the numbers first. -->
           <TextBlock x:Name="ChartInfo" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-          <Button x:Name="ZoomSelectionButton" Grid.Column="1" Click="ZoomSelectionButton_Click" IsEnabled="False"
+          <!-- Whose samples the results count, the game's thread or all of them: a choice for the whole analysis,
+               both tabs, so it stands with the range the analysis is of. -->
+          <ComboBox x:Name="ThreadBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                    SelectionChanged="ThreadBox_SelectionChanged" AutomationProperties.AutomationId="ProfileThreadBox" />
+          <Button x:Name="ZoomSelectionButton" Grid.Column="2" Click="ZoomSelectionButton_Click" IsEnabled="False"
                   Style="{StaticResource SubtleButtonStyle}" />
-          <Button x:Name="ZoomAllButton" Grid.Column="2" Click="ZoomAllButton_Click"
+          <Button x:Name="ZoomAllButton" Grid.Column="3" Click="ZoomAllButton_Click"
                   Style="{StaticResource SubtleButtonStyle}" />
-          <Border x:Name="ChartHelp" Grid.Column="3" Background="Transparent" Padding="6" VerticalAlignment="Center">
+          <Border x:Name="ChartHelp" Grid.Column="4" Background="Transparent" Padding="6" VerticalAlignment="Center">
             <FontIcon x:Name="ChartHelpIcon" Glyph="&#xE9CE;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
           </Border>
         </Grid>
@@ -236,10 +236,10 @@
             </StackPanel>
           </Button>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
-            <TextBlock x:Name="HeapValue" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-            <TextBlock x:Name="VideoValue" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+            <TextBlock x:Name="HeapValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+            <TextBlock x:Name="VideoValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
           </StackPanel>
-          <TextBlock x:Name="CollectionValue" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
+          <TextBlock x:Name="CollectionValue" Tapped="MemoryFigure_Tapped" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </Grid>
         <!-- Heap above, video memory below, each on its own scale; the same time axis, zoom, selection and
@@ -305,46 +305,6 @@
                     Background="{ThemeResource AccentFillColorDefaultBrush}" />
           </Canvas>
         </Grid>
-        <Grid x:Name="DetailTitle" Grid.Column="1" Margin="16,0,16,0" ColumnSpacing="20" VerticalAlignment="Center">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <!-- The name with the copy button right after it. Left-aligned, this grid is only as wide as both need,
-               so the button follows the name; when space runs short the name's star column shrinks and trims. -->
-          <Grid HorizontalAlignment="Left" ColumnSpacing="4">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <!-- Larger than the tabs beside it; the samples share its baseline. The share is in the list beside. -->
-            <TextBlock x:Name="DetailName" FontSize="18" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-            <!-- What the page shows, as text: to paste into a message to a mod's author. -->
-            <!-- Set on the line's baseline like the name and the samples: a 32-pixel button centres its text 7 pixels
-                 above the bottom edge a text line sits on, so it hangs that far below. -->
-            <Button x:Name="CopyResultsButton" Grid.Column="1" Height="32" Padding="8,0,10,0" Margin="0,0,0,-7"
-                    VerticalAlignment="Bottom" Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xE8C8;" FontSize="14" VerticalAlignment="Center" />
-                <TextBlock x:Name="CopyResultsText" VerticalAlignment="Center" />
-              </StackPanel>
-            </Button>
-          </Grid>
-          <!-- Narrows the table to rows whose name or file holds the text; a tree keeps the paths that lead to them. -->
-          <TextBox x:Name="DetailSearch" Grid.Column="1" Width="170" Margin="0,0,0,-7" VerticalAlignment="Bottom"
-                   TextChanged="DetailSearch_TextChanged" AutomationProperties.AutomationId="ProfileDetailSearch" />
-          <!-- The scripts' functions as a list, or as the call paths that led to them. A switch is 40 pixels tall with
-               its text centred, 4 more below the text than a 32-pixel button: so it hangs 4 further to share the line. -->
-          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" Margin="0,0,0,-11" VerticalAlignment="Bottom" Visibility="Collapsed"
-                        Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
-          <TextBlock x:Name="DetailSamples" Grid.Column="3" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
-          <!-- Whose samples the results count: the game's thread or all of them. Beside the counts it changes. -->
-          <ComboBox x:Name="ThreadBox" Grid.Column="4" MinWidth="130" Margin="0,0,0,-7" VerticalAlignment="Bottom"
-                    SelectionChanged="ThreadBox_SelectionChanged" AutomationProperties.AutomationId="ProfileThreadBox" />
-        </Grid>
         <Border x:Name="GroupCard" Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
@@ -388,17 +348,53 @@
             </Canvas>
           </Grid>
         </Border>
-        <Border x:Name="DetailCard" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
+        <!-- The chosen owner's functions. The card starts level with the tabs and holds its own title: the owner's
+             name the whole width of it, its samples, then the table's tools, so nothing beside the tabs crowds the name. -->
+        <Border x:Name="DetailCard" Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
           <Grid>
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <Border x:Name="DetailHeader" Padding="16,12,16,6" BorderThickness="0,0,0,1"
+            <Grid x:Name="DetailTitle" Padding="16,10,12,0" ColumnSpacing="12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="DetailName" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+              <TextBlock x:Name="DetailSamples" Grid.Column="1" VerticalAlignment="Center" TextWrapping="NoWrap" FontSize="12" />
+            </Grid>
+            <!-- Search narrows the rows to names and files holding the text (a tree keeps the paths to them); the
+                 call tree shows the paths that led to each function; the copy puts what the page shows on the clipboard. -->
+            <Grid x:Name="DetailTools" Grid.Row="1" Padding="12,8,12,4" ColumnSpacing="8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="320" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <AutoSuggestBox x:Name="DetailSearch" QueryIcon="Find" VerticalAlignment="Center"
+                              TextChanged="DetailSearch_TextChanged" AutomationProperties.AutomationId="ProfileDetailSearch" />
+              <ToggleButton x:Name="CallTreeToggle" Grid.Column="2" VerticalAlignment="Center" Visibility="Collapsed"
+                            Click="CallTreeToggle_Click" AutomationProperties.AutomationId="ProfileCallTreeToggle">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <FontIcon Glyph="&#xE8A4;" FontSize="14" />
+                  <TextBlock x:Name="CallTreeText" />
+                </StackPanel>
+              </ToggleButton>
+              <Button x:Name="CopyResultsButton" Grid.Column="3" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+                      Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
+                <FontIcon Glyph="&#xE8C8;" FontSize="16" />
+              </Button>
+            </Grid>
+            <Border x:Name="DetailHeader" Grid.Row="2" Padding="16,8,16,6" BorderThickness="0,0,0,1"
                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
               <StackPanel x:Name="DetailRows" Padding="16,4,16,12" />
             </ScrollViewer>
           </Grid>

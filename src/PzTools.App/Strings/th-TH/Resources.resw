@@ -436,7 +436,9 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>ไม่มีการบันทึกอื่นให้เปรียบเทียบ</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>เธรด</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณหนึ่งนาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>โหมดการบันทึก</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>คลิกเพื่อซ่อนหรือแสดงแถวนี้</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ปุ่มลัด: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>ชื่อใหม่ (เว้นว่างเพื่อใช้ชื่ออัตโนมัติ)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} นาทีล่าสุด</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>บันทึก {0}</value></data>

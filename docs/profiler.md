@@ -165,13 +165,22 @@ When something does not fit, the profiler is what stops, and only it:
 
 ## Reading the result
 
-The recording tools share the title line, in groups set apart by thin lines: saving the
-last minutes; recording and its mode; which recording, with a pencil to rename it and a
-bin to delete it (after asking); *Compare with*; and a **…** menu with *Open recording*,
-*Save as* and *Open folder*. Which thread the results count, the game's or all of them,
-is chosen beside the owner's sample count over the table. In a narrow
-window they move below the title. What the recording is doing appears under that line only
-while a recording starts, runs or is being processed.
+The tools stand on two lines, each saying only what differs from the usual. The title's
+line holds making a recording, at its right: **Save last 2 min** and **Start recording**,
+whose arrow chooses Standard or Detailed (the button names Detailed while it is chosen;
+a key set for a button is in its tip). The next line is the recording shown: its name,
+a pencil to rename it, a bin to delete it (after asking), *Compare with*, and a **…**
+menu with *Open recording*, *Save as* and *Open folder*. In a narrow window the
+recording tools move below the title and the buttons keep their icons alone, their names
+as tips. What the recording is doing appears under these lines only while a recording
+starts, runs or is being processed.
+
+The line above the graph shows the range, the average frame with its frame rate and the
+worst 1%; the frame count and the slowest frame are one hover away and in the copied text.
+Beside them, which thread the results count, the game's or all of them: a choice for the
+whole analysis, both tabs. The chosen owner's table is a card of its own, level with the
+tabs: the owner's name across it with its samples, then the search, the **Call tree**
+toggle and the copy button.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
 line above the graph describes the range the results show: its start, end and length,
@@ -323,15 +332,21 @@ heading says what its column means when the pointer rests on it.
   everything.
 - **Memory panel.** When the recording has memory readings or garbage collections, the
   **Memory** button on the line under the frame graph opens a second, short graph with a
-  row for each it has: the Java heap in use (green) on top, the collections (grey) in the
-  middle, under the heap whose drops they cause, and the game's video memory on the
-  graphics card (text colour) at the bottom. The memory rows are lines fitted to their own
+  row for each it has: the Java heap in use (green) with the collections (grey) under its
+  line, as they are its drops, then the highlighted mod's allocations when there is one,
+  and the game's video memory on the graphics card (text colour) at the bottom. The
+  figures on the panel's line put their rows away and back when clicked (the
+  collections' figure their marks), for as long as the app runs; a figure whose row is
+  away stands faint, and the panel opens when one is brought back. Where the panel does
+  not show the collections (it is closed, or the heap's row is away), short grey marks
+  on the frame graph's floor say when the game collected. The memory rows are lines fitted to their own
   lowest and highest reading in view, as their sizes differ too much for one scale and a
   fitted one shows small changes. Each collection is a bar as long as it paused the game
   (at least two pixels) and as tall as that pause against the longest one in view, so a
   frame spike above a tall bar is a frame the game spent collecting; the bars are drawn as
-  one shape, as a game may collect several times a second. Each row's name stands at its
-  top left in the row's colour (*Heap in use*, *GC pauses*, *VRAM*), and resting the
+  one shape, as a game may collect several times a second. Under the heap they take the
+  row's lower part, and the scale at the left is the heap's. Each row's name stands at its
+  top left in the row's colour (*Heap in use · GC pauses*, *VRAM*), and resting the
   pointer on the name says how to read the row; the ends of its scale stand at the left
   of the graph. The panel shares the frame graph's margins and
   time axis: zoom, scrolling, the selection and the pointer line move both, and a range

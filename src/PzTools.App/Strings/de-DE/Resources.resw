@@ -429,7 +429,9 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileCompareNone" xml:space="preserve"><value>Keine andere Aufzeichnung zum Vergleichen</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Aufzeichnungsmodus</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klicken, um diese Zeile aus- oder einzublenden</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Tastenkürzel: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Neuer Name (leer für den automatischen)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Letzte {0} Min.</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Aufzeichnung {0}</value></data>

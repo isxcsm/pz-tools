@@ -429,7 +429,9 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileCompareNone" xml:space="preserve"><value>Karşılaştırılacak başka kayıt yok</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>İş parçacıkları</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Kayıt modu</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Bu satırı gizlemek veya göstermek için tıklayın</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Kısayol: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Yeni ad (otomatik ad için boş bırakın)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Son {0} dk</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Kayıt {0}</value></data>

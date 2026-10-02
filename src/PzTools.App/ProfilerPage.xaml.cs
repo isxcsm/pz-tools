@@ -95,10 +95,10 @@ public sealed partial class ProfilerPage : UserControl
     {
         Language = Localizer.Culture.Name;
         PageTitle.Text = Localizer.Get("ProfilerNavigation");
-        // The switch has no words of its own: the recording's button beside it says the mode it sets.
-        ModeSwitch.OffContent = ModeSwitch.OnContent = null;
-        AppToolTip.SetTip(ModeSwitch, Localizer.Get("ProfileModeTip"));
-        AutomationProperties.SetName(ModeSwitch, Localizer.Get("ProfileModeName"));
+        // The mode is chosen under the recording's arrow; how the two differ is one hover away on the button.
+        ModeGeneralItem.Text = Localizer.Get("ProfileModeGeneral");
+        ModeDetailedItem.Text = Localizer.Get("ProfileModeDetailed");
+        AppToolTip.SetTip(RecordButton, Localizer.Get("ProfileModeTip"));
         ImportItem.Text = Localizer.Get("ProfileImport");
         SaveAsItem.Text = Localizer.Get("ProfileSaveAs");
         OpenFolderItem.Text = Localizer.Get("AdvancedFiles.OpenFolder");
@@ -120,14 +120,16 @@ public sealed partial class ProfilerPage : UserControl
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
         // One name, on or off, like the recording mode's switch.
-        CallTreeToggle.OnContent = CallTreeToggle.OffContent = Localizer.Get("ProfileCallTree");
+        CallTreeText.Text = Localizer.Get("ProfileCallTree");
         AutomationProperties.SetName(CallTreeToggle, Localizer.Get("ProfileCallTree"));
-        CopyResultsText.Text = Localizer.Get("ProfileCopyText");
+        AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyText"));
         // Set here too, not only when a recording opens: a language changed with a recording open kept the old word.
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
         CompareText.Text = Localizer.Get("ProfileCompare");
+        AppToolTip.SetTip(CompareButton, Localizer.Get("ProfileCompare"));
+        AutomationProperties.SetName(CompareButton, Localizer.Get("ProfileCompare"));
         AutomationProperties.SetName(ThreadBox, Localizer.Get("ProfileThreadName"));
 
         DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
@@ -178,10 +180,12 @@ public sealed partial class ProfilerPage : UserControl
     {
         var session = service?.Session ?? new ProfileSession(ProfileSessionState.Idle);
         var idle = session.State == ProfileSessionState.Idle;
-        // The mode it records in, or is recording in, beside the switch that sets it.
-        var detailed = idle ? ModeSwitch.IsOn : session.Detailed;
-        RecordText.Text = Localizer.Get(idle ? "ProfileRecordStart" : "ProfileRecordStop") + " · "
-            + Localizer.Get(detailed ? "ProfileModeDetailed" : "ProfileModeGeneral");
+        // Standard goes unsaid; Detailed, which slows the game, is named on the button.
+        var detailed = idle ? RecordDetailed : session.Detailed;
+        RecordText.Text = Localizer.Get(idle ? "ProfileRecordStart" : "ProfileRecordStop")
+            + (detailed ? " · " + Localizer.Get("ProfileModeDetailed") : "");
+        ModeGeneralItem.IsChecked = !detailed;
+        ModeDetailedItem.IsChecked = detailed;
         RecordIcon.Glyph = idle ? "\uE7C8" : "\uE71A"; // record : stop
         // Starting needs exactly one game; stopping is possible as soon as the game has confirmed the recording;
         // converting cannot be interrupted.
@@ -190,8 +194,8 @@ public sealed partial class ProfilerPage : UserControl
             : Localizer.Get(games == 0 ? "ProfileNeedsGame" : "ProfileError.MultipleGames");
         AppToolTip.SetTip(RecordHost, why);
         AutomationProperties.SetHelpText(RecordButton, why ?? "");
-        ModeSwitch.IsEnabled = idle;
-        if (!idle) ModeSwitch.IsOn = session.Detailed;
+        // The mode of a recording under way is set; the arrow's choices wait for the next one.
+        ModeGeneralItem.IsEnabled = ModeDetailedItem.IsEnabled = idle;
         StatusText.Text = session.State switch
         {
             ProfileSessionState.Starting => Localizer.Get("ProfileStarting"),
@@ -221,11 +225,12 @@ public sealed partial class ProfilerPage : UserControl
             : App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.RollingMinutes ?? AppSettings.DefaultRollingMinutes;
         var key = App.HotKeys?.TextOf(HotKeyAction.SaveLast);
         var label = Localizer.Format(rolling.Saving ? "ProfileRollingSavingFormat" : "ProfileRollingSaveFormat", minutes);
-        // Detailed slows the game for as long as it is kept: said on the button, so it is not forgotten on.
+        // Detailed slows the game for as long as it is kept: said on the button, so it is not forgotten on. The key
+        // is the tip's: the button stays a name.
         if (rolling.Wanted && rolling.Detailed) label += " · " + Localizer.Get("ProfileModeDetailed");
-        SaveLastText.Text = key is null ? label : $"{label} ({key})";
+        SaveLastText.Text = label;
         SaveLastButton.IsEnabled = CanSaveLastMinute(rolling, idle);
-        var tip = RollingState(rolling, idle);
+        var tip = label + "\n" + RollingState(rolling, idle) + (key is null ? "" : "\n" + Localizer.Format("ProfileHotKeyTipFormat", key));
         AppToolTip.SetTip(SaveLastHost, tip);
         AutomationProperties.SetHelpText(SaveLastButton, tip);
         AutomationProperties.SetAcceleratorKey(SaveLastButton, key ?? "");
@@ -242,9 +247,12 @@ public sealed partial class ProfilerPage : UserControl
         : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
 
     // A recording started from a hotkey takes the mode set here.
-    private void ModeSwitch_Toggled(object sender, RoutedEventArgs e)
+    private bool RecordDetailed => service?.PreferDetailed ?? false;
+
+    private void ModeItem_Click(object sender, RoutedEventArgs e)
     {
-        if (service is { } profiles && profiles.Session.State == ProfileSessionState.Idle) profiles.PreferDetailed = ModeSwitch.IsOn;
+        if (service is { } profiles && profiles.Session.State == ProfileSessionState.Idle)
+            profiles.PreferDetailed = ReferenceEquals(sender, ModeDetailedItem);
         UpdateSession();
     }
 
@@ -291,7 +299,7 @@ public sealed partial class ProfilerPage : UserControl
     private static string Elapsed(TimeSpan time) =>
         $"{(int)Math.Max(0, time.TotalMinutes):00}:{Math.Max(0, time.Seconds):00}";
 
-    private async void RecordButton_Click(object sender, RoutedEventArgs e)
+    private async void RecordButton_Click(SplitButton sender, SplitButtonClickEventArgs args)
     {
         Attach();
         if (service is not { } profiles || App.Host?.Operations is null)
@@ -302,7 +310,7 @@ public sealed partial class ProfilerPage : UserControl
         if (profiles.Session.State != ProfileSessionState.Idle) { profiles.Stop(); return; }
         try
         {
-            var (path, result) = await profiles.RecordAsync(ModeSwitch.IsOn);
+            var (path, result) = await profiles.RecordAsync(RecordDetailed);
             if (path is null)
             {
                 var message = Localizer.Get(ProfileRecordingService.ErrorKey(result));
@@ -754,6 +762,20 @@ public sealed partial class ProfilerPage : UserControl
         }
         if (clipped.Children.Count > 0)
             GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = clipped, Fill = VideoBrush });
+        // Where the panel does not show the collections, short marks on the floor say when the game collected: is
+        // this stutter one of them, at a glance.
+        if (CollectionsOnFrames)
+        {
+            var marks = new GeometryGroup { FillRule = FillRule.Nonzero };
+            foreach (var collection in recording.Collections)
+            {
+                if (collection.Time >= viewEnd || collection.Time + collection.Duration < viewStart) continue;
+                var left = Math.Clamp(XAt(collection.Time), 0, Math.Max(0, width - 2));
+                marks.Children.Add(new RectangleGeometry { Rect = new Rect(left, height - 5, Math.Max(2, XAt(collection.Time + collection.Duration) - left), 5) });
+            }
+            if (marks.Children.Count > 0)
+                ReferenceCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = marks, Fill = Muted, Opacity = 0.9 });
+        }
         RenderMemoryPanel();
 
         UpdateSelectionRectangle();
@@ -781,21 +803,25 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is null) return;
         var (start, end, frames) = shown is { } range ? (range.Start, range.End, range.Frames)
             : (0L, recording.Duration, ProfileAnalysis.FrameStatistics(recording, 0, recording.Duration));
+        // On the line: the range, the average with its frame rate, the worst 1%. The frame count and the slowest frame
+        // are one hover away, and in the copied text.
         List<(string?, string)> items = [(null, RangeText(start, end))];
+        var more = new List<string>();
         // One frame has one time; average, slowest and worst 1% would repeat it three times.
         if (frames.Count == 1) items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(frames.SlowestMilliseconds)));
         else if (frames.Count > 1)
         {
-            items.Add((Localizer.Get("ProfileStatFrames"), frames.Count.ToString("N0", Localizer.Culture)));
-            items.Add((Localizer.Get("ProfileStatAverage"), Milliseconds(frames.AverageMilliseconds)));
             // Players know frame rates better than frame times: "135 ms" alone was read against the frame count.
-            // Its own pair, a name and a number like the others.
+            var average = Milliseconds(frames.AverageMilliseconds);
             if (frames.AverageMilliseconds > 0)
-                items.Add((Localizer.Get("ProfileStatFps"), (1000 / frames.AverageMilliseconds).ToString("N1", Localizer.Culture)));
-            items.Add((Localizer.Get("ProfileStatSlowest"), Milliseconds(frames.SlowestMilliseconds)));
+                average += $" ({(1000 / frames.AverageMilliseconds).ToString("N1", Localizer.Culture)} {Localizer.Get("ProfileStatFps")})";
+            items.Add((Localizer.Get("ProfileStatAverage"), average));
             items.Add((Localizer.Get("ProfileStatWorst"), Milliseconds(frames.OnePercentWorstMilliseconds)));
+            more.Add($"{Localizer.Get("ProfileStatFrames")} {frames.Count.ToString("N0", Localizer.Culture)}");
+            more.Add($"{Localizer.Get("ProfileStatSlowest")} {Milliseconds(frames.SlowestMilliseconds)}");
         }
         var lines = SetStats(ChartInfo, items);
+        lines.AddRange(more);
         // Collections stop the game without leaving samples, so the tables cannot show them. They and the
         // memory peaks stand on the memory panel's line under the bars, and in the copied text, which starts with this line.
         var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
@@ -832,11 +858,26 @@ public sealed partial class ProfilerPage : UserControl
     // Open or shut for as long as the app runs, whichever recording is shown.
     private static bool memoryOpen;
 
-    // The panel's rows: heap, collections and video memory, each only when the recording has it, and the allocations
-    // of the highlighted mod when the recording has allocations.
-    private int MemoryRows => recording is not { } loaded ? 0
-        : (loaded.Heap.Count > 0 ? 1 : 0) + (loaded.Collections.Count > 0 ? 1 : 0) + (loaded.VideoMemory.Count > 0 ? 1 : 0)
-            + (AllocationOwner is null ? 0 : 1);
+    // Each row can be put away by its figure on the panel's line, for as long as the app runs. The collections ride on
+    // the heap's row, whose drops they are; while that row is away they mark the frame graph's floor instead.
+    private static bool heapRow = true, videoRow = true, collectionMarks = true;
+
+    // Whether the recording has anything for the panel: its line stays, so a row put away can be brought back.
+    private bool MemoryAvailable => recording is { } loaded
+        && (loaded.Heap.Count > 0 || loaded.Collections.Count > 0 || loaded.VideoMemory.Count > 0 || AllocationOwner is not null);
+
+    // The rows shown: heap with its collections (the collections alone in a recording without the heap), the
+    // highlighted mod's allocations, video memory.
+    private bool HeapRowShown => recording is { } loaded && heapRow && loaded.Heap.Count > 0;
+    private bool CollectionsAloneShown => recording is { } loaded && collectionMarks && loaded.Heap.Count == 0 && loaded.Collections.Count > 0;
+    private bool VideoRowShown => recording is { } loaded && videoRow && loaded.VideoMemory.Count > 0;
+
+    private int MemoryRows => (HeapRowShown ? 1 : 0) + (CollectionsAloneShown ? 1 : 0) + (VideoRowShown ? 1 : 0)
+        + (AllocationOwner is null ? 0 : 1);
+
+    // On the frame graph, the collections are marked where the panel does not show them.
+    private bool CollectionsOnFrames => recording is { Collections.Count: > 0 } && collectionMarks
+        && !(memoryOpen && (HeapRowShown || CollectionsAloneShown));
 
     // The heap, collections and video memory are the whole game's and cannot be split by mod. What can is the memory a
     // mod's scripts allocate: a highlighted script owner gets its own row of that, beside the collections it brings on.
@@ -849,7 +890,13 @@ public sealed partial class ProfilerPage : UserControl
     private void ApplyMemoryPanel()
     {
         var rows = MemoryRows;
-        MemoryHeader.Visibility = rows > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MemoryHeader.Visibility = MemoryAvailable ? Visibility.Visible : Visibility.Collapsed;
+        // A figure whose row is put away stands faint.
+        HeapValue.Opacity = heapRow ? 1 : 0.45;
+        VideoValue.Opacity = videoRow ? 1 : 0.45;
+        CollectionValue.Opacity = collectionMarks ? 1 : 0.45;
+        foreach (var figure in new[] { HeapValue, VideoValue, CollectionValue })
+            AppToolTip.SetTip(figure, Localizer.Get("ProfileMemoryRowToggleTip"));
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         MemoryChevron.Glyph = memoryOpen ? "" : "";
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
@@ -862,7 +909,20 @@ public sealed partial class ProfilerPage : UserControl
     {
         memoryOpen = !memoryOpen;
         ApplyMemoryPanel();
-        RenderMemoryPanel();
+        // The collections move between the panel and the frame graph's floor.
+        RenderChart();
+    }
+
+    private void MemoryFigure_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (ReferenceEquals(sender, HeapValue)) heapRow = !heapRow;
+        else if (ReferenceEquals(sender, VideoValue)) videoRow = !videoRow;
+        else collectionMarks = !collectionMarks;
+        // Putting a row back is what a closed panel's figure is pressed for: the panel opens to show it.
+        if (!memoryOpen && (ReferenceEquals(sender, HeapValue) ? heapRow : ReferenceEquals(sender, VideoValue) ? videoRow : false))
+            memoryOpen = true;
+        ApplyMemoryPanel();
+        RenderChart();
     }
 
     private void MemorySurface_SizeChanged(object sender, SizeChangedEventArgs e) => RenderMemoryPanel();
@@ -881,22 +941,33 @@ public sealed partial class ProfilerPage : UserControl
         var width = MemorySurface.ActualWidth;
         var rows = new List<(Action<double, double> Draw, string Name, string Tip, Brush Brush)>();
         (string, string) Named(string key) => (Localizer.Get(key), Localizer.Get($"{key}Tip"));
-        if (recording.Heap.Count > 0)
+        if (HeapRowShown)
         {
+            // The heap with its collections, which are its drops: marks from the row's floor under the line, as tall as
+            // their pauses against the longest in view.
             var (name, tip) = Named("ProfileMemoryHeapRow");
-            rows.Add(((top, inner) => DrawLine(Visible(recording.Heap.Select(item => (item.Time, item.Used))), HeapBrush, top, inner),
-                name, tip, HeapBrush));
+            var marks = collectionMarks && recording.Collections.Count > 0;
+            if (marks)
+            {
+                name = Localizer.Format("ProfileMemoryHeapCollectionsRowFormat", name, Localizer.Get("ProfileMemoryCollectionsRow"));
+                tip += "\n" + Localizer.Get("ProfileMemoryCollectionsRowTip");
+            }
+            rows.Add(((top, inner) =>
+            {
+                if (marks) DrawCollections(top + inner * 0.6, inner * 0.4, labels: false);
+                DrawLine(Visible(recording.Heap.Select(item => (item.Time, item.Used))), HeapBrush, top, inner);
+            }, name, tip, HeapBrush));
         }
-        if (recording.Collections.Count > 0)
+        if (CollectionsAloneShown)
         {
             var (name, tip) = Named("ProfileMemoryCollectionsRow");
-            rows.Add((DrawCollections, name, tip, Muted));
+            rows.Add(((top, inner) => DrawCollections(top, inner), name, tip, Muted));
         }
         // Under the collections: whether the mod's garbage comes just before them.
         if (AllocationOwner is { } owner)
             rows.Add(((top, inner) => DrawOwnerAllocation(owner.Key, top, inner), Localizer.Format("ProfileMemoryOwnerRowFormat", owner.Name),
                 Localizer.Get("ProfileMemoryOwnerRowTip"), HighlightPath.Fill));
-        if (recording.VideoMemory.Count > 0)
+        if (VideoRowShown)
         {
             var (name, tip) = Named("ProfileMemoryVideoRow");
             rows.Add(((top, inner) => DrawLine(Visible(recording.VideoMemory.Select(item => (item.Time, item.Dedicated))), VideoBrush, top, inner),
@@ -934,7 +1005,7 @@ public sealed partial class ProfilerPage : UserControl
 
         // Each collection as long as it paused the game and as tall as that pause against the longest one in view, so
         // a frame spike above a tall bar reads as "the game stopped to collect".
-        void DrawCollections(double top, double inner)
+        void DrawCollections(double top, double inner, bool labels = true)
         {
             var visible = recording.Collections.Where(item => item.Time < viewEnd && item.Time + item.Duration >= viewStart).ToArray();
             if (visible.Length == 0) return;
@@ -949,9 +1020,9 @@ public sealed partial class ProfilerPage : UserControl
                 var barHeight = Math.Max(2, collection.Duration / (double)longest * inner);
                 bars.Children.Add(new RectangleGeometry { Rect = new Rect(left, top + inner - barHeight, barWidth, barHeight) });
             }
-            MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = Muted });
-            // Zero as the frame graph writes it.
-            Labels(Milliseconds(longest / 1000.0), "0 ms", top, inner);
+            MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = Muted, Opacity = labels ? 1 : 0.7 });
+            // Zero as the frame graph writes it. Under the heap the scale is the heap's; the pauses are on the line above.
+            if (labels) Labels(Milliseconds(longest / 1000.0), "0 ms", top, inner);
         }
 
         // The highlighted mod's allocations, one bar per three pixels, against the most it allocated in one of them.
@@ -1301,10 +1372,14 @@ public sealed partial class ProfilerPage : UserControl
     {
         // Narrow: the recording tools go below the title, and the functions below their owners.
         var narrowHeader = width < 760;
-        Grid.SetRow(Toolbar, narrowHeader ? 1 : 0);
-        Grid.SetColumn(Toolbar, narrowHeader ? 0 : 1);
-        Grid.SetColumnSpan(Toolbar, narrowHeader ? 2 : 1);
-        Toolbar.Margin = new Thickness(0, narrowHeader ? 0 : 9, 0, 0);
+        Grid.SetRow(CaptureBar, narrowHeader ? 1 : 0);
+        Grid.SetColumn(CaptureBar, narrowHeader ? 0 : 1);
+        Grid.SetColumnSpan(CaptureBar, narrowHeader ? 2 : 1);
+        CaptureBar.HorizontalAlignment = narrowHeader ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        CaptureBar.Margin = new Thickness(0, narrowHeader ? 4 : 9, 0, 0);
+        // Labels give way to their icons as the window narrows; each keeps its name as a tip.
+        var compact = width < 900;
+        SaveLastText.Visibility = CompareText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         var stacked = width < 720;
         // The owner list is as wide as the tabs over it need, at least 300: a third tab, or a language with long
         // names, would otherwise be cut off.
@@ -1314,11 +1389,11 @@ public sealed partial class ProfilerPage : UserControl
         GroupRow.Height = stacked ? new GridLength(200) : new GridLength(1, GridUnitType.Star);
         DetailRow.Height = new GridLength(stacked ? 1 : 0, GridUnitType.Star);
         // Stacked, the owner's name moves from beside the tabs to just above its table.
-        Grid.SetColumn(DetailTitle, stacked ? 0 : 1);
-        Grid.SetRow(DetailTitle, stacked ? 2 : 0);
-        DetailTitle.Margin = new Thickness(16, stacked ? 16 : 0, 16, 0);
+        // Beside the owners, the table's card starts level with the tabs; stacked, it comes under the owners.
         Grid.SetColumn(DetailCard, stacked ? 0 : 1);
-        Grid.SetRow(DetailCard, stacked ? 3 : 1);
+        Grid.SetRow(DetailCard, stacked ? 3 : 0);
+        Grid.SetRowSpan(DetailCard, stacked ? 1 : 2);
+        DetailCard.Margin = new Thickness(0, stacked ? 12 : 0, 0, 0);
     }
 
     // ---- Results ----
@@ -1669,7 +1744,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private void SetSplitVisible(bool visible)
     {
-        GroupCard.Visibility = DetailCard.Visibility = DetailTitle.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        GroupCard.Visibility = DetailCard.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         ResultMessage.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -1765,7 +1840,7 @@ public sealed partial class ProfilerPage : UserControl
         shownGroup = group;
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
-        CallTreeToggle.IsOn = callTree;
+        CallTreeToggle.IsChecked = callTree;
         // Pauses have no names to look for.
         DetailSearch.Visibility = group.Kind == DetailKind.Pauses ? Visibility.Collapsed : Visibility.Visible;
 
@@ -1833,11 +1908,11 @@ public sealed partial class ProfilerPage : UserControl
     private ProfileCallNode? TreeOf(ResultGroup group) =>
         group.Kind is DetailKind.Lua or DetailKind.Allocation && shown?.LuaCallTrees.TryGetValue(group.Key, out var tree) == true ? tree : null;
 
-    private void CallTreeToggle_Toggled(object sender, RoutedEventArgs e)
+    private void CallTreeToggle_Click(object sender, RoutedEventArgs e)
     {
         // Showing an owner sets the switch to the remembered choice; that is not a change to act on.
-        if (CallTreeToggle.IsOn == callTree) return;
-        callTree = CallTreeToggle.IsOn;
+        if ((CallTreeToggle.IsChecked == true) == callTree) return;
+        callTree = CallTreeToggle.IsChecked == true;
         if (shownGroup is { } group) ShowGroup(group);
     }
 
@@ -1850,7 +1925,7 @@ public sealed partial class ProfilerPage : UserControl
     // What the table is narrowed to: rows whose name or file holds this text, any case. Kept across owners and ranges.
     private string search = "";
 
-    private void DetailSearch_TextChanged(object sender, TextChangedEventArgs e)
+    private void DetailSearch_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         search = DetailSearch.Text.Trim();
         if (shownGroup is { } group) ShowGroup(group);

@@ -429,7 +429,9 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>比較できるほかの記録がありません</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>スレッド</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>記録モード</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>クリックでこの行を隠す/表示する</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ショートカット: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新しい名前 (空欄で自動の名前)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>直前 {0} 分</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>記録 {0}</value></data>

@@ -429,7 +429,9 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>没有可对比的其他录制</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>线程</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>录制模式</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>单击以隐藏或显示此行</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>快捷键：{0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新名称（留空则使用自动名称）</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>最近 {0} 分钟</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>录制 {0}</value></data>

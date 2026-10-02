@@ -429,7 +429,9 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileCompareNone" xml:space="preserve"><value>Tidak ada rekaman lain untuk dibandingkan</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Thread</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Baru saja tersendat? Tekan ini: game menyimpan sekitar satu menit terakhir, dan itu disimpan sebagai rekaman. Mode: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Mode perekaman</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klik untuk menyembunyikan atau menampilkan baris ini</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Pintasan: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nama baru (kosongkan untuk nama otomatis)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} menit terakhir</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Rekaman {0}</value></data>

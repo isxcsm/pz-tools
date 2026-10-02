@@ -429,7 +429,9 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>Нет другой записи для сравнения</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Режим записи</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Нажмите, чтобы скрыть или показать эту строку</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сочетание клавиш: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Новое имя (пусто — автоматическое)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Последние {0} мин</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Запись {0}</value></data>

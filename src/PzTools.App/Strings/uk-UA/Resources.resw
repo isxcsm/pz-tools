@@ -429,7 +429,9 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>Немає іншого запису для порівняння</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Щойно підвисло? Натисніть: гра зберігала приблизно останню хвилину, її буде збережено як запис. Режим: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Режим запису</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Натисніть, щоб приховати або показати цей рядок</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сполучення клавіш: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Нова назва (порожньо — автоматична)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Останні {0} хв</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Запис {0}</value></data>

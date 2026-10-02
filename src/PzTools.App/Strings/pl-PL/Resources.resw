@@ -429,7 +429,9 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileCompareNone" xml:space="preserve"><value>Brak innego nagrania do porównania</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Wątki</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Właśnie przycięło? Naciśnij: gra zachowała mniej więcej ostatnią minutę, która zostanie zapisana jako nagranie. Tryb: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Tryb nagrywania</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Kliknij, aby ukryć lub pokazać ten wiersz</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Skrót: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nowa nazwa (pusta = automatyczna)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Ostatnie {0} min</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Nagranie {0}</value></data>

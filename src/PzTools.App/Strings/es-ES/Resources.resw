@@ -429,7 +429,9 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileCompareNone" xml:space="preserve"><value>No hay otra grabación con la que comparar</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Hilos</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>¿Acaba de tirones? Pulsa aquí: el juego ha conservado aproximadamente el último minuto y se guarda como grabación. Modo: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Modo de grabación</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Haz clic para ocultar o mostrar esta fila</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Atajo: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nuevo nombre (vacío para el automático)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Últimos {0} min</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Grabación {0}</value></data>

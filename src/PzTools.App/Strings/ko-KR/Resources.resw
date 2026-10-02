@@ -428,7 +428,9 @@
   <data name="ProfileCompareNone" xml:space="preserve"><value>비교할 다른 녹화가 없습니다</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>스레드</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>방금 끊겼다면 누르세요. 게임이 기록해 둔 직전 약 1분을 녹화로 저장합니다. 기록 방식: {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>녹화 방식</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>눌러서 이 줄을 숨기거나 다시 보이기</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>단축키: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>새 이름 (비워 두면 자동 이름)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>직전 {0}분</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>녹화 {0}</value></data>

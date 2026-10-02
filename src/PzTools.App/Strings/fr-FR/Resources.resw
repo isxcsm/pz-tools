@@ -429,7 +429,9 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileCompareNone" xml:space="preserve"><value>Aucun autre enregistrement à comparer</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Ça vient de saccader ? Appuyez ici : le jeu a gardé environ la dernière minute, enregistrée comme un enregistrement. Mode : {0}</value></data>
-  <data name="ProfileModeName" xml:space="preserve"><value>Mode d’enregistrement</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Cliquer pour masquer ou afficher cette ligne</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Raccourci : {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nouveau nom (vide pour le nom automatique)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} dernières min</value></data>
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Enregistrement {0}</value></data>
