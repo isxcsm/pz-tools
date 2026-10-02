@@ -459,6 +459,14 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Seskupí funkce tohoto vlastníka podle cest volání, které k nim vedly: nahoře nejvnější funkce, například obsluha události, uvnitř to, co volala. Počítají se jen vzorky, které skončily ve funkcích tohoto vlastníka. Vypnuto: prostý seznam funkcí.</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Řádek neznámý</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Hledat</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Celkový podíl řádku na čase rozsahu minus podíl téže funkce v porovnávaném záznamu, v procentních bodech. Červená: více času; zelená: méně.</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Změna</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} p. b.</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Čísla ±: o kolik procentních bodů času rozsahu část získala (červeně) nebo ztratila (zeleně) oproti téže části tam.</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Porovnáno s celým záznamem {0}</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Porovnat s</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Ukončit porovnání</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Řádek {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>

@@ -114,6 +114,7 @@ public sealed partial class ProfilerPage : UserControl
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
+        CompareItem.Text = Localizer.Get("ProfileCompare");
         DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
         AutomationProperties.SetName(DetailSearch, Localizer.Get("ProfileSearch"));
         if (IsLoaded) ApplyLayout(ActualWidth);
@@ -332,7 +333,7 @@ public sealed partial class ProfilerPage : UserControl
     private void HideResults()
     {
         ChartPanel.Visibility = ResultsGrid.Visibility = Visibility.Collapsed;
-        FewSamplesInfo.IsOpen = false;
+        FewSamplesInfo.IsOpen = CompareInfo.IsOpen = false;
     }
 
     private async void ImportItem_Click(object sender, RoutedEventArgs e)
@@ -409,6 +410,7 @@ public sealed partial class ProfilerPage : UserControl
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             service.Delete(item.File.Path);
             if (item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)) loadedPath = null;
+            if (item.File.Path.Equals(baselinePath, StringComparison.OrdinalIgnoreCase)) ClearBaseline();
             RefreshList(null);
         }
         catch (Exception exception)
@@ -1142,7 +1144,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private void ThreadBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (recording is not null && ThreadBox.SelectedIndex >= 0) Analyze();
+        if (recording is not null && ThreadBox.SelectedIndex >= 0) { Analyze(); _ = AnalyzeBaselineAsync(); }
     }
 
     private async void Analyze()
@@ -1170,6 +1172,9 @@ public sealed partial class ProfilerPage : UserControl
         if (HoverLine.Visibility == Visibility.Collapsed) ShowDefaultChartInfo();
         // A handful of samples cannot carry percentages; say so instead of showing confident numbers.
         FewSamplesInfo.IsOpen = range.Samples < 20;
+        // The range's trees are new; the comparison's frames are the range's.
+        baselineMatches.Clear();
+        ShowComparison();
 
         luaGroups = range.LuaGroups.Select(group => new ResultGroup(group.Key, OwnerName(group.Key),
             group.Self, group.Samples, DetailKind.Lua, group.Rows, [])).ToList();
@@ -1260,6 +1265,147 @@ public sealed partial class ProfilerPage : UserControl
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => highlightMovedTo = null);
         }
     }
+
+    // ---- Comparison ----
+
+    // Another recording the shown one is compared with, as a whole: each owner's and function's part of the range beside
+    // its part of that recording, and the frames beside its frames. Parts, not times, so recordings of different
+    // lengths compare. It stays while other recordings and ranges are shown, until the bar is closed.
+    private string? baselinePath, baselineName;
+    private ProfileRecording? baseline;
+    private ProfileRange? baselineRange;
+    private int baselineVersion;
+    // Matched once per tree shown: the current tree's nodes to the baseline's, and the baseline's functions' parts.
+    private readonly Dictionary<ProfileCallNode, IReadOnlyDictionary<ProfileCallNode, ProfileCallNode>> baselineMatches =
+        new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<ProfileCallNode, IReadOnlyDictionary<string, double>> baselineShares = new(ReferenceEqualityComparer.Instance);
+    // Enough to choose from; the newest come first.
+    private const int MaximumCompareChoices = 30;
+
+    private void MoreMenu_Opening(object sender, object e)
+    {
+        CompareItem.Items.Clear();
+        foreach (var item in RecordingList.Items.OfType<RecordingItem>()
+                     .Where(item => !item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)).Take(MaximumCompareChoices))
+        {
+            var choice = new ToggleMenuFlyoutItem
+            {
+                Text = item.Text, IsChecked = item.File.Path.Equals(baselinePath, StringComparison.OrdinalIgnoreCase),
+            };
+            // The click has already flipped the check: checked is a new choice, unchecked the current one taken back.
+            choice.Click += (_, _) => { if (choice.IsChecked) _ = SetBaselineAsync(item.File.Path, item.Text); else ClearBaseline(); };
+            CompareItem.Items.Add(choice);
+        }
+        if (baselinePath is not null)
+        {
+            CompareItem.Items.Add(new MenuFlyoutSeparator());
+            var off = new MenuFlyoutItem { Text = Localizer.Get("ProfileCompareOff") };
+            off.Click += (_, _) => ClearBaseline();
+            CompareItem.Items.Add(off);
+        }
+        CompareItem.IsEnabled = CompareItem.Items.Count > 0 && recording is not null;
+    }
+
+    private async Task SetBaselineAsync(string path, string name)
+    {
+        var version = ++baselineVersion;
+        ProfileRecording? loaded = null;
+        try { loaded = await Task.Run(() => ProfileRecording.Load(path)); }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) { }
+        if (version != baselineVersion) return;
+        if (loaded is null || loaded.Duration <= 0)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileLoadFailed"));
+            return;
+        }
+        (baselinePath, baselineName, baseline, baselineRange) = (path, name, loaded, null);
+        await AnalyzeBaselineAsync();
+    }
+
+    // The whole baseline, on the thread chosen for the shown recording.
+    private async Task AnalyzeBaselineAsync()
+    {
+        if (baseline is not { } other) return;
+        var version = ++baselineVersion;
+        var thread = ThreadBox.SelectedIndex == 1 || other.GameThread < 0 ? -1 : other.GameThread;
+        ProfileRange range;
+        try { range = await Task.Run(() => ProfileAnalysis.Analyze(other, 0, other.Duration, thread, MaximumGroupRows)); }
+        catch (Exception) { return; }
+        if (version != baselineVersion || !ReferenceEquals(other, baseline)) return;
+        baselineRange = range;
+        baselineMatches.Clear();
+        baselineShares.Clear();
+        ShowComparison();
+        if (shown is not null) ShowTab();
+    }
+
+    private void ClearBaseline()
+    {
+        baselineVersion++;
+        (baselinePath, baselineName, baseline, baselineRange) = (null, null, null, null);
+        baselineMatches.Clear();
+        baselineShares.Clear();
+        CompareInfo.IsOpen = false;
+        if (shown is not null) ShowTab();
+    }
+
+    private void CompareInfo_CloseButtonClick(InfoBar sender, object args) => ClearBaseline();
+
+    /// <summary>The bar over the results: what the shown range is compared with, and how the frames changed.</summary>
+    private void ShowComparison()
+    {
+        if (baselineRange is not { } other || shown is not { } range) { CompareInfo.IsOpen = false; return; }
+        CompareInfo.Title = Localizer.Format("ProfileCompareTitle", baselineName ?? "");
+        string Change(string name, string before, string after) => Localizer.Format("ProfileChangeFormat", Localizer.Get(name), before, after);
+        var parts = new List<string>();
+        if (other.Frames.Count > 0 && range.Frames.Count > 0)
+        {
+            parts.Add(Change("ProfileStatAverage", Milliseconds(other.Frames.AverageMilliseconds), Milliseconds(range.Frames.AverageMilliseconds)));
+            if (other.Frames.AverageMilliseconds > 0 && range.Frames.AverageMilliseconds > 0)
+                parts.Add(Change("ProfileStatFps", (1000 / other.Frames.AverageMilliseconds).ToString("N1", Localizer.Culture),
+                    (1000 / range.Frames.AverageMilliseconds).ToString("N1", Localizer.Culture)));
+            parts.Add(Change("ProfileStatWorst", Milliseconds(other.Frames.OnePercentWorstMilliseconds), Milliseconds(range.Frames.OnePercentWorstMilliseconds)));
+        }
+        parts.Add(Change("ProfileTabLua", FinePercent(other.LuaShare), FinePercent(range.LuaShare)));
+        CompareInfo.Message = string.Join(" · ", parts) + "\n" + Localizer.Get("ProfileCompareNote");
+        CompareInfo.IsOpen = true;
+    }
+
+    // Owners and lines compared: the scripts' and the game code's, as parts of the range. Bytes depend on how long each
+    // recording ran, and the threads and pauses are no parts.
+    private bool Comparing(ResultGroup group) => baselineRange is not null && group.Kind is DetailKind.Lua or DetailKind.Java;
+
+    /// <summary>How many points of the range an owner's part rose or fell against its part of the baseline.</summary>
+    private double? OwnerDelta(ResultGroup group)
+    {
+        if (baselineRange is not { } other || group.Share is not { } share || !Comparing(group)) return null;
+        var before = group.Kind == DetailKind.Lua
+            ? other.LuaGroups.FirstOrDefault(item => item.Key.Equals(group.Key, StringComparison.OrdinalIgnoreCase))?.Self
+            : other.MethodGroups.FirstOrDefault(item => item.Key == group.Key)?.Self;
+        return share - (before ?? 0);
+    }
+
+    // The baseline's tree of the same owner, matched to the shown one; null for an owner the baseline never ran.
+    private IReadOnlyDictionary<ProfileCallNode, ProfileCallNode>? MatchesOf(ResultGroup group, ProfileCallNode tree)
+    {
+        if (baselineRange?.LuaCallTrees.TryGetValue(group.Key, out var other) != true || other is null) return null;
+        if (!baselineMatches.TryGetValue(tree, out var matches)) baselineMatches[tree] = matches = ProfileAnalysis.MatchCallTrees(tree, other);
+        return matches;
+    }
+
+    private IReadOnlyDictionary<string, double>? SharesOf(ResultGroup group)
+    {
+        if (baselineRange?.LuaCallTrees.TryGetValue(group.Key, out var other) != true || other is null) return null;
+        if (!baselineShares.TryGetValue(other, out var shares)) baselineShares[other] = shares = ProfileAnalysis.FunctionShares(other);
+        return shares;
+    }
+
+    private static string DeltaText(double delta) =>
+        Localizer.Format("ProfileDeltaFormat", (delta * 100).ToString("+0.00;-0.00;0.00", Localizer.Culture));
+
+    // More of the range is worse: red; less, green; what rounds to nothing, muted.
+    private Brush DeltaBrush(double delta) =>
+        Math.Round(delta * 100, 2) is var points && points > 0 ? CriticalProbe.Background : points < 0 ? SuccessProbe.Background : Muted;
 
     // ---- Highlight on the frame graph ----
 
@@ -1367,6 +1513,11 @@ public sealed partial class ProfilerPage : UserControl
                 RenderChart();
             };
         }
+        // Compared with another recording: how many points of the range it gained or lost, small, before its part.
+        var delta = OwnerDelta(group) is { } change
+            ? new TextBlock { Text = DeltaText(change), Foreground = DeltaBrush(change), FontSize = 12, VerticalAlignment = VerticalAlignment.Center }
+            : null;
+        if (delta is not null) trailing.Children.Add(delta);
         trailing.Children.Add(value);
         Grid.SetColumn(trailing, 1);
         item.Children.Add(trailing);
@@ -1392,7 +1543,7 @@ public sealed partial class ProfilerPage : UserControl
             item.Children.Add(bar);
         }
         // How the highlight works is in the graph's help, not repeated on every row the pointer crosses.
-        AutomationProperties.SetName(item, group.Name + (value.Text.Length > 0 ? ", " + value.Text : ""));
+        AutomationProperties.SetName(item, group.Name + (value.Text.Length > 0 ? ", " + value.Text : "") + (delta is null ? "" : ", " + delta.Text));
         return item;
     }
 
@@ -1422,15 +1573,16 @@ public sealed partial class ProfilerPage : UserControl
         DetailRows.Children.Clear();
         foreach (var line in rows)
             DetailRows.Children.Add(line.Tree is { } item ? TreeRow(columns, group, line, item)
-                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar));
+                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta));
     }
 
     /// <summary>
     /// One line of a table: its cells as text (what a copy carries), how full the bar behind its total is (0..1, or none),
-    /// and for a call tree the node it shows.
+    /// and for a call tree the node it shows. Compared with another recording, <see cref="Delta"/> is how many points of
+    /// the range its total gained or lost, which the table adds as a last column.
     /// </summary>
     private sealed record TableLine((string Text, string? Tip, bool Right)[] Cells, double? Bar = null, TreeItem? Tree = null,
-        double? SelfBar = null);
+        double? SelfBar = null, double? Delta = null);
 
     // ---- Call tree ----
 
@@ -1532,7 +1684,7 @@ public sealed partial class ProfilerPage : UserControl
     /// is one hover away, so a large part of a light owner is not mistaken for a heavy one.
     /// </summary>
     private TableLine FunctionLine(ProfileCallNode owner, bool allocation, string name, string file, int selfSamples, int samples,
-        int shownSamples, long allocatedSelf, long allocatedTotal, string indent = "", TreeItem? tree = null)
+        int shownSamples, long allocatedSelf, long allocatedTotal, string indent = "", TreeItem? tree = null, double? delta = null)
     {
         (string, string?, bool) Part(int part, long bytes)
         {
@@ -1558,7 +1710,7 @@ public sealed partial class ProfilerPage : UserControl
             (indent + name, name, false), (LuaFileName(file), file, false),
             Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
             (shownSamples.ToString("N0", Localizer.Culture), null, true),
-        ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0);
+        ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0, delta);
     }
 
     /// <summary>
@@ -1577,7 +1729,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TableLine line, TreeItem item)
     {
-        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar);
+        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta);
         // The name cell gives way to an indented one with the open/close arrow in front.
         row.Children.RemoveAt(0);
         var name = new Grid { Margin = new Thickness(item.Depth * 16, 0, 0, 0), ColumnSpacing = 2 };
@@ -1651,6 +1803,9 @@ public sealed partial class ProfilerPage : UserControl
             DetailKind.Pauses => [Fixed(90), Fixed(90), Star(1), Star(2)],
             _ => (GridLength[])[Star(1), .. numbers],
         };
+        // Compared with another recording, one more column: how many points of the range each line gained or lost.
+        var comparing = Comparing(group);
+        if (comparing) columns = [.. columns, Fixed(84)];
         var tree = TreeOf(group);
         // Each heading its own tip; a script owner's parts are of the owner, and its samples mean what the view counts.
         var (selfTip, totalTip) = group.Kind switch
@@ -1680,6 +1835,7 @@ public sealed partial class ProfilerPage : UserControl
                 (Localizer.Get("ProfileColumnKind"), null, false), (Localizer.Get("ProfileColumnDetail"), null, false),
             ],
         };
+        if (comparing) header = [.. header, (Localizer.Get("ProfileColumnDelta"), Localizer.Get("ProfileColumnDeltaTip"), true)];
         var rows = new List<TableLine>();
         if (group.Kind == DetailKind.Pauses)
         {
@@ -1703,6 +1859,15 @@ public sealed partial class ProfilerPage : UserControl
         if (tree is not null)
         {
             var allocation = group.Kind == DetailKind.Allocation;
+            // A node against the one at the same path in the baseline, a function against the same function there;
+            // what the baseline never ran is all gain.
+            var matches = comparing ? MatchesOf(group, tree) : null;
+            var shares = comparing ? SharesOf(group) : null;
+            double? NodeDelta(ProfileCallNode node) =>
+                comparing ? node.Total - (matches?.TryGetValue(node, out var same) == true ? same.Total : 0) : null;
+            double? FunctionDelta(ProfileFunctionTotal row) => comparing
+                ? (tree.Samples > 0 ? tree.Total * row.Samples / tree.Samples : 0) - (shares?.GetValueOrDefault(ProfileAnalysis.ScriptKey(row.Name, row.File)) ?? 0)
+                : null;
             if (callTree)
                 foreach (var item in TreeRows(group, tree))
                 {
@@ -1714,7 +1879,7 @@ public sealed partial class ProfilerPage : UserControl
                             totals: true, indent, item));
                     else if (item.Node is { } node)
                         rows.Add(FunctionLine(tree, allocation, node.Name, node.File, node.SelfSamples, node.Samples, node.Samples,
-                            node.AllocatedSelf, node.AllocatedTotal, indent, item));
+                            node.AllocatedSelf, node.AllocatedTotal, indent, item, NodeDelta(node)));
                 }
             else
             {
@@ -1730,7 +1895,7 @@ public sealed partial class ProfilerPage : UserControl
                     var path = $"lines/{row.Function}";
                     var isOpen = open.Contains(path);
                     rows.Add(FunctionLine(tree, allocation, row.Name, row.File, row.SelfSamples, row.Samples, row.SelfSamples,
-                        row.AllocatedSelf, row.AllocatedTotal, indent, new TreeItem(null, indent.Length / 2, path, true, isOpen)));
+                        row.AllocatedSelf, row.AllocatedTotal, indent, new TreeItem(null, indent.Length / 2, path, true, isOpen), FunctionDelta(row)));
                     if (!isOpen || shown is not { } range) return;
                     IEnumerable<ProfileLineTotal> lines = ProfileAnalysis.LinesIn(recording!, range.Start, range.End, group.Key, row.Function);
                     if (allocation) lines = lines.Where(line => line.AllocatedTotal > 0).OrderByDescending(line => line.AllocatedTotal);
@@ -1753,13 +1918,20 @@ public sealed partial class ProfilerPage : UserControl
                 }
             }
             ScaleBars(rows);
+            if (comparing) AddDeltas(rows);
             return (columns, header, rows);
         }
         if (group.Kind == DetailKind.Java)
         {
             // Like a script owner's list: the group is 100%, gauges behind the numbers, the long tail in one closed row.
             var methods = group.Rows.Where(row => Matches(row.Name)).ToArray();
-            foreach (var row in methods.Take(RowsPerGroup)) rows.Add(MethodLine(group, row));
+            // The same method in the same part of the baseline's game code.
+            var before = comparing
+                ? baselineRange!.MethodGroups.FirstOrDefault(other => other.Key == group.Key)?.Rows
+                    .GroupBy(row => row.Name).ToDictionary(same => same.Key, same => same.First().Total)
+                : null;
+            double? Delta(ProfileShare row) => comparing ? row.Total - (before?.GetValueOrDefault(row.Name) ?? 0) : null;
+            foreach (var row in methods.Take(RowsPerGroup)) rows.Add(MethodLine(group, row, "", Delta(row)));
             if (methods.Length > RowsPerGroup)
             {
                 var rest = methods.Skip(RowsPerGroup).ToArray();
@@ -1774,15 +1946,26 @@ public sealed partial class ProfilerPage : UserControl
                     (FinePercent(whole > 0 ? self / whole : 0), Localizer.Format("ProfileShareOfRunFormat", FinePercent(self)), true), ("", null, true),
                     (rest.Sum(row => row.Samples).ToString("N0", Localizer.Culture), null, true),
                 ], Tree: new TreeItem(null, 0, path, true, restOpen)));
-                if (restOpen) foreach (var row in rest) rows.Add(MethodLine(group, row, "  "));
+                if (restOpen) foreach (var row in rest) rows.Add(MethodLine(group, row, "  ", Delta(row)));
             }
             ScaleBars(rows);
+            if (comparing) AddDeltas(rows);
             return (columns, header, rows);
         }
         foreach (var row in group.Rows.Where(row => Matches(row.Name)))
             rows.Add(new([(row.Name, row.Name, false), (FinePercent(row.Self), null, true), (FinePercent(row.Total), null, true),
                 (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
         return (columns, header, rows);
+    }
+
+    // The change as the last cell; empty for a line that is no function (a gathered rest, a function's line).
+    private static void AddDeltas(List<TableLine> rows)
+    {
+        for (var index = 0; index < rows.Count; index++)
+            rows[index] = rows[index] with
+            {
+                Cells = [.. rows[index].Cells, (rows[index].Delta is { } delta ? DeltaText(delta) : "", null, true)],
+            };
     }
 
     // Bars against the table's largest total, so the heaviest line fills its column and the rest compare to it.
@@ -1798,7 +1981,7 @@ public sealed partial class ProfilerPage : UserControl
     /// A method's line in a part of the game code: its parts of the group, the group being 100%, with what they are of all
     /// the running time one hover away; the self gauge is its own part of its total, as in the script tables.
     /// </summary>
-    private static TableLine MethodLine(ResultGroup group, ProfileShare row, string indent = "")
+    private static TableLine MethodLine(ResultGroup group, ProfileShare row, string indent = "", double? delta = null)
     {
         var whole = group.Share ?? 0;
         (string, string?, bool) Part(double share) =>
@@ -1808,7 +1991,7 @@ public sealed partial class ProfilerPage : UserControl
         [
             (indent + ShortMethod(row.Name), row.Name, false), (package, package, false),
             Part(row.Self), Part(row.Total), (row.Samples.ToString("N0", Localizer.Culture), null, true),
-        ], whole > 0 ? Math.Clamp(row.Total / whole, 0, 1) : 0, null, row.Total > 0 ? Math.Clamp(row.Self / row.Total, 0, 1) : 0);
+        ], whole > 0 ? Math.Clamp(row.Total / whole, 0, 1) : 0, null, row.Total > 0 ? Math.Clamp(row.Self / row.Total, 0, 1) : 0, delta);
     }
 
     // "zombie.iso.IsoCell.render" is in "zombie.iso"; the class and method are the name's column.
@@ -1822,7 +2005,7 @@ public sealed partial class ProfilerPage : UserControl
     /// <param name="bar">How full the gauge behind the total is (0..1), for a script function; none elsewhere.</param>
     /// <param name="selfBar">How full the gauge behind the self figure is: the line's own part of its total.</param>
     private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header,
-        double? bar = null, double? selfBar = null)
+        double? bar = null, double? selfBar = null, double? delta = null)
     {
         var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(0, header ? 0 : 5, 0, header ? 0 : 5) };
         foreach (var width in columns) row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
@@ -1837,7 +2020,8 @@ public sealed partial class ProfilerPage : UserControl
             };
             if (header) cell.Foreground = Muted;
             // A script table's number headings stand over their numbers, which sit inset in their gauges.
-            if (header && cells.Count == 5 && index is SelfColumn or TotalColumn) cell.Padding = new Thickness(0, 0, 6, 0);
+            if (header && cells.Count >= 5 && index is SelfColumn or TotalColumn) cell.Padding = new Thickness(0, 0, 6, 0);
+            if (!header && index == DeltaColumn && delta is { } change) cell.Foreground = DeltaBrush(change);
             if (tip is { Length: > 0 } && (header || tip != text)) AppToolTip.SetTip(cell, tip);
             Grid.SetColumn(cell, index);
             // Gauges behind the numbers: a faint track the width of the column, so the number always sits in it, and a
@@ -1868,8 +2052,8 @@ public sealed partial class ProfilerPage : UserControl
         return row;
     }
 
-    // The numbers' places in a script function's line: name, file, self, total, samples.
-    private const int SelfColumn = 2, TotalColumn = 3;
+    // The numbers' places in a script function's line: name, file, self, total, samples, and compared, the change.
+    private const int SelfColumn = 2, TotalColumn = 3, DeltaColumn = 5;
 
     // ---- Copy ----
 
@@ -1888,18 +2072,19 @@ public sealed partial class ProfilerPage : UserControl
             ThreadBox.SelectedItem as string,
         }.Where(part => !string.IsNullOrEmpty(part))));
         text.AppendLine(rangeSummary);
+        if (CompareInfo.IsOpen) text.AppendLine($"{CompareInfo.Title}: {CompareInfo.Message.Replace("\n", " · ")}");
         text.AppendLine();
         text.AppendLine(TabItem.Text);
         if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);
         else
         {
-            // The list as it reads: its headings (with the scripts' total), then each owner.
+            // The list as it reads: its headings (with the scripts' total), then each owner, and compared, the change.
             var share = GroupShareTotal.Text.Length > 0 ? $"{GroupShareText.Text} {GroupShareTotal.Text}" : GroupShareText.Text;
-            var list = new List<(string Text, string? Tip, bool Right)[]>
-            {
-                new[] { (GroupNameHeading.Text, (string?)null, false), (share, (string?)null, true) },
-            };
-            list.AddRange(listedGroups.Select(group => new[] { (group.Name, (string?)null, false), (ValueOf(group), (string?)null, true) }));
+            var compared = listedGroups.Any(group => OwnerDelta(group) is not null);
+            (string Text, string? Tip, bool Right)[] Line(string name, string value, string change) =>
+                compared ? [(name, null, false), (value, null, true), (change, null, true)] : [(name, null, false), (value, null, true)];
+            var list = new List<(string Text, string? Tip, bool Right)[]> { Line(GroupNameHeading.Text, share, Localizer.Get("ProfileColumnDelta")) };
+            list.AddRange(listedGroups.Select(group => Line(group.Name, ValueOf(group), OwnerDelta(group) is { } delta ? DeltaText(delta) : "")));
             AppendTable(text, list, "  ");
         }
         if (GroupList.SelectedIndex >= 0 && GroupList.SelectedIndex < listedGroups.Count)

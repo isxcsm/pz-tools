@@ -433,6 +433,14 @@
   <data name="ProfileCallTree" xml:space="preserve"><value>ต้นไม้การเรียก</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>จัดกลุ่มฟังก์ชันของเจ้าของนี้ตามเส้นทางการเรียกที่นำมาถึง: ฟังก์ชันชั้นนอกสุด เช่น ตัวจัดการอีเวนต์ อยู่ด้านบน และสิ่งที่มันเรียกอยู่ด้านใน นับเฉพาะตัวอย่างที่จบในฟังก์ชันของเจ้าของนี้ ปิด: รายการฟังก์ชันแบบธรรมดา</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>ค้นหา</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>เปรียบเทียบกับ</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>หยุดเปรียบเทียบ</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>เปรียบเทียบกับ {0} ทั้งหมด</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>ตัวเลข ±: สัดส่วนเวลาของช่วงที่ส่วนนั้นเพิ่มขึ้น (แดง) หรือลดลง (เขียว) กี่จุดเมื่อเทียบกับส่วนเดียวกันในอีกการบันทึก</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} จุด</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>เปลี่ยนแปลง</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>สัดส่วนรวมของแถวนี้ในเวลาของช่วง ลบด้วยสัดส่วนของฟังก์ชันเดียวกันในการบันทึกที่เปรียบเทียบ เป็นจุดเปอร์เซ็นต์ แดง: ใช้เวลามากขึ้น เขียว: น้อยลง</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>บรรทัด {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>ไม่ทราบบรรทัด</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>ขยาย</value></data>

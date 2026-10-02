@@ -426,6 +426,14 @@
   <data name="ProfileCallTree" xml:space="preserve"><value>调用树</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>按调用路径分组显示此所属方的函数：最外层的函数（如事件处理函数）在上，展开后显示它调用的函数。只统计结束于此所属方函数的样本。关闭后显示函数列表。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>搜索</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>对比对象</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>停止对比</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>正在与 {0} 全程对比</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>± 数值：该项在范围时间中的占比比对比录制增加（红）或减少（绿）了多少个百分点。</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>变化</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>此行总计在范围时间中的占比，减去对比录制中同一函数的占比（百分点）。红色表示时间增加，绿色表示减少。</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>第 {0} 行</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>行号未知</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展开</value></data>

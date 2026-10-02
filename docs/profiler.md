@@ -191,6 +191,20 @@ file holds the text, in any case; in the tree it keeps the paths that lead to a 
 opened down to it. It applies to the game code's methods and the threads too, and holds
 while other owners and ranges are shown.
 
+**Comparing two recordings.** In the **…** menu, *Compare with* lists the other
+recordings; pick one, say from before a mod was added or updated, and the shown range is
+compared with the whole of it. A bar over the results names it and sets the frames side
+by side (average, FPS, worst 1%, and the scripts' part of the time), before → after. The
+owner list in *Scripts* and *Game code* gains a small figure beside each part, and the
+table a *Change* column: how many percentage points of the range's time the owner or the
+function gained (red) or lost (green) against the same one there. Parts are compared, not
+times, so recordings of different lengths compare; a function is the same one by its name
+and its file from *media/lua/* on, so a mod moved from the workshop to a local copy, or
+updated, still matches. In the tree a row is matched by its whole path; a path the other
+recording never took counts as all gain. *Memory allocation* is not compared, as its bytes
+depend on how long each recording ran. The comparison stays while other recordings and
+ranges are shown; close the bar, or choose *Stop comparing*, to end it.
+
 Tree and list count the same samples, those that ended in the chosen owner's functions,
 and their percentages are parts of the owner, the owner being 100%: the question there is
 where inside it the time went, and parts of a long range shrank to 0.0%. They have two

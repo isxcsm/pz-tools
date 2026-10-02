@@ -426,6 +426,14 @@
   <data name="ProfileCallTree" xml:space="preserve"><value>Дерево викликів</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вимкнено: простий список функцій.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Пошук</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Порівняти з</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Припинити порівняння</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Порівняння з усім записом {0}</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Числа ±: на скільки відсоткових пунктів часу діапазону частка зросла (червоний) чи зменшилася (зелений) порівняно з тією ж часткою там.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} в. п.</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Зміна</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Загальна частка рядка в часі діапазону мінус частка тієї ж функції в порівнюваному записі, у відсоткових пунктах. Червоний — більше часу, зелений — менше.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Рядок {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Рядок невідомий</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Розгорнути</value></data>

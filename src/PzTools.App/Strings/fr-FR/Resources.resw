@@ -426,6 +426,14 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileCallTree" xml:space="preserve"><value>Arbre d’appels</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Regroupe les fonctions de ce propriétaire selon les chemins d’appel qui y ont mené : en haut la fonction la plus externe, comme un gestionnaire d’événement, et dedans ce qu’elle a appelé. Seuls comptent les échantillons terminés dans une fonction de ce propriétaire. Désactivé : une simple liste des fonctions.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Rechercher</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Comparer avec</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Arrêter la comparaison</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparé à tout {0}</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Chiffres ± : combien de points du temps de la plage une part a gagnés (rouge) ou perdus (vert) par rapport à la même part là-bas.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pts</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Écart</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Le total de la ligne en part du temps de la plage, moins la part de la même fonction dans l’enregistrement comparé, en points de pourcentage. Rouge : plus de temps ; vert : moins.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Ligne {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Ligne inconnue</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Développer</value></data>

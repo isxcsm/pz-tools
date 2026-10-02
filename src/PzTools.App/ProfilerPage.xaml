@@ -42,6 +42,7 @@
       <Border x:Name="SecondaryTextProbe" Background="{ThemeResource TextFillColorSecondaryBrush}" />
       <Border x:Name="PrimaryTextProbe" Background="{ThemeResource TextFillColorPrimaryBrush}" />
       <Border x:Name="SuccessProbe" Background="{ThemeResource SystemFillColorSuccessBrush}" />
+      <Border x:Name="CriticalProbe" Background="{ThemeResource SystemFillColorCriticalBrush}" />
     </StackPanel>
 
     <!-- The title and everything about recordings share one line: record, mode, which recording, which thread,
@@ -88,7 +89,12 @@
                 Style="{StaticResource SubtleButtonStyle}">
           <FontIcon Glyph="&#xE712;" FontSize="16" />
           <Button.Flyout>
-            <MenuFlyout Placement="BottomEdgeAlignedRight">
+            <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="MoreMenu_Opening">
+              <!-- The other recordings, one of which the shown one is compared with; filled when the menu opens. -->
+              <MenuFlyoutSubItem x:Name="CompareItem" AutomationProperties.AutomationId="ProfileCompareItem">
+                <MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE8AB;" /></MenuFlyoutSubItem.Icon>
+              </MenuFlyoutSubItem>
+              <MenuFlyoutSeparator />
               <MenuFlyoutItem x:Name="ImportItem" Click="ImportItem_Click">
                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8E5;" /></MenuFlyoutItem.Icon>
               </MenuFlyoutItem>
@@ -226,7 +232,12 @@
         </local:ResizeGrip>
       </StackPanel>
 
-      <InfoBar x:Name="FewSamplesInfo" Grid.Row="1" Margin="0,4,0,0" IsOpen="False" IsClosable="False" Severity="Warning" />
+      <StackPanel Grid.Row="1">
+        <InfoBar x:Name="FewSamplesInfo" Margin="0,4,0,0" IsOpen="False" IsClosable="False" Severity="Warning" />
+        <!-- The recording the shown one is compared with, and how their frames differ; closing it ends the comparison. -->
+        <InfoBar x:Name="CompareInfo" Margin="0,4,0,0" IsOpen="False" IsClosable="True" Severity="Informational"
+                 CloseButtonClick="CompareInfo_CloseButtonClick" AutomationProperties.AutomationId="ProfileCompareInfo" />
+      </StackPanel>
 
       <!-- Scripts or game code, one at a time. Who took the time on the left, what exactly on the right:
            pick an owner, read its functions. The chosen owner's name and share head the table from outside it. -->

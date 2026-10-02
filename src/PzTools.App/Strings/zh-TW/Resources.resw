@@ -426,6 +426,14 @@
   <data name="ProfileCallTree" xml:space="preserve"><value>呼叫樹</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>搜尋</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>比較對象</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>停止比較</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>正在與 {0} 全程比較</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>± 數值：該項在範圍時間中的占比比比較錄製增加（紅）或減少（綠）了多少個百分點。</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>變化</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>此列總計在範圍時間中的占比，減去比較錄製中同一函式的占比（百分點）。紅色表示時間增加，綠色表示減少。</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>第 {0} 行</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>行號不明</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>

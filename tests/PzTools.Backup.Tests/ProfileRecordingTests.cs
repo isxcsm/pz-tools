@@ -149,6 +149,41 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Comparison_MatchesFunctionsAcrossRecordings_ByNameAndScriptPath()
+    {
+        var baseline = ProfileAnalysis.Analyze(Load(Sample), 0, 50_000, 0);
+        // The same mod from a local copy instead of the workshop, and one more path: OnTick calling the helper itself.
+        var current = ProfileAnalysis.Analyze(
+            Load(Sample.Replace("workshop/123/mods/SlowMod/42/media", "mods/SlowMod/media") + "\nLK|3|2:7 1:80\nL|1047000|3"), 0, 50_000, 0);
+        Assert.Equal(ProfileAnalysis.ScriptKey("slow", "workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua"),
+            ProfileAnalysis.ScriptKey("slow", "mods/SlowMod/media/lua/client/Slow.lua"));
+        Assert.NotEqual(ProfileAnalysis.ScriptKey("slow", "a/media/lua/client/Slow.lua"), ProfileAnalysis.ScriptKey("slow", "a/media/lua/server/Slow.lua"));
+
+        // Root, OnTick and slow: the whole path found again.
+        var mod = current.LuaCallTrees["SlowMod"];
+        var matched = ProfileAnalysis.MatchCallTrees(mod, baseline.LuaCallTrees["SlowMod"]);
+        Assert.Equal(3, matched.Count);
+        Assert.Equal("slow", matched[mod.Children[0].Children[0]].Name);
+        // OnTick, slow, helper is in both; OnTick calling the helper only in the new one.
+        var unknown = current.LuaCallTrees[ProfileAnalysis.UnknownOwner];
+        var paths = ProfileAnalysis.MatchCallTrees(unknown, baseline.LuaCallTrees[ProfileAnalysis.UnknownOwner]);
+        var onTick = Assert.Single(unknown.Children);
+        Assert.True(paths.ContainsKey(onTick.Children.Single(node => node.Name == "slow").Children[0]));
+        Assert.False(paths.ContainsKey(onTick.Children.Single(node => node.Name == "helper")));
+
+        // As parts of the range: the mod's function the same in both, the helper twice as heavy in the new one.
+        var slowKey = ProfileAnalysis.ScriptKey("slow", "mods/SlowMod/media/lua/client/Slow.lua");
+        Assert.Equal(ProfileAnalysis.FunctionShares(baseline.LuaCallTrees["SlowMod"])[slowKey],
+            ProfileAnalysis.FunctionShares(mod)[slowKey], 6);
+        // A function's part is its total: OnTick ran nothing itself, but every one of the mod's samples passed through it.
+        Assert.Equal(mod.Total, ProfileAnalysis.FunctionShares(mod)[ProfileAnalysis.ScriptKey("OnTick", "media/lua/client/ISUI/ISGame.lua")], 6);
+        var helperKey = ProfileAnalysis.ScriptKey("helper", "somewhere/odd.lua");
+        var before = ProfileAnalysis.FunctionShares(baseline.LuaCallTrees[ProfileAnalysis.UnknownOwner])[helperKey];
+        Assert.True(before > 0);
+        Assert.Equal(before * 2, ProfileAnalysis.FunctionShares(unknown)[helperKey], 6);
+    }
+
+    [Fact]
     public void Read_ShortensTopLevelCodeNamedAfterAFullPath_InRecordingsThatStillHaveIt()
     {
         // Recorded before the recorder shortened such names: the full path, user folder included.

@@ -381,6 +381,52 @@ public static class ProfileAnalysis
     }
 
     /// <summary>
+    /// What names a script function across recordings: its name and its file from the mod's media/lua on, the part
+    /// that holds when a mod moves (a workshop download, a local copy) or is updated. Function numbers are one
+    /// recording's.
+    /// </summary>
+    public static string ScriptKey(string name, string file)
+    {
+        var at = file.IndexOf("media/lua/", StringComparison.OrdinalIgnoreCase);
+        return name + "\n" + (at < 0 ? file : file[at..]);
+    }
+
+    /// <summary>
+    /// Each node of <paramref name="current"/> with the one at the same call path in <paramref name="baseline"/>, matched
+    /// by <see cref="ScriptKey"/> level by level; a path the baseline never took is left out.
+    /// </summary>
+    public static IReadOnlyDictionary<ProfileCallNode, ProfileCallNode> MatchCallTrees(ProfileCallNode current, ProfileCallNode baseline)
+    {
+        var matched = new Dictionary<ProfileCallNode, ProfileCallNode>(ReferenceEqualityComparer.Instance);
+        void Match(ProfileCallNode node, ProfileCallNode other)
+        {
+            matched[node] = other;
+            if (node.Children.Count == 0 || other.Children.Count == 0) return;
+            var byKey = new Dictionary<string, ProfileCallNode>();
+            // Two functions of one name in one file (a local function and a global) share a key; the heavier one is
+            // kept, as the children come most samples first.
+            foreach (var child in other.Children) byKey.TryAdd(ScriptKey(child.Name, child.File), child);
+            foreach (var child in node.Children)
+                if (byKey.TryGetValue(ScriptKey(child.Name, child.File), out var same)) Match(child, same);
+        }
+        Match(current, baseline);
+        return matched;
+    }
+
+    /// <summary>
+    /// Each function of an owner's tree with its total as a part of the whole range, by <see cref="ScriptKey"/>: the
+    /// owner's share split by the samples that passed through the function.
+    /// </summary>
+    public static IReadOnlyDictionary<string, double> FunctionShares(ProfileCallNode tree)
+    {
+        var shares = new Dictionary<string, double>();
+        if (tree.Samples <= 0) return shares;
+        foreach (var row in FunctionsIn(tree))
+            shares.TryAdd(ScriptKey(row.Name, row.File), tree.Total * row.Samples / tree.Samples);
+        return shares;
+    }
+
+    /// <summary>
     /// One function's lines in a range, counting the samples that ended in <paramref name="owner"/>'s functions, as the
     /// owner's table does: where in the function the time (and the bytes) went. Most samples first.
     /// </summary>

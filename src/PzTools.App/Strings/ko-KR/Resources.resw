@@ -425,6 +425,14 @@
   <data name="ProfileCallTree" xml:space="preserve"><value>호출 트리</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>이 모드의 함수를 호출된 경로대로 묶어 보여줍니다. 이벤트 처리 함수처럼 가장 바깥 함수가 맨 위에 있고, 펼치면 그 함수가 부른 함수가 나옵니다. 이 모드의 함수에서 끝난 샘플만 셉니다. 끄면 함수 목록으로 봅니다.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>검색</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>비교 대상</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>비교 끄기</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} 전체와 비교 중</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>± 숫자: 범위 시간 중 그 항목의 비율이 비교 녹화보다 몇 %p 늘었는지(빨강) 줄었는지(초록)입니다.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0}%p</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>변화</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>이 줄의 전체(Total)가 범위 시간에서 차지하는 비율에서, 비교 녹화의 같은 함수 비율을 뺀 값(%p). 빨강은 시간이 늘어남, 초록은 줄어듦.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>{0}번 줄</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>줄 정보 없음</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>펼치기</value></data>

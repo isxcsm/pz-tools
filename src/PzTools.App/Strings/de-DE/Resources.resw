@@ -426,6 +426,14 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileCallTree" xml:space="preserve"><value>Aufrufbaum</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Aus: eine einfache Liste der Funktionen.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Suchen</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Vergleichen mit</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Vergleich beenden</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Verglichen mit ganz {0}</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>±-Werte: um wie viele Prozentpunkte der Zeit des Bereichs ein Anteil gegenüber demselben Anteil dort gewachsen (rot) oder geschrumpft (grün) ist.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Änderung</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Der Gesamtanteil der Zeile an der Zeit des Bereichs minus der Anteil derselben Funktion in der Vergleichsaufnahme, in Prozentpunkten. Rot: mehr Zeit; grün: weniger.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Zeile {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Zeile unbekannt</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Aufklappen</value></data>

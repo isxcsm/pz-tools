@@ -426,6 +426,14 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileCallTree" xml:space="preserve"><value>Árbol de llamadas</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa las funciones de este propietario por las rutas de llamada que llevaron a ellas: arriba la función más externa, como un controlador de eventos, y dentro lo que llamó. Solo cuentan las muestras que terminaron en funciones de este propietario. Desactivado: una lista simple de funciones.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Buscar</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Comparar con</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Dejar de comparar</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparado con toda {0}</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Cifras ±: cuántos puntos del tiempo del rango ganó (rojo) o perdió (verde) una parte frente a la misma parte allí.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} p. p.</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Cambio</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>El total de la línea como parte del tiempo del rango, menos la parte de la misma función en la grabación comparada, en puntos porcentuales. Rojo: más tiempo; verde: menos.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Línea {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Línea desconocida</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>

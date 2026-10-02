@@ -426,6 +426,14 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileCallTree" xml:space="preserve"><value>Drzewo wywołań</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Grupuje funkcje tego właściciela według ścieżek wywołań, które do nich prowadziły: na górze funkcja najbardziej zewnętrzna, np. obsługa zdarzenia, a wewnątrz to, co wywołała. Liczą się tylko próbki zakończone w funkcjach tego właściciela. Wyłączone: zwykła lista funkcji.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Szukaj</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Porównaj z</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Zakończ porównanie</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Porównanie z całym nagraniem {0}</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Liczby ±: o ile punktów procentowych czasu zakresu część zyskała (czerwony) lub straciła (zielony) względem tej samej części tam.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pp</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Zmiana</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Łączny udział wiersza w czasie zakresu minus udział tej samej funkcji w porównywanym nagraniu, w punktach procentowych. Czerwony: więcej czasu; zielony: mniej.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Wiersz {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Wiersz nieznany</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozwiń</value></data>

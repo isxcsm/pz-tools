@@ -426,6 +426,14 @@
   <data name="ProfileCallTree" xml:space="preserve"><value>呼び出しツリー</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>この所有者の関数を、そこへ至った呼び出し経路ごとにまとめて表示します。イベント処理関数のような一番外側の関数が上にあり、展開するとその関数が呼んだ関数が表示されます。この所有者の関数で終わったサンプルだけを数えます。オフにすると関数の一覧になります。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>検索</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>比較対象</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>比較をやめる</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} 全体と比較中</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>± の数値: 範囲の時間に占めるその項目の割合が、比較先より何ポイント増えた (赤) か減った (緑) か。</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} pt</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>変化</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>この行の合計が範囲の時間に占める割合から、比較先の同じ関数の割合を引いた値 (ポイント)。赤は時間が増加、緑は減少。</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>{0} 行目</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>行不明</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>

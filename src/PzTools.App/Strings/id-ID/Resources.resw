@@ -426,6 +426,14 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileCallTree" xml:space="preserve"><value>Pohon panggilan</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Mati: daftar fungsi biasa.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Cari</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Bandingkan dengan</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Berhenti membandingkan</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Dibandingkan dengan seluruh {0}</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Angka ±: berapa poin waktu rentang yang bertambah (merah) atau berkurang (hijau) pada suatu bagian dibanding bagian yang sama di sana.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} poin</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Perubahan</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Total baris sebagai bagian dari waktu rentang, dikurangi bagian fungsi yang sama di rekaman pembanding, dalam poin persentase. Merah: lebih lama; hijau: lebih singkat.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Baris {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Baris tidak diketahui</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Bentangkan</value></data>
