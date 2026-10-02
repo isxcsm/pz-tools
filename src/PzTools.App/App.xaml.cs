@@ -16,6 +16,7 @@ public partial class App : Application
     private string? runtimeRoot;
     private readonly SemaphoreSlim settingsGate = new(1, 1);
     private SystemTrayIcon? trayIcon;
+    private HotKeyController? hotKeys;
     private bool useSystemTray;
     private bool exitConfirmed;
     private bool exitDialogOpen;
@@ -64,6 +65,8 @@ public partial class App : Application
 
     public AppHost? Host { get; private set; }
     public Window MainWindow => window ?? throw new InvalidOperationException(Localizer.Get("WindowNotCreated"));
+    /// <summary>The key combinations the app holds for its actions; null before the window exists.</summary>
+    internal HotKeyController? HotKeys => hotKeys;
 
     internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message)
     {
@@ -118,6 +121,8 @@ public partial class App : Application
         {
             activationListener?.Dispose();
             activationListener = null;
+            hotKeys?.Dispose();
+            hotKeys = null;
             trayIcon?.Dispose();
             trayIcon = null;
             if (Host is not null) await Host.DisposeAsync();
@@ -129,6 +134,8 @@ public partial class App : Application
                 Localizer.Get("SettingsTitle.Text"),
                 UserFacingError.FromConfigurationException(configurationError));
         ConfigureTray(settings.UseSystemTray);
+        hotKeys = new HotKeyController(this, window);
+        hotKeys.Apply(settings);
         _ = StartHostAsync();
     }
 
@@ -289,6 +296,7 @@ public partial class App : Application
             ApplyLanguage(settings.Language);
             ApplyTheme(settings.Theme);
             ConfigureTray(settings.UseSystemTray);
+            hotKeys?.Apply(settings);
         }
     }
 
@@ -300,6 +308,7 @@ public partial class App : Application
         if (window is not null) window.Content = new MainWindowShell();
         ApplyTheme(settings.Theme);
         ConfigureTray(settings.UseSystemTray);
+        hotKeys?.Apply(settings);
     }
 
     public void ApplyLanguage(SupportedLanguage language, bool reloadContent = true)

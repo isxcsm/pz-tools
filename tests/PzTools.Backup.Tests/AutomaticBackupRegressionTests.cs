@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PzTools.App.Core;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts;
 using PzTools.Projections;
@@ -173,6 +174,43 @@ public sealed class AutomaticBackupRegressionTests
             (_, _, _, _, _) => throw new InvalidOperationException("must not launch"),
             (_, _, _, _, _) => throw new InvalidOperationException("must not maintain"), isTargetActive: _ => false);
         Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due);
+    }
+
+    [Fact]
+    public async Task PausedPeriodicBackup_StaysDueWithoutStarting_AndGoesOnOnceThePauseEnds()
+    {
+        using var temp = new TempDirectory();
+        var database = await ConfiguredAsync(temp);
+        var now = DateTimeOffset.UtcNow;
+        await database.EnqueueTargetCommandAsync(new("active", BackupTargetCommandKind.ActivateTarget, Target(temp)));
+        await database.PrepareBackupTickAsync(now);
+        var until = now.AddMinutes(30);
+        await database.PauseBackupsAsync(until);
+        Assert.Equal(until, (await database.ReadBackupStateIfChangedAsync(-1)).PausedUntilUtc);
+        var scheduler = new BackupScheduler(database, _ => throw new TimeoutException("allocated"),
+            (_, _, _, _, _) => throw new InvalidOperationException("must not launch"),
+            (_, _, _, _, _) => throw new InvalidOperationException("must not maintain"));
+        // Due, held: nothing is allocated or started.
+        var held = await scheduler.TickAsync(now.AddMinutes(10));
+        Assert.Equal((false, ProcessOutcome.Skipped), (held.Due, held.Outcome));
+        // The pause over, the same due backup goes on (here, as far as allocating its run).
+        await Assert.ThrowsAsync<TimeoutException>(() => scheduler.TickAsync(until.AddSeconds(1)));
+        // Resuming early ends it.
+        await database.PauseBackupsAsync(now.AddHours(1));
+        await database.ResumeBackupsAsync();
+        Assert.Null((await database.ReadBackupStateIfChangedAsync(-1)).PausedUntilUtc);
+        await Assert.ThrowsAsync<TimeoutException>(() => scheduler.TickAsync(now.AddMinutes(10)));
+    }
+
+    [Fact]
+    public void Countdown_SaysAutomaticBackupsArePaused_UntilThePauseEnds()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var view = new ScheduleStatusView(1, SchedulerMode.Continuous, null, now.AddMinutes(4), null, null, true, 0,
+            PausedUntilUtc: now.AddSeconds(90));
+        Assert.Equal(new CountdownPresentation("AutomaticBackupPausedUntil", 90, true), ScheduleCountdownPresentation.Resolve(view, now));
+        Assert.Equal("ProjectorArea.Schedule", ScheduleCountdownPresentation.Resolve(view, now.AddSeconds(91)).MessageKey);
+        Assert.Equal("AutomaticBackupOff", ScheduleCountdownPresentation.Resolve(view with { AutomaticEnabled = false }, now).MessageKey);
     }
 
     [Fact]

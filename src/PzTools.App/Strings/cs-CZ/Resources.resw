@@ -472,11 +472,43 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Spouští se uchovávání poslední minuty…</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat poslední minutu.</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Ve hře stiskněte {0}: jeden zvuk potvrdí stisk, další uložení (chybový zvuk značí selhání).</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Klávesa pro uložení ze hry není k dispozici: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 i Ctrl+Alt+F10 drží jiné programy.</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>Ukládání…</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>Uchovávat poslední minutu</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>Uložit poslední minutu</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 až 10 minut. Delší délka hru zatěžuje stejně, jen zabere víc místa na disku.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Délka (minuty)</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Podrobný ukáže víc, ale po celou dobu zapnutí hru mírně zpomalí (asi o 10 %). Používejte ho při hledání zaseknutí.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Režim</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Když je zapnuto, hra si pokaždé, když běží, uchovává posledních několik minut. Běžný režim hru téměř nezatěžuje.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Uchovávat poslední minuty</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>Hra uchovává posledních několik minut, takže zaseknutí lze uložit i poté, co nastalo.</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Výkon</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Ukládání posledních {0} min…</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Uložit posledních {0} min</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>Chcete-li to použít, zapněte „Uchovávat poslední minuty“ v Nastavení &gt; Výkon.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Zatím není co uložit. Hra musí běžet a v nastavení musí být zapnuto „Uchovávat poslední minuty“.</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Nebyla nalezena žádná uložená hra k zálohování. Načtěte ve hře uloženou hru a stiskněte klávesu znovu.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Tuto klávesu už má jiná akce.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Písmena a číslice je nutné kombinovat s Ctrl nebo Alt.</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Tuto klávesu nelze použít.</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Vymazat zkratku pro {0}</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Žádná</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Stiskněte klávesy… (Esc zruší)</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Funguje jen se zapnutým „Uchovávat poslední minuty“.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Tuto klávesu drží jiný program, takže nic nedělá.</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Nad postavou zobrazí čas do další zálohy, poslední zálohu a co se právě zaznamenává.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Zobrazit stav</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Na chvíli pozastaví automatické zálohování; dalším stiskem ho obnovíte. Po uplynutí doby se obnoví samo. Zálohy při smrti postavy se nepozastavují.</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pozastavit automatické zálohování</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Ihned zálohuje uloženou hru, kterou právě hrajete.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Ruční záloha</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Zapne nebo vypne výše uvedené „Uchovávat poslední minuty“.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Zapnout/vypnout uchovávání minut</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Spustí záznam v režimu nastaveném na stránce Výkon; dalším stiskem ho zastavíte.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Spustit/zastavit záznam výkonu</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Uloží jako záznam minuty, které hra uchovala.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Uložit poslední minuty</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Fungují i ve hře. Dokud PZ Tools běží, nastavené klávesy nemohou používat jiné programy. Každá odpoví zvukem a zprávou nad hlavou vaší postavy.</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatické zálohování je pozastaveno</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Klávesové zkratky</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Ukončit porovnání</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Řádek {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>

@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text;
 using PzTools.Profiling;
 
@@ -354,7 +354,7 @@ public sealed class ProfileRecordingTests
         var service = new PzTools.App.Core.ProfileRecordingService(temp.GetPath("profiles"), () => null, () => games);
         Assert.Null(await service.StartRollingAsync(detailed: true));
         Assert.Equal(new PzTools.App.Core.ProfileRolling(Wanted: true, Detailed: true), service.Rolling);
-        service.SetRollingMode(detailed: false);
+        service.ApplyRolling(enabled: true, detailed: false, minutes: 1);
         Assert.False(service.Rolling.Detailed);
 
         var (path, result) = await service.SaveRollingAsync();

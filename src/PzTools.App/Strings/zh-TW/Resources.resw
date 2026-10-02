@@ -427,12 +427,44 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>搜尋</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>比較對象</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>持續保留最近 1 分鐘</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>儲存最近 1 分鐘</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>正在儲存…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>剛剛卡頓？按這裡：遊戲保留了最近約 1 分鐘，會儲存為一段錄製。模式：{0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>遊戲中按 {0}：按下時響一聲，儲存後再響一聲（失敗時為警告音）。</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>無法使用遊戲中儲存的快速鍵：其他程式已佔用 Ctrl+Shift+F9、Ctrl+Shift+F10、Ctrl+Alt+F9 和 Ctrl+Alt+F10。</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>自動備份已暫停</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>快速鍵</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>在遊戲中也能使用。PZ Tools 執行期間，這裡設定的按鍵其他程式無法使用。按下後會以音效和角色頭上的提示告知。</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>儲存最近幾分鐘</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>將遊戲保留的最近幾分鐘儲存為一段錄製。</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>開始/停止效能錄製</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>依效能分析頁面所選的模式開始錄製，再按一次停止。</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>開關最近記錄</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>開啟或關閉上方的「持續保留最近幾分鐘」。</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>手動備份</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>立即備份正在遊玩的存檔。</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>暫停自動備份</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>暫時停止自動備份，再按一次恢復。時間到後會自動恢復。死亡時的備份不會暫停。</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>顯示狀態</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>在角色頭上顯示距離下次備份的時間、上次備份以及正在錄製的內容。</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>其他程式佔用了此按鍵，因此無效。</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>僅在「持續保留最近幾分鐘」開啟時有效。</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>請按鍵…（Esc 取消）</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>無</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>清除 {0} 的快速鍵</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>無法使用此按鍵。</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>字母和數字鍵需要與 Ctrl 或 Alt 一起按。</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>此按鍵已指派給其他動作。</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}：{1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>找不到可備份的存檔。請在遊戲中載入存檔後再按一次。</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>還沒有可儲存的記錄。遊戲必須正在執行，且已在設定中開啟「持續保留最近幾分鐘」。</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>請在設定 &gt; 效能分析中開啟「持續保留最近幾分鐘」後再使用。</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>儲存最近 {0} 分鐘</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>正在儲存最近 {0} 分鐘…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>效能分析</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>遊戲會持續保留最近幾分鐘，卡頓過後也能儲存下來。</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>持續保留最近幾分鐘</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>開啟後，遊戲執行時會一直保留最近幾分鐘。標準模式幾乎沒有負擔。</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>模式</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細模式記錄得更多，但開啟期間遊戲會稍微變慢（約 10%）。請在排查卡頓時使用。</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>長度（分鐘）</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分鐘。設得較長對遊戲的負擔相同，只會多用磁碟空間。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>遊戲執行後開始保留最近 1 分鐘。</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>正在開始保留最近 1 分鐘…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>錄製期間暫停，錄製結束後繼續。</value></data>

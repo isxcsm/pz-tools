@@ -65,8 +65,12 @@ public sealed record BackupSchedulerState(
     long Generation,
     DateTimeOffset NextDueUtc,
     long? LastRunIndex,
-    ProcessOutcome? LastOutcome)
+    ProcessOutcome? LastOutcome,
+    // Periodic backups wait until then, at the user's request; a final backup does not. Null, or past, when not paused.
+    DateTimeOffset? PausedUntilUtc = null)
 {
+    public bool PausedAt(DateTimeOffset now) => PausedUntilUtc is { } until && now < until;
+
     public string PeriodicAdmissionId =>
         $"backup-scheduler:periodic:{Generation}:{NextDueUtc:O}:{LastRunIndex}";
 

@@ -449,12 +449,13 @@ public sealed class OperationCoordinator(
     /// </summary>
     public Task<AppOperationResult> RollProfileAsync(
         string command, bool detailed, int keepSeconds, string? outputPath = null,
-        CancellationToken cancellationToken = default, string? operationId = null)
+        CancellationToken cancellationToken = default, string? operationId = null, int maxMegabytes = 0)
     {
         var seconds = keepSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
         string[] arguments = command switch
         {
-            "roll-start" => ["roll-start", "--mode", detailed ? "detailed" : "general", "--seconds", seconds],
+            "roll-start" => ["roll-start", "--mode", detailed ? "detailed" : "general", "--seconds", seconds,
+                .. maxMegabytes > 0 ? ["--max-megabytes", maxMegabytes.ToString(System.Globalization.CultureInfo.InvariantCulture)] : Array.Empty<string>()],
             "roll-save" => ["roll-save", "--output", Path.GetFullPath(outputPath ?? throw new ArgumentNullException(nameof(outputPath))), "--seconds", seconds],
             "roll-stop" => ["roll-stop"],
             _ => throw new ArgumentOutOfRangeException(nameof(command)),

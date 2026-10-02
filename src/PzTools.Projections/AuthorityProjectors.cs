@@ -245,7 +245,8 @@ public sealed class SchedulerProjector(
             periodicInProgress,
             Hold: offline ? ScheduleHold.GameOffline | ScheduleHold.NoWorld
                 : observation.IsCharacterDead ? ScheduleHold.CharacterDead : ScheduleHold.None,
-            GamePhase: RuntimeScheduleProjection.ObservedGamePhase(observation));
+            GamePhase: RuntimeScheduleProjection.ObservedGamePhase(observation),
+            PausedUntilUtc: snapshot.PausedUntilUtc);
         views.Publish(
             ViewKey.ScheduleStatus, model, cursor,
             EqualityComparer<ScheduleStatusView>.Default);

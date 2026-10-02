@@ -112,6 +112,29 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
+    public async Task GameNotice_ShowsCatalogNotesOverThePlayer_OnTheGameThread_AndRefusesAnyOtherText()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+
+        Assert.True(await client.NotifyAsync(game.Pid, "ko-KR", ["saved-last:2", "next-backup:5"]));
+        var notices = temp.GetPath("notices.txt");
+        for (var attempt = 0; attempt < 50 && !File.Exists(notices); attempt++) await Task.Delay(100);
+        var shown = Assert.Single(await File.ReadAllLinesAsync(notices)).Split('\t');
+        Assert.Equal(("직전 2분 저장됨 · 다음 백업 5분 후", "Synthetic-game-thread"), (shown[1], shown[2]));
+
+        // Only the game's own catalog: no other key, no number where a note has none, none missing where it has one.
+        foreach (string[] items in new[] { new[] { "anything" }, ["backup-done:3"], ["saved-last"] })
+            Assert.Equal("unsupported-protocol",
+                (await Assert.ThrowsAsync<GameSaveException>(() => client.NotifyAsync(game.Pid, "en-US", items))).Code);
+        Assert.Equal("unsupported-protocol",
+            (await Assert.ThrowsAsync<GameSaveException>(() => client.NotifyAsync(game.Pid, "xx-XX", ["backup-done"]))).Code);
+        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyAsync(game.Pid, "en-US", ["Free text\there"]));
+        Assert.Single(await File.ReadAllLinesAsync(notices));
+    }
+
+    [BridgeFact]
     public async Task ProfileRecording_EndsByItselfAtItsLimit_AndIsCollectedAfterwards()
     {
         using var temp = new TempDirectory();

@@ -7,6 +7,7 @@
     <!-- The agent jar is rebuilt from its own sources and from the extension runtime it compiles against. -->
     <UpToDateCheckInput Include="$(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Agent\**\*.java;
                                  $(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Agent\MANIFEST.MF;
+                                 $(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Agent\notices.tsv;
                                  $(SaveBridgeRepositoryRoot)\src\PzTools.GameExtensions.Java\**\*.java" Set="SaveBridgeAgent" />
     <UpToDateCheckBuilt Include="$(BridgeOutputPath)\pztools-save-bridge.jar" Set="SaveBridgeAgent" />
     <UpToDateCheckInput Include="$(SaveBridgeRepositoryRoot)\src\PzTools.SaveBridge.Native\**\*.cpp" Set="SaveBridgeNative" />

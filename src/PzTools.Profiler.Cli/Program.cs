@@ -205,7 +205,9 @@ async Task<int> RollAsync(string command)
         case "roll-start":
         {
             phase = "start";
-            var status = await WhenFreeAsync(() => client.StartRollingAsync(processId, mode == "detailed", keepSeconds, cancellation.Token));
+            var megabytes = Optional("--max-megabytes") is { } limit
+                ? CommandLine.Int32(limit, "--max-megabytes", GameProfileClient.MinimumRollingMegabytes, GameProfileClient.MaximumRollingMegabytes) : 0;
+            var status = await WhenFreeAsync(() => client.StartRollingAsync(processId, mode == "detailed", keepSeconds, cancellation.Token, megabytes));
             var lua = status.Lua.StartsWith("unavailable", StringComparison.Ordinal) ? "unavailable" : status.Lua;
             result = new { mode, keepSeconds, lua, hasFrames = status.HasFrames };
             break;

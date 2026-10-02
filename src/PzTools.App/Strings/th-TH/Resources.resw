@@ -434,12 +434,44 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>จัดกลุ่มฟังก์ชันของเจ้าของนี้ตามเส้นทางการเรียกที่นำมาถึง: ฟังก์ชันชั้นนอกสุด เช่น ตัวจัดการอีเวนต์ อยู่ด้านบน และสิ่งที่มันเรียกอยู่ด้านใน นับเฉพาะตัวอย่างที่จบในฟังก์ชันของเจ้าของนี้ ปิด: รายการฟังก์ชันแบบธรรมดา</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>ค้นหา</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>เปรียบเทียบกับ</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>เก็บนาทีล่าสุดไว้ตลอด</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>บันทึกนาทีล่าสุด</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>กำลังบันทึก…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณหนึ่งนาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>ระหว่างเล่นเกม กด {0}: จะมีเสียงหนึ่งครั้งเมื่อกด และอีกครั้งเมื่อบันทึกแล้ว (เสียงข้อผิดพลาดหากล้มเหลว)</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>ใช้ปุ่มลัดบันทึกระหว่างเล่นไม่ได้: โปรแกรมอื่นใช้ Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 และ Ctrl+Alt+F10 อยู่</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>หยุดการสำรองอัตโนมัติชั่วคราว</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>ปุ่มลัด</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>ใช้ได้ในเกมด้วย ขณะที่ PZ Tools ทำงาน ปุ่มที่ตั้งไว้ที่นี่จะใช้กับโปรแกรมอื่นไม่ได้ แต่ละปุ่มจะตอบด้วยเสียงและข้อความเหนือหัวตัวละคร</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>บันทึกนาทีล่าสุด</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>บันทึกช่วงนาทีที่เกมเก็บไว้เป็นการบันทึกหนึ่งรายการ</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>เริ่ม/หยุดบันทึกประสิทธิภาพ</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>เริ่มบันทึกตามโหมดที่ตั้งไว้ในหน้าประสิทธิภาพ กดอีกครั้งเพื่อหยุด</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>เปิด/ปิดการเก็บนาทีล่าสุด</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>เปิดหรือปิด “เก็บนาทีล่าสุดไว้ตลอด” ด้านบน</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>สำรองเซฟที่กำลังเล่นอยู่ทันที</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>พักการสำรองอัตโนมัติ</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>พักการสำรองอัตโนมัติไว้สักพัก กดอีกครั้งเพื่อทำต่อ เมื่อหมดเวลาจะทำต่อเอง การสำรองเมื่อตัวละครเสียชีวิตจะไม่ถูกพัก</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>แสดงสถานะ</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>แสดงเวลาที่เหลือก่อนการสำรองครั้งถัดไป การสำรองล่าสุด และสิ่งที่กำลังบันทึกไว้เหนือตัวละคร</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>โปรแกรมอื่นใช้ปุ่มนี้อยู่ จึงไม่มีผล</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>ใช้ได้เฉพาะเมื่อเปิด “เก็บนาทีล่าสุดไว้ตลอด” อยู่</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>กดปุ่ม… (Esc เพื่อยกเลิก)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>ไม่มี</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>ล้างปุ่มลัด {0}</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>ใช้ปุ่มนี้ไม่ได้</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>ตัวอักษรและตัวเลขต้องกดร่วมกับ Ctrl หรือ Alt</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>ปุ่มนี้ถูกใช้กับการทำงานอื่นแล้ว</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>ไม่พบเซฟที่จะสำรอง โหลดเซฟในเกมแล้วกดอีกครั้ง</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>ยังไม่มีอะไรให้บันทึก เกมต้องทำงานอยู่ และต้องเปิด “เก็บนาทีล่าสุดไว้ตลอด” ในการตั้งค่า</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>เปิด “เก็บนาทีล่าสุดไว้ตลอด” ใน การตั้งค่า &gt; ประสิทธิภาพ เพื่อใช้งานนี้</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>บันทึก {0} นาทีล่าสุด</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>กำลังบันทึก {0} นาทีล่าสุด…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>ประสิทธิภาพ</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>เกมจะเก็บไม่กี่นาทีล่าสุดไว้ จึงบันทึกอาการกระตุกได้แม้หลังจากเกิดขึ้นแล้ว</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>เก็บนาทีล่าสุดไว้ตลอด</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>เมื่อเปิดไว้ เกมจะเก็บไม่กี่นาทีล่าสุดไว้ทุกครั้งที่ทำงาน โหมดมาตรฐานแทบไม่สิ้นเปลือง</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>โหมด</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>โหมดละเอียดแสดงข้อมูลมากกว่า แต่ทำให้เกมช้าลงเล็กน้อย (ประมาณ 10%) ตลอดที่เปิดอยู่ ใช้ขณะหาสาเหตุอาการกระตุก</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>ความยาว (นาที)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ถึง 10 นาที ยิ่งยาวก็ไม่ทำให้เกมหนักขึ้น แค่ใช้พื้นที่ดิสก์มากขึ้น</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>จะเริ่มเก็บนาทีล่าสุดเมื่อเกมทำงาน</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>กำลังเริ่มเก็บนาทีล่าสุด…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>หยุดชั่วคราวระหว่างบันทึก และทำต่อเมื่อบันทึกเสร็จ</value></data>

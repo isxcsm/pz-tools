@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -10,7 +10,9 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using PzTools.App.Core;
 using Microsoft.Windows.Storage.Pickers;
+using PzTools.Process.Contracts;
 using PzTools.Profiling;
+using PzTools.Projections;
 using Windows.Foundation;
 
 namespace PzTools.App;
@@ -70,16 +72,20 @@ public sealed partial class ProfilerPage : UserControl
         // The page stays loaded while another page is shown (the shell only collapses it), so the game
         // check runs only while it is visible: listing processes every two seconds for a hidden page,
         // all day in the tray, was waste.
-        Loaded += (_, _) => { Attach(); FollowVisibility(); };
+        Loaded += (_, _) =>
+        {
+            Attach();
+            FollowVisibility();
+            if (App.HotKeys is { } keys) { keys.Changed -= HotKeys_Changed; keys.Changed += HotKeys_Changed; }
+        };
         RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => { if (IsLoaded) FollowVisibility(); });
         Unloaded += (_, _) =>
         {
             clock.Stop();
             gameClock.Stop();
-            if (service is not null) service.Changed -= Session_Changed;
+            if (service is not null) { service.Changed -= Session_Changed; service.Saved -= Profiles_Saved; }
             service = null;
-            // A replaced shell's page must not keep the key from the new one.
-            ReleaseHotKey();
+            if (App.HotKeys is { } keys) keys.Changed -= HotKeys_Changed;
         };
         // Text and grid lines drawn in code hold the brush of the theme they were drawn in.
         ActualThemeChanged += (_, _) => { RenderChart(); if (shown is not null) ShowRange(shown); };
@@ -117,7 +123,7 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
         CompareItem.Text = Localizer.Get("ProfileCompare");
-        RollingItem.Text = Localizer.Get("ProfileRolling");
+
         DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
         AutomationProperties.SetName(DetailSearch, Localizer.Get("ProfileSearch"));
         if (IsLoaded) ApplyLayout(ActualWidth);
@@ -150,9 +156,10 @@ public sealed partial class ProfilerPage : UserControl
     private void Attach()
     {
         if (App.Host is not { } host || ReferenceEquals(service, host.Profiles)) return;
-        if (service is not null) service.Changed -= Session_Changed;
+        if (service is not null) { service.Changed -= Session_Changed; service.Saved -= Profiles_Saved; }
         service = host.Profiles;
         service.Changed += Session_Changed;
+        service.Saved += Profiles_Saved;
         UpdateSession();
         RefreshList(loadedPath);
     }
@@ -194,130 +201,66 @@ public sealed partial class ProfilerPage : UserControl
         UpdateRolling(idle);
     }
 
-    // ---- The last minute ----
+    // ---- The last minutes ----
 
-    // The save button, shown while the user wants the game to keep its last minute; its tip says the mode, or why
-    // there is nothing to save yet.
+    // The save button stands beside the recording's: "Save last 2 min (Ctrl+Shift+F9)". It works while the settings have
+    // the game keep its last minutes; its tip says the mode kept, or why there is nothing to save yet.
     private void UpdateRolling(bool idle)
     {
         var rolling = service?.Rolling ?? new ProfileRolling();
-        FollowHotKey(rolling.Wanted);
-        SaveLastHost.Visibility = rolling.Wanted ? Visibility.Visible : Visibility.Collapsed;
-        SaveLastText.Text = Localizer.Get(rolling.Saving ? "ProfileRollingSaving" : "ProfileRollingSave");
+        var minutes = rolling.Wanted ? rolling.Minutes
+            : App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.RollingMinutes ?? 1;
+        var key = App.HotKeys?.TextOf(HotKeyAction.SaveLast);
+        var label = Localizer.Format(rolling.Saving ? "ProfileRollingSavingFormat" : "ProfileRollingSaveFormat", minutes);
+        SaveLastText.Text = key is null ? label : $"{label} ({key})";
         SaveLastButton.IsEnabled = CanSaveLastMinute(rolling, idle);
-        var key = hotKey is { } registered ? Localizer.Format("ProfileRollingHotKeyFormat", registered.Text)
-            : hotKeyTried ? Localizer.Get("ProfileRollingHotKeyUnavailable") : null;
-        var tip = RollingState(rolling, idle) + (key is null ? "" : "\n" + key);
+        var tip = RollingState(rolling, idle);
         AppToolTip.SetTip(SaveLastHost, tip);
         AutomationProperties.SetHelpText(SaveLastButton, tip);
-        AutomationProperties.SetAcceleratorKey(SaveLastButton, hotKey?.Text ?? "");
+        AutomationProperties.SetAcceleratorKey(SaveLastButton, key ?? "");
     }
 
     private static bool CanSaveLastMinute(ProfileRolling rolling, bool idle) => rolling.On && !rolling.Busy && idle;
 
-    // What the game is doing with the last minute: the mode it keeps it in, or why there is nothing to save yet.
+    // What the game is doing with the last minutes: the mode it keeps them in, or why there is nothing to save yet.
     private string RollingState(ProfileRolling rolling, bool idle) =>
-        !idle ? Localizer.Get("ProfileRollingPaused")
+        !rolling.Wanted ? Localizer.Get("ProfileRollingOff")
+        : !idle ? Localizer.Get("ProfileRollingPaused")
         : rolling.Error is { } error && !rolling.On ? Localizer.Get(ProfileRecordingService.ErrorKey(error))
         : !rolling.On ? Localizer.Get(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting")
         : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
 
-    // The save from inside the game: registered while the last minute is wanted, as Windows then gives the
-    // combination to this app alone. One that could not be registered is tried again when the switch is next turned on.
-    private GlobalHotKey? hotKey;
-    private bool hotKeyTried;
-
-    private void FollowHotKey(bool wanted)
-    {
-        if (!wanted) { ReleaseHotKey(); return; }
-        if (hotKey is not null || hotKeyTried) return;
-        hotKeyTried = true;
-        try { hotKey = GlobalHotKey.TryRegister(App.MainWindow, () => _ = SaveLastMinuteAsync(fromKey: true)); }
-        catch (Exception exception) when (exception is InvalidOperationException or System.Runtime.InteropServices.COMException) { hotKey = null; }
-    }
-
-    private void ReleaseHotKey()
-    {
-        hotKey?.Dispose();
-        hotKey = null;
-        hotKeyTried = false;
-    }
-
-    private async void RollingItem_Click(object sender, RoutedEventArgs e)
-    {
-        Attach();
-        if (service is not { } profiles || App.Host?.Operations is null)
-        {
-            RollingItem.IsChecked = false;
-            App.ShowSidebarNotification(InfoBarSeverity.Warning, Localizer.Get("ProfilerNavigation"), Localizer.Get("HostNotReady"));
-            return;
-        }
-        try
-        {
-            if (!RollingItem.IsChecked) { await profiles.StopRollingAsync(); return; }
-            // Without a game it starts once there is one; a start that ran and failed is said here, as it has no card.
-            if (await profiles.StartRollingAsync(ModeSwitch.IsOn) is { } result
-                && result.Outcome != PzTools.Process.Contracts.ProcessOutcome.Succeeded)
-                App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"),
-                    Localizer.Get(ProfileRecordingService.ErrorKey(result)));
-        }
-        catch (Exception exception)
-        {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
-        }
-    }
-
-    // The mode applies to the last minute too: one being kept restarts in the new mode.
+    // A recording started from a hotkey takes the mode set here.
     private void ModeSwitch_Toggled(object sender, RoutedEventArgs e)
     {
-        if (service is { } profiles && profiles.Session.State == ProfileSessionState.Idle) profiles.SetRollingMode(ModeSwitch.IsOn);
+        if (service is { } profiles && profiles.Session.State == ProfileSessionState.Idle) profiles.PreferDetailed = ModeSwitch.IsOn;
     }
 
-    private void SaveLastButton_Click(object sender, RoutedEventArgs e) => _ = SaveLastMinuteAsync(fromKey: false);
-
-    /// <summary>
-    /// Saves the last minute and opens it. From the key the player is in the game and sees none of this: a sound says
-    /// it was heard, another that it is saved or that it failed, whose reason waits in the app.
-    /// </summary>
-    private async Task SaveLastMinuteAsync(bool fromKey)
+    // The new file is listed and opened by the service's Saved event, as one saved from a hotkey is.
+    private async void SaveLastButton_Click(object sender, RoutedEventArgs e)
     {
-        if (service is not { } profiles) { if (fromKey) SystemSound.Failed(); return; }
-        if (fromKey)
-        {
-            var idle = profiles.Session.State == ProfileSessionState.Idle;
-            if (!CanSaveLastMinute(profiles.Rolling, idle))
-            {
-                SystemSound.Failed();
-                App.ShowSidebarNotification(InfoBarSeverity.Informational, Localizer.Get("ProfilerNavigation"),
-                    RollingState(profiles.Rolling, idle));
-                return;
-            }
-            SystemSound.Accepted();
-        }
+        if (service is not { } profiles) return;
         try
         {
             var (path, result) = await profiles.SaveRollingAsync();
-            if (fromKey) { if (path is null) SystemSound.Failed(); else SystemSound.Done(); }
-            if (path is null)
-            {
-                var message = Localizer.Get(ProfileRecordingService.ErrorKey(result));
-                // A save runs as a worker with its own card, like a recording: the reason goes on it.
-                if (result.RunIndex > 0) App.ExplainOnOperationCard(result.OperationId, message);
-                else
-                    App.ShowSidebarNotification(result.Error is "profile-game-not-running" or "profile-multiple-games"
-                            or "operation-busy" ? InfoBarSeverity.Informational : InfoBarSeverity.Error,
-                        Localizer.Get("ProfilerNavigation"), message);
-                return;
-            }
-            RefreshList(path);
+            if (path is not null) return;
+            var message = Localizer.Get(ProfileRecordingService.ErrorKey(result));
+            // A save runs as a worker with its own card, like a recording: the reason goes on it.
+            if (result.RunIndex > 0) App.ExplainOnOperationCard(result.OperationId, message);
+            else
+                App.ShowSidebarNotification(result.Error is "profile-game-not-running" or "profile-multiple-games"
+                        or "operation-busy" ? InfoBarSeverity.Informational : InfoBarSeverity.Error,
+                    Localizer.Get("ProfilerNavigation"), message);
         }
         catch (Exception exception)
         {
-            if (fromKey) SystemSound.Failed();
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
     }
 
+    private void Profiles_Saved(string path) => DispatcherQueue.TryEnqueue(() => RefreshList(path));
+
+    private void HotKeys_Changed() => DispatcherQueue.TryEnqueue(UpdateSession);
     private async Task CheckGamesAsync()
     {
         if (service is not { } profiles || checkingGames) return;
@@ -1412,7 +1355,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private void MoreMenu_Opening(object sender, object e)
     {
-        RollingItem.IsChecked = service?.Rolling.Wanted == true;
+
         CompareItem.Items.Clear();
         foreach (var item in RecordingList.Items.OfType<RecordingItem>()
                      .Where(item => !item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)).Take(MaximumCompareChoices))

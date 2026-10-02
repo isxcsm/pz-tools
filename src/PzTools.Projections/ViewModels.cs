@@ -78,7 +78,9 @@ public sealed record ScheduleStatusView(
     // Live presentation only; committed scheduler facts still control admission.
     WorldPhase GamePhase = WorldPhase.Unknown,
     // The game cannot be observed: NextDueUtc is a wall-clock backup of the files on disk.
-    bool Fallback = false);
+    bool Fallback = false,
+    // Periodic backups wait until then at the user's request; compare it to now.
+    DateTimeOffset? PausedUntilUtc = null);
 
 public sealed record SettingsView(
     string Language,
@@ -97,7 +99,11 @@ public sealed record SettingsView(
     bool SaveGameBeforeBackup = true,
     bool GameSaveCountdown = true,
     bool AutomaticBackupEnabled = true,
-    bool PausePeriodicDuringGame = true);
+    bool PausePeriodicDuringGame = true,
+    bool RollingEnabled = false,
+    bool RollingDetailed = false,
+    int RollingMinutes = 1,
+    HotKeySettings? HotKeys = null);
 
 public sealed record ProjectorHealthView(IReadOnlyList<ProjectorStatus> Projectors)
 {

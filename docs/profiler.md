@@ -18,7 +18,8 @@ and *Game code* what the game itself was loading. What happens before the main m
 cannot be recorded, as the game is not running yet; it is the same scripts as a reload
 plus the game's own start, which neither players nor mod authors can change.
 A recording also ends by itself when the game exits or when its time limit is reached
-(30 minutes in Standard mode, 10 minutes in Detailed mode).
+(30 minutes in Standard mode, 10 minutes in Detailed mode; see the advanced settings
+under [Hotkeys](#hotkeys)).
 
 **Start recording** is available while exactly one game is running, or before the first
 check has answered; the page checks every two seconds, and resting the pointer on the button says what is missing. Nothing
@@ -69,38 +70,57 @@ Backups, saving and game extensions keep working during a recording. Recording c
 uses the ordinary short request channel to the game; if a backup's save request is using
 it, start or stop simply waits for it.
 
-### The last minute
+### The last minutes
 
-A stutter is often over before a recording could be started. **Keep the last minute**
-in the **…** menu has the game record all the time, in the mode the Standard/Detailed
-switch sets, and hold only about its last minute. **Save last minute** then appears next
-to **Start recording**: press it right after a stutter, and that minute becomes a
-recording like any other, listed and opened at once. The game goes on keeping the next
-minute. Flipping the mode switch restarts the keeping in the new mode; the button's tip
-says which mode is kept, or why there is nothing yet (no game, the game's bridge needs a
-restart).
-
-The game has the keyboard when it stutters, so the save has a key too: **Ctrl+Shift+F9**,
-pressed in the game. The app takes it from Windows only while *Keep the last minute* is
-on, and Windows then gives that combination to the app alone; if another program holds
-it, the next free one of Ctrl+Shift+F10, Ctrl+Alt+F9 and Ctrl+Alt+F10 is taken, and the
-button's tip names the one in use. Nothing shows over the game, so sounds say what
-happened: one when the key is heard, another when the minute is saved; Windows' error
-sound if there was nothing to save (the reason waits in the app) or the save failed. The
-saved recording is listed and opened in the app without bringing it in front of the game.
+A stutter is often over before a recording could be started. **Keep the last minutes**,
+under *Settings > Performance*, has the game record all the time and hold only its last
+few minutes: 1 to 10 of them, in Standard or Detailed mode, both set there. **Save last
+2 min** (with the number set) stands next to **Start recording**: press it right after a
+stutter, and those minutes become a recording like any other, listed and opened at once.
+The game goes on keeping the next ones. Changing the mode or the length restarts the
+keeping that way; the button's tip says which mode is kept, or why there is nothing yet
+(the setting is off, no game, the game's bridge needs a restart). With a key set for it
+the button says it too: *Save last 2 min (Ctrl+Shift+F9)*.
 
 The game started later, or restarted, gets it within five seconds, whether or not the
 page is open. **Start recording** replaces it while that recording runs, and it resumes
-when the recording ends. It ends when switched off or when the app closes, and is off
-each time the app starts: nothing records the game unless you asked for it.
+when the recording ends. The setting is kept, so it starts again with the app; it ends
+when switched off, and while the app is closed nothing records the game.
 
 The cost is that of a recording that never ends. Standard mode is light; Detailed mode
 costs the game frame rate for as long as it is on (roughly 10% in a synthetic test), so
-use it while hunting a stutter, not all evening. The game's timer resolution stays at
-1 ms while it is on. Older data is discarded a piece at a time on disk (at most 256 MB
-held), so a save holds somewhat more, which is cut to the last 60 seconds as it is
-converted. A saved minute has no video memory, which only a recording worker reads.
+use it while hunting a stutter, not all evening. A longer window costs the game nothing
+more, only disk. The game's timer resolution stays at 1 ms while it is on. Older data is
+discarded a piece at a time on disk, so a save holds somewhat more, which is cut to the
+window as it is converted; at most 256 MB is held (`rolling_max_megabytes` below), which
+a long Detailed window can reach, and then holds less. Saved minutes have no video
+memory, which only a recording worker reads.
 
+### Hotkeys
+
+The game has the keyboard when it stutters, so the app's actions can have keys, set under
+*Settings > Hotkeys* by pressing them: save the last minutes, start or stop a recording,
+turn the last minutes on or off, back up the save being played, pause automatic backups
+(press again to resume; they resume by themselves after 30 minutes, and a backup on
+death is never held), and show the status. Only saving the last minutes has a key at
+first, Ctrl+Shift+F9. While the app runs, Windows gives each set combination to it alone,
+so a key another program uses is refused when it is chosen, and one taken later is
+marked on its card. A letter or digit needs Ctrl or Alt with it; function keys may stand
+alone. Saving the last minutes holds its key only while they are kept.
+
+Nothing of the app shows over the game, so each key answers twice: with Windows' own
+sounds (heard; done; or its error sound, the reason then waiting in the app), and with a
+short note over the character's head, like the backup countdown's, in the app's
+language: *Saved the last 2 min*, *Backup complete*, *Next backup in 4 min · Last backup
+6 min ago · Keeping the last 2 min*. The notes come from a fixed list the game itself
+holds, with a number at most: the app cannot put other text into the game. At the main
+menu there is no one to show a note to, and the sounds alone answer. A saved recording is
+listed and opened in the app without bringing it in front of the game.
+
+The advanced settings file (`config\app\default.toml`) holds the rest: `[profiler]`
+`general_limit_minutes` and `detailed_limit_minutes` (when a forgotten recording ends by
+itself) and `rolling_max_megabytes`; `[hotkeys]` `sounds`, `game_notices` and
+`backup_pause_minutes`.
 ## What depends on the game version
 
 | Part | Source | If the game changes |
@@ -369,14 +389,22 @@ If the app or the worker is closed mid-recording, the game stops recording at th
 limit and also stops sampling Lua and timing frames, so an abandoned recording costs
 nothing afterwards. The next recording ends any leftover first.
 
-The last minute is kept by the game between short commands, each one process:
-`roll-start` (`PROFILE_ROLL_START`, a mode and how many seconds to hold), `roll-save`
+The last minutes are kept by the game between short commands, each one process:
+`roll-start` (`PROFILE_ROLL_START`, a mode, how many seconds to hold and, optionally, the
+most megabytes to hold), `roll-save`
 (`PROFILE_ROLL_SAVE`: the game writes what it holds to a flight recording, which is
 converted cut to its window, as a recording is) and `roll-stop` (`PROFILE_ROLL_STOP`,
 which ends only the rolling recording, never one someone started). Starting and stopping
 show no card; a save shows as a recording does. A game whose bridge refuses `roll-start`
 (one from before it, or one that cannot attach) is not asked again until it restarts or
-the mode or the switch changes; the button's tip gives the reason.
+the settings change; the button's tip gives the reason.
+
+A hotkey's note is one more short command, sent by the app itself:
+`NOTICE <language> <item> ...`, each item a key of the game's own list of notes
+(`src/PzTools.SaveBridge.Agent/notices.tsv`, compiled into the bridge), optionally with
+`:number`. The game refuses any other key, a number where the note has none, or none
+where it has one, and answers at once; the note is shown on the game thread through the
+same per-frame relay the recording uses.
 
 ## Limits
 

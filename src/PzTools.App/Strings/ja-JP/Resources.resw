@@ -427,12 +427,44 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>この所有者の関数を、そこへ至った呼び出し経路ごとにまとめて表示します。イベント処理関数のような一番外側の関数が上にあり、展開するとその関数が呼んだ関数が表示されます。この所有者の関数で終わったサンプルだけを数えます。オフにすると関数の一覧になります。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>検索</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>比較対象</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>直前の 1 分を記録し続ける</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>直前の 1 分を保存</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>保存中…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>ゲーム中は {0} を押してください。押したときに 1 回、保存されるともう 1 回音が鳴ります (失敗すると警告音)。</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>ゲーム中に保存するキーを使えません。ほかのプログラムが Ctrl+Shift+F9、Ctrl+Shift+F10、Ctrl+Alt+F9、Ctrl+Alt+F10 をすべて使っています。</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>自動バックアップ一時停止中</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>ショートカットキー</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>ゲーム中も使えます。PZ Toolsの実行中は、ここで設定したキーをほかのプログラムで使えなくなります。押すと音とキャラクターの頭上のメッセージでお知らせします。</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>直前の数分を保存</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>ゲームが保持している直前の数分を記録として保存します。</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>パフォーマンス記録の開始/停止</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>パフォーマンス画面で選んだモードで記録を開始し、もう一度押すと停止します。</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>直前の記録のオン/オフ</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>上の「直前の数分を記録し続ける」をオン/オフします。</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>手動バックアップ</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>プレイ中のセーブをすぐにバックアップします。</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>自動バックアップを一時停止</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>自動バックアップをしばらく止め、もう一度押すと再開します。時間が来ると自動的に再開します。死亡時のバックアップは止まりません。</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>状態を表示</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>次のバックアップまでの時間、前回のバックアップ、記録中の内容をキャラクターの頭上に表示します。</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>ほかのプログラムがこのキーを使っているため、動作しません。</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>「直前の数分を記録し続ける」がオンのときだけ動作します。</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>キーを押してください… (Esc でキャンセル)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>なし</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>{0} のショートカットキーを解除</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>このキーは使えません。</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>文字キーと数字キーは Ctrl か Alt と一緒に押してください。</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>このキーはすでに別の操作に割り当てられています。</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>バックアップするセーブが見つかりません。ゲームでセーブを読み込んでから、もう一度押してください。</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>保存できる記録がまだありません。ゲームが実行中で、設定の「直前の数分を記録し続ける」がオンになっている必要があります。</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>使うには、設定 &gt; パフォーマンスで「直前の数分を記録し続ける」をオンにしてください。</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>直前 {0} 分を保存</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>直前 {0} 分を保存中…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>パフォーマンス</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>カクつきが起きた後でも保存できるよう、ゲームが直前の数分を保持し続けます。</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>直前の数分を記録し続ける</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>オンにすると、ゲームの実行中は常に直前の数分を記録します。標準モードの負荷はほとんどありません。</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>モード</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細はより多くを記録しますが、オンの間はゲームが少し遅くなります (約 10%)。カクつきの原因を調べるときに使ってください。</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>長さ (分)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分。長くしてもゲームへの負荷は同じで、ディスクの使用量だけが増えます。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の 1 分の記録を始めます。</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の 1 分の記録を開始しています…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>記録中は休止し、記録が終わると再開します。</value></data>

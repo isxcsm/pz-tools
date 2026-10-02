@@ -8,6 +8,7 @@
   <ItemGroup>
     <JavaSource Include="$(MSBuildProjectDirectory)\java\**\*.java" />
     <LanguageCatalog Include="$(MSBuildProjectDirectory)\..\PzTools.Process.Contracts\Localization\languages.tsv" />
+    <NoticeCatalog Include="$(MSBuildProjectDirectory)\notices.tsv" />
   </ItemGroup>
   <Target Name="PrepareAgent" DependsOnTargets="ValidateBridgeToolchain">
     <MakeDir Directories="$(BridgeOutputPath)" />
@@ -20,11 +21,11 @@
              Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
   </Target>
   <Target Name="BuildAgent" DependsOnTargets="PrepareAgent;BuildExtensions"
-          Inputs="$(MSBuildProjectFullPath);@(JavaSource);@(LanguageCatalog);$(_BridgeLanguageGenerator);$(MSBuildProjectDirectory)\MANIFEST.MF;$(BridgeOutputPath)\agent-inputs.txt;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeJdkPath)\release"
+          Inputs="$(MSBuildProjectFullPath);@(JavaSource);@(LanguageCatalog);@(NoticeCatalog);$(_BridgeLanguageGenerator);$(MSBuildProjectDirectory)\MANIFEST.MF;$(BridgeOutputPath)\agent-inputs.txt;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeJdkPath)\release"
           Outputs="$(BridgeOutputPath)\pztools-save-bridge.jar;$(BridgeOutputPath)\pztools-save-bootstrap.jar">
     <RemoveDir Directories="$(_BridgeClasses)" />
     <MakeDir Directories="$(_BridgeClasses)" />
-    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(_BridgeLanguageGenerator)&quot; -Catalog &quot;@(LanguageCatalog)&quot; -OutputFile &quot;$(_BridgeLanguageSource)&quot;" />
+    <Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(_BridgeLanguageGenerator)&quot; -Catalog &quot;@(LanguageCatalog)&quot; -Notices &quot;@(NoticeCatalog)&quot; -OutputFile &quot;$(_BridgeLanguageSource)&quot;" />
     <Exec Command="&quot;$(BridgeJdkPath)\bin\javac.exe&quot; --release 25 -encoding UTF-8 --add-modules jdk.attach -cp &quot;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar&quot; -d &quot;$(_BridgeClasses)&quot; @(JavaSource->'&quot;%(FullPath)&quot;', ' ') &quot;$(_BridgeLanguageSource)&quot;" />
     <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-save-bridge.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)&quot; pztools/bridge/runtime -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AttachMain.class" />
     <!-- Package all stable bootstrap nested classes, but no attach/runtime classes. -->

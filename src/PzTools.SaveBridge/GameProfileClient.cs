@@ -33,7 +33,7 @@ public sealed record GameProfileExport(long Samples, long Frames, long LuaSample
 /// Starts and stops a recording inside the running game and converts the result. Each call is one
 /// short request on the ordinary bridge channel; the recording itself runs in the game between calls.
 /// </summary>
-public sealed class GameProfileClient(string bridgeDirectory, int connectionTimeoutSeconds = 30)
+public sealed partial class GameProfileClient(string bridgeDirectory, int connectionTimeoutSeconds = 30)
 {
     public const int MaximumSeconds = 1800;
 
@@ -65,17 +65,22 @@ public sealed class GameProfileClient(string bridgeDirectory, int connectionTime
         RequestAsync(processId, "PROFILE_STOP", cancellationToken);
 
     public const int MinimumRollingSeconds = 10, MaximumRollingSeconds = 600;
+    public const int MinimumRollingMegabytes = 64, MaximumRollingMegabytes = 2048;
 
     /// <summary>
     /// Starts a recording that keeps only about its last <paramref name="keepSeconds"/> and runs until stopped, for a
     /// stutter that already happened. It gives way to a recording started with <see cref="StartAsync"/>.
     /// </summary>
+    /// <param name="maxMegabytes">The most the game holds on disk; 0 for the game's own default.</param>
     public Task<GameProfileStatus> StartRollingAsync(int processId, bool detailed, int keepSeconds,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, int maxMegabytes = 0)
     {
         if (keepSeconds is < MinimumRollingSeconds or > MaximumRollingSeconds) throw new ArgumentOutOfRangeException(nameof(keepSeconds));
-        return RequestAsync(processId, string.Join('\t', "PROFILE_ROLL_START", detailed ? "detailed" : "general",
-            keepSeconds.ToString(CultureInfo.InvariantCulture)), cancellationToken);
+        if (maxMegabytes != 0 && maxMegabytes is < MinimumRollingMegabytes or > MaximumRollingMegabytes)
+            throw new ArgumentOutOfRangeException(nameof(maxMegabytes));
+        var command = string.Join('\t', "PROFILE_ROLL_START", detailed ? "detailed" : "general", keepSeconds.ToString(CultureInfo.InvariantCulture));
+        if (maxMegabytes != 0) command += "\t" + maxMegabytes.ToString(CultureInfo.InvariantCulture);
+        return RequestAsync(processId, command, cancellationToken);
     }
 
     /// <summary>Writes what the rolling recording holds to <paramref name="recordingPath"/>; it goes on recording.</summary>
@@ -93,7 +98,29 @@ public sealed class GameProfileClient(string bridgeDirectory, int connectionTime
     public Task<GameProfileStatus> StatusAsync(int processId, CancellationToken cancellationToken = default) =>
         RequestAsync(processId, "PROFILE_STATUS", cancellationToken);
 
-    private async Task<GameProfileStatus> RequestAsync(int processId, string command, CancellationToken cancellationToken)
+    /// <summary>
+    /// Shows a note over the player's head, built in the game from its own catalog: each item a note's key, or
+    /// "key:number". False when there is no one to show it to (the main menu, between worlds).
+    /// </summary>
+    public async Task<bool> NotifyAsync(int processId, string language, IReadOnlyList<string> items,
+        CancellationToken cancellationToken = default)
+    {
+        if (items.Count is < 1 or > 4 || items.Any(item => !NoticeItem().IsMatch(item)))
+            throw new ArgumentException("One to four notice items, each a key or key:number.", nameof(items));
+        if (!LanguageTag().IsMatch(language)) throw new ArgumentException("A language tag is required.", nameof(language));
+        return await RequestDetailAsync(processId, string.Join('\t', ["NOTICE", language, .. items]), cancellationToken) == "queued";
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex("^[a-z][a-z-]{0,39}(:[0-9]{1,6})?$")]
+    private static partial System.Text.RegularExpressions.Regex NoticeItem();
+
+    [System.Text.RegularExpressions.GeneratedRegex("^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$")]
+    private static partial System.Text.RegularExpressions.Regex LanguageTag();
+
+    private async Task<GameProfileStatus> RequestAsync(int processId, string command, CancellationToken cancellationToken) =>
+        GameProfileStatus.Parse(await RequestDetailAsync(processId, command, cancellationToken));
+
+    private async Task<string> RequestDetailAsync(int processId, string command, CancellationToken cancellationToken)
     {
         if (processId <= 0) throw new ArgumentOutOfRangeException(nameof(processId));
         if (connectionTimeoutSeconds is < 5 or > 120) throw new ArgumentOutOfRangeException(nameof(connectionTimeoutSeconds));
@@ -141,7 +168,7 @@ public sealed class GameProfileClient(string bridgeDirectory, int connectionTime
                 throw new GameSaveException("unsupported-protocol", "The game is running an older bridge. Restart the game.");
             await writer.WriteLineAsync(command.AsMemory(), deadline.Token);
             var parts = (await ReadLineAsync(reader, deadline.Token))?.Split('\t') ?? [];
-            if (parts is ["OK", var detailText]) return GameProfileStatus.Parse(Decode(detailText));
+            if (parts is ["OK", var detailText]) return Decode(detailText);
             if (parts is ["ERROR", var code, var message])
                 // A bridge that predates recording answers every unknown request as a protocol error.
                 throw new GameSaveException(code == "protocol" ? "unsupported-protocol" : code, Decode(message));

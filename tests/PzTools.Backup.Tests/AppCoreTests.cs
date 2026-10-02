@@ -84,6 +84,48 @@ public sealed class AppCoreTests
     }
 
     [Fact]
+    public async Task LastMinutesAndHotKeys_PersistWithoutRescheduling_AndADuplicateKeyIsRefused()
+    {
+        using var temp = new TempDirectory();
+        var busy = false;
+        var service = new AppSettingsService(temp.GetPath("runtime"), () => busy);
+        // Off at first, one key: saving the last minutes.
+        var defaults = service.Load();
+        Assert.Equal((false, false, 1, "Ctrl+Shift+F9", ""), (defaults.RollingEnabled, defaults.RollingDetailed, defaults.RollingMinutes,
+            defaults.Keys.SaveLast, defaults.Keys.ManualBackup));
+        var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var initial = AppSettings.CreateDefault() with { SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups") };
+        await service.SaveAndApplyAsync(initial with { HotKeys = null }, scheduler);
+        var before = await scheduler.ReadBackupStateIfChangedAsync(-1);
+        // A backup running does not keep these from being saved: they touch no folder the backup uses.
+        busy = true;
+
+        var changed = initial with
+        {
+            RollingEnabled = true, RollingDetailed = true, RollingMinutes = 3,
+            HotKeys = new HotKeySettings(SaveLast: "ctrl+f9", ManualBackup: "Ctrl+Alt+B", Status: ""),
+        };
+        await service.SaveAndApplyAsync(changed, scheduler);
+        var loaded = new AppSettingsService(service.RuntimeRoot).Load();
+        Assert.Equal((true, true, 3), (loaded.RollingEnabled, loaded.RollingDetailed, loaded.RollingMinutes));
+        // Written in one form, read back as written.
+        Assert.Equal(new HotKeySettings(SaveLast: "Ctrl+F9", ManualBackup: "Ctrl+Alt+B", Status: ""), loaded.Keys);
+        Assert.Equal(before, await scheduler.ReadBackupStateIfChangedAsync(-1));
+        var views = new RevisionedViewStore();
+        new SettingsProjector(views).Project(loaded);
+        Assert.Equal(loaded.Keys, views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot!.HotKeys);
+
+        // One combination for two actions is refused when saved, and dropped from a file edited by hand.
+        await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAndApplyAsync(
+            changed with { HotKeys = new HotKeySettings(SaveLast: "Ctrl+F9", Record: "Ctrl+F9") }, scheduler));
+        await File.AppendAllTextAsync(service.SettingsPath, "");
+        var text = (await File.ReadAllTextAsync(service.SettingsPath)).Replace("record = \"\"", "record = \"Ctrl+F9\"");
+        await File.WriteAllTextAsync(service.SettingsPath, text.Replace("rolling_minutes = 3", "rolling_minutes = 99"));
+        var edited = service.Load();
+        Assert.Equal(("Ctrl+F9", "", 10), (edited.Keys.SaveLast, edited.Keys.Record, edited.RollingMinutes));
+    }
+
+    [Fact]
     public async Task GameSaveToggle_PersistsForWorkersWithoutRewritingDefaultsOrRescheduling()
     {
         using var temp = new TempDirectory();

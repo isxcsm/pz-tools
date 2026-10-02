@@ -18,19 +18,22 @@ public sealed record ProfileFile(string Path, string Name, DateTimeOffset Create
 /// way, <see cref="Saving"/> while a save is; <see cref="Error"/> is why the game is not keeping it, until it is.
 /// </summary>
 public sealed record ProfileRolling(bool Wanted = false, bool Detailed = false, bool On = false, bool OnDetailed = false,
-    bool Busy = false, bool Saving = false, string? Error = null);
+    bool Busy = false, bool Saving = false, string? Error = null, int Minutes = 1, int OnMinutes = 0);
 
 /// <summary>
 /// Recordings of the running game: one worker process per recording, one file per recording.
 /// The files live in their own folder, outside the log and telemetry databases, so a long recording
 /// cannot grow those and a single file can be handed to someone else.
 /// </summary>
-public sealed class ProfileRecordingService(string directory, Func<OperationCoordinator?> operations, Func<int>? gameCount = null)
+public sealed class ProfileRecordingService(string directory, Func<OperationCoordinator?> operations, Func<int>? gameCount = null,
+    ProfilerRuntimeOptions? options = null)
 {
     private readonly Func<int> countGames = gameCount ?? GameProcesses.Count;
+    private readonly ProfilerRuntimeOptions options = options ?? new();
 
     /// <summary>A forgotten recording ends by itself. The detailed one is shorter: it writes about ten times as much.</summary>
-    public const int GeneralLimitSeconds = 1800, DetailedLimitSeconds = 600;
+    public int GeneralLimitSeconds => options.GeneralLimitMinutes * 60;
+    public int DetailedLimitSeconds => options.DetailedLimitMinutes * 60;
     private readonly object gate = new();
     private ProfileSession session = new(ProfileSessionState.Idle);
     private string? stopFile;
@@ -38,6 +41,10 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
 
     /// <summary>Raised on any thread whenever <see cref="Session"/> changes.</summary>
     public event Action? Changed;
+    /// <summary>Raised on any thread with each recording written, a recording's or a save of the last minutes.</summary>
+    public event Action<string>? Saved;
+    /// <summary>The mode the Performance page's switch is set to; a recording started from a hotkey takes it.</summary>
+    public bool PreferDetailed { get; set; }
     public string Directory { get; } = Path.GetFullPath(directory);
     public ProfileSession Session { get { lock (gate) return session; } }
 
@@ -76,7 +83,9 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
             rollingLock.Release();
             TryDelete(stop);
             var result = await coordinator.RecordProfileAsync(output, stop, detailed, limit, Report, cancellationToken).ConfigureAwait(false);
-            return (result.Outcome == ProcessOutcome.Succeeded && File.Exists(output) ? output : null, result);
+            var written = result.Outcome == ProcessOutcome.Succeeded && File.Exists(output);
+            if (written) Saved?.Invoke(output);
+            return (written ? output : null, result);
         }
         finally
         {
@@ -130,8 +139,7 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
 
     // ---- Rolling recording ----
 
-    /// <summary>What a save holds: "the last minute" before a stutter.</summary>
-    public const int RollingSeconds = 60;
+
     // How often the game is checked for while the rolling recording is wanted: a game that starts (or restarts) gets
     // it within this, whether or not a page is open.
     private static readonly TimeSpan RollingCheck = TimeSpan.FromSeconds(5);
@@ -149,9 +157,9 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
     /// if a game is running, otherwise as soon as one is, and again after each recording and each restart of the game.
     /// Returns the start's result when it ran now.
     /// </summary>
-    public async Task<AppOperationResult?> StartRollingAsync(bool detailed)
+    public async Task<AppOperationResult?> StartRollingAsync(bool detailed, int minutes = 1)
     {
-        SetRolling(state => state with { Wanted = true, Detailed = detailed, Error = null });
+        SetRolling(state => state with { Wanted = true, Detailed = detailed, Minutes = minutes, Error = null });
         lock (gate) rollingBlocked = false;
         // Armed here first, so the caller hears how the start went; the loop then keeps it armed.
         var result = await EnsureRollingAsync().ConfigureAwait(false);
@@ -159,16 +167,30 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
         return result;
     }
 
-    /// <summary>The mode for the rolling recording from now on; one already running restarts in it.</summary>
-    public void SetRollingMode(bool detailed)
+    /// <summary>
+    /// What the settings want: the last minutes kept or not, in which mode, how many. Applied in the background; one
+    /// already kept in another mode or length restarts in the new one.
+    /// </summary>
+    public void ApplyRolling(bool enabled, bool detailed, int minutes)
     {
+        if (!enabled)
+        {
+            if (Rolling is { Wanted: false, On: false }) return;
+            _ = StopRollingAsync();
+            return;
+        }
+        bool changed;
         lock (gate)
         {
-            if (!rolling.Wanted || rolling.Detailed == detailed) return;
-            rolling = rolling with { Detailed = detailed, Error = null };
-            rollingBlocked = false;
+            changed = !rolling.Wanted || rolling.Detailed != detailed || rolling.Minutes != minutes;
+            if (changed)
+            {
+                rolling = rolling with { Wanted = true, Detailed = detailed, Minutes = minutes, Error = null };
+                rollingBlocked = false;
+            }
+            rollingLoop ??= Task.Run(RollingLoopAsync);
         }
-        Changed?.Invoke();
+        if (changed) Changed?.Invoke();
         WakeRolling();
     }
 
@@ -209,11 +231,13 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
             SetRolling(state => state with { Busy = true, Saving = true });
             System.IO.Directory.CreateDirectory(Directory);
             var output = NextPath(DateTime.Now);
-            var result = await coordinator.RollProfileAsync("roll-save", Rolling.OnDetailed, RollingSeconds, output, cancellationToken)
-                .ConfigureAwait(false);
+            var result = await coordinator.RollProfileAsync("roll-save", Rolling.OnDetailed, Math.Max(1, Rolling.OnMinutes) * 60, output,
+                cancellationToken).ConfigureAwait(false);
             // The game was not keeping it after all (the bridge was replaced, the game restarted): start it again.
             if (result.Error == "profile-not-rolling") SetRolling(state => state with { On = false });
-            return (result.Outcome == ProcessOutcome.Succeeded && File.Exists(output) ? output : null, result);
+            var written = result.Outcome == ProcessOutcome.Succeeded && File.Exists(output);
+            if (written) Saved?.Invoke(output);
+            return (written ? output : null, result);
         }
         finally
         {
@@ -243,11 +267,15 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
             }
             bool blocked;
             lock (gate) blocked = rollingBlocked;
-            if (blocked || state.On && state.OnDetailed == state.Detailed || Session.State != ProfileSessionState.Idle
-                || operations() is not { } coordinator) return null;
+            if (blocked || state.On && state.OnDetailed == state.Detailed && state.OnMinutes == state.Minutes
+                || Session.State != ProfileSessionState.Idle || operations() is not { } coordinator) return null;
             SetRolling(current => current with { Busy = true });
             AppOperationResult result;
-            try { result = await coordinator.RollProfileAsync("roll-start", state.Detailed, RollingSeconds).ConfigureAwait(false); }
+            try
+            {
+                result = await coordinator.RollProfileAsync("roll-start", state.Detailed, state.Minutes * 60,
+                    maxMegabytes: options.RollingMaxMegabytes).ConfigureAwait(false);
+            }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 result = new AppOperationResult("", 0, ProcessOutcome.Failed, null, "profile-failed", exception.Message);
@@ -257,7 +285,7 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
             lock (gate) rollingBlocked = !armed && result.Outcome != ProcessOutcome.Busy;
             SetRolling(current => current with
             {
-                On = armed, OnDetailed = state.Detailed, Error = armed ? null : result.Error ?? "profile-failed",
+                On = armed, OnDetailed = state.Detailed, OnMinutes = state.Minutes, Error = armed ? null : result.Error ?? "profile-failed",
             });
             return result;
         }

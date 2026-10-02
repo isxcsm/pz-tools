@@ -427,12 +427,44 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вимкнено: простий список функцій.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Пошук</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Порівняти з</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>Зберігати останню хвилину</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>Зберегти останню хвилину</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>Збереження…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Щойно підвисло? Натисніть: гра зберігала приблизно останню хвилину, її буде збережено як запис. Режим: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>У грі натисніть {0}: один звук підтвердить натискання, другий — збереження (звук помилки — збій).</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Немає клавіші для збереження з гри: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 і Ctrl+Alt+F10 зайняті іншими програмами.</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Автоматичне копіювання призупинено</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Гарячі клавіші</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Працюють і в грі. Поки PZ Tools запущено, задані тут клавіші недоступні іншим програмам. Кожна відповідає звуком і повідомленням над головою вашого персонажа.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Зберегти останні хвилини</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Зберігає як запис хвилини, які зберігала гра.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Почати/зупинити запис</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Починає запис у режимі, вибраному на сторінці «Продуктивність»; повторне натискання зупиняє його.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Зберігання хвилин увімк./вимк.</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Вмикає або вимикає «Зберігати останні хвилини» вище.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Копія вручну</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Одразу створює копію збереження, у яке ви граєте.</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Пауза автоматичних копій</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Призупиняє автоматичні копії на деякий час; повторне натискання відновлює їх. Коли час мине, вони відновляться самі. Копії після смерті персонажа не призупиняються.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Показати стан</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Показує над персонажем час до наступної копії, останню копію і те, що зараз записується.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Цю клавішу займає інша програма, тому вона не працює.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Працює, лише коли ввімкнено «Зберігати останні хвилини».</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Натисніть клавіші… (Esc — скасувати)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Немає</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Скинути клавішу: {0}</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Цю клавішу не можна використати.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Літери й цифри потрібно натискати разом із Ctrl або Alt.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Ця клавіша вже призначена іншій дії.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Не знайдено збереження для копіювання. Завантажте збереження в грі й натисніть ще раз.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Поки нічого зберігати. Гра має бути запущена, а в налаштуваннях має бути ввімкнено «Зберігати останні хвилини».</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>Щоб цим користуватися, увімкніть «Зберігати останні хвилини» в розділі Налаштування &gt; Продуктивність.</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Зберегти ост. {0} хв</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Збереження ост. {0} хв…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Продуктивність</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>Гра зберігає кілька останніх хвилин, тож підвисання можна зберегти вже після того, як воно сталося.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Зберігати останні хвилини</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Коли ввімкнено, гра зберігає кілька останніх хвилин увесь час, поки запущена. Звичайний режим майже нічого не коштує.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Режим</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Докладний показує більше, але, поки ввімкнений, трохи сповільнює гру (приблизно на 10%). Вмикайте його, коли шукаєте підвисання.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Тривалість (хвилини)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>Від 1 до 10 хвилин. Більша тривалість навантажує гру так само, лише займає більше місця на диску.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Почне зберігати останню хвилину, коли гру буде запущено.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск збереження останньої хвилини…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Призупинено на час запису; продовжиться після нього.</value></data>

@@ -5,6 +5,7 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Projections;
+using PzTools.SaveBridge;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 
@@ -95,7 +96,8 @@ public sealed class AppHost : IAsyncDisposable
         TelemetrySources = telemetrySources ?? new TelemetrySourceCatalog();
         Settings = new AppSettingsService(this.paths.RuntimeRoot, HasRunningOperation);
         extensionDiagnostics = new(this.paths.RuntimeRoot, () => LogInbox);
-        Profiles = new ProfileRecordingService(Path.Combine(this.paths.RuntimeRoot, "profiles"), () => Operations);
+        Profiles = new ProfileRecordingService(Path.Combine(this.paths.RuntimeRoot, "profiles"), () => Operations,
+            options: runtime.ProfilerOptions);
         saveVersions = new SaveGameVersionMemory(this.paths.RuntimeRoot);
         GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
@@ -436,8 +438,49 @@ public sealed class AppHost : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// A note over the player's head for something asked for from inside the game, built in the game from its own
+    /// catalog (see <see cref="GameProfileClient.NotifyAsync"/>). False when nobody saw it: notes are off, there is no
+    /// single game, no player (the main menu), or the game did not answer in time.
+    /// </summary>
+    public async Task<bool> NotifyGameAsync(IReadOnlyList<string> items, CancellationToken cancellationToken = default)
+    {
+        if (!runtime.HotKeyOptions.GameNotices) return false;
+        var language = Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.Language ?? "en-US";
+        try
+        {
+            var processId = await Task.Run(GameProfileClient.FindGame, cancellationToken).ConfigureAwait(false);
+            var client = new GameProfileClient(Path.Combine(paths.WorkerDirectory, "save-bridge"), connectionTimeoutSeconds: 10);
+            // A save or another short request may hold the channel for a moment: wait a little for it, not long.
+            for (var attempt = 0; ; attempt++)
+            {
+                try { return await client.NotifyAsync(processId, language, items, cancellationToken).ConfigureAwait(false); }
+                catch (GameSaveException busy) when (busy.Code == "busy" && attempt < 10)
+                {
+                    await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception exception) when (exception is GameSaveException or IOException or InvalidOperationException
+            or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Periodic backups wait until <paramref name="until"/>; a final backup still runs.</summary>
+    public Task PauseBackupsAsync(DateTimeOffset until, CancellationToken cancellationToken = default) =>
+        (Scheduler ?? throw new InvalidOperationException("The app host is not ready.")).PauseBackupsAsync(until, cancellationToken);
+
+    public Task ResumeBackupsAsync(CancellationToken cancellationToken = default) =>
+        (Scheduler ?? throw new InvalidOperationException("The app host is not ready.")).ResumeBackupsAsync(cancellationToken);
+
     public void PublishSettings(AppSettings settings)
-        => SettingsProjector.Project(settings);
+    {
+        SettingsProjector.Project(settings);
+        // The game keeps its last minutes as the settings say; before the workers start it waits for them.
+        Profiles.ApplyRolling(settings.RollingEnabled, settings.RollingDetailed, settings.RollingMinutes);
+    }
 
     public async Task RefreshSaveViewsAsync(bool collectState = true, CancellationToken cancellationToken = default)
     {

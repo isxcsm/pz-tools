@@ -427,12 +427,44 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Bu sahibin işlevlerini onlara götüren çağrı yollarına göre gruplar: en dıştaki işlev, örneğin bir olay işleyicisi, üstte; çağırdıkları içeride. Yalnızca bu sahibin işlevlerinde biten örnekler sayılır. Kapalı: düz bir işlev listesi.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Ara</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Şununla karşılaştır</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>Son dakikayı tut</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>Son dakikayı kaydet</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>Kaydediliyor…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Oyundayken {0} tuşlarına basın: bir ses basışı, bir ses daha kaydı bildirir (hata sesi başarısızlık demektir).</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Oyundan kaydetmek için tuş yok: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 ve Ctrl+Alt+F10 başka programlarca kullanılıyor.</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Otomatik yedekleme duraklatıldı</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Kısayol tuşları</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Oyunda da çalışır. PZ Tools çalıştığı sürece burada atanan tuşlar başka programlarca kullanılamaz. Her biri bir ses ve karakterinizin başının üstünde bir notla yanıt verir.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Son dakikaları kaydet</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Oyunun tuttuğu dakikaları bir kayıt olarak kaydeder.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Performans kaydını başlat/durdur</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Performans sayfasında seçili modda bir kayıt başlatır; durdurmak için tekrar basın.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Son dakikaları tut aç/kapat</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Yukarıdaki “Son dakikaları tut” seçeneğini açar veya kapatır.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Elle yedekleme</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Oynadığınız kaydı hemen yedekler.</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Otomatik yedeklemeyi duraklat</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Otomatik yedeklemeyi bir süre durdurur; devam ettirmek için tekrar basın. Süre dolunca kendiliğinden devam eder. Karakter ölünce alınan yedekler durdurulmaz.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Durumu göster</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Sonraki yedeğe kalan süreyi, son yedeği ve neyin kaydedildiğini karakterinizin üstünde gösterir.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Bu tuşu başka bir program kullanıyor, bu yüzden bir işe yaramıyor.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Yalnızca “Son dakikaları tut” açıkken çalışır.</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Tuşlara basın… (Esc iptal)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Yok</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>{0} kısayolunu temizle</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Bu tuş kullanılamaz.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Harf ve rakamlar Ctrl veya Alt ile birlikte kullanılmalıdır.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Bu tuş zaten başka bir işleme atanmış.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Yedeklenecek kayıt bulunamadı. Oyunda bir kayıt yükleyip tekrar basın.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Henüz kaydedilecek bir şey yok. Oyun çalışıyor olmalı ve Ayarlar'da “Son dakikaları tut” açık olmalı.</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>Bunu kullanmak için Ayarlar &gt; Performans bölümünde “Son dakikaları tut” seçeneğini açın.</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Son {0} dk'yı kaydet</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Son {0} dk kaydediliyor…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Performans</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>Oyun son birkaç dakikasını tutar, böylece bir takılma olduktan sonra da kaydedilebilir.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Son dakikaları tut</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Açıkken oyun her çalıştığında son birkaç dakikasını tutar. Standart mod neredeyse hiç yük getirmez.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Mod</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Ayrıntılı daha fazlasını gösterir ama açık kaldığı sürece oyunu biraz yavaşlatır (yaklaşık %10). Bir takılmanın peşindeyken kullanın.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Süre (dakika)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ile 10 dakika arası. Daha uzun süre oyuna aynı yükü getirir, yalnızca daha fazla disk kullanır.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Oyun çalışınca son dakikayı tutmaya başlar.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Son dakikayı tutmaya başlanıyor…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Kayıt sürerken duraklatıldı; kayıt bitince devam eder.</value></data>

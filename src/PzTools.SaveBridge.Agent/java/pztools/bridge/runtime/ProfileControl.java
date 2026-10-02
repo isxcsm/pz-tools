@@ -20,6 +20,7 @@ final class ProfileControl {
     static boolean handles(String command) { return command.startsWith("PROFILE_"); }
 
     static synchronized String handle(String[] command) {
+        releaseIdleNoticeHook();
         try {
             switch (command[0]) {
                 case "PROFILE_START" -> {
@@ -34,11 +35,13 @@ final class ProfileControl {
                 }
                 // Keeps only the last stretch, for as long as the app wants it, until a save takes what it holds.
                 case "PROFILE_ROLL_START" -> {
-                    if (command.length != 3 || !(command[1].equals("general") || command[1].equals("detailed")))
+                    // An optional fourth field: the most the game may hold on disk, in megabytes.
+                    if (command.length < 3 || command.length > 4 || !(command[1].equals("general") || command[1].equals("detailed")))
                         return error("protocol", "Invalid rolling start request");
                     int seconds = Integer.parseInt(command[2]);
+                    int megabytes = command.length == 4 ? Integer.parseInt(command[3]) : ProfileRecorder.DEFAULT_ROLLING_MEGABYTES;
                     Hook hook = hookFrames();
-                    String status = ProfileRecorder.startRolling(command[1].equals("detailed"), seconds, hook.game());
+                    String status = ProfileRecorder.startRolling(command[1].equals("detailed"), seconds, megabytes, hook.game());
                     rollingFrames = hook.frames();
                     startMonitor();
                     return ok(status + ";" + rollingFrames);
@@ -85,6 +88,8 @@ final class ProfileControl {
             Class<?> window = AgentEntry.ensureGameHook();
             game = window.getClassLoader();
             if (!RuntimeObserver.running()) { AgentEntry.observe(ProfileFrames::tick); ownsFrameHook = true; }
+            // The recording holds the relay now; a note's own claim on it ends with it.
+            noticeHook = false;
         } catch (Exception | LinkageError unavailable) { frames = "no-frames"; }
         return new Hook(game == null ? ClassLoader.getSystemClassLoader() : game, frames);
     }
@@ -102,6 +107,25 @@ final class ProfileControl {
     private static void releaseFrameHook() {
         if (ownsFrameHook && !RuntimeObserver.running()) AgentEntry.observe(null);
         ownsFrameHook = false;
+        noticeHook = false;
+    }
+
+    // The per-frame relay also shows the app's notes over the player. With no state observer to call it, a note
+    // installs it, and the next command after the note had its time takes it away again (unless a recording uses it).
+    private static boolean noticeHook;
+    private static long noticeHookSince;
+
+    static synchronized void hookForNotice() {
+        releaseIdleNoticeHook();
+        if (RuntimeObserver.running() || ownsFrameHook) return;
+        AgentEntry.observe(ProfileFrames::tick);
+        ownsFrameHook = true;
+        noticeHook = true;
+        noticeHookSince = System.nanoTime();
+    }
+
+    private static void releaseIdleNoticeHook() {
+        if (noticeHook && !ProfileFrames.attached() && System.nanoTime() - noticeHookSince > 10_000_000_000L) releaseFrameHook();
     }
 
     // A replaced payload must not leave its recording, sampler or frame callback behind: the
@@ -129,8 +153,8 @@ final class ProfileControl {
         monitor.start();
     }
 
-    private static String ok(String detail) { return "OK\t" + encode(detail); }
-    private static String error(String code, String message) {
+    static String ok(String detail) { return "OK\t" + encode(detail); }
+    static String error(String code, String message) {
         return "ERROR\t" + code.replace('\t', ' ') + "\t" + encode(message.length() > 400 ? message.substring(0, 400) : message);
     }
     private static String encode(String value) { return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }

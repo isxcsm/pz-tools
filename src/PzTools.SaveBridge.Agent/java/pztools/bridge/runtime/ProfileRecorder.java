@@ -46,7 +46,7 @@ final class ProfileRecorder {
         @Label("Game thread allocated") @DataAmount long allocated;
     }
 
-    static final int MAXIMUM_SECONDS = 1800, MAXIMUM_ROLLING_SECONDS = 600;
+    static final int MAXIMUM_SECONDS = 1800, MAXIMUM_ROLLING_SECONDS = 600, DEFAULT_ROLLING_MEGABYTES = 256;
     private static volatile Recording recording;
     // The recording keeps only its last stretch and has no end of its own; see startRolling.
     private static boolean rolling;
@@ -107,13 +107,18 @@ final class ProfileRecorder {
      * held; the converter cuts a save to the window. A recording asked for replaces it.
      */
     static synchronized String startRolling(boolean detailedMode, int keepSeconds, ClassLoader gameLoader) throws Exception {
+        return startRolling(detailedMode, keepSeconds, DEFAULT_ROLLING_MEGABYTES, gameLoader);
+    }
+
+    static synchronized String startRolling(boolean detailedMode, int keepSeconds, int maxMegabytes, ClassLoader gameLoader) throws Exception {
         if (running() && !rolling) throw new IllegalStateException("already-recording");
-        closeQuietly();
         if (keepSeconds < 10 || keepSeconds > MAXIMUM_ROLLING_SECONDS) throw new IllegalArgumentException("Invalid rolling duration");
+        if (maxMegabytes < 64 || maxMegabytes > 2048) throw new IllegalArgumentException("Invalid rolling size");
+        closeQuietly();
         Recording next = configured(detailedMode);
         try {
             next.setMaxAge(Duration.ofSeconds(keepSeconds));
-            next.setMaxSize(256L * 1024 * 1024);
+            next.setMaxSize(maxMegabytes * 1024L * 1024);
         } catch (Throwable failure) { next.close(); throw failure; }
         return begin(next, detailedMode, gameLoader, true);
     }

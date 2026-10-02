@@ -427,12 +427,44 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Grupuje funkcje tego właściciela według ścieżek wywołań, które do nich prowadziły: na górze funkcja najbardziej zewnętrzna, np. obsługa zdarzenia, a wewnątrz to, co wywołała. Liczą się tylko próbki zakończone w funkcjach tego właściciela. Wyłączone: zwykła lista funkcji.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Szukaj</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Porównaj z</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>Zachowuj ostatnią minutę</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>Zapisz ostatnią minutę</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>Zapisywanie…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Właśnie przycięło? Naciśnij: gra zachowała mniej więcej ostatnią minutę, która zostanie zapisana jako nagranie. Tryb: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>W grze naciśnij {0}: jeden dźwięk potwierdza naciśnięcie, drugi zapis (dźwięk błędu oznacza niepowodzenie).</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Brak klawisza do zapisu z gry: inne programy zajmują Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 i Ctrl+Alt+F10.</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatyczne kopie wstrzymane</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Skróty klawiszowe</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Działają też w grze. Gdy PZ Tools jest uruchomiony, ustawione tu klawisze nie są dostępne dla innych programów. Każdy odpowiada dźwiękiem i komunikatem nad głową postaci.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Zapisz ostatnie minuty</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Zapisuje jako nagranie minuty zachowane przez grę.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Rozpocznij/zatrzymaj nagrywanie</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Rozpoczyna nagrywanie w trybie ustawionym na stronie Wydajność; naciśnij ponownie, aby je zatrzymać.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Włącz/wyłącz ostatnie minuty</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Włącza lub wyłącza opcję „Zachowuj ostatnie minuty” powyżej.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Ręczna kopia</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Od razu tworzy kopię zapisu, w który grasz.</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Wstrzymaj automatyczne kopie</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Wstrzymuje na chwilę automatyczne kopie; naciśnij ponownie, aby je wznowić. Po upływie czasu wznawiają się same. Kopie po śmierci postaci nie są wstrzymywane.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Pokaż stan</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Pokazuje nad postacią czas do następnej kopii, ostatnią kopię i to, co jest nagrywane.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Inny program zajmuje ten klawisz, więc nic nie robi.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Działa tylko przy włączonej opcji „Zachowuj ostatnie minuty”.</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Naciśnij klawisze… (Esc anuluje)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Brak</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Usuń skrót: {0}</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Tego klawisza nie można użyć.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Litery i cyfry wymagają Ctrl lub Alt.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Ten klawisz ma już inna akcja.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Nie znaleziono zapisu do skopiowania. Wczytaj zapis w grze i naciśnij ponownie.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Na razie nie ma nic do zapisania. Gra musi być uruchomiona, a w Ustawieniach musi być włączona opcja „Zachowuj ostatnie minuty”.</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>Aby z tego korzystać, włącz „Zachowuj ostatnie minuty” w Ustawienia &gt; Wydajność.</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Zapisz ost. {0} min</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Zapisywanie ost. {0} min…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Wydajność</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>Gra zachowuje kilka ostatnich minut, więc przycięcie można zapisać już po fakcie.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Zachowuj ostatnie minuty</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Gdy ta opcja jest włączona, gra zawsze podczas działania zachowuje kilka ostatnich minut. Tryb Standardowy prawie nic nie kosztuje.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Tryb</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Szczegółowy pokazuje więcej, ale przez cały czas działania lekko spowalnia grę (o ok. 10%). Używaj go podczas szukania przycięć.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Długość (minuty)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>Od 1 do 10 minut. Dłuższa nie obciąża gry bardziej, zajmuje tylko więcej miejsca na dysku.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Zacznie zachowywać ostatnią minutę, gdy gra będzie uruchomiona.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Uruchamianie zachowywania ostatniej minuty…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Wstrzymane podczas nagrywania; wznawia się po jego zakończeniu.</value></data>

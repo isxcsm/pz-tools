@@ -42,6 +42,11 @@ public final class ProfileFramesTest {
         check(marks.get() == 1 && ProfileFrames.attached(), "Another recording's detach removed this mark");
         ProfileFrames.detach(mark);
         check(!ProfileFrames.attached(), "Detach left the mark attached");
+        // The app's notes ride the same relay and need nothing beyond the base module either.
+        check(GameNotices.compose("en-US", new String[] { "saved-last:2", "busy" }).equals("Saved the last 2 min · PZ Tools is busy with other work"),
+            "Unexpected note");
+        observer.run();
+        check(observed.get() == 5, "A note check stopped the observer");
         System.out.println("PASS: profiler failures stay in the profiler");
     }
 

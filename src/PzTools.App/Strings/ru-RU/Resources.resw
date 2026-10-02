@@ -427,12 +427,44 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Группирует функции этого владельца по путям вызовов, которые к ним привели: наверху самая внешняя функция, например обработчик события, внутри — то, что она вызвала. Учитываются только выборки, завершившиеся в функциях этого владельца. Выключено: простой список функций.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Поиск</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Сравнить с</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>Хранить последнюю минуту</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>Сохранить последнюю минуту</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>Сохранение…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>В игре нажмите {0}: один звук подтвердит нажатие, второй — сохранение (звук ошибки — сбой).</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Нет клавиши для сохранения из игры: Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 и Ctrl+Alt+F10 заняты другими программами.</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Автоматическое копирование приостановлено</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Горячие клавиши</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Работают и в игре. Пока PZ Tools запущен, заданные здесь клавиши недоступны другим программам. Каждая отвечает звуком и сообщением над головой вашего персонажа.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Сохранить последние минуты</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Сохраняет как запись минуты, которые хранила игра.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Начать/остановить запись</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Начинает запись в режиме, выбранном на странице «Производительность»; повторное нажатие останавливает её.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Хранение минут вкл./выкл.</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Включает или выключает «Хранить последние минуты» выше.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Копия вручную</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Сразу создаёт копию сохранения, в которое вы играете.</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Пауза автоматических копий</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Приостанавливает автоматические копии на время; повторное нажатие возобновляет их. Когда время истечёт, они возобновятся сами. Копии при смерти персонажа не приостанавливаются.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Показать состояние</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Показывает над персонажем время до следующей копии, последнюю копию и то, что сейчас записывается.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Эту клавишу занимает другая программа, поэтому она не работает.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Работает, только когда включено «Хранить последние минуты».</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Нажмите клавиши… (Esc — отмена)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Нет</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Сбросить клавишу: {0}</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Эту клавишу нельзя использовать.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Буквы и цифры нужно нажимать вместе с Ctrl или Alt.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Эта клавиша уже назначена другому действию.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Не найдено сохранение для копирования. Загрузите сохранение в игре и нажмите ещё раз.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Пока нечего сохранять. Игра должна быть запущена, а в настройках должно быть включено «Хранить последние минуты».</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>Чтобы этим пользоваться, включите «Хранить последние минуты» в разделе Настройки &gt; Производительность.</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Сохранить посл. {0} мин</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Сохранение посл. {0} мин…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Производительность</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>Игра хранит последние несколько минут, поэтому подвисание можно сохранить уже после того, как оно случилось.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Хранить последние минуты</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Когда включено, игра хранит последние несколько минут всё время, пока запущена. Обычный режим почти ничего не стоит.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Режим</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Подробный показывает больше, но, пока включён, немного замедляет игру (примерно на 10%). Включайте его, когда ищете подвисание.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Длина (минуты)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>От 1 до 10 минут. Большая длина нагружает игру так же, только занимает больше места на диске.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Начнёт хранить последнюю минуту, когда игра будет запущена.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск хранения последней минуты…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Приостановлено на время записи; продолжится после неё.</value></data>

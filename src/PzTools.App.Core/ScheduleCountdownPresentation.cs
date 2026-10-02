@@ -14,6 +14,9 @@ public static class ScheduleCountdownPresentation
         if (schedule is null) return new("NextBackupWaitingDynamic");
         if ((schedule.Hold & ScheduleHold.GameOffline) != 0) return new("RuntimeBackupOffline");
         if (!schedule.AutomaticEnabled) return new("AutomaticBackupOff");
+        // Held at the user's request: the time until it resumes, not until a backup it will not start.
+        if (schedule.PausedUntilUtc is { } until && now < until)
+            return new("AutomaticBackupPausedUntil", (long)Math.Ceiling((until - now).TotalSeconds), true);
         // The game cannot be read, so backups follow the clock and take the files as they are.
         if (schedule.Fallback && schedule.NextDueUtc is { } fallbackDue)
             return fallbackDue <= now ? new(WaitingKey(schedule))

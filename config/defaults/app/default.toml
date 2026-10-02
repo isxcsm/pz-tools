@@ -84,3 +84,20 @@ settings_debounce_ms = 450
 # Wait this long after the last log-filter edit before querying (50-2000 ms).
 # Larger values reduce repeated database queries but delay displayed results.
 log_filter_debounce_ms = 180
+
+[profiler]
+# A recording nobody stops ends by itself after this many minutes (1-30). Detailed mode writes
+# about ten times as much as Standard, so it has its own, shorter limit.
+general_limit_minutes = 30
+detailed_limit_minutes = 10
+# While the game keeps its last minutes, it holds at most this many MB of them on disk (64-2048).
+# Older data is dropped first; a long window in Detailed mode can reach this and save less.
+rolling_max_megabytes = 256
+
+[hotkeys]
+# A hotkey pressed in the game answers with Windows' own sounds: heard, done, or failed.
+sounds = true
+# ... and with a short note over the character's head (true or false).
+game_notices = true
+# The pause hotkey holds automatic backups for this many minutes (5-240); press it again to resume.
+backup_pause_minutes = 30

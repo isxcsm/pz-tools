@@ -42,6 +42,11 @@ public sealed class BackupScheduler(
         }
         if (now < busyRetryAt)
             return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
+        // The user asked for a quiet stretch: a periodic backup stays due and runs when it ends. Read only once one
+        // is due, so an idle tick costs nothing more.
+        if (admission.Kind == BackupAdmissionKind.Periodic
+            && await schedulerDatabase.ReadBackupPauseAsync(cancellationToken) is { } pausedUntil && now < pausedUntil)
+            return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
 
         var repository = await RepositoryDatabase.CreateOrOpenAsync(
             admission.RepositoryPath, cancellationToken);

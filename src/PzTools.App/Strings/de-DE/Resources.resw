@@ -427,12 +427,44 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Aus: eine einfache Liste der Funktionen.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Suchen</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Vergleichen mit</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>Letzte Minute behalten</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>Letzte Minute speichern</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>Wird gespeichert…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>Im Spiel {0} drücken: Ein Ton bestätigt den Tastendruck, ein weiterer das Speichern (der Fehlerton einen Fehler).</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Keine Taste zum Speichern aus dem Spiel: Andere Programme belegen Strg+Umschalt+F9, Strg+Umschalt+F10, Strg+Alt+F9 und Strg+Alt+F10.</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatische Sicherung pausiert</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Tastenkürzel</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Sie funktionieren auch im Spiel. Solange PZ Tools läuft, stehen die hier festgelegten Tasten anderen Programmen nicht zur Verfügung. Jede antwortet mit einem Ton und einer Meldung über dem Kopf Ihres Charakters.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Letzte Minuten speichern</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Speichert die Minuten, die das Spiel behalten hat, als Aufnahme.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Aufnahme starten/beenden</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Startet eine Aufnahme im Modus, der auf der Seite „Leistung“ eingestellt ist; erneut drücken beendet sie.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Letzte Minuten behalten an/aus</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Schaltet „Letzte Minuten behalten“ oben ein oder aus.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Manuelle Sicherung</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Sichert den Spielstand, den Sie gerade spielen, sofort.</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Automatische Sicherung pausieren</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Hält die automatischen Sicherungen eine Weile an; erneut drücken setzt sie fort. Nach Ablauf der Zeit laufen sie von selbst weiter. Sicherungen beim Tod werden nicht angehalten.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Status anzeigen</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Zeigt über Ihrem Charakter die Zeit bis zur nächsten Sicherung, die letzte Sicherung und was gerade aufgezeichnet wird.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Ein anderes Programm belegt diese Taste, daher bewirkt sie nichts.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Funktioniert nur, wenn „Letzte Minuten behalten“ aktiviert ist.</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Tasten drücken… (Esc bricht ab)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Keine</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Tastenkürzel für {0} entfernen</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Diese Taste kann nicht verwendet werden.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Buchstaben und Ziffern brauchen zusätzlich Ctrl oder Alt.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Eine andere Aktion verwendet diese Taste bereits.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Kein Spielstand zum Sichern gefunden. Laden Sie im Spiel einen Spielstand und drücken Sie die Taste erneut.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Noch nichts zum Speichern vorhanden. Das Spiel muss laufen und „Letzte Minuten behalten“ in den Einstellungen aktiviert sein.</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>Aktivieren Sie dazu „Letzte Minuten behalten“ unter Einstellungen &gt; Leistung.</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Letzte {0} Min. speichern</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Letzte {0} Min. werden gespeichert…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Leistung</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>Das Spiel behält seine letzten Minuten, sodass ein Ruckler auch nachträglich gespeichert werden kann.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Letzte Minuten behalten</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Wenn aktiviert, behält das Spiel immer seine letzten Minuten, solange es läuft. Der Modus „Standard“ kostet fast nichts.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Modus</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>„Detailliert“ zeigt mehr, verlangsamt das Spiel aber leicht (etwa 10 %), solange er aktiv ist. Nutzen Sie ihn bei der Suche nach einem Ruckler.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Länge (Minuten)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 bis 10 Minuten. Eine längere Dauer belastet das Spiel genauso, braucht nur mehr Speicherplatz.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten, sobald das Spiel läuft.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Während einer Aufnahme pausiert; danach geht es weiter.</value></data>
@@ -454,7 +486,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Ganzer Spiel-Thread, mit und ohne Skripte: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>In diesem Bereich wurde keine Speicherbelegung durch Skripte aufgezeichnet.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>So bedienst du das Diagramm</value></data>
-  <data name="ProfileFileType" xml:space="preserve"><value>Leistungsaufnahme</value></data>
+  <data name="ProfileFileType" xml:space="preserve"><value>Leistungsaufzeichnung</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Alles anzeigen</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Auf Auswahl zoomen</value></data>
   <data name="ProfileThreadGame" xml:space="preserve"><value>Spiel-Thread</value></data>

@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Media.Animation;
 using PzTools.App.Core;
 using PzTools.Projections;
 using Microsoft.Windows.Storage.Pickers;
+using SettingsCard = CommunityToolkit.WinUI.Controls.SettingsCard;
 
 namespace PzTools.App;
 
@@ -30,11 +31,17 @@ public sealed partial class SettingsPage : UserControl
         applyTimer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).SettingsDebounceMs);
         applyTimer.IsRepeating = false;
         applyTimer.Tick += ApplyTimer_Tick;
+        BuildHotKeyCards();
         ApplyLocalizedText();
         PrepareForNavigation();
         loading = false;
         Loaded += OnLoaded;
-        Unloaded += (_, _) => applyTimer.Stop();
+        Unloaded += (_, _) =>
+        {
+            applyTimer.Stop();
+            if (App.HotKeys is { } keys) keys.Changed -= HotKeys_Changed;
+            if (capturing is not null) StopCapture();
+        };
     }
 
     private App App => (App)Application.Current;
@@ -50,7 +57,7 @@ public sealed partial class SettingsPage : UserControl
     internal void ApplyLocalizedText()
     {
         Language = Localizer.Culture.Name;
-        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, AutomaticBackupToggle, DeathBackupToggle, PausePeriodicToggle })
+        foreach (var toggle in new[] { SystemTrayToggle, GameSaveToggle, GameSaveCountdownToggle, AutomaticBackupToggle, DeathBackupToggle, PausePeriodicToggle, RollingToggle })
         {
             toggle.OnContent = Localizer.Get("SettingEnabled");
             toggle.OffContent = Localizer.Get("SettingDisabled");
@@ -92,6 +99,25 @@ public sealed partial class SettingsPage : UserControl
         GameSaveSettingCard.Header = Localizer.Get("GameSaveSetting.Header");
         GameSaveCountdownSettingCard.Header = Localizer.Get("GameSaveCountdownSetting.Header");
         UpdateAvailability();
+        ProfilerSection.Header = Localizer.Get("ProfilerSettings.Header");
+        ProfilerSection.Description = Localizer.Get("ProfilerSettings.Description");
+        RollingSettingCard.Header = Localizer.Get("RollingSetting.Header");
+        RollingSettingCard.Description = Localizer.Get("RollingSetting.Description");
+        RollingModeSettingCard.Header = Localizer.Get("RollingModeSetting.Header");
+        RollingModeSettingCard.Description = Localizer.Get("RollingModeSetting.Description");
+        Synchronize(() => ComboBoxLocalization.UpdateLabels(RollingModeCombo, () =>
+        {
+            RollingModeGeneralItem.Content = Localizer.Get("ProfileModeGeneral");
+            RollingModeDetailedItem.Content = Localizer.Get("ProfileModeDetailed");
+        }));
+        RollingMinutesSettingCard.Header = Localizer.Get("RollingMinutesSetting.Header");
+        RollingMinutesSettingCard.Description = Localizer.Get("RollingMinutesSetting.Description");
+        SetInputName(RollingToggle, RollingSettingCard.Header);
+        SetInputName(RollingModeCombo, RollingModeSettingCard.Header);
+        SetInputName(RollingMinutesNumber, RollingMinutesSettingCard.Header);
+        HotKeySection.Header = Localizer.Get("HotKeysTitle");
+        HotKeySection.Description = Localizer.Get("HotKeySettings.Description");
+        UpdateHotKeyCards();
         AdvancedSection.Header = Localizer.Get("AdvancedSettings.Header");
         AdvancedSection.Description = Localizer.Get("AdvancedSettings.Description");
         OpenConfigurationCard.Header = Localizer.Get("AdvancedFiles.OpenHeader");
@@ -156,7 +182,12 @@ public sealed partial class SettingsPage : UserControl
     private static void SetInputName(DependencyObject control, object header) =>
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(control, header.ToString() ?? "");
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => PrepareForNavigation();
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        PrepareForNavigation();
+        if (App.HotKeys is { } keys) { keys.Changed -= HotKeys_Changed; keys.Changed += HotKeys_Changed; }
+        UpdateHotKeyCards();
+    }
 
     internal void PrepareForNavigation()
     {
@@ -171,7 +202,7 @@ public sealed partial class SettingsPage : UserControl
     {
         if (initialLayoutCompleted) return;
         UpdateLayout();
-        foreach (var section in new[] { DisplaySection, PathSection, BackupSection, AdvancedSection })
+        foreach (var section in new[] { DisplaySection, PathSection, BackupSection, ProfilerSection, HotKeySection, AdvancedSection })
             SettingsExpanderLayout.CompleteInitialExpansion(section);
         UpdateLayout();
         SettingsSections.ChildrenTransitions = new TransitionCollection
@@ -204,12 +235,148 @@ public sealed partial class SettingsPage : UserControl
             DeathBackupToggle.IsOn = value.BackupOnDeath;
             GameSaveToggle.IsOn = value.SaveGameBeforeBackup;
             GameSaveCountdownToggle.IsOn = value.GameSaveCountdown;
+            LoadProfilerSettings(value);
             UpdateAvailability();
         }
         finally
         {
             loading = wasLoading;
         }
+    }
+
+    // ---- Performance and hotkeys ----
+
+    private HotKeySettings hotKeySettings = new();
+    private readonly Dictionary<HotKeyAction, (SettingsCard Card, Button Key, Button Clear)> hotKeyCards = [];
+    private HotKeyAction? capturing;
+
+    private void LoadProfilerSettings(SettingsView value)
+    {
+        RollingToggle.IsOn = value.RollingEnabled;
+        SelectTag(RollingModeCombo, value.RollingDetailed ? "detailed" : "general");
+        RollingMinutesNumber.Value = value.RollingMinutes;
+        hotKeySettings = value.HotKeys ?? new();
+        UpdateHotKeyCards();
+    }
+
+    // The settings were applied elsewhere (a hotkey turned the last minutes on or off): show them, unless an edit made
+    // here is still waiting to be applied.
+    private void HotKeys_Changed()
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (applying || completedApply < requestedApply || capturing is not null) return;
+            if (App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot is not { } value) return;
+            Synchronize(() => LoadProfilerSettings(value));
+        });
+    }
+
+    private void RollingSettingChanged(object sender, object e) => ScheduleApply();
+
+    private void RollingMinutesNumber_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (loading || double.IsNaN(args.NewValue)) return;
+        Synchronize(() => RollingMinutesNumber.Value = Math.Clamp(Math.Round(args.NewValue), 1, 10));
+        ScheduleApply();
+    }
+
+    private static string HotKeyName(HotKeyAction action) => $"HotKey.{action}";
+
+    // A card for each action: its name and what it does, the combination as a button (press it, then the keys), and a
+    // button that clears it.
+    private void BuildHotKeyCards()
+    {
+        foreach (var action in Enum.GetValues<HotKeyAction>())
+        {
+            var key = new Button { MinWidth = 160 };
+            var clear = new Button { Content = new SymbolIcon(Symbol.Clear), Style = (Style)Application.Current.Resources["SubtleButtonStyle"] };
+            key.Click += (_, _) => StartCapture(action);
+            key.PreviewKeyDown += (_, args) => CaptureKey(action, args);
+            key.LostFocus += (_, _) => { if (capturing == action) StopCapture(); };
+            clear.Click += (_, _) => SetHotKey(action, "");
+            var holder = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            holder.Children.Add(key);
+            holder.Children.Add(clear);
+            var card = new SettingsCard { Content = holder, HeaderIcon = new SymbolIcon(Symbol.Keyboard) };
+            hotKeyCards[action] = (card, key, clear);
+            HotKeySection.Items.Add(card);
+        }
+    }
+
+    private void UpdateHotKeyCards()
+    {
+        var refused = App.HotKeys?.Refused ?? [];
+        foreach (var (action, (card, key, clear)) in hotKeyCards)
+        {
+            card.Header = Localizer.Get(HotKeyName(action) + ".Header");
+            var text = hotKeySettings.Get(action);
+            var description = Localizer.Get(HotKeyName(action) + ".Description");
+            // Saving the last minutes is taken only while they are kept; another program's hold is said where it shows.
+            if (text.Length > 0 && refused.Contains(action)) description += " " + Localizer.Get("HotKeyTaken");
+            else if (text.Length > 0 && action == HotKeyAction.SaveLast && !RollingToggle.IsOn) description += " " + Localizer.Get("HotKeyNeedsRolling");
+            card.Description = description;
+            key.Content = capturing == action ? Localizer.Get("HotKeyPress") : text.Length > 0 ? text : Localizer.Get("HotKeyNone");
+            clear.Visibility = text.Length > 0 && capturing != action ? Visibility.Visible : Visibility.Collapsed;
+            SetInputName(key, card.Header);
+            SetInputName(clear, Localizer.Format("HotKeyClearFormat", card.Header));
+        }
+    }
+
+    private void StartCapture(HotKeyAction action)
+    {
+        // While a key is chosen the app gives every combination back, so the one pressed reaches this page.
+        App.HotKeys?.Suspend();
+        capturing = action;
+        UpdateHotKeyCards();
+    }
+
+    private void StopCapture()
+    {
+        capturing = null;
+        App.HotKeys?.Resume();
+        UpdateHotKeyCards();
+    }
+
+    private void CaptureKey(HotKeyAction action, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs args)
+    {
+        if (capturing != action) return;
+        args.Handled = true;
+        var code = (int)args.Key;
+        if (args.Key == Windows.System.VirtualKey.Escape) { StopCapture(); return; }
+        // A modifier alone waits for the key it goes with.
+        if (args.Key is Windows.System.VirtualKey.Control or Windows.System.VirtualKey.Shift or Windows.System.VirtualKey.Menu
+            or Windows.System.VirtualKey.LeftWindows or Windows.System.VirtualKey.RightWindows
+            or Windows.System.VirtualKey.LeftControl or Windows.System.VirtualKey.RightControl
+            or Windows.System.VirtualKey.LeftShift or Windows.System.VirtualKey.RightShift
+            or Windows.System.VirtualKey.LeftMenu or Windows.System.VirtualKey.RightMenu) return;
+        static bool Down(Windows.System.VirtualKey key) =>
+            Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        var modifiers = HotKeyModifiers.None;
+        if (Down(Windows.System.VirtualKey.Control)) modifiers |= HotKeyModifiers.Control;
+        if (Down(Windows.System.VirtualKey.Menu)) modifiers |= HotKeyModifiers.Alt;
+        if (Down(Windows.System.VirtualKey.Shift)) modifiers |= HotKeyModifiers.Shift;
+        if (Down(Windows.System.VirtualKey.LeftWindows) || Down(Windows.System.VirtualKey.RightWindows)) modifiers |= HotKeyModifiers.Windows;
+        var gesture = new HotKeyGesture(modifiers, code);
+        string? problem = !HotKeyGesture.IsKnownKey(code) ? "HotKeyUnknownKey"
+            : !gesture.IsValid ? "HotKeyNeedsModifier"
+            : Enum.GetValues<HotKeyAction>().Any(other => other != action && HotKeyGesture.Parse(hotKeySettings.Get(other)) == gesture) ? "HotKeyDuplicate"
+            : App.HotKeys?.IsFree(gesture) == false ? "HotKeyTaken"
+            : null;
+        if (problem is not null)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Warning, Localizer.Get("HotKeysTitle"), Localizer.Format("HotKeyRefusedFormat", gesture, Localizer.Get(problem)));
+            return;
+        }
+        capturing = null;
+        SetHotKey(action, gesture.ToString());
+        App.HotKeys?.Resume();
+    }
+
+    private void SetHotKey(HotKeyAction action, string text)
+    {
+        hotKeySettings = hotKeySettings.With(action, text);
+        UpdateHotKeyCards();
+        ScheduleApply();
     }
 
     private async void BrowseFolder_Click(object sender, RoutedEventArgs e)
@@ -330,7 +497,11 @@ public sealed partial class SettingsPage : UserControl
         GameSaveToggle.IsOn,
         GameSaveCountdownToggle.IsOn,
         AutomaticBackupToggle.IsOn,
-        PausePeriodicToggle.IsOn);
+        PausePeriodicToggle.IsOn,
+        RollingToggle.IsOn,
+        SelectedTag(RollingModeCombo) == "detailed",
+        checked((int)Math.Clamp(double.IsNaN(RollingMinutesNumber.Value) ? 1 : RollingMinutesNumber.Value, 1, 10)),
+        hotKeySettings);
     }
 
     private void IntervalSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)

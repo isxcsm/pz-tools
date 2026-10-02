@@ -26,8 +26,10 @@ final class ProfileFrames {
     /** Why the marks stopped by themselves, or empty. */
     static String failure() { return failure; }
 
-    /** Game thread, once per frame. One volatile read while no recording runs. */
+    /** Game thread, once per frame. Two reads while no recording runs and no note waits. */
     static void tick() {
+        // A note over the player for the app; it never throws into the frame.
+        GameNotices.tick();
         Runnable current = mark;
         if (current == null) return;
         try { current.run(); }

@@ -427,12 +427,44 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa as funções deste dono pelos caminhos de chamada que levaram a elas: no topo a função mais externa, como um tratador de evento, e dentro o que ela chamou. Só contam as amostras que terminaram em funções deste dono. Desligado: uma lista simples das funções.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Pesquisar</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Comparar com</value></data>
-  <data name="ProfileRolling" xml:space="preserve"><value>Manter o último minuto</value></data>
-  <data name="ProfileRollingSave" xml:space="preserve"><value>Salvar último minuto</value></data>
-  <data name="ProfileRollingSaving" xml:space="preserve"><value>Salvando…</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca do último minuto, que é salvo como gravação. Modo: {0}</value></data>
-  <data name="ProfileRollingHotKeyFormat" xml:space="preserve"><value>No jogo, pressione {0}: um som confirma o toque e outro o salvamento (o som de erro indica falha).</value></data>
-  <data name="ProfileRollingHotKeyUnavailable" xml:space="preserve"><value>Nenhuma tecla para salvar a partir do jogo: outros programas usam Ctrl+Shift+F9, Ctrl+Shift+F10, Ctrl+Alt+F9 e Ctrl+Alt+F10.</value></data>
+  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Backup automático pausado</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Teclas de atalho</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Também funcionam no jogo. Enquanto o PZ Tools estiver aberto, as teclas definidas aqui ficam indisponíveis para outros programas. Cada uma responde com um som e um aviso acima da cabeça do seu personagem.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Salvar últimos minutos</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Salva como gravação os minutos que o jogo manteve.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Iniciar/parar gravação</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Inicia uma gravação no modo definido na página Desempenho; pressione de novo para parar.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Ligar/desligar últimos minutos</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Liga ou desliga “Manter os últimos minutos”, acima.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Backup manual</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Faz na hora um backup da partida que você está jogando.</value></data>
+  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pausar backups automáticos</value></data>
+  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Suspende os backups automáticos por um tempo; pressione de novo para retomar. Eles voltam sozinhos quando o tempo acaba. Backups na morte do personagem não são suspensos.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Mostrar status</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Mostra acima do seu personagem o tempo até o próximo backup, o último backup e o que está sendo gravado.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Outro programa está usando esta tecla, então ela não faz nada.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Só funciona com “Manter os últimos minutos” ligado.</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Pressione as teclas… (Esc cancela)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Nenhuma</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Limpar o atalho de {0}</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Esta tecla não pode ser usada.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Letras e números precisam de Ctrl ou Alt junto.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Outra ação já usa esta tecla.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Nenhuma partida para backup foi encontrada. Carregue uma partida no jogo e pressione de novo.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Ainda não há nada para salvar. O jogo precisa estar em execução, com “Manter os últimos minutos” ligado nas Configurações.</value></data>
+  <data name="ProfileRollingOff" xml:space="preserve"><value>Para usar isto, ligue “Manter os últimos minutos” em Configurações &gt; Desempenho.</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Salvar últimos {0} min</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Salvando últimos {0} min…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Desempenho</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>O jogo mantém seus últimos minutos, para que um travamento possa ser salvo depois de acontecer.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Manter os últimos minutos</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Quando ligado, o jogo mantém seus últimos minutos sempre que está rodando. O modo Padrão quase não pesa.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Modo</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detalhado mostra mais, mas deixa o jogo um pouco mais lento (cerca de 10%) enquanto estiver ligado. Use-o enquanto procura um travamento.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Duração (minutos)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>De 1 a 10 minutos. Uma duração maior pesa o mesmo no jogo, só usa mais disco.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Começa a manter o último minuto quando o jogo estiver em execução.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Começando a manter o último minuto…</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Pausado durante uma gravação; continua quando ela termina.</value></data>
