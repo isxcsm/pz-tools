@@ -381,7 +381,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>この記録を削除しますか？ 元に戻すことはできません。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>記録はまだありません。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>この記録を開けません。ファイルが破損しているか、より新しいバージョンで作成されています。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示) · 一覧の項目をクリック: 各バーにその項目の分を濃く表示 (もう一度クリックで解除、表示中はほかの項目にポインターを置くとプレビュー)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>表示中の内容をテキストでコピー</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>テキストをコピー</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>パフォーマンスの結果をコピーしました。</value></data>
@@ -425,7 +425,6 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>メモリ割り当て</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>呼び出しツリー</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>この所有者の関数を、そこへ至った呼び出し経路ごとにまとめて表示します。イベント処理関数のような一番外側の関数が上にあり、展開するとその関数が呼んだ関数が表示されます。この所有者の関数で終わったサンプルだけを数えます。オフにすると関数の一覧になります。</value></data>
-  <data name="ProfileHighlightTip" xml:space="preserve"><value>クリックすると、この項目の時間を上のグラフの各バーの中に濃く表示し、もう一度クリックすると解除します。表示中は、ほかの項目にポインターを置くとその項目が表示されます。</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>折りたたむ</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>割り当て量</value></data>

@@ -381,7 +381,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要刪除這筆錄製嗎？此動作無法復原。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>還沒有錄製紀錄。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>無法開啟這筆錄製。檔案已損毀，或是由較新的版本建立。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 記憶體面板中的灰色長條：記憶體清理（GC），高度為暫停時間 · ▲：超出刻度的影格（游標停留時顯示時間）</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 記憶體面板中的灰色長條：記憶體清理（GC），高度為暫停時間 · ▲：超出刻度的影格（游標停留時顯示時間） · 按一下清單中的項目：在每根長條中加深顯示其部分（再按一下取消；顯示期間指向其他項目可預覽）</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>將顯示的內容複製為文字</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>複製文字</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已複製效能結果。</value></data>
@@ -425,7 +425,6 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>記憶體配置</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>呼叫樹</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
-  <data name="ProfileHighlightTip" xml:space="preserve"><value>按一下可在上方圖表的每根長條中加深顯示此項的時間，再按一下取消。顯示期間，將游標移到其他項上會改為顯示該項。</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>摺疊</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>配置量</value></data>

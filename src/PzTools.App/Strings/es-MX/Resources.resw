@@ -381,7 +381,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>¿Eliminar esta grabación? Esta acción no se puede deshacer.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Aún no hay grabaciones.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>No se puede abrir esta grabación. El archivo está dañado o se creó con una versión más reciente.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un rango · Clic: seleccionar un cuadro · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Barras grises en Memoria: limpieza de memoria (GC), tan altas como su pausa · ▲: cuadro por encima de la escala (su tiempo al pasar el puntero)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un rango · Clic: seleccionar un cuadro · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Barras grises en Memoria: limpieza de memoria (GC), tan altas como su pausa · ▲: cuadro por encima de la escala (su tiempo al pasar el puntero) · Clic en un elemento de la lista: su parte de cada barra (otra vez para quitarlo; mientras se dibuja, apunta a otro para previsualizarlo)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar lo que se muestra como texto</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copiar texto</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Se copiaron los resultados de rendimiento.</value></data>
@@ -425,7 +425,6 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Asignación de memoria</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Árbol de llamadas</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa las funciones de este propietario por las rutas de llamada que llevaron a ellas: arriba la función más externa, como un controlador de eventos, y dentro lo que llamó. Solo cuentan las muestras que terminaron en funciones de este propietario. Desactivado: una lista simple de funciones.</value></data>
-  <data name="ProfileHighlightTip" xml:space="preserve"><value>Haz clic para dibujar su tiempo dentro de cada barra de la gráfica de arriba; vuelve a hacer clic para quitarlo. Mientras se dibuja uno, al pasar el puntero por otro se muestra ese.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Contraer</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Asignado</value></data>

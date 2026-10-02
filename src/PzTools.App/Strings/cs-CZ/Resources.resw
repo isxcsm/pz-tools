@@ -410,7 +410,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileThreadGame" xml:space="preserve"><value>Herní vlákno</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Přiblížit výběr</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší) · Kliknutí na položku seznamu: její část v každém sloupci (znovu zruší; během zobrazení najetím na jinou položku náhled)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Zkopírovat zobrazený obsah jako text</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Výsledky výkonu byly zkopírovány.</value></data>
@@ -457,7 +457,6 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozbalit</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Strom volání</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Seskupí funkce tohoto vlastníka podle cest volání, které k nim vedly: nahoře nejvnější funkce, například obsluha události, uvnitř to, co volala. Počítají se jen vzorky, které skončily ve funkcích tohoto vlastníka. Vypnuto: prostý seznam funkcí.</value></data>
-  <data name="ProfileHighlightTip" xml:space="preserve"><value>Kliknutím se jeho čas vykreslí uvnitř každého sloupce grafu výše, dalším kliknutím se zruší. Během zobrazení ukáže najetí na jinou položku tu.</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>

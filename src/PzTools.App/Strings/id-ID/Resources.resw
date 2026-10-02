@@ -381,7 +381,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Hapus rekaman ini? Tindakan ini tidak dapat dibatalkan.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Belum ada rekaman.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman ini tidak dapat dibuka. File rusak atau dibuat oleh versi yang lebih baru.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya) · Klik item di daftar: bagiannya di setiap batang (klik lagi untuk berhenti; selama ditampilkan, arahkan ke item lain untuk pratinjau)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Salin isi yang ditampilkan sebagai teks</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Salin teks</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Hasil performa telah disalin.</value></data>
@@ -425,7 +425,6 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokasi memori</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Pohon panggilan</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Mati: daftar fungsi biasa.</value></data>
-  <data name="ProfileHighlightTip" xml:space="preserve"><value>Klik untuk menggambar waktunya di dalam setiap batang grafik di atas; klik lagi untuk berhenti. Selama ditampilkan, mengarahkan kursor ke yang lain menampilkan yang itu.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Bentangkan</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Ciutkan</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Dialokasikan</value></data>

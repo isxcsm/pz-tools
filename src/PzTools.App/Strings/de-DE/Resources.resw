@@ -381,7 +381,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Diese Aufzeichnung löschen? Das kann nicht rückgängig gemacht werden.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Noch keine Aufzeichnungen.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Diese Aufzeichnung kann nicht geöffnet werden. Die Datei ist beschädigt oder stammt aus einer neueren Version.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Mausrad: Zoomen · Ziehen: Bereich auswählen · Klick: einen Frame auswählen · Ziehen mit rechter Taste: Verschieben · Doppelklick: alles anzeigen · Graue Balken unter „Speicher“: Speicherbereinigung (GC), so hoch wie ihre Pause · ▲: Frame über der Skala (Zeit beim Daraufzeigen)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Mausrad: Zoomen · Ziehen: Bereich auswählen · Klick: einen Frame auswählen · Ziehen mit rechter Taste: Verschieben · Doppelklick: alles anzeigen · Graue Balken unter „Speicher“: Speicherbereinigung (GC), so hoch wie ihre Pause · ▲: Frame über der Skala (Zeit beim Daraufzeigen) · Eintrag in der Liste anklicken: sein Anteil an jedem Balken (erneut zum Beenden; währenddessen auf einen anderen zeigen für eine Vorschau)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Angezeigten Inhalt als Text kopieren</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Text kopieren</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Die Leistungsergebnisse wurden kopiert.</value></data>
@@ -425,7 +425,6 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Speicherbelegung</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Aufrufbaum</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Aus: eine einfache Liste der Funktionen.</value></data>
-  <data name="ProfileHighlightTip" xml:space="preserve"><value>Klicken zeichnet seine Zeit in jeden Balken des Diagramms oben, erneutes Klicken hört damit auf. Solange eines gezeichnet wird, zeigt das Daraufzeigen ein anderes.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Aufklappen</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Zuklappen</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Belegt</value></data>

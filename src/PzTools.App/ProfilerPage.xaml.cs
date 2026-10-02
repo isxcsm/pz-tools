@@ -1383,7 +1383,8 @@ public sealed partial class ProfilerPage : UserControl
             item.Children.Add(bar);
         }
         var samples = group.Samples > 0 ? $"\n{Localizer.Get("ProfileColumnSamples")} {group.Samples.ToString("N0", Localizer.Culture)}" : "";
-        AppToolTip.SetTip(item, group.Name + samples + (Highlightable(group) ? "\n" + Localizer.Get("ProfileHighlightTip") : ""));
+        // How the highlight works is in the graph's help, not repeated on every row the pointer crosses.
+        AppToolTip.SetTip(item, group.Name + samples);
         AutomationProperties.SetName(item, group.Name + (value.Text.Length > 0 ? ", " + value.Text : ""));
         return item;
     }
@@ -1571,7 +1572,8 @@ public sealed partial class ProfilerPage : UserControl
         var label = line.Cells[0].Text.Trim();
         var text = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
         if (item.Node is null) text.Foreground = Muted;
-        else if (label.Length > 0) AppToolTip.SetTip(text, label);
+        // The full name only where the screen cuts it short; a name shown whole needs no tip repeating it.
+        else text.IsTextTrimmedChanged += (_, _) => AppToolTip.SetTip(text, text.IsTextTrimmed ? label : null);
         Grid.SetColumn(text, 1);
         name.Children.Add(text);
         row.Children.Insert(0, name);
