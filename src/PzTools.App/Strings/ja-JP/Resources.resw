@@ -502,8 +502,15 @@
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>この行の合計が範囲の時間に占める割合から、比較先の同じ関数の割合を引いた値 (ポイント)。赤は時間が増加、緑は減少。</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>{0} 行目</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>行不明</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>折りたたむ</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>{0} を展開</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>{0} を折りたたむ</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>割り当て量</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>選択した範囲で、この MOD のスクリプトの実行中にゲームスレッドが割り当てたメモリです。スクリプトが呼び出したゲーム機能の割り当ても含みます。割り当てが多いほどメモリの整理 (GC) が頻繁に起こります。時間と同じくサンプルからの推定値です。</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>ゲームスレッド全体 (スクリプト以外も含む): {0}</value></data>

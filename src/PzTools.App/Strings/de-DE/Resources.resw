@@ -502,8 +502,15 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Der Gesamtanteil der Zeile an der Zeit des Bereichs minus der Anteil derselben Funktion in der Vergleichsaufnahme, in Prozentpunkten. Rot: mehr Zeit; grün: weniger.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Zeile {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Zeile unbekannt</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Aufklappen</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Zuklappen</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>{0} aufklappen</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>{0} zuklappen</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Belegt</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Speicher, den der Spiel-Thread im gewählten Bereich belegt hat, während die Skripte dieses Mods liefen, einschließlich der von ihnen aufgerufenen Spielfunktionen. Je mehr belegt wird, desto öfter wird der Speicher bereinigt (GC). Eine Schätzung aus den Stichproben, wie die Zeit.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Ganzer Spiel-Thread, mit und ohne Skripte: {0}</value></data>

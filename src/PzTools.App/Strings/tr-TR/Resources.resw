@@ -502,8 +502,15 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Satırın toplamının aralığın süresindeki payı, eksi karşılaştırılan kayıttaki aynı fonksiyonun payı, yüzde puan olarak. Kırmızı: daha fazla süre; yeşil: daha az.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>{0}. satır</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Satır bilinmiyor</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Genişlet</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Daralt</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>{0} öğesini genişlet</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>{0} öğesini daralt</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Ayrılan</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Seçilen aralıkta bu modun betikleri çalışırken oyun iş parçacığının ayırdığı bellek; betiklerin çağırdığı oyun işlevleri de dahil. Ne kadar çok ayrılırsa bellek o kadar sık temizlenir (GC). Süre gibi örneklerden çıkan bir tahmindir.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Oyun iş parçacığının tamamı, betik olsun olmasın: {0}</value></data>

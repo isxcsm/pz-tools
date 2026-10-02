@@ -807,7 +807,7 @@ public sealed partial class ProfilerPage : UserControl
             // A scale value an FPS name would cover gives way to it; the floor needs no "0 ms" to be read.
             if (fpsLines.Any(line => Math.Abs(line.Y - y) < 14)) continue;
             // Half of a fine step can have a decimal (7.5 ms); whole numbers stay whole.
-            GridCanvas.Children.Add(ScaleLabel((top * fraction).ToString("0.#", Localizer.Culture) + " ms", 11, Math.Max(-6, y - 8)));
+            GridCanvas.Children.Add(ScaleLabel(Units.Milliseconds((top * fraction).ToString("0.#", Localizer.Culture)), 11, Math.Max(-6, y - 8)));
         }
         foreach (var fraction in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
         {
@@ -945,7 +945,7 @@ public sealed partial class ProfilerPage : UserControl
                 };
                 string Change(string name, double before, double after) =>
                     Localizer.Format("ProfileChangeFormat", Localizer.Get(name), Rate(before), Rate(after));
-                compared = Localizer.Format("ProfileCompareTitle", baselineName ?? "") + ": "
+                compared = Localizer.Format("ProfileCompareTitle", baselineName ?? "") + "\n"
                     + Change("ProfileStatAverage", other.Frames.AverageMilliseconds, frames.AverageMilliseconds) + " · "
                     + Change("ProfileStatWorst", other.Frames.OnePercentWorstMilliseconds, frames.OnePercentWorstMilliseconds);
             }
@@ -1233,10 +1233,8 @@ public sealed partial class ProfilerPage : UserControl
     }
 
     // Memory readings are gigabytes; a function's allocations can be a few kilobytes. Two decimals in every unit.
-    private static string Bytes(long bytes) =>
-        bytes >= 1L << 30 ? (bytes / (double)(1L << 30)).ToString("N2", Localizer.Culture) + " GB"
-        : bytes >= 1L << 20 ? (bytes / (double)(1L << 20)).ToString("N2", Localizer.Culture) + " MB"
-        : (bytes / 1024.0).ToString("N2", Localizer.Culture) + " KB";
+    // Kilobytes at the least: a heap or an allocation is never a handful of bytes.
+    private static string Bytes(long bytes) => Units.Bytes(bytes, "N2", smallest: 1);
 
     private string CollectionText(int count, double pausedMilliseconds) =>
         $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds))}";
@@ -1291,7 +1289,7 @@ public sealed partial class ProfilerPage : UserControl
         ? $"{(1000 / milliseconds).ToString("N1", Localizer.Culture)} {Localizer.Get("ProfileStatFps")} ({Milliseconds(milliseconds)})"
         : Milliseconds(milliseconds);
 
-    private static string Milliseconds(double value) => value.ToString("0.0", Localizer.Culture) + " ms";
+    private static string Milliseconds(double value) => Units.Milliseconds(value.ToString("0.0", Localizer.Culture));
 
     private static double NiceCeiling(double value)
     {
@@ -1302,7 +1300,7 @@ public sealed partial class ProfilerPage : UserControl
         return magnitude * 10;
     }
 
-    private static string Seconds(long microseconds) => SecondsNumber(microseconds) + " s";
+    private static string Seconds(long microseconds) => Units.Seconds(SecondsNumber(microseconds));
 
     private static string SecondsNumber(long microseconds) =>
         (microseconds / 1_000_000.0).ToString(microseconds % 1_000_000 == 0 ? "0" : "0.00", Localizer.Culture);
@@ -2475,7 +2473,7 @@ public sealed partial class ProfilerPage : UserControl
                 Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
                 Content = new FontIcon { Glyph = item.Open ? "" : "", FontSize = 10 },
             };
-            AutomationProperties.SetName(arrow, Localizer.Get(item.Open ? "ProfileTreeCollapse" : "ProfileTreeExpand") + " " + line.Cells[0].Text.Trim());
+            AutomationProperties.SetName(arrow, Localizer.Format(item.Open ? "ProfileTreeCollapseFormat" : "ProfileTreeExpandFormat", line.Cells[0].Text.Trim()));
             arrow.Click += (_, _) => ToggleNode(group, item.Path);
             name.Children.Add(arrow);
             // The whole row opens and closes too, not only the small arrow; a tap on the arrow is its click's.

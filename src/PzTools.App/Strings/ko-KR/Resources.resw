@@ -501,8 +501,15 @@
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>이 줄의 전체(Total)가 범위 시간에서 차지하는 비율에서, 비교 녹화의 같은 함수 비율을 뺀 값(%p). 빨강은 시간이 늘어남, 초록은 줄어듦.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>{0}번 줄</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>줄 정보 없음</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>펼치기</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>접기</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>{0} 펼치기</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>{0} 접기</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>할당량</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>선택한 구간에서 이 모드의 스크립트가 실행 중일 때 게임 스레드가 할당한 메모리입니다. 스크립트가 불러 쓴 게임 기능의 할당도 포함합니다. 많이 할당할수록 메모리 정리(GC)가 자주 일어납니다. 시간처럼 샘플에서 나온 추정치입니다.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>게임 스레드 전체(스크립트 밖 포함): {0}</value></data>

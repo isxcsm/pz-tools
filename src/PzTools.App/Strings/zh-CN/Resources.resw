@@ -502,8 +502,15 @@
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>此行总计在范围时间中的占比，减去对比录制中同一函数的占比（百分点）。红色表示时间增加，绿色表示减少。</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>第 {0} 行</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>行号未知</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>展开</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>折叠</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>展开 {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>折叠 {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>分配量</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>在所选范围内，此模组的脚本运行时游戏线程分配的内存，包括脚本调用的游戏功能的分配。分配越多，内存清理（GC）越频繁。与时间一样，是根据样本得出的估计值。</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>整个游戏线程（含脚本以外）：{0}</value></data>

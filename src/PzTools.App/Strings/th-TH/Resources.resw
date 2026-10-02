@@ -509,8 +509,15 @@
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>สัดส่วนรวมของแถวนี้ในเวลาของช่วง ลบด้วยสัดส่วนของฟังก์ชันเดียวกันในการบันทึกที่เปรียบเทียบ เป็นจุดเปอร์เซ็นต์ แดง: ใช้เวลามากขึ้น เขียว: น้อยลง</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>บรรทัด {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>ไม่ทราบบรรทัด</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>ขยาย</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>ยุบ</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>ขยาย {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>ยุบ {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>จัดสรรแล้ว</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>หน่วยความจำที่เธรดของเกมจัดสรรขณะที่สคริปต์ของม็อดนี้ทำงานในช่วงที่เลือก รวมถึงฟังก์ชันของเกมที่สคริปต์เรียกใช้ ยิ่งจัดสรรมาก ยิ่งล้างหน่วยความจำ (GC) บ่อย เป็นค่าประมาณจากตัวอย่างเช่นเดียวกับเวลา</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>ทั้งเธรดของเกม ทั้งในและนอกสคริปต์: {0}</value></data>

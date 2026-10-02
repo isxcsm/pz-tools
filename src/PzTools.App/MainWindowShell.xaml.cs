@@ -2719,17 +2719,6 @@ public sealed class SaveVersionUiItem : DeletableUiItem
             : Localizer.Format("SurvivalHoursMinutesFormat", minutes / 60, minutes % 60);
     }
 
-    private static string FormatBytes(long bytes)
-    {
-        string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
-        var value = (double)bytes;
-        var suffix = 0;
-        while (value >= 1024 && suffix < suffixes.Length - 1)
-        {
-            value /= 1024;
-            suffix++;
-        }
-        // The UI language's decimal mark; the thread's culture can still be the one the app started with.
-        return string.Create(Localizer.Culture, $"{value:0.#} {suffixes[suffix]}");
-    }
+    // The UI language's decimal mark and unit symbols; the thread's culture can still be the one the app started with.
+    private static string FormatBytes(long bytes) => Units.Bytes(bytes);
 }

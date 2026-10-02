@@ -502,8 +502,15 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>El total de la línea como parte del tiempo del rango, menos la parte de la misma función en la grabación comparada, en puntos porcentuales. Rojo: más tiempo; verde: menos.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Línea {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Línea desconocida</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Contraer</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Expandir {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Contraer {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Asignado</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memoria que el hilo del juego asignó mientras se ejecutaban los scripts de este mod en el rango seleccionado, incluidas las funciones del juego que llamaron. Cuanto más se asigna, más seguido se limpia la memoria (GC). Una estimación a partir de las muestras, como el tiempo.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Todo el hilo del juego, con o sin scripts: {0}</value></data>

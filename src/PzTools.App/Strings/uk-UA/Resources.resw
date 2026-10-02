@@ -502,8 +502,15 @@
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Загальна частка рядка в часі діапазону мінус частка тієї ж функції в порівнюваному записі, у відсоткових пунктах. Червоний — більше часу, зелений — менше.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Рядок {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Рядок невідомий</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Розгорнути</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Згорнути</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>Б</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>КБ</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>МБ</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>ГБ</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>ТБ</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>мс</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>с</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Розгорнути {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Згорнути {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Виділено</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Пам'ять, яку ігровий потік виділив, поки у вибраному діапазоні працювали скрипти цього мода, включно з викликаними ними функціями гри. Що більше виділяється, то частіше відбувається очищення пам'яті (GC). Оцінка за вибірками, як і час.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Увесь ігровий потік, зі скриптами й без: {0}</value></data>

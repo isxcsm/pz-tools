@@ -531,8 +531,15 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>The line's total as a part of the range's time, minus the same function's part of the recording compared with, in percentage points. Red: more time; green: less.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Line {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Line unknown</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Expand</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Collapse</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Expand {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Collapse {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Allocated</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memory the game thread allocated while this mod's scripts were running in the selected range, including game functions they called. The more is allocated, the more often memory is cleaned up (GC). An estimate from the samples, like the time.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Whole game thread, scripts or not: {0}</value></data>

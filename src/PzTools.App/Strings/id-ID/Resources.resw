@@ -502,8 +502,15 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Total baris sebagai bagian dari waktu rentang, dikurangi bagian fungsi yang sama di rekaman pembanding, dalam poin persentase. Merah: lebih lama; hijau: lebih singkat.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Baris {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Baris tidak diketahui</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Bentangkan</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Ciutkan</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Bentangkan {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Ciutkan {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Dialokasikan</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memori yang dialokasikan thread game selama skrip mod ini berjalan dalam rentang yang dipilih, termasuk fungsi game yang dipanggilnya. Makin banyak alokasi, makin sering memori dibersihkan (GC). Perkiraan dari sampel, seperti waktunya.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Seluruh thread game, skrip maupun bukan: {0}</value></data>

@@ -502,8 +502,15 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Le total de la ligne en part du temps de la plage, moins la part de la même fonction dans l’enregistrement comparé, en points de pourcentage. Rouge : plus de temps ; vert : moins.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Ligne {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Ligne inconnue</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Développer</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Réduire</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>o</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>Ko</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>Mo</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>Go</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>To</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Développer {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Réduire {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alloué</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Mémoire allouée par le thread du jeu pendant que les scripts de ce mod s’exécutaient dans la plage choisie, fonctions du jeu qu’ils ont appelées comprises. Plus on alloue, plus la mémoire est nettoyée souvent (GC). Une estimation tirée des échantillons, comme le temps.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Tout le thread du jeu, scripts ou non : {0}</value></data>

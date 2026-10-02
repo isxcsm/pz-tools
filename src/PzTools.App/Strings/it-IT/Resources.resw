@@ -502,8 +502,15 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Il totale della riga come parte del tempo dell'intervallo, meno la parte della stessa funzione nella registrazione di confronto, in punti percentuali. Rosso: più tempo; verde: meno.</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Riga {0}</value></data>
   <data name="ProfileLineUnknown" xml:space="preserve"><value>Riga sconosciuta</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Espandi</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Comprimi</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Espandi {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Comprimi {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Allocata</value></data>
   <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memoria allocata dal thread del gioco mentre gli script di questa mod erano in esecuzione nell'intervallo scelto, comprese le funzioni del gioco che hanno chiamato. Più si alloca, più spesso la memoria viene ripulita (GC). Una stima dai campioni, come il tempo.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Tutto il thread del gioco, script e non: {0}</value></data>
