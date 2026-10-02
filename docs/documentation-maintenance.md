@@ -105,8 +105,9 @@ python scripts/check-documentation.py
 ```
 
 The [CI workflow](../.github/workflows/windows.yml) runs these checks once on Linux.
-`pwsh scripts/test-readme-links.ps1` calls the same checker. It validates the single root
-guide's topic sections, essential references, runtime requirements and build commands;
+`pwsh scripts/test-readme-links.ps1` calls the same checker. It validates that the single
+root guide keeps its required topic sections (more may be added; every section must explain
+something), its essential references and its runtime requirements and download links;
 checks local links, index coverage and backlinks; and rejects parallel
 `docs/*/README.md` guides. It does not read or interpret the UI language catalog.
 Regression tests cover invalid input and a valid English documentation tree with no UI

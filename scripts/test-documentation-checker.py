@@ -189,13 +189,10 @@ class RepositoryContractTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='pz-doc-contract-')
         self.root = Path(self.temp.name).resolve()
-        # Only copy files required by the offline checker, never a user repository or .git.
-        for folder in ('docs', 'src', 'tests', 'scripts', 'config', 'build', '.github'):
-            shutil.copytree(self.repo/folder, self.root/folder,
-                            ignore=shutil.ignore_patterns('bin', 'obj', '__pycache__'))
-        # Every root file a guide links to; a link to one left out reads as broken.
-        for name in ('README.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', 'Directory.Build.props', 'global.json', 'PzTools.sln'):
-            shutil.copy2(self.repo/name, self.root/name)
+        # The whole checkout minus history and build output: a list of what to copy broke these tests
+        # whenever a document linked to something left off it.
+        skipped = shutil.ignore_patterns('.git', '.vs', 'artifacts', 'bin', 'obj', 'node_modules', '__pycache__')
+        shutil.copytree(self.repo, self.root, ignore=skipped, dirs_exist_ok=True)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -253,10 +250,12 @@ class RepositoryContractTests(unittest.TestCase):
         with self.assertRaisesRegex(C.DocumentationError, 'missing index backlink'):
             C.check(self.root)
 
-    def test_broken_build_command_is_rejected(self):
-        self.replace('README.md', 'dotnet build PzTools.sln -c Release', 'dotnet build missing.sln -c Release')
-        with self.assertRaisesRegex(C.DocumentationError, 'missing technical instruction'):
-            C.check(self.root)
+    def test_added_guide_section_is_accepted(self):
+        text = (self.root/'README.md').read_text(encoding='utf-8')
+        anchor = '<a id="troubleshooting"></a>'
+        added = '<a id="added-topic"></a>\n## Added topic\n\nA new section explains something new.\n\n'
+        (self.root/'README.md').write_text(text.replace(anchor, added+anchor), encoding='utf-8')
+        self.assertEqual(1, C.check(self.root)['guides'])
 
     def test_missing_runtime_link_is_rejected(self):
         self.remove_link('README.md', 'https://dotnet.microsoft.com/en-us/download/dotnet/10.0')
@@ -302,7 +301,6 @@ class IndependentEnglishDocumentationTests(unittest.TestCase):
             guide = '# PZ Tools\n\n'+'\n'.join(sections)
             guide += '\n'+'\n'.join(f'[Reference]({path})' for path in C.GUIDE_REFERENCES)+'\n'
             guide += '\n'+'\n'.join(C.GUIDE_FACT_TOKENS)+'\n'
-            guide += '\n```powershell\n'+'\n'.join(C.BUILD_COMMANDS)+'\n```\n'
             guide += '\n[Releases](https://github.com/isxcsm/pz-tools/releases)\n'
             guide += '[Support](https://github.com/isxcsm/pz-tools/issues)\n'
             guide += '[Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)\n'
