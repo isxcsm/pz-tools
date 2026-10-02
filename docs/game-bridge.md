@@ -109,6 +109,12 @@ standard attach mechanism to load the bridge into the running game. PZ Tools' ow
 bundled Java runtime is never loaded into the game. There is no remote-thread
 injection, and no fallback that edits game files.
 
+The game's Java misreads a path with letters outside ASCII for the two files handed to it
+by path at attach, the native helper and the bootstrap. With the app in such a folder
+(a Korean folder name was reported), those two are copied once, by their content, to
+`%ProgramData%\PzTools\attach\` and handed over from there; everything else is read
+from the app folder as it is.
+
 The bridge then calls the game's original `GameWindow.save(true)` on the game thread.
 
 ### Layers
@@ -136,7 +142,7 @@ is the one place they are recorded; other pages link here.
 
 | Contract | Current | Checked between | On a mismatch |
 | --- | --- | --- | --- |
-| Bootstrap API | 10 | The bootstrap in the game and the payload | Restart the game once. Bootstraps of API 9 or earlier need this. |
+| Bootstrap API | 11 | The bootstrap in the game and the payload | The app says to restart the game, once. Bootstraps of API 10 or earlier (PZ Tools 0.2.1 and before) need this. |
 | Save protocol | 6 | The backup worker and the payload (`HELLO` line) | `unsupported-protocol`: nothing is asked of the game and the backup uses the files on disk, as in the table above |
 | Extension host ABI | 3 | The extension runtime and each module archive | The module is not loaded |
 | Extension control wire | 1 | Not checked on connection; the number labels the command format | Both sides come from the same build, and the payload in the game is replaced to match |
@@ -146,12 +152,11 @@ A compatible update of the payload or a module is picked up at an idle moment,
 including after the app has been moved to another folder. Use app and worker files
 from the same build.
 
-The bridge was first called the save bridge, and one name of that time stays: the
-bootstrap loads a payload's request entry as `pztools.bridge.runtime.SaveBridge`, and a
-bootstrap from an earlier version is still in any game it was attached to. That class
-only hands each request to `BridgeSession`, which does the work. The `SAVE` request kind
-on the control connection is kept for the same reason, though it carries the profile
-and notice commands too.
+A change the bootstrap must know about raises the bootstrap API rather than keeping old
+names alive in the payload: the attach helper reads the API of the bootstrap already in
+the game before sending anything, and on a mismatch the app asks for one restart of the
+game. API 11 came with the bridge's rename from the save bridge: the bootstrap now loads
+each request's entry as `BridgeSession`.
 
 ### Code
 

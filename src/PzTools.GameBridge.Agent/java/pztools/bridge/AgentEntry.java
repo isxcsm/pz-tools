@@ -65,7 +65,7 @@ public final class AgentEntry {
         control.setDaemon(true);
         try {
             control.start();
-            System.setProperty("pztools.bridge.bootstrap.api", "10");
+            System.setProperty("pztools.bridge.bootstrap.api", "11");
             // Published only after the listener is bound. Never print this credential.
             System.setProperty(CONTROL_PROPERTY, "2:" + ProcessHandle.current().pid() + ":"
                 + server.getLocalPort() + ":" + secret);
@@ -98,7 +98,7 @@ public final class AgentEntry {
     private static Method preparePayload(Path requested, String kind) throws Exception {
         synchronized (runtimeGate) {
             var archive = ClassArchive.read(requested);
-            archive.require("PzTools-Bootstrap-Api", "10");
+            archive.require("PzTools-Bootstrap-Api", "11");
             if (payloadRun != null && archive.digest().equals(payloadDigest)) {
                 if (!payload.equals(requested)) {
                     synchronized (AgentEntry.class) {
@@ -113,7 +113,7 @@ public final class AgentEntry {
             }
             // Stage and link before asking the old WATCH generation to finish.
             var loader = archive.loader("pztools.bridge.runtime", AgentEntry.class.getClassLoader(), false);
-            Method next = loader.loadClass("pztools.bridge.runtime.SaveBridge").getMethod("run", String.class, Instrumentation.class);
+            Method next = loader.loadClass("pztools.bridge.runtime.BridgeSession").getMethod("run", String.class, Instrumentation.class);
             Method nextWatch = loader.loadClass("pztools.bridge.runtime.RuntimeWatch").getMethod("run", String.class, Instrumentation.class);
             Method nextExtensions = loader.loadClass("pztools.bridge.runtime.ExtensionControl").getMethod("run", String.class, Instrumentation.class);
             reloadRequested = true;
@@ -159,7 +159,8 @@ public final class AgentEntry {
                     output.println("RESTART_REQUIRED");
                     continue;
                 }
-                String kind = parts.length == 5 ? parts[4] : "SAVE";
+                // Saves, probes, profile and notice commands: one request each, handled by BridgeSession.
+                String kind = parts.length == 5 ? parts[4] : "REQUEST";
                 Method entry;
                 try { entry = preparePayload(requestedPayload.normalize(), kind); }
                 catch (ReloadBusy busy) { output.println("BUSY"); continue; }
@@ -184,7 +185,7 @@ public final class AgentEntry {
 
     private static void runSession(String options, String kind, Method invokeEntry) {
         try {
-            if (kind.equals("SAVE")) sessions++;
+            if (kind.equals("REQUEST")) sessions++;
             invokeEntry.invoke(null, options, instrumentation);
         } catch (Throwable failure) {
             System.err.println("[PzTools bridge session] " + failure);

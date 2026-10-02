@@ -19,8 +19,7 @@ import java.util.concurrent.atomic.*;
 
 /**
  * One request from the app: a save or probe queued for the game thread, or a profile or notice command answered at
- * once. Game installation files are never rewritten. Reached through {@link SaveBridge}, the name the bootstrap
- * loads the payload by.
+ * once. Game installation files are never rewritten.
  */
 public final class BridgeSession {
     private static final AtomicReference<Request> pending = new AtomicReference<>();

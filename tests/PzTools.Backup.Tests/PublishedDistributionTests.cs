@@ -101,7 +101,7 @@ public sealed class PublishedDistributionTests
         foreach (var name in new[] { "pztools-game-bootstrap.jar", "pztools-game-bridge.jar" })
         {
             using var jar = ZipFile.OpenRead(Path.Combine(bridge, name));
-            Assert.Equal("10", Manifest(jar)["PzTools-Bootstrap-Api"]);
+            Assert.Equal("11", Manifest(jar)["PzTools-Bootstrap-Api"]);
             if (name == "pztools-game-bootstrap.jar")
             {
                 Assert.NotNull(jar.GetEntry("pztools/bridge/AgentEntry.class"));

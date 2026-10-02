@@ -35,6 +35,8 @@ Updating from 0.1.0: the first time 0.2.0 opens a backup folder, it upgrades the
 
 Updating from 0.2.0 needs nothing: backup folders are unchanged, and a game left running keeps working; its next start picks up the improved bridge.
 
+Updating from 0.2.1 or earlier while the game is running: the app asks you to restart the game once before it can save it, record it or run its extensions; backups of the files on disk go on meanwhile. A game started after the update needs nothing.
+
 <a id="backups-and-retention"></a>
 ## Backup history
 

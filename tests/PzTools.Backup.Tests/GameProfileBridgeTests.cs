@@ -118,6 +118,47 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
+    public async Task TheAppInAFolderNamedInKorean_StillAttaches()
+    {
+        using var temp = new TempDirectory();
+        // Reported: the app unpacked under a Korean folder name could not attach ("... was not loaded"), as the game's
+        // JVM misreads such a path for the files handed to it at attach.
+        var bridge = Path.Combine(temp.Path, "한글 경로", "game-bridge");
+        CopyDirectory(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!, bridge);
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        Assert.Equal("idle", (await new GameProfileClient(bridge).StatusAsync(game.Pid)).State);
+        await new GameSaveClient(bridge).RequestAsync(game.Pid, temp.Path, save: false);
+    }
+
+    private static void CopyDirectory(string source, string target)
+    {
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
+        Directory.CreateDirectory(target);
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+            File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)));
+    }
+
+    [BridgeFact]
+    public async Task AGameWithAnOlderBootstrap_IsAskedToRestart_AndIsSentNothing()
+    {
+        using var temp = new TempDirectory();
+        // What a bootstrap of API 10 (PZ Tools 0.2.1 and before) leaves in a game it was attached to: its endpoint and
+        // its API. This build's payload cannot run under it.
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties:
+            ["pztools.bridge.control.v1=2:1:1:" + new string('0', 64), "pztools.bridge.bootstrap.api=10"]);
+        var bridge = Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!;
+
+        // A recording says restart, which the app shows as such.
+        Assert.Equal("restart-required",
+            (await Assert.ThrowsAsync<GameSaveException>(() => new GameProfileClient(bridge).StatusAsync(game.Pid))).Code);
+        // A save falls back to the files on disk, and its reason still names the restart.
+        var save = await Assert.ThrowsAsync<GameSaveException>(() => new GameSaveClient(bridge).RequestAsync(game.Pid, temp.Path, save: false));
+        Assert.True(save.LinkUnavailable);
+        Assert.True(GameSaveException.NamesRestart(save.Message), save.Message);
+    }
+
+    [BridgeFact]
     public async Task GameNotice_ShowsCatalogNotesOverThePlayer_OnTheGameThread_AndRefusesAnyOtherText()
     {
         using var temp = new TempDirectory();

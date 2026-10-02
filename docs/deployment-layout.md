@@ -28,6 +28,10 @@ or next to archives you import. Development runs use the same layout for app dat
   game-bridge\                         # the game bridge, its attach runtime, extensions
 ```
 
+If the app folder's path has letters outside ASCII (a Korean folder name, say), two small
+files of the bridge are also copied to `%ProgramData%\PzTools\attach\`, as the game
+cannot load them from such a path. See [getting into the game](game-bridge.md#getting-into-the-game).
+
 The packaged defaults are the starting point for each
 [component's](glossary.md#component) settings. To update the app, see the
 [user guide](../README.md).

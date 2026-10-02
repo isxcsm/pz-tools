@@ -515,7 +515,9 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
             await process.WaitForExitAsync();
             return await errors;
         }
-        public static async Task<FakeGame> StartAsync(string path, string mode, bool legacy = false)
+        /// <param name="properties">System properties the game starts with, as name=value: what a bootstrap attached
+        /// earlier would have left behind.</param>
+        public static async Task<FakeGame> StartAsync(string path, string mode, bool legacy = false, IEnumerable<string>? properties = null)
         {
             var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("PZTOOLS_BRIDGE_TEST_JAVA")!)
             {
@@ -526,6 +528,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
             };
             start.ArgumentList.Add("-javaagent:" + Path.Combine(Environment.GetEnvironmentVariable("PZTOOLS_BRIDGE_TEST_CLASSES")!, "inspector.jar")
                 + (legacy ? "=legacy" : ""));
+            foreach (var property in properties ?? []) start.ArgumentList.Add("-D" + property);
             foreach (var arg in new[] { "-XX:+EnableDynamicAgentLoading", "-cp",
                 Environment.GetEnvironmentVariable("PZTOOLS_BRIDGE_TEST_CLASSES")!, "zombie.GameWindow", path, mode })
                 start.ArgumentList.Add(arg);
