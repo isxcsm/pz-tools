@@ -781,7 +781,7 @@ public sealed partial class ProfilerPage : UserControl
             group.Key == ProfileAnalysis.GameOwner ? Localizer.Get("ProfileOwnerGame")
             : group.Key == ProfileAnalysis.UnknownOwner ? Localizer.Get("ProfileOwnerUnknown") : group.Key,
             group.Self, group.Samples, DetailKind.Lua, group.Rows, [])).ToList();
-        javaGroups = range.MethodGroups.Select(group => new ResultGroup(group.Key, Localizer.Get("ProfileGroup." + group.Key),
+        javaGroups = range.MethodGroups.Select(group => new ResultGroup(group.Key, Localizer.Get($"ProfileGroup.{group.Key}"),
             group.Self, group.Samples, DetailKind.Java, group.Rows, [])).ToList();
         if (range.Threads.Count > 1)
             javaGroups.Add(new ResultGroup("#threads", Localizer.Get("ProfileThreadsSection"), null,

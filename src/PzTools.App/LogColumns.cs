@@ -23,7 +23,7 @@ public static class LogColumns
     {
         var culture = Localizer.Culture;
         var levels = new[] { "Trace", "Information", "Warning", "Error", "Critical" }
-            .Select(level => Localizer.Get("LogLevel." + level)).ToArray();
+            .Select(level => Localizer.Get($"LogLevel.{level}")).ToArray();
         Level = new(Math.Clamp(Math.Max(Widest(levels, 12), Widest([levelHeader, .. levels], 11) + HeaderExtra), 44, 140));
 
         // Every shape the short time can take: today, yesterday, this year (each month, since their
