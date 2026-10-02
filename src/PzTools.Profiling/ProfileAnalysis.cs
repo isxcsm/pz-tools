@@ -547,34 +547,40 @@ public static class ProfileAnalysis
     public static (long? Heap, long? VideoMemory) MemoryPeaksIn(ProfileRecording recording, long start, long end)
     {
         long? heap = null, video = null;
-        foreach (var item in recording.Heap)
-            if (item.Time >= start && item.Time < end) heap = Math.Max(heap ?? 0, item.Used);
-        foreach (var item in recording.VideoMemory)
-            if (item.Time >= start && item.Time < end) video = Math.Max(video ?? 0, item.Dedicated);
+        var heapReadings = recording.Heap;
+        for (var index = LowerBound(heapReadings, start, item => item.Time); index < heapReadings.Count && heapReadings[index].Time < end; index++)
+            heap = Math.Max(heap ?? 0, heapReadings[index].Used);
+        var videoReadings = recording.VideoMemory;
+        for (var index = LowerBound(videoReadings, start, item => item.Time); index < videoReadings.Count && videoReadings[index].Time < end; index++)
+            video = Math.Max(video ?? 0, videoReadings[index].Dedicated);
         return (heap, video);
     }
 
     /// <summary>The last readings at or before a moment: what memory looked like then.</summary>
     public static (ProfileHeapSample? Heap, ProfileVideoMemorySample? VideoMemory) MemoryAt(ProfileRecording recording, long time)
     {
-        ProfileHeapSample? heap = null;
-        foreach (var item in recording.Heap) { if (item.Time > time) break; heap = item; }
-        ProfileVideoMemorySample? video = null;
-        foreach (var item in recording.VideoMemory) { if (item.Time > time) break; video = item; }
-        return (heap, video);
+        var heapIndex = LowerBound(recording.Heap, time + 1, item => item.Time) - 1;
+        var videoIndex = LowerBound(recording.VideoMemory, time + 1, item => item.Time) - 1;
+        return (heapIndex >= 0 ? recording.Heap[heapIndex] : null, videoIndex >= 0 ? recording.VideoMemory[videoIndex] : null);
     }
 
     /// <summary>
     /// Garbage collections that overlap the range, and how long they paused the game in all. A pause stops
     /// every thread, so it leaves no samples behind; this is where it shows instead.
     /// </summary>
+    // No collection pauses the game this long; one that began longer before a range cannot reach into it.
+    private const long LongestCollection = 60_000_000;
+
     public static (int Count, double PauseMilliseconds) CollectionsIn(ProfileRecording recording, long start, long end)
     {
         var count = 0;
         long pause = 0;
-        foreach (var item in recording.Collections)
+        var collections = recording.Collections;
+        // In time order; one that began a little before the range may still reach into it.
+        for (var index = LowerBound(collections, start - LongestCollection, item => item.Time); index < collections.Count && collections[index].Time < end; index++)
         {
-            if (item.Time >= end || item.Time + item.Duration < start) continue;
+            var item = collections[index];
+            if (item.Time + item.Duration < start) continue;
             count++;
             pause += item.Duration;
         }
@@ -658,10 +664,11 @@ public static class ProfileAnalysis
         if (!java)
         {
             var lua = recording.LuaSamples;
+            var owners = FunctionOwners(recording);
             for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
             {
                 var stack = recording.LuaStacks[lua[index].Stack];
-                if (stack.Length > 0 && OwnerOf(recording.LuaFunctions[stack[0].Function].File).Equals(owner, StringComparison.OrdinalIgnoreCase))
+                if (stack.Length > 0 && owners[stack[0].Function].Equals(owner, StringComparison.OrdinalIgnoreCase))
                     micros += recording.LuaPeriod;
             }
             return micros / 1000;
@@ -674,7 +681,7 @@ public static class ProfileAnalysis
             var stack = recording.Stacks[sample.Stack];
             // As in the shares: a thread only waiting in a native call was not running anyone's code.
             if (stack.Length == 0 || sample.Native && Waits(recording, stack)) continue;
-            if (GroupOf(recording.Methods[stack[0]]) == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+            if (MethodGroups(recording)[stack[0]] == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
         }
         return micros / 1000;
     }
@@ -707,6 +714,17 @@ public static class ProfileAnalysis
     }
 
     /// <summary>Which mod a Lua file belongs to, from the shortened path the recording keeps.</summary>
+    // Each Lua function's owner and each method's group, worked out once per recording: the frame graph asks for them
+    // for every sample of every bar it draws, and again on each pan, zoom and pointer over the list.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, string[]> functionOwners = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, string[]> methodGroups = new();
+
+    private static string[] FunctionOwners(ProfileRecording recording) =>
+        functionOwners.GetValue(recording, current => Array.ConvertAll(current.LuaFunctions.ToArray(), function => OwnerOf(function.File)));
+
+    private static string[] MethodGroups(ProfileRecording recording) =>
+        methodGroups.GetValue(recording, current => Array.ConvertAll(current.Methods.ToArray(), GroupOf));
+
     public static string OwnerOf(string file)
     {
         var path = file.Replace('\\', '/');
@@ -731,9 +749,9 @@ public static class ProfileAnalysis
         return Libraries;
     }
 
-    private static int LowerBound<T>(T[] items, long time, Func<T, long> key)
+    private static int LowerBound<T>(IReadOnlyList<T> items, long time, Func<T, long> key)
     {
-        int low = 0, high = items.Length;
+        int low = 0, high = items.Count;
         while (low < high)
         {
             var middle = (low + high) >>> 1;

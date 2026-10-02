@@ -75,6 +75,8 @@ public sealed partial class ProfilerPage : UserControl
         Loaded += (_, _) =>
         {
             Attach();
+            App.MainWindow.AppWindow.Changed -= AppWindow_Changed;
+            App.MainWindow.AppWindow.Changed += AppWindow_Changed;
             FollowVisibility();
             if (App.HotKeys is { } keys) { keys.Changed -= HotKeys_Changed; keys.Changed += HotKeys_Changed; }
         };
@@ -83,6 +85,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             clock.Stop();
             gameClock.Stop();
+            App.MainWindow.AppWindow.Changed -= AppWindow_Changed;
             if (service is not null) { service.Changed -= Session_Changed; service.Saved -= Profiles_Saved; }
             service = null;
             if (App.HotKeys is { } keys) keys.Changed -= HotKeys_Changed;
@@ -147,10 +150,13 @@ public sealed partial class ProfilerPage : UserControl
         if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
         var thread = ThreadBox.SelectedIndex;
+        // The same choice in new words: not a change of thread to analyse again for.
+        updatingThreads = true;
         ThreadBox.Items.Clear();
         ThreadBox.Items.Add(Localizer.Get("ProfileThreadGame"));
         ThreadBox.Items.Add(Localizer.Get("ProfileThreadAll"));
         ThreadBox.SelectedIndex = Math.Max(0, thread);
+        updatingThreads = false;
         UpdateSession();
         // The graph's scale is drawn in code with the language's number format.
         if (IsLoaded) { RefreshList(loadedPath); RenderChart(); if (shown is not null) ShowRange(shown); }
@@ -164,11 +170,18 @@ public sealed partial class ProfilerPage : UserControl
 
     private void FollowVisibility()
     {
-        if (Visibility == Visibility.Visible)
+        // The window hidden in the tray keeps the page loaded and visible: its own visibility counts too.
+        if (Visibility == Visibility.Visible && App.MainWindow.AppWindow.IsVisible)
         {
+            if (savedWhileAway is { } saved) { savedWhileAway = null; RefreshList(saved); }
             if (!gameClock.IsEnabled) { gameClock.Start(); _ = CheckGamesAsync(); }
         }
         else gameClock.Stop();
+    }
+
+    private void AppWindow_Changed(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowChangedEventArgs args)
+    {
+        if (args.DidVisibilityChange) FollowVisibility();
     }
 
     private void Attach()
@@ -288,7 +301,15 @@ public sealed partial class ProfilerPage : UserControl
         }
     }
 
-    private void Profiles_Saved(string path) => DispatcherQueue.TryEnqueue(() => RefreshList(path));
+    // A recording saved while the page is out of sight (another page, the tray, a hotkey in the game) is listed and
+    // opened when it comes back: reading and analysing it meanwhile would only cost the game.
+    private void Profiles_Saved(string path) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (Visibility == Visibility.Visible && App.MainWindow.AppWindow.IsVisible) RefreshList(path);
+        else savedWhileAway = path;
+    });
+
+    private string? savedWhileAway;
 
     private void HotKeys_Changed() => DispatcherQueue.TryEnqueue(UpdateSession);
     private async Task CheckGamesAsync()
@@ -449,6 +470,9 @@ public sealed partial class ProfilerPage : UserControl
     {
         if (RecordingList.SelectedItem is not RecordingItem item) return;
         renaming = true;
+        // The one being renamed: a recording saved meanwhile (by a hotkey) is selected and opened, and must not get
+        // the name typed for this one.
+        renamingItem = item;
         RenameBox.Text = item.File.Named ? item.File.Name : "";
         RenameBox.PlaceholderText = Localizer.Get("ProfileRenamePlaceholder");
         RenameBox.Visibility = Visibility.Visible;
@@ -465,13 +489,17 @@ public sealed partial class ProfilerPage : UserControl
 
     private void RenameBox_LostFocus(object sender, RoutedEventArgs e) => EndRename(keep: true);
 
+    private RecordingItem? renamingItem;
+
     private void EndRename(bool keep)
     {
         if (!renaming) return;
         renaming = false;
         RenameBox.Visibility = Visibility.Collapsed;
         RecordingList.Visibility = Visibility.Visible;
-        if (!keep || service is not { } profiles || RecordingList.SelectedItem is not RecordingItem item) return;
+        var item = renamingItem;
+        renamingItem = null;
+        if (!keep || service is not { } profiles || item is null) return;
         try
         {
             var renamed = profiles.Rename(item.File.Path, RenameBox.Text);
@@ -1285,7 +1313,13 @@ public sealed partial class ProfilerPage : UserControl
         start = Math.Clamp(start, 0, recording.Duration - span);
         viewStart = start;
         viewEnd = start + span;
-        // Dragging and the wheel can move the view many times per frame; draw once for the last of them.
+        QueueRender();
+    }
+
+    // Dragging, the wheel and the pointer over the list can ask for the graph many times per frame; it is drawn once,
+    // for the last of them.
+    private void QueueRender()
+    {
         if (renderQueued) return;
         renderQueued = DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
@@ -1326,7 +1360,7 @@ public sealed partial class ProfilerPage : UserControl
         pressX = point.Position.X;
         pressViewStart = viewStart;
         if (point.Properties.IsRightButtonPressed || point.Properties.IsMiddleButtonPressed) panning = true;
-        else if (point.Properties.IsLeftButtonPressed) selecting = true;
+        else if (point.Properties.IsLeftButtonPressed) { selecting = true; (pressSelectionStart, pressSelectionEnd) = (selectionStart, selectionEnd); }
         else return;
         // The frame graph or the memory graph: both share the time axis, so positions read the same.
         ((UIElement)sender).CapturePointer(e.Pointer);
@@ -1358,15 +1392,11 @@ public sealed partial class ProfilerPage : UserControl
         MemoryHoverLine.Visibility = Visibility.Visible;
         // While dragging, the line follows the range being drawn rather than the frame under the pointer: its length,
         // where it lies, and its frames, so the size of the drag reads as it grows.
-        if (selecting && selectionStart is { } dragStart && selectionEnd is { } dragEnd && Math.Abs(x - pressX) >= 4)
+        if (selecting && selectionStart is not null && Math.Abs(x - pressX) >= 4)
         {
-            ShowRangeLine(dragStart, dragEnd, ProfileAnalysis.FrameStatistics(recording, dragStart, dragEnd), out _);
-            // The memory panel's line too: the range's collections and peaks, as it will read once let go.
-            var (dragCollections, dragPaused) = ProfileAnalysis.CollectionsIn(recording, dragStart, dragEnd);
-            var (dragHeap, dragVideo) = ProfileAnalysis.MemoryPeaksIn(recording, dragStart, dragEnd);
-            SetLaneInfo(dragCollections > 0 ? CollectionText(dragCollections, dragPaused) : null,
-                dragHeap is { } heapPeak ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heapPeak)}" : null,
-                dragVideo is { } videoPeak ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(videoPeak)}" : null);
+            // Once per frame at most, for where the drag is then: a long range's statistics take milliseconds.
+            if (!dragReadoutQueued)
+                dragReadoutQueued = DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, ShowDragReadout);
             return;
         }
         var frame = ProfileAnalysis.FrameAt(recording, time);
@@ -1404,6 +1434,11 @@ public sealed partial class ProfilerPage : UserControl
         if (!wasSelecting) return;
         if (Math.Abs(x - pressX) < 4)
         {
+            // The second click of a double-click changes nothing: the double-click shows all, and undoes the first.
+            var now = Environment.TickCount64;
+            if (now - lastClickTicks <= DoubleClickMilliseconds) { lastClickTicks = 0; return; }
+            lastClickTicks = now;
+            selectionBeforeClick = (pressSelectionStart, pressSelectionEnd);
             // A click picks the one frame under the pointer.
             var time = TimeAt(x);
             if (ProfileAnalysis.FrameAt(recording, time) is { } frame && time >= frame.Start && time <= frame.Start + frame.Duration)
@@ -1412,12 +1447,48 @@ public sealed partial class ProfilerPage : UserControl
                 selectionEnd = frame.Start + Math.Max(1, frame.Duration);
             }
             else selectionStart = selectionEnd = null;
+            // Nothing to analyse again when the click picked what was already chosen.
+            if ((selectionStart, selectionEnd) == (pressSelectionStart, pressSelectionEnd)) return;
         }
         UpdateSelectionRectangle();
         Analyze();
     }
 
-    private void Chart_PointerCanceled(object sender, PointerRoutedEventArgs e) => selecting = panning = false;
+    // Lost mid-drag (another window, a dialog, a touch cancelled): the selection goes back to what it was, so the
+    // rectangle never shows a range the results do not describe. A release lets go of the capture first.
+    private void Chart_PointerCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        var wasSelecting = selecting;
+        selecting = panning = false;
+        if (!wasSelecting || (selectionStart, selectionEnd) == (pressSelectionStart, pressSelectionEnd)) return;
+        (selectionStart, selectionEnd) = (pressSelectionStart, pressSelectionEnd);
+        UpdateSelectionRectangle();
+        ShowDefaultChartInfo();
+    }
+
+    private long? pressSelectionStart, pressSelectionEnd;
+    private (long? Start, long? End) selectionBeforeClick;
+    private long lastClickTicks;
+    private bool dragReadoutQueued;
+    private static readonly uint DoubleClickMilliseconds = GetDoubleClickTime();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDoubleClickTime();
+
+    // While dragging, the line follows the range being drawn rather than the frame under the pointer: its length,
+    // where it lies, and its frames, so the size of the drag reads as it grows.
+    private void ShowDragReadout()
+    {
+        dragReadoutQueued = false;
+        if (recording is null || !selecting || selectionStart is not { } dragStart || selectionEnd is not { } dragEnd) return;
+        ShowRangeLine(dragStart, dragEnd, ProfileAnalysis.FrameStatistics(recording, dragStart, dragEnd), out _);
+        // The memory panel's line too: the range's collections and peaks, as it will read once let go.
+        var (dragCollections, dragPaused) = ProfileAnalysis.CollectionsIn(recording, dragStart, dragEnd);
+        var (dragHeap, dragVideo) = ProfileAnalysis.MemoryPeaksIn(recording, dragStart, dragEnd);
+        SetLaneInfo(dragCollections > 0 ? CollectionText(dragCollections, dragPaused) : null,
+            dragHeap is { } heapPeak ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heapPeak)}" : null,
+            dragVideo is { } videoPeak ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(videoPeak)}" : null);
+    }
 
     /// <summary>Back to the whole recording: the results describe all of it again. The view keeps its zoom.</summary>
     private void ClearSelection()
@@ -1449,7 +1520,17 @@ public sealed partial class ProfilerPage : UserControl
         ShowDefaultChartInfo();
     }
 
-    private void Chart_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => ZoomAllButton_Click(sender, e);
+    // Shows all, and keeps the selection there was before its first click.
+    private void Chart_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (recording is not null && (selectionStart, selectionEnd) != selectionBeforeClick)
+        {
+            (selectionStart, selectionEnd) = selectionBeforeClick;
+            UpdateSelectionRectangle();
+            Analyze();
+        }
+        ZoomAllButton_Click(sender, e);
+    }
 
     private void ZoomAllButton_Click(object sender, RoutedEventArgs e)
     {
@@ -1551,9 +1632,11 @@ public sealed partial class ProfilerPage : UserControl
 
     private void ResultTabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) => ShowTab();
 
+    private bool updatingThreads;
+
     private void ThreadBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (recording is not null && ThreadBox.SelectedIndex >= 0) { Analyze(); _ = AnalyzeBaselineAsync(); }
+        if (!updatingThreads && recording is not null && ThreadBox.SelectedIndex >= 0) { Analyze(); _ = AnalyzeBaselineAsync(); }
     }
 
     // The whole recording's analysis by thread (-1 for all), kept from the first time: clearing a selection goes back to
@@ -1625,6 +1708,10 @@ public sealed partial class ProfilerPage : UserControl
             SetSplitVisible(false);
             ResultMessage.Text = Localizer.Get(java ? "ProfileFewSamples" : recording?.LuaPeriod is not > 0 ? "ProfileNoLua"
                 : tab == ResultTab.Allocation ? "ProfileAllocationNone" : "ProfileLuaNone");
+            // The tab before may have drawn an owner over the graph and a mod's row in the memory panel.
+            previewGroup = null;
+            ApplyMemoryPanel();
+            RenderChart();
             return;
         }
         SetSplitVisible(true);
@@ -1934,13 +2021,14 @@ public sealed partial class ProfilerPage : UserControl
             {
                 if (CurrentHighlight is not { } current || current == group.Key || previewGroup == group) return;
                 previewGroup = group;
-                RenderChart();
+                QueueRender();
             };
             item.PointerExited += (_, _) =>
             {
                 if (previewGroup != group) return;
                 previewGroup = null;
-                RenderChart();
+                // Leaving one row for the next draws once, for the next.
+                QueueRender();
             };
         }
         // Compared with another recording: how many points of the range it gained or lost, small, before its part.
@@ -2092,6 +2180,26 @@ public sealed partial class ProfilerPage : UserControl
 
     private void DetailSearch_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
+        // Once the typing pauses: each key would otherwise build the whole table again.
+        searchTimer ??= CreateSearchTimer();
+        searchTimer.Stop();
+        searchTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? searchTimer;
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateSearchTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(200);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => ApplySearchText();
+        return timer;
+    }
+
+    private void ApplySearchText()
+    {
+        searchTimer?.Stop();
         var text = DetailSearch.Text.Trim();
         if (text == search) return;
         search = text;
