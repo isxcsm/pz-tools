@@ -423,6 +423,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokacja pamięci</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Drzewo wywołań</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Grupuje funkcje tego właściciela według ścieżek wywołań, które do nich prowadziły: na górze funkcja najbardziej zewnętrzna, np. obsługa zdarzenia, a wewnątrz to, co wywołała. Liczą się tylko próbki zakończone w funkcjach tego właściciela. Wyłączone: zwykła lista funkcji.</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>Kliknij, aby narysować jego czas w każdym słupku wykresu powyżej; kliknij ponownie, aby wyłączyć. Gdy jeden jest rysowany, najechanie na inny pokazuje tamten.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozwiń</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Zwiń</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Przydzielono</value></data>

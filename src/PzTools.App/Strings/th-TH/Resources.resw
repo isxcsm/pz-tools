@@ -430,6 +430,7 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>การจัดสรรหน่วยความจำ</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>ต้นไม้การเรียก</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>จัดกลุ่มฟังก์ชันของเจ้าของนี้ตามเส้นทางการเรียกที่นำมาถึง: ฟังก์ชันชั้นนอกสุด เช่น ตัวจัดการอีเวนต์ อยู่ด้านบน และสิ่งที่มันเรียกอยู่ด้านใน นับเฉพาะตัวอย่างที่จบในฟังก์ชันของเจ้าของนี้ ปิด: รายการฟังก์ชันแบบธรรมดา</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>คลิกเพื่อแสดงเวลาของรายการนี้แบบเข้มในแต่ละแท่งของกราฟด้านบน คลิกอีกครั้งเพื่อยกเลิก ขณะแสดงอยู่ ชี้เมาส์ที่รายการอื่นจะแสดงรายการนั้นแทน</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>ขยาย</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>ยุบ</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>จัดสรรแล้ว</value></data>

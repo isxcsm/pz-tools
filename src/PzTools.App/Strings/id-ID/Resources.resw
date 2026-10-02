@@ -423,6 +423,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokasi memori</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Pohon panggilan</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Mati: daftar fungsi biasa.</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>Klik untuk menggambar waktunya di dalam setiap batang grafik di atas; klik lagi untuk berhenti. Selama ditampilkan, mengarahkan kursor ke yang lain menampilkan yang itu.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Bentangkan</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Ciutkan</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Dialokasikan</value></data>

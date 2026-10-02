@@ -423,6 +423,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Allocation mémoire</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Arbre d’appels</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Regroupe les fonctions de ce propriétaire selon les chemins d’appel qui y ont mené : en haut la fonction la plus externe, comme un gestionnaire d’événement, et dedans ce qu’elle a appelé. Seuls comptent les échantillons terminés dans une fonction de ce propriétaire. Désactivé : une simple liste des fonctions.</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>Cliquez pour dessiner son temps dans chaque barre du graphique ci-dessus ; cliquez à nouveau pour arrêter. Pendant ce temps, survoler un autre élément affiche celui-ci.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Développer</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Réduire</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alloué</value></data>

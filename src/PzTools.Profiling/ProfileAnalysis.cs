@@ -445,6 +445,63 @@ public static class ProfileAnalysis
     }
 
     /// <summary>
+    /// For each slice the frame graph draws, how many milliseconds of its bar (the slice's slowest frame) one owner's
+    /// code ran: a mod's or the game's scripts (<paramref name="java"/> false, a key of <see cref="ProfileRange.LuaGroups"/>)
+    /// or a part of the game code (true, a key of <see cref="ProfileRange.MethodGroups"/>). The same frame as the bar, so
+    /// the two compare directly; 0 where no frame began. Counted from samples, so in steps of a sampling period.
+    /// </summary>
+    /// <param name="thread">For game code, the thread whose samples count (the game thread: frames are its own); -1 all.</param>
+    public static double[] OwnerTimePerBucket(ProfileRecording recording, long start, long end, int buckets, bool java, string owner, int thread)
+    {
+        var result = new double[Math.Max(1, buckets)];
+        if (end <= start) return result;
+        var frames = recording.Frames;
+        var slowest = new int[result.Length];
+        Array.Fill(slowest, -1);
+        var span = (double)(end - start);
+        for (var index = LowerBound(frames, start, frame => frame.Start); index < frames.Length && frames[index].Start < end; index++)
+        {
+            var bucket = Math.Min(result.Length - 1, (int)((frames[index].Start - start) / span * result.Length));
+            if (slowest[bucket] < 0 || frames[index].Duration > frames[slowest[bucket]].Duration) slowest[bucket] = index;
+        }
+        for (var bucket = 0; bucket < result.Length; bucket++)
+        {
+            if (slowest[bucket] < 0) continue;
+            var frame = frames[slowest[bucket]];
+            result[bucket] = OwnerTimeIn(recording, frame.Start, frame.Start + frame.Duration, java, owner, thread);
+        }
+        return result;
+    }
+
+    /// <summary>Milliseconds one owner's code ran between two moments, by the samples taken then (see <see cref="OwnerTimePerBucket"/>).</summary>
+    public static double OwnerTimeIn(ProfileRecording recording, long start, long end, bool java, string owner, int thread)
+    {
+        double micros = 0;
+        if (!java)
+        {
+            var lua = recording.LuaSamples;
+            for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
+            {
+                var stack = recording.LuaStacks[lua[index].Stack];
+                if (stack.Length > 0 && OwnerOf(recording.LuaFunctions[stack[0].Function].File).Equals(owner, StringComparison.OrdinalIgnoreCase))
+                    micros += recording.LuaPeriod;
+            }
+            return micros / 1000;
+        }
+        var samples = recording.Samples;
+        for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
+        {
+            var sample = samples[index];
+            if (thread >= 0 && sample.Thread != thread) continue;
+            var stack = recording.Stacks[sample.Stack];
+            // As in the shares: a thread only waiting in a native call was not running anyone's code.
+            if (stack.Length == 0 || sample.Native && Waits(recording, stack)) continue;
+            if (GroupOf(recording.Methods[stack[0]]) == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+        }
+        return micros / 1000;
+    }
+
+    /// <summary>
     /// The slowest frame in each of <paramref name="buckets"/> equal slices of the range, in milliseconds;
     /// 0 where no frame began. Taking the maximum keeps a single spike visible however far the chart is zoomed out.
     /// </summary>

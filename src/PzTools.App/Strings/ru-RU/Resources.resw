@@ -423,6 +423,7 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Выделение памяти</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Дерево вызовов</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Группирует функции этого владельца по путям вызовов, которые к ним привели: наверху самая внешняя функция, например обработчик события, внутри — то, что она вызвала. Учитываются только выборки, завершившиеся в функциях этого владельца. Выключено: простой список функций.</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>Щёлкните, чтобы показать его время внутри каждого столбца графика выше; щёлкните ещё раз, чтобы убрать. Пока он показан, наведение на другой пункт показывает тот.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Развернуть</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Свернуть</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Выделено</value></data>

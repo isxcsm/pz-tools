@@ -205,7 +205,19 @@ heading says what its column means when the pointer rests on it.
   it follows each recording, dashed lines at 60 FPS (16.7 ms) and 30 FPS (33.3 ms), over
   the bars and named at the right, give it a fixed meaning: a bar above the 30 FPS line
   is a stutter on any computer. A line too close to the floor or to the other is left
-  out. Wheel zooms
+  out.
+- **Highlight.** Clicking an owner in the *Scripts* or *Game code* list (a mod, the
+  game's scripts, a part of the game code) fades every bar and draws, solid inside it,
+  how much of the same frame that owner's code ran: a mod that costs a little every
+  frame and one that spikes every few seconds look different at once. Clicking it again
+  stops; clicking another moves the highlight there, and a small graph mark beside the
+  owner's figure says which is drawn. While one is drawn, pointing at another owner
+  shows that one until the pointer leaves, to compare without clicking. Over the graph,
+  the line above it adds the owner's time in the frame under the pointer. It counts the
+  samples taken in that frame (the game thread's, for game code), so it moves in steps of
+  a sampling period: coarse for short frames in Standard mode, fine in Detailed mode. A
+  new recording starts with nothing highlighted; *Memory allocation*, in bytes, has
+  none. Wheel zooms
   around the pointer, right-button drag or the scroll bar moves, double-click shows
   everything.
 - **Memory panel.** When the recording has memory readings or garbage collections, the

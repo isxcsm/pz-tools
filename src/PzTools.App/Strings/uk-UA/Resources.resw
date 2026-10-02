@@ -423,6 +423,7 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Виділення пам'яті</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Дерево викликів</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вимкнено: простий список функцій.</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>Клацніть, щоб показати його час усередині кожного стовпця графіка вище; клацніть ще раз, щоб прибрати. Поки він показаний, наведення на інший пункт показує той.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Розгорнути</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Згорнути</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Виділено</value></data>

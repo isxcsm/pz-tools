@@ -451,6 +451,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Memory allocation</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Call tree</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Groups this owner's functions by the call paths that led to them: the outermost function, such as an event handler, on top, and what it called inside. Only samples that ended in this owner's functions count. Off: a plain list of the functions.</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>Click to draw its time inside each bar of the graph above; click again to stop. While one is drawn, pointing at another shows that one.</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Expand</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>Collapse</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Allocated</value></data>

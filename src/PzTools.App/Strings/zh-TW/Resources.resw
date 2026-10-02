@@ -423,6 +423,7 @@
   <data name="ProfileTabAllocation" xml:space="preserve"><value>記憶體配置</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>呼叫樹</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>按一下可在上方圖表的每根長條中加深顯示此項的時間，再按一下取消。顯示期間，將游標移到其他項上會改為顯示該項。</value></data>
   <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>
   <data name="ProfileTreeCollapse" xml:space="preserve"><value>摺疊</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>配置量</value></data>

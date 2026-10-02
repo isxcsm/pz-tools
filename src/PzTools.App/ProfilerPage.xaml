@@ -125,6 +125,9 @@
                   Fill="{ThemeResource AccentFillColorDefaultBrush}" />
             <Path x:Name="SlowBarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                   Fill="{ThemeResource SystemFillColorCautionBrush}" />
+            <!-- The highlighted owner's part of each bar, over the bars faded behind it. -->
+            <Path x:Name="HighlightPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Fill="{ThemeResource AccentFillColorDefaultBrush}" />
             <!-- The 60 and 30 FPS lines, over the bars: a slow recording's bars would otherwise hide them. -->
             <Canvas x:Name="ReferenceCanvas" IsHitTestVisible="False" />
             <Canvas IsHitTestVisible="False">
@@ -277,7 +280,7 @@
               </Grid>
             </Border>
             <ListView x:Name="GroupList" Grid.Row="1" Padding="4" SelectionMode="Single" ItemContainerStyle="{StaticResource ContentListItemStyle}"
-                      SelectionChanged="GroupList_SelectionChanged"
+                      SelectionChanged="GroupList_SelectionChanged" IsItemClickEnabled="True" ItemClick="GroupList_ItemClick"
                       AutomationProperties.AutomationId="ProfileGroupList">
               <ListView.ItemContainerTransitions>
                 <TransitionCollection />

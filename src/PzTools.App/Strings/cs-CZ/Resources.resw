@@ -455,6 +455,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozbalit</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Strom volání</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Seskupí funkce tohoto vlastníka podle cest volání, které k nim vedly: nahoře nejvnější funkce, například obsluha události, uvnitř to, co volala. Počítají se jen vzorky, které skončily ve funkcích tohoto vlastníka. Vypnuto: prostý seznam funkcí.</value></data>
+  <data name="ProfileHighlightTip" xml:space="preserve"><value>Kliknutím se jeho čas vykreslí uvnitř každého sloupce grafu výše, dalším kliknutím se zruší. Během zobrazení ukáže najetí na jinou položku tu.</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>

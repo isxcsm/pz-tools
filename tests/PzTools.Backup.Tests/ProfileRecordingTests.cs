@@ -161,6 +161,20 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void OwnerTime_IsTheOwnersPartOfEachBarsFrame()
+    {
+        var recording = Load(Sample);
+        // Two slices: the first holds both frames and draws the 40 ms one; no frame begins in the second.
+        Assert.Equal([40.0, 0], ProfileAnalysis.SlowestFramePerBucket(recording, 0, 50_000, 2));
+        // Of that frame, the mod's functions ran in two 10 ms Lua samples; the game's scripts in one.
+        Assert.Equal([20.0, 0], ProfileAnalysis.OwnerTimePerBucket(recording, 0, 50_000, 2, java: false, "SlowMod", recording.GameThread));
+        Assert.Equal([10.0, 0], ProfileAnalysis.OwnerTimePerBucket(recording, 0, 50_000, 2, java: false, ProfileAnalysis.GameOwner, recording.GameThread));
+        // The interpreter ran in three of the game thread's 10 ms Java samples inside it; the render thread's sample is not the game's.
+        Assert.Equal([30.0, 0], ProfileAnalysis.OwnerTimePerBucket(recording, 0, 50_000, 2, java: true, ProfileAnalysis.LuaRuntime, recording.GameThread));
+        Assert.Equal(0, ProfileAnalysis.OwnerTimeIn(recording, 10_000, 50_000, java: true, ProfileAnalysis.Libraries, recording.GameThread));
+    }
+
+    [Fact]
     public void Analyze_StopsWhenNobodyWaitsForItAnyMore()
     {
         using var cancel = new CancellationTokenSource();

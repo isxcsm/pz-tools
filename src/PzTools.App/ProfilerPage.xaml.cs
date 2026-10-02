@@ -294,8 +294,10 @@ public sealed partial class ProfilerPage : UserControl
         LoadingRing.Visibility = Visibility.Collapsed;
         if (loaded is null || loaded.Duration <= 0) { loadedPath = null; Clear(Localizer.Get("ProfileLoadFailed")); return; }
         recording = loaded;
-        // Paths name functions by their number in one recording.
+        // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
         openPaths.Clear();
+        luaHighlight = javaHighlight = null;
+        previewGroup = null;
         viewStart = 0;
         viewEnd = loaded.Duration;
         selectionStart = selectionEnd = null;
@@ -463,6 +465,25 @@ public sealed partial class ProfilerPage : UserControl
         }
         BarsPath.Data = normal;
         SlowBarsPath.Data = slow;
+        // A highlighted owner: every bar faded, and in front, solid, the part of the same frame its code ran.
+        var highlighted = HighlightedOwner();
+        BarsPath.Opacity = SlowBarsPath.Opacity = highlighted is null ? 1 : 0.3;
+        if (highlighted is { } owner)
+        {
+            var parts = ProfileAnalysis.OwnerTimePerBucket(recording, viewStart, viewEnd, buckets, owner.Java, owner.Key,
+                recording.GameThread);
+            var part = new GeometryGroup { FillRule = FillRule.Nonzero };
+            for (var index = 0; index < buckets; index++)
+            {
+                // Sampled in steps of a period, a part can come out a little over its frame: never above its bar.
+                var milliseconds = Math.Min(parts[index], values[index]);
+                if (milliseconds <= 0) continue;
+                var partHeight = Math.Max(1, Math.Min(1, milliseconds / top) * height);
+                part.Children.Add(new RectangleGeometry { Rect = new Rect(index * step, height - partHeight, Math.Max(1, step - 0.5), partHeight) });
+            }
+            HighlightPath.Data = part;
+        }
+        else HighlightPath.Data = null;
         if (chartEntrance)
         {
             chartEntrance = false;
@@ -921,6 +942,10 @@ public sealed partial class ProfilerPage : UserControl
         if (frame is { } found && time >= found.Start)
         {
             items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(found.Duration / 1000.0)));
+            // And how much of that frame the highlighted owner's code ran, the dark part of its bar.
+            if (HighlightedOwner() is { } owner)
+                items.Add((owner.Name, Milliseconds(ProfileAnalysis.OwnerTimeIn(recording, found.Start, found.Start + found.Duration,
+                    owner.Java, owner.Key, recording.GameThread))));
             // Whether this frame was slow because the game stopped to collect garbage.
             var (collections, paused) = ProfileAnalysis.CollectionsIn(recording, found.Start, found.Start + found.Duration);
             if (collections > 0) collection = CollectionText(collections, paused);
@@ -1148,6 +1173,8 @@ public sealed partial class ProfilerPage : UserControl
         var largest = listedGroups.Max(group => group.Share ?? 0);
         updatingGroups = true;
         GroupList.Items.Clear();
+        highlightIcons.Clear();
+        previewGroup = null;
         for (var position = 0; position < listedGroups.Count; position++)
             GroupList.Items.Add(GroupItem(listedGroups[position], largest, position));
         var remembered = tab switch { ResultTab.Java => javaSelection, ResultTab.Allocation => allocationSelection, _ => luaSelection };
@@ -1155,6 +1182,8 @@ public sealed partial class ProfilerPage : UserControl
         GroupList.SelectedIndex = index;
         updatingGroups = false;
         ShowGroup(listedGroups[index]);
+        // Each tab has its own highlight, or none.
+        RenderChart();
     }
 
     private void GroupList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1168,6 +1197,64 @@ public sealed partial class ProfilerPage : UserControl
             default: luaSelection = group.Key; break;
         }
         ShowGroup(group);
+        // A highlight follows the chosen owner (by keyboard too). The click of the same press must then keep it, not
+        // take it for a second click on the highlighted owner: it is told so until this input is handled.
+        if (Highlightable(group) && CurrentHighlight is { } highlighted && highlighted != group.Key)
+        {
+            SetHighlight(group.Key);
+            highlightMovedTo = group.Key;
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => highlightMovedTo = null);
+        }
+    }
+
+    // ---- Highlight on the frame graph ----
+
+    // The owner drawn over the frame graph in each tab, or none: clicking an owner in the list draws it, clicking it
+    // again stops. Not in the allocation tab, whose figures are bytes, not time. A new recording starts with none.
+    private string? luaHighlight, javaHighlight;
+    // While one is highlighted, the owner under the pointer is drawn in its place until the pointer leaves.
+    private ResultGroup? previewGroup;
+    private string? highlightMovedTo;
+    private readonly Dictionary<string, FontIcon> highlightIcons = [];
+
+    private readonly record struct HighlightedGroup(bool Java, string Key, string Name);
+
+    private static bool Highlightable(ResultGroup group) => group.Kind is DetailKind.Lua or DetailKind.Java;
+
+    private string? CurrentHighlight => Tab switch { ResultTab.Lua => luaHighlight, ResultTab.Java => javaHighlight, _ => null };
+
+    private HighlightedGroup? HighlightedOwner()
+    {
+        if (CurrentHighlight is not { } key) return null;
+        if (previewGroup is { } preview && Highlightable(preview)) return new(preview.Kind == DetailKind.Java, preview.Key, preview.Name);
+        var name = listedGroups.FirstOrDefault(group => group.Key == key)?.Name ?? key;
+        return new(Tab == ResultTab.Java, key, name);
+    }
+
+    private void GroupList_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        var index = GroupList.Items.IndexOf(e.ClickedItem);
+        if (index < 0 || index >= listedGroups.Count || !Highlightable(listedGroups[index])) return;
+        var key = listedGroups[index].Key;
+        var next = highlightMovedTo == key || CurrentHighlight != key ? key : null;
+        highlightMovedTo = null;
+        SetHighlight(next);
+    }
+
+    private void SetHighlight(string? key)
+    {
+        if (Tab == ResultTab.Java) javaHighlight = key;
+        else if (Tab == ResultTab.Lua) luaHighlight = key;
+        else return;
+        previewGroup = null;
+        UpdateHighlightIcons();
+        RenderChart();
+    }
+
+    private void UpdateHighlightIcons()
+    {
+        var current = CurrentHighlight;
+        foreach (var (key, icon) in highlightIcons) icon.Visibility = key == current ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void SetSplitVisible(bool visible)
@@ -1187,8 +1274,36 @@ public sealed partial class ProfilerPage : UserControl
         item.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         item.Children.Add(new TextBlock { Text = group.Name, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap });
         var value = new TextBlock { Text = ValueOf(group), Foreground = Muted };
-        Grid.SetColumn(value, 1);
-        item.Children.Add(value);
+        // The number, and before it a small graph mark while the owner is drawn over the frame graph.
+        var trailing = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        if (Highlightable(group))
+        {
+            var mark = new FontIcon
+            {
+                Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"],
+                Visibility = group.Key == CurrentHighlight ? Visibility.Visible : Visibility.Collapsed,
+            };
+            highlightIcons[group.Key] = mark;
+            trailing.Children.Add(mark);
+            // While one owner is highlighted, pointing at another draws it instead, to compare without clicking.
+            item.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            item.PointerEntered += (_, _) =>
+            {
+                if (CurrentHighlight is not { } current || current == group.Key || previewGroup == group) return;
+                previewGroup = group;
+                RenderChart();
+            };
+            item.PointerExited += (_, _) =>
+            {
+                if (previewGroup != group) return;
+                previewGroup = null;
+                RenderChart();
+            };
+        }
+        trailing.Children.Add(value);
+        Grid.SetColumn(trailing, 1);
+        item.Children.Add(trailing);
         if (group.Share is { } part && largest > 0)
         {
             var fraction = Math.Clamp(part / largest, 0, 1);
@@ -1211,7 +1326,7 @@ public sealed partial class ProfilerPage : UserControl
             item.Children.Add(bar);
         }
         var samples = group.Samples > 0 ? $"\n{Localizer.Get("ProfileColumnSamples")} {group.Samples.ToString("N0", Localizer.Culture)}" : "";
-        AppToolTip.SetTip(item, group.Name + samples);
+        AppToolTip.SetTip(item, group.Name + samples + (Highlightable(group) ? "\n" + Localizer.Get("ProfileHighlightTip") : ""));
         AutomationProperties.SetName(item, group.Name + (value.Text.Length > 0 ? ", " + value.Text : ""));
         return item;
     }
