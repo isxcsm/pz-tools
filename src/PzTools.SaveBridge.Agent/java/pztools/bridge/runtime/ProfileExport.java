@@ -123,7 +123,7 @@ public final class ProfileExport {
                                 if (functionId == null) {
                                     functionId = luaFunctions.size();
                                     luaFunctions.put(function, functionId);
-                                    tables.append("LM\t").append(functionId).append('\t').append(clean(frame.substring(0, firstBar)))
+                                    tables.append("LM\t").append(functionId).append('\t').append(clean(luaName(frame.substring(0, firstBar))))
                                         .append('\t').append(clean(luaPath(frame.substring(firstBar + 1, lastBar)))).append('\n');
                                 }
                                 if (!first) line.append(' ');
@@ -255,6 +255,15 @@ public final class ProfileExport {
         if (lower.startsWith("media/") || lower.startsWith("mods/")) return value;
         int slash = value.lastIndexOf('/');
         return slash < 0 ? value : value.substring(slash + 1);
+    }
+    /**
+     * A Lua function's name as the recording keeps it. A file's top-level code is named after the file's full path,
+     * folders above the game or the mod included; its file name says the same without them. A function name never
+     * holds a slash, so only such a name changes.
+     */
+    static String luaName(String name) {
+        int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        return slash < 0 ? name : name.substring(slash + 1);
     }
     private static String name(RecordedThread thread) {
         String name = thread.getJavaName();

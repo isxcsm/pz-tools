@@ -193,7 +193,9 @@ refer to them by number. Identical stacks are stored once.
 What a recording contains, if you pass a file on: it contains Java method names, thread names, mod
 folder names, Lua script paths from `mods/` or `media/` downward, and file *names* of
 slow reads and writes. It does not contain folders above those (which would include the
-Windows user name), save contents, or chat. The raw flight recording that the game
+Windows user name), save contents, or chat. A script file's top-level code, which Lua
+names after the file's full path, is kept under the file's name alone; recordings made
+before that was done are shown the same way, though their file still holds the path. The raw flight recording that the game
 writes first does contain full paths; it is converted and deleted as soon as the
 recording ends, and leftovers of an interrupted run are deleted when the next recording
 starts.

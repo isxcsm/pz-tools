@@ -114,7 +114,7 @@ public sealed class ProfileRecording
                     samples.Add((Number(fields[1]), Number(fields[2]), Index(fields[3]), fields[4] == "N"));
                     break;
                 case "F" when fields.Length == 3: frames.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
-                case "LM" when fields.Length == 4: Place(luaFunctions, fields[1], new(fields[2], fields[3]), new("?", "?")); break;
+                case "LM" when fields.Length == 4: Place(luaFunctions, fields[1], new(LuaName(fields[2]), fields[3]), new("?", "?")); break;
                 case "LK" when fields.Length == 3:
                     Place(luaStacks, fields[1], fields[2].Length == 0 ? [] : Array.ConvertAll(fields[2].Split(' '), text =>
                     {
@@ -259,6 +259,16 @@ public sealed class ProfileRecording
         if (gaps.Count < 50) return requested;
         gaps.Sort();
         return Math.Clamp(gaps[gaps.Count / 2], requested, requested * 4);
+    }
+
+    /// <summary>
+    /// A file's top-level code is named after the file's full path; recordings made before the recorder shortened it
+    /// carry folders above the game or the mod, possibly the user's. Its file name is shown, and copied, instead.
+    /// </summary>
+    private static string LuaName(string name)
+    {
+        var slash = name.LastIndexOfAny(['/', '\\']);
+        return slash < 0 ? name : name[(slash + 1)..];
     }
 
     private static void Place<T>(List<T> list, string index, T value, T filler)

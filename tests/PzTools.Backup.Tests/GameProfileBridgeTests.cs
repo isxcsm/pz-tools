@@ -48,6 +48,10 @@ public sealed partial class GameSaveClientTests
         Assert.Contains(range.MethodGroups, group => group.Key == ProfileAnalysis.GameCode && group.Self > 0.05);
         Assert.Equal("ExampleMod", Assert.Single(range.LuaGroups).Key);
         Assert.Equal("heavyWork", range.LuaGroups[0].Rows[0].Name);
+        // The file's top-level code keeps its file name, not the folders of the full path it is named after.
+        Assert.Equal(["Example.lua", "OnTick", "heavyWork"],
+            new[] { range.LuaCallTrees["ExampleMod"].Children[0], range.LuaCallTrees["ExampleMod"].Children[0].Children[0],
+                range.LuaCallTrees["ExampleMod"].Children[0].Children[0].Children[0] }.Select(node => node.Name));
         Assert.True(range.Frames.Count > 20 && range.Frames.AverageMilliseconds is > 15 and < 80);
         // The heap is read four times a second while the recording runs.
         Assert.True(recording.Heap.Count >= 4, $"heap readings: {recording.Heap.Count}");

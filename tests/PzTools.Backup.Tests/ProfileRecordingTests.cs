@@ -127,6 +127,18 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Read_ShortensTopLevelCodeNamedAfterAFullPath_InRecordingsThatStillHaveIt()
+    {
+        // Recorded before the recorder shortened such names: the full path, user folder included.
+        var recording = Load(Sample + @"
+            LM|3|C:\Users\someone\Zomboid\mods\Other\media\lua\client\Other.lua|mods/Other/media/lua/client/Other.lua
+            LM|4|C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid/media/lua/client/ISUI/ISButton.lua|media/lua/client/ISUI/ISButton.lua");
+        Assert.Equal(("Other.lua", "mods/Other/media/lua/client/Other.lua"), (recording.LuaFunctions[3].Name, recording.LuaFunctions[3].File));
+        Assert.Equal("ISButton.lua", recording.LuaFunctions[4].Name);
+        Assert.Equal("slow", recording.LuaFunctions[0].Name);
+    }
+
+    [Fact]
     public void Analyze_AllThreads_WeighsEachSampleByItsOwnPeriod()
     {
         var all = ProfileAnalysis.Analyze(Load(Sample), 0, 50_000, -1);
