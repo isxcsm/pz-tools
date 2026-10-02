@@ -203,7 +203,7 @@ heading says what its column means when the pointer rests on it.
   ordinary ones; taller bars reach the top with a **▲**, their time on hover. The scale
   is rounded up in fine steps (…, 250, 300, 400, 500 ms), so the bars fill the graph. As
   it follows each recording, dashed lines at 60 FPS (16.7 ms) and 30 FPS (33.3 ms), over
-  the bars and named at the right, give it a fixed meaning: a bar above the 30 FPS line
+  the bars and named on a pill in the scale's margin (a scale value it would cover gives way), give it a fixed meaning: a bar above the 30 FPS line
   is a stutter on any computer. A line too close to the floor or to the other is left
   out.
 - **Highlight.** Clicking an owner in the *Scripts* or *Game code* list (a mod, the

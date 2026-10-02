@@ -499,20 +499,13 @@ public sealed partial class ProfilerPage : UserControl
         }
 
         GridCanvas.Children.Clear();
+        ReferenceCanvas.Children.Clear();
         // The same muted colour as the secondary text, whatever the theme.
         var brush = Muted;
-        foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
-        {
-            var y = height - fraction * height;
-            GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 0.5, Opacity = 0.6 });
-            // Half of a fine step can have a decimal (7.5 ms); whole numbers stay whole.
-            GridCanvas.Children.Add(ScaleLabel((top * fraction).ToString("0.#", Localizer.Culture) + " ms", 11, Math.Max(-6, y - 8)));
-        }
-        // 60 and 30 frames per second as named dashed lines: the scale follows each recording, these do not, so
-        // "above the 30 FPS line" reads the same on a fast computer's 50 ms graph and a slow one's 300 ms graph. Drawn
-        // only where they stand apart from the floor and from each other, so their names do not collide.
-        // Over the bars, each name on a small card so a bar under it does not cross the words.
-        ReferenceCanvas.Children.Clear();
+        // 60 and 30 frames per second as dashed lines: the scale follows each recording, these do not, so "above the
+        // 30 FPS line" reads the same on a fast computer's 50 ms graph and a slow one's 300 ms graph. Only where they
+        // stand apart from the floor and from each other. Over the bars, so a slow recording's bars do not hide them.
+        var fpsLines = new List<(int Fps, double Y)>();
         var lastLine = height;
         foreach (var (fps, milliseconds) in new[] { (60, 1000.0 / 60), (30, 1000.0 / 30) })
         {
@@ -521,21 +514,32 @@ public sealed partial class ProfilerPage : UserControl
             // Clear of the floor by a little, of the line below by a name's height.
             if (lastLine - y < (lastLine == height ? 8 : 14)) continue;
             lastLine = y;
+            fpsLines.Add((fps, y));
             ReferenceCanvas.Children.Add(new Line
             {
                 X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 1, Opacity = 0.8,
                 StrokeDashArray = new DoubleCollection { 4, 3 },
             });
+            // Its name in the scale's margin, on a solid pill unlike the plain scale values: inside the graph, among the
+            // bars, it could hardly be read.
             var name = new Border
             {
-                Background = CardProbe.Background,
-                CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0),
-                Child = new TextBlock { Text = $"{fps} {Localizer.Get("ProfileStatFps")}", FontSize = 10, Foreground = brush },
+                Background = brush, CornerRadius = new CornerRadius(7), Padding = new Thickness(5, 0, 5, 1),
+                Child = new TextBlock { Text = $"{fps} {Localizer.Get("ProfileStatFps")}", FontSize = 10, Foreground = SolidBaseProbe.Background },
             };
             name.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            Canvas.SetLeft(name, Math.Max(0, width - name.DesiredSize.Width - 2));
+            Canvas.SetLeft(name, -4 - name.DesiredSize.Width);
             Canvas.SetTop(name, y - name.DesiredSize.Height / 2);
             ReferenceCanvas.Children.Add(name);
+        }
+        foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
+        {
+            var y = height - fraction * height;
+            GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 0.5, Opacity = 0.6 });
+            // A scale value an FPS name would cover gives way to it; the floor needs no "0 ms" to be read.
+            if (fpsLines.Any(line => Math.Abs(line.Y - y) < 14)) continue;
+            // Half of a fine step can have a decimal (7.5 ms); whole numbers stay whole.
+            GridCanvas.Children.Add(ScaleLabel((top * fraction).ToString("0.#", Localizer.Culture) + " ms", 11, Math.Max(-6, y - 8)));
         }
         foreach (var fraction in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
         {
