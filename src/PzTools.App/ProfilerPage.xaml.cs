@@ -117,6 +117,7 @@ public sealed partial class ProfilerPage : UserControl
         AppToolTip.SetTip(ChartHelp, string.Join("\n", Localizer.Get("ProfileChartHint").Split(" · ")));
         AutomationProperties.SetName(ChartHelp, Localizer.Get("ProfileChartHelp"));
         AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
+        CopyResultsText.Text = Localizer.Get("ProfileCopyText");
         AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
@@ -1417,12 +1418,13 @@ public sealed partial class ProfilerPage : UserControl
         DetailColumn.Width = new GridLength(stacked ? 0 : 1, GridUnitType.Star);
         GroupRow.Height = stacked ? new GridLength(200) : new GridLength(1, GridUnitType.Star);
         DetailRow.Height = new GridLength(stacked ? 1 : 0, GridUnitType.Star);
-        // Stacked, the owner's name moves from beside the tabs to just above its table.
-        // Beside the owners, the table's card starts level with the tabs; stacked, it comes under the owners.
+        // Beside the owners, the table's line sits level with the tabs and its card level with theirs; stacked, both
+        // come under the owners, the line just above its card.
+        Grid.SetColumn(DetailTitle, stacked ? 0 : 1);
+        Grid.SetRow(DetailTitle, stacked ? 2 : 0);
+        DetailTitle.Margin = new Thickness(0, stacked ? 12 : 0, 0, 0);
         Grid.SetColumn(DetailCard, stacked ? 0 : 1);
-        Grid.SetRow(DetailCard, stacked ? 3 : 0);
-        Grid.SetRowSpan(DetailCard, stacked ? 1 : 2);
-        DetailCard.Margin = new Thickness(0, stacked ? 12 : 0, 0, 0);
+        Grid.SetRow(DetailCard, stacked ? 3 : 1);
     }
 
     // ---- Results ----
@@ -1773,7 +1775,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private void SetSplitVisible(bool visible)
     {
-        GroupCard.Visibility = DetailCard.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        GroupCard.Visibility = DetailCard.Visibility = DetailTitle.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         ResultMessage.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -1865,7 +1867,9 @@ public sealed partial class ProfilerPage : UserControl
         // Its share is not repeated here; the list beside shows it.
         DetailName.Text = group.Name;
         AppToolTip.SetTip(DetailName, group.Name);
-        SetStats(DetailSamples, SamplesOf(group) is { } samples ? [(Localizer.Get("ProfileColumnSamples"), samples)] : []);
+        var samples = SamplesOf(group);
+        SetStats(DetailSamples, samples is not null ? [(Localizer.Get("ProfileColumnSamples"), samples)] : []);
+        hasSamples = samples is not null;
         shownGroup = group;
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
@@ -1971,14 +1975,30 @@ public sealed partial class ProfilerPage : UserControl
         if (shownGroup is { } group) ShowGroup(group);
     }
 
-    /// <summary>The search box in the name's place while open or holding text; the button otherwise. Pauses have no names to look for.</summary>
+    /// <summary>
+    /// The search box where its button was while open or holding text, the name giving way to it; the button otherwise.
+    /// Pauses have no names to look for. On a narrow line the samples step aside for the box too.
+    /// </summary>
     private void UpdateSearch()
     {
         var available = shownGroup?.Kind != DetailKind.Pauses;
         var open = available && (searchOpen || search.Length > 0);
-        DetailName.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
+        var width = DetailTitle.ActualWidth;
+        if (width > 0) DetailSearch.Width = Math.Clamp(Math.Floor(width * 0.4), 160, 260);
         DetailSearch.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
         SearchButton.Visibility = available && !open ? Visibility.Visible : Visibility.Collapsed;
+        var showSamples = hasSamples && !(open && width < 640);
+        DetailSamples.Visibility = SamplesDivider.Visibility = showSamples ? Visibility.Visible : Visibility.Collapsed;
+        // The copy keeps its name while the line has room for it.
+        CopyResultsText.Visibility = width >= 560 && !(open && width < 720) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // Whether the shown owner has a sample count to put last on its line.
+    private bool hasSamples;
+
+    private void DetailTitle_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.PreviousSize.Width != e.NewSize.Width) UpdateSearch();
     }
 
     private void OpenSearch()
@@ -2008,7 +2028,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private void SearchAccelerator_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (DetailCard.Visibility != Visibility.Visible || shownGroup is null) return;
+        if (DetailTitle.Visibility != Visibility.Visible || shownGroup is null) return;
         args.Handled = true;
         OpenSearch();
     }
@@ -2018,10 +2038,12 @@ public sealed partial class ProfilerPage : UserControl
         if (e.Key != Windows.System.VirtualKey.Escape) return;
         e.Handled = true;
         CloseSearch();
+        // Focus goes back to the button now in the box's place, without the keyboard focus frame: closing the box
+        // is not moving through the page with Tab.
         if (SearchButton.Visibility == Visibility.Visible)
         {
             SearchButton.UpdateLayout();
-            SearchButton.Focus(FocusState.Keyboard);
+            SearchButton.Focus(FocusState.Pointer);
         }
     }
 

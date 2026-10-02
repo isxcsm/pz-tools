@@ -179,8 +179,10 @@ The line above the graph shows the range, the average frame with its frame rate 
 worst 1%; the frame count and the slowest frame are one hover away and in the copied text.
 Beside them, which thread the results count, the game's or all of them: a choice for the
 whole analysis, both tabs. The chosen owner's table is a card of its own, level with the
-tabs, title and tools in one line: the owner's name with its samples, then the search
-button, the **Call tree** switch and the copy button.
+owner list's card; its line above sits level with the tabs: the owner's name, the search
+button, the **Call tree** switch, **Copy text**, and last its samples out of the tab's. In
+a narrow window the line and the card come under the owner list, and the samples and the
+copy's label give way first.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
 line above the graph describes the range the results show: its start, end and length,
@@ -261,7 +263,8 @@ line itself. So in the list a function's lines' *Samples*, those that ended ther
 to the function's, and in the tree a node's lines' samples add up to the node's. *Line
 unknown* is a frame the game gave no line for.
 
-The **search** button (or Ctrl+F) opens a box in the owner's name's place; it narrows the
+The **search** button (or Ctrl+F) opens a box where the button is, the owner's name giving
+way to it; it narrows the
 table to the rows whose name or file holds the text, in any case; in the tree it keeps the
 paths that lead to a match, opened down to it. It applies to the game code's methods and
 the threads too, and holds while other owners and ranges are shown. The box stays open as

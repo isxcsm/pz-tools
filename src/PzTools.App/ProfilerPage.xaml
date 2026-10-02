@@ -348,60 +348,61 @@
             </Canvas>
           </Grid>
         </Border>
-        <!-- The chosen owner's functions. The card starts level with the tabs and holds its title and tools in one line:
-             the owner's name, its samples, then search, the call tree and the copy. The name repeats the list beside, so
-             the search takes its place while open (Ctrl+F opens it); the name still says whose table this is when the
-             card sits under the list in a narrow window. -->
-        <Border x:Name="DetailCard" Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" CornerRadius="8" BorderThickness="1"
+        <!-- The chosen owner's title and the table's tools in one line, level with the tabs and outside the card, so
+             the two cards start level: the owner's name, its samples, then search, the call tree and the copy. Search
+             narrows the rows to names and files holding the text (a tree keeps the paths to them); its box opens where
+             its button is (or by Ctrl+F) and the name gives way to it. The call tree shows the paths that led to each
+             function; the copy puts what the page shows on the clipboard. Stacked, the line comes just above its card. -->
+        <Grid x:Name="DetailTitle" Grid.Column="1" Padding="12,0,0,0" ColumnSpacing="8" VerticalAlignment="Center"
+              KeyboardAcceleratorPlacementMode="Hidden" SizeChanged="DetailTitle_SizeChanged">
+          <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="SearchAccelerator_Invoked" />
+          </Grid.KeyboardAccelerators>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Name="DetailName" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+          <Button x:Name="SearchButton" Grid.Column="1" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+                  Style="{StaticResource SubtleButtonStyle}" Click="SearchButton_Click"
+                  AutomationProperties.AutomationId="ProfileSearchButton">
+            <FontIcon Glyph="&#xE721;" FontSize="16" />
+          </Button>
+          <AutoSuggestBox x:Name="DetailSearch" Grid.Column="1" Width="260" QueryIcon="Find" VerticalAlignment="Center"
+                          Visibility="Collapsed" TextChanged="DetailSearch_TextChanged" LostFocus="DetailSearch_LostFocus"
+                          AutomationProperties.AutomationId="ProfileDetailSearch" />
+          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" VerticalAlignment="Center" Visibility="Collapsed"
+                        Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
+          <!-- With its name, not a bare icon in the corner: copying what the page shows is how results get shared. -->
+          <Button x:Name="CopyResultsButton" Grid.Column="3" Height="32" Padding="8,0" VerticalAlignment="Center"
+                  Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <FontIcon Glyph="&#xE8C8;" FontSize="16" />
+              <TextBlock x:Name="CopyResultsText" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Rectangle x:Name="SamplesDivider" Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center"
+                     Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+          <!-- The owner's samples out of the tab's, last on the line as before. -->
+          <TextBlock x:Name="DetailSamples" Grid.Column="5" Margin="0,0,4,0" VerticalAlignment="Center" TextWrapping="NoWrap" FontSize="12" />
+        </Grid>
+        <!-- The chosen owner's functions, level with the owner list's card. -->
+        <Border x:Name="DetailCard" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-          <Border.KeyboardAccelerators>
-            <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="SearchAccelerator_Invoked" />
-          </Border.KeyboardAccelerators>
           <Grid>
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <!-- Search narrows the rows to names and files holding the text (a tree keeps the paths to them); the
-                 call tree shows the paths that led to each function; the copy puts what the page shows on the clipboard. -->
-            <Grid x:Name="DetailTitle" Padding="16,6,12,4" ColumnSpacing="8" MinHeight="44">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <TextBlock x:Name="DetailName" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"
-                         TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-              <!-- Up to 320 wide from the name's start, narrower when the card is. -->
-              <Grid Margin="-4,0,0,0">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" MaxWidth="320" />
-                  <ColumnDefinition Width="0.001*" />
-                </Grid.ColumnDefinitions>
-                <AutoSuggestBox x:Name="DetailSearch" QueryIcon="Find" VerticalAlignment="Center" Visibility="Collapsed"
-                                TextChanged="DetailSearch_TextChanged" LostFocus="DetailSearch_LostFocus"
-                                AutomationProperties.AutomationId="ProfileDetailSearch" />
-              </Grid>
-              <TextBlock x:Name="DetailSamples" Grid.Column="1" Margin="4,0,4,0" VerticalAlignment="Center" TextWrapping="NoWrap" FontSize="12" />
-              <Button x:Name="SearchButton" Grid.Column="2" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
-                      Style="{StaticResource SubtleButtonStyle}" Click="SearchButton_Click"
-                      AutomationProperties.AutomationId="ProfileSearchButton">
-                <FontIcon Glyph="&#xE721;" FontSize="16" />
-              </Button>
-              <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="3" MinWidth="0" VerticalAlignment="Center" Visibility="Collapsed"
-                            Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
-              <Button x:Name="CopyResultsButton" Grid.Column="4" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
-                      Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
-                <FontIcon Glyph="&#xE8C8;" FontSize="16" />
-              </Button>
-            </Grid>
-            <Border x:Name="DetailHeader" Grid.Row="1" Padding="16,8,16,6" BorderThickness="0,0,0,1"
+            <Border x:Name="DetailHeader" Padding="16,12,16,6" BorderThickness="0,0,0,1"
                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
               <StackPanel x:Name="DetailRows" Padding="16,4,16,12" />
             </ScrollViewer>
           </Grid>
