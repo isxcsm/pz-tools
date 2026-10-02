@@ -75,6 +75,7 @@ public sealed partial class MainWindowShell : UserControl
     private GameLinkView? previewGameLink;
     private ProjectorHealthView? previewProjectors;
     private UpdateRelease? previewUpdate;
+    private GameMemoryState? previewGameMemory;
 #pragma warning restore CS0649
     private SaveListView? saveListSnapshot;
     private bool hostStartFailed;
@@ -307,6 +308,8 @@ public sealed partial class MainWindowShell : UserControl
         UpdateSaveListPlaceholder();
         if (App.Updates is { } updates) { updates.Changed -= Updates_Changed; updates.Changed += Updates_Changed; }
         ApplyUpdate();
+        if (App.GameMemory is { } memory) { memory.Changed -= GameMemory_Changed; memory.Changed += GameMemory_Changed; }
+        ApplyGameMemory();
 #if PZTOOLS_DEV_TOOLS
         PreviewCardsFromEnvironment();
 #endif
@@ -356,6 +359,7 @@ public sealed partial class MainWindowShell : UserControl
         viewSubscription?.Dispose();
         viewSubscription = null;
         if (App.Updates is { } updates) updates.Changed -= Updates_Changed;
+        if (App.GameMemory is { } memory) memory.Changed -= GameMemory_Changed;
     }
 
     private void RefreshChangedViews()
@@ -1463,6 +1467,55 @@ public sealed partial class MainWindowShell : UserControl
     {
         gameLinkDismissed = true;
         UpdateInteractiveCards();
+    }
+
+    // ---- The game's memory ----
+
+    // The chosen heap and the file's when the card was closed: it comes back only when either changes.
+    private (int?, int?)? gameMemoryDismissed;
+
+    private void GameMemory_Changed() => DispatcherQueue.TryEnqueue(ApplyGameMemory);
+
+    // The player chose a heap and the game's file no longer has it (a game update or Steam's file check put the game's
+    // own back): a card says so, and its button applies the choice again, for the game's next start.
+    private void ApplyGameMemory()
+    {
+        var state = previewGameMemory ?? App.GameMemory?.State;
+        bool reverted = state is { Status: GameMemoryStatus.Reverted, ChosenMegabytes: not null, MaximumMegabytes: not null };
+        (int?, int?) key = (state?.ChosenMegabytes, state?.MaximumMegabytes);
+        if (!reverted) gameMemoryDismissed = null;
+        GameMemoryCard.Visibility = reverted && gameMemoryDismissed != key ? Visibility.Visible : Visibility.Collapsed;
+        if (reverted)
+        {
+            GameMemoryCard.Title = Localizer.Format("GameMemoryRevertedTitleFormat", SettingsPage.Size(state!.MaximumMegabytes!.Value));
+            GameMemoryCard.Message = Localizer.Get("GameMemoryRevertedMessage");
+            GameMemoryCard.ActionLabel = Localizer.Format("GameMemoryReapplyFormat", SettingsPage.Size(state.ChosenMegabytes!.Value));
+        }
+        UpdateInteractiveCards();
+        SettingsRoot.ApplyGameMemory();
+    }
+
+    private void GameMemoryClose_Click(object? sender, EventArgs e)
+    {
+        var state = previewGameMemory ?? App.GameMemory?.State;
+        gameMemoryDismissed = (state?.ChosenMegabytes, state?.MaximumMegabytes);
+        GameMemoryCard.Visibility = Visibility.Collapsed;
+        UpdateInteractiveCards();
+    }
+
+    private async void GameMemoryReapply_Click(object? sender, EventArgs e)
+    {
+        if (App.GameMemory is not { } memory || memory.State.ChosenMegabytes is not { } chosen) return;
+        try { await memory.ApplyAsync(chosen); }
+        catch (GameMemoryException error)
+        {
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), Localizer.Get(error.Code switch
+            {
+                "not-found" => "GameMemoryNotFound",
+                "unsupported" => "GameMemoryUnsupported",
+                _ => "GameMemoryUnwritable",
+            }));
+        }
     }
 
     // ---- Updates ----

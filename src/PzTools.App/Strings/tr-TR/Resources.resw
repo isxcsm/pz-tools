@@ -720,4 +720,22 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Oyun yönetici olarak çalıştığı için bağlanılamadı. Oyunu yönetici izinleri olmadan yeniden başlatın.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Bir oyun başlatma seçeneği engellediği için bağlanılamadı. Oyunun başlatma seçeneklerini kontrol edin.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Oyuna bağlanılamadı</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Oyun</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Oyunun nasıl başlatılacağını değiştirir. Değişiklikler oyunun bir sonraki açılışında geçerli olur.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Oyun belleği</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>Oyunun kullanabileceği bellek. Çok modla sık sık takılıyorsa daha fazlasını verin.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Oyun varsayılanı ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Oyun varsayılanı</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (önerilen)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Oyun klasörü bulunamadı. Oyunu bir kez başlatın, bulunacaktır.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Oyunun ayar dosyası beklendiği gibi değil, bu yüzden değiştirilmedi.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>Oyun klasörüne yazılamıyor; hiçbir şey değiştirilmedi.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Bir oyun güncellemesi {0} ayarını geri aldı. Uygulamak için yeniden seçin.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Oyun belleği {0} değerine döndü</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Bir oyun güncellemesi ayarı geri aldı.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>{0} değerini yeniden uygula</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Bellek yetersizliğinden {0} kez durdu</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Bellek neredeyse dolu</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Bellek ayarı</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Oyunun kullanabileceği bellek ({0}) yetmedi. Daha fazla bellek, daha az durma demektir.</value></data>
 </root>

@@ -720,4 +720,22 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Impossibile connettersi perché il gioco è in esecuzione come amministratore. Riavvialo senza privilegi di amministratore.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Impossibile connettersi perché un’opzione di avvio del gioco lo impedisce. Controlla le opzioni di avvio del gioco.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Impossibile connettersi al gioco</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Gioco</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Cambia come si avvia il gioco. Le modifiche valgono dal prossimo avvio.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Memoria del gioco</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>La memoria che il gioco può usare. Se scatta spesso con molte mod, dagliene di più.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Predefinito del gioco ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Predefinito del gioco</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (consigliato)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Cartella del gioco non trovata. Avvia il gioco una volta e verrà trovata.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Il file delle impostazioni del gioco non è come previsto, quindi non è stato modificato.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>Impossibile scrivere nella cartella del gioco; nulla è stato modificato.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Un aggiornamento del gioco ha annullato l’impostazione {0}. Sceglila di nuovo per applicarla.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Memoria del gioco tornata a {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Un aggiornamento del gioco ha annullato l’impostazione.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Applica di nuovo {0}</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Fermato {0} volte per mancanza di memoria</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memoria quasi piena</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Impostazione memoria</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Al gioco è mancata la memoria che può usare ({0}). Con più memoria si ferma meno.</value></data>
 </root>

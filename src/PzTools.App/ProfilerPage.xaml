@@ -267,6 +267,18 @@
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
             <TextBlock x:Name="HeapValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
             <TextBlock x:Name="VideoValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+            <!-- The game ran short of memory in this recording: said here, beside the heap it is about, with the way to
+                 give it more. -->
+            <StackPanel x:Name="MemoryShortPanel" Orientation="Horizontal" Spacing="4" Visibility="Collapsed" VerticalAlignment="Center">
+              <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+              <TextBlock x:Name="MemoryShortText" FontSize="12" VerticalAlignment="Center" />
+              <HyperlinkButton x:Name="MemoryShortButton" AutomationProperties.AutomationId="ProfileMemorySettingButton" Padding="6,1" FontSize="12" Click="MemoryShortButton_Click">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock x:Name="MemoryShortButtonText" />
+                  <FontIcon Glyph="&#xE72A;" FontSize="10" VerticalAlignment="Center" />
+                </StackPanel>
+              </HyperlinkButton>
+            </StackPanel>
           </StackPanel>
           <TextBlock x:Name="CollectionValue" Tapped="MemoryFigure_Tapped" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

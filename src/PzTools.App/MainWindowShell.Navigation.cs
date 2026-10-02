@@ -17,20 +17,21 @@ public sealed partial class MainWindowShell
     private Action? contentTransitionCompleted;
     private bool contentExiting;
     // A setting to show once Settings is on screen: it cannot be scrolled to while the page is hidden.
-    private bool revealRollingSetting;
+    private SettingTarget? settingToReveal;
 
-    internal void ShowRollingSetting()
+    /// <summary>Opens Settings at one setting, brought into view with the keyboard on it.</summary>
+    internal void ShowSetting(SettingTarget target)
     {
-        revealRollingSetting = true;
+        settingToReveal = target;
         if (ReferenceEquals(displayedContent, SettingsRoot)) RevealPendingSetting();
         else Navigation.SelectedItem = Navigation.SettingsItem;
     }
 
     private void RevealPendingSetting()
     {
-        if (!revealRollingSetting) return;
-        revealRollingSetting = false;
-        SettingsRoot.RevealRolling();
+        if (settingToReveal is not { } target) return;
+        settingToReveal = null;
+        SettingsRoot.Reveal(target);
     }
 
     private void NavigateToContent(FrameworkElement page)

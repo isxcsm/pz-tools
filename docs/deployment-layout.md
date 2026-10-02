@@ -43,6 +43,8 @@ The packaged defaults are the starting point for each
 %LOCALAPPDATA%\PzTools\
   settings.toml                       # choices saved from the app
   update.json                         # what the last update check found
+  game-memory.json                    # the game memory chosen, and the game's own from before
+  game-memory-original.json           # the game's launcher file as shipped, kept at the first change
   config\<component>\default.toml     # editable component settings
   config-backups\                     # TOML copies made by Restore defaults
   extensions\                         # game-extension settings

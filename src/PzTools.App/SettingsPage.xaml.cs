@@ -11,6 +11,9 @@ using SettingsCard = CommunityToolkit.WinUI.Controls.SettingsCard;
 
 namespace PzTools.App;
 
+/// <summary>A setting another page can lead to.</summary>
+internal enum SettingTarget { Rolling, GameMemory }
+
 public sealed partial class SettingsPage : UserControl
 {
     private readonly DispatcherQueueTimer applyTimer;
@@ -113,6 +116,11 @@ public sealed partial class SettingsPage : UserControl
         GameSaveSettingCard.Header = Localizer.Get("GameSaveSetting.Header");
         GameSaveCountdownSettingCard.Header = Localizer.Get("GameSaveCountdownSetting.Header");
         UpdateAvailability();
+        GameSection.Header = Localizer.Get("GameSettings.Header");
+        GameSection.Description = Localizer.Get("GameSettings.Description");
+        GameMemorySettingCard.Header = Localizer.Get("GameMemorySetting.Header");
+        SetInputName(GameMemoryCombo, GameMemorySettingCard.Header);
+        ApplyGameMemory();
         ProfilerSection.Header = Localizer.Get("ProfilerSettings.Header");
         ProfilerSection.Description = Localizer.Get("ProfilerSettings.Description");
         RollingSettingCard.Header = Localizer.Get("RollingSetting.Header");
@@ -203,6 +211,8 @@ public sealed partial class SettingsPage : UserControl
 
     internal void PrepareForNavigation()
     {
+        // The game's file may have changed since the last look (a game update); reading it again is cheap.
+        if (App.GameMemory is { } memory) _ = memory.RefreshAsync();
         // Populate controls before their templates enter the visual tree. Keep local
         // edits intact on later visits, including changes still waiting for debounce.
         // Startup may publish a newer snapshot after the constructor. Refresh up
@@ -211,17 +221,22 @@ public sealed partial class SettingsPage : UserControl
     }
 
     /// <summary>
-    /// Brings the switch that keeps the last minutes into view, with the keyboard on it: the Performance page leads here
-    /// while it is off. The focus shows which switch is meant, and Space turns it on.
+    /// Brings one setting into view, with the keyboard on it: another page leads here (the Performance page while the
+    /// last minutes are not kept, or when the game ran short of memory). The focus shows which setting is meant.
     /// </summary>
-    internal void RevealRolling()
+    internal void Reveal(SettingTarget target)
     {
-        ProfilerSection.IsExpanded = true;
+        var (section, card, control) = target switch
+        {
+            SettingTarget.GameMemory => (GameSection, GameMemorySettingCard, (Microsoft.UI.Xaml.Controls.Control)GameMemoryCombo),
+            _ => (ProfilerSection, RollingSettingCard, RollingToggle),
+        };
+        section.IsExpanded = true;
         // After this layout pass, which places the page just shown.
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            RollingSettingCard.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = true });
-            RollingToggle.Focus(FocusState.Keyboard);
+            card.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = true });
+            control.Focus(FocusState.Keyboard);
         });
     }
 
@@ -229,7 +244,7 @@ public sealed partial class SettingsPage : UserControl
     {
         if (initialLayoutCompleted) return;
         UpdateLayout();
-        foreach (var section in new[] { UpdateSection, DisplaySection, PathSection, BackupSection, ProfilerSection, HotKeySection, AdvancedSection })
+        foreach (var section in new[] { UpdateSection, DisplaySection, PathSection, BackupSection, GameSection, ProfilerSection, HotKeySection, AdvancedSection })
             SettingsExpanderLayout.CompleteInitialExpansion(section);
         UpdateLayout();
         SettingsSections.ChildrenTransitions = new TransitionCollection
@@ -607,6 +622,87 @@ public sealed partial class SettingsPage : UserControl
     private bool checkingUpdates, updateCheckFailed;
 
     /// <summary>The version line: whether a newer one can be had, as last asked, and this version as its value.</summary>
+    // ---- The game's memory ----
+
+    // Set while the list is filled from the game's file, so that is not taken for the player's choice.
+    private bool showingGameMemory;
+    // Why the last change could not be made, until the next one.
+    private string? gameMemoryError;
+    private bool applyingGameMemory;
+
+    /// <summary>
+    /// The game's memory as its file says: the game's own heap, or one of the heaps this PC can give it, the suggested one
+    /// marked. When the file no longer has the chosen heap (a game update put its own back), the list shows the game's
+    /// and the line under the name says so; choosing again applies it again.
+    /// </summary>
+    internal void ApplyGameMemory()
+    {
+        if (App.GameMemory is not { } memory) return;
+        var state = memory.State;
+        showingGameMemory = true;
+        try
+        {
+            GameMemoryCombo.Items.Clear();
+            var own = state.DefaultMegabytes ?? state.MaximumMegabytes;
+            GameMemoryCombo.Items.Add(new ComboBoxItem
+            {
+                Content = own is { } size ? Localizer.Format("GameMemoryDefaultFormat", Size(size)) : Localizer.Get("GameMemoryDefault"),
+                Tag = 0,
+            });
+            foreach (var choice in memory.Choices)
+                GameMemoryCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = choice.Recommended ? Localizer.Format("GameMemoryRecommendedFormat", Size(choice.Megabytes)) : Size(choice.Megabytes),
+                    Tag = choice.Megabytes,
+                });
+            var shown = state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0;
+            GameMemoryCombo.SelectedItem = GameMemoryCombo.Items.OfType<ComboBoxItem>().FirstOrDefault(item => (int)item.Tag == shown)
+                ?? GameMemoryCombo.Items[0];
+            GameMemoryCombo.IsEnabled = !applyingGameMemory && state.Status is GameMemoryStatus.Default or GameMemoryStatus.Applied
+                or GameMemoryStatus.Reverted;
+        }
+        finally { showingGameMemory = false; }
+        var note = gameMemoryError ?? state.Status switch
+        {
+            GameMemoryStatus.NotFound => Localizer.Get("GameMemoryNotFound"),
+            GameMemoryStatus.Unsupported => Localizer.Get("GameMemoryUnsupported"),
+            GameMemoryStatus.Reverted when state.ChosenMegabytes is { } chosen => Localizer.Format("GameMemoryRevertedFormat", Size(chosen)),
+            _ => null,
+        };
+        GameMemorySettingCard.Description = Localizer.Get("GameMemorySetting.Description") + (note is null ? "" : " " + note);
+    }
+
+    /// <summary>A heap in gigabytes, as the choices are whole ones: "6 GB".</summary>
+    internal static string Size(int megabytes) =>
+        Units.Bytes(megabytes * 1024L * 1024);
+
+    private async void GameMemoryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (showingGameMemory || App.GameMemory is not { } memory || GameMemoryCombo.SelectedItem is not ComboBoxItem { Tag: int megabytes })
+            return;
+        var state = memory.State;
+        // The list showing what the file holds already is no change.
+        if (megabytes == (state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0)
+            && !(megabytes == 0 && state.Status == GameMemoryStatus.Reverted)) return;
+        applyingGameMemory = true;
+        gameMemoryError = null;
+        try { await memory.ApplyAsync(megabytes == 0 ? null : megabytes); }
+        catch (GameMemoryException error)
+        {
+            gameMemoryError = Localizer.Get(error.Code switch
+            {
+                "not-found" => "GameMemoryNotFound",
+                "unsupported" => "GameMemoryUnsupported",
+                _ => "GameMemoryUnwritable",
+            });
+        }
+        finally
+        {
+            applyingGameMemory = false;
+            ApplyGameMemory();
+        }
+    }
+
     internal void ApplyUpdate()
     {
         if (App.Updates is not { } updates) return;

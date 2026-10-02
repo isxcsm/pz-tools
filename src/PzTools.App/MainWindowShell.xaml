@@ -182,6 +182,9 @@
           <local:AttentionCard x:Name="ComponentBlockedCard" Visibility="Collapsed"
                                Closed="ComponentBlockedClose_Click" Action="ComponentBlockedOpen_Click" />
           <local:AttentionCard x:Name="GameLinkCard" Visibility="Collapsed" Closed="GameLinkClose_Click" />
+          <!-- A game update put the game's own memory back over the player's choice. -->
+          <local:AttentionCard x:Name="GameMemoryCard" Visibility="Collapsed"
+                               Closed="GameMemoryClose_Click" Action="GameMemoryReapply_Click" />
         </StackPanel>
         <Border Padding="{StaticResource CardPadding}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="{StaticResource CardCornerRadius}">
           <Grid ColumnSpacing="8">

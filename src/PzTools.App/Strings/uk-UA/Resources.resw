@@ -720,4 +720,22 @@
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Не вдалося підключитися: гру запущено від імені адміністратора. Перезапустіть її без прав адміністратора.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Не вдалося підключитися: його блокує параметр запуску гри. Перевірте параметри запуску гри.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Не вдалося підключитися до гри</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Гра</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Змінює параметри запуску гри. Зміни діють з наступного запуску.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Пам’ять гри</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>Пам’ять, яку може використовувати гра. Якщо з багатьма модами вона часто підгальмовує, дайте їй більше.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Типово в грі ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Типово в грі</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (рекомендовано)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Теку гри не знайдено. Запустіть гру один раз, і її буде знайдено.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Файл налаштувань гри не такий, як очікувалося, тому його не змінено.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>Неможливо записати в теку гри; нічого не змінено.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Оновлення гри скасувало налаштування {0}. Виберіть його знову, щоб застосувати.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Пам’ять гри знову {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Оновлення гри скасувало налаштування.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Знову застосувати {0}</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Зупинок через нестачу пам’яті: {0}</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Пам’ять майже заповнена</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Налаштування пам’яті</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Грі забракло доступної пам’яті ({0}). Що її більше, то менше зупинок.</value></data>
 </root>

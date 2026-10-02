@@ -720,4 +720,22 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Tidak dapat terhubung karena gim berjalan sebagai administrator. Mulai ulang gim tanpa hak administrator.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Tidak dapat terhubung karena opsi peluncuran gim memblokirnya. Periksa opsi peluncuran gim.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Tidak dapat terhubung ke gim</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Gim</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Mengubah cara gim dijalankan. Perubahan berlaku mulai gim dijalankan berikutnya.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Memori gim</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>Memori yang dapat dipakai gim. Jika sering tersendat dengan banyak mod, beri lebih banyak.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Bawaan gim ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Bawaan gim</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (disarankan)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Folder gim tidak ditemukan. Jalankan gim sekali agar ditemukan.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Berkas pengaturan gim tidak sesuai dugaan, jadi tidak diubah.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>Tidak dapat menulis ke folder gim; tidak ada yang diubah.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Pembaruan gim membatalkan pengaturan {0}. Pilih lagi untuk menerapkannya.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Memori gim kembali ke {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Pembaruan gim membatalkan pengaturan.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Terapkan {0} lagi</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Berhenti {0} kali karena kekurangan memori</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memori hampir penuh</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Pengaturan memori</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Gim kekurangan memori yang dapat dipakainya ({0}). Memori lebih banyak berarti lebih sedikit berhenti.</value></data>
 </root>

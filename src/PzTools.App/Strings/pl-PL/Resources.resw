@@ -720,4 +720,22 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Nie udało się połączyć, ponieważ gra działa jako administrator. Uruchom ją ponownie bez uprawnień administratora.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nie udało się połączyć, ponieważ blokuje to opcja uruchamiania gry. Sprawdź opcje uruchamiania gry.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Nie udało się połączyć z grą</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Gra</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Zmienia sposób uruchamiania gry. Zmiany obowiązują od następnego uruchomienia.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Pamięć gry</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>Pamięć, której gra może używać. Jeśli z wieloma modami często się zacina, daj jej więcej.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Domyślna gry ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Domyślna gry</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (zalecane)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Nie znaleziono folderu gry. Uruchom grę raz, a zostanie znaleziony.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Plik ustawień gry jest inny niż oczekiwano, więc go nie zmieniono.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>Nie można zapisywać w folderze gry; niczego nie zmieniono.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Aktualizacja gry cofnęła ustawienie {0}. Wybierz je ponownie, aby je zastosować.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Pamięć gry wróciła do {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Aktualizacja gry cofnęła ustawienie.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Zastosuj ponownie {0}</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Zatrzymana {0} razy z braku pamięci</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Pamięć prawie pełna</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Ustawienie pamięci</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Grze zabrakło pamięci, której może używać ({0}). Więcej pamięci to mniej zatrzymań.</value></data>
 </root>

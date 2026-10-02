@@ -143,6 +143,16 @@ public sealed record ProfileFrameStatistics(int Count, double AverageMillisecond
 /// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one.</summary>
 public sealed record ProfileTimeBreakdown(double Scripts, double GameCode, double Collections, double Waiting);
 
+/// <summary>How short of memory the game ran: its allocation stalls, and the share of heap readings near the maximum.</summary>
+/// <param name="StalledMicroseconds">The stalls' time, added up.</param>
+/// <param name="FullShare">The share of heap readings at or above <see cref="ProfileAnalysis.NearlyFull"/> of the maximum.</param>
+/// <param name="MaximumBytes">The largest heap the game could grow to.</param>
+public sealed record ProfileMemoryPressure(int Stalls, long StalledMicroseconds, double FullShare, long MaximumBytes)
+{
+    /// <summary>Short enough of memory to suggest more.</summary>
+    public bool Short => Stalls > 0 || FullShare >= 0.25;
+}
+
 public sealed record ProfileRange(
     long Start, long End,
     ProfileFrameStatistics Frames,
@@ -599,6 +609,31 @@ public static class ProfileAnalysis
             video = Math.Max(video ?? 0, videoReadings[index].Dedicated);
         return (heap, video);
     }
+
+    /// <summary>
+    /// Whether the game ran short of memory in the recording: threads stopped until memory was freed (the collector's
+    /// allocation stalls), or the heap stood near its maximum for a quarter of its readings or more. Either says the
+    /// game's memory, not its code, is what to change. Judged on the whole recording, not a range: the setting is.
+    /// </summary>
+    public static ProfileMemoryPressure MemoryPressure(ProfileRecording recording)
+    {
+        int stalls = 0;
+        long stalled = 0;
+        foreach (var pause in recording.Pauses)
+        {
+            if (pause.Kind != "ZAllocationStall") continue;
+            stalls++;
+            stalled += pause.Duration;
+        }
+        var readings = recording.Heap.Where(sample => sample.Maximum > 0).ToArray();
+        // Too few readings say nothing about how long the heap stood full.
+        double full = readings.Length < 8 ? 0
+            : readings.Count(sample => sample.Used >= sample.Maximum * NearlyFull) / (double)readings.Length;
+        return new(stalls, stalled, full, readings.Length > 0 ? readings.Max(sample => sample.Maximum) : 0);
+    }
+
+    /// <summary>The share of the maximum above which the heap counts as full.</summary>
+    public const double NearlyFull = 0.9;
 
     /// <summary>The last readings at or before a moment: what memory looked like then.</summary>
     public static (ProfileHeapSample? Heap, ProfileVideoMemorySample? VideoMemory) MemoryAt(ProfileRecording recording, long time)

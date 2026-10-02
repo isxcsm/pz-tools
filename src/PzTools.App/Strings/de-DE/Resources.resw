@@ -720,4 +720,22 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Keine Verbindung möglich, da das Spiel als Administrator läuft. Starten Sie es ohne Administratorrechte neu.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Keine Verbindung möglich, da eine Startoption des Spiels sie blockiert. Prüfen Sie die Startoptionen des Spiels.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Verbindung zum Spiel fehlgeschlagen</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Spiel</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Ändert, wie das Spiel startet. Änderungen gelten ab dem nächsten Spielstart.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Spielspeicher</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>Der Arbeitsspeicher, den das Spiel nutzen kann. Ruckelt es mit vielen Mods oft, geben Sie ihm mehr.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Spielstandard ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Spielstandard</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (empfohlen)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Der Spielordner wurde nicht gefunden. Starten Sie das Spiel einmal, dann wird er gefunden.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Die Einstellungsdatei des Spiels ist nicht wie erwartet und wurde nicht geändert.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>In den Spielordner kann nicht geschrieben werden; nichts wurde geändert.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Ein Spielupdate hat die Einstellung {0} zurückgesetzt. Wählen Sie sie erneut, um sie anzuwenden.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Spielspeicher wieder bei {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Ein Spielupdate hat die Einstellung zurückgesetzt.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>{0} erneut anwenden</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>{0}-mal wegen Speichermangel angehalten</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Speicher fast voll</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Speichereinstellung</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Dem Spiel ging der nutzbare Speicher ({0}) aus. Mehr Speicher bedeutet weniger Stopps.</value></data>
 </root>

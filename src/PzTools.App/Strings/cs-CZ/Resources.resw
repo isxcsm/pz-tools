@@ -720,4 +720,22 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Nepodařilo se připojit, protože hra běží jako správce. Restartujte ji bez oprávnění správce.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nepodařilo se připojit, protože to blokuje možnost spuštění hry. Zkontrolujte možnosti spuštění hry.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Ke hře se nepodařilo připojit</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Hra</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Mění způsob spuštění hry. Změny platí od příštího spuštění.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Paměť hry</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>Paměť, kterou hra může používat. Pokud se s mnoha mody často zasekává, dejte jí víc.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Výchozí hry ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Výchozí hry</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (doporučeno)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Složka hry nebyla nalezena. Spusťte hru jednou a bude nalezena.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Soubor nastavení hry není podle očekávání, proto nebyl změněn.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>Do složky hry nelze zapisovat; nic nebylo změněno.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Aktualizace hry zrušila nastavení {0}. Vyberte ho znovu, aby se použilo.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Paměť hry je zpět na {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Aktualizace hry zrušila nastavení.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Znovu použít {0}</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>{0}× zastavena kvůli nedostatku paměti</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Paměť téměř plná</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Nastavení paměti</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Hře došla paměť, kterou může používat ({0}). Víc paměti znamená méně zastavení.</value></data>
 </root>

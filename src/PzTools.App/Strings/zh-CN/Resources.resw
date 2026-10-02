@@ -720,4 +720,22 @@
   <data name="ProfileError.Elevation" xml:space="preserve"><value>游戏正以管理员身份运行，因此无法连接。请在不使用管理员权限的情况下重新启动游戏。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>游戏的启动选项阻止了连接，因此无法连接。请检查游戏的启动选项。</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>无法连接到游戏</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>游戏</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>更改游戏的启动方式。更改从下次启动游戏时生效。</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>游戏内存</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>游戏可使用的内存。如果使用大量模组时经常卡顿，请调高。</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>游戏默认值 ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>游戏默认值</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (推荐)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>未找到游戏文件夹。启动一次游戏即可找到。</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>游戏设置文件与预期不符，因此未作修改。</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>无法写入游戏文件夹，未作任何更改。</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>游戏更新撤销了 {0} 的设置。再次选择即可应用。</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>游戏内存已恢复为 {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>游戏更新撤销了该设置。</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>重新应用 {0}</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>因内存不足停顿 {0} 次</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>内存几乎已满</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>内存设置</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>游戏可用的内存 ({0}) 不足。调高后停顿会减少。</value></data>
 </root>

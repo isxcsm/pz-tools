@@ -720,4 +720,22 @@
   <data name="ProfileError.Elevation" xml:space="preserve"><value>ゲームが管理者として実行されているため接続できませんでした。管理者権限なしで再起動してください。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>ゲームの起動オプションがブロックしているため接続できませんでした。起動オプションを確認してください。</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>ゲームに接続できませんでした</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>ゲーム</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>ゲームの起動設定を変更します。変更は次回のゲーム起動から反映されます。</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>ゲームのメモリ</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>ゲームが使えるメモリです。MOD が多くてよくカクつく場合は増やしてください。</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>ゲームの既定値 ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>ゲームの既定値</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (推奨)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>ゲームのフォルダーが見つかりません。一度ゲームを起動すると見つかります。</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>ゲームの設定ファイルが想定と異なるため、変更しませんでした。</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>ゲームのフォルダーに書き込めないため、変更できませんでした。</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>ゲームのアップデートで {0} の設定が元に戻りました。もう一度選ぶと適用されます。</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>ゲームのメモリが {0} に戻りました</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>ゲームのアップデートで設定が元に戻りました。</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>{0} を再適用</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>メモリ不足で {0} 回停止</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>メモリがほぼいっぱい</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>メモリ設定</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>ゲームが使えるメモリ ({0}) が足りませんでした。増やすと停止が減ります。</value></data>
 </root>

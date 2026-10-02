@@ -727,4 +727,22 @@
   <data name="ProfileError.Elevation" xml:space="preserve"><value>เชื่อมต่อไม่ได้เพราะเกมทำงานด้วยสิทธิ์ผู้ดูแลระบบ กรุณาเปิดเกมใหม่โดยไม่ใช้สิทธิ์ผู้ดูแลระบบ</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>เชื่อมต่อไม่ได้เพราะตัวเลือกการเปิดเกมบล็อกไว้ กรุณาตรวจสอบตัวเลือกการเปิดเกม</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>เกม</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>เปลี่ยนวิธีเปิดเกม การเปลี่ยนแปลงจะมีผลตั้งแต่การเปิดเกมครั้งถัดไป</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>หน่วยความจำของเกม</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>หน่วยความจำที่เกมใช้ได้ ถ้ากระตุกบ่อยเมื่อใช้ม็อดจำนวนมาก ให้เพิ่มขึ้น</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>ค่าเริ่มต้นของเกม ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>ค่าเริ่มต้นของเกม</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (แนะนำ)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>ไม่พบโฟลเดอร์เกม เปิดเกมหนึ่งครั้งแล้วจะพบเอง</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>ไฟล์ตั้งค่าของเกมไม่เป็นไปตามที่คาด จึงไม่ได้แก้ไข</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>เขียนลงโฟลเดอร์เกมไม่ได้ จึงไม่ได้เปลี่ยนแปลงอะไร</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>การอัปเดตเกมยกเลิกการตั้งค่า {0} เลือกอีกครั้งเพื่อใช้</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>หน่วยความจำของเกมกลับเป็น {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>การอัปเดตเกมยกเลิกการตั้งค่า</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>ใช้ {0} อีกครั้ง</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>หยุดเพราะหน่วยความจำไม่พอ {0} ครั้ง</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>หน่วยความจำใกล้เต็ม</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>ตั้งค่าหน่วยความจำ</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>หน่วยความจำที่เกมใช้ได้ ({0}) ไม่พอ ถ้าเพิ่มขึ้นจะหยุดน้อยลง</value></data>
 </root>

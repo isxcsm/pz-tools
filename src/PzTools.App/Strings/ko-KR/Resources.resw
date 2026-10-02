@@ -719,4 +719,22 @@
   <data name="ProfileError.Elevation" xml:space="preserve"><value>게임이 관리자 권한으로 실행 중이라 연결하지 못했습니다. 관리자 권한 없이 다시 시작해 주세요.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>게임 실행 옵션이 연결을 막고 있어 연결하지 못했습니다. 실행 옵션을 확인해 주세요.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>게임에 연결하지 못함</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>게임</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>게임 실행 설정을 바꿉니다. 바꾼 값은 다음 게임 실행부터 적용됩니다.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>게임 메모리</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>게임이 쓸 수 있는 메모리입니다. 모드가 많아 자주 끊긴다면 늘려 보세요.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>게임 기본값 ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>게임 기본값</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (권장)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>게임 설치 폴더를 찾지 못했습니다. 게임을 실행해 두면 찾습니다.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>게임 설정 파일이 예상과 달라 바꾸지 않았습니다.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>게임 폴더에 쓸 수 없어 바꾸지 못했습니다.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>게임 업데이트로 {0} 설정이 풀렸습니다. 다시 고르면 적용됩니다.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>게임 메모리가 {0}로 돌아감</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>게임 업데이트가 설정을 되돌렸습니다.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>{0}로 다시 적용</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>메모리 부족으로 {0}번 멈춤</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>메모리가 거의 가득 참</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>메모리 설정</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>게임이 쓸 수 있는 메모리({0})가 모자랐습니다. 늘리면 멈춤이 줄어듭니다.</value></data>
 </root>

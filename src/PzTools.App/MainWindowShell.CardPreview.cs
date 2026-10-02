@@ -22,6 +22,7 @@ public sealed partial class MainWindowShell
         ("game-elevation", "게임 연결: 관리자 권한"),
         ("game-disabled", "게임 연결: 실행 옵션"),
         ("projectors", "불러오기 실패"),
+        ("game-memory", "게임 메모리 되돌아감"),
         ("update", "새 버전"),
         ("notice-success", "결과: 성공"),
         ("notice-info", "결과: 안내"),
@@ -58,6 +59,11 @@ public sealed partial class MainWindowShell
                 ]);
                 ApplyProjectorHealth();
                 break;
+            case "game-memory":
+                previewGameMemory = new GameMemoryState(GameMemoryStatus.Reverted, null, 3072, 3072, 8192);
+                gameMemoryDismissed = null;
+                ApplyGameMemory();
+                break;
             case "update":
                 var current = App.Updates?.Current ?? new Version(0, 0, 0);
                 var next = new Version(current.Major, current.Minor + 1, 0);
@@ -89,12 +95,13 @@ public sealed partial class MainWindowShell
     /// <summary>Puts every previewed card back to what the real state shows.</summary>
     internal void ClearCardPreviews()
     {
-        (previewBlocked, previewGameLink, previewProjectors, previewUpdate) = (null, null, null, null);
+        (previewBlocked, previewGameLink, previewProjectors, previewUpdate, previewGameMemory) = (null, null, null, null, null);
         var views = App.Host?.Views;
         ApplyBlockedComponents(views?.ReadIfChanged<BlockedComponentsView>(AppHost.BlockedComponentsViewKey, 0).Snapshot ?? new([]));
         ApplyGameLink(views?.ReadIfChanged<GameLinkView>(AppHost.GameLinkViewKey, 0).Snapshot ?? GameLinkView.Available);
         ApplyProjectorHealth();
         ApplyUpdate();
+        ApplyGameMemory();
     }
 
     // PZTOOLS_PREVIEW_CARDS=blocked,update (or "all") shows those cards from the start, for a run driven by a script.

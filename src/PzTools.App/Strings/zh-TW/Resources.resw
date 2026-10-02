@@ -720,4 +720,22 @@
   <data name="ProfileError.Elevation" xml:space="preserve"><value>遊戲正以系統管理員身分執行，因此無法連線。請在不使用系統管理員權限的情況下重新啟動遊戲。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>遊戲的啟動選項封鎖了連線，因此無法連線。請檢查遊戲的啟動選項。</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>無法連線到遊戲</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>遊戲</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>變更遊戲的啟動方式。變更會從下次啟動遊戲時生效。</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>遊戲記憶體</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>遊戲可使用的記憶體。如果使用大量模組時經常卡頓，請調高。</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>遊戲預設值 ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>遊戲預設值</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (建議)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>找不到遊戲資料夾。啟動一次遊戲即可找到。</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>遊戲設定檔與預期不符，因此未修改。</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>無法寫入遊戲資料夾，未做任何變更。</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>遊戲更新撤銷了 {0} 的設定。再次選擇即可套用。</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>遊戲記憶體已恢復為 {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>遊戲更新撤銷了該設定。</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>重新套用 {0}</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>因記憶體不足停頓 {0} 次</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>記憶體幾乎已滿</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>記憶體設定</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>遊戲可用的記憶體 ({0}) 不足。調高後停頓會減少。</value></data>
 </root>

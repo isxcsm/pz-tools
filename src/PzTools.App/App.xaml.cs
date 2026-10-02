@@ -28,6 +28,9 @@ public partial class App : Application
 
     /// <summary>What the app knows of its newer releases; null before the window exists.</summary>
     internal UpdateChecker? Updates => updates;
+    private GameMemory? gameMemory;
+    /// <summary>The game's memory setting, in the game's own launcher file.</summary>
+    internal GameMemory? GameMemory => gameMemory;
 
     public App()
     {
@@ -82,7 +85,7 @@ public partial class App : Application
     /// <summary>Opens Settings at the switch that has the game keep its last minutes.</summary>
     internal void ShowRollingSetting()
     {
-        if (window?.Content is MainWindowShell shell) shell.ShowRollingSetting();
+        if (window?.Content is MainWindowShell shell) shell.ShowSetting(SettingTarget.Rolling);
     }
 
     internal void ExplainOnOperationCard(string operationId, string message)
@@ -124,6 +127,7 @@ public partial class App : Application
         ApplyLanguage(settings.Language, reloadContent: false);
         updates = new UpdateChecker(Path.Combine(runtimeRoot, "update.json"),
             typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0));
+        gameMemory = new GameMemory(Path.Combine(runtimeRoot, "game-memory.json"));
         window = new MainWindow();
         // Log entries the app wrote in another language are shown in today's; the table for that takes a second.
         Localizer.Warm();
@@ -152,6 +156,37 @@ public partial class App : Application
         hotKeys.Apply(settings);
         _ = StartHostAsync();
         _ = CheckForUpdatesAsync(updateLoop.Token);
+        _ = WatchGameMemoryAsync(updateLoop.Token);
+    }
+
+    // The game's file is read soon after the start and then every two minutes: a game update that puts its own memory
+    // back is noticed while the app runs, not only at the next start. It is one small file.
+    private async Task WatchGameMemoryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
+            do
+            {
+                if (gameMemory is { } memory)
+                {
+                    try { await memory.RefreshAsync(cancellationToken); }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(exception);
+                    }
+                }
+            }
+            while (await timer.WaitForNextTickAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    /// <summary>Opens Settings at the game's memory.</summary>
+    internal void ShowGameMemorySetting()
+    {
+        if (window?.Content is MainWindowShell shell) shell.ShowSetting(SettingTarget.GameMemory);
     }
 
     // A while after the start, then every hour (unless the last check is under an hour old, after a restart). A failed

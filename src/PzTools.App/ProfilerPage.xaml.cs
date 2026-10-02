@@ -1044,9 +1044,28 @@ public sealed partial class ProfilerPage : UserControl
         MemoryChevron.Glyph = memoryOpen ? "" : "";
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         MemoryBorder.Visibility = rows > 0 && memoryOpen ? Visibility.Visible : Visibility.Collapsed;
+        ApplyMemoryShort();
         // The surface's margins and the border's edges, then the rows apart by their gaps.
         MemoryBorder.Height = 14 + rows * MemoryRowHeight + Math.Max(0, rows - 1) * MemoryRowGap;
     }
+
+    // The whole recording's, as the setting it points to is: stalls waiting for memory, or a heap standing full.
+    private void ApplyMemoryShort()
+    {
+        var pressure = recording is null ? null : ProfileAnalysis.MemoryPressure(recording);
+        MemoryShortPanel.Visibility = pressure is { Short: true } ? Visibility.Visible : Visibility.Collapsed;
+        if (pressure is not { Short: true }) return;
+        MemoryShortText.Text = pressure.Stalls > 0
+            ? Localizer.Format("ProfileMemoryStallsFormat", pressure.Stalls.ToString("N0", Localizer.Culture))
+            : Localizer.Get("ProfileMemoryNearlyFull");
+        MemoryShortButtonText.Text = Localizer.Get("ProfileMemorySetting");
+        var tip = Localizer.Format("ProfileMemoryShortTipFormat", Bytes(pressure.MaximumBytes));
+        AppToolTip.SetTip(MemoryShortPanel, tip);
+        AutomationProperties.SetName(MemoryShortButton, MemoryShortButtonText.Text);
+        AutomationProperties.SetHelpText(MemoryShortButton, MemoryShortText.Text + "\n" + tip);
+    }
+
+    private void MemoryShortButton_Click(object sender, RoutedEventArgs e) => App.ShowGameMemorySetting();
 
     private void MemoryToggle_Click(object sender, RoutedEventArgs e)
     {

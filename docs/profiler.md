@@ -496,6 +496,10 @@ A hotkey's note is one more short command, sent by the app itself:
 where it has one, and answers at once; the note is shown on the game thread through the
 same per-frame relay the recording uses.
 
+A recording in which the game ran short of memory (allocation stalls, or a heap standing
+nearly full) says so above the memory graphs, with a link to the game's memory setting; see
+[game memory](game-memory.md#on-the-performance-page).
+
 ## Limits
 
 - Only a local game process started normally is supported; the recorder attaches the

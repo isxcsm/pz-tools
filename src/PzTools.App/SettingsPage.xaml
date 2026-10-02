@@ -183,6 +183,15 @@
           </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
+          <!-- The game's own launch settings, kept in the game folder; they take effect at the game's next start. -->
+          <toolkit:SettingsExpander x:Name="GameSection" IsExpanded="True" Header="게임">
+            <toolkit:SettingsExpander.Items>
+              <toolkit:SettingsCard x:Name="GameMemorySettingCard" Header="게임 메모리">
+                <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xEEA0;" /></toolkit:SettingsCard.HeaderIcon>
+                <ComboBox x:Name="GameMemoryCombo" MinWidth="180" SelectionChanged="GameMemoryCombo_SelectionChanged" />
+              </toolkit:SettingsCard>
+            </toolkit:SettingsExpander.Items>
+          </toolkit:SettingsExpander>
           <toolkit:SettingsExpander x:Name="ProfilerSection" IsExpanded="True" Header="성능 분석"
                                     Description="렉 직후 저장할 수 있게 게임이 직전 몇 분을 계속 기록해 둡니다.">
             <toolkit:SettingsExpander.Items>

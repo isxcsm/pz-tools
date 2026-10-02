@@ -719,4 +719,22 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileError.Elevation" xml:space="preserve"><value>Could not connect because the game is running as administrator. Restart it without administrator rights.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Could not connect because a game launch option blocks it. Check the game&apos;s launch options.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Could not connect to the game</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Game</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Changes how the game starts. Changes apply from the game&apos;s next start.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Game memory</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>The memory the game can use. If it stutters often with many mods, give it more.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Game default ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Game default</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (recommended)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>The game&apos;s folder was not found. Start the game once and it will be.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>The game&apos;s settings file is not as expected, so it was left alone.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>The game&apos;s folder cannot be written to, so nothing was changed.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>A game update undid the {0} setting. Choose it again to apply it.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Game memory back to {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>A game update undid the setting.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Apply {0} again</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Stopped {0} times for lack of memory</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memory nearly full</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Memory setting</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>The game ran short of the memory it can use ({0}). Giving it more means fewer stops.</value></data>
 </root>
