@@ -426,6 +426,15 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>이 모드의 함수를 호출된 경로대로 묶어 보여줍니다. 이벤트 처리 함수처럼 가장 바깥 함수가 맨 위에 있고, 펼치면 그 함수가 부른 함수가 나옵니다. 이 모드의 함수에서 끝난 샘플만 셉니다. 끄면 함수 목록으로 봅니다.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>검색</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>비교 대상</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>직전 1분 계속 기록</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>직전 1분 저장</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>저장 중…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>방금 끊겼다면 누르세요. 게임이 기록해 둔 직전 약 1분을 녹화로 저장합니다. 기록 방식: {0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>게임이 실행되면 직전 1분 기록을 시작합니다.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>직전 1분 기록을 시작하는 중입니다…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>녹화하는 동안은 쉬고, 녹화가 끝나면 다시 기록합니다.</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>게임이 직전 기록을 갖고 있지 않았습니다(게임이나 연결이 다시 시작됨). 지금부터 다시 기록합니다.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>직전 기록 꺼내기</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>비교 끄기</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} 전체와 비교 중</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

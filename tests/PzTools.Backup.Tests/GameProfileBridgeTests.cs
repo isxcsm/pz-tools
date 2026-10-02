@@ -75,6 +75,43 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
+    public async Task RollingRecording_KeepsGoingThroughASave_CutsItToItsWindow_AndGivesWayToARecording()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        Assert.Equal("not-rolling",
+            (await Assert.ThrowsAsync<GameSaveException>(() => client.SaveRollingAsync(game.Pid, temp.GetPath("none.jfr")))).Code);
+
+        var started = await client.StartRollingAsync(game.Pid, detailed: false, 10);
+        Assert.True(started.Rolling);
+        Assert.Equal(("sampling", true), (started.Lua, started.HasFrames));
+        await Task.Delay(3000);
+        var raw = temp.GetPath("last.pzprof.jfr");
+        var saved = await client.SaveRollingAsync(game.Pid, raw);
+        Assert.True(saved.Rolling);
+        Assert.True(saved.HasFrames);
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+
+        // Cut to its last second: the frames and the mod's Lua of that second, and no more.
+        var output = temp.GetPath("last.pzprof");
+        var exported = await client.ExportAsync(raw, output, new Dictionary<string, string> { ["mode"] = "general" }, keepLastSeconds: 1);
+        Assert.InRange(exported.DurationMicroseconds, 500_000, 1_100_000);
+        var recording = ProfileRecording.Load(output);
+        Assert.True(recording.Frames.Length is > 5 and < 80, $"frames: {recording.Frames.Length}");
+        Assert.Equal("ExampleMod", Assert.Single(ProfileAnalysis.Analyze(recording, 0, recording.Duration, recording.GameThread).LuaGroups).Key);
+
+        // A recording asked for replaces it; the app arms it again afterwards. A rolling stop leaves that recording be.
+        Assert.True((await client.StartAsync(game.Pid, temp.GetPath("asked.pzprof.jfr"), false, 60)).Recording);
+        Assert.True((await client.StopRollingAsync(game.Pid)).Recording);
+        Assert.Equal("already-recording", (await Assert.ThrowsAsync<GameSaveException>(() => client.StartRollingAsync(game.Pid, false, 10))).Code);
+        await client.StopAsync(game.Pid);
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: true, 10)).Rolling);
+        Assert.True((await client.StopRollingAsync(game.Pid)).Rolling);
+        Assert.Equal("idle", (await client.StatusAsync(game.Pid)).State);
+    }
+
+    [BridgeFact]
     public async Task ProfileRecording_EndsByItselfAtItsLimit_AndIsCollectedAfterwards()
     {
         using var temp = new TempDirectory();

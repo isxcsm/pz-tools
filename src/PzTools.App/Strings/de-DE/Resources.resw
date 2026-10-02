@@ -427,6 +427,15 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Aus: eine einfache Liste der Funktionen.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Suchen</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Vergleichen mit</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>Letzte Minute behalten</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>Letzte Minute speichern</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>Wird gespeichert…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten, sobald das Spiel läuft.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>Während einer Aufnahme pausiert; danach geht es weiter.</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>Das Spiel hatte die letzte Minute nicht behalten (Spiel oder Verbindung neu gestartet). Ab jetzt behält es sie wieder.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Letzte Minute übernehmen</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Vergleich beenden</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Verglichen mit ganz {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

@@ -427,6 +427,15 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>この所有者の関数を、そこへ至った呼び出し経路ごとにまとめて表示します。イベント処理関数のような一番外側の関数が上にあり、展開するとその関数が呼んだ関数が表示されます。この所有者の関数で終わったサンプルだけを数えます。オフにすると関数の一覧になります。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>検索</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>比較対象</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>直前の 1 分を記録し続ける</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>直前の 1 分を保存</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>保存中…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の 1 分の記録を始めます。</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の 1 分の記録を開始しています…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>記録中は休止し、記録が終わると再開します。</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>ゲームは直前の記録を持っていませんでした (ゲームか接続が再起動されました)。今から再び記録します。</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>直前の記録を取り出し</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>比較をやめる</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} 全体と比較中</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

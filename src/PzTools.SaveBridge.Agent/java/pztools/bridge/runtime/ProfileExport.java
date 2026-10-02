@@ -61,8 +61,20 @@ public final class ProfileExport {
         System.out.println("EXPORTED\t" + counts[0] + "\t" + counts[1] + "\t" + counts[2] + "\t" + counts[3]);
     }
 
-    /** Returns {samples, frames, luaSamples, durationMicros}. */
+    /**
+     * Returns {samples, frames, luaSamples, durationMicros}. With {@code keepLastSeconds} in the information (taken out
+     * of it), only the events that start in that many seconds before the recording's last are kept: a rolling
+     * recording holds more than its window, as it drops old data a whole chunk at a time.
+     */
     static long[] export(Path input, Path output, Map<String, String> information) throws IOException {
+        String keep = information.remove("keepLastSeconds");
+        Instant cutoff = null;
+        if (keep != null) {
+            long seconds = Long.parseLong(keep);
+            if (seconds <= 0) throw new IllegalArgumentException("Invalid keepLastSeconds");
+            Instant end = latest(input);
+            if (end != null) cutoff = end.minusSeconds(seconds);
+        }
         var periods = new HashMap<String, Long>();
         var eventNames = new HashMap<Long, String>();
         var methods = new HashMap<String, Integer>();
@@ -83,6 +95,11 @@ public final class ProfileExport {
             while (reader.hasMoreEvents()) {
                 RecordedEvent event = reader.readEvent();
                 String type = event.getEventType().getName();
+                if (cutoff != null && event.getStartTime().isBefore(cutoff)) {
+                    // The sampling periods are set once, at the start of each chunk: still needed for what is kept.
+                    if (type.equals("jdk.ActiveSetting")) period(event, eventNames, periods);
+                    continue;
+                }
                 if (origin == null) origin = event.getStartTime();
                 // Events are not stored in time order, so a time may be negative; the reader sorts and rebases.
                 long time = micros(origin, event.getStartTime());
@@ -157,14 +174,7 @@ public final class ProfileExport {
                             .append(type.substring(4)).append('\t').append(id).append('\t').append(clean(detail(event, type))).append('\n');
                     }
                     // How often each kind of sample was asked for; the reader needs it to turn counts into time.
-                    case "jdk.ActiveSetting" -> {
-                        try {
-                            if (!"period".equals(event.getString("name"))) break;
-                            String owner = eventNames.get(event.getLong("id"));
-                            long period = periodMicros(event.getString("value"));
-                            if (owner != null && period > 0) periods.put(owner, period);
-                        } catch (RuntimeException differentShape) { }
-                    }
+                    case "jdk.ActiveSetting" -> period(event, eventNames, periods);
                     default -> { }
                 }
                 // Keep memory bounded on long recordings: tables first, so every reference is already defined.
@@ -184,6 +194,27 @@ public final class ProfileExport {
             writer.write("I\tluaSamples\t" + luaSamples + "\n");
         }
         return new long[] { samples, frames, luaSamples, last };
+    }
+
+    private static void period(RecordedEvent event, Map<Long, String> eventNames, Map<String, Long> periods) {
+        try {
+            if (!"period".equals(event.getString("name"))) return;
+            String owner = eventNames.get(event.getLong("id"));
+            long period = periodMicros(event.getString("value"));
+            if (owner != null && period > 0) periods.put(owner, period);
+        } catch (RuntimeException differentShape) { }
+    }
+
+    /** When the recording's last event ends; null for one without events. */
+    private static Instant latest(Path input) throws IOException {
+        Instant last = null;
+        try (RecordingFile reader = new RecordingFile(input)) {
+            while (reader.hasMoreEvents()) {
+                Instant end = reader.readEvent().getEndTime();
+                if (last == null || end.isAfter(last)) last = end;
+            }
+        }
+        return last;
     }
 
     private static int stack(RecordedStackTrace trace, Map<String, Integer> methods, Map<String, Integer> stacks, StringBuilder tables) {

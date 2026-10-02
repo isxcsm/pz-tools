@@ -345,6 +345,30 @@ public sealed class ProfileRecordingTests
             PzTools.App.Core.ProfileRecordingService.ErrorKey(result));
     }
 
+    [Fact]
+    public async Task Rolling_WithoutAGame_WaitsForOne_AndSavesNothing()
+    {
+        using var temp = new TempDirectory();
+        var games = 0;
+        // No coordinator: reaching it would throw, so a result proves no worker was asked for.
+        var service = new PzTools.App.Core.ProfileRecordingService(temp.GetPath("profiles"), () => null, () => games);
+        Assert.Null(await service.StartRollingAsync(detailed: true));
+        Assert.Equal(new PzTools.App.Core.ProfileRolling(Wanted: true, Detailed: true), service.Rolling);
+        service.SetRollingMode(detailed: false);
+        Assert.False(service.Rolling.Detailed);
+
+        var (path, result) = await service.SaveRollingAsync();
+        Assert.Null(path);
+        Assert.Equal((0L, "profile-game-not-running"), (result.RunIndex, result.Error));
+        Assert.False(service.Rolling.Saving);
+
+        // Nothing was armed, so stopping asks the game nothing either.
+        await service.StopRollingAsync();
+        Assert.Equal(new PzTools.App.Core.ProfileRolling(), service.Rolling with { Detailed = false });
+        Assert.Equal("ProfileError.NotRolling", PzTools.App.Core.ProfileRecordingService.ErrorKey("profile-not-rolling"));
+        Assert.Equal("ProfileError.Busy", PzTools.App.Core.ProfileRecordingService.ErrorKey("profile-already-recording"));
+    }
+
     [Theory]
     [InlineData("java.io.IOException: Restart the game to use the updated bridge; no save request was sent", "profile-restart-required", "ProfileError.Restart")]
     [InlineData("java.io.IOException: Bootstrap is incompatible; restart the game with matching app/workers", "profile-restart-required", "ProfileError.Restart")]

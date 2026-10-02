@@ -646,7 +646,7 @@ public sealed class AppHost : IAsyncDisposable
 
     public bool HasRunningOperation() =>
         Operations?.IsDeletionRunning == true || Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
-            .Any(item => item.Status == OperationStatus.Running && item.Kind != "profile") == true;
+            .Any(item => item.Status == OperationStatus.Running && !item.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
 
     private void RegisterTelemetrySources(
         AppSettings settings,

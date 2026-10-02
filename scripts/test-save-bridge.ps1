@@ -50,6 +50,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Continuous control protocol tests failed' }
 # A game runtime without the flight recorder: profiling must fail alone, never the state observer.
 & (Join-Path $JdkPath 'bin/java.exe') --limit-modules java.base,java.instrument -ea -cp $controlClasspath pztools.bridge.runtime.ProfileFramesTest
 if ($LASTEXITCODE -ne 0) { throw 'Profiler isolation tests failed' }
+# The rolling recording in a real flight recorder: saves, cuts to its window, gives way to a recording asked for.
+& (Join-Path $JdkPath 'bin/java.exe') --enable-native-access=ALL-UNNAMED -ea -cp $controlClasspath pztools.bridge.runtime.ProfileRollingTest
+if ($LASTEXITCODE -ne 0) { throw 'Rolling recording tests failed' }
 # The CI caller runs the entire applicable suite once with these environment values.
 if ($PrepareOnly) { return }
 $arguments = @('test', (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'),

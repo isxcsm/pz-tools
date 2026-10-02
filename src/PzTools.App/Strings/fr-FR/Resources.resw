@@ -427,6 +427,15 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Regroupe les fonctions de ce propriétaire selon les chemins d’appel qui y ont mené : en haut la fonction la plus externe, comme un gestionnaire d’événement, et dedans ce qu’elle a appelé. Seuls comptent les échantillons terminés dans une fonction de ce propriétaire. Désactivé : une simple liste des fonctions.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Rechercher</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Comparer avec</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>Garder la dernière minute</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>Enregistrer la dernière minute</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>Enregistrement…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Ça vient de saccader ? Appuyez ici : le jeu a gardé environ la dernière minute, enregistrée comme un enregistrement. Mode : {0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Commence à garder la dernière minute dès que le jeu tourne.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Démarrage de la conservation de la dernière minute…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>En pause pendant un enregistrement ; reprend à sa fin.</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>Le jeu n’avait pas gardé la dernière minute (le jeu ou sa liaison a redémarré). Il la garde de nouveau à partir de maintenant.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Récupération de la dernière minute</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Arrêter la comparaison</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparé à tout {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

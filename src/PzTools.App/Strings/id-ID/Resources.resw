@@ -427,6 +427,15 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Mati: daftar fungsi biasa.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Cari</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Bandingkan dengan</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>Simpan menit terakhir terus-menerus</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>Simpan menit terakhir</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>Menyimpan…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Baru saja tersendat? Tekan ini: game menyimpan sekitar satu menit terakhir, dan itu disimpan sebagai rekaman. Mode: {0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Mulai menyimpan menit terakhir setelah game berjalan.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Mulai menyimpan menit terakhir…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>Dijeda selama merekam; berlanjut setelah rekaman selesai.</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>Game tidak menyimpan menit terakhir (game atau tautannya dimulai ulang). Mulai sekarang disimpan lagi.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Mengambil menit terakhir</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Berhenti membandingkan</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Dibandingkan dengan seluruh {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

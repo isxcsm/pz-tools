@@ -427,6 +427,15 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>按调用路径分组显示此所属方的函数：最外层的函数（如事件处理函数）在上，展开后显示它调用的函数。只统计结束于此所属方函数的样本。关闭后显示函数列表。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>搜索</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>对比对象</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>持续保留最近 1 分钟</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>保存最近 1 分钟</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>正在保存…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>游戏运行后开始保留最近 1 分钟。</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>正在开始保留最近 1 分钟…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>录制期间暂停，录制结束后继续。</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>游戏没有保留最近的记录（游戏或连接已重启）。从现在起重新保留。</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>取出最近记录</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>停止对比</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>正在与 {0} 全程对比</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

@@ -722,6 +722,12 @@ public sealed partial class LogsPage : UserControl
         ("profile", "recording") => Localizer.Get("ProfilePhaseRecording"),
         ("profile", "stop") => Localizer.Get("ProfilePhase.Stop"),
         ("profile", "convert") => Localizer.Get("ProfilePhaseConverting"),
+        ("profile", "save") => Localizer.Get("ProfilePhase.Save"),
+        // The rolling recording's start and stop.
+        ("profile-roll", "arguments") => Localizer.Get("ProfilePhase.Prepare"),
+        ("profile-roll", "connect") => Localizer.Get("ProfilePhase.Connect"),
+        ("profile-roll", "start") => Localizer.Get("ProfilePhase.Start"),
+        ("profile-roll", "stop") => Localizer.Get("ProfilePhase.Stop"),
         _ => LocalizedPhase(phase),
     };
 

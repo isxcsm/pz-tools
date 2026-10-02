@@ -427,6 +427,15 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa as funções deste dono pelos caminhos de chamada que levaram a elas: no topo a função mais externa, como um tratador de evento, e dentro o que ela chamou. Só contam as amostras que terminaram em funções deste dono. Desligado: uma lista simples das funções.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Pesquisar</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Comparar com</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>Manter o último minuto</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>Salvar último minuto</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>Salvando…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca do último minuto, que é salvo como gravação. Modo: {0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Começa a manter o último minuto quando o jogo estiver em execução.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Começando a manter o último minuto…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>Pausado durante uma gravação; continua quando ela termina.</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>O jogo não tinha mantido o último minuto (o jogo ou a conexão foi reiniciado). A partir de agora mantém de novo.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Pegando o último minuto</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Parar de comparar</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparado com toda {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

@@ -115,6 +115,7 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
         CompareItem.Text = Localizer.Get("ProfileCompare");
+        RollingItem.Text = Localizer.Get("ProfileRolling");
         DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
         AutomationProperties.SetName(DetailSearch, Localizer.Get("ProfileSearch"));
         if (IsLoaded) ApplyLayout(ActualWidth);
@@ -188,6 +189,80 @@ public sealed partial class ProfilerPage : UserControl
         StatusNote.Text = note ?? "";
         StatusNote.Visibility = note is null ? Visibility.Collapsed : Visibility.Visible;
         if (session.State == ProfileSessionState.Recording) clock.Start(); else clock.Stop();
+        UpdateRolling(idle);
+    }
+
+    // ---- The last minute ----
+
+    // The save button, shown while the user wants the game to keep its last minute; its tip says the mode, or why
+    // there is nothing to save yet.
+    private void UpdateRolling(bool idle)
+    {
+        var rolling = service?.Rolling ?? new ProfileRolling();
+        SaveLastHost.Visibility = rolling.Wanted ? Visibility.Visible : Visibility.Collapsed;
+        SaveLastText.Text = Localizer.Get(rolling.Saving ? "ProfileRollingSaving" : "ProfileRollingSave");
+        SaveLastButton.IsEnabled = rolling.On && !rolling.Busy && idle;
+        var tip = !idle ? Localizer.Get("ProfileRollingPaused")
+            : rolling.Error is { } error && !rolling.On ? Localizer.Get(ProfileRecordingService.ErrorKey(error))
+            : !rolling.On ? Localizer.Get(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting")
+            : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
+        AppToolTip.SetTip(SaveLastHost, tip);
+        AutomationProperties.SetHelpText(SaveLastButton, tip);
+    }
+
+    private async void RollingItem_Click(object sender, RoutedEventArgs e)
+    {
+        Attach();
+        if (service is not { } profiles || App.Host?.Operations is null)
+        {
+            RollingItem.IsChecked = false;
+            App.ShowSidebarNotification(InfoBarSeverity.Warning, Localizer.Get("ProfilerNavigation"), Localizer.Get("HostNotReady"));
+            return;
+        }
+        try
+        {
+            if (!RollingItem.IsChecked) { await profiles.StopRollingAsync(); return; }
+            // Without a game it starts once there is one; a start that ran and failed is said here, as it has no card.
+            if (await profiles.StartRollingAsync(ModeSwitch.IsOn) is { } result
+                && result.Outcome != PzTools.Process.Contracts.ProcessOutcome.Succeeded)
+                App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"),
+                    Localizer.Get(ProfileRecordingService.ErrorKey(result)));
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+        }
+    }
+
+    // The mode applies to the last minute too: one being kept restarts in the new mode.
+    private void ModeSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (service is { } profiles && profiles.Session.State == ProfileSessionState.Idle) profiles.SetRollingMode(ModeSwitch.IsOn);
+    }
+
+    private async void SaveLastButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (service is not { } profiles) return;
+        try
+        {
+            var (path, result) = await profiles.SaveRollingAsync();
+            if (path is null)
+            {
+                var message = Localizer.Get(ProfileRecordingService.ErrorKey(result));
+                // A save runs as a worker with its own card, like a recording: the reason goes on it.
+                if (result.RunIndex > 0) App.ExplainOnOperationCard(result.OperationId, message);
+                else
+                    App.ShowSidebarNotification(result.Error is "profile-game-not-running" or "profile-multiple-games"
+                            or "operation-busy" ? InfoBarSeverity.Informational : InfoBarSeverity.Error,
+                        Localizer.Get("ProfilerNavigation"), message);
+                return;
+            }
+            RefreshList(path);
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+        }
     }
 
     private async Task CheckGamesAsync()
@@ -1284,6 +1359,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private void MoreMenu_Opening(object sender, object e)
     {
+        RollingItem.IsChecked = service?.Rolling.Wanted == true;
         CompareItem.Items.Clear();
         foreach (var item in RecordingList.Items.OfType<RecordingItem>()
                      .Where(item => !item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)).Take(MaximumCompareChoices))

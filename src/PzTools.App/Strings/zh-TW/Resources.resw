@@ -427,6 +427,15 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>搜尋</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>比較對象</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>持續保留最近 1 分鐘</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>儲存最近 1 分鐘</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>正在儲存…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>剛剛卡頓？按這裡：遊戲保留了最近約 1 分鐘，會儲存為一段錄製。模式：{0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>遊戲執行後開始保留最近 1 分鐘。</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>正在開始保留最近 1 分鐘…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>錄製期間暫停，錄製結束後繼續。</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>遊戲沒有保留最近的記錄（遊戲或連線已重新啟動）。從現在起重新保留。</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>取出最近記錄</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>停止比較</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>正在與 {0} 全程比較</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

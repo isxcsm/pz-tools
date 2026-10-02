@@ -69,16 +69,28 @@
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <!-- A disabled button shows no tooltip; its holder says why recording cannot start. -->
-        <Grid x:Name="RecordHost" Background="Transparent">
-          <Button x:Name="RecordButton" MinWidth="120" Click="RecordButton_Click"
-                  AutomationProperties.AutomationId="ProfileRecordButton">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon x:Name="RecordIcon" FontSize="14" Glyph="&#xE7C8;" />
-              <TextBlock x:Name="RecordText" />
-            </StackPanel>
-          </Button>
-        </Grid>
-        <ToggleSwitch x:Name="ModeSwitch" Grid.Column="1" VerticalAlignment="Center" MinWidth="0"
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Grid x:Name="RecordHost" Background="Transparent">
+            <Button x:Name="RecordButton" MinWidth="120" Click="RecordButton_Click"
+                    AutomationProperties.AutomationId="ProfileRecordButton">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon x:Name="RecordIcon" FontSize="14" Glyph="&#xE7C8;" />
+                <TextBlock x:Name="RecordText" />
+              </StackPanel>
+            </Button>
+          </Grid>
+          <!-- While the game keeps its last minute: save it, right after a stutter. Its holder carries the tip, which
+               says why when it cannot. -->
+          <Grid x:Name="SaveLastHost" Background="Transparent" Visibility="Collapsed">
+            <Button x:Name="SaveLastButton" Click="SaveLastButton_Click" AutomationProperties.AutomationId="ProfileSaveLastButton">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon FontSize="14" Glyph="&#xE81C;" />
+                <TextBlock x:Name="SaveLastText" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </StackPanel>
+        <ToggleSwitch x:Name="ModeSwitch" Grid.Column="1" VerticalAlignment="Center" MinWidth="0" Toggled="ModeSwitch_Toggled"
                       AutomationProperties.AutomationId="ProfileModeSwitch" />
         <ComboBox x:Name="RecordingList" Grid.Column="2" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   SelectionChanged="RecordingList_SelectionChanged"
@@ -90,6 +102,10 @@
           <FontIcon Glyph="&#xE712;" FontSize="16" />
           <Button.Flyout>
             <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="MoreMenu_Opening">
+              <!-- The game keeps its last minute, in the mode the switch sets, for a save right after a stutter. -->
+              <ToggleMenuFlyoutItem x:Name="RollingItem" Click="RollingItem_Click" AutomationProperties.AutomationId="ProfileRollingItem">
+                <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE81C;" /></ToggleMenuFlyoutItem.Icon>
+              </ToggleMenuFlyoutItem>
               <!-- The other recordings, one of which the shown one is compared with; filled when the menu opens. -->
               <MenuFlyoutSubItem x:Name="CompareItem" AutomationProperties.AutomationId="ProfileCompareItem">
                 <MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE8AB;" /></MenuFlyoutSubItem.Icon>

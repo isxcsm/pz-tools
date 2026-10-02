@@ -12,11 +12,13 @@ namespace PzTools.SaveBridge;
 public sealed record GameProfileStatus(string State, long ElapsedMilliseconds, long Frames, string Mode, string Lua, bool HasFrames)
 {
     public bool Recording => State == "recording";
+    /// <summary>Keeping only its last stretch, until saved from or stopped.</summary>
+    public bool Rolling => State == "rolling";
 
     public static GameProfileStatus Parse(string detail)
     {
         var parts = detail.Split(';');
-        if (parts.Length is < 5 or > 6 || parts[0] is not ("idle" or "recording" or "finished")
+        if (parts.Length is < 5 or > 6 || parts[0] is not ("idle" or "recording" or "rolling" or "finished")
             || !long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var elapsed)
             || !long.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var frames)
             || parts[3] is not ("general" or "detailed"))
@@ -61,6 +63,32 @@ public sealed class GameProfileClient(string bridgeDirectory, int connectionTime
 
     public Task<GameProfileStatus> StopAsync(int processId, CancellationToken cancellationToken = default) =>
         RequestAsync(processId, "PROFILE_STOP", cancellationToken);
+
+    public const int MinimumRollingSeconds = 10, MaximumRollingSeconds = 600;
+
+    /// <summary>
+    /// Starts a recording that keeps only about its last <paramref name="keepSeconds"/> and runs until stopped, for a
+    /// stutter that already happened. It gives way to a recording started with <see cref="StartAsync"/>.
+    /// </summary>
+    public Task<GameProfileStatus> StartRollingAsync(int processId, bool detailed, int keepSeconds,
+        CancellationToken cancellationToken = default)
+    {
+        if (keepSeconds is < MinimumRollingSeconds or > MaximumRollingSeconds) throw new ArgumentOutOfRangeException(nameof(keepSeconds));
+        return RequestAsync(processId, string.Join('\t', "PROFILE_ROLL_START", detailed ? "detailed" : "general",
+            keepSeconds.ToString(CultureInfo.InvariantCulture)), cancellationToken);
+    }
+
+    /// <summary>Writes what the rolling recording holds to <paramref name="recordingPath"/>; it goes on recording.</summary>
+    public Task<GameProfileStatus> SaveRollingAsync(int processId, string recordingPath, CancellationToken cancellationToken = default)
+    {
+        if (!Path.IsPathFullyQualified(recordingPath) || !recordingPath.EndsWith(".jfr", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("An absolute .jfr path is required.", nameof(recordingPath));
+        return RequestAsync(processId, "PROFILE_ROLL_SAVE\t" + Convert.ToBase64String(Encoding.UTF8.GetBytes(recordingPath)), cancellationToken);
+    }
+
+    /// <summary>Ends the rolling recording; a recording started with <see cref="StartAsync"/> is left alone.</summary>
+    public Task<GameProfileStatus> StopRollingAsync(int processId, CancellationToken cancellationToken = default) =>
+        RequestAsync(processId, "PROFILE_ROLL_STOP", cancellationToken);
 
     public Task<GameProfileStatus> StatusAsync(int processId, CancellationToken cancellationToken = default) =>
         RequestAsync(processId, "PROFILE_STATUS", cancellationToken);
@@ -135,10 +163,15 @@ public sealed class GameProfileClient(string bridgeDirectory, int connectionTime
         }
     }
 
-    /// <summary>Converts a finished flight recording, outside the game, with the bundled runtime.</summary>
+    /// <summary>
+    /// Converts a finished flight recording, outside the game, with the bundled runtime. With
+    /// <paramref name="keepLastSeconds"/>, only that many seconds before its end are kept: a rolling recording's save
+    /// holds more than its window.
+    /// </summary>
     public async Task<GameProfileExport> ExportAsync(string recordingPath, string outputPath,
-        IReadOnlyDictionary<string, string>? information = null, CancellationToken cancellationToken = default)
+        IReadOnlyDictionary<string, string>? information = null, CancellationToken cancellationToken = default, int keepLastSeconds = 0)
     {
+        if (keepLastSeconds < 0) throw new ArgumentOutOfRangeException(nameof(keepLastSeconds));
         var (java, jar) = Locate();
         if (!File.Exists(recordingPath)) throw new FileNotFoundException("The game did not leave a recording.", recordingPath);
         var start = new ProcessStartInfo(java) { UseShellExecute = false, CreateNoWindow = true,
@@ -147,6 +180,7 @@ public sealed class GameProfileClient(string bridgeDirectory, int connectionTime
             start.ArgumentList.Add(argument);
         foreach (var (key, value) in information ?? new Dictionary<string, string>())
             start.ArgumentList.Add(key + "=" + value);
+        if (keepLastSeconds > 0) start.ArgumentList.Add("keepLastSeconds=" + keepLastSeconds.ToString(CultureInfo.InvariantCulture));
         using var process = DiagnosticsProcess.Start(start) ?? throw new IOException("Could not start the recording converter.");
         try
         {

@@ -69,6 +69,29 @@ Backups, saving and game extensions keep working during a recording. Recording c
 uses the ordinary short request channel to the game; if a backup's save request is using
 it, start or stop simply waits for it.
 
+### The last minute
+
+A stutter is often over before a recording could be started. **Keep the last minute**
+in the **…** menu has the game record all the time, in the mode the Standard/Detailed
+switch sets, and hold only about its last minute. **Save last minute** then appears next
+to **Start recording**: press it right after a stutter, and that minute becomes a
+recording like any other, listed and opened at once. The game goes on keeping the next
+minute. Flipping the mode switch restarts the keeping in the new mode; the button's tip
+says which mode is kept, or why there is nothing yet (no game, the game's bridge needs a
+restart).
+
+The game started later, or restarted, gets it within five seconds, whether or not the
+page is open. **Start recording** replaces it while that recording runs, and it resumes
+when the recording ends. It ends when switched off or when the app closes, and is off
+each time the app starts: nothing records the game unless you asked for it.
+
+The cost is that of a recording that never ends. Standard mode is light; Detailed mode
+costs the game frame rate for as long as it is on (roughly 10% in a synthetic test), so
+use it while hunting a stutter, not all evening. The game's timer resolution stays at
+1 ms while it is on. Older data is discarded a piece at a time on disk (at most 256 MB
+held), so a save holds somewhat more, which is cut to the last 60 seconds as it is
+converted. A saved minute has no video memory, which only a recording worker reads.
+
 ## What depends on the game version
 
 | Part | Source | If the game changes |
@@ -332,6 +355,15 @@ runtime, outside the game. The app only starts this worker and reads the finishe
 If the app or the worker is closed mid-recording, the game stops recording at the time
 limit and also stops sampling Lua and timing frames, so an abandoned recording costs
 nothing afterwards. The next recording ends any leftover first.
+
+The last minute is kept by the game between short commands, each one process:
+`roll-start` (`PROFILE_ROLL_START`, a mode and how many seconds to hold), `roll-save`
+(`PROFILE_ROLL_SAVE`: the game writes what it holds to a flight recording, which is
+converted cut to its window, as a recording is) and `roll-stop` (`PROFILE_ROLL_STOP`,
+which ends only the rolling recording, never one someone started). Starting and stopping
+show no card; a save shows as a recording does. A game whose bridge refuses `roll-start`
+(one from before it, or one that cannot attach) is not asked again until it restarts or
+the mode or the switch changes; the button's tip gives the reason.
 
 ## Limits
 

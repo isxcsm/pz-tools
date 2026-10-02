@@ -442,6 +442,28 @@ public sealed class OperationCoordinator(
             ], cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId,
             line => { if (line.StartsWith("PROFILE\t", StringComparison.Ordinal)) progress?.Invoke(line["PROFILE\t".Length..]); });
 
+    /// <summary>
+    /// One command to the game's rolling recording: "roll-start" (in the given mode), "roll-save" (to
+    /// <paramref name="outputPath"/>, cut to <paramref name="keepSeconds"/>) or "roll-stop". Starting and stopping are
+    /// quick and show no card of their own; a save is a recording the user asked for, and shows as one.
+    /// </summary>
+    public Task<AppOperationResult> RollProfileAsync(
+        string command, bool detailed, int keepSeconds, string? outputPath = null,
+        CancellationToken cancellationToken = default, string? operationId = null)
+    {
+        var seconds = keepSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string[] arguments = command switch
+        {
+            "roll-start" => ["roll-start", "--mode", detailed ? "detailed" : "general", "--seconds", seconds],
+            "roll-save" => ["roll-save", "--output", Path.GetFullPath(outputPath ?? throw new ArgumentNullException(nameof(outputPath))), "--seconds", seconds],
+            "roll-stop" => ["roll-stop"],
+            _ => throw new ArgumentOutOfRangeException(nameof(command)),
+        };
+        return RunArchiveAsync(command == "roll-save" ? "profile" : "profile-roll", Path.Combine(operationsRoot, "profiler"),
+            OperationScope.SaveWrite, [.. arguments, "--bridge", Path.Combine(workerDirectory, "save-bridge")],
+            cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId);
+    }
+
     private async Task<AppOperationResult> RunArchiveAsync(
         string kind,
         string identity,

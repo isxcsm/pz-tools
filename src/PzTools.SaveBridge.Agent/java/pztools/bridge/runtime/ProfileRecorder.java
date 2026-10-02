@@ -46,8 +46,10 @@ final class ProfileRecorder {
         @Label("Game thread allocated") @DataAmount long allocated;
     }
 
-    static final int MAXIMUM_SECONDS = 1800;
+    static final int MAXIMUM_SECONDS = 1800, MAXIMUM_ROLLING_SECONDS = 600;
     private static volatile Recording recording;
+    // The recording keeps only its last stretch and has no end of its own; see startRolling.
+    private static boolean rolling;
     private static LuaSampler lua;
     private static Thread luaThread;
     private static long startedNanos;
@@ -84,12 +86,59 @@ final class ProfileRecorder {
     }
 
     static synchronized String start(Path destination, boolean detailedMode, int maximumSeconds, ClassLoader gameLoader) throws Exception {
-        if (active && recording != null && recording.getState() == RecordingState.RUNNING) throw new IllegalStateException("already-recording");
+        // A rolling recording gives way to one asked for; the app arms it again afterwards.
+        if (running() && !rolling) throw new IllegalStateException("already-recording");
         closeQuietly();
+        checkDestination(destination);
+        if (maximumSeconds < 5 || maximumSeconds > MAXIMUM_SECONDS) throw new IllegalArgumentException("Invalid maximum duration");
+        Recording next = configured(detailedMode);
+        try {
+            next.setDumpOnExit(true);
+            next.setMaxSize(512L * 1024 * 1024);
+            next.setDuration(Duration.ofSeconds(maximumSeconds));
+            next.setDestination(destination);
+        } catch (Throwable failure) { next.close(); throw failure; }
+        return begin(next, detailedMode, gameLoader, false);
+    }
+
+    /**
+     * Keeps recording, holding only about the last {@code keepSeconds}, until stopped: for the stutter that already
+     * happened, saved with {@link #save} after it. Older data is dropped a whole chunk at a time, so somewhat more is
+     * held; the converter cuts a save to the window. A recording asked for replaces it.
+     */
+    static synchronized String startRolling(boolean detailedMode, int keepSeconds, ClassLoader gameLoader) throws Exception {
+        if (running() && !rolling) throw new IllegalStateException("already-recording");
+        closeQuietly();
+        if (keepSeconds < 10 || keepSeconds > MAXIMUM_ROLLING_SECONDS) throw new IllegalArgumentException("Invalid rolling duration");
+        Recording next = configured(detailedMode);
+        try {
+            next.setMaxAge(Duration.ofSeconds(keepSeconds));
+            next.setMaxSize(256L * 1024 * 1024);
+        } catch (Throwable failure) { next.close(); throw failure; }
+        return begin(next, detailedMode, gameLoader, true);
+    }
+
+    /** Writes what the rolling recording holds now; it goes on recording. */
+    static synchronized String save(Path destination) throws Exception {
+        if (!rolling || !running()) throw new IllegalStateException("not-rolling");
+        checkDestination(destination);
+        recording.dump(destination);
+        return status();
+    }
+
+    /** Ends a rolling recording, and only that: a recording someone asked for is left alone. */
+    static synchronized String stopRolling() throws Exception {
+        return rolling && recording != null ? stop() : status();
+    }
+
+    private static void checkDestination(Path destination) {
         if (!destination.isAbsolute() || !destination.getFileName().toString().endsWith(".jfr")
                 || !Files.isDirectory(destination.getParent()))
             throw new IllegalArgumentException("An absolute .jfr path in an existing directory is required");
-        if (maximumSeconds < 5 || maximumSeconds > MAXIMUM_SECONDS) throw new IllegalArgumentException("Invalid maximum duration");
+    }
+
+    /** The events both kinds of recording take, in the chosen mode. */
+    private static Recording configured(boolean detailedMode) {
         Recording next = new Recording();
         try {
             next.setName("PZ Tools");
@@ -115,14 +164,16 @@ final class ProfileRecorder {
             next.enable(LuaSampleEvent.class);
             next.enable(LuaSamplerEvent.class);
             next.setToDisk(true);
-            next.setDumpOnExit(true);
-            next.setMaxSize(512L * 1024 * 1024);
-            next.setDuration(Duration.ofSeconds(maximumSeconds));
-            next.setDestination(destination);
+        } catch (Throwable failure) { next.close(); throw failure; }
+        return next;
+    }
+
+    private static String begin(Recording next, boolean detailedMode, ClassLoader gameLoader, boolean keepsRolling) {
+        try {
             TimerResolution.raise();
             next.start();
         } catch (Throwable failure) { TimerResolution.restore(); next.close(); throw failure; }
-        recording = next; detailed = detailedMode; startedNanos = System.nanoTime(); frames = 0; open = null; gameThread = null;
+        recording = next; rolling = keepsRolling; detailed = detailedMode; startedNanos = System.nanoTime(); frames = 0; open = null; gameThread = null;
         LuaSampler sampler = null;
         try { sampler = new LuaSampler(gameLoader, detailedMode ? 1_000_000L : 10_000_000L); luaState = "sampling"; }
         catch (ReflectiveOperationException | LinkageError unavailable) { luaState = "unavailable:" + unavailable.getClass().getSimpleName(); }
@@ -140,7 +191,7 @@ final class ProfileRecorder {
     static synchronized String stop() throws Exception {
         if (recording == null) throw new IllegalStateException("not-recording");
         String result = status();
-        active = false;
+        active = false; rolling = false;
         ProfileFrames.detach(FRAME_MARK);
         open = null;
         stopLua();
@@ -160,7 +211,7 @@ final class ProfileRecorder {
     static synchronized void wrapUpIfEnded() {
         Recording current = recording;
         if (!active || current == null || current.getState() == RecordingState.RUNNING) return;
-        active = false; open = null;
+        active = false; rolling = false; open = null;
         ProfileFrames.detach(FRAME_MARK);
         stopLua();
         TimerResolution.restore();
@@ -170,14 +221,14 @@ final class ProfileRecorder {
     static synchronized String status() {
         boolean running = recording != null && recording.getState() == RecordingState.RUNNING;
         // The recorder ends a recording by itself at its maximum duration; that is "finished", not lost.
-        String state = recording == null ? "idle" : running ? "recording" : "finished";
+        String state = recording == null ? "idle" : running ? (rolling ? "rolling" : "recording") : "finished";
         long elapsed = recording == null ? 0 : (System.nanoTime() - startedNanos) / 1_000_000L;
         return state + ";" + elapsed + ";" + frames + ";" + (detailed ? "detailed" : "general") + ";" + luaState;
     }
 
     /** Payload replacement or shutdown: leave nothing running that belongs to a retiring class loader. */
     static synchronized void closeQuietly() {
-        active = false; open = null;
+        active = false; rolling = false; open = null;
         ProfileFrames.detach(FRAME_MARK);
         stopLua();
         Recording current = recording;

@@ -13,6 +13,8 @@ import pztools.bridge.AgentEntry;
 final class ProfileControl {
     private static Thread monitor;
     private static boolean ownsFrameHook;
+    // Whether the rolling recording marks frames, said again with each save.
+    private static String rollingFrames = "frames";
     private ProfileControl() { }
 
     static boolean handles(String command) { return command.startsWith("PROFILE_"); }
@@ -23,21 +25,33 @@ final class ProfileControl {
                 case "PROFILE_START" -> {
                     if (command.length != 4 || !(command[2].equals("general") || command[2].equals("detailed")))
                         return error("protocol", "Invalid profile start request");
-                    Path destination = Path.of(new String(Base64.getDecoder().decode(command[1]), StandardCharsets.UTF_8));
+                    Path destination = path(command[1]);
                     int seconds = Integer.parseInt(command[3]);
-                    // Frame boundaries come from the game-loop hook. If it cannot be installed the
-                    // recording still runs; it just has no frame graph.
-                    String frames = "frames";
-                    ClassLoader game = null;
-                    try {
-                        Class<?> window = AgentEntry.ensureGameHook();
-                        game = window.getClassLoader();
-                        if (!RuntimeObserver.running()) { AgentEntry.observe(ProfileFrames::tick); ownsFrameHook = true; }
-                    } catch (Exception | LinkageError unavailable) { frames = "no-frames"; }
-                    if (game == null) game = ClassLoader.getSystemClassLoader();
-                    String status = ProfileRecorder.start(destination, command[2].equals("detailed"), seconds, game);
+                    Hook hook = hookFrames();
+                    String status = ProfileRecorder.start(destination, command[2].equals("detailed"), seconds, hook.game());
                     startMonitor();
-                    return ok(status + ";" + frames);
+                    return ok(status + ";" + hook.frames());
+                }
+                // Keeps only the last stretch, for as long as the app wants it, until a save takes what it holds.
+                case "PROFILE_ROLL_START" -> {
+                    if (command.length != 3 || !(command[1].equals("general") || command[1].equals("detailed")))
+                        return error("protocol", "Invalid rolling start request");
+                    int seconds = Integer.parseInt(command[2]);
+                    Hook hook = hookFrames();
+                    String status = ProfileRecorder.startRolling(command[1].equals("detailed"), seconds, hook.game());
+                    rollingFrames = hook.frames();
+                    startMonitor();
+                    return ok(status + ";" + rollingFrames);
+                }
+                case "PROFILE_ROLL_SAVE" -> {
+                    if (command.length != 2) return error("protocol", "Invalid rolling save request");
+                    return ok(ProfileRecorder.save(path(command[1])) + ";" + rollingFrames);
+                }
+                case "PROFILE_ROLL_STOP" -> {
+                    if (command.length != 1) return error("protocol", "Invalid rolling stop request");
+                    String status = ProfileRecorder.stopRolling();
+                    if (!ProfileRecorder.active()) releaseFrameHook();
+                    return ok(status);
                 }
                 case "PROFILE_STOP" -> {
                     if (command.length != 1) return error("protocol", "Invalid profile stop request");
@@ -57,6 +71,25 @@ final class ProfileControl {
             return error("profile-failed", failure.getClass().getSimpleName() + (failure.getMessage() == null ? "" : ": " + failure.getMessage()));
         }
     }
+
+    private record Hook(ClassLoader game, String frames) { }
+
+    /**
+     * Frame boundaries come from the game-loop hook. If it cannot be installed the recording still
+     * runs; it just has no frame graph.
+     */
+    private static Hook hookFrames() {
+        String frames = "frames";
+        ClassLoader game = null;
+        try {
+            Class<?> window = AgentEntry.ensureGameHook();
+            game = window.getClassLoader();
+            if (!RuntimeObserver.running()) { AgentEntry.observe(ProfileFrames::tick); ownsFrameHook = true; }
+        } catch (Exception | LinkageError unavailable) { frames = "no-frames"; }
+        return new Hook(game == null ? ClassLoader.getSystemClassLoader() : game, frames);
+    }
+
+    private static Path path(String encoded) { return Path.of(new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8)); }
 
     /**
      * RuntimeObserver gave up the per-frame slot; keep frame marks flowing if a recording marks them. Asks the relay,

@@ -13,6 +13,14 @@ public sealed record ProfileSession(ProfileSessionState State, bool Detailed = f
 public sealed record ProfileFile(string Path, string Name, DateTimeOffset CreatedUtc, long Bytes);
 
 /// <summary>
+/// The rolling recording: whether the user wants the game to keep its last minute, in which mode, and whether the
+/// game is keeping it now (<see cref="On"/>, in <see cref="OnDetailed"/>). <see cref="Busy"/> while a command is under
+/// way, <see cref="Saving"/> while a save is; <see cref="Error"/> is why the game is not keeping it, until it is.
+/// </summary>
+public sealed record ProfileRolling(bool Wanted = false, bool Detailed = false, bool On = false, bool OnDetailed = false,
+    bool Busy = false, bool Saving = false, string? Error = null);
+
+/// <summary>
 /// Recordings of the running game: one worker process per recording, one file per recording.
 /// The files live in their own folder, outside the log and telemetry databases, so a long recording
 /// cannot grow those and a single file can be handed to someone else.
@@ -61,6 +69,11 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
         Changed?.Invoke();
         try
         {
+            // Waits out a rolling command under way, so its result cannot undo what is said here: the recording
+            // replaces the rolling one in the game, which is armed again once it has ended.
+            await rollingLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            SetRolling(state => state with { On = false });
+            rollingLock.Release();
             TryDelete(stop);
             var result = await coordinator.RecordProfileAsync(output, stop, detailed, limit, Report, cancellationToken).ConfigureAwait(false);
             return (result.Outcome == ProcessOutcome.Succeeded && File.Exists(output) ? output : null, result);
@@ -71,6 +84,7 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
             lock (gate) { session = new(ProfileSessionState.Idle); stopFile = null; running = null; }
             completion.TrySetResult();
             Changed?.Invoke();
+            WakeRolling();
         }
 
         void Report(string line)
@@ -101,14 +115,196 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
     }
 
-    /// <summary>For shutdown: end a running recording so the game does not keep recording for nobody.</summary>
+    /// <summary>
+    /// For shutdown: end a running recording, and the rolling one, so the game does not keep recording for nobody.
+    /// </summary>
     public async Task StopAndWaitAsync(TimeSpan patience)
     {
         Task? task;
         lock (gate) task = running;
-        if (task is null) return;
+        var rollingStop = Rolling is { Wanted: false, On: false } ? Task.CompletedTask : StopRollingAsync();
+        if (task is null && rollingStop.IsCompleted) return;
         Stop();
-        await Task.WhenAny(task, Task.Delay(patience)).ConfigureAwait(false);
+        await Task.WhenAny(Task.WhenAll(task ?? Task.CompletedTask, rollingStop), Task.Delay(patience)).ConfigureAwait(false);
+    }
+
+    // ---- Rolling recording ----
+
+    /// <summary>What a save holds: "the last minute" before a stutter.</summary>
+    public const int RollingSeconds = 60;
+    // How often the game is checked for while the rolling recording is wanted: a game that starts (or restarts) gets
+    // it within this, whether or not a page is open.
+    private static readonly TimeSpan RollingCheck = TimeSpan.FromSeconds(5);
+    private readonly SemaphoreSlim rollingLock = new(1, 1);
+    private ProfileRolling rolling = new();
+    private CancellationTokenSource? rollingWake;
+    private Task? rollingLoop;
+    // A failed start is not retried for the same game: an old bridge or a refused attach would only fail again.
+    private bool rollingBlocked;
+
+    public ProfileRolling Rolling { get { lock (gate) return rolling; } }
+
+    /// <summary>
+    /// Keeps the game's last minute from now on, in the given mode, until <see cref="StopRollingAsync"/>: armed now
+    /// if a game is running, otherwise as soon as one is, and again after each recording and each restart of the game.
+    /// Returns the start's result when it ran now.
+    /// </summary>
+    public async Task<AppOperationResult?> StartRollingAsync(bool detailed)
+    {
+        SetRolling(state => state with { Wanted = true, Detailed = detailed, Error = null });
+        lock (gate) rollingBlocked = false;
+        // Armed here first, so the caller hears how the start went; the loop then keeps it armed.
+        var result = await EnsureRollingAsync().ConfigureAwait(false);
+        lock (gate) if (rolling.Wanted) rollingLoop ??= Task.Run(RollingLoopAsync);
+        return result;
+    }
+
+    /// <summary>The mode for the rolling recording from now on; one already running restarts in it.</summary>
+    public void SetRollingMode(bool detailed)
+    {
+        lock (gate)
+        {
+            if (!rolling.Wanted || rolling.Detailed == detailed) return;
+            rolling = rolling with { Detailed = detailed, Error = null };
+            rollingBlocked = false;
+        }
+        Changed?.Invoke();
+        WakeRolling();
+    }
+
+    public async Task StopRollingAsync()
+    {
+        SetRolling(state => state with { Wanted = false, Error = null });
+        WakeRolling();
+        await rollingLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (!Rolling.On || operations() is not { } coordinator) return;
+            SetRolling(state => state with { Busy = true });
+            // Whatever the answer, the app no longer counts on it; a game that has gone took it along.
+            try { await coordinator.RollProfileAsync("roll-stop", false, 0).ConfigureAwait(false); }
+            catch (Exception exception) when (exception is not OutOfMemoryException) { }
+        }
+        finally
+        {
+            SetRolling(state => state with { On = false, Busy = false });
+            rollingLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Saves the last minute the game kept as a recording, and returns its file or the reason there is none. The
+    /// rolling recording goes on.
+    /// </summary>
+    public async Task<(string? Path, AppOperationResult Result)> SaveRollingAsync(CancellationToken cancellationToken = default)
+    {
+        if (countGames() is var games && games != 1)
+            return (null, new AppOperationResult("", 0, ProcessOutcome.Failed, null,
+                games == 0 ? "profile-game-not-running" : "profile-multiple-games"));
+        var coordinator = operations() ?? throw new InvalidOperationException("The application is not ready.");
+        if (!await rollingLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+            return (null, new AppOperationResult("", 0, ProcessOutcome.Busy, null, "operation-busy"));
+        try
+        {
+            SetRolling(state => state with { Busy = true, Saving = true });
+            System.IO.Directory.CreateDirectory(Directory);
+            var output = NextPath(DateTime.Now);
+            var result = await coordinator.RollProfileAsync("roll-save", Rolling.OnDetailed, RollingSeconds, output, cancellationToken)
+                .ConfigureAwait(false);
+            // The game was not keeping it after all (the bridge was replaced, the game restarted): start it again.
+            if (result.Error == "profile-not-rolling") SetRolling(state => state with { On = false });
+            return (result.Outcome == ProcessOutcome.Succeeded && File.Exists(output) ? output : null, result);
+        }
+        finally
+        {
+            SetRolling(state => state with { Busy = false, Saving = false });
+            rollingLock.Release();
+            WakeRolling();
+        }
+    }
+
+    /// <summary>
+    /// Arms the rolling recording when it is wanted and the game is not keeping it in the wanted mode, there is exactly
+    /// one game, and no recording runs. Returns the start's result when one ran.
+    /// </summary>
+    private async Task<AppOperationResult?> EnsureRollingAsync()
+    {
+        if (!await rollingLock.WaitAsync(0).ConfigureAwait(false)) return null;
+        try
+        {
+            var state = Rolling;
+            if (!state.Wanted) return null;
+            if (countGames() != 1)
+            {
+                // The game it was armed in has gone: the next one gets a fresh try.
+                lock (gate) rollingBlocked = false;
+                if (state.On) SetRolling(current => current with { On = false });
+                return null;
+            }
+            bool blocked;
+            lock (gate) blocked = rollingBlocked;
+            if (blocked || state.On && state.OnDetailed == state.Detailed || Session.State != ProfileSessionState.Idle
+                || operations() is not { } coordinator) return null;
+            SetRolling(current => current with { Busy = true });
+            AppOperationResult result;
+            try { result = await coordinator.RollProfileAsync("roll-start", state.Detailed, RollingSeconds).ConfigureAwait(false); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                result = new AppOperationResult("", 0, ProcessOutcome.Failed, null, "profile-failed", exception.Message);
+            }
+            var armed = result.Outcome == ProcessOutcome.Succeeded;
+            // A recording asked for in the meantime is not something to keep trying against.
+            lock (gate) rollingBlocked = !armed && result.Outcome != ProcessOutcome.Busy;
+            SetRolling(current => current with
+            {
+                On = armed, OnDetailed = state.Detailed, Error = armed ? null : result.Error ?? "profile-failed",
+            });
+            return result;
+        }
+        finally
+        {
+            SetRolling(current => current with { Busy = false });
+            rollingLock.Release();
+        }
+    }
+
+    private async Task RollingLoopAsync()
+    {
+        while (true)
+        {
+            CancellationTokenSource wake;
+            lock (gate)
+            {
+                if (!rolling.Wanted) { rollingLoop = null; return; }
+                wake = rollingWake = new CancellationTokenSource();
+            }
+            try { await EnsureRollingAsync().ConfigureAwait(false); }
+            catch (Exception exception) when (exception is not OutOfMemoryException) { }
+            try { await Task.Delay(RollingCheck, wake.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+            lock (gate) if (ReferenceEquals(rollingWake, wake)) rollingWake = null;
+            wake.Dispose();
+        }
+    }
+
+    // Checks now instead of at the next interval: a recording ended, a save failed, the mode changed.
+    private void WakeRolling()
+    {
+        lock (gate)
+        {
+            try { rollingWake?.Cancel(); } catch (ObjectDisposedException) { }
+        }
+    }
+
+    private void SetRolling(Func<ProfileRolling, ProfileRolling> change)
+    {
+        lock (gate)
+        {
+            var next = change(rolling);
+            if (next == rolling) return;
+            rolling = next;
+        }
+        Changed?.Invoke();
     }
 
     public IReadOnlyList<ProfileFile> List()
@@ -176,7 +372,8 @@ public sealed class ProfileRecordingService(string directory, Func<OperationCoor
         "profile-attach-failed" or "profile-connection-timeout" or "profile-bridge-not-built"
             or "profile-unsupported-protocol" or "profile-unsupported-runtime" => "ProfileError.Link",
         "profile-restart-required" => "ProfileError.Restart",
-        "profile-busy" or "operation-busy" => "ProfileError.Busy",
+        "profile-busy" or "operation-busy" or "profile-already-recording" => "ProfileError.Busy",
+        "profile-not-rolling" => "ProfileError.NotRolling",
         "profile-convert-failed" => "ProfileError.Convert",
         "cancelled" => "OperationCancelled",
         PzTools.Process.Hosting.LaunchFailure.Blocked => "OperationError.BlockedByPolicy",

@@ -427,6 +427,15 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa las funciones de este propietario por las rutas de llamada que llevaron a ellas: arriba la función más externa, como un controlador de eventos, y dentro lo que llamó. Solo cuentan las muestras que terminaron en funciones de este propietario. Desactivado: una lista simple de funciones.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Buscar</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Comparar con</value></data>
+  <data name="ProfileRolling" xml:space="preserve"><value>Conservar el último minuto</value></data>
+  <data name="ProfileRollingSave" xml:space="preserve"><value>Guardar último minuto</value></data>
+  <data name="ProfileRollingSaving" xml:space="preserve"><value>Guardando…</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>¿Acaba de tirones? Pulsa aquí: el juego ha conservado aproximadamente el último minuto y se guarda como grabación. Modo: {0}</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Empieza a conservar el último minuto cuando el juego esté en marcha.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Empezando a conservar el último minuto…</value></data>
+  <data name="ProfileRollingPaused" xml:space="preserve"><value>En pausa mientras se graba; continúa al terminar la grabación.</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>El juego no había conservado el último minuto (se reinició el juego o su conexión). Lo conserva de nuevo desde ahora.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Tomando el último minuto</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Dejar de comparar</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparado con toda {0}</value></data>
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>

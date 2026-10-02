@@ -1447,7 +1447,7 @@ public sealed partial class MainWindowShell : UserControl
         projectorHealth?.IsFaulted("telemetry") != true
         && App.Host?.Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
             // A recording only watches the game; it holds no save and no repository.
-            .Any(operation => operation.Status == OperationStatus.Running && operation.Kind != "profile") == true;
+            .Any(operation => operation.Status == OperationStatus.Running && !operation.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
 
     private void ShowLoadingBackups(bool visible)
     {
