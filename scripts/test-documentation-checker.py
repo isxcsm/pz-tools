@@ -193,7 +193,8 @@ class RepositoryContractTests(unittest.TestCase):
         for folder in ('docs', 'src', 'tests', 'scripts', 'config', 'build', '.github'):
             shutil.copytree(self.repo/folder, self.root/folder,
                             ignore=shutil.ignore_patterns('bin', 'obj', '__pycache__'))
-        for name in ('README.md', 'THIRD_PARTY_NOTICES.md', 'global.json', 'PzTools.sln'):
+        # Every root file a guide links to; a link to one left out reads as broken.
+        for name in ('README.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', 'Directory.Build.props', 'global.json', 'PzTools.sln'):
             shutil.copy2(self.repo/name, self.root/name)
 
     def tearDown(self):
