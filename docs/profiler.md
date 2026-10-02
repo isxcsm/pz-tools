@@ -175,8 +175,8 @@ recording tools move below the title and the buttons keep their icons alone, the
 as tips. What the recording is doing appears under these lines only while a recording
 starts, runs or is being processed.
 
-The line above the graph shows the range, the average frame with its frame rate and the
-worst 1%; the frame count and the slowest frame are one hover away and in the copied text.
+The line above the graph shows the range, the average and the worst 1%; the frame count
+and the slowest frame are one hover away and in the copied text.
 Beside them, which thread the results count, the game's or all of them: a choice for the
 whole analysis, both tabs. The chosen owner's table is a card of its own, level with the
 owner list's card; its line above sits level with the tabs: the owner's name, the search
@@ -185,12 +185,15 @@ a narrow window the line and the card come under the owner list, and the samples
 copy's label give way first.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
-line above the graph describes the range the results show: its start, end and length,
-then the frame count (how many frames the range holds, not frames per second), the average
-frame time, the same average as a frame rate (*FPS 7.4*), slowest and worst 1 %, names
-muted and numbers not. It keeps to the frames, so it stays one line in every language. A
-range of one frame shows that frame's time alone. Resting the pointer on the line adds the
-sample count and recording mode; while the pointer is over the graph the line shows the
+line above the graph describes the range the results show, every number with its name:
+*Total 80.37 s* for the whole recording, or *Selection 8.20 s (12.30–20.50 s)* for a
+selected part, its length first and where it lies after; then *Average 23.6 FPS (42.4 ms)*
+and *Worst 1% 4.0 FPS (251.6 ms)*, both as a frame rate first, which is how players read
+them, and the frame time the graph is scaled in after. Names are muted and numbers not. It
+keeps to the frames, so it stays one line in every language. A range of one frame shows
+that frame's time alone. Resting the pointer on the line adds the frame count (how many
+frames the range holds, not frames per second), the slowest frame, the sample count and
+recording mode; while the pointer is over the graph the line shows the
 time and frame under it instead. The **?** beside it lists the graph's mouse controls.
 
 Under the graph, a line carries the range's other figures, the memory ones in their lines'
@@ -274,7 +277,8 @@ and leaving it empty closes it.
 **Comparing two recordings.** *Compare with* on the title line lists the other
 recordings; pick one, say from before a mod was added or updated, and the shown range is
 compared with the whole of it. A bar over the results names it and sets the frames side
-by side (average, FPS, worst 1%, and the scripts' part of the time), before → after. The
+by side (the average and worst 1% frame rates, and the scripts' part of the time),
+before → after. The
 owner list in *Scripts* and *Game code* gains a small figure beside each part, and the
 table a *Change* column: how many percentage points of the range's time the owner or the
 function gained (red) or lost (green) against the same one there. Parts are compared, not

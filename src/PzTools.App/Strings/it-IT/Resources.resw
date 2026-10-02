@@ -393,6 +393,8 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Più lento</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Peggiore 1%</value></data>
+  <data name="ProfileRangeWhole" xml:space="preserve"><value>Totale</value></data>
+  <data name="ProfileRangeSelected" xml:space="preserve"><value>Selezione</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Picco heap</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Picco VRAM</value></data>

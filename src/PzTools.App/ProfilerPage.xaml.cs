@@ -832,20 +832,21 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is null) return;
         var (start, end, frames) = shown is { } range ? (range.Start, range.End, range.Frames)
             : (0L, recording.Duration, ProfileAnalysis.FrameStatistics(recording, 0, recording.Duration));
-        // On the line: the range, the average with its frame rate, the worst 1%. The frame count and the slowest frame
-        // are one hover away, and in the copied text.
-        List<(string?, string)> items = [(null, RangeText(start, end))];
+        // On the line: the range, the average, the worst 1%. Each number has its name: the whole recording by its
+        // length alone ("0–80 s (80 s)" said the length twice, unnamed), a selection by its length with where it lies.
+        // The frame count and the slowest frame are one hover away, and in the copied text.
+        var whole = start == 0 && end == recording.Duration;
+        List<(string?, string)> items = [whole
+            ? (Localizer.Get("ProfileRangeWhole"), Seconds(end - start))
+            : (Localizer.Get("ProfileRangeSelected"), $"{Seconds(end - start)} ({SecondsNumber(start)}–{Seconds(end)})")];
         var more = new List<string>();
         // One frame has one time; average, slowest and worst 1% would repeat it three times.
         if (frames.Count == 1) items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(frames.SlowestMilliseconds)));
         else if (frames.Count > 1)
         {
-            // Players know frame rates better than frame times: "135 ms" alone was read against the frame count.
-            var average = Milliseconds(frames.AverageMilliseconds);
-            if (frames.AverageMilliseconds > 0)
-                average += $" ({(1000 / frames.AverageMilliseconds).ToString("N1", Localizer.Culture)} {Localizer.Get("ProfileStatFps")})";
-            items.Add((Localizer.Get("ProfileStatAverage"), average));
-            items.Add((Localizer.Get("ProfileStatWorst"), Milliseconds(frames.OnePercentWorstMilliseconds)));
+            // Players read frame rates, the 1% low too; the frame time the graph is scaled in follows each.
+            items.Add((Localizer.Get("ProfileStatAverage"), FrameRate(frames.AverageMilliseconds)));
+            items.Add((Localizer.Get("ProfileStatWorst"), FrameRate(frames.OnePercentWorstMilliseconds)));
             more.Add($"{Localizer.Get("ProfileStatFrames")} {frames.Count.ToString("N0", Localizer.Culture)}");
             more.Add($"{Localizer.Get("ProfileStatSlowest")} {Milliseconds(frames.SlowestMilliseconds)}");
         }
@@ -1170,8 +1171,10 @@ public sealed partial class ProfilerPage : UserControl
         return lines;
     }
 
-    private static string RangeText(long start, long end) =>
-        $"{SecondsNumber(start)}–{SecondsNumber(end)} s ({SecondsNumber(end - start)} s)";
+    // A frame time as its frame rate, then the time itself: "23.6 FPS (42.4 ms)".
+    private static string FrameRate(double milliseconds) => milliseconds > 0
+        ? $"{(1000 / milliseconds).ToString("N1", Localizer.Culture)} {Localizer.Get("ProfileStatFps")} ({Milliseconds(milliseconds)})"
+        : Milliseconds(milliseconds);
 
     private static string Milliseconds(double value) => value.ToString("0.0", Localizer.Culture) + " ms";
 
@@ -1664,14 +1667,14 @@ public sealed partial class ProfilerPage : UserControl
         if (baselineRange is not { } other || shown is not { } range) { CompareInfo.IsOpen = false; return; }
         CompareInfo.Title = Localizer.Format("ProfileCompareTitle", baselineName ?? "");
         string Change(string name, string before, string after) => Localizer.Format("ProfileChangeFormat", Localizer.Get(name), before, after);
+        static string Rate(double milliseconds) => milliseconds > 0
+            ? $"{(1000 / milliseconds).ToString("N1", Localizer.Culture)} {Localizer.Get("ProfileStatFps")}" : Milliseconds(milliseconds);
         var parts = new List<string>();
         if (other.Frames.Count > 0 && range.Frames.Count > 0)
         {
-            parts.Add(Change("ProfileStatAverage", Milliseconds(other.Frames.AverageMilliseconds), Milliseconds(range.Frames.AverageMilliseconds)));
-            if (other.Frames.AverageMilliseconds > 0 && range.Frames.AverageMilliseconds > 0)
-                parts.Add(Change("ProfileStatFps", (1000 / other.Frames.AverageMilliseconds).ToString("N1", Localizer.Culture),
-                    (1000 / range.Frames.AverageMilliseconds).ToString("N1", Localizer.Culture)));
-            parts.Add(Change("ProfileStatWorst", Milliseconds(other.Frames.OnePercentWorstMilliseconds), Milliseconds(range.Frames.OnePercentWorstMilliseconds)));
+            // In frame rates like the line above the graph, the average and the 1% low alike.
+            parts.Add(Change("ProfileStatAverage", Rate(other.Frames.AverageMilliseconds), Rate(range.Frames.AverageMilliseconds)));
+            parts.Add(Change("ProfileStatWorst", Rate(other.Frames.OnePercentWorstMilliseconds), Rate(range.Frames.OnePercentWorstMilliseconds)));
         }
         parts.Add(Change("ProfileTabLua", FinePercent(other.LuaShare), FinePercent(range.LuaShare)));
         CompareInfo.Message = string.Join(" · ", parts) + "\n" + Localizer.Get("ProfileCompareNote");

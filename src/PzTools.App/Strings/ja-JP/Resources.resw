@@ -393,6 +393,8 @@
   <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>最も遅い</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>下位 1%</value></data>
+  <data name="ProfileRangeWhole" xml:space="preserve"><value>全体</value></data>
+  <data name="ProfileRangeSelected" xml:space="preserve"><value>選択</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>ヒープ最大</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM 最大</value></data>
