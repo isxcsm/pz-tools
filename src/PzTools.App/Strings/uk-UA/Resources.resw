@@ -463,7 +463,7 @@
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Немає збереження для копії. Завантажте збереження в грі.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Немає останніх хвилин для збереження. Увімкніть «Зберігати останні хвилини» в налаштуваннях.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Щоб цим користуватися, увімкніть «Зберігати останні хвилини» в розділі Налаштування &gt; Продуктивність.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Увімкнути зберігання хвилин</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Зберегти ост. {0} хв</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Збереження ост. {0} хв…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Продуктивність</value></data>

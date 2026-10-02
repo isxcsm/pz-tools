@@ -463,7 +463,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Tidak ada simpanan untuk dicadangkan. Muat simpanan di gim.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Belum ada menit terakhir untuk disimpan. Aktifkan “Simpan menit-menit terakhir terus-menerus” di pengaturan.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Aktifkan “Simpan menit-menit terakhir terus-menerus” di Pengaturan &gt; Performa untuk memakai ini.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Aktifkan menit terakhir</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Simpan {0} mnt terakhir</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Menyimpan {0} mnt terakhir…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Performa</value></data>

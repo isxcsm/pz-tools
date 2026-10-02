@@ -473,7 +473,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Performance</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Saving last {0} min…</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Save last {0} min</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Turn on "Keep the last minutes" in Settings &gt; Performance to use this.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Turn on last minutes</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>No last minutes to save. Turn on &apos;Keep the last minutes&apos; in the settings.</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>No save to back up. Load a save in the game.</value></data>
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>

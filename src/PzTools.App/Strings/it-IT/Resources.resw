@@ -463,7 +463,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Nessun salvataggio di cui fare il backup. Carica un salvataggio nel gioco.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Non ci sono ultimi minuti da salvare. Attiva «Conserva gli ultimi minuti» nelle impostazioni.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Per usarlo, attiva «Conserva gli ultimi minuti» in Impostazioni &gt; Prestazioni.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Attiva ultimi minuti</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Salva ultimi {0} min</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Salvataggio ultimi {0} min…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Prestazioni</value></data>

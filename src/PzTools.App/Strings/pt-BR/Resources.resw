@@ -463,7 +463,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Não há partida para backup. Carregue uma partida no jogo.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Não há últimos minutos para salvar. Ligue “Manter os últimos minutos” nas configurações.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Para usar isto, ligue “Manter os últimos minutos” em Configurações &gt; Desempenho.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Ligar últimos minutos</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Salvar últimos {0} min</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Salvando últimos {0} min…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Desempenho</value></data>

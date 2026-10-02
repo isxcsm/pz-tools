@@ -210,6 +210,21 @@ public sealed partial class SettingsPage : UserControl
         if (!settingsLoaded || !initialLayoutCompleted) LoadSettings();
     }
 
+    /// <summary>
+    /// Brings the switch that keeps the last minutes into view, with the keyboard on it: the Performance page leads here
+    /// while it is off. The focus shows which switch is meant, and Space turns it on.
+    /// </summary>
+    internal void RevealRolling()
+    {
+        ProfilerSection.IsExpanded = true;
+        // After this layout pass, which places the page just shown.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            RollingSettingCard.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = true });
+            RollingToggle.Focus(FocusState.Keyboard);
+        });
+    }
+
     internal void CompleteInitialLayout()
     {
         if (initialLayoutCompleted) return;

@@ -470,7 +470,7 @@
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>ไม่มีเซฟที่จะสำรอง โหลดเซฟในเกมก่อน</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>ไม่มีนาทีล่าสุดให้บันทึก เปิด “เก็บนาทีล่าสุดไว้ตลอด” ในการตั้งค่า</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>เปิด “เก็บนาทีล่าสุดไว้ตลอด” ใน การตั้งค่า &gt; ประสิทธิภาพ เพื่อใช้งานนี้</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>เปิดการเก็บนาทีล่าสุด</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>บันทึก {0} นาทีล่าสุด</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>กำลังบันทึก {0} นาทีล่าสุด…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>ประสิทธิภาพ</value></data>

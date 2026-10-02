@@ -497,7 +497,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Výkon</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Ukládání posledních {0} min…</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Uložit posledních {0} min</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Chcete-li to použít, zapněte „Uchovávat poslední minuty“ v Nastavení &gt; Výkon.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Zapnout uchovávání minut</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Žádné poslední minuty k uložení. V nastavení zapněte „Uchovávat poslední minuty“.</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Není co zálohovat. Načtěte ve hře uloženou hru.</value></data>
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>

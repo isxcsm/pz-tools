@@ -463,7 +463,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Yedeklenecek kayıt yok. Oyunda bir kayıt yükleyin.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Kaydedilecek son dakika yok. Ayarlar&apos;da “Son dakikaları tut” seçeneğini açın.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Bunu kullanmak için Ayarlar &gt; Performans bölümünde “Son dakikaları tut” seçeneğini açın.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Son dakikaları tutmayı aç</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Son {0} dk'yı kaydet</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Son {0} dk kaydediliyor…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Performans</value></data>

@@ -463,7 +463,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Kein Spielstand zum Sichern. Laden Sie im Spiel einen Spielstand.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Keine letzten Minuten zum Speichern. Aktivieren Sie „Letzte Minuten behalten“ in den Einstellungen.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Aktivieren Sie dazu „Letzte Minuten behalten“ unter Einstellungen &gt; Leistung.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Letzte Minuten aktivieren</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Letzte {0} Min. speichern</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Letzte {0} Min. werden gespeichert…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Leistung</value></data>

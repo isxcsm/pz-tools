@@ -83,7 +83,9 @@ listed and opened at once. While Detailed is kept, the button says so (*Save las
 Detailed*), as that mode slows the game for as long as it is on.
 The game goes on keeping the next ones. Changing the mode or the length restarts the
 keeping that way; the button's tip says which mode is kept, or why there is nothing yet
-(the setting is off, no game, the game's bridge needs a restart). With a key set for it
+(no game, the game's bridge needs a restart). While the setting is off there is nothing
+to save, so the button reads *Turn on last minutes →* instead and opens Settings at that
+switch, with the keyboard on it. With a key set for it
 the button says it too: *Save last 2 min (Ctrl+Shift+F9)*.
 
 The game started later, or restarted, gets it within five seconds, whether or not the

@@ -463,7 +463,7 @@
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>バックアップするセーブがありません。ゲームでセーブを読み込んでください。</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>保存できる直前の記録がありません。設定で「直前の数分を記録し続ける」をオンにしてください。</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>使うには、設定 &gt; パフォーマンスで「直前の数分を記録し続ける」をオンにしてください。</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>直前の記録をオンにする</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>直前 {0} 分を保存</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>直前 {0} 分を保存中…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>パフォーマンス</value></data>

@@ -463,7 +463,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0} : {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Aucune partie à sauvegarder. Chargez une partie dans le jeu.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Pas de dernières minutes à enregistrer. Activez « Garder les dernières minutes » dans les paramètres.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Pour l’utiliser, activez « Garder les dernières minutes » dans Paramètres &gt; Performances.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Activer la conservation</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Enregistrer {0} dernières min</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Enregistrement des {0} dernières min…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Performances</value></data>

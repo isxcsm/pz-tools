@@ -463,7 +463,7 @@
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}：{1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>没有可备份的存档。请在游戏中载入存档。</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>没有可保存的最近记录。请在设置中开启“持续保留最近几分钟”。</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>请在设置 &gt; 性能分析中开启“持续保留最近几分钟”后再使用。</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>开启最近记录</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>保存最近 {0} 分钟</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>正在保存最近 {0} 分钟…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>性能分析</value></data>

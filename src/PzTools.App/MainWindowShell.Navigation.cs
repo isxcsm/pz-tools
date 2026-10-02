@@ -16,6 +16,22 @@ public sealed partial class MainWindowShell
     private Vector3KeyFrameAnimation? contentRise;
     private Action? contentTransitionCompleted;
     private bool contentExiting;
+    // A setting to show once Settings is on screen: it cannot be scrolled to while the page is hidden.
+    private bool revealRollingSetting;
+
+    internal void ShowRollingSetting()
+    {
+        revealRollingSetting = true;
+        if (ReferenceEquals(displayedContent, SettingsRoot)) RevealPendingSetting();
+        else Navigation.SelectedItem = Navigation.SettingsItem;
+    }
+
+    private void RevealPendingSetting()
+    {
+        if (!revealRollingSetting) return;
+        revealRollingSetting = false;
+        SettingsRoot.RevealRolling();
+    }
 
     private void NavigateToContent(FrameworkElement page)
     {
@@ -62,6 +78,7 @@ public sealed partial class MainWindowShell
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(SavesHost,
             saves ? Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Content : Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
         if (refresh && page == SettingsRoot) SettingsRoot.CompleteInitialLayout();
+        if (page == SettingsRoot) RevealPendingSetting();
         if (refresh && page == GameExtensionsRoot) _ = GameExtensionsRoot.RefreshForNavigationAsync();
         if (refresh && page == LogsRoot) LogsRoot.RefreshForNavigation();
         if (refresh && page == ProfilerRoot) ProfilerRoot.RefreshForNavigation();

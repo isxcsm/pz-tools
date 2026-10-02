@@ -463,7 +463,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
   <data name="HotKeyNoSave" xml:space="preserve"><value>Brak zapisu do skopiowania. Wczytaj zapis w grze.</value></data>
   <data name="ProfileRollingNotReady" xml:space="preserve"><value>Brak ostatnich minut do zapisania. Włącz „Zachowuj ostatnie minuty” w ustawieniach.</value></data>
-  <data name="ProfileRollingOff" xml:space="preserve"><value>Aby z tego korzystać, włącz „Zachowuj ostatnie minuty” w Ustawienia &gt; Wydajność.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Włącz ostatnie minuty</value></data>
   <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Zapisz ost. {0} min</value></data>
   <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Zapisywanie ost. {0} min…</value></data>
   <data name="ProfilerSettings.Header" xml:space="preserve"><value>Wydajność</value></data>

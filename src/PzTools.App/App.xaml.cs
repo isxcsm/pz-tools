@@ -79,6 +79,12 @@ public partial class App : Application
             shell.ShowSidebarNotification(severity, title, message);
     }
 
+    /// <summary>Opens Settings at the switch that has the game keep its last minutes.</summary>
+    internal void ShowRollingSetting()
+    {
+        if (window?.Content is MainWindowShell shell) shell.ShowRollingSetting();
+    }
+
     internal void ExplainOnOperationCard(string operationId, string message)
     {
         if (window?.Content is MainWindowShell shell)

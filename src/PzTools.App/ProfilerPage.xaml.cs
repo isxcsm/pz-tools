@@ -259,21 +259,26 @@ public sealed partial class ProfilerPage : UserControl
     // ---- The last minutes ----
 
     // The save button stands beside the recording's: "Save last 2 min (Ctrl+Shift+F9)". It works while the settings have
-    // the game keep its last minutes; its tip says the mode kept, or why there is nothing to save yet.
+    // the game keep its last minutes; its tip says the mode kept, or why there is nothing to save yet. While they are not
+    // kept there is nothing to save, so it names what to do instead and leads to the setting.
     private void UpdateRolling()
     {
         var rolling = service?.Rolling ?? new ProfileRolling();
         var minutes = rolling.Wanted ? rolling.Minutes
             : App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.RollingMinutes ?? AppSettings.DefaultRollingMinutes;
         var key = App.HotKeys?.TextOf(HotKeyAction.SaveLast);
-        var label = Localizer.Format(rolling.Saving ? "ProfileRollingSavingFormat" : "ProfileRollingSaveFormat", minutes);
+        var label = !rolling.Wanted ? Localizer.Get("ProfileRollingTurnOn")
+            : Localizer.Format(rolling.Saving ? "ProfileRollingSavingFormat" : "ProfileRollingSaveFormat", minutes);
+        SaveLastLeads.Visibility = rolling.Wanted ? Visibility.Collapsed : Visibility.Visible;
         // Detailed slows the game for as long as it is kept: said on the button, so it is not forgotten on. The key
         // is the tip's: the button stays a name.
         if (rolling.Wanted && rolling.Detailed) label += " · " + Localizer.Get("ProfileModeDetailed");
         SaveLastText.Text = label;
-        SaveLastButton.IsEnabled = CanSaveLastMinute(rolling);
+        SaveLastButton.IsEnabled = !rolling.Wanted || CanSaveLastMinute(rolling);
         var tip = label + "\n" + RollingState(rolling) + (key is null ? "" : "\n" + Localizer.Format("ProfileHotKeyTipFormat", key));
         AppToolTip.SetTip(SaveLastHost, tip);
+        // Its text is hidden when the page is narrow; the name stays.
+        AutomationProperties.SetName(SaveLastButton, label);
         AutomationProperties.SetHelpText(SaveLastButton, tip);
         AutomationProperties.SetAcceleratorKey(SaveLastButton, key ?? "");
     }
@@ -283,7 +288,7 @@ public sealed partial class ProfilerPage : UserControl
 
     // What the game is doing with the last minutes: the mode it keeps them in, or why there is nothing to save yet.
     private string RollingState(ProfileRolling rolling) =>
-        !rolling.Wanted ? Localizer.Get("ProfileRollingOff")
+        !rolling.Wanted ? Localizer.Get("ProfilerSettings.Description")
         : rolling.Error is { } error && !rolling.On ? Localizer.Get(ProfileRecordingService.ErrorKey(error))
         : !rolling.On ? Localizer.Get(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting")
         : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
@@ -302,6 +307,7 @@ public sealed partial class ProfilerPage : UserControl
     private async void SaveLastButton_Click(object sender, RoutedEventArgs e)
     {
         if (service is not { } profiles) return;
+        if (!profiles.Rolling.Wanted) { App.ShowRollingSetting(); return; }
         try
         {
             var (path, result) = await profiles.SaveRollingAsync();
