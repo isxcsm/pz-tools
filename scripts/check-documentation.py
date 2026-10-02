@@ -19,7 +19,7 @@ from urllib.parse import unquote, urlsplit
 
 GUIDE_SECTIONS = (
     'features', 'getting-started', 'backups-and-retention', 'game-saving',
-    'restore-and-archives', 'character-recovery', 'performance-recording',
+    'restore-and-archives', 'character-recovery', 'performance-recording', 'vehicle-controls',
     'compatibility-and-limits', 'troubleshooting', 'building', 'technical-documentation',
     'license',
 )
