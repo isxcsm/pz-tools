@@ -78,6 +78,13 @@ public sealed class ProfileRecordingTests
         Assert.Equal(1.0, slow.Methods.Single(row => row.Name == "zombie.GameWindow.logic").Total, 3);
         Assert.Equal([ProfileAnalysis.LuaRuntime, ProfileAnalysis.JavaRuntime], slow.MethodGroups.Select(group => group.Key));
         Assert.Equal(0.75, slow.MethodGroups[0].Self, 3);
+        // Within its group a method's total counts the group's own samples: the interpreter was under the map lookup
+        // too, but that sample ended in Java's own code, so the group's row stops at the group's 75%.
+        var inGroup = Assert.Single(slow.MethodGroups[0].Rows);
+        Assert.Equal((0.75, 0.75), (Math.Round(inGroup.Self, 3), Math.Round(inGroup.Total, 3)));
+        Assert.Equal(0.25, Assert.Single(slow.MethodGroups[1].Rows).Total, 3);
+        // A method that only called into other groups (the game loop) has no row in any group.
+        Assert.DoesNotContain(slow.MethodGroups.SelectMany(group => group.Rows), row => row.Name == "zombie.GameWindow.logic");
 
         // Every Lua sample is 10 ms of a 40 ms range. The mod ran three of the four, once through a file of unknown origin.
         Assert.Equal(4, slow.LuaSamples);
@@ -101,6 +108,92 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void CallTrees_FollowEachOwnersSamplesFromTheOutermostFunctionDown()
+    {
+        var range = ProfileAnalysis.Analyze(Load(Sample), 10_000, 50_000, 0);
+        // One tree for each owner in the list.
+        Assert.Equal(range.LuaGroups.Select(group => group.Key).Order(StringComparer.Ordinal), range.LuaCallTrees.Keys.Order(StringComparer.Ordinal));
+
+        // The mod's two samples both came from the game's OnTick, which called its function: the path, not just the function.
+        var mod = range.LuaCallTrees["SlowMod"];
+        Assert.Equal(2, mod.Samples);
+        var onTick = Assert.Single(mod.Children);
+        Assert.Equal(("OnTick", 2, 0, 0.5), (onTick.Name, onTick.Samples, onTick.SelfSamples, Math.Round(onTick.Total, 3)));
+        var slow = Assert.Single(onTick.Children);
+        Assert.Equal(("slow", 2, 2, 0.5), (slow.Name, slow.Samples, slow.SelfSamples, Math.Round(slow.Self, 3)));
+        Assert.Empty(slow.Children);
+
+        // The sample that ended in a helper of unknown origin keeps its whole path, three deep.
+        var path = range.LuaCallTrees[ProfileAnalysis.UnknownOwner];
+        Assert.Equal(["OnTick", "slow", "helper"], new[] { path.Children[0], path.Children[0].Children[0], path.Children[0].Children[0].Children[0] }
+            .Select(node => node.Name));
+        Assert.Equal(1, path.Children[0].Children[0].Children[0].SelfSamples);
+        // The outermost functions add up to the owner's own samples, as its row in the list does.
+        Assert.Equal(range.LuaGroups.Single(group => group.Key == ProfileAnalysis.GameOwner).Samples,
+            range.LuaCallTrees[ProfileAnalysis.GameOwner].Children.Sum(node => node.Samples));
+    }
+
+    [Fact]
+    public void FunctionsIn_AddsUpATreesPaths_CountingARecursiveCallOnce()
+    {
+        // A third sample of the mod: slow calling itself, under OnTick.
+        var recording = Load(Sample + "\nLK|3|0:1 0:2 1:80\nL|1046000|3");
+        var tree = ProfileAnalysis.Analyze(recording, 10_000, 50_000, 0).LuaCallTrees["SlowMod"];
+        Assert.Equal(3, tree.Samples);
+
+        var functions = ProfileAnalysis.FunctionsIn(tree);
+        // slow ended all three samples; the recursive one passed through it twice but counts once.
+        Assert.Equal([("slow", 3, 3), ("OnTick", 0, 3)], functions.Select(row => (row.Name, row.SelfSamples, row.Samples)));
+        // So the list's parts of the owner match the tree's: its self samples add up to the owner.
+        Assert.Equal(tree.Samples, functions.Sum(row => row.SelfSamples));
+    }
+
+    [Fact]
+    public void Read_ShortensTopLevelCodeNamedAfterAFullPath_InRecordingsThatStillHaveIt()
+    {
+        // Recorded before the recorder shortened such names: the full path, user folder included.
+        var recording = Load(Sample + @"
+            LM|3|C:\Users\someone\Zomboid\mods\Other\media\lua\client\Other.lua|mods/Other/media/lua/client/Other.lua
+            LM|4|C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid/media/lua/client/ISUI/ISButton.lua|media/lua/client/ISUI/ISButton.lua");
+        Assert.Equal(("Other.lua", "mods/Other/media/lua/client/Other.lua"), (recording.LuaFunctions[3].Name, recording.LuaFunctions[3].File));
+        Assert.Equal("ISButton.lua", recording.LuaFunctions[4].Name);
+        Assert.Equal("slow", recording.LuaFunctions[0].Name);
+    }
+
+    [Fact]
+    public void Analyze_StopsWhenNobodyWaitsForItAnyMore()
+    {
+        using var cancel = new CancellationTokenSource();
+        cancel.Cancel();
+        Assert.ThrowsAny<OperationCanceledException>(() =>
+            ProfileAnalysis.Analyze(Load(Sample), 0, 50_000, -1, cancellation: cancel.Token));
+    }
+
+    [Fact]
+    public void Analyze_LeavesOutThreadsOnlyWaitingInANativeCall()
+    {
+        // Render also waits for a connection, and in a timer reached through a foreign function call.
+        var recording = Load(Sample + """
+
+            M|5|sun.nio.ch.Net.accept
+            M|6|java.lang.invoke.LambdaForm$MH.0x1.invoke
+            M|7|pztools.bridge.runtime.ProfileRecorder$PreciseWait.pause
+            K|4|5
+            K|5|6 7
+            S|1030000|9|4|N
+            S|1040000|9|5|N
+            """);
+        var all = ProfileAnalysis.Analyze(recording, 0, 50_000, -1);
+        // The same six samples and shares as without the waits: drawing in native code still counts as work.
+        Assert.Equal(6, all.Samples);
+        Assert.Equal(2, all.WaitingSamples);
+        Assert.Equal(20.0 / 70, all.Threads.Single(row => row.Name == "Render").Self, 3);
+        Assert.DoesNotContain(all.Methods, row => row.Name.Contains("accept") || row.Name.Contains("PreciseWait"));
+        // The game thread did not wait.
+        Assert.Equal(0, ProfileAnalysis.Analyze(recording, 0, 50_000, recording.GameThread).WaitingSamples);
+    }
+
+    [Fact]
     public void Analyze_AllThreads_WeighsEachSampleByItsOwnPeriod()
     {
         var all = ProfileAnalysis.Analyze(Load(Sample), 0, 50_000, -1);
@@ -119,6 +212,18 @@ public sealed class ProfileRecordingTests
         Assert.Equal(new ProfileFrame(10_000, 40_000), ProfileAnalysis.FrameAt(recording, 30_000));
         Assert.Equal(new ProfileFrame(0, 10_000), ProfileAnalysis.FrameAt(recording, 9_999));
         Assert.Equal(2, ProfileAnalysis.FrameStatistics(recording, 0, 50_000).Count);
+    }
+
+    [Fact]
+    public void Collections_OfAFrameOrRange_CountThePausesThatTouchIt()
+    {
+        // One collection at 30 ms pausing 2.5 ms: inside the second frame, outside the first.
+        var recording = Load(Sample);
+        Assert.Equal((1, 2.5), ProfileAnalysis.CollectionsIn(recording, 10_000, 50_000));
+        Assert.Equal((0, 0.0), ProfileAnalysis.CollectionsIn(recording, 0, 10_000));
+        // A pause that started before the range still counts while it runs into it.
+        Assert.Equal((1, 2.5), ProfileAnalysis.CollectionsIn(recording, 31_000, 32_000));
+        Assert.Equal((0, 0.0), ProfileAnalysis.CollectionsIn(recording, 33_000, 50_000));
     }
 
     [Theory]
@@ -191,11 +296,111 @@ public sealed class ProfileRecordingTests
             PzTools.App.Core.ProfileRecordingService.ErrorKey(result));
     }
 
+    [Theory]
+    [InlineData("java.io.IOException: Restart the game to use the updated bridge; no save request was sent", "profile-restart-required", "ProfileError.Restart")]
+    [InlineData("java.io.IOException: Bootstrap is incompatible; restart the game with matching app/workers", "profile-restart-required", "ProfileError.Restart")]
+    [InlineData("com.sun.tools.attach.AttachNotSupportedException: Unable to open socket file", "profile-attach-failed", "ProfileError.Link")]
+    public void AttachRefusals_SayRestartWhenTheGameRunsABootstrapThisBuildCannotUse(string helperOutput, string error, string key)
+    {
+        // What the recording worker reports for the attach helper's words, and what the card then says.
+        var code = "profile-" + (PzTools.SaveBridge.GameSaveException.NamesRestart(helperOutput) ? "restart-required" : "attach-failed");
+        Assert.Equal(error, code);
+        Assert.Equal(key, PzTools.App.Core.ProfileRecordingService.ErrorKey(code));
+    }
+
     private static void WriteRecording(string path, string text)
     {
         using var file = File.Create(path);
         using var gzip = new GZipStream(file, CompressionMode.Compress);
         gzip.Write(Encoding.UTF8.GetBytes(text));
+    }
+
+    [Fact]
+    public void Memory_HeapFromTheGameAndVideoMemoryAddedAfterwards_ShareTheRecordingsTimeScale()
+    {
+        // Heap readings as the game writes them; video memory as the worker adds it once the file exists.
+        var heapLines = "\nH|1005000|400000000|600000000|900000000\nH|1030000|700000000|800000000|900000000\nH|1900000|1|1|1";
+        var path = Path.Combine(Path.GetTempPath(), $"pztools-memory-{Guid.NewGuid():N}{ProfileRecording.Extension}");
+        try
+        {
+            File.WriteAllBytes(path, Compress(Sample + heapLines));
+            var start = DateTimeOffset.FromUnixTimeMilliseconds(1790000000000);
+            // The recording's first sample is 1.005 s after its first event, so these land at 15 ms and 45 ms.
+            Assert.Equal(2, ProfileVideoMemory.Append(path, [
+                new(start.AddMilliseconds(1015), 2_000_000_000, 40_000_000),
+                new(start.AddMilliseconds(1045), 2_500_000_000, 41_000_000)]));
+            var recording = ProfileRecording.Load(path);
+
+            // The reading past the recording's end is left out rather than stretching it.
+            Assert.Equal([(5_000L, 400_000_000L), (30_000L, 700_000_000L)], recording.Heap.Select(item => (item.Time, item.Used)));
+            Assert.Equal([(15_000L, 2_000_000_000L), (45_000L, 2_500_000_000L)], recording.VideoMemory.Select(item => (item.Time, item.Dedicated)));
+            Assert.Equal(50_000, recording.Duration);
+
+            Assert.Equal((700_000_000L, 2_500_000_000L), ProfileAnalysis.MemoryPeaksIn(recording, 0, 50_000));
+            Assert.Equal((400_000_000L, (long?)null), ProfileAnalysis.MemoryPeaksIn(recording, 0, 10_000));
+            var (heap, video) = ProfileAnalysis.MemoryAt(recording, 40_000);
+            Assert.Equal((700_000_000L, 2_000_000_000L), (heap!.Value.Used, video!.Value.Dedicated));
+            Assert.Null(ProfileAnalysis.MemoryAt(recording, 10_000).VideoMemory);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
+    {
+        var recording = Load(Sample);
+        Assert.Empty(recording.Heap);
+        Assert.Empty(recording.VideoMemory);
+        Assert.Equal(((long?)null, (long?)null), ProfileAnalysis.MemoryPeaksIn(recording, 0, 50_000));
+    }
+
+    [Fact]
+    public void Allocations_GoToTheFunctionsEachLuaSampleFound_AndTheirMods()
+    {
+        // What the game thread allocated before each Lua sample, and once for the whole thread.
+        var recording = Load(Sample + "\nLA|1015000|1000\nLA|1025000|3000\nLA|1035000|5000\nLA|1045000|200\nGA|1050000|20000");
+        Assert.True(recording.HasLuaAllocations);
+        Assert.Equal([1000L, 3000, 5000, 200], recording.LuaSamples.Select(sample => sample.Allocated));
+
+        var range = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        Assert.Equal(9200, range.LuaAllocated);
+        // Each sample's bytes go to the innermost function's mod, as its time does.
+        Assert.Equal([("SlowMod", 6000L, 2), (ProfileAnalysis.UnknownOwner, 3000L, 1), (ProfileAnalysis.GameOwner, 200L, 1)],
+            range.LuaAllocationGroups.Select(group => (group.Key, group.Self, group.Samples)));
+        var slow = Assert.Single(range.LuaAllocationGroups[0].Rows);
+        Assert.Equal(("slow", 6000L, 9000L), (slow.Name, slow.Self, slow.Total));
+        Assert.Equal(9200, range.LuaAllocationGroups[2].Rows.Single(row => row.Name == "OnTick").Total);
+        // The thread's one reading covers the second before it, of which the range holds 40 ms.
+        Assert.Equal(800, range.GameThreadAllocated);
+        // In the call trees each path carries its samples' bytes down to the function they ended in.
+        var unknown = range.LuaCallTrees[ProfileAnalysis.UnknownOwner];
+        Assert.Equal((3000L, 0L), (unknown.Children[0].AllocatedTotal, unknown.Children[0].AllocatedSelf));
+        Assert.Equal(3000, unknown.Children[0].Children[0].Children[0].AllocatedSelf);
+        Assert.Equal(6000, range.LuaCallTrees["SlowMod"].Children[0].Children[0].AllocatedSelf);
+
+        var before = ProfileAnalysis.Analyze(recording, 0, 20_000, recording.GameThread);
+        Assert.Equal(1000, before.LuaAllocated);
+    }
+
+    [Fact]
+    public void Allocations_AreAbsentFromRecordingsMadeBeforeThem()
+    {
+        var recording = Load(Sample);
+        Assert.False(recording.HasLuaAllocations);
+        Assert.All(recording.LuaSamples, sample => Assert.Equal(-1, sample.Allocated));
+        var range = ProfileAnalysis.Analyze(recording, 0, 50_000, recording.GameThread);
+        Assert.Empty(range.LuaAllocationGroups);
+        Assert.Equal(0, range.LuaAllocated);
+        Assert.Null(range.GameThreadAllocated);
+    }
+
+    private static byte[] Compress(string text)
+    {
+        var lines = text.Replace("\r\n", "\n").Replace('|', '\t').Split('\n').Select(line => line.TrimStart(' '));
+        using var buffer = new MemoryStream();
+        using (var gzip = new GZipStream(buffer, CompressionMode.Compress, leaveOpen: true))
+            gzip.Write(Encoding.UTF8.GetBytes(string.Join('\n', lines)));
+        return buffer.ToArray();
     }
 
     private static ProfileRecording Load(string text)

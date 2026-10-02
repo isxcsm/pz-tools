@@ -381,17 +381,32 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Usunąć to nagranie? Tej operacji nie można cofnąć.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Brak nagrań.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Nie można otworzyć tego nagrania. Plik jest uszkodzony albo został utworzony w nowszej wersji.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Kółko: powiększenie · Przeciąganie: zaznaczenie zakresu · Kliknięcie: wybór jednej klatki · Przeciąganie prawym przyciskiem: przesuwanie · Dwukrotne kliknięcie: pokaż wszystko</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Kółko: powiększenie · Przeciąganie: zaznaczenie zakresu · Kliknięcie: wybór jednej klatki · Przeciąganie prawym przyciskiem: przesuwanie · Dwukrotne kliknięcie: pokaż wszystko · Szare słupki w panelu Pamięć: czyszczenie pamięci (GC), wysokość według przerwy · ▲: klatka ponad skalą (jej czas po najechaniu)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Skopiuj wyświetlaną zawartość jako tekst</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Kopiuj tekst</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Skopiowano wyniki wydajności.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Uruchom grę, aby nagrywać.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>Nie rozpoczęto: {0}, ponieważ gra nie jest uruchomiona.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>Nie rozpoczęto: {0}, ponieważ uruchomiono więcej niż jedną grę.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Klatki</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Liczba klatek</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Klatka</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Średnio</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Najwolniejsza</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Najgorszy 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Szczyt sterty</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Szczyt VRAM</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>Sterta</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Pamięć</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Użycie sterty</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Użycie sterty Javy: pamięć zajmowana przez kod gry w Javie. Skala obejmuje od najniższej do najwyższej wartości w widocznym zakresie.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Przerwy GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Każdy słupek to jedno czyszczenie pamięci (GC). Jego szerokość i wysokość pokazują, jak długo gra przez nie stała; najwyższy słupek to najdłuższa przerwa w widocznym zakresie.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Pamięć zajmowana przez grę na karcie graficznej. Skala obejmuje od najniższej do najwyższej wartości w widocznym zakresie.</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} razy, wstrzymanie {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funkcja</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Plik</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Metoda</value></data>
@@ -405,6 +420,15 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileMoreActions" xml:space="preserve"><value>Więcej</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skrypty (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kod gry (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokacja pamięci</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Drzewo wywołań</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Grupuje funkcje tego właściciela według ścieżek wywołań, które do nich prowadziły: na górze funkcja najbardziej zewnętrzna, np. obsługa zdarzenia, a wewnątrz to, co wywołała. Liczą się tylko próbki zakończone w funkcjach tego właściciela. Wyłączone: zwykła lista funkcji.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozwiń</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Zwiń</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Przydzielono</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Pamięć przydzielona przez wątek gry, gdy w wybranym zakresie działały skrypty tego moda, łącznie z wywoływanymi przez nie funkcjami gry. Im więcej przydziałów, tym częściej pamięć jest czyszczona (GC). Szacunek na podstawie próbek, tak jak czas.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Cały wątek gry, ze skryptami i bez: {0}</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>W tym zakresie nie zarejestrowano przydziałów pamięci przez skrypty.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Jak korzystać z wykresu</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Nagranie wydajności</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Pokaż wszystko</value></data>
@@ -412,6 +436,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileThreadGame" xml:space="preserve"><value>Wątek gry</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Wszystkie wątki</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>Próbki: {0:N0} · czyszczenie pamięci (GC): {1:N0} razy, wstrzymanie {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>Nie liczono {0} próbek wątków, które tylko czekały (na połączenie, licznik czasu, zdarzenie)</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Za mało próbek, by procenty były dokładne. Zaznacz szerszy zakres albo nagraj w trybie szczegółowym.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>W tym zakresie nie zarejestrowano działania skryptów Lua.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Gra podstawowa (vanilla)</value></data>
@@ -424,7 +449,21 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Własny</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Łączny</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Próbki</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Własny: czas spędzony bezpośrednio w tej funkcji. Łączny: obejmuje też funkcje, które wywołała.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Własne: czas spędzony bezpośrednio w tej funkcji.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Łącznie: także funkcje, które wywołała.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Własne: część czasu tego właściciela spędzona bezpośrednio w tej funkcji. Właściciel to 100%; po najechaniu na liczbę widać jej część całego zakresu.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Łącznie: część czasu tego właściciela spędzona w tej funkcji i w wywołanych przez nią funkcjach. Właściciel to 100%; po najechaniu na liczbę widać jej część całego zakresu.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Własne: przydzielone, gdy działała sama funkcja.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Łącznie: także gdy działały funkcje przez nią wywołane.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Próbki: ile próbek przeszło przez wiersz.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Próbki: ile próbek zakończyło się w funkcji.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} całego zakresu, około {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} przydziałów tego właściciela</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Pakiet</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Własne: część czasu działania tej grupy spędzona bezpośrednio w tej metodzie. Grupa to 100%; po najechaniu na liczbę widać jej część całego czasu działania.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Łącznie: część czasu działania tej grupy spędzona w tej metodzie i w wywołanym przez nią kodzie tej grupy. Grupa to 100%; po najechaniu na liczbę widać jej część całego czasu działania.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} całego czasu działania</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>Pozostałe: {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Udział według wątków</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Długie oczekiwania i pauzy</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
@@ -437,6 +476,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Gra nie jest uruchomiona. Uruchom grę i spróbuj ponownie.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Uruchomiona jest więcej niż jedna gra, więc nie można wybrać celu.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Nie udało się połączyć z grą. Jeśli gra lub PZ Tools zostały zaktualizowane, uruchom grę ponownie.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools zostało zaktualizowane. Uruchom grę ponownie raz, aby nagrywać.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Trwa inna operacja. Spróbuj ponownie za chwilę.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Nagrywanie się zakończyło, ale nie udało się przetworzyć wyniku. Szczegóły znajdziesz w dzienniku.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Nagrywanie nie powiodło się. Szczegóły znajdziesz w dzienniku.</value></data>

@@ -47,6 +47,9 @@ $controlSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-co
 if ($LASTEXITCODE -ne 0) { throw 'Continuous control protocol fixture compilation failed' }
 & (Join-Path $JdkPath 'bin/java.exe') -ea -cp $controlClasspath pztools.bridge.runtime.ExtensionControlTest
 if ($LASTEXITCODE -ne 0) { throw 'Continuous control protocol tests failed' }
+# A game runtime without the flight recorder: profiling must fail alone, never the state observer.
+& (Join-Path $JdkPath 'bin/java.exe') --limit-modules java.base,java.instrument -ea -cp $controlClasspath pztools.bridge.runtime.ProfileFramesTest
+if ($LASTEXITCODE -ne 0) { throw 'Profiler isolation tests failed' }
 # The CI caller runs the entire applicable suite once with these environment values.
 if ($PrepareOnly) { return }
 $arguments = @('test', (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'),

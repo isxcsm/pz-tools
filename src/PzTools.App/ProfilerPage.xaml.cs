@@ -27,6 +27,8 @@ public sealed partial class ProfilerPage : UserControl
     private const double SlowFrameMilliseconds = 1000.0 / 30;
     // The functions of one owner get a pane of their own, so it can list more of them than a card could.
     private const int RowsPerGroup = 30;
+    // What the analysis keeps per group: enough that a group's gathered rest is its real rest.
+    private const int MaximumGroupRows = 5000;
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromMilliseconds(500) };
     // Whether there is a game to record, checked while the page is open. -1 until the first check.
     private readonly DispatcherTimer gameClock = new() { Interval = TimeSpan.FromSeconds(2) };
@@ -44,6 +46,7 @@ public sealed partial class ProfilerPage : UserControl
     private double pressX;
     private long pressViewStart;
     private int loadVersion, analysisVersion;
+    private CancellationTokenSource? analysisCancel;
     private double gripStartY, gripStartHeight;
     private bool resizingChart, updatingGroups;
     private ProfileRange? shown;
@@ -51,9 +54,9 @@ public sealed partial class ProfilerPage : UserControl
     private string rangeSummary = "";
     // A newly opened recording's bars rise from the baseline once, the first time the graph is drawn.
     private bool chartEntrance;
-    private List<ResultGroup> luaGroups = [], javaGroups = [], listedGroups = [];
+    private List<ResultGroup> luaGroups = [], javaGroups = [], allocationGroups = [], listedGroups = [];
     // The owner picked in each tab; a new range keeps it when the owner is still there.
-    private string? luaSelection, javaSelection;
+    private string? luaSelection, javaSelection, allocationSelection;
     private App App => (App)Application.Current;
 
     public ProfilerPage()
@@ -102,6 +105,16 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
+        AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
+        // One name, on or off, like the recording mode's switch.
+        CallTreeToggle.OnContent = CallTreeToggle.OffContent = Localizer.Get("ProfileCallTree");
+        AutomationProperties.SetName(CallTreeToggle, Localizer.Get("ProfileCallTree"));
+        CopyResultsText.Text = Localizer.Get("ProfileCopyText");
+        // Set here too, not only when a recording opens: a language changed with a recording open kept the old word.
+        MemoryToggleText.Text = Localizer.Get("ProfileMemory");
+        AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
+        AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
+        if (IsLoaded) ApplyLayout(ActualWidth);
         FewSamplesInfo.Message = Localizer.Get("ProfileFewSamples");
         var thread = ThreadBox.SelectedIndex;
         ThreadBox.Items.Clear();
@@ -281,6 +294,8 @@ public sealed partial class ProfilerPage : UserControl
         LoadingRing.Visibility = Visibility.Collapsed;
         if (loaded is null || loaded.Duration <= 0) { loadedPath = null; Clear(Localizer.Get("ProfileLoadFailed")); return; }
         recording = loaded;
+        // Paths name functions by their number in one recording.
+        openPaths.Clear();
         viewStart = 0;
         viewEnd = loaded.Duration;
         selectionStart = selectionEnd = null;
@@ -289,6 +304,10 @@ public sealed partial class ProfilerPage : UserControl
         ThreadBox.IsEnabled = loaded.GameThread >= 0;
         if (loaded.GameThread < 0) ThreadBox.SelectedIndex = 1;
         chartEntrance = Motion;
+        AllocationTab.Visibility = loaded.HasLuaAllocations ? Visibility.Visible : Visibility.Collapsed;
+        if (!loaded.HasLuaAllocations && ReferenceEquals(ResultTabs.SelectedItem, AllocationTab)) ResultTabs.SelectedItem = LuaTab;
+        ApplyLayout(ActualWidth);
+        ApplyMemoryPanel();
         RenderChart();
         Analyze();
     }
@@ -406,13 +425,14 @@ public sealed partial class ProfilerPage : UserControl
     private void RenderChart()
     {
         if (recording is null || ChartSurface.ActualWidth < 4) return;
-        double width = ChartWidth, height = ChartHeight;
+        double width = ChartWidth, chartHeight = ChartHeight, height = chartHeight;
         // One bar per three pixels; each holds the slowest frame of its slice.
         var buckets = Math.Max(1, (int)(width / 3));
         var values = ProfileAnalysis.SlowestFramePerBucket(recording, viewStart, viewEnd, buckets);
-        var top = NiceCeiling(Math.Max(20, values.Max()));
+        var top = NiceCeiling(Math.Max(20, Math.Min(values.Max(), SpikeCeiling(values))));
         var normal = new GeometryGroup { FillRule = FillRule.Nonzero };
         var slow = new GeometryGroup { FillRule = FillRule.Nonzero };
+        var clipped = new GeometryGroup { FillRule = FillRule.Nonzero };
         var step = width / buckets;
         for (var index = 0; index < buckets; index++)
         {
@@ -420,6 +440,26 @@ public sealed partial class ProfilerPage : UserControl
             var barHeight = Math.Max(1, Math.Min(1, values[index] / top) * height);
             var bar = new RectangleGeometry { Rect = new Rect(index * step, height - barHeight, Math.Max(1, step - 0.5), barHeight) };
             (values[index] > SlowFrameMilliseconds ? slow : normal).Children.Add(bar);
+            // Taller than the scale: cut at the top and marked, its time one hover away.
+            if (values[index] > top)
+            {
+                var middle = index * step + Math.Max(1, step - 0.5) / 2;
+                clipped.Children.Add(new PathGeometry
+                {
+                    Figures =
+                    {
+                        new PathFigure
+                        {
+                            StartPoint = new Windows.Foundation.Point(middle - 4, 6), IsClosed = true, IsFilled = true,
+                            Segments =
+                            {
+                                new LineSegment { Point = new Windows.Foundation.Point(middle, 0) },
+                                new LineSegment { Point = new Windows.Foundation.Point(middle + 4, 6) },
+                            },
+                        },
+                    },
+                });
+            }
         }
         BarsPath.Data = normal;
         SlowBarsPath.Data = slow;
@@ -440,19 +480,49 @@ public sealed partial class ProfilerPage : UserControl
         {
             var y = height - fraction * height;
             GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 0.5, Opacity = 0.6 });
-            var label = new TextBlock { Text = (top * fraction).ToString("0", Localizer.Culture) + " ms", FontSize = 11, Foreground = brush };
-            Canvas.SetLeft(label, -42);
-            Canvas.SetTop(label, Math.Max(-6, y - 8));
-            GridCanvas.Children.Add(label);
+            // Half of a fine step can have a decimal (7.5 ms); whole numbers stay whole.
+            GridCanvas.Children.Add(ScaleLabel((top * fraction).ToString("0.#", Localizer.Culture) + " ms", 11, Math.Max(-6, y - 8)));
+        }
+        // 60 and 30 frames per second as named dashed lines: the scale follows each recording, these do not, so
+        // "above the 30 FPS line" reads the same on a fast computer's 50 ms graph and a slow one's 300 ms graph. Drawn
+        // only where they stand apart from the floor and from each other, so their names do not collide.
+        // Over the bars, each name on a small card so a bar under it does not cross the words.
+        ReferenceCanvas.Children.Clear();
+        var lastLine = height;
+        foreach (var (fps, milliseconds) in new[] { (60, 1000.0 / 60), (30, 1000.0 / 30) })
+        {
+            if (milliseconds >= top) continue;
+            var y = height - milliseconds / top * height;
+            // Clear of the floor by a little, of the line below by a name's height.
+            if (lastLine - y < (lastLine == height ? 8 : 14)) continue;
+            lastLine = y;
+            ReferenceCanvas.Children.Add(new Line
+            {
+                X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 1, Opacity = 0.8,
+                StrokeDashArray = new DoubleCollection { 4, 3 },
+            });
+            var name = new Border
+            {
+                Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0),
+                Child = new TextBlock { Text = $"{fps} {Localizer.Get("ProfileStatFps")}", FontSize = 10, Foreground = brush },
+            };
+            name.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(name, Math.Max(0, width - name.DesiredSize.Width - 2));
+            Canvas.SetTop(name, y - name.DesiredSize.Height / 2);
+            ReferenceCanvas.Children.Add(name);
         }
         foreach (var fraction in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
         {
             var label = new TextBlock { Text = Seconds(viewStart + (long)((viewEnd - viewStart) * fraction)), FontSize = 11, Foreground = brush };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             Canvas.SetLeft(label, Math.Clamp(width * fraction - label.DesiredSize.Width / 2, 0, Math.Max(0, width - label.DesiredSize.Width)));
-            Canvas.SetTop(label, height + 2);
+            Canvas.SetTop(label, chartHeight + 2);
             GridCanvas.Children.Add(label);
         }
+        if (clipped.Children.Count > 0)
+            GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = clipped, Fill = VideoBrush });
+        RenderMemoryPanel();
 
         UpdateSelectionRectangle();
         var zoomed = viewStart > 0 || viewEnd < recording.Duration;
@@ -486,15 +556,222 @@ public sealed partial class ProfilerPage : UserControl
         {
             items.Add((Localizer.Get("ProfileStatFrames"), frames.Count.ToString("N0", Localizer.Culture)));
             items.Add((Localizer.Get("ProfileStatAverage"), Milliseconds(frames.AverageMilliseconds)));
+            // Players know frame rates better than frame times: "135 ms" alone was read against the frame count.
+            // Its own pair, a name and a number like the others.
+            if (frames.AverageMilliseconds > 0)
+                items.Add((Localizer.Get("ProfileStatFps"), (1000 / frames.AverageMilliseconds).ToString("N1", Localizer.Culture)));
             items.Add((Localizer.Get("ProfileStatSlowest"), Milliseconds(frames.SlowestMilliseconds)));
             items.Add((Localizer.Get("ProfileStatWorst"), Milliseconds(frames.OnePercentWorstMilliseconds)));
         }
         var lines = SetStats(ChartInfo, items);
+        // Collections stop the game without leaving samples, so the tables cannot show them. They and the
+        // memory peaks stand on the memory panel's line under the bars, and in the copied text, which starts with this line.
+        var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
+            : ProfileAnalysis.CollectionsIn(recording, start, end);
+        var (heapPeak, videoPeak) = ProfileAnalysis.MemoryPeaksIn(recording, start, end);
+        var lanes = SetLaneInfo(collections > 0 ? CollectionText(collections, paused) : null,
+            heapPeak is { } heap ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heap)}" : null,
+            videoPeak is { } video ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(video)}" : null);
+        lines.AddRange(lanes);
         rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
+        {
             lines.Add(Localizer.Format("ProfileSummarySamplesFormat", current.Samples, current.Collections, current.CollectionPauseMilliseconds));
+            // Samples of a thread only waiting in a native call are not counted as its time; say how many.
+            if (current.WaitingSamples > 0)
+                lines.Add(Localizer.Format("ProfileWaitingSamplesFormat", current.WaitingSamples.ToString("N0", Localizer.Culture)));
+        }
         lines.Add(Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
         AppToolTip.SetTip(ChartInfo, string.Join("\n", lines));
+    }
+
+    /// <summary>
+    /// The frame scale stops at about twice the 95th percentile of the frames in view (never below 30 frames per
+    /// second): one loading frame of seconds no longer flattens every ordinary frame to the floor.
+    /// </summary>
+    private static double SpikeCeiling(double[] values)
+    {
+        var frames = values.Where(value => value > 0).Order().ToArray();
+        return frames.Length == 0 ? 0 : Math.Max(SlowFrameMilliseconds, frames[(int)((frames.Length - 1) * 0.95)] * 2);
+    }
+
+    // ---- Memory ----
+
+    // Open or shut for as long as the app runs, whichever recording is shown.
+    private static bool memoryOpen;
+
+    // The panel's rows: heap, collections and video memory, each only when the recording has it.
+    private int MemoryRows => recording is not { } loaded ? 0
+        : (loaded.Heap.Count > 0 ? 1 : 0) + (loaded.Collections.Count > 0 ? 1 : 0) + (loaded.VideoMemory.Count > 0 ? 1 : 0);
+
+    private const double MemoryRowHeight = 36, MemoryRowGap = 10;
+
+    // The line under the frames and its button: shown when the recording has collections or memory.
+    private void ApplyMemoryPanel()
+    {
+        var rows = MemoryRows;
+        MemoryHeader.Visibility = rows > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MemoryToggleText.Text = Localizer.Get("ProfileMemory");
+        MemoryChevron.Glyph = memoryOpen ? "" : "";
+        AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
+        MemoryBorder.Visibility = rows > 0 && memoryOpen ? Visibility.Visible : Visibility.Collapsed;
+        // The surface's margins and the border's edges, then the rows apart by their gaps.
+        MemoryBorder.Height = 14 + rows * MemoryRowHeight + Math.Max(0, rows - 1) * MemoryRowGap;
+    }
+
+    private void MemoryToggle_Click(object sender, RoutedEventArgs e)
+    {
+        memoryOpen = !memoryOpen;
+        ApplyMemoryPanel();
+        RenderMemoryPanel();
+    }
+
+    private void MemorySurface_SizeChanged(object sender, SizeChangedEventArgs e) => RenderMemoryPanel();
+
+    /// <summary>
+    /// Heap on top, collections in the middle, video memory at the bottom, each on its own scale: the memory lines
+    /// fitted to their lowest and highest reading in view, as their sizes differ too much for one scale and a fitted
+    /// one shows small changes; the collections as bars from zero to the longest pause in view. Collections sit under
+    /// the heap, whose drops they cause. The scale's ends stand at the left, in the row's colour.
+    /// </summary>
+    private void RenderMemoryPanel()
+    {
+        MemoryCanvas.Children.Clear();
+        MemoryNames.Children.Clear();
+        if (recording is null || MemoryBorder.Visibility != Visibility.Visible || MemorySurface.ActualWidth < 4) return;
+        var width = MemorySurface.ActualWidth;
+        var rows = new List<(Action<double, double> Draw, string Name, Brush Brush)>();
+        if (recording.Heap.Count > 0)
+            rows.Add(((top, inner) => DrawLine(Visible(recording.Heap.Select(item => (item.Time, item.Used))), HeapBrush, top, inner),
+                "ProfileMemoryHeapRow", HeapBrush));
+        if (recording.Collections.Count > 0) rows.Add((DrawCollections, "ProfileMemoryCollectionsRow", Muted));
+        if (recording.VideoMemory.Count > 0)
+            rows.Add(((top, inner) => DrawLine(Visible(recording.VideoMemory.Select(item => (item.Time, item.Dedicated))), VideoBrush, top, inner),
+                "ProfileMemoryVideoRow", VideoBrush));
+        // Rows apart by a gap, so one row's lowest label and the next one's highest do not meet.
+        var rowHeight = (MemorySurface.ActualHeight - MemoryRowGap * (rows.Count - 1)) / Math.Max(1, rows.Count);
+        for (var row = 0; row < rows.Count; row++)
+        {
+            var rowTop = row * (rowHeight + MemoryRowGap);
+            if (row > 0)
+            {
+                var y = rowTop - MemoryRowGap / 2;
+                MemoryCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = Muted, StrokeThickness = 0.5, Opacity = 0.6 });
+            }
+            // The drawing keeps clear of the row's edges by half a label, so each label centres on its end.
+            var (draw, name, brush) = rows[row];
+            draw(rowTop + 6, Math.Max(1, rowHeight - 12));
+            Name(name, brush, rowTop);
+        }
+        UpdateSelectionRectangle();
+
+        void DrawLine((long Time, long Value)[] points, Brush stroke, double top, double inner)
+        {
+            if (points.Length == 0) return;
+            long low = points.Min(point => point.Value), high = points.Max(point => point.Value);
+            // A flat line still needs a span; one percent of the value keeps it in the middle.
+            var span = Math.Max(high - low, Math.Max(1, high / 100));
+            var line = new Polyline { Stroke = stroke, StrokeThickness = 1.5, IsHitTestVisible = false };
+            foreach (var (time, value) in points)
+                line.Points.Add(new Windows.Foundation.Point(XAt(time), top + (1 - (value - low) / (double)span) * inner));
+            MemoryCanvas.Children.Add(line);
+            Labels(Bytes(high), Bytes(low), top, inner);
+        }
+
+        // Each collection as long as it paused the game and as tall as that pause against the longest one in view, so
+        // a frame spike above a tall bar reads as "the game stopped to collect".
+        void DrawCollections(double top, double inner)
+        {
+            var visible = recording.Collections.Where(item => item.Time < viewEnd && item.Time + item.Duration >= viewStart).ToArray();
+            if (visible.Length == 0) return;
+            var longest = Math.Max(1, visible.Max(item => item.Duration));
+            // One shape for all bars: a game that allocates a lot collects many times a second.
+            var bars = new GeometryGroup { FillRule = FillRule.Nonzero };
+            foreach (var collection in visible)
+            {
+                var left = Math.Clamp(XAt(collection.Time), 0, Math.Max(0, width - 2));
+                // A pause of a few milliseconds is far narrower than a pixel at most zooms: keep it visible.
+                var barWidth = Math.Max(2, XAt(collection.Time + collection.Duration) - left);
+                var barHeight = Math.Max(2, collection.Duration / (double)longest * inner);
+                bars.Children.Add(new RectangleGeometry { Rect = new Rect(left, top + inner - barHeight, barWidth, barHeight) });
+            }
+            MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = Muted });
+            // Zero as the frame graph writes it.
+            Labels(Milliseconds(longest / 1000.0), "0 ms", top, inner);
+        }
+
+        // What the row is, as a small chip at its top left: a dot in the row's colour and the name in secondary text,
+        // on an opaque background so a line passing under it does not cross the words. Resting the pointer on it says
+        // how to read the row; presses and moves on it bubble to the graph, so a range can be dragged from it too.
+        void Name(string key, Brush brush, double rowTop)
+        {
+            var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
+            content.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = brush, VerticalAlignment = VerticalAlignment.Center });
+            content.Children.Add(new TextBlock
+            {
+                Text = Localizer.Get(key), FontSize = 11,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            });
+            var chip = new Border
+            {
+                Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"],
+                BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 0, 7, 1), Child = content,
+            };
+            AppToolTip.SetTip(chip, Localizer.Get($"{key}Tip"));
+            Canvas.SetLeft(chip, 4);
+            Canvas.SetTop(chip, rowTop - 2);
+            MemoryNames.Children.Add(chip);
+        }
+
+        // The scale's ends in the margin, set against the graph like the frame graph's.
+        void Labels(string high, string low, double top, double inner)
+        {
+            foreach (var (text, y) in new[] { (high, top - 7), (low, top + inner - 7) })
+                MemoryCanvas.Children.Add(ScaleLabel(text, 10, y));
+        }
+
+        // The readings in view, with the last one before and the first one after, so the line meets both edges.
+        (long Time, long Value)[] Visible(IEnumerable<(long Time, long Value)> all)
+        {
+            var list = all.ToList();
+            var first = Math.Max(0, list.FindLastIndex(point => point.Time <= viewStart));
+            var last = list.FindIndex(point => point.Time >= viewEnd);
+            return list.GetRange(first, (last < 0 ? list.Count - 1 : last) - first + 1).ToArray();
+        }
+    }
+
+    // A scale value in the graphs' left margin, its right edge a few pixels from the graph so values of any width line up.
+    private TextBlock ScaleLabel(string text, double size, double top)
+    {
+        var label = new TextBlock { Text = text, FontSize = size, Foreground = Muted };
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(label, -6 - label.DesiredSize.Width);
+        Canvas.SetTop(label, top);
+        return label;
+    }
+
+    // Memory readings are gigabytes; a function's allocations can be a few kilobytes. Two decimals in every unit.
+    private static string Bytes(long bytes) =>
+        bytes >= 1L << 30 ? (bytes / (double)(1L << 30)).ToString("N2", Localizer.Culture) + " GB"
+        : bytes >= 1L << 20 ? (bytes / (double)(1L << 20)).ToString("N2", Localizer.Culture) + " MB"
+        : (bytes / 1024.0).ToString("N2", Localizer.Culture) + " KB";
+
+    private string CollectionText(int count, double pausedMilliseconds) =>
+        $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds))}";
+
+    private static Brush HeapBrush => (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+    private static Brush VideoBrush => (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+
+    /// <summary>Fills the figures on the line under the frames (absent ones hidden); returns those shown.</summary>
+    private List<string> SetLaneInfo(string? collections, string? heap, string? video)
+    {
+        foreach (var (block, text) in new[] { (CollectionValue, collections), (HeapValue, heap), (VideoValue, video) })
+        {
+            block.Text = text ?? "";
+            block.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
+        }
+        return new[] { collections, heap, video }.OfType<string>().ToList();
     }
 
     // The secondary text colour of the current theme, for names beside numbers and for the graph's scale.
@@ -527,7 +804,8 @@ public sealed partial class ProfilerPage : UserControl
     private static double NiceCeiling(double value)
     {
         var magnitude = Math.Pow(10, Math.Floor(Math.Log10(value)));
-        foreach (var factor in new[] { 1.0, 2, 2.5, 5, 10 })
+        // Fine steps: from 250 the next was 500, which left the top 40% of a 290 ms graph empty.
+        foreach (var factor in new[] { 1.0, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10 })
             if (value <= magnitude * factor) return magnitude * factor;
         return magnitude * 10;
     }
@@ -541,17 +819,21 @@ public sealed partial class ProfilerPage : UserControl
     {
         if (selectionStart is not { } start || selectionEnd is not { } end || end <= viewStart || start >= viewEnd)
         {
-            SelectionRectangle.Visibility = Visibility.Collapsed;
+            SelectionRectangle.Visibility = MemorySelection.Visibility = Visibility.Collapsed;
             ZoomSelectionButton.IsEnabled = selectionStart is not null;
             return;
         }
         var left = Math.Max(0, XAt(start));
         var right = Math.Min(ChartWidth, XAt(end));
-        Canvas.SetLeft(SelectionRectangle, left);
-        Canvas.SetTop(SelectionRectangle, 0);
-        SelectionRectangle.Width = Math.Max(2, right - left);
-        SelectionRectangle.Height = ChartHeight;
-        SelectionRectangle.Visibility = Visibility.Visible;
+        // The same range on the frame graph and, when open, the memory graph.
+        foreach (var (rectangle, height) in new[] { (SelectionRectangle, ChartHeight), (MemorySelection, MemorySurface.ActualHeight) })
+        {
+            Canvas.SetLeft(rectangle, left);
+            Canvas.SetTop(rectangle, 0);
+            rectangle.Width = Math.Max(2, right - left);
+            rectangle.Height = Math.Max(1, height);
+            rectangle.Visibility = Visibility.Visible;
+        }
         ZoomSelectionButton.IsEnabled = true;
     }
 
@@ -605,7 +887,8 @@ public sealed partial class ProfilerPage : UserControl
         if (point.Properties.IsRightButtonPressed || point.Properties.IsMiddleButtonPressed) panning = true;
         else if (point.Properties.IsLeftButtonPressed) selecting = true;
         else return;
-        ChartSurface.CapturePointer(e.Pointer);
+        // The frame graph or the memory graph: both share the time axis, so positions read the same.
+        ((UIElement)sender).CapturePointer(e.Pointer);
         e.Handled = true;
     }
 
@@ -629,10 +912,25 @@ public sealed partial class ProfilerPage : UserControl
         Canvas.SetLeft(HoverLine, Math.Clamp(x, 0, ChartWidth));
         HoverLine.Height = ChartHeight;
         HoverLine.Visibility = Visibility.Visible;
+        Canvas.SetLeft(MemoryHoverLine, Math.Clamp(x, 0, ChartWidth));
+        MemoryHoverLine.Height = MemorySurface.ActualHeight;
+        MemoryHoverLine.Visibility = Visibility.Visible;
         var frame = ProfileAnalysis.FrameAt(recording, time);
         List<(string?, string)> items = [(null, Seconds(time))];
-        if (frame is { } found && time >= found.Start) items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(found.Duration / 1000.0)));
+        string? collection = null;
+        if (frame is { } found && time >= found.Start)
+        {
+            items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(found.Duration / 1000.0)));
+            // Whether this frame was slow because the game stopped to collect garbage.
+            var (collections, paused) = ProfileAnalysis.CollectionsIn(recording, found.Start, found.Start + found.Duration);
+            if (collections > 0) collection = CollectionText(collections, paused);
+        }
         SetStats(ChartInfo, items);
+        // The lanes' figures follow the pointer too: this frame's collections, memory at this moment.
+        var (heapNow, videoNow) = ProfileAnalysis.MemoryAt(recording, time);
+        SetLaneInfo(collection,
+            heapNow is { } heap ? $"{Localizer.Get("ProfileStatHeap")} {Bytes(heap.Used)}" : null,
+            videoNow is { } video ? $"{Localizer.Get("ProfileStatVideo")} {Bytes(video.Dedicated)}" : null);
     }
 
     private void Chart_PointerReleased(object sender, PointerRoutedEventArgs e)
@@ -641,7 +939,7 @@ public sealed partial class ProfilerPage : UserControl
         var x = e.GetCurrentPoint(ChartSurface).Position.X;
         var wasSelecting = selecting;
         selecting = panning = false;
-        ChartSurface.ReleasePointerCapture(e.Pointer);
+        ((UIElement)sender).ReleasePointerCapture(e.Pointer);
         if (!wasSelecting) return;
         if (Math.Abs(x - pressX) < 4)
         {
@@ -663,7 +961,7 @@ public sealed partial class ProfilerPage : UserControl
     private void Chart_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         if (selecting || panning) return;
-        HoverLine.Visibility = Visibility.Collapsed;
+        HoverLine.Visibility = MemoryHoverLine.Visibility = Visibility.Collapsed;
         ShowDefaultChartInfo();
     }
 
@@ -718,16 +1016,21 @@ public sealed partial class ProfilerPage : UserControl
 
     // ---- Layout ----
 
-    private void ProfilerPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void ProfilerPage_SizeChanged(object sender, SizeChangedEventArgs e) => ApplyLayout(e.NewSize.Width);
+
+    private void ApplyLayout(double width)
     {
         // Narrow: the recording tools go below the title, and the functions below their owners.
-        var narrowHeader = e.NewSize.Width < 760;
+        var narrowHeader = width < 760;
         Grid.SetRow(Toolbar, narrowHeader ? 1 : 0);
         Grid.SetColumn(Toolbar, narrowHeader ? 0 : 1);
         Grid.SetColumnSpan(Toolbar, narrowHeader ? 2 : 1);
         Toolbar.Margin = new Thickness(0, narrowHeader ? 0 : 9, 0, 0);
-        var stacked = e.NewSize.Width < 720;
-        GroupColumn.Width = stacked ? new GridLength(1, GridUnitType.Star) : new GridLength(300);
+        var stacked = width < 720;
+        // The owner list is as wide as the tabs over it need, at least 300: a third tab, or a language with long
+        // names, would otherwise be cut off.
+        ResultTabs.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        GroupColumn.Width = stacked ? new GridLength(1, GridUnitType.Star) : new GridLength(Math.Max(300, Math.Ceiling(ResultTabs.DesiredSize.Width)));
         DetailColumn.Width = new GridLength(stacked ? 0 : 1, GridUnitType.Star);
         GroupRow.Height = stacked ? new GridLength(200) : new GridLength(1, GridUnitType.Star);
         DetailRow.Height = new GridLength(stacked ? 1 : 0, GridUnitType.Star);
@@ -741,13 +1044,21 @@ public sealed partial class ProfilerPage : UserControl
 
     // ---- Results ----
 
-    private enum DetailKind { Lua, Java, Threads, Pauses }
+    private enum DetailKind { Lua, Java, Threads, Pauses, Allocation }
+    private enum ResultTab { Lua, Java, Allocation }
 
-    /// <summary>One entry of the owner list: a mod, the game's scripts, a part of the game code, the threads, the pauses.</summary>
+    /// <summary>
+    /// One entry of the owner list: a mod, the game's scripts, a part of the game code, the threads, the pauses. A mod
+    /// in the allocation tab has its bytes instead of a share of time; its table comes from its call tree.
+    /// </summary>
     private sealed record ResultGroup(string Key, string Name, double? Share, int Samples, DetailKind Kind,
-        IReadOnlyList<ProfileShare> Rows, IReadOnlyList<ProfilePause> Pauses);
+        IReadOnlyList<ProfileShare> Rows, IReadOnlyList<ProfilePause> Pauses, long Bytes = 0);
 
-    private bool JavaShown => ReferenceEquals(ResultTabs.SelectedItem, JavaTab);
+    private ResultTab Tab =>
+        ReferenceEquals(ResultTabs.SelectedItem, JavaTab) ? ResultTab.Java
+        : ReferenceEquals(ResultTabs.SelectedItem, AllocationTab) ? ResultTab.Allocation : ResultTab.Lua;
+
+    private SelectorBarItem TabItem => Tab switch { ResultTab.Java => JavaTab, ResultTab.Allocation => AllocationTab, _ => LuaTab };
 
     private void ResultTabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args) => ShowTab();
 
@@ -763,9 +1074,14 @@ public sealed partial class ProfilerPage : UserControl
         var start = selectionStart ?? 0;
         var end = selectionEnd ?? current.Duration;
         var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
+        // A newer range makes the previous analysis pointless: stop it rather than let it finish on a worker.
+        analysisCancel?.Cancel();
+        var cancel = analysisCancel = new CancellationTokenSource();
         ProfileRange range;
-        try { range = await Task.Run(() => ProfileAnalysis.Analyze(current, start, end, thread, RowsPerGroup)); }
+        // Every row of a group, not the first few: the table shows the first and gathers the rest into one row with its sum.
+        try { range = await Task.Run(() => ProfileAnalysis.Analyze(current, start, end, thread, MaximumGroupRows, cancel.Token), cancel.Token); }
         catch (Exception) { return; }
+        finally { if (ReferenceEquals(analysisCancel, cancel)) analysisCancel = null; cancel.Dispose(); }
         if (version != analysisVersion || !ReferenceEquals(current, recording)) return;
         ShowRange(range);
     }
@@ -777,11 +1093,13 @@ public sealed partial class ProfilerPage : UserControl
         // A handful of samples cannot carry percentages; say so instead of showing confident numbers.
         FewSamplesInfo.IsOpen = range.Samples < 20;
 
-        luaGroups = range.LuaGroups.Select(group => new ResultGroup(group.Key,
-            group.Key == ProfileAnalysis.GameOwner ? Localizer.Get("ProfileOwnerGame")
-            : group.Key == ProfileAnalysis.UnknownOwner ? Localizer.Get("ProfileOwnerUnknown") : group.Key,
+        luaGroups = range.LuaGroups.Select(group => new ResultGroup(group.Key, OwnerName(group.Key),
             group.Self, group.Samples, DetailKind.Lua, group.Rows, [])).ToList();
-        javaGroups = range.MethodGroups.Select(group => new ResultGroup(group.Key, Localizer.Get("ProfileGroup." + group.Key),
+        // The share only sizes the bar; the number shown is the bytes.
+        allocationGroups = range.LuaAllocationGroups.Select(group => new ResultGroup(group.Key, OwnerName(group.Key),
+            range.LuaAllocated > 0 ? (double)group.Self / range.LuaAllocated : 0, group.Samples, DetailKind.Allocation, [], [],
+            group.Self)).ToList();
+        javaGroups = range.MethodGroups.Select(group => new ResultGroup(group.Key, Localizer.Get($"ProfileGroup.{group.Key}"),
             group.Self, group.Samples, DetailKind.Java, group.Rows, [])).ToList();
         if (range.Threads.Count > 1)
             javaGroups.Add(new ResultGroup("#threads", Localizer.Get("ProfileThreadsSection"), null,
@@ -791,23 +1109,39 @@ public sealed partial class ProfilerPage : UserControl
         ShowTab();
     }
 
+    private static string OwnerName(string key) =>
+        key == ProfileAnalysis.GameOwner ? Localizer.Get("ProfileOwnerGame")
+        : key == ProfileAnalysis.UnknownOwner ? Localizer.Get("ProfileOwnerUnknown") : key;
+
     private void ShowTab()
     {
         if (shown is not { } range) return;
-        var java = JavaShown;
-        listedGroups = java ? javaGroups : luaGroups;
+        var tab = Tab;
+        var java = tab == ResultTab.Java;
+        listedGroups = tab switch { ResultTab.Java => javaGroups, ResultTab.Allocation => allocationGroups, _ => luaGroups };
         if (listedGroups.Count == 0)
         {
             SetSplitVisible(false);
-            ResultMessage.Text = Localizer.Get(java ? "ProfileFewSamples" : recording?.LuaPeriod > 0 ? "ProfileLuaNone" : "ProfileNoLua");
+            ResultMessage.Text = Localizer.Get(java ? "ProfileFewSamples" : recording?.LuaPeriod is not > 0 ? "ProfileNoLua"
+                : tab == ResultTab.Allocation ? "ProfileAllocationNone" : "ProfileLuaNone");
             return;
         }
         SetSplitVisible(true);
         GroupNameHeading.Text = Localizer.Get(java ? "ProfileListJavaOwner" : "ProfileListLuaOwner");
-        GroupShareText.Text = Localizer.Get(java ? "ProfileListJavaShare" : "ProfileListLuaShare");
-        AppToolTip.SetTip(GroupShareHeading, Localizer.Get(java ? "ProfileListJavaShareTip" : "ProfileListLuaShareTip"));
+        GroupShareText.Text = Localizer.Get(tab switch
+        {
+            ResultTab.Java => "ProfileListJavaShare", ResultTab.Allocation => "ProfileListAllocation", _ => "ProfileListLuaShare",
+        });
+        AppToolTip.SetTip(GroupShareHeading, tab switch
+        {
+            ResultTab.Java => Localizer.Get("ProfileListJavaShareTip"),
+            // With the whole game thread's figure, which tells whether the scripts or the game's own code allocate more.
+            ResultTab.Allocation => Localizer.Get("ProfileListAllocationTip") + (range.GameThreadAllocated is { } whole
+                ? "\n" + Localizer.Format("ProfileAllocationGameThreadFormat", Bytes(whole)) : ""),
+            _ => Localizer.Get("ProfileListLuaShareTip"),
+        });
         // Only the scripts have a whole worth stating, beside the heading: the game code's items always add up to all of it.
-        GroupShareTotal.Text = java ? "" : Percent(range.LuaShare);
+        GroupShareTotal.Text = tab switch { ResultTab.Java => "", ResultTab.Allocation => Bytes(range.LuaAllocated), _ => FinePercent(range.LuaShare) };
         GroupShareTotal.Visibility = java ? Visibility.Collapsed : Visibility.Visible;
         AutomationProperties.SetName(GroupShareHeading, java ? GroupShareText.Text : $"{GroupShareText.Text} {GroupShareTotal.Text}");
         // Bars are relative to the largest owner, so the list reads as a ranking; the number is the real share.
@@ -816,7 +1150,7 @@ public sealed partial class ProfilerPage : UserControl
         GroupList.Items.Clear();
         for (var position = 0; position < listedGroups.Count; position++)
             GroupList.Items.Add(GroupItem(listedGroups[position], largest, position));
-        var remembered = java ? javaSelection : luaSelection;
+        var remembered = tab switch { ResultTab.Java => javaSelection, ResultTab.Allocation => allocationSelection, _ => luaSelection };
         var index = Math.Max(0, listedGroups.FindIndex(group => group.Key == remembered));
         GroupList.SelectedIndex = index;
         updatingGroups = false;
@@ -827,7 +1161,12 @@ public sealed partial class ProfilerPage : UserControl
     {
         if (updatingGroups || GroupList.SelectedIndex < 0 || GroupList.SelectedIndex >= listedGroups.Count) return;
         var group = listedGroups[GroupList.SelectedIndex];
-        if (JavaShown) javaSelection = group.Key; else luaSelection = group.Key;
+        switch (Tab)
+        {
+            case ResultTab.Java: javaSelection = group.Key; break;
+            case ResultTab.Allocation: allocationSelection = group.Key; break;
+            default: luaSelection = group.Key; break;
+        }
         ShowGroup(group);
     }
 
@@ -879,7 +1218,8 @@ public sealed partial class ProfilerPage : UserControl
 
     /// <summary>The number beside an owner: its share, or for the pauses how many there were, with a unit so it is not read as a share.</summary>
     private static string ValueOf(ResultGroup group) =>
-        group.Share is { } share ? Percent(share)
+        group.Kind == DetailKind.Allocation ? Bytes(group.Bytes)
+        : group.Share is { } share ? FinePercent(share)
         : group.Kind == DetailKind.Pauses ? Localizer.Format("ProfilePauseCount", group.Pauses.Count.ToString("N0", Localizer.Culture)) : "";
 
     /// <summary>The right pane: the chosen owner's functions as a table with a heading over every column.</summary>
@@ -890,18 +1230,198 @@ public sealed partial class ProfilerPage : UserControl
         DetailName.Text = group.Name;
         AppToolTip.SetTip(DetailName, group.Name);
         SetStats(DetailSamples, SamplesOf(group) is { } samples ? [(Localizer.Get("ProfileColumnSamples"), samples)] : []);
+        shownGroup = group;
+        var tree = TreeOf(group);
+        CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
+        CallTreeToggle.IsOn = callTree;
 
         var (columns, header, rows) = Table(group);
         DetailHeader.Child = TableRow(columns, header, header: true);
         DetailRows.Children.Clear();
-        foreach (var row in rows) DetailRows.Children.Add(TableRow(columns, row, header: false));
+        foreach (var line in rows)
+            DetailRows.Children.Add(line.Tree is { } item ? TreeRow(columns, group, line, item)
+                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar));
+    }
+
+    /// <summary>
+    /// One line of a table: its cells as text (what a copy carries), how full the bar behind its total is (0..1, or none),
+    /// and for a call tree the node it shows.
+    /// </summary>
+    private sealed record TableLine((string Text, string? Tip, bool Right)[] Cells, double? Bar = null, TreeItem? Tree = null,
+        double? SelfBar = null);
+
+    // ---- Call tree ----
+
+    // Tree or list, for as long as the app runs, in both script tabs. The tree first, closed: its outermost functions
+    // add up to the owner, and opening the heavy one is the next question.
+    private static bool callTree = true;
+    private ResultGroup? shownGroup;
+    // The open nodes of each tab's owner, by path; a new range keeps them, a new recording starts over.
+    private readonly Dictionary<string, HashSet<string>> openPaths = [];
+    // A tree opened all the way down can be long; past this the rest is left closed.
+    private const int MaximumTreeRows = 400;
+    // Siblings past this many, and list rows past RowsPerGroup, are gathered under one closed "the rest" line that
+    // carries their sum: the parts on screen then visibly add up to the whole, and the long tail stays one click away.
+    private const int MaximumSiblings = 20;
+
+    /// <summary>
+    /// A line of the tree: a node, or (with <see cref="Rest"/>) the siblings past the first few, gathered and summed;
+    /// opened, they follow it one level deeper.
+    /// </summary>
+    private sealed record TreeItem(ProfileCallNode? Node, int Depth, string Path, bool HasChildren, bool Open,
+        IReadOnlyList<ProfileCallNode>? Rest = null);
+
+    private ProfileCallNode? TreeOf(ResultGroup group) =>
+        group.Kind is DetailKind.Lua or DetailKind.Allocation && shown?.LuaCallTrees.TryGetValue(group.Key, out var tree) == true ? tree : null;
+
+    private void CallTreeToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        // Showing an owner sets the switch to the remembered choice; that is not a change to act on.
+        if (CallTreeToggle.IsOn == callTree) return;
+        callTree = CallTreeToggle.IsOn;
+        if (shownGroup is { } group) ShowGroup(group);
+    }
+
+    // In the allocation tab, a path that allocated nothing is left out and the heaviest in bytes comes first.
+    private static IEnumerable<ProfileCallNode> Branches(ProfileCallNode node, bool allocation) =>
+        allocation ? node.Children.Where(child => child.AllocatedTotal > 0).OrderByDescending(child => child.AllocatedTotal) : node.Children;
+
+    /// <summary>The rows the tree shows: every open node's children, in order. All closed at first.</summary>
+    private List<TreeItem> TreeRows(ResultGroup group, ProfileCallNode root)
+    {
+        var allocation = group.Kind == DetailKind.Allocation;
+        var key = $"{group.Kind}|{group.Key}";
+        if (!openPaths.TryGetValue(key, out var open)) openPaths[key] = open = [];
+        var rows = new List<TreeItem>();
+        void Add(ProfileCallNode child, int depth, string path)
+        {
+            if (rows.Count >= MaximumTreeRows) return;
+            var childPath = path + "/" + child.Function;
+            var hasChildren = Branches(child, allocation).Any();
+            var isOpen = hasChildren && open.Contains(childPath);
+            rows.Add(new TreeItem(child, depth, childPath, hasChildren, isOpen));
+            if (isOpen) Walk(child, depth + 1, childPath);
+        }
+        void Walk(ProfileCallNode node, int depth, string path)
+        {
+            var branches = Branches(node, allocation).ToList();
+            foreach (var child in branches.Take(MaximumSiblings)) Add(child, depth, path);
+            if (branches.Count <= MaximumSiblings || rows.Count >= MaximumTreeRows) return;
+            var rest = branches.Skip(MaximumSiblings).ToList();
+            var restPath = path + "/*";
+            var restOpen = open.Contains(restPath);
+            rows.Add(new TreeItem(null, depth, restPath, true, restOpen, rest));
+            if (restOpen) foreach (var child in rest) Add(child, depth + 1, path);
+        }
+        Walk(root, 0, "");
+        return rows;
+    }
+
+    /// <summary>
+    /// A script function's line, in the tree or the list. Its numbers are parts of the owner, the owner being 100%: the
+    /// question here is where inside it the time or the bytes went, and parts of the whole range shrank to 0.0% in a
+    /// long one. The bar behind the total says the same at a glance. What the part is of the whole range, and as time,
+    /// is one hover away, so a large part of a light owner is not mistaken for a heavy one.
+    /// </summary>
+    private TableLine FunctionLine(ProfileCallNode owner, bool allocation, string name, string file, int selfSamples, int samples,
+        int shownSamples, long allocatedSelf, long allocatedTotal, string indent = "", TreeItem? tree = null)
+    {
+        (string, string?, bool) Part(int part, long bytes)
+        {
+            if (allocation)
+            {
+                var share = owner.AllocatedTotal > 0 ? (double)bytes / owner.AllocatedTotal : 0;
+                return (Bytes(bytes), Localizer.Format("ProfileShareOfOwnerFormat", FinePercent(share)), true);
+            }
+            // The owner's samples stand for its share of the range, so each of them for an equal slice of it.
+            var ofRange = owner.Samples > 0 ? owner.Total * part / owner.Samples : 0;
+            var micros = ofRange * Math.Max(1, (shown?.End ?? 0) - (shown?.Start ?? 0));
+            var time = micros >= 1_000_000 ? Seconds((long)micros) : Milliseconds(micros / 1000);
+            return (FinePercent(owner.Samples > 0 ? (double)part / owner.Samples : 0),
+                Localizer.Format("ProfileShareOfRangeFormat", FinePercent(ofRange), time), true);
+        }
+        var whole = allocation ? owner.AllocatedTotal : owner.Samples;
+        var filled = allocation ? allocatedTotal : samples;
+        // How much of the line's own total is its own work, the rest being what it called: 100% is a leaf's.
+        double own = allocation ? allocatedSelf : selfSamples, all = allocation ? allocatedTotal : samples;
+        // Its share of the owner for now; the table scales the bars to its largest line once all are known.
+        return new TableLine(
+        [
+            (indent + name, name, false), (LuaFileName(file), file, false),
+            Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
+            (shownSamples.ToString("N0", Localizer.Culture), null, true),
+        ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0);
+    }
+
+    /// <summary>
+    /// The line that stands for the rest of a level: how many, and their sums. Its total is left empty where the rows
+    /// overlap (a list's functions call one another, so their totals do not add up); a tree's siblings never do.
+    /// </summary>
+    private TableLine RestLine(ProfileCallNode owner, bool allocation, int count, int selfSamples, int samples, int shownSamples,
+        long allocatedSelf, long allocatedTotal, bool totals, string indent, TreeItem? tree)
+    {
+        var line = FunctionLine(owner, allocation, Localizer.Format("ProfileRestFormat", count.ToString("N0", Localizer.Culture)), "",
+            selfSamples, samples, shownSamples, allocatedSelf, allocatedTotal, indent, tree);
+        if (!totals) line.Cells[TotalColumn] = ("", null, true);
+        // No bars: a sum of many is no line of its own to compare.
+        return line with { Bar = null, SelfBar = null };
+    }
+
+    private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TableLine line, TreeItem item)
+    {
+        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar);
+        // The name cell gives way to an indented one with the open/close arrow in front.
+        row.Children.RemoveAt(0);
+        var name = new Grid { Margin = new Thickness(item.Depth * 16, 0, 0, 0), ColumnSpacing = 2 };
+        name.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+        name.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        if (item.HasChildren)
+        {
+            var arrow = new Button
+            {
+                Width = 20, Height = 20, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Center,
+                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                Content = new FontIcon { Glyph = item.Open ? "" : "", FontSize = 10 },
+            };
+            AutomationProperties.SetName(arrow, Localizer.Get(item.Open ? "ProfileTreeCollapse" : "ProfileTreeExpand") + " " + line.Cells[0].Text.Trim());
+            arrow.Click += (_, _) => ToggleNode(group, item.Path);
+            name.Children.Add(arrow);
+            // The whole row opens and closes too, not only the small arrow; a tap on the arrow is its click's.
+            row.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            row.Tapped += (_, args) =>
+            {
+                for (var element = args.OriginalSource as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
+                    if (ReferenceEquals(element, arrow)) return;
+                ToggleNode(group, item.Path);
+            };
+        }
+        // A node by its name; the rest of a level muted, as it is no function.
+        var label = line.Cells[0].Text.Trim();
+        var text = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
+        if (item.Node is null) text.Foreground = Muted;
+        else if (label.Length > 0) AppToolTip.SetTip(text, label);
+        Grid.SetColumn(text, 1);
+        name.Children.Add(text);
+        row.Children.Insert(0, name);
+        return row;
+    }
+
+    private void ToggleNode(ResultGroup group, string path)
+    {
+        // A list's "rest" row can be opened before the owner's tree was ever shown.
+        var key = $"{group.Kind}|{group.Key}";
+        if (!openPaths.TryGetValue(key, out var open)) openPaths[key] = open = [];
+        if (!open.Remove(path)) open.Add(path);
+        ShowGroup(group);
     }
 
     /// <summary>An owner's samples out of its tab's, such as "9/70", or null for an owner that has none.</summary>
     private string? SamplesOf(ResultGroup group)
     {
         if (group.Samples <= 0) return null;
-        var total = group.Kind == DetailKind.Lua ? shown?.LuaSamples ?? 0 : shown?.Samples ?? 0;
+        // The threads are every thread's samples, not a part of the chosen thread's: their count alone.
+        if (group.Kind == DetailKind.Threads) return group.Samples.ToString("N0", Localizer.Culture);
+        var total = group.Kind is DetailKind.Lua or DetailKind.Allocation ? shown?.LuaSamples ?? 0 : shown?.Samples ?? 0;
         return $"{group.Samples.ToString("N0", Localizer.Culture)}/{total.ToString("N0", Localizer.Culture)}";
     }
 
@@ -909,29 +1429,40 @@ public sealed partial class ProfilerPage : UserControl
     /// One owner's table: its columns, their headings and its rows. A cell's tip is its full text where the
     /// screen shows less (a method's package, a script's path), which is also what a copy carries.
     /// </summary>
-    private (GridLength[] Columns, (string Text, string? Tip, bool Right)[] Header, List<(string Text, string? Tip, bool Right)[]> Rows)
-        Table(ResultGroup group)
+    private (GridLength[] Columns, (string Text, string? Tip, bool Right)[] Header, List<TableLine> Rows) Table(ResultGroup group)
     {
         GridLength Star(double weight) => new(weight, GridUnitType.Star);
         GridLength Fixed(double width) => new(width);
-        var numbers = new[] { Fixed(64), Fixed(64), Fixed(60) };
+        // Wide enough for "1,023.99 KB"; the total's column also holds the bar behind its number.
+        var numbers = new[] { Fixed(84), Fixed(96), Fixed(60) };
         var columns = group.Kind switch
         {
-            DetailKind.Lua => [Star(3), Star(2), .. numbers],
+            DetailKind.Lua or DetailKind.Allocation or DetailKind.Java => [Star(3), Star(2), .. numbers],
             DetailKind.Pauses => [Fixed(90), Fixed(90), Star(1), Star(2)],
             _ => (GridLength[])[Star(1), .. numbers],
         };
-        var columnsTip = Localizer.Get("ProfileColumnsTip");
+        var tree = TreeOf(group);
+        // Each heading its own tip; a script owner's parts are of the owner, and its samples mean what the view counts.
+        var (selfTip, totalTip) = group.Kind switch
+        {
+            DetailKind.Allocation => ("ProfileAllocationSelfTip", "ProfileAllocationTotalTip"),
+            DetailKind.Lua when tree is not null => ("ProfileLuaSelfTip", "ProfileLuaTotalTip"),
+            DetailKind.Java => ("ProfileJavaSelfTip", "ProfileJavaTotalTip"),
+            _ => ("ProfileColumnSelfTip", "ProfileColumnTotalTip"),
+        };
+        var samplesTip = group.Kind == DetailKind.Java ? Localizer.Get("ProfileColumnSamplesListTip")
+            : tree is null ? null : Localizer.Get(callTree ? "ProfileColumnSamplesTreeTip" : "ProfileColumnSamplesListTip");
         (string, string?, bool)[] Numbers() =>
         [
-            (Localizer.Get("ProfileColumnSelf"), columnsTip, true),
-            (Localizer.Get("ProfileColumnTotal"), columnsTip, true),
-            (Localizer.Get("ProfileColumnSamples"), null, true),
+            (Localizer.Get("ProfileColumnSelf"), Localizer.Get(selfTip), true),
+            (Localizer.Get("ProfileColumnTotal"), Localizer.Get(totalTip), true),
+            (Localizer.Get("ProfileColumnSamples"), samplesTip, true),
         ];
         (string Text, string? Tip, bool Right)[] header = group.Kind switch
         {
-            DetailKind.Lua => [(Localizer.Get("ProfileColumnFunction"), null, false), (Localizer.Get("ProfileColumnFile"), null, false), .. Numbers()],
-            DetailKind.Java => [(Localizer.Get("ProfileColumnMethod"), null, false), .. Numbers()],
+            DetailKind.Lua or DetailKind.Allocation =>
+                [(Localizer.Get("ProfileColumnFunction"), null, false), (Localizer.Get("ProfileColumnFile"), null, false), .. Numbers()],
+            DetailKind.Java => [(Localizer.Get("ProfileColumnMethod"), null, false), (Localizer.Get("ProfileColumnPackage"), null, false), .. Numbers()],
             DetailKind.Threads => [(Localizer.Get("ProfileColumnThread"), null, false), .. Numbers()],
             _ =>
             [
@@ -939,7 +1470,7 @@ public sealed partial class ProfilerPage : UserControl
                 (Localizer.Get("ProfileColumnKind"), null, false), (Localizer.Get("ProfileColumnDetail"), null, false),
             ],
         };
-        var rows = new List<(string Text, string? Tip, bool Right)[]>();
+        var rows = new List<TableLine>();
         if (group.Kind == DetailKind.Pauses)
         {
             foreach (var pause in group.Pauses)
@@ -949,28 +1480,123 @@ public sealed partial class ProfilerPage : UserControl
                     pause.Detail is "?" or "" ? null : pause.Detail,
                     pause.Thread >= 0 && recording is not null && pause.Thread < recording.Threads.Count ? recording.Threads[pause.Thread] : null,
                 }.OfType<string>());
-                rows.Add(
+                rows.Add(new(
                 [
                     (Seconds(pause.Time), null, false), (Milliseconds(pause.Duration / 1000.0), null, true),
                     (pause.Kind, null, false), (detail, detail, false),
-                ]);
+                ]));
             }
             return (columns, header, rows);
         }
-        foreach (var row in group.Rows)
+        // A script owner: its call tree, or the tree's functions added up, from the same samples either way. In the
+        // allocation tab what allocated nothing is left out and the most bytes come first.
+        if (tree is not null)
         {
-            (string, string?, bool)[] name = group.Kind switch
+            var allocation = group.Kind == DetailKind.Allocation;
+            if (callTree)
+                foreach (var item in TreeRows(group, tree))
+                {
+                    // As text each name is indented by its depth, the open paths only, as on screen.
+                    var indent = new string(' ', item.Depth * 2);
+                    if (item.Rest is { } rest)
+                        rows.Add(RestLine(tree, allocation, rest.Count, rest.Sum(node => node.SelfSamples), rest.Sum(node => node.Samples),
+                            rest.Sum(node => node.Samples), rest.Sum(node => node.AllocatedSelf), rest.Sum(node => node.AllocatedTotal),
+                            totals: true, indent, item));
+                    else if (item.Node is { } node)
+                        rows.Add(FunctionLine(tree, allocation, node.Name, node.File, node.SelfSamples, node.Samples, node.Samples,
+                            node.AllocatedSelf, node.AllocatedTotal, indent, item));
+                }
+            else
             {
-                DetailKind.Lua => [(row.Name, row.Name, false), (LuaFileName(row.Detail), row.Detail, false)],
-                DetailKind.Java => [(ShortMethod(row.Name), row.Name, false)],
-                _ => [(row.Name, row.Name, false)],
-            };
-            rows.Add([.. name, (Percent(row.Self), null, true), (Percent(row.Total), null, true), (row.Samples.ToString("N0", Localizer.Culture), null, true)]);
+                var functions = ProfileAnalysis.FunctionsIn(tree);
+                if (allocation)
+                    functions = functions.Where(row => row.AllocatedTotal > 0).OrderByDescending(row => row.AllocatedSelf)
+                        .ThenByDescending(row => row.AllocatedTotal).ToArray();
+                // The list counts the samples that ended in each function, as it always has.
+                TableLine Line(ProfileFunctionTotal row, string indent = "") => FunctionLine(tree, allocation, row.Name, row.File,
+                    row.SelfSamples, row.Samples, row.SelfSamples, row.AllocatedSelf, row.AllocatedTotal, indent);
+                foreach (var row in functions.Take(RowsPerGroup)) rows.Add(Line(row));
+                if (functions.Count > RowsPerGroup)
+                {
+                    var rest = functions.Skip(RowsPerGroup).ToArray();
+                    var path = "list/*";
+                    var restOpen = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var open) && open.Contains(path);
+                    rows.Add(RestLine(tree, allocation, rest.Length, rest.Sum(row => row.SelfSamples), rest.Sum(row => row.Samples),
+                        rest.Sum(row => row.SelfSamples), rest.Sum(row => row.AllocatedSelf), rest.Sum(row => row.AllocatedTotal),
+                        totals: false, "", new TreeItem(null, 0, path, true, restOpen)));
+                    if (restOpen) foreach (var row in rest) rows.Add(Line(row, "  "));
+                }
+            }
+            ScaleBars(rows);
+            return (columns, header, rows);
         }
+        if (group.Kind == DetailKind.Java)
+        {
+            // Like a script owner's list: the group is 100%, gauges behind the numbers, the long tail in one closed row.
+            foreach (var row in group.Rows.Take(RowsPerGroup)) rows.Add(MethodLine(group, row));
+            if (group.Rows.Count > RowsPerGroup)
+            {
+                var rest = group.Rows.Skip(RowsPerGroup).ToArray();
+                var path = "list/*";
+                var restOpen = openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var open) && open.Contains(path);
+                var whole = group.Share ?? 0;
+                var self = rest.Sum(row => row.Self);
+                // Its total is left empty: the methods call one another, so their totals do not add up.
+                rows.Add(new(
+                [
+                    (Localizer.Format("ProfileRestFormat", rest.Length.ToString("N0", Localizer.Culture)), null, false), ("", null, false),
+                    (FinePercent(whole > 0 ? self / whole : 0), Localizer.Format("ProfileShareOfRunFormat", FinePercent(self)), true), ("", null, true),
+                    (rest.Sum(row => row.Samples).ToString("N0", Localizer.Culture), null, true),
+                ], Tree: new TreeItem(null, 0, path, true, restOpen)));
+                if (restOpen) foreach (var row in rest) rows.Add(MethodLine(group, row, "  "));
+            }
+            ScaleBars(rows);
+            return (columns, header, rows);
+        }
+        foreach (var row in group.Rows)
+            rows.Add(new([(row.Name, row.Name, false), (FinePercent(row.Self), null, true), (FinePercent(row.Total), null, true),
+                (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
         return (columns, header, rows);
     }
 
-    private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header)
+    // Bars against the table's largest total, so the heaviest line fills its column and the rest compare to it.
+    private static void ScaleBars(List<TableLine> rows)
+    {
+        var largest = rows.Count == 0 ? 0 : rows.Max(line => line.Bar ?? 0);
+        if (largest <= 0) return;
+        for (var index = 0; index < rows.Count; index++)
+            if (rows[index].Bar is { } bar) rows[index] = rows[index] with { Bar = bar / largest };
+    }
+
+    /// <summary>
+    /// A method's line in a part of the game code: its parts of the group, the group being 100%, with what they are of all
+    /// the running time one hover away; the self gauge is its own part of its total, as in the script tables.
+    /// </summary>
+    private static TableLine MethodLine(ResultGroup group, ProfileShare row, string indent = "")
+    {
+        var whole = group.Share ?? 0;
+        (string, string?, bool) Part(double share) =>
+            (FinePercent(whole > 0 ? share / whole : 0), Localizer.Format("ProfileShareOfRunFormat", FinePercent(share)), true);
+        var package = PackageOf(row.Name);
+        return new TableLine(
+        [
+            (indent + ShortMethod(row.Name), row.Name, false), (package, package, false),
+            Part(row.Self), Part(row.Total), (row.Samples.ToString("N0", Localizer.Culture), null, true),
+        ], whole > 0 ? Math.Clamp(row.Total / whole, 0, 1) : 0, null, row.Total > 0 ? Math.Clamp(row.Self / row.Total, 0, 1) : 0);
+    }
+
+    // "zombie.iso.IsoCell.render" is in "zombie.iso"; the class and method are the name's column.
+    private static string PackageOf(string method)
+    {
+        var last = method.LastIndexOf('.');
+        var previous = last <= 0 ? -1 : method.LastIndexOf('.', last - 1);
+        return previous <= 0 ? "" : method[..previous];
+    }
+
+    /// <param name="bar">How full the gauge behind the total is (0..1), for a script function; none elsewhere.</param>
+    /// <param name="selfBar">How full the gauge behind the self figure is: the line's own part of its total.</param>
+    private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header,
+        double? bar = null, double? selfBar = null)
     {
         var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(0, header ? 0 : 5, 0, header ? 0 : 5) };
         foreach (var width in columns) row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
@@ -984,12 +1610,40 @@ public sealed partial class ProfilerPage : UserControl
                 TextAlignment = right ? TextAlignment.Right : TextAlignment.Left,
             };
             if (header) cell.Foreground = Muted;
+            // A script table's number headings stand over their numbers, which sit inset in their gauges.
+            if (header && cells.Count == 5 && index is SelfColumn or TotalColumn) cell.Padding = new Thickness(0, 0, 6, 0);
             if (tip is { Length: > 0 } && (header || tip != text)) AppToolTip.SetTip(cell, tip);
             Grid.SetColumn(cell, index);
+            // Gauges behind the numbers: a faint track the width of the column, so the number always sits in it, and a
+            // fill in exact proportion (a fill never shorter than its number made a thousandth look like the whole).
+            // The total's is its part against the table's largest, so heavy lines stand out before any number is read;
+            // the self figure's, muted as it measures something else, is the line's own work against its total.
+            var gauge = index switch { TotalColumn => bar, SelfColumn => selfBar, _ => null };
+            if (gauge is { } fraction && columns[index].IsAbsolute)
+            {
+                cell.Padding = new Thickness(0, 0, 6, 0);
+                var color = index == TotalColumn ? (BarsPath.Fill as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.SteelBlue
+                    : (Muted as SolidColorBrush)?.Color ?? Microsoft.UI.Colors.Gray;
+                var track = new Border
+                {
+                    Margin = new Thickness(0, -3, 0, -3), CornerRadius = new CornerRadius(3),
+                    Background = new SolidColorBrush(color) { Opacity = 0.07 },
+                    Child = new Border
+                    {
+                        Width = Math.Clamp(fraction, 0, 1) * columns[index].Value, HorizontalAlignment = HorizontalAlignment.Left,
+                        CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(color) { Opacity = 0.3 },
+                    },
+                };
+                Grid.SetColumn(track, index);
+                row.Children.Add(track);
+            }
             row.Children.Add(cell);
         }
         return row;
     }
+
+    // The numbers' places in a script function's line: name, file, self, total, samples.
+    private const int SelfColumn = 2, TotalColumn = 3;
 
     // ---- Copy ----
 
@@ -1009,7 +1663,7 @@ public sealed partial class ProfilerPage : UserControl
         }.Where(part => !string.IsNullOrEmpty(part))));
         text.AppendLine(rangeSummary);
         text.AppendLine();
-        text.AppendLine(JavaShown ? JavaTab.Text : LuaTab.Text);
+        text.AppendLine(TabItem.Text);
         if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);
         else
         {
@@ -1029,7 +1683,7 @@ public sealed partial class ProfilerPage : UserControl
             text.AppendLine();
             text.AppendLine(SamplesOf(group) is { } samples ? $"{group.Name}  {Localizer.Get("ProfileColumnSamples")} {samples}" : group.Name);
             var all = new List<(string Text, string? Tip, bool Right)[]> { header };
-            all.AddRange(rows);
+            all.AddRange(rows.Select(line => line.Cells));
             AppendTable(text, all, "");
         }
         try
@@ -1068,7 +1722,8 @@ public sealed partial class ProfilerPage : UserControl
         element.StartAnimation(grow);
     }
 
-    private static string Percent(double share) => (share * 100).ToString("0.0", Localizer.Culture) + "%";
+    // Two decimals everywhere, the owner list's shares as the tables' parts: small ones must still add up visibly.
+    private static string FinePercent(double share) => (share * 100).ToString("0.00", Localizer.Culture) + "%";
 
     private static string LuaFileName(string file)
     {

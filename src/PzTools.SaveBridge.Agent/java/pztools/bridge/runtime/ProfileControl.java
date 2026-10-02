@@ -32,7 +32,7 @@ final class ProfileControl {
                     try {
                         Class<?> window = AgentEntry.ensureGameHook();
                         game = window.getClassLoader();
-                        if (!RuntimeObserver.running()) { AgentEntry.observe(ProfileRecorder::frame); ownsFrameHook = true; }
+                        if (!RuntimeObserver.running()) { AgentEntry.observe(ProfileFrames::tick); ownsFrameHook = true; }
                     } catch (Exception | LinkageError unavailable) { frames = "no-frames"; }
                     if (game == null) game = ClassLoader.getSystemClassLoader();
                     String status = ProfileRecorder.start(destination, command[2].equals("detailed"), seconds, game);
@@ -58,9 +58,12 @@ final class ProfileControl {
         }
     }
 
-    /** RuntimeObserver took over or gave up the per-frame slot; keep frame marks flowing either way. */
+    /**
+     * RuntimeObserver gave up the per-frame slot; keep frame marks flowing if a recording marks them. Asks the relay,
+     * not the recorder, so stopping the observer never loads the flight recorder.
+     */
     static synchronized void observerStopped() {
-        if (ProfileRecorder.active()) { AgentEntry.observe(ProfileRecorder::frame); ownsFrameHook = true; }
+        if (ProfileFrames.attached()) { AgentEntry.observe(ProfileFrames::tick); ownsFrameHook = true; }
     }
 
     private static void releaseFrameHook() {

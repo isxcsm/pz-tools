@@ -365,6 +365,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileError.Convert" xml:space="preserve"><value>Záznam byl dokončen, ale výsledek se nepodařilo zpracovat. Podrobnosti najdete v protokolu.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Právě probíhá jiná operace. Zkuste to za chvíli znovu.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Nepodařilo se připojit ke hře. Pokud jste aktualizovali hru nebo PZ Tools, restartujte hru.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools se aktualizoval. Pro nahrávání hru jednou restartujte.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Je spuštěno více her najednou, takže nelze určit cíl.</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Hra není spuštěná. Spusťte hru a zkuste to znovu.</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Dlouhá čekání a pauzy</value></data>
@@ -376,8 +377,22 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Položka</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Podíl podle vláken</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Vlastní: čas strávený přímo v dané funkci. Celkem: včetně funkcí, které zavolala.</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Vzorky</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} alokací tohoto vlastníka</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} celé doby běhu</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Celkem: část doby běhu této skupiny strávená v dané metodě a v kódu této skupiny, který volala. Skupina je 100 %; po najetí myší na číslo se ukáže jeho část celé doby běhu.</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Balíček</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Vlastní: část doby běhu této skupiny strávená přímo v dané metodě. Skupina je 100 %; po najetí myší na číslo se ukáže jeho část celé doby běhu.</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>Dalších {0}</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} celého úseku, asi {1}</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Vzorky: kolik vzorků skončilo ve funkci.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Vzorky: kolik vzorků prošlo řádkem.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Celkem: i když běžely funkce, které volala.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Vlastní: alokováno, když běžela samotná funkce.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Celkem: část času tohoto vlastníka strávená v dané funkci a ve funkcích, které volala. Vlastník je 100 %; po najetí myší na číslo se ukáže jeho část celého úseku.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Vlastní: část času tohoto vlastníka strávená přímo v dané funkci. Vlastník je 100 %; po najetí myší na číslo se ukáže jeho část celého úseku.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Vlastní: čas strávený přímo v dané funkci.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Celkem: včetně funkcí, které volala.</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Celkem</value></data>
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Vlastní</value></data>
   <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Skripty neznámého původu</value></data>
@@ -390,12 +405,14 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileLuaNone" xml:space="preserve"><value>V tomto úseku nebyla zaznamenána žádná aktivita skriptů Lua.</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Příliš málo vzorků na přesná procenta. Vyberte širší úsek nebo nahrávejte v podrobném režimu.</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>Vzorků: {0:N0} · úklid paměti (GC) {1:N0}×, pozastavení {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} vzorků vláken, která jen čekala (na spojení, časovač, událost), se nepočítá</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Všechna vlákna</value></data>
   <data name="ProfileThreadGame" xml:space="preserve"><value>Herní vlákno</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Přiblížit výběr</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Zkopírovat zobrazený obsah jako text</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Výsledky výkonu byly zkopírovány.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} se nespustilo, protože běží více než jedna hra.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Nahrávat můžete po spuštění hry.</value></data>
@@ -409,13 +426,36 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileColumnFile" xml:space="preserve"><value>Soubor</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funkce</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Nejhorší 1 %</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Paměť</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Paměť, kterou hra drží na grafické kartě. Stupnice sahá od nejnižší po nejvyšší hodnotu v zobrazeném úseku.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Každý sloupec je jeden úklid paměti (GC). Jeho šířka a výška ukazují, jak dlouho kvůli němu hra stála; nejvyšší sloupec je nejdelší pauza v zobrazeném úseku.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Pauzy GC</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Využití haldy</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Využití haldy Javy: paměť, kterou drží kód hry v Javě. Stupnice sahá od nejnižší po nejvyšší hodnotu v zobrazeném úseku.</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>Halda</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Halda max.</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM max.</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}×, pozastavení {1}</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Nejpomalejší</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Průměr</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Snímky</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Počet snímků</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Snímek</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Záznam výkonu</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Jak používat graf</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kód hry (Java)</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>V tomto úseku nebyly zaznamenány žádné alokace skriptů.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Celé herní vlákno, se skripty i bez nich: {0}</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Paměť, kterou herní vlákno alokovalo, zatímco ve vybraném úseku běžely skripty tohoto modu, včetně herních funkcí, které volaly. Čím víc se alokuje, tím častěji probíhá úklid paměti (GC). Odhad ze vzorků, stejně jako čas.</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokace paměti</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Sbalit</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Rozbalit</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Strom volání</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Seskupí funkce tohoto vlastníka podle cest volání, které k nim vedly: nahoře nejvnější funkce, například obsluha události, uvnitř to, co volala. Počítají se jen vzorky, které skončily ve funkcích tohoto vlastníka. Vypnuto: prostý seznam funkcí.</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Alokováno</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skripty (Lua)</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Otevřít záznam…</value></data>

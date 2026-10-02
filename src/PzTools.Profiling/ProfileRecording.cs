@@ -7,11 +7,21 @@ namespace PzTools.Profiling;
 /// <summary>One stack sample. <see cref="Native"/>: the thread was inside a native call, not running Java.</summary>
 public readonly record struct ProfileSample(long Time, int Thread, int Stack, bool Native);
 public readonly record struct ProfileFrame(long Start, long Duration);
-public readonly record struct ProfileLuaSample(long Time, int Stack);
+/// <summary>
+/// One Lua sample. <see cref="Allocated"/>: the bytes the game thread allocated since the sampler's previous look, which
+/// count for the function found running, as the sample's time does; -1 when the recording does not have them.
+/// </summary>
+public readonly record struct ProfileLuaSample(long Time, int Stack, long Allocated = -1);
+/// <summary>What the game thread allocated, in Lua or not, in the second or so up to <see cref="Time"/>.</summary>
+public readonly record struct ProfileAllocationReading(long Time, long Bytes);
 public readonly record struct ProfileLuaFrame(int Function, int Line);
 public sealed record ProfileLuaFunction(string Name, string File);
 public sealed record ProfileCollection(long Time, long Duration, string Name, string Cause);
 public sealed record ProfilePause(long Time, long Duration, string Kind, int Thread, string Detail);
+/// <summary>The Java heap at one moment, in bytes.</summary>
+public readonly record struct ProfileHeapSample(long Time, long Used, long Committed, long Maximum);
+/// <summary>The game's video memory at one moment, in bytes: on the graphics card, and borrowed from system memory.</summary>
+public readonly record struct ProfileVideoMemorySample(long Time, long Dedicated, long Shared);
 
 /// <summary>
 /// A finished recording, read whole into memory. Times are microseconds from the first record;
@@ -38,6 +48,14 @@ public sealed class ProfileRecording
     public required ProfileLuaSample[] LuaSamples { get; init; }
     public required IReadOnlyList<ProfileCollection> Collections { get; init; }
     public required IReadOnlyList<ProfilePause> Pauses { get; init; }
+    /// <summary>Empty in recordings made before heap use was recorded.</summary>
+    public IReadOnlyList<ProfileHeapSample> Heap { get; init; } = [];
+    /// <summary>Empty when the system could not report it, and in older recordings.</summary>
+    public IReadOnlyList<ProfileVideoMemorySample> VideoMemory { get; init; } = [];
+    /// <summary>Whether the Lua samples carry allocations; false in recordings made before they did.</summary>
+    public bool HasLuaAllocations { get; init; }
+    /// <summary>The game thread's allocations, about once a second; empty without them.</summary>
+    public IReadOnlyList<ProfileAllocationReading> GameThreadAllocations { get; init; } = [];
     public required long Duration { get; init; }
     public required long JavaPeriod { get; init; }
     public required long NativePeriod { get; init; }
@@ -72,6 +90,11 @@ public sealed class ProfileRecording
         var luaSamples = new List<ProfileLuaSample>();
         var collections = new List<ProfileCollection>();
         var pauses = new List<(long Time, long Duration, string Kind, long Thread, string Detail)>();
+        var heap = new List<ProfileHeapSample>();
+        var videoMemory = new List<ProfileVideoMemorySample>();
+        // An allocation belongs to the Lua sample written at the same time; one sample per time, a millisecond apart at most.
+        var luaAllocations = new Dictionary<long, long>();
+        var gameAllocations = new List<ProfileAllocationReading>();
         long luaPeriod = 0, records = 0;
 
         while (reader.ReadLine() is { } line)
@@ -91,7 +114,7 @@ public sealed class ProfileRecording
                     samples.Add((Number(fields[1]), Number(fields[2]), Index(fields[3]), fields[4] == "N"));
                     break;
                 case "F" when fields.Length == 3: frames.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
-                case "LM" when fields.Length == 4: Place(luaFunctions, fields[1], new(fields[2], fields[3]), new("?", "?")); break;
+                case "LM" when fields.Length == 4: Place(luaFunctions, fields[1], new(LuaName(fields[2]), fields[3]), new("?", "?")); break;
                 case "LK" when fields.Length == 3:
                     Place(luaStacks, fields[1], fields[2].Length == 0 ? [] : Array.ConvertAll(fields[2].Split(' '), text =>
                     {
@@ -100,12 +123,20 @@ public sealed class ProfileRecording
                     }), []);
                     break;
                 case "L" when fields.Length == 3: luaSamples.Add(new(Number(fields[1]), Index(fields[2]))); break;
+                case "LA" when fields.Length == 3: luaAllocations[Number(fields[1])] = Math.Max(0, Number(fields[2])); break;
                 case "LH" when fields.Length == 5: luaPeriod = Math.Max(luaPeriod, Number(fields[4])); break;
+                case "GA" when fields.Length == 3: gameAllocations.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
                 case "G" when fields.Length == 5:
                     collections.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], fields[4]));
                     break;
                 case "P" when fields.Length == 6:
                     pauses.Add((Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], Number(fields[4]), fields[5]));
+                    break;
+                case "H" when fields.Length == 5:
+                    heap.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), Math.Max(0, Number(fields[3])), Math.Max(0, Number(fields[4]))));
+                    break;
+                case "V" when fields.Length == 4:
+                    videoMemory.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), Math.Max(0, Number(fields[3]))));
                     break;
                 // Unknown record kinds are skipped: a later writer may add some without breaking this reader.
             }
@@ -142,7 +173,11 @@ public sealed class ProfileRecording
         for (var index = 0; index < orderedLua.Length; index++)
         {
             if ((uint)luaSamples[index].Stack >= (uint)luaStacks.Count) throw new InvalidDataException("The recording refers to a Lua stack it does not contain.");
-            orderedLua[index] = luaSamples[index] with { Time = luaSamples[index].Time - origin };
+            orderedLua[index] = luaSamples[index] with
+            {
+                Time = luaSamples[index].Time - origin,
+                Allocated = luaAllocations.TryGetValue(luaSamples[index].Time, out var bytes) ? bytes : -1,
+            };
         }
         Array.Sort(orderedLua, (left, right) => left.Time.CompareTo(right.Time));
         foreach (var stack in luaStacks)
@@ -173,6 +208,14 @@ public sealed class ProfileRecording
             Collections = collections.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Pauses = pauses.Select(item => new ProfilePause(item.Time - origin, item.Duration, item.Kind,
                 threadIndex.GetValueOrDefault(item.Thread, -1), item.Detail)).OrderBy(item => item.Time).ToArray(),
+            // Memory readings carry on the same time scale but do not stretch the recording: they may start before
+            // the first sample or run on after the last.
+            Heap = heap.Select(item => item with { Time = item.Time - origin }).Where(item => item.Time >= 0 && item.Time <= end)
+                .OrderBy(item => item.Time).ToArray(),
+            VideoMemory = videoMemory.Select(item => item with { Time = item.Time - origin }).Where(item => item.Time >= 0 && item.Time <= end)
+                .OrderBy(item => item.Time).ToArray(),
+            HasLuaAllocations = luaAllocations.Count > 0,
+            GameThreadAllocations = gameAllocations.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Duration = end,
             JavaPeriod = EffectivePeriod(orderedSamples, threads.Length, false, Setting("javaPeriodMicros", detailed ? 1_000 : 10_000)),
             NativePeriod = EffectivePeriod(orderedSamples, threads.Length, true, Setting("nativePeriodMicros", detailed ? 10_000 : 20_000)),
@@ -216,6 +259,16 @@ public sealed class ProfileRecording
         if (gaps.Count < 50) return requested;
         gaps.Sort();
         return Math.Clamp(gaps[gaps.Count / 2], requested, requested * 4);
+    }
+
+    /// <summary>
+    /// A file's top-level code is named after the file's full path; recordings made before the recorder shortened it
+    /// carry folders above the game or the mod, possibly the user's. Its file name is shown, and copied, instead.
+    /// </summary>
+    private static string LuaName(string name)
+    {
+        var slash = name.LastIndexOfAny(['/', '\\']);
+        return slash < 0 ? name : name[(slash + 1)..];
     }
 
     private static void Place<T>(List<T> list, string index, T value, T filler)

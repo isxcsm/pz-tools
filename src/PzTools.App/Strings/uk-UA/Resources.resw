@@ -381,17 +381,32 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Видалити цей запис? Цю дію неможливо скасувати.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Записів поки немає.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не вдається відкрити цей запис. Файл пошкоджено або створено в новішій версії.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все · Сірі стовпці в панелі «Пам’ять»: очищення пам'яті (GC), висота — тривалість паузи · ▲: кадр понад шкалою (час під час наведення)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Скопіювати показане як текст</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Копіювати текст</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Результати продуктивності скопійовано.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустіть гру, щоб записувати.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не розпочато, бо гру не запущено.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0}: не розпочато, бо запущено більше однієї гри.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Кадри</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Кількість кадрів</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Кадр</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Середнє</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Найповільніший</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Найгірший 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Пік купи</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Пік VRAM</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>Купа</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Пам’ять</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Зайнято в купі</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Зайнята купа Java: пам'ять, яку тримає Java-код гри. Шкала йде від найменшого до найбільшого значення у видимому діапазоні.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Паузи GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Кожен стовпець — одне очищення пам'яті (GC). Його ширина й висота показують, скільки гра через нього стояла; найвищий стовпець — найдовша пауза у видимому діапазоні.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Пам'ять, яку гра займає на відеокарті. Шкала йде від найменшого до найбільшого значення у видимому діапазоні.</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} разів, пауза {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функція</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Метод</value></data>
@@ -405,6 +420,15 @@
   <data name="ProfileMoreActions" xml:space="preserve"><value>Більше</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Скрипти (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Код гри (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Виділення пам'яті</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Дерево викликів</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вимкнено: простий список функцій.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Розгорнути</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Згорнути</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Виділено</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Пам'ять, яку ігровий потік виділив, поки у вибраному діапазоні працювали скрипти цього мода, включно з викликаними ними функціями гри. Що більше виділяється, то частіше відбувається очищення пам'яті (GC). Оцінка за вибірками, як і час.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Увесь ігровий потік, зі скриптами й без: {0}</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>У цьому діапазоні виділення пам'яті скриптами не записано.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Як користуватися графіком</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Запис продуктивності</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Показати все</value></data>
@@ -412,6 +436,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>Ігровий потік</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Усі потоки</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>Семплів: {0:N0} · очищення пам'яті (GC): {1:N0} разів, пауза {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>Не враховано вибірок потоків, що лише чекали (з'єднання, таймера, події): {0}</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Замало семплів для точних відсотків. Виберіть ширший діапазон або запишіть у докладному режимі.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>У цьому діапазоні роботу скриптів Lua не зафіксовано.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Базова гра (ваніла)</value></data>
@@ -424,7 +449,21 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Власний</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Загалом</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Семпли</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Власний: час, витрачений безпосередньо в цій функції. Загалом: разом із функціями, які вона викликала.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Власне: час безпосередньо в цій функції.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Усього: включно з функціями, які вона викликала.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Власне: частка часу цього власника безпосередньо в цій функції. Власник — 100%; під час наведення на число видно його частку всього діапазону.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Усього: частка часу цього власника в цій функції та викликаних нею функціях. Власник — 100%; під час наведення на число видно його частку всього діапазону.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Власне: виділено, поки працювала сама функція.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Усього: також поки працювали викликані нею функції.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Вибірки: скільки пройшло через рядок.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Вибірки: скільки завершилося у функції.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} усього діапазону, близько {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} виділень цього власника</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Пакет</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Власне: частка часу роботи цієї групи безпосередньо в цьому методі. Група — 100%; під час наведення на число видно його частку всього часу роботи.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Усього: частка часу роботи цієї групи в цьому методі та викликаному ним коді цієї групи. Група — 100%; під час наведення на число видно його частку всього часу роботи.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} усього часу роботи</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>Ще {0}</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Частка за потоками</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Довгі очікування та паузи</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Мод</value></data>
@@ -437,6 +476,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Гру не запущено. Запустіть гру та спробуйте ще раз.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Запущено кілька копій гри, тому не вдається вибрати потрібну.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Не вдалося підключитися до гри. Якщо ви оновили гру або PZ Tools, перезапустіть гру.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools оновлено. Щоб записувати, один раз перезапустіть гру.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Виконується інша операція. Спробуйте трохи пізніше.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Запис завершено, але обробити результат не вдалося. Подробиці дивіться в журналі.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Не вдалося виконати запис. Подробиці дивіться в журналі.</value></data>

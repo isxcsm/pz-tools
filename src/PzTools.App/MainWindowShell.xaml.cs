@@ -2131,13 +2131,7 @@ public sealed partial class MainWindowShell : UserControl
         {
             // Several characters only with local split screen: the user picks one, and only that one is
             // changed. If the list cannot be read, recovery itself refuses a save with several.
-            IReadOnlyList<LocalCharacter> characters = [];
-            try
-            {
-                characters = await new CharacterNameReader().ListLocalAsync(Path.Combine(save.SourcePath, "players.db"));
-            }
-            catch (Exception exception) when (exception is Microsoft.Data.Sqlite.SqliteException or IOException
-                or UnauthorizedAccessException) { }
+            var characters = await host.ListSaveCharactersAsync(save.SourcePath);
             var body = new TextBlock
             {
                 Text = Localizer.Format("ConfirmHealCharacterBody", current.CharacterName ?? save.Name),
@@ -2163,7 +2157,7 @@ public sealed partial class MainWindowShell : UserControl
                 content.Children.Add(choice);
             }
             var root = host.ActiveSavesRoot ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
-            var remains = new RemainsQuestion(root, save.SaveId);
+            var remains = new RemainsQuestion(host, save.SaveId);
             content.Children.Add(remains.Panel);
             content.Children.Add(body);
             var confirmation = new ContentDialog

@@ -381,8 +381,9 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要刪除這筆錄製嗎？此動作無法復原。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>還沒有錄製紀錄。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>無法開啟這筆錄製。檔案已損毀，或是由較新的版本建立。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 記憶體面板中的灰色長條：記憶體清理（GC），高度為暫停時間 · ▲：超出刻度的影格（游標停留時顯示時間）</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>將顯示的內容複製為文字</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>複製文字</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已複製效能結果。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>啟動遊戲後即可錄製。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>遊戲沒有在執行，未開始{0}。</value></data>
@@ -390,8 +391,22 @@
   <data name="ProfileStatFrames" xml:space="preserve"><value>影格數</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>影格</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>平均</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>最慢</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>最差 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>堆積峰值</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>顯示記憶體峰值</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>堆積</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>顯示記憶體</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>記憶體</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>堆積使用量</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Java 堆積使用量：遊戲的 Java 程式碼占用的記憶體。刻度為可見範圍內的最低值到最高值。</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC 暫停時間</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>每根長條代表一次記憶體清理（GC）。寬度和高度表示遊戲因此暫停的時間，最高的長條是可見範圍內最長的暫停。</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>顯示記憶體</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>遊戲在顯示卡上占用的記憶體。刻度為可見範圍內的最低值到最高值。</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停頓 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函式</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>檔案</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>方法</value></data>
@@ -405,6 +420,15 @@
   <data name="ProfileMoreActions" xml:space="preserve"><value>更多</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>指令碼 (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>遊戲程式碼 (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>記憶體配置</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>呼叫樹</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>摺疊</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>配置量</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>在所選範圍內，此模組的腳本執行時遊戲執行緒配置的記憶體，包括腳本呼叫的遊戲功能的配置。配置越多，記憶體清理（GC）越頻繁。與時間一樣，是根據樣本得出的估計值。</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>整個遊戲執行緒（含腳本以外）：{0}</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>此範圍內沒有記錄到腳本的配置。</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>圖表使用方式</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>效能錄製</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>顯示全部</value></data>
@@ -412,6 +436,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>遊戲執行緒</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>所有執行緒</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} 個樣本 · 記憶體清理（GC）{1:N0} 次，停頓 {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>僅在等待（連線、計時器、事件）的執行緒的 {0} 個樣本未計入</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>樣本太少，百分比不夠準確。請選取更大的範圍，或改用詳細模式錄製。</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>這段範圍內沒有記錄到 Lua 指令碼活動。</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>遊戲本體（原版）</value></data>
@@ -424,7 +449,21 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>自身</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>總計</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>樣本</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>自身：直接花在該函式內的時間。總計：還包含它呼叫的其他函式。</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>自身：直接在該函式中花費的時間。</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>總計：還包括它呼叫的函式。</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>自身：此擁有者的時間中直接花在該函式裡的比例。擁有者整體為 100%，將游標停在數字上可查看占整個範圍的值。</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>總計：此擁有者的時間中花在該函式及其呼叫的函式上的比例。擁有者整體為 100%，將游標停在數字上可查看占整個範圍的值。</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>自身：該函式本身執行時配置的量。</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>總計：還包括它呼叫的函式執行時配置的量。</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>樣本：經過該列的樣本數。</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>樣本：結束於該函式的樣本數。</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>占整個範圍的 {0}，約 {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>占此擁有者配置量的 {0}</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>套件</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>自身：此群組執行時間中直接花在該方法裡的比例。整個群組為 100%，將游標停在數字上可查看占全部執行時間的值。</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>總計：此群組執行時間中花在該方法及其呼叫的本群組程式碼上的比例。整個群組為 100%，將游標停在數字上可查看占全部執行時間的值。</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>占全部執行時間的 {0}</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>其餘 {0} 項</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各執行緒占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長時間等待和停頓</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>模組</value></data>
@@ -437,6 +476,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>遊戲沒有在執行。請啟動遊戲後再試一次。</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>有多個遊戲正在執行，無法決定目標。</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>無法連線到遊戲。如果你更新過遊戲或 PZ Tools，請重新啟動遊戲。</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools 已更新。請重新啟動遊戲一次後再錄製。</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>正在進行其他作業。請稍後再試。</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>錄製已完成，但無法處理結果。詳情請查看記錄檔。</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>錄製失敗。詳情請查看記錄檔。</value></data>

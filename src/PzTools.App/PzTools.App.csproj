@@ -48,8 +48,6 @@
     <ProjectReference Include="..\PzTools.App.Core\PzTools.App.Core.csproj" />
     <ProjectReference Include="..\PzTools.Projections\PzTools.Projections.csproj" />
     <ProjectReference Include="..\PzTools.Zomboid.Archive\PzTools.Zomboid.Archive.csproj" />
-    <!-- Read-only preview of a revival, before the user confirms; the edit itself runs in its worker. -->
-    <ProjectReference Include="..\PzTools.Zomboid.Recovery\PzTools.Zomboid.Recovery.csproj" />
   </ItemGroup>
   <Import Project="..\..\build\AppWorkers.targets" />
   <Target Name="CopyApplicationPriToPublishDirectory" AfterTargets="Publish">

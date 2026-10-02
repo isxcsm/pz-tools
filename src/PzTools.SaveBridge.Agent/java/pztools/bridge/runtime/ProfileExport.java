@@ -26,9 +26,18 @@ import jdk.jfr.consumer.*;
  *   LM id name file                   a Lua function
  *   LK id f:line f:line ...           a Lua stack, innermost first
  *   L  time stack                     a Lua sample
+ *   LA time bytes                     what the game thread allocated since the sampler's previous look,
+ *                                     for the Lua sample at the same time
  *   LH time taken inLua periodMicros  Lua sampler totals since the previous LH
+ *   GA time bytes                     what the game thread allocated since the previous GA, in Lua or not
+ *
+ * LA and GA are records of their own, not extra fields of L and LH, so a reader that predates them
+ * still reads the samples; only recordings whose runtime has the per-thread counter carry them.
  *   G  time duration name cause       a garbage collection; duration is its total pause
  *   P  time duration kind thread detail   a pause or wait on one thread
+ *   H  time used committed max        the Java heap in bytes, four times a second
+ *   V  time dedicated shared          the game's video memory in bytes; added afterwards by the
+ *                                     recording worker, which reads it from outside the game
  * </pre>
  */
 public final class ProfileExport {
@@ -114,7 +123,7 @@ public final class ProfileExport {
                                 if (functionId == null) {
                                     functionId = luaFunctions.size();
                                     luaFunctions.put(function, functionId);
-                                    tables.append("LM\t").append(functionId).append('\t').append(clean(frame.substring(0, firstBar)))
+                                    tables.append("LM\t").append(functionId).append('\t').append(clean(luaName(frame.substring(0, firstBar))))
                                         .append('\t').append(clean(luaPath(frame.substring(firstBar + 1, lastBar)))).append('\n');
                                 }
                                 if (!first) line.append(' ');
@@ -124,10 +133,18 @@ public final class ProfileExport {
                             tables.append(line).append('\n');
                         }
                         body.append("L\t").append(time).append('\t').append(known).append('\n');
+                        long allocated = allocated(event);
+                        if (allocated >= 0) body.append("LA\t").append(time).append('\t').append(allocated).append('\n');
                         luaSamples++;
                     }
-                    case "pztools.LuaSampler" -> body.append("LH\t").append(time).append('\t').append(event.getLong("taken")).append('\t')
-                        .append(event.getLong("inLua")).append('\t').append(event.getLong("periodMicros")).append('\n');
+                    case "pztools.LuaSampler" -> {
+                        body.append("LH\t").append(time).append('\t').append(event.getLong("taken")).append('\t')
+                            .append(event.getLong("inLua")).append('\t').append(event.getLong("periodMicros")).append('\n');
+                        long allocated = allocated(event);
+                        if (allocated >= 0) body.append("GA\t").append(time).append('\t').append(allocated).append('\n');
+                    }
+                    case "jdk.GCHeapMemoryUsage" -> body.append("H\t").append(time).append('\t').append(event.getLong("used"))
+                        .append('\t').append(event.getLong("committed")).append('\t').append(event.getLong("max")).append('\n');
                     case "jdk.GarbageCollection" -> body.append("G\t").append(time).append('\t')
                         .append(event.getDuration("sumOfPauses").toNanos() / 1000).append('\t')
                         .append(clean(event.getString("name"))).append('\t').append(clean(event.getString("cause"))).append('\n');
@@ -195,6 +212,11 @@ public final class ProfileExport {
         return known;
     }
 
+    // A recording made before allocations were read has no such field.
+    private static long allocated(RecordedEvent event) {
+        return event.hasField("allocated") ? event.getLong("allocated") : -1;
+    }
+
     private static String detail(RecordedEvent event, String type) {
         try {
             return switch (type) {
@@ -233,6 +255,15 @@ public final class ProfileExport {
         if (lower.startsWith("media/") || lower.startsWith("mods/")) return value;
         int slash = value.lastIndexOf('/');
         return slash < 0 ? value : value.substring(slash + 1);
+    }
+    /**
+     * A Lua function's name as the recording keeps it. A file's top-level code is named after the file's full path,
+     * folders above the game or the mod included; its file name says the same without them. A function name never
+     * holds a slash, so only such a name changes.
+     */
+    static String luaName(String name) {
+        int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        return slash < 0 ? name : name.substring(slash + 1);
     }
     private static String name(RecordedThread thread) {
         String name = thread.getJavaName();

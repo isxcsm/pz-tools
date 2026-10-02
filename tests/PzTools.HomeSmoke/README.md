@@ -41,7 +41,7 @@ exactly one expected `NavigationRequested` event (Saves, Performance or Game ext
 each CTA is brought fully into view before invocation. Horizontal clipping,
 vertically unreachable CTAs, missing/disabled CTAs, or an
 unloaded bitmap artwork fail the run. The footer must also show the selectable
-app version (`v0.2.0`, checked as literal text), independent of the test assembly's
+app version (`v0.2.1`, checked as literal text), independent of the test assembly's
 version metadata.
 
 The production `home.svg` and `extensions.svg` navigation icons are loaded through `SvgImageSource` into 20 px

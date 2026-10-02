@@ -125,6 +125,8 @@
                   Fill="{ThemeResource AccentFillColorDefaultBrush}" />
             <Path x:Name="SlowBarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                   Fill="{ThemeResource SystemFillColorCautionBrush}" />
+            <!-- The 60 and 30 FPS lines, over the bars: a slow recording's bars would otherwise hide them. -->
+            <Canvas x:Name="ReferenceCanvas" IsHitTestVisible="False" />
             <Canvas IsHitTestVisible="False">
               <Rectangle x:Name="SelectionRectangle" Visibility="Collapsed" Opacity="0.28"
                          Fill="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -135,6 +137,50 @@
         </Border>
         <ScrollBar x:Name="ViewScroll" Orientation="Horizontal" IndicatorMode="MouseIndicator"
                    Visibility="Collapsed" Scroll="ViewScroll_Scroll" />
+        <!-- Collections and memory. The button opens the heap and video memory graphs under the frames; their
+             figures stand on this line in their lines' colours, so they also name the lines. -->
+        <Grid x:Name="MemoryHeader" Visibility="Collapsed" ColumnSpacing="14">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Button x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="6,2"
+                  Style="{StaticResource SubtleButtonStyle}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" />
+              <TextBlock x:Name="MemoryToggleText" />
+            </StackPanel>
+          </Button>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+            <TextBlock x:Name="HeapValue" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+            <TextBlock x:Name="VideoValue" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+          </StackPanel>
+          <TextBlock x:Name="CollectionValue" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Grid>
+        <!-- Heap above, video memory below, each on its own scale; the same time axis, zoom, selection and
+             pointer line as the frame graph, whose margins it shares so the two line up. -->
+        <Border x:Name="MemoryBorder" Visibility="Collapsed" Height="96" CornerRadius="8" BorderThickness="1"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+          <Grid x:Name="MemorySurface" Background="Transparent" Margin="44,6,8,6"
+                SizeChanged="MemorySurface_SizeChanged"
+                PointerPressed="Chart_PointerPressed" PointerMoved="Chart_PointerMoved"
+                PointerReleased="Chart_PointerReleased" PointerCanceled="Chart_PointerCanceled"
+                PointerCaptureLost="Chart_PointerCanceled" PointerExited="Chart_PointerExited"
+                PointerWheelChanged="Chart_PointerWheelChanged" DoubleTapped="Chart_DoubleTapped">
+            <Canvas x:Name="MemoryCanvas" IsHitTestVisible="False" />
+            <Canvas IsHitTestVisible="False">
+              <Rectangle x:Name="MemorySelection" Visibility="Collapsed" Opacity="0.28"
+                         Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+              <Rectangle x:Name="MemoryHoverLine" Width="1" Visibility="Collapsed" Opacity="0.5"
+                         Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+            </Canvas>
+            <!-- The rows' names, on top; only the names take the pointer, for their tips. -->
+            <Canvas x:Name="MemoryNames" />
+          </Grid>
+        </Border>
         <!-- Drag to give the graph or the results more room. -->
         <local:ResizeGrip x:Name="ChartGrip" Height="10" Background="Transparent"
                           PointerPressed="ChartGrip_PointerPressed" PointerMoved="ChartGrip_PointerMoved"
@@ -163,6 +209,8 @@
           <SelectorBar x:Name="ResultTabs" SelectionChanged="ResultTabs_SelectionChanged">
             <SelectorBarItem x:Name="LuaTab" IsSelected="True" />
             <SelectorBarItem x:Name="JavaTab" AutomationProperties.AutomationId="ProfileJavaTab" />
+            <!-- Only for recordings whose Lua samples carry allocations. -->
+            <SelectorBarItem x:Name="AllocationTab" Visibility="Collapsed" AutomationProperties.AutomationId="ProfileAllocationTab" />
           </SelectorBar>
           <Canvas x:Name="TabSelectionLayer" IsHitTestVisible="False">
             <Border x:Name="TabSelectionBar" Width="16" Height="3" CornerRadius="1.5" Visibility="Collapsed"
@@ -172,6 +220,7 @@
         <Grid x:Name="DetailTitle" Grid.Column="1" Margin="16,0,16,0" ColumnSpacing="20" VerticalAlignment="Center">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <!-- The name with the copy button right after it. Left-aligned, this grid is only as wide as both need,
@@ -184,12 +233,20 @@
             <!-- Larger than the tabs beside it; the samples share its baseline. The share is in the list beside. -->
             <TextBlock x:Name="DetailName" FontSize="18" VerticalAlignment="Bottom" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
             <!-- What the page shows, as text: to paste into a message to a mod's author. -->
-            <Button x:Name="CopyResultsButton" Grid.Column="1" Width="32" Height="32" Padding="0"
-                    VerticalAlignment="Center" Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
-              <FontIcon Glyph="&#xE8C8;" FontSize="16" />
+            <!-- Set on the line's baseline like the name and the samples: a 32-pixel button centres its text 7 pixels
+                 above the bottom edge a text line sits on, so it hangs that far below. -->
+            <Button x:Name="CopyResultsButton" Grid.Column="1" Height="32" Padding="8,0,10,0" Margin="0,0,0,-7"
+                    VerticalAlignment="Bottom" Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE8C8;" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock x:Name="CopyResultsText" VerticalAlignment="Center" />
+              </StackPanel>
             </Button>
           </Grid>
-          <TextBlock x:Name="DetailSamples" Grid.Column="1" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
+          <!-- The scripts' functions as a list, or as the call paths that led to them. -->
+          <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="1" MinWidth="0" Margin="0,0,0,-7" VerticalAlignment="Bottom" Visibility="Collapsed"
+                        Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
+          <TextBlock x:Name="DetailSamples" Grid.Column="2" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
         </Grid>
         <Border x:Name="GroupCard" Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

@@ -93,10 +93,14 @@ public final class RuntimeObserver {
         if (context != null && context.active) return false;
         Context next = new Context(AgentEntry.ensureGameHook());
         context = next;
-        // The per-frame slot is shared with an optional profile recording; its mark is one branch when idle.
-        AgentEntry.observe(() -> { ProfileRecorder.frame(); next.sample(); });
+        AgentEntry.observe(perFrame(next::sample));
         return true;
     }
+    /**
+     * The per-frame callback. Its slot is shared with an optional profile recording, reached only through its relay:
+     * one read when idle, and whatever the profiler throws ends the profiler's marks, never this observer.
+     */
+    static Runnable perFrame(Runnable sample) { return () -> { ProfileFrames.tick(); sample.run(); }; }
     public static synchronized void stop() {
         Context previous = context;
         if (previous != null) {

@@ -12,7 +12,7 @@ namespace PzTools.App;
 /// offers them, the one carrying most first and chosen, plus reviving without belongings. With nothing
 /// found, it says so and the revival goes ahead without them, rather than refusing.
 /// </summary>
-internal sealed class RemainsQuestion(string savesRoot, string saveId)
+internal sealed class RemainsQuestion(PzTools.App.Core.AppHost host, string saveId)
 {
     private CancellationTokenSource? looking;
     private IReadOnlyList<RemainsCandidate> candidates = [];
@@ -49,7 +49,7 @@ internal sealed class RemainsQuestion(string savesRoot, string saveId)
         try
         {
             // Off the UI thread: a large world has thousands of map files to read.
-            preview = await Task.Run(() => new CharacterRecoveryService().PreviewAsync(savesRoot, saveId, playerId, cancel.Token), cancel.Token);
+            preview = await Task.Run(() => host.PreviewCharacterRecoveryAsync(saveId, playerId, cancel.Token), cancel.Token);
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested) { return; }
         catch (Exception) { preview = null; }

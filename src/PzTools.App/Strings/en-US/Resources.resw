@@ -364,6 +364,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileError.Convert" xml:space="preserve"><value>The recording finished, but its result could not be processed. Check the log for details.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Another operation is in progress. Try again in a moment.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Could not connect to the game. If you updated the game or PZ Tools, restart the game.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools was updated. Restart the game once to record.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>More than one game is running, so the target cannot be chosen.</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>The game is not running. Start the game and try again.</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Long waits and pauses</value></data>
@@ -375,8 +376,22 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileListJavaShareTip" xml:space="preserve"><value>How much of the game code's running time in the selected range went to this item. Game functions called by Lua scripts count as 'Base game' here. Long waits and stalls show a count instead of a share.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0}×</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Share by thread</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Self: time spent directly in that function. Total: also includes the functions it called.</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Samples</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Self: time spent directly in that function.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Total: also includes the functions it called.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Self: the part of this owner's time spent directly in that function. The owner is 100%; resting the pointer on a number gives its part of the whole range.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Total: the part of this owner's time spent in that function and the functions it called. The owner is 100%; resting the pointer on a number gives its part of the whole range.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Self: allocated while that function itself was running.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Total: also while the functions it called were running.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Samples: how many samples passed through the line.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Samples: how many samples ended in the function.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} of the whole range, about {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} of this owner's allocations</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Package</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Self: the part of this group's running time spent directly in that method. The group is 100%; resting the pointer on a number gives its part of all the running time.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Total: the part of this group's running time spent in that method and in this group's code it called. The group is 100%; resting the pointer on a number gives its part of all the running time.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} of all the running time</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>{0} more</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Self</value></data>
   <data name="ProfileOwnerUnknown" xml:space="preserve"><value>Scripts of unknown origin</value></data>
@@ -389,21 +404,37 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileLuaNone" xml:space="preserve"><value>No Lua script activity was recorded in this range.</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Too few samples for accurate percentages. Select a wider range or record in Detailed mode.</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} samples · memory cleanup (GC) {1:N0} times, paused {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} samples of threads only waiting (for a connection, a timer, an event) are not counted</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>All threads</value></data>
   <data name="ProfileThreadGame" xml:space="preserve"><value>Game thread</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Zoom to selection</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Show all</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copy what is shown as text</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Copy text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>The performance results were copied.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Start the game to record.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} did not start because the game is not running.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} did not start because more than one game is running.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Frames</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Frame count</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Frame</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Average</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Slowest</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Worst 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Heap peak</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM peak</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Memory</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Heap in use</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Java heap in use: the memory the game's Java code holds. The scale runs from the lowest to the highest reading in view.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC pauses</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Each bar is one memory cleanup (GC). Its width and height show how long the game stopped for it; the tallest bar is the longest pause in view.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memory the game holds on the graphics card. The scale runs from the lowest to the highest reading in view.</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} times, paused {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Function</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Method</value></data>
@@ -417,6 +448,15 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileMoreActions" xml:space="preserve"><value>More</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Scripts (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Game code (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Memory allocation</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Call tree</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Groups this owner's functions by the call paths that led to them: the outermost function, such as an event handler, on top, and what it called inside. Only samples that ended in this owner's functions count. Off: a plain list of the functions.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Expand</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Collapse</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Allocated</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memory the game thread allocated while this mod's scripts were running in the selected range, including game functions they called. The more is allocated, the more often memory is cleaned up (GC). An estimate from the samples, like the time.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Whole game thread, scripts or not: {0}</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>No script allocations were recorded in this range.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>How to use the graph</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Performance recording</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>This recording cannot be opened. The file is damaged or was made by a newer version.</value></data>

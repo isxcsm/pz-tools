@@ -43,6 +43,8 @@ public final class AgentEntry {
     private static Method payloadRun;
     private static volatile long payloadLoads;
     private static volatile long hookInstalls;
+    // Times the dispatch call could not be put back when GameWindow was retransformed after it was installed.
+    private static volatile long hookFailures;
     private static volatile long sessions;
 
     public static synchronized void agentmain(String options, Instrumentation value) throws Exception {
@@ -211,6 +213,9 @@ public final class AgentEntry {
             throw new IllegalStateException("Unsupported game method signatures");
         var transformed = new AtomicBoolean();
         var failure = new AtomicReference<Throwable>();
+        // Stays registered: when another agent retransforms GameWindow later, the JVM runs this again on the original
+        // bytes, so the dispatch call survives their change and theirs survives ours. Should it fail then, the class
+        // goes on without it; that is counted for diagnostics rather than passed to the other agent.
         ClassFileTransformer candidate = new ClassFileTransformer() {
             @Override public byte[] transform(ClassLoader loader, String name, Class<?> type,
                     ProtectionDomain domain, byte[] bytes) {
@@ -219,7 +224,11 @@ public final class AgentEntry {
                     byte[] result = transformWindow(bytes, loader);
                     transformed.set(true);
                     return result;
-                } catch (Throwable exception) { failure.set(exception); return null; }
+                } catch (Throwable exception) {
+                    failure.set(exception);
+                    if (hook != null) hookFailures++;
+                    return null;
+                }
             }
         };
         instrumentation.addTransformer(candidate, true);
@@ -233,7 +242,12 @@ public final class AgentEntry {
     }
 
     private static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
-        var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.ofClassLoading(loader)));
+        // The new stack maps need the game's class hierarchy. It is read from the class files themselves: loading
+        // classes from inside a transformer, perhaps during another agent's retransformation, can fail or deadlock,
+        // and runs every agent's transformers on the classes it loads. Loading stays only as the last resort, for a
+        // class whose file cannot be read, as the hook was always installed before.
+        var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.defaultResolver()
+            .orElse(ClassHierarchyResolver.ofResourceParsing(loader)).orElse(ClassHierarchyResolver.ofClassLoading(loader)).cached()));
         var model = cf.parse(bytes);
         if (model.methods().stream().filter(m -> m.methodName().equalsString("logic")
                 && m.methodType().equalsString("()V")).count() != 1)
@@ -293,8 +307,9 @@ public final class AgentEntry {
     }
     // Test/diagnostic counters: never include credentials or payload paths.
     public static synchronized String diagnostics() {
+        // New counters go at the end: readers match the earlier fields as they have always been laid out.
         return "hookInstalls=" + hookInstalls + ";payloadLoads=" + payloadLoads + ";sessions=" + sessions
-            + ";callbackActive=" + (callback != null) + ";observerActive=" + (observerCallback != null);
+            + ";callbackActive=" + (callback != null) + ";observerActive=" + (observerCallback != null) + ";hookFailures=" + hookFailures;
     }
     private static String readLimited(Reader input) throws IOException {
         var line = new StringBuilder();

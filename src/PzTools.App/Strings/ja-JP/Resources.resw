@@ -381,17 +381,32 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>この記録を削除しますか？ 元に戻すことはできません。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>記録はまだありません。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>この記録を開けません。ファイルが破損しているか、より新しいバージョンで作成されています。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>表示中の内容をテキストでコピー</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>テキストをコピー</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>パフォーマンスの結果をコピーしました。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>ゲームを起動すると記録できます。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ゲームが起動していないため、{0}を開始しませんでした。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ゲームが複数起動しているため、{0}を開始しませんでした。</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>フレーム</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>フレーム数</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>フレーム</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>平均</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>最も遅い</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>下位 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>ヒープ最大</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM 最大</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>ヒープ</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>メモリ</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>ヒープ使用量</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Java ヒープの使用量: ゲームの Java コードが使っているメモリです。目盛りは表示範囲の最小から最大までです。</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC 停止時間</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>棒 1 本がメモリの整理 (GC) 1 回です。幅と高さはその間ゲームが止まった時間で、いちばん高い棒が表示範囲で最も長い停止です。</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>ゲームがグラフィックカード上に確保しているメモリです。目盛りは表示範囲の最小から最大までです。</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回、停止 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>関数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ファイル</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>メソッド</value></data>
@@ -405,6 +420,15 @@
   <data name="ProfileMoreActions" xml:space="preserve"><value>その他</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>スクリプト (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>ゲームコード (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>メモリ割り当て</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>呼び出しツリー</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>この所有者の関数を、そこへ至った呼び出し経路ごとにまとめて表示します。イベント処理関数のような一番外側の関数が上にあり、展開するとその関数が呼んだ関数が表示されます。この所有者の関数で終わったサンプルだけを数えます。オフにすると関数の一覧になります。</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>展開</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>折りたたむ</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>割り当て量</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>選択した範囲で、この MOD のスクリプトの実行中にゲームスレッドが割り当てたメモリです。スクリプトが呼び出したゲーム機能の割り当ても含みます。割り当てが多いほどメモリの整理 (GC) が頻繁に起こります。時間と同じくサンプルからの推定値です。</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>ゲームスレッド全体 (スクリプト以外も含む): {0}</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>この範囲では割り当てが記録されたスクリプトはありません。</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>グラフの操作方法</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>パフォーマンス記録</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>全体を表示</value></data>
@@ -412,6 +436,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>ゲームスレッド</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>すべてのスレッド</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} サンプル · メモリの整理 (GC) {1:N0} 回、停止 {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>待機していただけのスレッドのサンプル {0} 件 (接続・タイマー・イベント待ち) は数えていません</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>サンプルが少なく、割合が正確ではありません。範囲を広げるか、詳細モードで記録してください。</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>この範囲では Lua スクリプトの動作は記録されていません。</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>ゲーム本体 (バニラ)</value></data>
@@ -424,7 +449,21 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>自身</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>合計</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>サンプル</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>自身: その関数の中で直接かかった時間。合計: その関数が呼び出した関数の時間も含みます。</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>自身: その関数の中で直接使った時間。</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>合計: その関数が呼び出した関数の分も含めた時間。</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>自身: この所有者の時間のうち、その関数の中で直接使った割合です。所有者全体が 100% で、数値にポインターを置くと範囲全体に対する値が表示されます。</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>合計: この所有者の時間のうち、その関数とその関数が呼び出した関数に使った割合です。所有者全体が 100% で、数値にポインターを置くと範囲全体に対する値が表示されます。</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>自身: その関数自体の実行中に割り当てられた量。</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>合計: その関数が呼び出した関数の分も含めた量。</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>サンプル: その行を通ったサンプル数。</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>サンプル: その関数で終わったサンプル数。</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>範囲全体の {0}、約 {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>この所有者の割り当ての {0}</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>パッケージ</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>自身: このグループの実行時間のうち、そのメソッドの中で直接使った割合です。グループ全体が 100% で、数値にポインターを置くと実行時間全体に対する値が表示されます。</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>合計: このグループの実行時間のうち、そのメソッドとそれが呼び出したこのグループのコードに使った割合です。グループ全体が 100% で、数値にポインターを置くと実行時間全体に対する値が表示されます。</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>実行時間全体の {0}</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>残り {0} 件</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>スレッド別の割合</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>長い待機と一時停止</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>MOD</value></data>
@@ -437,6 +476,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>ゲームが起動していません。ゲームを起動してからもう一度お試しください。</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>ゲームが複数起動しているため、対象を決められません。</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>ゲームに接続できませんでした。ゲームまたは PZ Tools を更新した場合は、ゲームを再起動してください。</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools が更新されました。記録するにはゲームを一度再起動してください。</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>別の処理が進行中です。しばらくしてからもう一度お試しください。</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>記録は完了しましたが、結果を処理できませんでした。詳しくはログを確認してください。</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>記録に失敗しました。詳しくはログを確認してください。</value></data>

@@ -2,6 +2,8 @@ package pztools.bridge.runtime;
 
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -25,15 +27,23 @@ final class ProfileRecorder {
     @Name("pztools.Frame") @Label("Game frame") @Category("PZ Tools") @StackTrace(false)
     static final class FrameEvent extends Event { }
 
-    /** Innermost first, as {@code name|file|line} joined by tabs-free separators; see {@link LuaSampler}. */
+    /**
+     * Innermost first, as {@code name|file|line} joined by tabs-free separators; see {@link LuaSampler}.
+     * {@code allocated}: bytes the game thread allocated since the sampler's previous look, -1 when unknown.
+     */
     @Name("pztools.LuaSample") @Label("Lua sample") @Category("PZ Tools") @StackTrace(false)
-    static final class LuaSampleEvent extends Event { @Label("Stack") String stack; }
+    static final class LuaSampleEvent extends Event {
+        @Label("Stack") String stack;
+        @Label("Allocated since the previous sample") @DataAmount long allocated;
+    }
 
     @Name("pztools.LuaSampler") @Label("Lua sampler") @Category("PZ Tools") @StackTrace(false)
     static final class LuaSamplerEvent extends Event {
         @Label("Samples taken") long taken;
         @Label("Samples in Lua") long inLua;
         @Label("Period in microseconds") long periodMicros;
+        /** Everything the game thread allocated since the previous report, in Lua or not; -1 when unknown. */
+        @Label("Game thread allocated") @DataAmount long allocated;
     }
 
     static final int MAXIMUM_SECONDS = 1800;
@@ -47,6 +57,10 @@ final class ProfileRecorder {
     private static volatile long frames;
     // Game thread only while active.
     private static FrameEvent open;
+    // The thread that runs the game loop, and with it the game's Lua: whose allocations the Lua sampler reads.
+    private static volatile Thread gameThread;
+    // What the game loop calls through ProfileFrames while a recording runs; one instance, so it detaches only itself.
+    private static final Runnable FRAME_MARK = ProfileRecorder::frame;
 
     private ProfileRecorder() { }
 
@@ -62,6 +76,7 @@ final class ProfileRecorder {
         if (!active) return;
         FrameEvent previous = open;
         if (previous != null) { previous.end(); previous.commit(); }
+        else if (gameThread == null) gameThread = Thread.currentThread();
         FrameEvent next = new FrameEvent();
         next.begin();
         open = next;
@@ -86,6 +101,8 @@ final class ProfileRecorder {
             next.enable("jdk.GarbageCollection");
             next.enable("jdk.GCPhasePause");
             next.enable("jdk.ZAllocationStall");
+            // How full the Java heap is, four times a second: it fills between collections and drops at each.
+            next.enable("jdk.GCHeapMemoryUsage").withPeriod(Duration.ofMillis(250));
             if (detailedMode) {
                 // Where a thread was not running at all: waiting for a lock, parked, blocked on a file, stopped by the JVM.
                 next.enable("jdk.JavaMonitorEnter").withThreshold(Duration.ofMillis(1));
@@ -105,7 +122,7 @@ final class ProfileRecorder {
             TimerResolution.raise();
             next.start();
         } catch (Throwable failure) { TimerResolution.restore(); next.close(); throw failure; }
-        recording = next; detailed = detailedMode; startedNanos = System.nanoTime(); frames = 0; open = null;
+        recording = next; detailed = detailedMode; startedNanos = System.nanoTime(); frames = 0; open = null; gameThread = null;
         LuaSampler sampler = null;
         try { sampler = new LuaSampler(gameLoader, detailedMode ? 1_000_000L : 10_000_000L); luaState = "sampling"; }
         catch (ReflectiveOperationException | LinkageError unavailable) { luaState = "unavailable:" + unavailable.getClass().getSimpleName(); }
@@ -116,6 +133,7 @@ final class ProfileRecorder {
             luaThread.start();
         }
         active = true;
+        ProfileFrames.attach(FRAME_MARK);
         return status();
     }
 
@@ -123,6 +141,7 @@ final class ProfileRecorder {
         if (recording == null) throw new IllegalStateException("not-recording");
         String result = status();
         active = false;
+        ProfileFrames.detach(FRAME_MARK);
         open = null;
         stopLua();
         Recording current = recording;
@@ -142,6 +161,7 @@ final class ProfileRecorder {
         Recording current = recording;
         if (!active || current == null || current.getState() == RecordingState.RUNNING) return;
         active = false; open = null;
+        ProfileFrames.detach(FRAME_MARK);
         stopLua();
         TimerResolution.restore();
     }
@@ -158,6 +178,7 @@ final class ProfileRecorder {
     /** Payload replacement or shutdown: leave nothing running that belongs to a retiring class loader. */
     static synchronized void closeQuietly() {
         active = false; open = null;
+        ProfileFrames.detach(FRAME_MARK);
         stopLua();
         Recording current = recording;
         recording = null;
@@ -183,9 +204,10 @@ final class ProfileRecorder {
      */
     static final class LuaSampler implements Runnable {
         private static final int MAXIMUM_DEPTH = 24, MAXIMUM_CACHE = 8192, MAXIMUM_STACK_TEXT = 4096;
-        private final Field[] threads;
-        private final Field currentCoroutine, closure, pc, prototype, name, file, filename, lines;
-        private final Method top, stack;
+        // Method handles, not reflection: access is checked once, here, instead of on every read, and nothing is
+        // boxed. Types are erased to Object (or int) so the reads are exact calls; checked above them by type.
+        private final MethodHandle[] threads;
+        private final MethodHandle currentCoroutine, closure, pc, prototype, name, file, filename, lines, top, stack;
         private final long periodNanos;
         private final IdentityHashMap<Object, String> labels = new IdentityHashMap<>();
         private final PreciseWait wait = new PreciseWait();
@@ -204,83 +226,116 @@ final class ProfileRecorder {
             // The interface runs on its own interpreter thread object; without it only game logic Lua is seen.
             try { ui = Class.forName("zombie.ui.UIManager", false, game).getField("defaultthread"); if (ui.getType() != kahlua) ui = null; }
             catch (ReflectiveOperationException absent) { ui = null; }
-            threads = ui == null ? new Field[] { main } : new Field[] { main, ui };
-            currentCoroutine = typed(kahlua.getField("currentCoroutine"), coroutine);
-            top = coroutine.getMethod("getCallframeTop");
-            stack = coroutine.getMethod("getCallframeStack");
-            if (top.getReturnType() != int.class || stack.getReturnType() != frame.arrayType()) throw new NoSuchMethodException("Coroutine call frames");
-            closure = typed(frame.getField("closure"), closureType);
-            pc = typed(frame.getField("pc"), int.class);
-            prototype = typed(closureType.getField("prototype"), prototypeType);
-            name = typed(prototypeType.getField("name"), String.class);
-            file = typed(prototypeType.getField("file"), String.class);
-            filename = typed(prototypeType.getField("filename"), String.class);
-            lines = typed(prototypeType.getField("lines"), int[].class);
+            threads = ui == null ? new MethodHandle[] { read(main) } : new MethodHandle[] { read(main), read(ui) };
+            currentCoroutine = read(typed(kahlua.getField("currentCoroutine"), coroutine));
+            Method callTop = coroutine.getMethod("getCallframeTop"), callStack = coroutine.getMethod("getCallframeStack");
+            if (callTop.getReturnType() != int.class || callStack.getReturnType() != frame.arrayType()) throw new NoSuchMethodException("Coroutine call frames");
+            top = call(callTop);
+            stack = call(callStack);
+            closure = read(typed(frame.getField("closure"), closureType));
+            pc = read(typed(frame.getField("pc"), int.class));
+            prototype = read(typed(closureType.getField("prototype"), prototypeType));
+            name = read(typed(prototypeType.getField("name"), String.class));
+            file = read(typed(prototypeType.getField("file"), String.class));
+            filename = read(typed(prototypeType.getField("filename"), String.class));
+            lines = read(typed(prototypeType.getField("lines"), int[].class));
         }
         private static Field typed(Field field, Class<?> type) throws NoSuchFieldException {
             if (field.getType() != type) throw new NoSuchFieldException(field.getName());
             return field;
         }
+        /** A field's getter as ()Object for a static field or (Object)Object, primitives kept. */
+        private static MethodHandle read(Field field) throws IllegalAccessException {
+            Class<?> value = field.getType().isPrimitive() ? field.getType() : Object.class;
+            MethodHandle getter = MethodHandles.publicLookup().unreflectGetter(field);
+            return getter.asType(java.lang.reflect.Modifier.isStatic(field.getModifiers())
+                ? MethodType.methodType(value) : MethodType.methodType(value, Object.class));
+        }
+        /** A no-argument instance method as (Object)Object, primitives kept. */
+        private static MethodHandle call(Method method) throws IllegalAccessException {
+            Class<?> value = method.getReturnType().isPrimitive() ? method.getReturnType() : Object.class;
+            return MethodHandles.publicLookup().unreflect(method).asType(MethodType.methodType(value, Object.class));
+        }
 
         @Override public void run() {
             long taken = 0, inLua = 0, lastReport = System.nanoTime();
+            // What the game thread allocated, by its JVM counter: the bytes since the previous look go to the Lua
+            // function found running now, the same vote a sample casts for time.
+            ThreadAllocation allocation;
+            try { allocation = ThreadAllocation.open(); } catch (LinkageError absent) { allocation = null; }
+            Thread counted = null;
+            long lastBytes = -1, reportBytes = -1;
             var text = new StringBuilder(512);
+            // The game often stays in one place for many samples in a row: the same text is then the same string,
+            // so it makes no garbage in the game's heap and the recorder finds it already in its string pool.
+            String previousStack = "";
             try {
                 while (!stopped) {
                     wait.pause(periodNanos);
                     if (stopped) break;
                     taken++;
+                    long allocated = -1;
+                    Thread game = gameThread;
+                    if (allocation != null && game != null) {
+                        long bytes = allocation.of(game);
+                        if (bytes >= 0 && counted == game && lastBytes >= 0) allocated = Math.max(0, bytes - lastBytes);
+                        counted = game; lastBytes = bytes;
+                        if (allocated >= 0) reportBytes = Math.max(0, reportBytes) + allocated;
+                    }
                     text.setLength(0);
                     try { read(text); } catch (Throwable racing) { text.setLength(0); }
                     if (text.length() != 0) {
                         inLua++;
+                        if (!previousStack.contentEquals(text)) previousStack = text.toString();
                         LuaSampleEvent event = new LuaSampleEvent();
-                        event.stack = text.toString();
+                        event.stack = previousStack;
+                        event.allocated = allocated;
                         event.commit();
                     }
                     long now = System.nanoTime();
                     if (now - lastReport >= 1_000_000_000L) {
-                        report(taken, inLua); taken = inLua = 0; lastReport = now;
+                        report(taken, inLua, reportBytes); taken = inLua = 0; reportBytes = -1; lastReport = now;
                         // The recording ended by itself: stop reading the game for nobody. Checked once
                         // a second; counting samples for this missed it in Standard mode, where the
                         // count is reset before it gets that far.
                         if (!ProfileRecorder.running()) break;
                     }
                 }
-                report(taken, inLua);
-            } finally { wait.close(); }
+                report(taken, inLua, reportBytes);
+            } finally { wait.close(); if (allocation != null) allocation.close(); }
         }
-        private void report(long taken, long inLua) {
+        private void report(long taken, long inLua, long allocated) {
             LuaSamplerEvent event = new LuaSamplerEvent();
-            event.taken = taken; event.inLua = inLua; event.periodMicros = periodNanos / 1000;
+            event.taken = taken; event.inLua = inLua; event.periodMicros = periodNanos / 1000; event.allocated = allocated;
             event.commit();
         }
 
-        private void read(StringBuilder out) throws ReflectiveOperationException {
-            for (Field thread : threads) {
-                Object interpreter = thread.get(null);
+        private void read(StringBuilder out) throws Throwable {
+            for (MethodHandle thread : threads) {
+                Object interpreter = (Object)thread.invokeExact();
                 if (interpreter == null) continue;
-                Object coroutine = currentCoroutine.get(interpreter);
+                Object coroutine = (Object)currentCoroutine.invokeExact(interpreter);
                 if (coroutine == null) continue;
-                int depth = (int)top.invoke(coroutine);
-                Object[] frames = (Object[])stack.invoke(coroutine);
+                int depth = (int)top.invokeExact(coroutine);
+                Object[] frames = (Object[])(Object)stack.invokeExact(coroutine);
                 if (depth <= 0 || frames == null) continue;
                 int written = 0;
                 for (int index = Math.min(depth, frames.length) - 1; index >= 0 && written < MAXIMUM_DEPTH; index--) {
                     Object callFrame = frames[index];
                     if (callFrame == null) continue;
-                    Object function = closure.get(callFrame);
+                    Object function = (Object)closure.invokeExact(callFrame);
                     if (function == null) continue; // A Java function called from Lua; the Java samples cover it.
-                    Object code = prototype.get(function);
+                    Object code = (Object)prototype.invokeExact(function);
                     if (code == null) continue;
                     String label = labels.get(code);
                     if (label == null) {
                         if (labels.size() >= MAXIMUM_CACHE) labels.clear();
-                        label = clean((String)name.get(code)) + "|" + clean(firstNonEmpty((String)filename.get(code), (String)file.get(code)));
+                        label = clean((String)(Object)name.invokeExact(code)) + "|"
+                            + clean(firstNonEmpty((String)(Object)filename.invokeExact(code), (String)(Object)file.invokeExact(code)));
                         labels.put(code, label);
                     }
-                    int line = 0, counter = pc.getInt(callFrame) - 1;
-                    int[] lineTable = (int[])lines.get(code);
+                    int line = 0, counter = (int)pc.invokeExact(callFrame) - 1;
+                    int[] lineTable = (int[])(Object)lines.invokeExact(code);
                     if (lineTable != null && counter >= 0 && counter < lineTable.length) line = lineTable[counter];
                     if (out.length() + label.length() + 16 > MAXIMUM_STACK_TEXT) break;
                     if (written++ != 0) out.append('\n');
@@ -294,6 +349,43 @@ final class ProfileRecorder {
             if (value == null || value.isEmpty()) return "?";
             if (value.length() > 240) value = value.substring(value.length() - 240);
             return value.replace('|', '/').replace('\n', ' ').replace('\r', ' ').replace('\t', ' ');
+        }
+    }
+
+    /**
+     * How many bytes a thread has allocated so far, from the JVM's own per-thread counter: a read is a
+     * short lookup, and nothing is hooked or instrumented. Absent where the runtime
+     * lacks the management module or the counter, and then the recording simply has no allocations.
+     */
+    static final class ThreadAllocation {
+        private final com.sun.management.ThreadMXBean threads;
+        private final boolean enabledHere;
+        private ThreadAllocation(com.sun.management.ThreadMXBean threads, boolean enabledHere) {
+            this.threads = threads; this.enabledHere = enabledHere;
+        }
+
+        /** Null when unavailable. A runtime without the module fails to link this class; the caller catches that. */
+        static ThreadAllocation open() {
+            try {
+                if (!(java.lang.management.ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean threads)
+                        || !threads.isThreadAllocatedMemorySupported()) return null;
+                // On by default. Turned on only if someone turned it off, and turned off again by {@link #close()}:
+                // the setting is the whole JVM's, and another agent may have its reasons.
+                boolean enable = !threads.isThreadAllocatedMemoryEnabled();
+                if (enable) threads.setThreadAllocatedMemoryEnabled(true);
+                return new ThreadAllocation(threads, enable);
+            } catch (RuntimeException | LinkageError unavailable) { return null; }
+        }
+
+        /** Leaves the JVM's setting as it was found. */
+        void close() {
+            if (!enabledHere) return;
+            try { threads.setThreadAllocatedMemoryEnabled(false); } catch (RuntimeException ignored) { }
+        }
+
+        /** -1 when the thread has ended or the counter is off. */
+        long of(Thread thread) {
+            try { return threads.getThreadAllocatedBytes(thread.threadId()); } catch (RuntimeException unavailable) { return -1; }
         }
     }
 
@@ -354,16 +446,29 @@ final class ProfileRecorder {
                 timer = created.address() == 0 ? null : created;
             } catch (Throwable unavailable) { timer = null; }
         }
+        // The period the timer repeats at once armed, so each pause is one wait instead of arming and waiting; 0 when
+        // not armed, -1 when the system refused a repeating timer and each pause arms it once.
+        private long periodicNanos;
+
         void pause(long nanos) {
             MemorySegment current = timer;
             if (current != null) {
                 try {
-                    due.set(ValueLayout.JAVA_LONG, 0, -Math.max(1, nanos / 100));
-                    int armed = (int)setTimer.invokeExact(current, due, 0, MemorySegment.NULL, MemorySegment.NULL, 0);
-                    if (armed != 0) {
-                        int result = (int)waitFor.invokeExact(current, 1000);
-                        if (result == 0) return;
+                    if (periodicNanos != nanos && periodicNanos >= 0) {
+                        // A repeating timer counts its ticks in milliseconds, which both sampling periods are.
+                        due.set(ValueLayout.JAVA_LONG, 0, -Math.max(1, nanos / 100));
+                        int period = (int)Math.max(1, nanos / 1_000_000);
+                        int armed = (int)setTimer.invokeExact(current, due, period, MemorySegment.NULL, MemorySegment.NULL, 0);
+                        periodicNanos = armed != 0 && nanos % 1_000_000 == 0 ? nanos : -1;
                     }
+                    if (periodicNanos < 0) {
+                        due.set(ValueLayout.JAVA_LONG, 0, -Math.max(1, nanos / 100));
+                        int armed = (int)setTimer.invokeExact(current, due, 0, MemorySegment.NULL, MemorySegment.NULL, 0);
+                        if (armed == 0) throw new IllegalStateException("timer");
+                    }
+                    // A tick missed while the sampler was busy is not owed: the repeating timer is signalled once.
+                    int result = (int)waitFor.invokeExact(current, 1000);
+                    if (result == 0) return;
                 } catch (Throwable failed) { timer = null; }
             }
             LockSupport.parkNanos(this, nanos);

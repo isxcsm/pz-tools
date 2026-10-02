@@ -381,17 +381,32 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Hapus rekaman ini? Tindakan ini tidak dapat dibatalkan.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Belum ada rekaman.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman ini tidak dapat dibuka. File rusak atau dibuat oleh versi yang lebih baru.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Salin isi yang ditampilkan sebagai teks</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Salin teks</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Hasil performa telah disalin.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Jalankan game untuk merekam.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} tidak dimulai karena game tidak sedang berjalan.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} tidak dimulai karena ada lebih dari satu game yang berjalan.</value></data>
-  <data name="ProfileStatFrames" xml:space="preserve"><value>Frame</value></data>
+  <data name="ProfileStatFrames" xml:space="preserve"><value>Jumlah frame</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>Frame</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Rata-rata</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Paling lambat</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>1% terburuk</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Puncak heap</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Puncak VRAM</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Memori</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>Heap terpakai</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Heap Java terpakai: memori yang dipegang kode Java game. Skala berjalan dari nilai terendah ke tertinggi dalam rentang yang terlihat.</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>Jeda GC</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Setiap batang adalah satu pembersihan memori (GC). Lebar dan tingginya menunjukkan berapa lama game berhenti karenanya; batang tertinggi adalah jeda terlama dalam rentang yang terlihat.</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memori yang dipegang game di kartu grafis. Skala berjalan dari nilai terendah ke tertinggi dalam rentang yang terlihat.</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kali, terjeda {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fungsi</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Metode</value></data>
@@ -405,6 +420,15 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileMoreActions" xml:space="preserve"><value>Lainnya</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skrip (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kode game (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>Alokasi memori</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>Pohon panggilan</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Mati: daftar fungsi biasa.</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>Bentangkan</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Ciutkan</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>Dialokasikan</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memori yang dialokasikan thread game selama skrip mod ini berjalan dalam rentang yang dipilih, termasuk fungsi game yang dipanggilnya. Makin banyak alokasi, makin sering memori dibersihkan (GC). Perkiraan dari sampel, seperti waktunya.</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Seluruh thread game, skrip maupun bukan: {0}</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>Tidak ada alokasi skrip yang tercatat dalam rentang ini.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Cara menggunakan grafik</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>Rekaman performa</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Tampilkan semua</value></data>
@@ -412,6 +436,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileThreadGame" xml:space="preserve"><value>Thread game</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Semua thread</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} sampel · pembersihan memori (GC) {1:N0} kali, terjeda {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} sampel thread yang hanya menunggu (koneksi, timer, event) tidak dihitung</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Sampel terlalu sedikit untuk persentase yang akurat. Pilih rentang yang lebih lebar atau rekam dalam mode Detail.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>Tidak ada aktivitas skrip Lua yang terekam dalam rentang ini.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Game dasar (vanilla)</value></data>
@@ -424,7 +449,21 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileColumnSelf" xml:space="preserve"><value>Sendiri</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>Total</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Sampel</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>Sendiri: waktu yang dihabiskan langsung di fungsi itu. Total: termasuk fungsi-fungsi yang dipanggilnya.</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>Sendiri: waktu yang dihabiskan langsung di fungsi itu.</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>Total: termasuk fungsi yang dipanggilnya.</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>Sendiri: bagian waktu pemilik ini yang dihabiskan langsung di fungsi itu. Pemilik adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh rentang.</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>Total: bagian waktu pemilik ini yang dihabiskan di fungsi itu dan fungsi yang dipanggilnya. Pemilik adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh rentang.</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>Sendiri: dialokasikan saat fungsi itu sendiri berjalan.</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>Total: juga saat fungsi yang dipanggilnya berjalan.</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>Sampel: berapa sampel yang melewati baris itu.</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>Sampel: berapa sampel yang berakhir di fungsi itu.</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>{0} dari seluruh rentang, sekitar {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>{0} dari alokasi pemilik ini</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>Paket</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>Sendiri: bagian waktu jalan grup ini yang dihabiskan langsung di metode itu. Grup adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh waktu jalan.</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>Total: bagian waktu jalan grup ini yang dihabiskan di metode itu dan kode grup ini yang dipanggilnya. Grup adalah 100%; arahkan kursor ke angka untuk melihat bagiannya dari seluruh waktu jalan.</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>{0} dari seluruh waktu jalan</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>{0} lainnya</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Porsi per thread</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>Waktu tunggu dan jeda yang lama</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>Mod</value></data>
@@ -437,6 +476,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Game tidak sedang berjalan. Jalankan game lalu coba lagi.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Ada lebih dari satu game yang berjalan, jadi target tidak dapat ditentukan.</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>Tidak dapat terhubung ke game. Jika Anda baru memperbarui game atau PZ Tools, mulai ulang game.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools telah diperbarui. Mulai ulang game sekali untuk merekam.</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>Operasi lain sedang berlangsung. Coba lagi sebentar lagi.</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>Rekaman selesai, tetapi hasilnya tidak dapat diproses. Periksa log untuk detailnya.</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>Perekaman gagal. Periksa log untuk detailnya.</value></data>

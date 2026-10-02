@@ -381,8 +381,9 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要删除这条录制吗？此操作无法撤销。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>还没有录制记录。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开这条录制。文件已损坏，或由更新的版本创建。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 内存面板中的灰色柱：内存清理（GC），高度为暂停时长 · ▲：超出刻度的帧（悬停显示时间）</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>将显示的内容复制为文本</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>复制文本</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已复制性能结果。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>启动游戏后即可录制。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>游戏没有运行，未开始{0}。</value></data>
@@ -390,8 +391,22 @@
   <data name="ProfileStatFrames" xml:space="preserve"><value>帧数</value></data>
   <data name="ProfileStatFrame" xml:space="preserve"><value>帧</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>平均</value></data>
+  <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>最慢</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>最差 1%</value></data>
+  <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
+  <data name="ProfileStatHeapPeak" xml:space="preserve"><value>堆峰值</value></data>
+  <data name="ProfileStatVideoPeak" xml:space="preserve"><value>显存峰值</value></data>
+  <data name="ProfileStatHeap" xml:space="preserve"><value>堆</value></data>
+  <data name="ProfileStatVideo" xml:space="preserve"><value>显存</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>内存</value></data>
+  <data name="ProfileMemoryHeapRow" xml:space="preserve"><value>堆使用量</value></data>
+  <data name="ProfileMemoryHeapRowTip" xml:space="preserve"><value>Java 堆使用量：游戏的 Java 代码占用的内存。刻度为可见范围内的最低值到最高值。</value></data>
+  <data name="ProfileMemoryCollectionsRow" xml:space="preserve"><value>GC 暂停时间</value></data>
+  <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>每根柱代表一次内存清理（GC）。宽度和高度表示游戏因此暂停的时间，最高的柱是可见范围内最长的暂停。</value></data>
+  <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>显存</value></data>
+  <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>游戏在显卡上占用的内存。刻度为可见范围内的最低值到最高值。</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停顿 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>文件</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>方法</value></data>
@@ -405,6 +420,15 @@
   <data name="ProfileMoreActions" xml:space="preserve"><value>更多</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>脚本 (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>游戏代码 (Java)</value></data>
+  <data name="ProfileTabAllocation" xml:space="preserve"><value>内存分配</value></data>
+  <data name="ProfileCallTree" xml:space="preserve"><value>调用树</value></data>
+  <data name="ProfileCallTreeTip" xml:space="preserve"><value>按调用路径分组显示此所属方的函数：最外层的函数（如事件处理函数）在上，展开后显示它调用的函数。只统计结束于此所属方函数的样本。关闭后显示函数列表。</value></data>
+  <data name="ProfileTreeExpand" xml:space="preserve"><value>展开</value></data>
+  <data name="ProfileTreeCollapse" xml:space="preserve"><value>折叠</value></data>
+  <data name="ProfileListAllocation" xml:space="preserve"><value>分配量</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>在所选范围内，此模组的脚本运行时游戏线程分配的内存，包括脚本调用的游戏功能的分配。分配越多，内存清理（GC）越频繁。与时间一样，是根据样本得出的估计值。</value></data>
+  <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>整个游戏线程（含脚本以外）：{0}</value></data>
+  <data name="ProfileAllocationNone" xml:space="preserve"><value>此范围内没有记录到脚本的分配。</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>图表使用方法</value></data>
   <data name="ProfileFileType" xml:space="preserve"><value>性能录制</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>显示全部</value></data>
@@ -412,6 +436,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>游戏线程</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>所有线程</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} 个样本 · 内存清理（GC）{1:N0} 次，停顿 {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>仅在等待（连接、计时器、事件）的线程的 {0} 个样本未计入</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>样本太少，百分比不够准确。请选择更大的范围，或使用详细模式录制。</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>此范围内没有记录到 Lua 脚本活动。</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>游戏本体（原版）</value></data>
@@ -424,7 +449,21 @@
   <data name="ProfileColumnSelf" xml:space="preserve"><value>自身</value></data>
   <data name="ProfileColumnTotal" xml:space="preserve"><value>总计</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>样本</value></data>
-  <data name="ProfileColumnsTip" xml:space="preserve"><value>自身：直接花在该函数内的时间。总计：还包括它调用的其他函数。</value></data>
+  <data name="ProfileColumnSelfTip" xml:space="preserve"><value>自身：直接在该函数中花费的时间。</value></data>
+  <data name="ProfileColumnTotalTip" xml:space="preserve"><value>总计：还包括它调用的函数。</value></data>
+  <data name="ProfileLuaSelfTip" xml:space="preserve"><value>自身：此所属方的时间中直接花在该函数里的比例。所属方整体为 100%，将指针悬停在数字上可查看占整个范围的值。</value></data>
+  <data name="ProfileLuaTotalTip" xml:space="preserve"><value>总计：此所属方的时间中花在该函数及其调用的函数上的比例。所属方整体为 100%，将指针悬停在数字上可查看占整个范围的值。</value></data>
+  <data name="ProfileAllocationSelfTip" xml:space="preserve"><value>自身：该函数本身运行时分配的量。</value></data>
+  <data name="ProfileAllocationTotalTip" xml:space="preserve"><value>总计：还包括它调用的函数运行时分配的量。</value></data>
+  <data name="ProfileColumnSamplesTreeTip" xml:space="preserve"><value>样本：经过该行的样本数。</value></data>
+  <data name="ProfileColumnSamplesListTip" xml:space="preserve"><value>样本：结束于该函数的样本数。</value></data>
+  <data name="ProfileShareOfRangeFormat" xml:space="preserve"><value>占整个范围的 {0}，约 {1}</value></data>
+  <data name="ProfileShareOfOwnerFormat" xml:space="preserve"><value>占此所属方分配量的 {0}</value></data>
+  <data name="ProfileColumnPackage" xml:space="preserve"><value>包</value></data>
+  <data name="ProfileJavaSelfTip" xml:space="preserve"><value>自身：此组运行时间中直接花在该方法里的比例。整组为 100%，将指针悬停在数字上可查看占全部运行时间的值。</value></data>
+  <data name="ProfileJavaTotalTip" xml:space="preserve"><value>总计：此组运行时间中花在该方法及其调用的本组代码上的比例。整组为 100%，将指针悬停在数字上可查看占全部运行时间的值。</value></data>
+  <data name="ProfileShareOfRunFormat" xml:space="preserve"><value>占全部运行时间的 {0}</value></data>
+  <data name="ProfileRestFormat" xml:space="preserve"><value>其余 {0} 项</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>各线程占比</value></data>
   <data name="ProfilePausesSection" xml:space="preserve"><value>长时间等待和停顿</value></data>
   <data name="ProfileListLuaOwner" xml:space="preserve"><value>模组</value></data>
@@ -437,6 +476,7 @@
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>游戏没有运行。请启动游戏后重试。</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>有多个游戏正在运行，无法确定目标。</value></data>
   <data name="ProfileError.Link" xml:space="preserve"><value>无法连接到游戏。如果你更新过游戏或 PZ Tools，请重新启动游戏。</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools 已更新。请重新启动游戏一次后再录制。</value></data>
   <data name="ProfileError.Busy" xml:space="preserve"><value>正在进行其他操作。请稍后再试。</value></data>
   <data name="ProfileError.Convert" xml:space="preserve"><value>录制已完成，但无法处理结果。详情请查看日志。</value></data>
   <data name="ProfileError.Generic" xml:space="preserve"><value>录制失败。详情请查看日志。</value></data>
