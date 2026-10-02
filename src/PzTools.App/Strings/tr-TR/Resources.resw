@@ -426,6 +426,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Bu sahibin işlevlerini onlara götüren çağrı yollarına göre gruplar: en dıştaki işlev, örneğin bir olay işleyicisi, üstte; çağırdıkları içeride. Yalnızca bu sahibin işlevlerinde biten örnekler sayılır. Kapalı: düz bir işlev listesi.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Ara</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Şununla karşılaştır</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Karşılaştırılacak başka kayıt yok</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>İş parçacıkları</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Kayıt modu</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Yeni ad (otomatik ad için boş bırakın)</value></data>

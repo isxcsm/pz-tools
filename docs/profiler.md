@@ -165,8 +165,11 @@ When something does not fit, the profiler is what stops, and only it:
 
 ## Reading the result
 
-The recording tools share the title line: record, mode, which recording, which thread,
-and a **…** menu with *Open recording*, *Save as*, *Open folder* and *Delete*. In a narrow
+The recording tools share the title line, in groups set apart by thin lines: saving the
+last minutes; recording and its mode; which recording, with a pencil to rename it and a
+bin to delete it (after asking); *Compare with*; and a **…** menu with *Open recording*,
+*Save as* and *Open folder*. Which thread the results count, the game's or all of them,
+is chosen beside the owner's sample count over the table. In a narrow
 window they move below the title. What the recording is doing appears under that line only
 while a recording starts, runs or is being processed.
 
@@ -251,7 +254,7 @@ file holds the text, in any case; in the tree it keeps the paths that lead to a 
 opened down to it. It applies to the game code's methods and the threads too, and holds
 while other owners and ranges are shown.
 
-**Comparing two recordings.** In the **…** menu, *Compare with* lists the other
+**Comparing two recordings.** *Compare with* on the title line lists the other
 recordings; pick one, say from before a mod was added or updated, and the shown range is
 compared with the whole of it. A bar over the results names it and sets the frames side
 by side (average, FPS, worst 1%, and the scripts' part of the time), before → after. The

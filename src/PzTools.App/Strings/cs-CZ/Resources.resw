@@ -466,6 +466,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Porovnáno s celým záznamem {0}</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Porovnat s</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Žádný jiný záznam k porovnání</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Vlákna</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>Převzetí poslední minuty</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Hra poslední minutu neuchovávala (hra nebo spojení se restartovaly). Od teď ji uchovává znovu.</value></data>
   <data name="ProfileRollingPaused" xml:space="preserve"><value>Během záznamu pozastaveno; po jeho konci pokračuje.</value></data>

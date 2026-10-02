@@ -433,6 +433,8 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>จัดกลุ่มฟังก์ชันของเจ้าของนี้ตามเส้นทางการเรียกที่นำมาถึง: ฟังก์ชันชั้นนอกสุด เช่น ตัวจัดการอีเวนต์ อยู่ด้านบน และสิ่งที่มันเรียกอยู่ด้านใน นับเฉพาะตัวอย่างที่จบในฟังก์ชันของเจ้าของนี้ ปิด: รายการฟังก์ชันแบบธรรมดา</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>ค้นหา</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>เปรียบเทียบกับ</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>ไม่มีการบันทึกอื่นให้เปรียบเทียบ</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>เธรด</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณหนึ่งนาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>โหมดการบันทึก</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>ชื่อใหม่ (เว้นว่างเพื่อใช้ชื่ออัตโนมัติ)</value></data>

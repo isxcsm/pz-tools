@@ -102,7 +102,8 @@ public sealed partial class ProfilerPage : UserControl
         ImportItem.Text = Localizer.Get("ProfileImport");
         SaveAsItem.Text = Localizer.Get("ProfileSaveAs");
         OpenFolderItem.Text = Localizer.Get("AdvancedFiles.OpenFolder");
-        DeleteItem.Text = Localizer.Get("DeleteAction");
+        AppToolTip.SetTip(DeleteButton, Localizer.Get("DeleteAction"));
+        AutomationProperties.SetName(DeleteButton, Localizer.Get("DeleteAction"));
         AppToolTip.SetTip(MoreButton, Localizer.Get("ProfileMoreActions"));
         AppToolTip.SetTip(RenameButton, Localizer.Get("ProfileRename"));
         AutomationProperties.SetName(RenameButton, Localizer.Get("ProfileRename"));
@@ -126,7 +127,8 @@ public sealed partial class ProfilerPage : UserControl
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         AppToolTip.SetTip(CallTreeToggle, Localizer.Get("ProfileCallTreeTip"));
-        CompareItem.Text = Localizer.Get("ProfileCompare");
+        CompareText.Text = Localizer.Get("ProfileCompare");
+        AutomationProperties.SetName(ThreadBox, Localizer.Get("ProfileThreadName"));
 
         DetailSearch.PlaceholderText = Localizer.Get("ProfileSearch");
         AutomationProperties.SetName(DetailSearch, Localizer.Get("ProfileSearch"));
@@ -343,7 +345,7 @@ public sealed partial class ProfilerPage : UserControl
         RecordingList.SelectedIndex = index;
         RecordingList.PlaceholderText = Localizer.Get("ProfileEmpty");
         updatingList = false;
-        DeleteItem.IsEnabled = SaveAsItem.IsEnabled = RenameButton.IsEnabled = index >= 0;
+        DeleteButton.IsEnabled = SaveAsItem.IsEnabled = RenameButton.IsEnabled = index >= 0;
         UpdateRecordingTip();
         // Recordings not yet read are listed by their time; once read, the list says what they are.
         if (files.Any(file => file.Summary is null)) _ = FillSummariesAsync();
@@ -356,7 +358,7 @@ public sealed partial class ProfilerPage : UserControl
     private void RecordingList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (updatingList) return;
-        DeleteItem.IsEnabled = SaveAsItem.IsEnabled = RenameButton.IsEnabled = RecordingList.SelectedItem is RecordingItem;
+        DeleteButton.IsEnabled = SaveAsItem.IsEnabled = RenameButton.IsEnabled = RecordingList.SelectedItem is RecordingItem;
         UpdateRecordingTip();
         if (RecordingList.SelectedItem is RecordingItem item) _ = LoadAsync(item.File.Path);
     }
@@ -492,6 +494,7 @@ public sealed partial class ProfilerPage : UserControl
         LoadingRing.Visibility = Visibility.Collapsed;
         if (loaded is null || loaded.Duration <= 0) { loadedPath = null; Clear(Localizer.Get("ProfileLoadFailed")); return; }
         recording = loaded;
+        CompareButton.IsEnabled = true;
         // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
         openPaths.Clear();
         luaHighlight = javaHighlight = allocationHighlight = null;
@@ -516,6 +519,7 @@ public sealed partial class ProfilerPage : UserControl
     {
         loadVersion++;
         recording = null;
+        CompareButton.IsEnabled = false;
         loadedPath = null;
         shown = null;
         HideResults();
@@ -1477,10 +1481,9 @@ public sealed partial class ProfilerPage : UserControl
     // Enough to choose from; the newest come first.
     private const int MaximumCompareChoices = 30;
 
-    private void MoreMenu_Opening(object sender, object e)
+    private void CompareMenu_Opening(object sender, object e)
     {
-
-        CompareItem.Items.Clear();
+        CompareMenu.Items.Clear();
         foreach (var item in RecordingList.Items.OfType<RecordingItem>()
                      .Where(item => !item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)).Take(MaximumCompareChoices))
         {
@@ -1490,16 +1493,18 @@ public sealed partial class ProfilerPage : UserControl
             };
             // The click has already flipped the check: checked is a new choice, unchecked the current one taken back.
             choice.Click += (_, _) => { if (choice.IsChecked) _ = SetBaselineAsync(item.File.Path, item.Text); else ClearBaseline(); };
-            CompareItem.Items.Add(choice);
+            CompareMenu.Items.Add(choice);
         }
+        // An empty menu would look broken: it says why there is nothing to choose.
+        if (CompareMenu.Items.Count == 0)
+            CompareMenu.Items.Add(new MenuFlyoutItem { Text = Localizer.Get("ProfileCompareNone"), IsEnabled = false });
         if (baselinePath is not null)
         {
-            CompareItem.Items.Add(new MenuFlyoutSeparator());
+            CompareMenu.Items.Add(new MenuFlyoutSeparator());
             var off = new MenuFlyoutItem { Text = Localizer.Get("ProfileCompareOff") };
             off.Click += (_, _) => ClearBaseline();
-            CompareItem.Items.Add(off);
+            CompareMenu.Items.Add(off);
         }
-        CompareItem.IsEnabled = CompareItem.Items.Count > 0 && recording is not null;
     }
 
     private async Task SetBaselineAsync(string path, string name)

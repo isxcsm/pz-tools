@@ -426,6 +426,8 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Группирует функции этого владельца по путям вызовов, которые к ним привели: наверху самая внешняя функция, например обработчик события, внутри — то, что она вызвала. Учитываются только выборки, завершившиеся в функциях этого владельца. Выключено: простой список функций.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Поиск</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Сравнить с</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Нет другой записи для сравнения</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Режим записи</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Новое имя (пусто — автоматическое)</value></data>

@@ -426,6 +426,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Mengelompokkan fungsi pemilik ini menurut jalur panggilan yang menuju ke sana: fungsi terluar, seperti penangan event, di atas, dan yang dipanggilnya di dalam. Hanya sampel yang berakhir di fungsi pemilik ini yang dihitung. Mati: daftar fungsi biasa.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Cari</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Bandingkan dengan</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Tidak ada rekaman lain untuk dibandingkan</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Thread</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Baru saja tersendat? Tekan ini: game menyimpan sekitar satu menit terakhir, dan itu disimpan sebagai rekaman. Mode: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Mode perekaman</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nama baru (kosongkan untuk nama otomatis)</value></data>

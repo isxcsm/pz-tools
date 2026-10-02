@@ -455,6 +455,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Groups this owner's functions by the call paths that led to them: the outermost function, such as an event handler, on top, and what it called inside. Only samples that ended in this owner's functions count. Off: a plain list of the functions.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Search</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Compare with</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>No other recording to compare with</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last minute, and it is saved as a recording. Mode: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Recording mode</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>New name (empty for the saved name)</value></data>

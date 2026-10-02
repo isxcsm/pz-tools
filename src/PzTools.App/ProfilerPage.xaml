@@ -98,10 +98,11 @@
         <ToggleSwitch x:Name="ModeSwitch" Grid.Column="3" VerticalAlignment="Center" MinWidth="0" Toggled="ModeSwitch_Toggled"
                       AutomationProperties.AutomationId="ProfileModeSwitch" />
         <Rectangle Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-        <!-- The recordings, and the pencil that renames the selected one, close beside it. -->
+        <!-- The recordings, and close beside them what is done to the selected one: rename it, delete it. -->
         <Grid Grid.Column="5" ColumnSpacing="2">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <ComboBox x:Name="RecordingList" MinWidth="160" HorizontalAlignment="Stretch" VerticalAlignment="Center"
@@ -115,21 +116,30 @@
                   AutomationProperties.AutomationId="ProfileRenameButton">
             <FontIcon Glyph="&#xE70F;" FontSize="16" />
           </Button>
+          <!-- Asks before deleting. -->
+          <Button x:Name="DeleteButton" Grid.Column="2" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+                  Style="{StaticResource SubtleButtonStyle}" Click="DeleteItem_Click" IsEnabled="False"
+                  AutomationProperties.AutomationId="ProfileDeleteButton">
+            <FontIcon Glyph="&#xE74D;" FontSize="16" />
+          </Button>
         </Grid>
         <Rectangle Grid.Column="6" Width="1" Height="20" VerticalAlignment="Center" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
-        <ComboBox x:Name="ThreadBox" Grid.Column="7" MinWidth="130" VerticalAlignment="Center"
-                  SelectionChanged="ThreadBox_SelectionChanged" />
+        <!-- Another recording to set the shown one against; the menu lists them when it opens. -->
+        <DropDownButton x:Name="CompareButton" Grid.Column="7" VerticalAlignment="Center" IsEnabled="False"
+                        AutomationProperties.AutomationId="ProfileCompareButton">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Glyph="&#xE8AB;" FontSize="14" />
+            <TextBlock x:Name="CompareText" />
+          </StackPanel>
+          <DropDownButton.Flyout>
+            <MenuFlyout x:Name="CompareMenu" Placement="BottomEdgeAlignedRight" Opening="CompareMenu_Opening" />
+          </DropDownButton.Flyout>
+        </DropDownButton>
         <Button x:Name="MoreButton" Grid.Column="8" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
                 Style="{StaticResource SubtleButtonStyle}">
           <FontIcon Glyph="&#xE712;" FontSize="16" />
           <Button.Flyout>
-            <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="MoreMenu_Opening">
-
-              <!-- The other recordings, one of which the shown one is compared with; filled when the menu opens. -->
-              <MenuFlyoutSubItem x:Name="CompareItem" AutomationProperties.AutomationId="ProfileCompareItem">
-                <MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE8AB;" /></MenuFlyoutSubItem.Icon>
-              </MenuFlyoutSubItem>
-              <MenuFlyoutSeparator />
+            <MenuFlyout Placement="BottomEdgeAlignedRight">
               <MenuFlyoutItem x:Name="ImportItem" Click="ImportItem_Click">
                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8E5;" /></MenuFlyoutItem.Icon>
               </MenuFlyoutItem>
@@ -138,10 +148,6 @@
               </MenuFlyoutItem>
               <MenuFlyoutItem x:Name="OpenFolderItem" Click="OpenFolderItem_Click">
                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE838;" /></MenuFlyoutItem.Icon>
-              </MenuFlyoutItem>
-              <MenuFlyoutSeparator />
-              <MenuFlyoutItem x:Name="DeleteItem" Click="DeleteItem_Click">
-                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74D;" /></MenuFlyoutItem.Icon>
               </MenuFlyoutItem>
             </MenuFlyout>
           </Button.Flyout>
@@ -305,6 +311,7 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <!-- The name with the copy button right after it. Left-aligned, this grid is only as wide as both need,
                so the button follows the name; when space runs short the name's star column shrinks and trims. -->
@@ -334,6 +341,9 @@
           <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" Margin="0,0,0,-11" VerticalAlignment="Bottom" Visibility="Collapsed"
                         Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
           <TextBlock x:Name="DetailSamples" Grid.Column="3" Margin="0,0,0,1" VerticalAlignment="Bottom" TextWrapping="NoWrap" />
+          <!-- Whose samples the results count: the game's thread or all of them. Beside the counts it changes. -->
+          <ComboBox x:Name="ThreadBox" Grid.Column="4" MinWidth="130" Margin="0,0,0,-7" VerticalAlignment="Bottom"
+                    SelectionChanged="ThreadBox_SelectionChanged" AutomationProperties.AutomationId="ProfileThreadBox" />
         </Grid>
         <Border x:Name="GroupCard" Grid.Row="1" Margin="0,8,0,0" CornerRadius="8" BorderThickness="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

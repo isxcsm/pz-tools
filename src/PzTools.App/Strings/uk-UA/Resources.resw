@@ -426,6 +426,8 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Групує функції цього власника за шляхами викликів, що до них привели: угорі найзовнішня функція, наприклад обробник події, усередині — те, що вона викликала. Враховуються лише вибірки, що завершилися у функціях цього власника. Вимкнено: простий список функцій.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Пошук</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Порівняти з</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Немає іншого запису для порівняння</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Щойно підвисло? Натисніть: гра зберігала приблизно останню хвилину, її буде збережено як запис. Режим: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Режим запису</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Нова назва (порожньо — автоматична)</value></data>

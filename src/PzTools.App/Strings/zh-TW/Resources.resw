@@ -426,6 +426,8 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>依呼叫路徑分組顯示此擁有者的函式：最外層的函式（如事件處理函式）在上，展開後顯示它呼叫的函式。只計算結束於此擁有者函式的樣本。關閉後顯示函式清單。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>搜尋</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>比較對象</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>沒有可比較的其他錄製</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>執行緒</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>剛剛卡頓？按這裡：遊戲保留了最近約 1 分鐘，會儲存為一段錄製。模式：{0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>錄製模式</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新名稱（留空則使用自動名稱）</value></data>

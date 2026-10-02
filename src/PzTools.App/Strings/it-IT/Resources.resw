@@ -426,6 +426,8 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Raggruppa le funzioni di questo proprietario secondo i percorsi di chiamata che vi hanno portato: in alto la funzione più esterna, come un gestore di eventi, e dentro ciò che ha chiamato. Contano solo i campioni terminati nelle funzioni di questo proprietario. Disattivato: un semplice elenco delle funzioni.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Cerca</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Confronta con</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Nessun’altra registrazione da confrontare</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Thread</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Ha appena scattato? Premi qui: il gioco ha conservato circa l'ultimo minuto, che viene salvato come registrazione. Modalità: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Modalità di registrazione</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nuovo nome (vuoto per quello automatico)</value></data>

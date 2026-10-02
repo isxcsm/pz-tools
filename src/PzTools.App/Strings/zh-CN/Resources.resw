@@ -426,6 +426,8 @@
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>按调用路径分组显示此所属方的函数：最外层的函数（如事件处理函数）在上，展开后显示它调用的函数。只统计结束于此所属方函数的样本。关闭后显示函数列表。</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>搜索</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>对比对象</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>没有可对比的其他录制</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>线程</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>录制模式</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新名称（留空则使用自动名称）</value></data>

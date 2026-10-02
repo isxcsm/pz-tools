@@ -426,6 +426,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa as funções deste dono pelos caminhos de chamada que levaram a elas: no topo a função mais externa, como um tratador de evento, e dentro o que ela chamou. Só contam as amostras que terminaram em funções deste dono. Desligado: uma lista simples das funções.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Pesquisar</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Comparar com</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Nenhuma outra gravação para comparar</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca do último minuto, que é salvo como gravação. Modo: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Modo de gravação</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Novo nome (vazio para o automático)</value></data>

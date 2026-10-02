@@ -426,6 +426,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Ordnet die Funktionen dieses Besitzers nach den Aufrufpfaden, die zu ihnen führten: oben die äußerste Funktion, etwa ein Ereignis-Handler, darunter, was sie aufrief. Gezählt werden nur Stichproben, die in Funktionen dieses Besitzers endeten. Aus: eine einfache Liste der Funktionen.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Suchen</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Vergleichen mit</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Keine andere Aufzeichnung zum Vergleichen</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Aufzeichnungsmodus</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Neuer Name (leer für den automatischen)</value></data>

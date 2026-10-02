@@ -426,6 +426,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Grupuje funkcje tego właściciela według ścieżek wywołań, które do nich prowadziły: na górze funkcja najbardziej zewnętrzna, np. obsługa zdarzenia, a wewnątrz to, co wywołała. Liczą się tylko próbki zakończone w funkcjach tego właściciela. Wyłączone: zwykła lista funkcji.</value></data>
   <data name="ProfileSearch" xml:space="preserve"><value>Szukaj</value></data>
   <data name="ProfileCompare" xml:space="preserve"><value>Porównaj z</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Brak innego nagrania do porównania</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Wątki</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Właśnie przycięło? Naciśnij: gra zachowała mniej więcej ostatnią minutę, która zostanie zapisana jako nagranie. Tryb: {0}</value></data>
   <data name="ProfileModeName" xml:space="preserve"><value>Tryb nagrywania</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nowa nazwa (pusta = automatyczna)</value></data>
