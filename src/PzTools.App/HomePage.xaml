@@ -176,7 +176,7 @@
                            NavigateUri="https://github.com/isxcsm/pz-tools" />
           <HyperlinkButton x:Name="ReportIssueButton" Padding="0,4"
                            NavigateUri="https://github.com/isxcsm/pz-tools/issues" />
-          <TextBlock x:Name="HomeVersion" Text="v0.2.0" IsTextSelectionEnabled="True"
+          <TextBlock x:Name="HomeVersion" IsTextSelectionEnabled="True"
                      VerticalAlignment="Center" Style="{StaticResource SecondaryTextStyle}" />
         </StackPanel>
         <TextBlock x:Name="HomeUnofficialNotice" Style="{StaticResource SecondaryTextStyle}" />

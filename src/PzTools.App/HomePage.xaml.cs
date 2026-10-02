@@ -46,9 +46,19 @@ public sealed partial class HomePage : UserControl
 
     public event EventHandler<HomeDestination>? NavigationRequested;
 
+    // From <Version> in Directory.Build.props; the SDK may append "+<commit>", which is not shown.
+    internal static string AppVersionText()
+    {
+        var version = typeof(HomePage).Assembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion;
+        return string.IsNullOrEmpty(version) ? "" : "v" + version.Split('+')[0];
+    }
+
     public HomePage()
     {
         InitializeComponent();
+        HomeVersion.Text = AppVersionText();
         ApplyLocalizedText();
         Loaded += HomePage_Loaded;
         Unloaded += HomePage_Unloaded;

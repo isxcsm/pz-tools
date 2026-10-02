@@ -31,7 +31,7 @@ WinUI components and the Java Attach runtime are included; no separate Java inst
 
 To update, close the app and extract the new package into a fresh folder. Do not mix builds. Your settings live under `%LOCALAPPDATA%\PzTools`; saves and backups stay in their configured folders, and a newer version keeps using them: a backup folder is brought up to date in place the first time the new version opens it. See [settings and paths](docs/configuration.md).
 
-Updating from 0.1.0: the vehicle extension's new *Light around the vehicle* option starts on, so if the extension was on, the light comes on with headlights. Switch it off on the Game extensions page if you do not want it.
+Updating from 0.1.0: the first time 0.2.0 opens a backup folder, it upgrades the folder's catalog in place (all or nothing; nothing is lost). **After that, 0.1.0 can no longer open that folder**, so do not go back to 0.1.0 with it. The vehicle extension's new *Light around the vehicle* option starts on, so if the extension was on, the light comes on with headlights. Switch it off on the Game extensions page if you do not want it.
 
 <a id="backups-and-retention"></a>
 ## Backup history
