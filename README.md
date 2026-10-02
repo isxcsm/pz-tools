@@ -33,6 +33,8 @@ To update, close the app and extract the new package into a fresh folder. Do not
 
 Updating from 0.1.0: the first time 0.2.0 opens a backup folder, it upgrades the folder's catalog in place (all or nothing; nothing is lost). **After that, 0.1.0 can no longer open that folder**, so do not go back to 0.1.0 with it. The vehicle extension's new *Light around the vehicle* option starts on, so if the extension was on, the light comes on with headlights. Switch it off on the Game extensions page if you do not want it.
 
+Updating from 0.2.0 needs nothing: backup folders are unchanged, and a game left running keeps working; its next start picks up the improved bridge.
+
 <a id="backups-and-retention"></a>
 ## Backup history
 
@@ -78,11 +80,11 @@ Recovery works on the current save while it is not being played. It can heal or 
 <a id="performance-recording"></a>
 ## Performance recording
 
-The Performance page records the running game while you reproduce a lag, then shows a zoomable frame-time graph. Drag a range (or click one frame) to see where the time went, grouped by base game, each mod and the Java runtime, with the number of samples behind every figure. Nothing is measured unless a recording is running. Standard mode has almost no effect on the game; Detailed mode samples more often and also records waits and pauses.
+The Performance page records the running game while you reproduce a lag, then shows a zoomable frame-time graph with 60 and 30 FPS lines. Drag a range (or click one frame) to see where the time went, grouped by base game, each mod and the Java runtime, with the number of samples behind every figure. Each mod's functions open as a call tree (from the event handler down to what it called) or as a plain list. Under the graph, a memory panel shows the Java heap, garbage collections and the game's video memory on the same time axis, and the *Memory allocation* tab ranks mods by the memory their scripts allocate, which is what makes collections frequent. Nothing is measured unless a recording is running. Standard mode has almost no effect on the game; Detailed mode samples more often and also records waits and pauses.
 
 ![A performance recording: a range of frames is selected, then each mod's script time is opened](docs/media/profiler.webp)
 
-Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The copy button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/profiler.md).
+Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The *Copy text* button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/profiler.md).
 
 <a id="vehicle-controls"></a>
 ## Vehicle controls

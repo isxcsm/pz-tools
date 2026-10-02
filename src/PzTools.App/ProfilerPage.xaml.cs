@@ -477,7 +477,37 @@ public sealed partial class ProfilerPage : UserControl
         {
             var y = height - fraction * height;
             GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 0.5, Opacity = 0.6 });
-            GridCanvas.Children.Add(ScaleLabel((top * fraction).ToString("0", Localizer.Culture) + " ms", 11, Math.Max(-6, y - 8)));
+            // Half of a fine step can have a decimal (7.5 ms); whole numbers stay whole.
+            GridCanvas.Children.Add(ScaleLabel((top * fraction).ToString("0.#", Localizer.Culture) + " ms", 11, Math.Max(-6, y - 8)));
+        }
+        // 60 and 30 frames per second as named dashed lines: the scale follows each recording, these do not, so
+        // "above the 30 FPS line" reads the same on a fast computer's 50 ms graph and a slow one's 300 ms graph. Drawn
+        // only where they stand apart from the floor and from each other, so their names do not collide.
+        // Over the bars, each name on a small card so a bar under it does not cross the words.
+        ReferenceCanvas.Children.Clear();
+        var lastLine = height;
+        foreach (var (fps, milliseconds) in new[] { (60, 1000.0 / 60), (30, 1000.0 / 30) })
+        {
+            if (milliseconds >= top) continue;
+            var y = height - milliseconds / top * height;
+            // Clear of the floor by a little, of the line below by a name's height.
+            if (lastLine - y < (lastLine == height ? 8 : 14)) continue;
+            lastLine = y;
+            ReferenceCanvas.Children.Add(new Line
+            {
+                X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 1, Opacity = 0.8,
+                StrokeDashArray = new DoubleCollection { 4, 3 },
+            });
+            var name = new Border
+            {
+                Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0),
+                Child = new TextBlock { Text = $"{fps} {Localizer.Get("ProfileStatFps")}", FontSize = 10, Foreground = brush },
+            };
+            name.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(name, Math.Max(0, width - name.DesiredSize.Width - 2));
+            Canvas.SetTop(name, y - name.DesiredSize.Height / 2);
+            ReferenceCanvas.Children.Add(name);
         }
         foreach (var fraction in new[] { 0.0, 0.25, 0.5, 0.75, 1.0 })
         {
@@ -771,7 +801,8 @@ public sealed partial class ProfilerPage : UserControl
     private static double NiceCeiling(double value)
     {
         var magnitude = Math.Pow(10, Math.Floor(Math.Log10(value)));
-        foreach (var factor in new[] { 1.0, 2, 2.5, 5, 10 })
+        // Fine steps: from 250 the next was 500, which left the top 40% of a 290 ms graph empty.
+        foreach (var factor in new[] { 1.0, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10 })
             if (value <= magnitude * factor) return magnitude * factor;
         return magnitude * 10;
     }

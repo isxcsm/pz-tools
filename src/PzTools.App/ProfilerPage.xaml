@@ -125,6 +125,8 @@
                   Fill="{ThemeResource AccentFillColorDefaultBrush}" />
             <Path x:Name="SlowBarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                   Fill="{ThemeResource SystemFillColorCautionBrush}" />
+            <!-- The 60 and 30 FPS lines, over the bars: a slow recording's bars would otherwise hide them. -->
+            <Canvas x:Name="ReferenceCanvas" IsHitTestVisible="False" />
             <Canvas IsHitTestVisible="False">
               <Rectangle x:Name="SelectionRectangle" Visibility="Collapsed" Opacity="0.28"
                          Fill="{ThemeResource TextFillColorPrimaryBrush}" />

@@ -192,7 +192,12 @@ heading says what its column means when the pointer rests on it.
   so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per
   second) are highlighted. The scale stops at about twice the 95th percentile of the
   bars in view (never below 33.3 ms), so a loading frame of seconds does not flatten the
-  ordinary ones; taller bars reach the top with a **▲**, their time on hover. Wheel zooms
+  ordinary ones; taller bars reach the top with a **▲**, their time on hover. The scale
+  is rounded up in fine steps (…, 250, 300, 400, 500 ms), so the bars fill the graph. As
+  it follows each recording, dashed lines at 60 FPS (16.7 ms) and 30 FPS (33.3 ms), over
+  the bars and named at the right, give it a fixed meaning: a bar above the 30 FPS line
+  is a stutter on any computer. A line too close to the floor or to the other is left
+  out. Wheel zooms
   around the pointer, right-button drag or the scroll bar moves, double-click shows
   everything.
 - **Memory panel.** When the recording has memory readings or garbage collections, the
