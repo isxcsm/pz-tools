@@ -49,10 +49,6 @@ public sealed partial class ProfilerPage : UserControl
     private ProfileRange? shown;
     // The summary above the graph as plain text, for a copy of the page; the line itself changes while hovering.
     private string rangeSummary = "";
-    // The figures of the lanes under the bars (collections, heap, video memory), rebuilt with the graph.
-    private Border? laneInfo;
-    private TextBlock? laneGc, laneHeap, laneVideo;
-    private double laneInfoTop, laneInfoRight;
     // A newly opened recording's bars rise from the baseline once, the first time the graph is drawn.
     private bool chartEntrance;
     private List<ResultGroup> luaGroups = [], javaGroups = [], listedGroups = [];
@@ -293,6 +289,7 @@ public sealed partial class ProfilerPage : UserControl
         ThreadBox.IsEnabled = loaded.GameThread >= 0;
         if (loaded.GameThread < 0) ThreadBox.SelectedIndex = 1;
         chartEntrance = Motion;
+        ApplyMemoryPanel();
         RenderChart();
         Analyze();
     }
@@ -410,22 +407,14 @@ public sealed partial class ProfilerPage : UserControl
     private void RenderChart()
     {
         if (recording is null || ChartSurface.ActualWidth < 4) return;
-        double width = ChartWidth, chartHeight = ChartHeight;
-        // Under the bars, a strip on the same time scale marks each garbage collection as long as it paused the
-        // game, so a spike above a mark reads as "the game stopped to collect". Only when there are any.
-        var markCollections = recording.Collections.Count > 0;
-        // Below that, memory on its own scale: the Java heap and the game's video memory as two lines.
-        const double MemoryLane = 34;
-        var showMemory = recording.Heap.Count > 0 || recording.VideoMemory.Count > 0;
-        // The lanes' figures stand in their lowest lane; a strip alone is made tall enough to hold them.
-        var CollectionLane = showMemory ? 8.0 : 18.0;
-        var height = Math.Max(1, chartHeight - (markCollections ? CollectionLane : 0) - (showMemory ? MemoryLane : 0));
+        double width = ChartWidth, chartHeight = ChartHeight, height = chartHeight;
         // One bar per three pixels; each holds the slowest frame of its slice.
         var buckets = Math.Max(1, (int)(width / 3));
         var values = ProfileAnalysis.SlowestFramePerBucket(recording, viewStart, viewEnd, buckets);
-        var top = NiceCeiling(Math.Max(20, values.Max()));
+        var top = NiceCeiling(Math.Max(20, Math.Min(values.Max(), SpikeCeiling(values))));
         var normal = new GeometryGroup { FillRule = FillRule.Nonzero };
         var slow = new GeometryGroup { FillRule = FillRule.Nonzero };
+        var clipped = new GeometryGroup { FillRule = FillRule.Nonzero };
         var step = width / buckets;
         for (var index = 0; index < buckets; index++)
         {
@@ -433,6 +422,26 @@ public sealed partial class ProfilerPage : UserControl
             var barHeight = Math.Max(1, Math.Min(1, values[index] / top) * height);
             var bar = new RectangleGeometry { Rect = new Rect(index * step, height - barHeight, Math.Max(1, step - 0.5), barHeight) };
             (values[index] > SlowFrameMilliseconds ? slow : normal).Children.Add(bar);
+            // Taller than the scale: cut at the top and marked, its time one hover away.
+            if (values[index] > top)
+            {
+                var middle = index * step + Math.Max(1, step - 0.5) / 2;
+                clipped.Children.Add(new PathGeometry
+                {
+                    Figures =
+                    {
+                        new PathFigure
+                        {
+                            StartPoint = new Windows.Foundation.Point(middle - 4, 6), IsClosed = true, IsFilled = true,
+                            Segments =
+                            {
+                                new LineSegment { Point = new Windows.Foundation.Point(middle, 0) },
+                                new LineSegment { Point = new Windows.Foundation.Point(middle + 4, 6) },
+                            },
+                        },
+                    },
+                });
+            }
         }
         BarsPath.Data = normal;
         SlowBarsPath.Data = slow;
@@ -466,43 +475,9 @@ public sealed partial class ProfilerPage : UserControl
             Canvas.SetTop(label, chartHeight + 2);
             GridCanvas.Children.Add(label);
         }
-        if (markCollections)
-        {
-            // One shape for all marks: a game that allocates a lot collects many times a second.
-            var marks = new GeometryGroup { FillRule = FillRule.Nonzero };
-            foreach (var collection in recording.Collections)
-            {
-                if (collection.Time >= viewEnd || collection.Time + collection.Duration < viewStart) continue;
-                var left = Math.Clamp(XAt(collection.Time), 0, Math.Max(0, width - 2));
-                // A pause of a few milliseconds is far narrower than a pixel at most zooms: keep it visible.
-                var markWidth = Math.Max(2, XAt(collection.Time + collection.Duration) - left);
-                marks.Children.Add(new RectangleGeometry { Rect = new Rect(left, height + (CollectionLane - 4) / 2, markWidth, 4) });
-            }
-            GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = marks, Fill = brush });
-        }
-        var memoryTop = height + (markCollections ? CollectionLane : 0) + 3;
-        if (showMemory) RenderMemoryLane(width, memoryTop, MemoryLane - 6, brush);
-        // The lanes' own figures, at the right of the lowest lane and in their lines' colours, so they also say
-        // which line is which. The line above the graph keeps to the frames and stays one line in every language.
-        laneInfo = null;
-        if (markCollections || showMemory)
-        {
-            laneGc = new TextBlock { FontSize = 11, Foreground = brush };
-            laneHeap = new TextBlock { FontSize = 11, Foreground = HeapBrush };
-            laneVideo = new TextBlock { FontSize = 11, Foreground = VideoBrush };
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-            row.Children.Add(laneGc);
-            row.Children.Add(laneHeap);
-            row.Children.Add(laneVideo);
-            laneInfo = new Border
-            {
-                Child = row, Padding = new Thickness(4, 0, 4, 0), CornerRadius = new CornerRadius(3),
-                Background = ChartBorder.Background, IsHitTestVisible = false,
-            };
-            laneInfoTop = showMemory ? memoryTop - 2 : height + 1;
-            laneInfoRight = width;
-            GridCanvas.Children.Add(laneInfo);
-        }
+        if (clipped.Children.Count > 0)
+            GridCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = clipped, Fill = VideoBrush });
+        RenderMemoryPanel();
 
         UpdateSelectionRectangle();
         var zoomed = viewStart > 0 || viewEnd < recording.Duration;
@@ -545,7 +520,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         var lines = SetStats(ChartInfo, items);
         // Collections stop the game without leaving samples, so the tables cannot show them. They and the
-        // memory peaks stand in their lanes under the bars, and in the copied text, which starts with this line.
+        // memory peaks stand on the memory panel's line under the bars, and in the copied text, which starts with this line.
         var (collections, paused) = shown is { } analysed ? (analysed.Collections, analysed.CollectionPauseMilliseconds)
             : ProfileAnalysis.CollectionsIn(recording, start, end);
         var (heapPeak, videoPeak) = ProfileAnalysis.MemoryPeaksIn(recording, start, end);
@@ -560,28 +535,134 @@ public sealed partial class ProfilerPage : UserControl
         AppToolTip.SetTip(ChartInfo, string.Join("\n", lines));
     }
 
-    // Heap in green, video memory in the text colour, both against the larger of the two peaks in view, so the
-    // lines compare. The peak stands at the left, where the frame scale's labels are.
-    private void RenderMemoryLane(double width, double top, double laneHeight, Brush muted)
+    /// <summary>
+    /// The frame scale stops at about twice the 95th percentile of the frames in view (never below 30 frames per
+    /// second): one loading frame of seconds no longer flattens every ordinary frame to the floor.
+    /// </summary>
+    private static double SpikeCeiling(double[] values)
     {
-        if (recording is null) return;
-        var heap = recording.Heap.Where(item => item.Time >= viewStart && item.Time <= viewEnd).Select(item => (item.Time, item.Used)).ToArray();
-        var video = recording.VideoMemory.Where(item => item.Time >= viewStart && item.Time <= viewEnd).Select(item => (item.Time, Used: item.Dedicated)).ToArray();
-        var peak = Math.Max(heap.Length > 0 ? heap.Max(item => item.Used) : 0, video.Length > 0 ? video.Max(item => item.Used) : 0);
-        if (peak <= 0) return;
-        var scale = peak * 1.1;
-        GridCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = top + laneHeight, Y2 = top + laneHeight, Stroke = muted, StrokeThickness = 0.5, Opacity = 0.6 });
-        var label = new TextBlock { Text = Bytes(peak), FontSize = 11, Foreground = muted };
-        Canvas.SetLeft(label, -42);
-        Canvas.SetTop(label, top - 4);
-        GridCanvas.Children.Add(label);
-        foreach (var (points, stroke) in new[] { (heap, HeapBrush), (video, VideoBrush) })
+        var frames = values.Where(value => value > 0).Order().ToArray();
+        return frames.Length == 0 ? 0 : Math.Max(SlowFrameMilliseconds, frames[(int)((frames.Length - 1) * 0.95)] * 2);
+    }
+
+    // ---- Memory ----
+
+    // Open or shut for as long as the app runs, whichever recording is shown.
+    private static bool memoryOpen;
+
+    // The panel's rows: heap, collections and video memory, each only when the recording has it.
+    private int MemoryRows => recording is not { } loaded ? 0
+        : (loaded.Heap.Count > 0 ? 1 : 0) + (loaded.Collections.Count > 0 ? 1 : 0) + (loaded.VideoMemory.Count > 0 ? 1 : 0);
+
+    private const double MemoryRowHeight = 36, MemoryRowGap = 10;
+
+    // The line under the frames and its button: shown when the recording has collections or memory.
+    private void ApplyMemoryPanel()
+    {
+        var rows = MemoryRows;
+        MemoryHeader.Visibility = rows > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MemoryToggleText.Text = Localizer.Get("ProfileMemory");
+        MemoryChevron.Glyph = memoryOpen ? "" : "";
+        AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
+        MemoryBorder.Visibility = rows > 0 && memoryOpen ? Visibility.Visible : Visibility.Collapsed;
+        // The surface's margins and the border's edges, then the rows apart by their gaps.
+        MemoryBorder.Height = 14 + rows * MemoryRowHeight + Math.Max(0, rows - 1) * MemoryRowGap;
+    }
+
+    private void MemoryToggle_Click(object sender, RoutedEventArgs e)
+    {
+        memoryOpen = !memoryOpen;
+        ApplyMemoryPanel();
+        RenderMemoryPanel();
+    }
+
+    private void MemorySurface_SizeChanged(object sender, SizeChangedEventArgs e) => RenderMemoryPanel();
+
+    /// <summary>
+    /// Heap on top, collections in the middle, video memory at the bottom, each on its own scale: the memory lines
+    /// fitted to their lowest and highest reading in view, as their sizes differ too much for one scale and a fitted
+    /// one shows small changes; the collections as bars from zero to the longest pause in view. Collections sit under
+    /// the heap, whose drops they cause. The scale's ends stand at the left, in the row's colour.
+    /// </summary>
+    private void RenderMemoryPanel()
+    {
+        MemoryCanvas.Children.Clear();
+        if (recording is null || MemoryBorder.Visibility != Visibility.Visible || MemorySurface.ActualWidth < 4) return;
+        var width = MemorySurface.ActualWidth;
+        var rows = new List<Action<double, double>>();
+        if (recording.Heap.Count > 0)
+            rows.Add((top, inner) => DrawLine(Visible(recording.Heap.Select(item => (item.Time, item.Used))), HeapBrush, top, inner));
+        if (recording.Collections.Count > 0) rows.Add(DrawCollections);
+        if (recording.VideoMemory.Count > 0)
+            rows.Add((top, inner) => DrawLine(Visible(recording.VideoMemory.Select(item => (item.Time, item.Dedicated))), VideoBrush, top, inner));
+        // Rows apart by a gap, so one row's lowest label and the next one's highest do not meet.
+        var rowHeight = (MemorySurface.ActualHeight - MemoryRowGap * (rows.Count - 1)) / Math.Max(1, rows.Count);
+        for (var row = 0; row < rows.Count; row++)
         {
-            if (points.Length == 0) continue;
+            var rowTop = row * (rowHeight + MemoryRowGap);
+            if (row > 0)
+            {
+                var y = rowTop - MemoryRowGap / 2;
+                MemoryCanvas.Children.Add(new Line { X1 = 0, X2 = width, Y1 = y, Y2 = y, Stroke = Muted, StrokeThickness = 0.5, Opacity = 0.6 });
+            }
+            // The drawing keeps clear of the row's edges by half a label, so each label centres on its end.
+            rows[row](rowTop + 6, Math.Max(1, rowHeight - 12));
+        }
+        UpdateSelectionRectangle();
+
+        void DrawLine((long Time, long Value)[] points, Brush stroke, double top, double inner)
+        {
+            if (points.Length == 0) return;
+            long low = points.Min(point => point.Value), high = points.Max(point => point.Value);
+            // A flat line still needs a span; one percent of the value keeps it in the middle.
+            var span = Math.Max(high - low, Math.Max(1, high / 100));
             var line = new Polyline { Stroke = stroke, StrokeThickness = 1.5, IsHitTestVisible = false };
-            foreach (var (time, used) in points)
-                line.Points.Add(new Windows.Foundation.Point(XAt(time), top + laneHeight - used / scale * laneHeight));
-            GridCanvas.Children.Add(line);
+            foreach (var (time, value) in points)
+                line.Points.Add(new Windows.Foundation.Point(XAt(time), top + (1 - (value - low) / (double)span) * inner));
+            MemoryCanvas.Children.Add(line);
+            Labels(Bytes(high), Bytes(low), stroke, top, inner);
+        }
+
+        // Each collection as long as it paused the game and as tall as that pause against the longest one in view, so
+        // a frame spike above a tall bar reads as "the game stopped to collect".
+        void DrawCollections(double top, double inner)
+        {
+            var visible = recording.Collections.Where(item => item.Time < viewEnd && item.Time + item.Duration >= viewStart).ToArray();
+            if (visible.Length == 0) return;
+            var longest = Math.Max(1, visible.Max(item => item.Duration));
+            // One shape for all bars: a game that allocates a lot collects many times a second.
+            var bars = new GeometryGroup { FillRule = FillRule.Nonzero };
+            foreach (var collection in visible)
+            {
+                var left = Math.Clamp(XAt(collection.Time), 0, Math.Max(0, width - 2));
+                // A pause of a few milliseconds is far narrower than a pixel at most zooms: keep it visible.
+                var barWidth = Math.Max(2, XAt(collection.Time + collection.Duration) - left);
+                var barHeight = Math.Max(2, collection.Duration / (double)longest * inner);
+                bars.Children.Add(new RectangleGeometry { Rect = new Rect(left, top + inner - barHeight, barWidth, barHeight) });
+            }
+            MemoryCanvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = bars, Fill = Muted });
+            // Zero as the frame graph writes it.
+            Labels(Milliseconds(longest / 1000.0), "0 ms", Muted, top, inner);
+        }
+
+        void Labels(string high, string low, Brush brush, double top, double inner)
+        {
+            foreach (var (text, y) in new[] { (high, top - 7), (low, top + inner - 7) })
+            {
+                var label = new TextBlock { Text = text, FontSize = 10, Foreground = brush, Opacity = 0.8 };
+                Canvas.SetLeft(label, -42);
+                Canvas.SetTop(label, y);
+                MemoryCanvas.Children.Add(label);
+            }
+        }
+
+        // The readings in view, with the last one before and the first one after, so the line meets both edges.
+        (long Time, long Value)[] Visible(IEnumerable<(long Time, long Value)> all)
+        {
+            var list = all.ToList();
+            var first = Math.Max(0, list.FindLastIndex(point => point.Time <= viewStart));
+            var last = list.FindIndex(point => point.Time >= viewEnd);
+            return list.GetRange(first, (last < 0 ? list.Count - 1 : last) - first + 1).ToArray();
         }
     }
 
@@ -595,22 +676,15 @@ public sealed partial class ProfilerPage : UserControl
     private static Brush HeapBrush => (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
     private static Brush VideoBrush => (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
 
-    /// <summary>Fills the lanes' figures (absent ones hidden) and keeps them against the right edge; returns those shown.</summary>
+    /// <summary>Fills the figures on the line under the frames (absent ones hidden); returns those shown.</summary>
     private List<string> SetLaneInfo(string? collections, string? heap, string? video)
     {
-        var shownTexts = new[] { collections, heap, video }.OfType<string>().ToList();
-        if (laneInfo is null) return shownTexts;
-        foreach (var (block, text) in new[] { (laneGc, collections), (laneHeap, heap), (laneVideo, video) })
+        foreach (var (block, text) in new[] { (CollectionValue, collections), (HeapValue, heap), (VideoValue, video) })
         {
-            if (block is null) continue;
             block.Text = text ?? "";
             block.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
         }
-        laneInfo.Visibility = shownTexts.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        laneInfo.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Canvas.SetLeft(laneInfo, Math.Max(0, laneInfoRight - laneInfo.DesiredSize.Width));
-        Canvas.SetTop(laneInfo, laneInfoTop);
-        return shownTexts;
+        return new[] { collections, heap, video }.OfType<string>().ToList();
     }
 
     // The secondary text colour of the current theme, for names beside numbers and for the graph's scale.
@@ -657,17 +731,21 @@ public sealed partial class ProfilerPage : UserControl
     {
         if (selectionStart is not { } start || selectionEnd is not { } end || end <= viewStart || start >= viewEnd)
         {
-            SelectionRectangle.Visibility = Visibility.Collapsed;
+            SelectionRectangle.Visibility = MemorySelection.Visibility = Visibility.Collapsed;
             ZoomSelectionButton.IsEnabled = selectionStart is not null;
             return;
         }
         var left = Math.Max(0, XAt(start));
         var right = Math.Min(ChartWidth, XAt(end));
-        Canvas.SetLeft(SelectionRectangle, left);
-        Canvas.SetTop(SelectionRectangle, 0);
-        SelectionRectangle.Width = Math.Max(2, right - left);
-        SelectionRectangle.Height = ChartHeight;
-        SelectionRectangle.Visibility = Visibility.Visible;
+        // The same range on the frame graph and, when open, the memory graph.
+        foreach (var (rectangle, height) in new[] { (SelectionRectangle, ChartHeight), (MemorySelection, MemorySurface.ActualHeight) })
+        {
+            Canvas.SetLeft(rectangle, left);
+            Canvas.SetTop(rectangle, 0);
+            rectangle.Width = Math.Max(2, right - left);
+            rectangle.Height = Math.Max(1, height);
+            rectangle.Visibility = Visibility.Visible;
+        }
         ZoomSelectionButton.IsEnabled = true;
     }
 
@@ -721,7 +799,8 @@ public sealed partial class ProfilerPage : UserControl
         if (point.Properties.IsRightButtonPressed || point.Properties.IsMiddleButtonPressed) panning = true;
         else if (point.Properties.IsLeftButtonPressed) selecting = true;
         else return;
-        ChartSurface.CapturePointer(e.Pointer);
+        // The frame graph or the memory graph: both share the time axis, so positions read the same.
+        ((UIElement)sender).CapturePointer(e.Pointer);
         e.Handled = true;
     }
 
@@ -745,6 +824,9 @@ public sealed partial class ProfilerPage : UserControl
         Canvas.SetLeft(HoverLine, Math.Clamp(x, 0, ChartWidth));
         HoverLine.Height = ChartHeight;
         HoverLine.Visibility = Visibility.Visible;
+        Canvas.SetLeft(MemoryHoverLine, Math.Clamp(x, 0, ChartWidth));
+        MemoryHoverLine.Height = MemorySurface.ActualHeight;
+        MemoryHoverLine.Visibility = Visibility.Visible;
         var frame = ProfileAnalysis.FrameAt(recording, time);
         List<(string?, string)> items = [(null, Seconds(time))];
         string? collection = null;
@@ -769,7 +851,7 @@ public sealed partial class ProfilerPage : UserControl
         var x = e.GetCurrentPoint(ChartSurface).Position.X;
         var wasSelecting = selecting;
         selecting = panning = false;
-        ChartSurface.ReleasePointerCapture(e.Pointer);
+        ((UIElement)sender).ReleasePointerCapture(e.Pointer);
         if (!wasSelecting) return;
         if (Math.Abs(x - pressX) < 4)
         {
@@ -791,7 +873,7 @@ public sealed partial class ProfilerPage : UserControl
     private void Chart_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         if (selecting || panning) return;
-        HoverLine.Visibility = Visibility.Collapsed;
+        HoverLine.Visibility = MemoryHoverLine.Visibility = Visibility.Collapsed;
         ShowDefaultChartInfo();
     }
 

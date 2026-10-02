@@ -381,7 +381,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Supprimer cet enregistrement ? Cette action est irréversible.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Aucun enregistrement pour le moment.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossible d'ouvrir cet enregistrement. Le fichier est endommagé ou a été créé par une version plus récente.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Molette : zoom · Glisser : sélectionner une plage · Clic : sélectionner une image · Glisser avec le bouton droit : déplacer · Double-clic : tout afficher · Marques grises sous les barres : nettoyage de la mémoire (GC) · Lignes du bas : tas Java (vert) et mémoire vidéo (VRAM)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Molette : zoom · Glisser : sélectionner une plage · Clic : sélectionner une image · Glisser avec le bouton droit : déplacer · Double-clic : tout afficher · Barres grises dans Mémoire : nettoyage de la mémoire (GC), aussi hautes que leur pause · ▲ : image au-delà de l’échelle (sa durée au survol)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copier le contenu affiché en texte</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Les résultats de performance ont été copiés.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Lancez le jeu pour enregistrer.</value></data>
@@ -398,6 +398,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Pic de VRAM</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>Tas</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Mémoire</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} fois, pause de {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fonction</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Fichier</value></data>

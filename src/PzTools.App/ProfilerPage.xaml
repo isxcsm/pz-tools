@@ -135,6 +135,48 @@
         </Border>
         <ScrollBar x:Name="ViewScroll" Orientation="Horizontal" IndicatorMode="MouseIndicator"
                    Visibility="Collapsed" Scroll="ViewScroll_Scroll" />
+        <!-- Collections and memory. The button opens the heap and video memory graphs under the frames; their
+             figures stand on this line in their lines' colours, so they also name the lines. -->
+        <Grid x:Name="MemoryHeader" Visibility="Collapsed" ColumnSpacing="14">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Button x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="6,2"
+                  Style="{StaticResource SubtleButtonStyle}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" />
+              <TextBlock x:Name="MemoryToggleText" />
+            </StackPanel>
+          </Button>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+            <TextBlock x:Name="HeapValue" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+            <TextBlock x:Name="VideoValue" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+          </StackPanel>
+          <TextBlock x:Name="CollectionValue" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Grid>
+        <!-- Heap above, video memory below, each on its own scale; the same time axis, zoom, selection and
+             pointer line as the frame graph, whose margins it shares so the two line up. -->
+        <Border x:Name="MemoryBorder" Visibility="Collapsed" Height="96" CornerRadius="8" BorderThickness="1"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+          <Grid x:Name="MemorySurface" Background="Transparent" Margin="44,6,8,6"
+                SizeChanged="MemorySurface_SizeChanged"
+                PointerPressed="Chart_PointerPressed" PointerMoved="Chart_PointerMoved"
+                PointerReleased="Chart_PointerReleased" PointerCanceled="Chart_PointerCanceled"
+                PointerCaptureLost="Chart_PointerCanceled" PointerExited="Chart_PointerExited"
+                PointerWheelChanged="Chart_PointerWheelChanged" DoubleTapped="Chart_DoubleTapped">
+            <Canvas x:Name="MemoryCanvas" IsHitTestVisible="False" />
+            <Canvas IsHitTestVisible="False">
+              <Rectangle x:Name="MemorySelection" Visibility="Collapsed" Opacity="0.28"
+                         Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+              <Rectangle x:Name="MemoryHoverLine" Width="1" Visibility="Collapsed" Opacity="0.5"
+                         Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+            </Canvas>
+          </Grid>
+        </Border>
         <!-- Drag to give the graph or the results more room. -->
         <local:ResizeGrip x:Name="ChartGrip" Height="10" Background="Transparent"
                           PointerPressed="ChartGrip_PointerPressed" PointerMoved="ChartGrip_PointerMoved"

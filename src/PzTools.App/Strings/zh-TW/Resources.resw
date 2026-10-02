@@ -381,7 +381,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要刪除這筆錄製嗎？此動作無法復原。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>還沒有錄製紀錄。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>無法開啟這筆錄製。檔案已損毀，或是由較新的版本建立。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 長條下的灰色標記：記憶體清理（GC） · 底部的線：Java 堆積（綠色）和顯示記憶體（VRAM）</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 記憶體面板中的灰色長條：記憶體清理（GC），高度為暫停時間 · ▲：超出刻度的影格（游標停留時顯示時間）</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>將顯示的內容複製為文字</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已複製效能結果。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>啟動遊戲後即可錄製。</value></data>
@@ -398,6 +398,7 @@
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>顯示記憶體峰值</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>堆積</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>顯示記憶體</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>記憶體</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停頓 {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函式</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>檔案</value></data>

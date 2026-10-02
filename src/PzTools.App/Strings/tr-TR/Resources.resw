@@ -381,7 +381,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Bu kayıt silinsin mi? Bu işlem geri alınamaz.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Henüz kayıt yok.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Bu kayıt açılamıyor. Dosya bozuk ya da daha yeni bir sürümle oluşturulmuş.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Çubukların altındaki gri işaretler: bellek temizliği (GC) · Alttaki çizgiler: Java heap (yeşil) ve video belleği (VRAM)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Bellek panelindeki gri çubuklar: bellek temizliği (GC), yüksekliği duraklama süresi · ▲: ölçeği aşan kare (süresi üzerine gelince)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Gösterilen içeriği metin olarak kopyala</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Performans sonuçları kopyalandı.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Kayıt için oyunu başlatın.</value></data>
@@ -398,6 +398,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM zirvesi</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Bellek</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kez, duraklama {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>İşlev</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Dosya</value></data>

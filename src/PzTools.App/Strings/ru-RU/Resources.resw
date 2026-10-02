@@ -381,7 +381,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Удалить эту запись? Это действие нельзя отменить.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Записей пока нет.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не удаётся открыть эту запись. Файл повреждён или создан в более новой версии.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё · Серые отметки под столбцами: очистка памяти (GC) · Линии внизу: куча Java (зелёная) и видеопамять (VRAM)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё · Серые столбцы в панели «Память»: очистка памяти (GC), высота — длина паузы · ▲: кадр выше шкалы (время при наведении)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Скопировать показанное как текст</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Результаты производительности скопированы.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустите игру, чтобы записывать.</value></data>
@@ -398,6 +398,7 @@
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Пик VRAM</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>Куча</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Память</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} раз, пауза {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функция</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>

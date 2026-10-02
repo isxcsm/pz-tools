@@ -381,7 +381,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>¿Eliminar esta grabación? Esta acción no se puede deshacer.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Aún no hay grabaciones.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>No se puede abrir esta grabación. El archivo está dañado o se creó con una versión más reciente.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un intervalo · Clic: seleccionar un fotograma · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Marcas grises bajo las barras: limpieza de memoria (GC) · Líneas inferiores: heap de Java (verde) y memoria de vídeo (VRAM)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un intervalo · Clic: seleccionar un fotograma · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Barras grises en Memoria: limpieza de memoria (GC), tan altas como su pausa · ▲: fotograma por encima de la escala (su tiempo al pasar el puntero)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar lo que se muestra como texto</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Se han copiado los resultados de rendimiento.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Inicia el juego para grabar.</value></data>
@@ -398,6 +398,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Pico de VRAM</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Memoria</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} veces, en pausa {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Función</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Archivo</value></data>

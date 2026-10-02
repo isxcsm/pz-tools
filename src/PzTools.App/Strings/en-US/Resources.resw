@@ -393,7 +393,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileThreadGame" xml:space="preserve"><value>Game thread</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Zoom to selection</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Show all</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey marks under the bars: memory cleanup (GC) · Lines at the bottom: Java heap (green) and video memory (VRAM)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copy what is shown as text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>The performance results were copied.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Start the game to record.</value></data>
@@ -410,6 +410,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM peak</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Memory</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} times, paused {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Function</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>

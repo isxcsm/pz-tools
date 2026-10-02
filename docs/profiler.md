@@ -76,13 +76,12 @@ range of one frame shows that frame's time alone. Resting the pointer on the lin
 sample count and recording mode; while the pointer is over the graph the line shows the
 time and frame under it instead. The **?** beside it lists the graph's mouse controls.
 
-The figures of the lanes under the bars stand at the right of the lowest lane, each in its
-line's colour, so they also say which line is which: the range's garbage collections
-(*GC 3 times, paused 120 ms*), heap peak and video memory peak. A collection stops the
-game without leaving samples, so the tables cannot show it; this is where it shows. Over
-the graph they follow the pointer: the collections that overlapped the frame there, and
-memory at that moment. The copied text starts with the range line followed by these
-figures.
+Under the graph, a line carries the range's other figures, the memory ones in their lines'
+colours: heap peak, video memory peak, and garbage collections (*GC 3 times, paused
+120 ms*). A collection stops the game without leaving samples, so the tables cannot show
+it; this is where it shows. Over either graph the figures follow the pointer: the
+collections that overlapped the frame there, and memory at that moment. The copied text
+starts with the range line followed by these figures.
 
 The results are in two tabs, *Scripts (Lua)* and *Game code (Java)*. Each tab is split in
 two: owners on the left (mods, the game's scripts, parts of the game code, with a bar
@@ -103,17 +102,25 @@ narrow window the table moves below the owner list.
 
 - **Frame graph.** One bar per slice of time, as tall as the slowest frame in that slice,
   so a single spike stays visible at any zoom. Bars above 33.3 ms (below 30 frames per
-  second) are highlighted. Wheel zooms around the pointer, right-button drag or the
-  scroll bar moves, double-click shows everything.
-- **Collection strip.** When the recording has garbage collections, a thin strip under
-  the bars marks each one in grey, as long as it paused the game (at least two pixels), on
-  the same time scale: a spike above a mark is a frame the game spent collecting. The
-  marks are drawn as one shape, as a game may collect several times a second.
-- **Memory lane.** Below that, when the recording has memory readings, two lines on one
-  scale: the Java heap in use (green) and the game's video memory on the graphics card
-  (text colour), with the higher peak in view as the scale's label. The lane's figures
-  give the range's peaks (*Heap peak*, *VRAM peak*), and both values at the pointer while
-  it is over the graph. Recordings made before memory was recorded have no lane.
+  second) are highlighted. The scale stops at about twice the 95th percentile of the
+  bars in view (never below 33.3 ms), so a loading frame of seconds does not flatten the
+  ordinary ones; taller bars reach the top with a **▲**, their time on hover. Wheel zooms
+  around the pointer, right-button drag or the scroll bar moves, double-click shows
+  everything.
+- **Memory panel.** When the recording has memory readings or garbage collections, the
+  **Memory** button on the line under the frame graph opens a second, short graph with a
+  row for each it has: the Java heap in use (green) on top, the collections (grey) in the
+  middle, under the heap whose drops they cause, and the game's video memory on the
+  graphics card (text colour) at the bottom. The memory rows are lines fitted to their own
+  lowest and highest reading in view, as their sizes differ too much for one scale and a
+  fitted one shows small changes. Each collection is a bar as long as it paused the game
+  (at least two pixels) and as tall as that pause against the longest one in view, so a
+  frame spike above a tall bar is a frame the game spent collecting; the bars are drawn as
+  one shape, as a game may collect several times a second. The ends of each row's scale
+  stand at the left in the row's colour. The panel shares the frame graph's margins and
+  time axis: zoom, scrolling, the selection and the pointer line move both, and a range
+  can be dragged on either. It stays open or shut while the app runs. Closed, it takes no
+  room.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
   the whole recording is analysed.
 - **Shares.** *Self* is time spent in the function itself, *Total* includes what it

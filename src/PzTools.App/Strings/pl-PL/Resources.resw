@@ -381,7 +381,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Usunąć to nagranie? Tej operacji nie można cofnąć.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Brak nagrań.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Nie można otworzyć tego nagrania. Plik jest uszkodzony albo został utworzony w nowszej wersji.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Kółko: powiększenie · Przeciąganie: zaznaczenie zakresu · Kliknięcie: wybór jednej klatki · Przeciąganie prawym przyciskiem: przesuwanie · Dwukrotne kliknięcie: pokaż wszystko · Szare znaczniki pod słupkami: czyszczenie pamięci (GC) · Linie na dole: sterta Javy (zielona) i pamięć wideo (VRAM)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Kółko: powiększenie · Przeciąganie: zaznaczenie zakresu · Kliknięcie: wybór jednej klatki · Przeciąganie prawym przyciskiem: przesuwanie · Dwukrotne kliknięcie: pokaż wszystko · Szare słupki w panelu Pamięć: czyszczenie pamięci (GC), wysokość według przerwy · ▲: klatka ponad skalą (jej czas po najechaniu)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Skopiuj wyświetlaną zawartość jako tekst</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Skopiowano wyniki wydajności.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Uruchom grę, aby nagrywać.</value></data>
@@ -398,6 +398,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Szczyt VRAM</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>Sterta</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Pamięć</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} razy, wstrzymanie {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funkcja</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Plik</value></data>

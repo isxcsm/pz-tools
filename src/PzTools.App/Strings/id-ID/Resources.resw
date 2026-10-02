@@ -381,7 +381,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Hapus rekaman ini? Tindakan ini tidak dapat dibatalkan.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Belum ada rekaman.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman ini tidak dapat dibuka. File rusak atau dibuat oleh versi yang lebih baru.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Tanda abu-abu di bawah batang: pembersihan memori (GC) · Garis di bawah: heap Java (hijau) dan memori video (VRAM)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Salin isi yang ditampilkan sebagai teks</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Hasil performa telah disalin.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Jalankan game untuk merekam.</value></data>
@@ -398,6 +398,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Puncak VRAM</value></data>
   <data name="ProfileStatHeap" xml:space="preserve"><value>Heap</value></data>
   <data name="ProfileStatVideo" xml:space="preserve"><value>VRAM</value></data>
+  <data name="ProfileMemory" xml:space="preserve"><value>Memori</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kali, terjeda {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fungsi</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>
