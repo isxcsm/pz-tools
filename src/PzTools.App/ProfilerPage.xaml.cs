@@ -431,9 +431,23 @@ public sealed partial class ProfilerPage : UserControl
         // One bar per three pixels; each holds the slowest frame of its slice.
         var buckets = Math.Max(1, (int)(width / 3));
         var values = ProfileAnalysis.SlowestFramePerBucket(recording, viewStart, viewEnd, buckets);
-        var top = NiceCeiling(Math.Max(20, Math.Min(values.Max(), SpikeCeiling(values))));
+        // A highlighted owner: its part of each bar's frame, which sets the scale while it is drawn. A mod is usually a
+        // few milliseconds of a frame; on the frames' scale its part lay along the floor. The frames, faded behind,
+        // reach the top where they are longer.
+        var highlighted = HighlightedOwner();
+        double[]? parts = null;
+        if (highlighted is { } owner)
+        {
+            parts = ProfileAnalysis.OwnerTimePerBucket(recording, viewStart, viewEnd, buckets, owner.Java, owner.Key, recording.GameThread);
+            // Sampled in steps of a period, a part can come out a little over its frame: never above its bar.
+            for (var index = 0; index < buckets; index++) parts[index] = Math.Min(parts[index], values[index]);
+        }
+        var scaled = parts ?? values;
+        var top = parts is null ? NiceCeiling(Math.Max(20, Math.Min(values.Max(), SpikeCeiling(values, SlowFrameMilliseconds))))
+            : NiceCeiling(Math.Max(2, Math.Min(parts.Max(), SpikeCeiling(parts, 0))));
         var normal = new GeometryGroup { FillRule = FillRule.Nonzero };
         var slow = new GeometryGroup { FillRule = FillRule.Nonzero };
+        var part = new GeometryGroup { FillRule = FillRule.Nonzero };
         var clipped = new GeometryGroup { FillRule = FillRule.Nonzero };
         var step = width / buckets;
         for (var index = 0; index < buckets; index++)
@@ -442,8 +456,14 @@ public sealed partial class ProfilerPage : UserControl
             var barHeight = Math.Max(1, Math.Min(1, values[index] / top) * height);
             var bar = new RectangleGeometry { Rect = new Rect(index * step, height - barHeight, Math.Max(1, step - 0.5), barHeight) };
             (values[index] > SlowFrameMilliseconds ? slow : normal).Children.Add(bar);
-            // Taller than the scale: cut at the top and marked, its time one hover away.
-            if (values[index] > top)
+            if (parts is not null && parts[index] > 0)
+            {
+                var partHeight = Math.Max(1, Math.Min(1, parts[index] / top) * height);
+                part.Children.Add(new RectangleGeometry { Rect = new Rect(index * step, height - partHeight, Math.Max(1, step - 0.5), partHeight) });
+            }
+            // Taller than the scale: cut at the top and marked, its time one hover away. While an owner is drawn, its
+            // parts are what the scale measures, so they are what is marked.
+            if (scaled[index] > top)
             {
                 var middle = index * step + Math.Max(1, step - 0.5) / 2;
                 clipped.Children.Add(new PathGeometry
@@ -465,25 +485,9 @@ public sealed partial class ProfilerPage : UserControl
         }
         BarsPath.Data = normal;
         SlowBarsPath.Data = slow;
-        // A highlighted owner: every bar faded, and in front, solid, the part of the same frame its code ran.
-        var highlighted = HighlightedOwner();
-        BarsPath.Opacity = SlowBarsPath.Opacity = highlighted is null ? 1 : 0.3;
-        if (highlighted is { } owner)
-        {
-            var parts = ProfileAnalysis.OwnerTimePerBucket(recording, viewStart, viewEnd, buckets, owner.Java, owner.Key,
-                recording.GameThread);
-            var part = new GeometryGroup { FillRule = FillRule.Nonzero };
-            for (var index = 0; index < buckets; index++)
-            {
-                // Sampled in steps of a period, a part can come out a little over its frame: never above its bar.
-                var milliseconds = Math.Min(parts[index], values[index]);
-                if (milliseconds <= 0) continue;
-                var partHeight = Math.Max(1, Math.Min(1, milliseconds / top) * height);
-                part.Children.Add(new RectangleGeometry { Rect = new Rect(index * step, height - partHeight, Math.Max(1, step - 0.5), partHeight) });
-            }
-            HighlightPath.Data = part;
-        }
-        else HighlightPath.Data = null;
+        // Faint: on the owner's scale most frames reach the top, and a wall of them would compete with its part.
+        BarsPath.Opacity = SlowBarsPath.Opacity = parts is null ? 1 : 0.15;
+        HighlightPath.Data = parts is null ? null : part;
         if (chartEntrance)
         {
             chartEntrance = false;
@@ -607,13 +611,13 @@ public sealed partial class ProfilerPage : UserControl
     }
 
     /// <summary>
-    /// The frame scale stops at about twice the 95th percentile of the frames in view (never below 30 frames per
-    /// second): one loading frame of seconds no longer flattens every ordinary frame to the floor.
+    /// The scale stops at about twice the 95th percentile of the bars in view, never below <paramref name="floor"/> (30
+    /// frames per second for frames): one loading frame of seconds no longer flattens every ordinary one to the floor.
     /// </summary>
-    private static double SpikeCeiling(double[] values)
+    private static double SpikeCeiling(double[] values, double floor)
     {
-        var frames = values.Where(value => value > 0).Order().ToArray();
-        return frames.Length == 0 ? 0 : Math.Max(SlowFrameMilliseconds, frames[(int)((frames.Length - 1) * 0.95)] * 2);
+        var bars = values.Where(value => value > 0).Order().ToArray();
+        return bars.Length == 0 ? 0 : Math.Max(floor, bars[(int)((bars.Length - 1) * 0.95)] * 2);
     }
 
     // ---- Memory ----

@@ -209,7 +209,11 @@ heading says what its column means when the pointer rests on it.
 - **Highlight.** Clicking an owner in the *Scripts* or *Game code* list (a mod, the
   game's scripts, a part of the game code) fades every bar and draws, solid inside it,
   how much of the same frame that owner's code ran: a mod that costs a little every
-  frame and one that spikes every few seconds look different at once. Clicking it again
+  frame and one that spikes every few seconds look different at once. While it is drawn
+  the scale fits the owner's parts, found the same way as the frames' (spikes cut and
+  marked with ▲), since a mod is usually a few milliseconds of a frame and would lie
+  along the floor on the frames' scale; the faint frames behind reach the top where
+  they are longer. Clicking it again
   stops; clicking another moves the highlight there, and a small graph mark beside the
   owner's figure says which is drawn. While one is drawn, pointing at another owner
   shows that one until the pointer leaves, to compare without clicking. Over the graph,
