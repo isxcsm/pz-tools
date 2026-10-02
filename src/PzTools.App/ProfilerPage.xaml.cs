@@ -520,6 +520,7 @@ public sealed partial class ProfilerPage : UserControl
         viewStart = 0;
         viewEnd = loaded.Duration;
         selectionStart = selectionEnd = null;
+        wholeRanges.Clear();
         EmptyPanel.Visibility = Visibility.Collapsed;
         ChartPanel.Visibility = ResultsGrid.Visibility = Visibility.Visible;
         ThreadBox.IsEnabled = loaded.GameThread >= 0;
@@ -1424,6 +1425,9 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is null || selectionStart is null) return;
         selectionStart = selectionEnd = null;
         UpdateSelectionRectangle();
+        // The line answers the press at once, even while the whole recording is still being analysed the first time.
+        if (HoverLine.Visibility == Visibility.Collapsed)
+            ShowRangeLine(0, recording.Duration, ProfileAnalysis.FrameStatistics(recording, 0, recording.Duration), out _);
         Analyze();
     }
 
@@ -1552,6 +1556,10 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is not null && ThreadBox.SelectedIndex >= 0) { Analyze(); _ = AnalyzeBaselineAsync(); }
     }
 
+    // The whole recording's analysis by thread (-1 for all), kept from the first time: clearing a selection goes back to
+    // it at once instead of analysing every sample again. A new recording starts empty.
+    private readonly Dictionary<int, ProfileRange> wholeRanges = [];
+
     private async void Analyze()
     {
         if (recording is not { } current) return;
@@ -1561,13 +1569,18 @@ public sealed partial class ProfilerPage : UserControl
         var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
         // A newer range makes the previous analysis pointless: stop it rather than let it finish on a worker.
         analysisCancel?.Cancel();
+        analysisCancel = null;
+        var whole = start == 0 && end == current.Duration;
+        if (whole && wholeRanges.TryGetValue(thread, out var kept)) { ShowRange(kept); return; }
         var cancel = analysisCancel = new CancellationTokenSource();
         ProfileRange range;
         // Every row of a group, not the first few: the table shows the first and gathers the rest into one row with its sum.
         try { range = await Task.Run(() => ProfileAnalysis.Analyze(current, start, end, thread, MaximumGroupRows, cancel.Token), cancel.Token); }
         catch (Exception) { return; }
         finally { if (ReferenceEquals(analysisCancel, cancel)) analysisCancel = null; cancel.Dispose(); }
-        if (version != analysisVersion || !ReferenceEquals(current, recording)) return;
+        if (!ReferenceEquals(current, recording)) return;
+        if (whole) wholeRanges[thread] = range;
+        if (version != analysisVersion) return;
         ShowRange(range);
     }
 
