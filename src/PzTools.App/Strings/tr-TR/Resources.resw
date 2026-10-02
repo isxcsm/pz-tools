@@ -436,6 +436,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileThreadGame" xml:space="preserve"><value>Oyun iş parçacığı</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Tüm iş parçacıkları</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} örnek · bellek temizliği (GC) {1:N0} kez, duraklama {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>Yalnızca bekleyen (bağlantı, zamanlayıcı, olay) iş parçacıklarının {0} örneği sayılmadı</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Yüzdelerin doğru olması için örnek sayısı çok az. Daha geniş bir aralık seçin ya da Ayrıntılı modda kaydedin.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>Bu aralıkta Lua betiği etkinliği kaydedilmedi.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Ana oyun (vanilla)</value></data>

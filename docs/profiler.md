@@ -219,6 +219,12 @@ heading says what its column means when the pointer rests on it.
   bundled libraries.
 - **Threads.** The default view is the game thread. *All threads* includes rendering,
   loading and background threads, each sample weighted by its own sampling period.
+  A thread inside a native call is sampled whether it works there or only waits, so
+  samples of known waits (for a connection or data, a selector, a completion port, a
+  timer, a lock, the scheduler, and PZ Tools' own timed waits) are left out of every
+  share; drawing, file access and other native work still count. Resting the pointer on
+  the line above the graph says how many were left out. *Share by thread* shows its
+  samples as a count of their own, as they are not a part of the chosen thread's.
 
 Percentages are estimates. A sample stands for the usual gap between samples of its
 kind, measured from the recording itself, because the recorder cannot always keep the

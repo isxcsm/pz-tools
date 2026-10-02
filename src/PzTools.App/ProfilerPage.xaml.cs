@@ -541,7 +541,12 @@ public sealed partial class ProfilerPage : UserControl
         lines.AddRange(lanes);
         rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
+        {
             lines.Add(Localizer.Format("ProfileSummarySamplesFormat", current.Samples, current.Collections, current.CollectionPauseMilliseconds));
+            // Samples of a thread only waiting in a native call are not counted as its time; say how many.
+            if (current.WaitingSamples > 0)
+                lines.Add(Localizer.Format("ProfileWaitingSamplesFormat", current.WaitingSamples.ToString("N0", Localizer.Culture)));
+        }
         lines.Add(Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
         AppToolTip.SetTip(ChartInfo, string.Join("\n", lines));
     }
@@ -1375,6 +1380,8 @@ public sealed partial class ProfilerPage : UserControl
     private string? SamplesOf(ResultGroup group)
     {
         if (group.Samples <= 0) return null;
+        // The threads are every thread's samples, not a part of the chosen thread's: their count alone.
+        if (group.Kind == DetailKind.Threads) return group.Samples.ToString("N0", Localizer.Culture);
         var total = group.Kind is DetailKind.Lua or DetailKind.Allocation ? shown?.LuaSamples ?? 0 : shown?.Samples ?? 0;
         return $"{group.Samples.ToString("N0", Localizer.Culture)}/{total.ToString("N0", Localizer.Culture)}";
     }

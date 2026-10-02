@@ -436,6 +436,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>游戏线程</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>所有线程</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} 个样本 · 内存清理（GC）{1:N0} 次，停顿 {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>仅在等待（连接、计时器、事件）的线程的 {0} 个样本未计入</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>样本太少，百分比不够准确。请选择更大的范围，或使用详细模式录制。</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>此范围内没有记录到 Lua 脚本活动。</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>游戏本体（原版）</value></data>

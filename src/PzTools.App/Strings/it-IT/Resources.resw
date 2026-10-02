@@ -436,6 +436,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileThreadGame" xml:space="preserve"><value>Thread di gioco</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Tutti i thread</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} campioni · pulizia della memoria (GC) {1:N0} volte, in pausa per {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} campioni di thread che si limitavano ad attendere (una connessione, un timer, un evento) non sono contati</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Troppo pochi campioni per percentuali precise. Seleziona un intervallo più ampio o registra in modalità Dettagliata.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>In questo intervallo non è stata registrata alcuna attività di script Lua.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Gioco base (vanilla)</value></data>

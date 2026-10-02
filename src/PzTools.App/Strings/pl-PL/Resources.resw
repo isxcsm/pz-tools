@@ -436,6 +436,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileThreadGame" xml:space="preserve"><value>Wątek gry</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Wszystkie wątki</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>Próbki: {0:N0} · czyszczenie pamięci (GC): {1:N0} razy, wstrzymanie {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>Nie liczono {0} próbek wątków, które tylko czekały (na połączenie, licznik czasu, zdarzenie)</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Za mało próbek, by procenty były dokładne. Zaznacz szerszy zakres albo nagraj w trybie szczegółowym.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>W tym zakresie nie zarejestrowano działania skryptów Lua.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Gra podstawowa (vanilla)</value></data>

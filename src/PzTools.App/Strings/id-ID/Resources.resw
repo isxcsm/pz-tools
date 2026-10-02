@@ -436,6 +436,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileThreadGame" xml:space="preserve"><value>Thread game</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Semua thread</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} sampel · pembersihan memori (GC) {1:N0} kali, terjeda {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} sampel thread yang hanya menunggu (koneksi, timer, event) tidak dihitung</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Sampel terlalu sedikit untuk persentase yang akurat. Pilih rentang yang lebih lebar atau rekam dalam mode Detail.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>Tidak ada aktivitas skrip Lua yang terekam dalam rentang ini.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Game dasar (vanilla)</value></data>

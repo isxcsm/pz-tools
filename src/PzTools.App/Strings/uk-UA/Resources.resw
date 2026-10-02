@@ -436,6 +436,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>Ігровий потік</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Усі потоки</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>Семплів: {0:N0} · очищення пам'яті (GC): {1:N0} разів, пауза {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>Не враховано вибірок потоків, що лише чекали (з'єднання, таймера, події): {0}</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Замало семплів для точних відсотків. Виберіть ширший діапазон або запишіть у докладному режимі.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>У цьому діапазоні роботу скриптів Lua не зафіксовано.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Базова гра (ваніла)</value></data>

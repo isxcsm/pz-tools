@@ -435,6 +435,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>게임 스레드</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>모든 스레드</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>샘플 {0:N0}개 · 메모리 정리(GC) {1:N0}회, 멈춤 {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>기다리기만 하던 스레드의 샘플 {0}개(연결·타이머·이벤트 대기)는 세지 않았습니다</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>샘플이 적어 비율이 정확하지 않습니다. 구간을 넓히거나 상세 모드로 녹화해 보세요.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>이 구간에서 실행된 Lua 스크립트가 기록되지 않았습니다.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>게임 본체 (바닐라)</value></data>

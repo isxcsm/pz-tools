@@ -436,6 +436,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileThreadGame" xml:space="preserve"><value>Spiel-Thread</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Alle Threads</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} Samples · Speicherbereinigung (GC) {1:N0}-mal, {2:0.0} ms pausiert</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} Stichproben von Threads, die nur warteten (auf eine Verbindung, einen Timer, ein Ereignis), werden nicht gezählt</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Zu wenige Samples für genaue Prozentwerte. Wähle einen größeren Bereich oder zeichne im Modus „Detailliert“ auf.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>In diesem Bereich wurde keine Lua-Skriptaktivität aufgezeichnet.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Basisspiel (Vanilla)</value></data>

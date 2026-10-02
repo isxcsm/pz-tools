@@ -443,6 +443,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>เธรดเกม</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>ทุกเธรด</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} ตัวอย่าง · ล้างหน่วยความจำ (GC) {1:N0} ครั้ง หยุดชะงัก {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>ไม่นับตัวอย่าง {0} รายการของเธรดที่แค่รอ (การเชื่อมต่อ ตัวจับเวลา อีเวนต์)</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>ตัวอย่างน้อยเกินไป เปอร์เซ็นต์จึงไม่แม่นยำ ลองเลือกช่วงให้กว้างขึ้นหรือบันทึกในโหมดละเอียด</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>ไม่พบการทำงานของสคริปต์ Lua ในช่วงนี้</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>เกมหลัก (วานิลลา)</value></data>

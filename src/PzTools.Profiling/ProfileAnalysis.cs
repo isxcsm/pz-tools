@@ -104,6 +104,8 @@ public sealed record ProfileRange(
     public long LuaAllocated { get; init; }
     /// <summary>Bytes the game thread allocated in the range, in Lua or not; null without readings.</summary>
     public long? GameThreadAllocated { get; init; }
+    /// <summary>Samples of the chosen thread(s) left out because the thread was only waiting inside a native call.</summary>
+    public int WaitingSamples { get; init; }
     /// <summary>
     /// Per owner (the keys of <see cref="LuaGroups"/>), the call paths of the samples that ended in its functions, as a
     /// tree under a root: its outermost functions sum to the owner's own samples, as its row in the list does.
@@ -139,9 +141,18 @@ public static class ProfileAnalysis
         // own samples only, as a script owner's does, so a total never exceeds the group.
         var groupOf = new string?[recording.Methods.Count];
         var totalInGroup = new Dictionary<(string Group, int Method), double>();
+        // A thread inside a native call is sampled whether it works there (drawing, reading a file) or only waits (for
+        // a connection, a timer, an event). The waits are left out, so a thread's share is time it ran.
+        var waits = new bool?[recording.Stacks.Count];
+        var waiting = 0;
         for (var index = first; index < samples.Length && samples[index].Time < end; index++)
         {
             var sample = samples[index];
+            if (sample.Native && (waits[sample.Stack] ??= Waits(recording, recording.Stacks[sample.Stack])))
+            {
+                if (thread < 0 || sample.Thread == thread) waiting++;
+                continue;
+            }
             double weight = sample.Native ? recording.NativePeriod : recording.JavaPeriod;
             var byThread = threadWeight.GetValueOrDefault(sample.Thread);
             threadWeight[sample.Thread] = (byThread.Weight + weight, byThread.Count + 1);
@@ -291,9 +302,40 @@ public static class ProfileAnalysis
         {
             LuaAllocationGroups = allocationGroups,
             LuaCallTrees = callTrees,
+            WaitingSamples = waiting,
             LuaAllocated = luaAllocated,
             GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
         };
+    }
+
+    // Native calls that only wait: for a connection or data, a selector or completion port, a timer, a lock, the
+    // scheduler. Only calls known to wait are listed; any other native call (drawing, file access, physics) is work.
+    private static readonly HashSet<string> WaitingMethods = new(StringComparer.Ordinal)
+    {
+        "sun.nio.ch.Net.accept", "sun.nio.ch.Net.poll", "sun.nio.ch.SocketDispatcher.read0", "sun.nio.ch.WEPoll.wait",
+        "sun.nio.ch.WindowsSelectorImpl$SubSelector.poll0", "sun.nio.ch.Iocp.getQueuedCompletionStatus",
+        "sun.nio.fs.WindowsNativeDispatcher.GetQueuedCompletionStatus0",
+        "java.lang.Thread.sleep0", "java.lang.Thread.sleepNanos0", "java.lang.Thread.yield0", "java.lang.Object.wait0",
+        "jdk.internal.misc.Unsafe.park", "java.lang.ref.Reference.waitForReferencePendingList",
+        // PZ Tools' own timed waits, made through Java's foreign function calls.
+        "pztools.bridge.runtime.ProfileRecorder$PreciseWait.pause", "pztools.extensions.runtime.input.WindowsKeys.pause",
+    };
+
+    /// <summary>
+    /// Whether a native sample's thread was only waiting: its innermost method, past the generated frames of a
+    /// foreign function call, is a known wait.
+    /// </summary>
+    private static bool Waits(ProfileRecording recording, int[] stack)
+    {
+        foreach (var method in stack)
+        {
+            var name = recording.Methods[method];
+            if (name.StartsWith("java.lang.invoke.", StringComparison.Ordinal) || name.StartsWith("jdk.internal.foreign.", StringComparison.Ordinal)
+                || name.Contains("LambdaForm$", StringComparison.Ordinal) || name.Contains("DowncallStub", StringComparison.Ordinal))
+                continue;
+            return WaitingMethods.Contains(name);
+        }
+        return false;
     }
 
     /// <summary>

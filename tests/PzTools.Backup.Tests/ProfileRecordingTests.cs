@@ -161,6 +161,30 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Analyze_LeavesOutThreadsOnlyWaitingInANativeCall()
+    {
+        // Render also waits for a connection, and in a timer reached through a foreign function call.
+        var recording = Load(Sample + """
+
+            M|5|sun.nio.ch.Net.accept
+            M|6|java.lang.invoke.LambdaForm$MH.0x1.invoke
+            M|7|pztools.bridge.runtime.ProfileRecorder$PreciseWait.pause
+            K|4|5
+            K|5|6 7
+            S|1030000|9|4|N
+            S|1040000|9|5|N
+            """);
+        var all = ProfileAnalysis.Analyze(recording, 0, 50_000, -1);
+        // The same six samples and shares as without the waits: drawing in native code still counts as work.
+        Assert.Equal(6, all.Samples);
+        Assert.Equal(2, all.WaitingSamples);
+        Assert.Equal(20.0 / 70, all.Threads.Single(row => row.Name == "Render").Self, 3);
+        Assert.DoesNotContain(all.Methods, row => row.Name.Contains("accept") || row.Name.Contains("PreciseWait"));
+        // The game thread did not wait.
+        Assert.Equal(0, ProfileAnalysis.Analyze(recording, 0, 50_000, recording.GameThread).WaitingSamples);
+    }
+
+    [Fact]
     public void Analyze_AllThreads_WeighsEachSampleByItsOwnPeriod()
     {
         var all = ProfileAnalysis.Analyze(Load(Sample), 0, 50_000, -1);

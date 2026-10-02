@@ -436,6 +436,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileThreadGame" xml:space="preserve"><value>Thread do jogo</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Todas as threads</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} amostras · limpeza de memória (GC) {1:N0} vezes, pausa de {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} amostras de threads que só esperavam (uma conexão, um temporizador, um evento) não são contadas</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Poucas amostras para porcentagens precisas. Selecione um intervalo maior ou grave no modo Detalhado.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>Nenhuma atividade de scripts Lua foi registrada neste intervalo.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Jogo base (vanilla)</value></data>

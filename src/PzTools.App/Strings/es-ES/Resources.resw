@@ -436,6 +436,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileThreadGame" xml:space="preserve"><value>Hilo del juego</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Todos los hilos</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} muestras · limpieza de memoria (GC) {1:N0} veces, en pausa {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>No se cuentan {0} muestras de hilos que solo esperaban (una conexión, un temporizador, un evento)</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Hay muy pocas muestras para obtener porcentajes precisos. Selecciona un intervalo más amplio o graba en modo Detallado.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>No se registró actividad de scripts de Lua en este intervalo.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Juego base (vanilla)</value></data>

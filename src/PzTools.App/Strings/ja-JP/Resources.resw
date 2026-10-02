@@ -436,6 +436,7 @@
   <data name="ProfileThreadGame" xml:space="preserve"><value>ゲームスレッド</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>すべてのスレッド</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} サンプル · メモリの整理 (GC) {1:N0} 回、停止 {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>待機していただけのスレッドのサンプル {0} 件 (接続・タイマー・イベント待ち) は数えていません</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>サンプルが少なく、割合が正確ではありません。範囲を広げるか、詳細モードで記録してください。</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>この範囲では Lua スクリプトの動作は記録されていません。</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>ゲーム本体 (バニラ)</value></data>

@@ -404,6 +404,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileLuaNone" xml:space="preserve"><value>V tomto úseku nebyla zaznamenána žádná aktivita skriptů Lua.</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Příliš málo vzorků na přesná procenta. Vyberte širší úsek nebo nahrávejte v podrobném režimu.</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>Vzorků: {0:N0} · úklid paměti (GC) {1:N0}×, pozastavení {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} vzorků vláken, která jen čekala (na spojení, časovač, událost), se nepočítá</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Všechna vlákna</value></data>
   <data name="ProfileThreadGame" xml:space="preserve"><value>Herní vlákno</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Přiblížit výběr</value></data>

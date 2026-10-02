@@ -436,6 +436,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileThreadGame" xml:space="preserve"><value>Thread du jeu</value></data>
   <data name="ProfileThreadAll" xml:space="preserve"><value>Tous les threads</value></data>
   <data name="ProfileSummarySamplesFormat" xml:space="preserve"><value>{0:N0} échantillons · nettoyage de la mémoire (GC) {1:N0} fois, pause de {2:0.0} ms</value></data>
+  <data name="ProfileWaitingSamplesFormat" xml:space="preserve"><value>{0} échantillons de threads qui ne faisaient qu’attendre (une connexion, un minuteur, un événement) ne sont pas comptés</value></data>
   <data name="ProfileFewSamples" xml:space="preserve"><value>Trop peu d'échantillons pour des pourcentages fiables. Sélectionnez une plage plus large ou enregistrez en mode Détaillé.</value></data>
   <data name="ProfileLuaNone" xml:space="preserve"><value>Aucune activité de script Lua n'a été enregistrée sur cette plage.</value></data>
   <data name="ProfileGroup.game" xml:space="preserve"><value>Jeu de base (vanilla)</value></data>
