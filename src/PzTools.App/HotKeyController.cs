@@ -121,8 +121,11 @@ internal sealed class HotKeyController : IDisposable
         Sound(SystemSound.Accepted);
         // Said before the save asks the game for its minutes, as a recording's stop is: the save takes a few seconds.
         // Not waited on for long: a game that does not answer must not hold the save up.
-        await Task.WhenAny(host.NotifyGameAsync([$"save-last-started:{Math.Max(1, rolling.OnMinutes)}"]), Task.Delay(TimeSpan.FromSeconds(3)));
+        var started = host.NotifyGameAsync([$"save-last-started:{Math.Max(1, rolling.OnMinutes)}"]);
+        await Task.WhenAny(started, Task.Delay(TimeSpan.FromSeconds(3)));
         var (path, result) = await profiles.SaveRollingAsync();
+        // After the first note, however late it got through: never "saving" over "saved".
+        await started;
         if (path is null)
         {
             Sound(SystemSound.Failed);
@@ -208,19 +211,15 @@ internal sealed class HotKeyController : IDisposable
         Sound(SystemSound.Accepted);
         // Before the backup asks the game to save: the note would otherwise wait for the save to finish. Not for
         // long, though: a game that does not answer must not hold the backup up.
-        await Task.WhenAny(host.NotifyGameAsync(["backup-started"]), Task.Delay(TimeSpan.FromSeconds(3)));
+        var started = host.NotifyGameAsync(["backup-started"]);
+        await Task.WhenAny(started, Task.Delay(TimeSpan.FromSeconds(3)));
         var result = await operations.BackupAsync(saveId, source);
-        if (result.Outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange)
-        {
-            Sound(SystemSound.Done);
-            Note(host, "backup-done");
-        }
-        else
-        {
-            // The backup's own card says why; the player hears it and reads the note.
-            Sound(SystemSound.Failed);
-            Note(host, result.Outcome == ProcessOutcome.Busy ? "busy" : "backup-failed");
-        }
+        var done = result.Outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange;
+        // The backup's own card says why it failed; the player hears it and reads the note.
+        Sound(done ? SystemSound.Done : SystemSound.Failed);
+        // After the first note, however late it got through: never "started" over "complete".
+        await started;
+        Note(host, done ? "backup-done" : result.Outcome == ProcessOutcome.Busy ? "busy" : "backup-failed");
     }
 
     // The settings' own switch, as if flipped there: nothing else holds backups back, and nothing turns them on again
