@@ -7,8 +7,6 @@ namespace PzTools.Backup.Tests;
 /// <summary>A failed attach says where it stopped and why, and names the causes a player can change.</summary>
 public sealed class AttachDiagnosticsTests
 {
-    private static readonly ProcessRights SameRights = new(false, false, true, "ProjectZomboid64.exe", null);
-
     [Fact]
     public void Read_TakesTheStepAndErrorFromTheHelpersMark()
     {
@@ -20,26 +18,13 @@ public sealed class AttachDiagnosticsTests
     }
 
     [Fact]
-    public void Classify_NamesAttachingTurnedOff_WhateverTheRights()
+    public void Classify_NamesAttachingTurnedOff_AndNothingElse()
     {
-        Assert.Equal(DisabledCode, Classify("attach",
-            "com.sun.tools.attach.AttachNotSupportedException: The VM does not support the attach mechanism", SameRights));
-    }
-
-    [Fact]
-    public void Classify_BlamesRights_OnlyWhenTheGameHasRightsTheAppLacks()
-    {
-        var error = "java.io.IOException: Access is denied";
-        // The game runs as administrator, the app does not.
-        Assert.Equal(ElevationCode, Classify("attach", error, SameRights with { GameElevated = true }));
-        // Windows refused even to say: the usual sign of the same.
-        Assert.Equal(ElevationCode, Classify("attach", error, SameRights with { GameElevated = null, GameRightsKnown = false }));
-        // The same rights, an elevated app, rights not known for another reason, or a later step: not a matter of rights.
-        Assert.Equal("attach-failed", Classify("attach", error, SameRights));
-        Assert.Equal("attach-failed", Classify("attach", error, SameRights with { AppElevated = true, GameElevated = true }));
-        Assert.Equal("attach-failed", Classify("attach", error, SameRights with { GameElevated = null, GameRightsKnown = null }));
-        Assert.Equal("attach-failed", Classify("handshake", error, SameRights with { GameElevated = true }));
-        Assert.Equal("attach-failed", Classify(null, null, SameRights with { GameElevated = true }));
+        Assert.Equal(DisabledCode,
+            Classify("com.sun.tools.attach.AttachNotSupportedException: The VM does not support the attach mechanism"));
+        // The app runs as administrator by its manifest: a game's rights are never the cause.
+        Assert.Equal("attach-failed", Classify("java.io.IOException: Access is denied"));
+        Assert.Equal("attach-failed", Classify(null));
     }
 
     [Fact]
@@ -59,9 +44,27 @@ public sealed class AttachDiagnosticsTests
     }
 
     [Fact]
+    public void Failure_LeavesOutPaths_TheHelpersOwnWordsGave()
+    {
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var lockFolder = Path.Combine(profile, ".pztools-bridge");
+        var output = FailureMark + "\tlock\tjava.nio.file.AccessDeniedException: " + lockFolder + "\r\n"
+            + "\tat sun.nio.fs.WindowsException.translateToIOException(WindowsException.java:89)\r\n"
+            + "Caused by: java.io.IOException: D:\\Games\\Someone Else\\ProjectZomboid\\projectzomboid.jar";
+        var failure = Failure(int.MaxValue - 7, output, 1, Path.GetTempPath());
+        foreach (var text in new[] { failure.Message, failure.Diagnostics! })
+        {
+            Assert.DoesNotContain(profile, text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("D:\\Games", text);
+        }
+        // What the path was is still told: the user's own folder by name, another by its last part.
+        Assert.Contains("%USERPROFILE%\\.pztools-bridge", failure.Diagnostics);
+        Assert.Contains("…\\projectzomboid.jar", failure.Diagnostics);
+    }
+
+    [Fact]
     public void ProfileErrors_NameTheKnownCauses()
     {
-        Assert.Equal("ProfileError.Elevation", ProfileRecordingService.ErrorKey("profile-" + ElevationCode));
         Assert.Equal("ProfileError.AttachDisabled", ProfileRecordingService.ErrorKey("profile-" + DisabledCode));
         Assert.Equal("ProfileError.Link", ProfileRecordingService.ErrorKey("profile-attach-failed"));
     }

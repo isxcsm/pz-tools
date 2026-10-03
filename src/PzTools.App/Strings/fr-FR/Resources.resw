@@ -715,9 +715,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Code du jeu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attente</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Autres scripts</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Redémarrez le jeu sans droits d’administrateur.</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Une option de lancement du jeu bloque la connexion.</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>Connexion impossible : le jeu est exécuté en tant qu’administrateur. Redémarrez-le sans droits d’administrateur.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Connexion impossible : une option de lancement du jeu la bloque. Vérifiez les options de lancement du jeu.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Impossible de se connecter au jeu</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>Jeu</value></data>

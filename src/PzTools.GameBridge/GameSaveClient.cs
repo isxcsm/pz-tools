@@ -19,7 +19,7 @@ public sealed class GameSaveException(string code, string message, string? diagn
     /// The game could not be reached at all and nothing was asked of it (a blocked helper, a game
     /// update, a missing bridge). The files on disk can still be backed up as they are.
     /// </summary>
-    public bool LinkUnavailable => Code is "attach-failed" or AttachDiagnostics.ElevationCode or AttachDiagnostics.DisabledCode
+    public bool LinkUnavailable => Code is "attach-failed" or AttachDiagnostics.DisabledCode
         or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
     public string? Diagnostics { get; } = diagnostics;
 

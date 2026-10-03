@@ -715,9 +715,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código do jogo</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Outros scripts</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Reinicie o jogo sem permissões de administrador.</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Uma opção de inicialização do jogo está bloqueando a conexão.</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>Não foi possível conectar porque o jogo está sendo executado como administrador. Reinicie-o sem permissões de administrador.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Não foi possível conectar porque uma opção de inicialização do jogo está bloqueando. Verifique as opções de inicialização do jogo.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Não foi possível conectar ao jogo</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>Jogo</value></data>

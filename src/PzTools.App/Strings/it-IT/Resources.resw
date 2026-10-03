@@ -715,9 +715,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Codice del gioco</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attesa</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Altri script</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Riavvia il gioco senza privilegi di amministratore.</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Un’opzione di avvio del gioco blocca la connessione.</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>Impossibile connettersi perché il gioco è in esecuzione come amministratore. Riavvialo senza privilegi di amministratore.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Impossibile connettersi perché un’opzione di avvio del gioco lo impedisce. Controlla le opzioni di avvio del gioco.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Impossibile connettersi al gioco</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>Gioco</value></data>

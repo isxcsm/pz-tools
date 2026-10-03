@@ -714,9 +714,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Other scripts</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Restart the game without administrator rights.</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>A game launch option is blocking the connection.</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>Could not connect because the game is running as administrator. Restart it without administrator rights.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Could not connect because a game launch option blocks it. Check the game&apos;s launch options.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Could not connect to the game</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>Game</value></data>

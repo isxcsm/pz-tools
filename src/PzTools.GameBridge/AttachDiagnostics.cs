@@ -6,17 +6,15 @@ namespace PzTools.GameBridge;
 /// <summary>
 /// Why the attach helper could not reach the game, for the log and, where the cause is a known one, for a precise word
 /// to the player. The helper's first line on failure names the step it stopped at (see AttachMain); the rest is what
-/// commonly makes an attach fail on a player's machine: the game run with other rights than the app, a launch option
-/// that turns attaching off, a folder named outside ASCII. The diagnostics leave out full paths, which hold the user's
-/// name, and keep only whether each held other letters.
+/// commonly makes an attach fail on a player's machine: a launch option that turns attaching off, a folder named
+/// outside ASCII, the rights each side runs with (the app always as administrator, by its manifest, so a game with
+/// more rights than it is not a cause). The diagnostics leave out full paths, which hold the user's name, and keep only
+/// whether each held other letters.
 /// </summary>
-public static class AttachDiagnostics
+public static partial class AttachDiagnostics
 {
     /// <summary>The helper's mark (AttachMain.FAILURE_MARK).</summary>
     public const string FailureMark = "PZTOOLS-ATTACH-FAILED";
-
-    /// <summary>The game runs with rights the app does not have (as administrator, or as another user).</summary>
-    public const string ElevationCode = "attach-elevation";
 
     /// <summary>The game was started with attaching turned off (-XX:+DisableAttachMechanism).</summary>
     public const string DisabledCode = "attach-disabled";
@@ -26,8 +24,8 @@ public static class AttachDiagnostics
     {
         var (stage, error) = Read(helperOutput);
         var rights = Rights(processId);
-        var code = Classify(stage, error, rights);
-        var message = stage is null ? FirstLine(helperOutput) : $"{stage}: {error}";
+        var code = Classify(error);
+        var message = Scrub(stage is null ? FirstLine(helperOutput) : $"{stage}: {error}");
         return new GameSaveException(code, message.Length > 0 ? message : "The attach helper failed without a message.",
             Describe(stage, error, exitCode, rights, bridgeDirectory, helperOutput));
     }
@@ -51,17 +49,9 @@ public static class AttachDiagnostics
         return (null, null);
     }
 
-    /// <summary>
-    /// A known cause, or the general attach failure. Rights are blamed only for a failure to attach at all, where they
-    /// stop it, and only when the game's rights are known to be other than the app's.
-    /// </summary>
-    public static string Classify(string? stage, string? error, ProcessRights rights)
-    {
-        if (error?.Contains("does not support the attach mechanism", StringComparison.OrdinalIgnoreCase) == true) return DisabledCode;
-        // An app without rights is refused a game that has them: elevated, or with rights the app cannot even read.
-        return stage == "attach" && rights.AppElevated == false && (rights.GameElevated == true || rights.GameRightsKnown == false)
-            ? ElevationCode : "attach-failed";
-    }
+    /// <summary>A known cause, or the general attach failure.</summary>
+    public static string Classify(string? error) =>
+        error?.Contains("does not support the attach mechanism", StringComparison.OrdinalIgnoreCase) == true ? DisabledCode : "attach-failed";
 
     private static string Describe(string? stage, string? error, int? exitCode, ProcessRights rights, string bridgeDirectory,
         string helperOutput)
@@ -82,8 +72,30 @@ public static class AttachDiagnostics
         // The helper's own words last, its tail if long: the stack trace says where inside the JVM it stopped.
         var output = helperOutput.Trim();
         if (output.Length > 0) text.Append("; helper=").Append(output.Length <= 3000 ? output : "…" + output[^3000..]);
-        return text.ToString();
+        return Scrub(text.ToString());
     }
+
+    /// <summary>
+    /// The text with its paths cut to what says something without naming anyone: a Java exception names the file it
+    /// failed on, under the user's own folder. The user's own and temporary folders by name; any other path by its last
+    /// part.
+    /// </summary>
+    internal static string Scrub(string text)
+    {
+        foreach (var (folder, name) in new[]
+        {
+            (Path.GetTempPath(), "%TEMP%\\"),
+            (Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "%LOCALAPPDATA%"),
+            (Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "%USERPROFILE%"),
+        })
+            if (folder.Length > 3) text = text.Replace(folder, name, StringComparison.OrdinalIgnoreCase);
+        return AbsolutePath().Replace(text, path => "…\\" + Path.GetFileName(path.Value.TrimEnd('\\', '/')));
+    }
+
+    // A drive or network path: folders, which may hold spaces ("Program Files"), then a last part up to a space, so
+    // the words after a path ("(Access is denied)") stay.
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?<![\w%])(?:[A-Za-z]:|\\\\[^\\\s]+)[\\/](?:[^\\/\r\n""'<>|;:*?]*[\\/])*[^\\/\s""'<>|;:*?]*")]
+    private static partial System.Text.RegularExpressions.Regex AbsolutePath();
 
     private static string FirstLine(string text)
     {

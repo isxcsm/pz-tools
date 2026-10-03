@@ -1461,7 +1461,6 @@ public sealed partial class MainWindowShell : UserControl
         // A known cause the player can change says what to change; otherwise, what the backups do meanwhile.
         GameLinkCard.Message = Localizer.Get(view.RestartRequired ? "GameLinkCardRestartMessage" : view.Cause switch
         {
-            RuntimeObservation.ElevationReason => "GameLinkCardElevationMessage",
             RuntimeObservation.AttachDisabledReason => "GameLinkCardDisabledMessage",
             _ => "GameLinkCardMessage",
         });

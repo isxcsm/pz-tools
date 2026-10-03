@@ -715,9 +715,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kod gry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Oczekiwanie</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Inne skrypty</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Uruchom grę ponownie bez uprawnień administratora.</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Opcja uruchamiania gry blokuje połączenie.</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>Nie udało się połączyć, ponieważ gra działa jako administrator. Uruchom ją ponownie bez uprawnień administratora.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nie udało się połączyć, ponieważ blokuje to opcja uruchamiania gry. Sprawdź opcje uruchamiania gry.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Nie udało się połączyć z grą</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>Gra</value></data>

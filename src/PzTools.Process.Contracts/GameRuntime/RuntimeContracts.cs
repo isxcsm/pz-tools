@@ -68,9 +68,13 @@ public sealed record RuntimeSnapshot(
             Kind<WorldPhase>(p[7]), Kind<GamePause>(p[8]), Kind<RuntimeMode>(p[9]),
             int.Parse(p[10], CultureInfo.InvariantCulture), Number(p[11]), Number(p[12]),
             p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length >= 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null, p.Length >= 21 ? Kind<RuntimeSleep>(p[20]) : RuntimeSleep.Unknown,
-            p.Length >= 22 ? Number(p[21]) : null)
+            p.Length >= 22 ? Heap(p[21]) : null)
             .RequireCapabilities(p[14]).Validate();
     }
+    // Only said for the player to see: a heap Java reports as having no limit (Long.MAX_VALUE, shifted) is no heap
+    // to show, not a frame to refuse.
+    private static long? Heap(string value) =>
+        long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var megabytes) && megabytes <= 1L << 30 ? megabytes : null;
     private RuntimeSnapshot RequireCapabilities(string value)
     {
         if (value.Length > 1024) throw new InvalidDataException("Oversized capability list.");
@@ -109,8 +113,6 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     public const string GameStartingReason = "game-starting";
     /// <summary>The game still runs a bridge older than this app's; it connects again after a game restart.</summary>
     public const string RestartRequiredReason = "runtime-restart-required";
-    /// <summary>The game runs with rights this app lacks (as administrator): it connects once both run alike.</summary>
-    public const string ElevationReason = "runtime-attach-elevation";
     /// <summary>The game was started with connecting turned off by a launch option.</summary>
     public const string AttachDisabledReason = "runtime-attach-disabled";
     /// <summary>

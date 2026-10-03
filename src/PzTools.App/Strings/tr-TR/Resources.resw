@@ -715,9 +715,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Bekleme</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Diğer betikler</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Oyunu yönetici izinleri olmadan yeniden başlatın.</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Bir oyun başlatma seçeneği bağlantıyı engelliyor.</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>Oyun yönetici olarak çalıştığı için bağlanılamadı. Oyunu yönetici izinleri olmadan yeniden başlatın.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Bir oyun başlatma seçeneği engellediği için bağlanılamadı. Oyunun başlatma seçeneklerini kontrol edin.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Oyuna bağlanılamadı</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>Oyun</value></data>

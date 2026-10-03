@@ -8,9 +8,8 @@ namespace PzTools.App.Core;
 /// </summary>
 /// <param name="RestartRequired">The link is unavailable because the game still runs an older bridge; a
 /// game restart is known to bring it back. Any other unavailable link may not come back with a restart.</param>
-/// <param name="Cause">What stops the link when it is known and the player can change it: the game run as
-/// administrator (<see cref="RuntimeObservation.ElevationReason"/>) or with connecting turned off
-/// (<see cref="RuntimeObservation.AttachDisabledReason"/>).</param>
+/// <param name="Cause">What stops the link when it is known and the player can change it: the game started with
+/// connecting turned off (<see cref="RuntimeObservation.AttachDisabledReason"/>).</param>
 /// <param name="Starting">The game is starting: launched while the app watched and not read yet, or connected and
 /// before its first frame. Not an unknown state, and said as such.</param>
 /// <param name="GameHeapMegabytes">The memory the running game was started with (its Java heap's maximum), once
@@ -47,8 +46,7 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
         linkSince = unusable ? linkSince ?? time.GetTimestamp() : null;
         // Each retry reports "connecting" before it fails again: keep the reason for the whole outage.
         restartRequired = unusable && (restartRequired || observation.Reason == RuntimeObservation.RestartRequiredReason);
-        cause = !unusable ? null : observation.Reason is RuntimeObservation.ElevationReason or RuntimeObservation.AttachDisabledReason
-            ? observation.Reason : cause;
+        cause = !unusable ? null : observation.Reason is RuntimeObservation.AttachDisabledReason ? observation.Reason : cause;
         bool sleepUnknown = observation is { IsFresh: true, Snapshot: { IsWorldReady: true, Sleep: RuntimeSleep.Unknown } };
         sleepSince = sleepUnknown ? sleepSince ?? time.GetTimestamp() : null;
         // The grace is for a link that may come back by itself (a game still loading). One the game has refused for

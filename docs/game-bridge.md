@@ -132,16 +132,21 @@ machine, as the failure's `diagnostics`:
 - the game's Java executable, by file name;
 - whether the app folder, the temporary folder and the user folder hold letters outside
   ASCII (yes or no, never the path);
-- the Windows version and the end of the helper's output.
+- the Windows version and the end of the helper's output, with paths cut to what does not
+  name anyone: the user's own and temporary folders by name (`%USERPROFILE%`, `%TEMP%`),
+  any other path by its last part.
 
-Two causes the player can change get their own code and words:
+One cause the player can change gets its own code and words:
 
 | Cause | How it is told | Code | The app says |
 | --- | --- | --- | --- |
-| The game runs as administrator and PZ Tools does not | The `attach` step fails, and Windows says the game is elevated or refuses to say (access denied) | `attach-elevation` | Restart the game without administrator rights |
 | The game was started with `-XX:+DisableAttachMechanism` | Java says the game does not support attaching | `attach-disabled` | A launch option is blocking the connection |
 
-Anything else stays `attach-failed`. Where to find the entry, for a user's report:
+Such a game is not asked again until it restarts, as one that needs a restart after an
+update is not. The app always runs as administrator (its manifest asks for it), so a game
+with more rights than the app is not a cause. Anything else stays `attach-failed`; a game
+busy for a moment with another request is tried again, and not logged. Where to find the
+entry, for a user's report:
 
 | Link | Log entry |
 | --- | --- |

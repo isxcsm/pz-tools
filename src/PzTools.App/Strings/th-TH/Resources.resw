@@ -722,9 +722,7 @@
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>รอ</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>สคริปต์อื่น</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>กรุณาเปิดเกมใหม่โดยไม่ใช้สิทธิ์ผู้ดูแลระบบ</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ตัวเลือกการเปิดเกมกำลังบล็อกการเชื่อมต่อ</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>เชื่อมต่อไม่ได้เพราะเกมทำงานด้วยสิทธิ์ผู้ดูแลระบบ กรุณาเปิดเกมใหม่โดยไม่ใช้สิทธิ์ผู้ดูแลระบบ</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>เชื่อมต่อไม่ได้เพราะตัวเลือกการเปิดเกมบล็อกไว้ กรุณาตรวจสอบตัวเลือกการเปิดเกม</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>เกม</value></data>

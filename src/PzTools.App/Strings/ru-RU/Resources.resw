@@ -715,9 +715,7 @@
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код игры</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Ожидание</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Другие скрипты</value></data>
-  <data name="GameLinkCardElevationMessage" xml:space="preserve"><value>Перезапустите игру без прав администратора.</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Параметр запуска игры блокирует подключение.</value></data>
-  <data name="ProfileError.Elevation" xml:space="preserve"><value>Не удалось подключиться: игра запущена от имени администратора. Перезапустите её без прав администратора.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Не удалось подключиться: его блокирует параметр запуска игры. Проверьте параметры запуска игры.</value></data>
   <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Не удалось подключиться к игре</value></data>
   <data name="GameSettings.Header" xml:space="preserve"><value>Игра</value></data>

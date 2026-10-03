@@ -55,6 +55,10 @@ public sealed class GameRuntimeClient(string bridgeDirectory)
                     var detail = (await error + "\n" + await output).Trim();
                     if (GameSaveException.NamesRestart(detail))
                         throw new GameSaveException("restart-required", "The loaded bootstrap requires one game restart after this bridge update.");
+                    // Busy with another request for a moment (a payload being reloaded): tried again as any outage is,
+                    // and no failure for the log, whose one entry per game would then hide a real one.
+                    if (detail.Contains(GameSaveClient.ChannelBusy, StringComparison.Ordinal))
+                        throw new GameSaveException("busy", "The game was busy with another request.");
                     // A known cause keeps its own code, for the card to name; any other stays this link's own failure.
                     var failure = AttachDiagnostics.Failure(processId, detail, helper.ExitCode, bridgeDirectory);
                     throw failure.Code == "attach-failed"

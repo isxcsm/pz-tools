@@ -16,8 +16,8 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
     string? appRun = null)
 {
     private readonly RuntimeSnapshotStore received = new();
-    // The game process that refused the link for running a bridge from before an update; not asked again.
-    private (int Id, DateTime Started)? refusedGame;
+    // The game process that refused the link for a reason that lasts as long as it runs, and why; not asked again.
+    private (int Id, DateTime Started, string Reason)? refusedGame;
 
     public async Task RunAsync(CancellationToken token)
     {
@@ -48,12 +48,14 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 }
                 var game = games[0];
                 var started = game.StartTime.ToUniversalTime(); // Bind discovery to an OS process instance, not just PID.
-                // A game that refused for running a bridge from before an update keeps refusing until it restarts:
-                // asked again it would only start another attach helper. Its state stays said until it exits.
-                if (refusedGame == (game.Id, started))
+                // A game that refused for running a bridge from before an update, or for having been started with
+                // connecting turned off, keeps refusing until it restarts: asked again it would only start another
+                // attach helper. Its state stays said until it exits.
+                if (refusedGame is { } refused && (refused.Id, refused.Started) == (game.Id, started))
                 {
-                    received.Publish(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason));
-                    extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
+                    received.Publish(RuntimeObservation.Unknown(refused.Reason));
+                    if (refused.Reason == RuntimeObservation.RestartRequiredReason)
+                        extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
                     failures = 0; await Task.Delay(1000, token); continue;
                 }
                 refusedGame = null;
@@ -120,17 +122,18 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 or Microsoft.Data.Sqlite.SqliteException)
             {
                 bool restart = error is GameSaveException { Code: "restart-required" };
-                received.Publish(RuntimeObservation.Unknown(error is GameSaveException { Code: var code } ? code switch
+                var reason = error is GameSaveException { Code: var code } ? code switch
                 {
                     "restart-required" => RuntimeObservation.RestartRequiredReason,
-                    AttachDiagnostics.ElevationCode => RuntimeObservation.ElevationReason,
                     AttachDiagnostics.DisabledCode => RuntimeObservation.AttachDisabledReason,
                     _ => "runtime-unavailable",
-                } : "runtime-unavailable"));
+                } : "runtime-unavailable";
+                received.Publish(RuntimeObservation.Unknown(reason));
                 if (restart) extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
-                if (restart && games.Length == 1)
+                // Both last as long as the game process: asked again, it would refuse again.
+                if (reason is RuntimeObservation.RestartRequiredReason or RuntimeObservation.AttachDisabledReason && games.Length == 1)
                 {
-                    try { refusedGame = (games[0].Id, games[0].StartTime.ToUniversalTime()); }
+                    try { refusedGame = (games[0].Id, games[0].StartTime.ToUniversalTime(), reason); }
                     catch (Exception gone) when (gone is InvalidOperationException or System.ComponentModel.Win32Exception) { }
                 }
                 if (error is GameSaveException { Diagnostics: not null } attach && games.Length == 1)
