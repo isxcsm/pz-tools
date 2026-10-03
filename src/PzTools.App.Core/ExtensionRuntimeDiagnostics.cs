@@ -125,6 +125,9 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
                 or "waiting-for-local-world" or "observer-disconnected" or "control-session-changed" or "host-retired")
             return LogLevel.Information;
         if (status.State == RuntimeExtensionState.Unsupported) return LogLevel.Warning;
+        // Waiting for the game's restart after an update of the app is not a failure: the sidebar's card says what to
+        // do, and the extension comes back with the game. A restart forced by a failure in the game still is one.
+        if (status is { State: RuntimeExtensionState.RestartRequired, Reason: "bootstrap-update" }) return LogLevel.Information;
         if (status.State is RuntimeExtensionState.FaultedPassThrough or RuntimeExtensionState.RestartRequired)
             return LogLevel.Error;
         // A rejected update may leave the previous generation Active, so state alone is insufficient.

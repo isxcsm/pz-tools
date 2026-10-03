@@ -17,7 +17,7 @@ and what changing it does.
 
 | Editable file | What it tunes |
 | --- | --- |
-| [`app/default.toml`](../config/defaults/app/default.toml) | Stored logs, plus: how often lists and progress are refreshed; telemetry catch-up, read grace and stale threshold; how long operation cards stay; thumbnail memory budget and parallel reads; retries and timeouts of an explicit refresh; scheduler restart and back-off; shutdown grace; settings and log-filter debounce; progress frequency of running operations (key `export_progress_interval_ms`, which keeps an older name but applies to every operation) |
+| [`app/default.toml`](../config/defaults/app/default.toml) | Stored logs, plus: how often lists and progress are refreshed; telemetry catch-up, read grace and stale threshold; how long operation cards stay; thumbnail memory budget and parallel reads; retries and timeouts of an explicit refresh; scheduler restart and back-off; shutdown grace; settings and log-filter debounce; progress frequency of running operations (key `export_progress_interval_ms`, which keeps an older name but applies to every operation); `[profiler]` recording limits (`general_limit_minutes`, `detailed_limit_minutes`) and the most the last minutes may hold on disk (`rolling_max_megabytes`); `[hotkeys]` sounds and in-game notes (`sounds`, `game_notices`; see [hotkeys](profiler.md#hotkeys)) |
 | [`backup-worker/default.toml`](../config/defaults/backup-worker/default.toml) | Attempts and back-off for files that keep changing, copy and hash buffer, the small-file staging pool, capture reader and queue limits, full-scan hash batch and reader limits, progress frequency, scan and USN batches, backup heartbeat, and the timeouts for connecting to the game, queueing a save and waiting for it to finish |
 | [`backup-scheduler/default.toml`](../config/defaults/backup-scheduler/default.toml) | How often it checks whether a backup is due (not your backup interval), and how early it starts preparing a due backup |
 | [`state-scheduler/default.toml`](../config/defaults/state-scheduler/default.toml) | State checks, wake-up polling, the delay between the two independent confirmation checks, how often interrupted work and orphan backups are cleaned up, and the extension-control connection |
@@ -42,7 +42,7 @@ replaced by a built-in default. Choices made in the app and options given on the
 command line still take priority over these files.
 
 Existing files are never rewritten, not even at startup after an update. New
-installations and **Restore defaults** use the current templates. An existing
+installations and **Restore default settings** use the current templates. An existing
 installation uses the built-in default for any key it does not contain, until you add
 that key yourself.
 
@@ -58,10 +58,10 @@ have separate timeouts for waiting in the game's queue and for waiting for the s
 finish. Only a save that is still queued can be cancelled safely. A save the game has
 already started is not interrupted. When it is unknown whether a save finished, the
 backup does not capture files and does not retry automatically. See
-[when the game is not saved](save-bridge.md#admission-and-failures).
+[when the game is not saved](game-bridge.md#admission-and-failures).
 
 **New timeouts may need a game restart.** The configured deadlines are sent to the
-[save bridge](glossary.md#save-bridge) in the game. A compatible [payload](glossary.md#payload)
+[game bridge](glossary.md#game-bridge) in the game. A compatible [payload](glossary.md#payload)
 update is picked up at an idle moment; an incompatible [bootstrap](glossary.md#bootstrap)
 still loaded in the game needs a game restart. See [component updates](module-reload.md).
 

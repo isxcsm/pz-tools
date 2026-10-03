@@ -3,7 +3,7 @@ using PzTools.Backup.Core.Configuration;
 using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts.GameRuntime;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 namespace PzTools.Backup.Tests;
 
@@ -16,6 +16,8 @@ public sealed partial class GameSaveClientTests
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         await using var watch = new RuntimeWatchCapture(game.Pid);
         var first = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
+        // The memory the game was started with comes with each state.
+        Assert.True(first.HeapMaximumMegabytes > 0, $"heap: {first.HeapMaximumMegabytes}");
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
         await File.WriteAllTextAsync(temp.GetPath("pause-game"), "pause");
         var paused = await watch.WaitAsync(s => s.Pause == GamePause.Paused);
@@ -224,7 +226,7 @@ public sealed partial class GameSaveClientTests
         }
     }
 
-    private static string RuntimeBridgeDirectory() => Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")
+    private static string RuntimeBridgeDirectory() => Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")
         ?? throw new InvalidOperationException("Synthetic bridge fixture was not prepared.");
 
     private static RuntimeSaveTicket Ticket(RuntimeSnapshot state, long ordinal, long delay = 0) =>

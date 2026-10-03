@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Partida actual</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Carpeta de la partida</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Copiando la partida actual</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>No se puede exportar la partida actual mientras juegas. Sal de la partida e inténtalo de nuevo.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>No se puede exportar mientras juegas. Sal del juego.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>No se pueden restaurar copias mientras juegas. Sal de la partida e inténtalo de nuevo.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Selecciona en la lista el respaldo que quieres restaurar</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>No se puede eliminar la partida mientras juegas. Sal de la partida e inténtalo de nuevo.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>No se puede curar al personaje mientras juegas. Sal de la partida e inténtalo de nuevo.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>No se puede curar mientras juegas. Sal del juego.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Aún no hay copias</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Crear copia ahora</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Restaurar</value></data>
@@ -54,14 +54,14 @@
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserva esta cantidad de copias automáticas más recientes y elimina las anteriores (1–100). Las copias manuales no cuentan y nunca se eliminan.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crear copia cuando muera el personaje</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Cuando tu personaje muere, las copias automáticas se detienen para que no desplacen a las hechas en vida. Actívalo para conservar una copia del momento de la muerte.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Los archivos de la partida cambiaron repetidamente durante la copia de seguridad. Espera a que el juego termine de guardar y vuelve a intentarlo.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>La partida no dejaba de cambiar y no se copió. Inténtalo de nuevo en un momento.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Próxima copia: en espera</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistema</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Claro</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Oscuro</value></data>
-  <data name="HostNotReady" xml:space="preserve"><value>La aplicación aún no está lista. Inténtalo de nuevo en un momento.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools todavía se está iniciando. Inténtalo de nuevo en unos instantes.</value></data>
-  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>No se pudieron iniciar las copias automáticas.</value></data>
+  <data name="HostNotReady" xml:space="preserve"><value>Aún se está preparando. Inténtalo de nuevo en un momento.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>Aún se está iniciando. Inténtalo de nuevo en un momento.</value></data>
+  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>No se pudieron iniciar las copias automáticas</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Modo de juego: {0}</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Personaje: {0}</value></data>
   <data name="VersionSurvivalFormat" xml:space="preserve"><value>Tiempo de supervivencia: {0}</value></data>
@@ -78,18 +78,13 @@
   <data name="Importing" xml:space="preserve"><value>Importando</value></data>
   <data name="Restoring" xml:space="preserve"><value>Restaurando</value></data>
   <data name="ExportingDynamic" xml:space="preserve"><value>Exportando</value></data>
-  <data name="TelemetryProgressUnavailable" xml:space="preserve"><value>La información de progreso no está disponible.</value></data>
-  <data name="BackupScanPhase" xml:space="preserve"><value>Comprobando archivos de la partida</value></data>
-  <data name="BackupHashPhase" xml:space="preserve"><value>Buscando cambios en el contenido</value></data>
   <data name="LogPhase.hash" xml:space="preserve"><value>Comparar contenido de archivos</value></data>
   <data name="BackupCopyPhase" xml:space="preserve"><value>Copiando archivos de la partida</value></data>
   <data name="BackupCopyRetryPhase" xml:space="preserve"><value>Archivo modificado · copiando de nuevo</value></data>
-  <data name="BackupCapturePhase" xml:space="preserve"><value>Creando copia de la partida</value></data>
   <data name="ArchiveRestorePhase" xml:space="preserve"><value>Restaurando en una carpeta temporal</value></data>
   <data name="ArchiveCompressPhase" xml:space="preserve"><value>Comprimiendo</value></data>
   <data name="ArchiveFinalizePhase" xml:space="preserve"><value>Finalizando</value></data>
   <data name="Processing" xml:space="preserve"><value>Procesando</value></data>
-  <data name="ProcessingNow" xml:space="preserve"><value>Procesando</value></data>
   <data name="AutomaticBackupOff" xml:space="preserve"><value>Copias automáticas desactivadas</value></data>
   <data name="NextBackupWaitingDynamic" xml:space="preserve"><value>Próxima copia: en espera</value></data>
   <data name="Unknown" xml:space="preserve"><value>Desconocido</value></data>
@@ -97,8 +92,8 @@
   <data name="Import" xml:space="preserve"><value>Importar</value></data>
   <data name="Cancel" xml:space="preserve"><value>Cancelar</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importar archivo comprimido</value></data>
-  <data name="InvalidArchiveFormat" xml:space="preserve"><value>No se puede importar esta copia comprimida. Comprueba que el archivo no esté dañado.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>La compresión de este archivo es inusualmente alta y no se puede importar con seguridad.</value></data>
+  <data name="InvalidArchiveFormat" xml:space="preserve"><value>No se puede importar este archivo. Verifica que lo haya exportado PZ Tools.</value></data>
+  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>No importado: el archivo comprimido no es seguro.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Copia manual</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>¿Restaurar la copia seleccionada?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Reemplazar los archivos actuales de «{0}» por la copia «{1}». Se perderá el progreso posterior a esa copia. Si la restauración se interrumpe, vuelve a abrir PZ Tools antes de cargar esta partida en el juego.</value></data>
@@ -107,21 +102,14 @@
   <data name="ArchiveFileType" xml:space="preserve"><value>Copia de partida de PZ Tools</value></data>
   <data name="ExportArchiveTitle" xml:space="preserve"><value>Exportar ZIP</value></data>
   <data name="OperationSucceeded" xml:space="preserve"><value>Completado.</value></data>
-  <data name="OperationNoChange" xml:space="preserve"><value>No hay archivos modificados.</value></data>
-  <data name="OperationBusy" xml:space="preserve"><value>Omitido: hay otra operación en curso.</value></data>
-  <data name="OperationFailed" xml:space="preserve"><value>La operación ha fallado.</value></data>
+  <data name="OperationNoChange" xml:space="preserve"><value>No cambió nada.</value></data>
+  <data name="OperationBusy" xml:space="preserve"><value>Omitido: había otra operación en curso.</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>Falló. Revisa los registros.</value></data>
   <data name="NoPlayHistory" xml:space="preserve"><value>Sin historial de juego</value></data>
-  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>La información de la próxima copia no está disponible.</value></data>
-  <data name="ProjectorStatusTitle" xml:space="preserve"><value>No se pudo actualizar parte de la información</value></data>
-  <data name="ProjectorStatusMessage" xml:space="preserve"><value>Información sin actualizar: {0}</value></data>
-  <data name="ProjectorArea.State" xml:space="preserve"><value>Estado de la partida</value></data>
-  <data name="ProjectorArea.Backup" xml:space="preserve"><value>Lista de copias</value></data>
+  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Hora de la próxima copia desconocida</value></data>
   <data name="ProjectorArea.Schedule" xml:space="preserve"><value>Próxima copia</value></data>
-  <data name="ProjectorArea.Details" xml:space="preserve"><value>Detalles de la partida</value></data>
-  <data name="ProjectorArea.Logs" xml:space="preserve"><value>Operaciones y registros</value></data>
-  <data name="ProjectorArea.Other" xml:space="preserve"><value>Información de la pantalla</value></data>
-  <data name="OperationCancelled" xml:space="preserve"><value>La operación se ha cancelado.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>La operación terminó con problemas. Revisa los registros antes de repetirla.</value></data>
+  <data name="OperationCancelled" xml:space="preserve"><value>Cancelado.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>Terminó con un problema. Revisa los registros.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Registros</value></data>
   <data name="LogLevel.Trace" xml:space="preserve"><value>Traza</value></data>
   <data name="LogLevel.Information" xml:space="preserve"><value>Información</value></data>
@@ -165,7 +153,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>{0:N0} más</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Información técnica</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Copiar detalles</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Detalles copiados al portapapeles.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Copiado.</value></data>
   <data name="Close" xml:space="preserve"><value>Cerrar</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Registro sin procesar</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Cargando registros…</value></data>
@@ -271,12 +259,11 @@
   <data name="RenameRevisionTitle" xml:space="preserve"><value>Editar nombre de la copia</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>Cambiar nombre de {0}</value></data>
   <data name="ClearRevisionNameLabel" xml:space="preserve"><value>Borrar nombre</value></data>
-  <data name="RevisionRenamed" xml:space="preserve"><value>Se ha cambiado el nombre de la copia.</value></data>
+  <data name="RevisionRenamed" xml:space="preserve"><value>Nombre cambiado.</value></data>
   <data name="DeleteSaveTitle" xml:space="preserve"><value>Eliminar partida</value></data>
   <data name="DeletingSave" xml:space="preserve"><value>Eliminando partida</value></data>
   <data name="DeleteSaveValidatePhase" xml:space="preserve"><value>Comprobando archivos de la partida…</value></data>
   <data name="DeleteSaveDiscoverPhase" xml:space="preserve"><value>Buscando archivos que eliminar…</value></data>
-  <data name="OperationDiscoveredFormat" xml:space="preserve"><value>{0} · {1:N0} encontrados</value></data>
   <data name="DeleteSaveFilesPhase" xml:space="preserve"><value>Eliminando archivos de la partida…</value></data>
   <data name="DeleteSaveBackupsPhase" xml:space="preserve"><value>Eliminando copias asociadas…</value></data>
   <data name="DeleteRevisionTitle" xml:space="preserve"><value>Eliminar copia</value></data>
@@ -284,16 +271,16 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Eliminar todas las copias de «{0}»</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Eliminar todas las copias</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>¿Eliminar las {1} copias de «{0}»?&#xA;&#xA;Se conservarán los archivos de la partida actual. Las copias eliminadas desaparecerán de la lista inmediatamente y no se podrán restaurar ni exportar. El espacio que ocupaban se liberará más adelante. Esta acción no se puede deshacer.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Copias eliminadas. La partida se conserva.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Todo eliminado. La partida no cambió.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Eliminar partida {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Eliminar {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>¿Eliminar la partida «{0}»?&#xA;&#xA;Destino: {1}&#xA;La carpeta de la partida seleccionada y todos sus archivos se eliminarán permanentemente, junto con todas las copias de esta partida. No se utilizará la Papelera de reciclaje ni ninguna carpeta de recuperación. Esta acción no se puede deshacer. Las copias eliminadas no se podrán restaurar ni exportar; el espacio que ocupaban se liberará más adelante.</value></data>
   <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>¿Eliminar «{1}» de «{0}»?&#xA;&#xA;Se conservarán la partida actual y las demás copias. La copia eliminada no se podrá restaurar ni exportar. El espacio que ocupaba se liberará más adelante.</value></data>
-  <data name="SaveDeletedPermanently" xml:space="preserve"><value>La carpeta de la partida se ha eliminado permanentemente y todas sus copias se han retirado de la lista.</value></data>
-  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Se ha eliminado la carpeta de la partida, pero no se han podido eliminar sus copias. Revisa la lista de copias.</value></data>
-  <data name="RevisionDeleted" xml:space="preserve"><value>Se ha eliminado la copia seleccionada.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>El estado de la partida ha cambiado. Deja de jugar y espera a que se actualice el estado antes de intentarlo de nuevo.</value></data>
-  <data name="MutationRefreshFailed" xml:space="preserve"><value>La operación se ha completado, pero no se ha podido actualizar la lista de inmediato. No repitas la operación. Vuelve a consultar la lista dentro de un momento.</value></data>
+  <data name="SaveDeletedPermanently" xml:space="preserve"><value>Se eliminaron la partida y sus copias.</value></data>
+  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Se eliminó la partida, pero sus copias siguen ahí.</value></data>
+  <data name="RevisionDeleted" xml:space="preserve"><value>Copia eliminada.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>La partida cambió. Sal del juego e inténtalo de nuevo.</value></data>
+  <data name="MutationRefreshFailed" xml:space="preserve"><value>Listo, pero la lista puede tardar en actualizarse. No lo repitas.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Copia de seguridad</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Restauración</value></data>
   <data name="LogComponent.Archive" xml:space="preserve"><value>Archivo comprimido</value></data>
@@ -312,26 +299,24 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Limpieza de copias</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Otra operación</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Operación registrada: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>No tienes permiso para acceder a un archivo o carpeta necesario. Revisa los permisos y vuelve a intentarlo.</value></data>
-  <data name="OperationError.FileMissing" xml:space="preserve"><value>No se ha encontrado un archivo o una carpeta necesarios. Comprueba la ruta.</value></data>
-  <data name="OperationError.Generic" xml:space="preserve"><value>No se ha podido completar la operación. Consulta los registros para obtener más información.</value></data>
-  <data name="OperationCardWaiting" xml:space="preserve"><value>Operación en espera</value></data>
-  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Seguridad de Windows bloqueó un componente</value></data>
-  <data name="ComponentBlockedMessage" xml:space="preserve"><value>Una directiva de seguridad de Windows (como Smart App Control) impidió que se iniciaran estos componentes: {0}. Las copias automáticas y algunas funciones podrían no funcionar. Revisa Seguridad de Windows → Control de aplicaciones y navegador.</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>No tienes permiso para acceder al archivo o la carpeta.</value></data>
+  <data name="OperationError.FileMissing" xml:space="preserve"><value>No se encuentra el archivo o la carpeta.</value></data>
+  <data name="OperationError.Generic" xml:space="preserve"><value>No se pudo terminar. Revisa los registros.</value></data>
+  <data name="OperationCardWaiting" xml:space="preserve"><value>En espera</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Bloqueado por Seguridad de Windows</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>PZ Tools no funcionará bien hasta que se desbloquee.</value></data>
   <data name="CardOpenSettings" xml:space="preserve"><value>Abrir configuración</value></data>
-  <data name="CardAcknowledge" xml:space="preserve"><value>Aceptar</value></data>
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools se cerrará debido a un error inesperado. Informe de error: {0}</value></data>
-  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Una directiva de seguridad de Windows (como Smart App Control) bloqueó un componente de PZ Tools. Revisa Seguridad de Windows → Control de aplicaciones y navegador.</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Seguridad de Windows bloqueó PZ Tools. Revisa la configuración de Control inteligente de aplicaciones.</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Limpiando copias</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Limpieza pospuesta por una copia o el juego.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Se limpiará la próxima vez.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Eliminando copias antiguas</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Eliminando archivos temporales</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Eliminando copias de partidas eliminadas</value></data>
   <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>Recuperando espacio sin usar</value></data>
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Se recuperaron {0:N1} MB de espacio de copias sin usar.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Copia creada: {0}</value></data>
-  <data name="BackupGameSavePhase" xml:space="preserve"><value>Comprobando si se está jugando y guardando si es necesario…</value></data>
-  <data name="BackupPreparingPhase" xml:space="preserve"><value>Preparando la copia de seguridad</value></data>
+  <data name="BackupGameSavePhase" xml:space="preserve"><value>Guardando la partida</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Guardar el juego antes de la copia</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Comprobando si es necesario guardar el juego antes de la copia.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>El paso de guardado del juego terminó. Ahora continuará la copia de seguridad.</value></data>
@@ -342,8 +327,8 @@
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Cuenta regresiva dentro del juego</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Muestra una cuenta regresiva sobre tu personaje desde 5 segundos antes de que una copia automática guarde la partida y después el resultado. Las copias que inicias en la app guardan al momento, sin mostrarla. Si está desactivado, las copias automáticas también guardan sin mostrarla.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Guarda el juego justo antes de una copia para incluir tu progreso más reciente. El juego puede detenerse alrededor de medio segundo mientras guarda. Si está desactivado, el progreso aún no guardado puede faltar en la copia, por lo que se recomienda dejarlo activado.</value></data>
-  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próxima copia: esperando para iniciar</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próxima copia: esperando a que termine la operación actual</value></data>
+  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próxima copia: empieza pronto</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próxima copia: después de la operación actual</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Curar personaje</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Curar / resucitar personaje</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>¿Recuperar a {0}?
@@ -358,8 +343,8 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Personaje curado.</value></data>
   <data name="HealCharacterRevived" xml:space="preserve"><value>Personaje revivido.</value></data>
   <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Revivido. Objetos recuperados: {0}.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>La recuperación se detuvo porque no era seguro recuperar las pertenencias. La partida no se modificó.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Debe completarse una modificación anterior de la partida. Abre de nuevo PZ Tools antes de cargar esta partida en el juego.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Detenido: no se podían recuperar las pertenencias con seguridad. La partida no cambió.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Hay un cambio anterior sin terminar. Reinicia PZ Tools antes de cargar esta partida.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Recuperación del personaje</value></data>
   <data name="ProfilerNavigation" xml:space="preserve"><value>Rendimiento</value></data>
   <data name="ProfileRecordStart" xml:space="preserve"><value>Iniciar grabación</value></data>
@@ -375,16 +360,15 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileNoFrames" xml:space="preserve"><value>No se pueden leer los límites de los cuadros, así que esta grabación no tiene gráfica de cuadros.</value></data>
   <data name="ProfileRecordingTitle" xml:space="preserve"><value>Grabando el rendimiento</value></data>
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Grabando el rendimiento del juego…</value></data>
-  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Procesando la grabación…</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Creando el archivo de grabación</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Grabación de rendimiento</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>¿Eliminar esta grabación? Esta acción no se puede deshacer.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Aún no hay grabaciones.</value></data>
-  <data name="ProfileLoadFailed" xml:space="preserve"><value>No se puede abrir esta grabación. El archivo está dañado o se creó con una versión más reciente.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un rango · Clic: seleccionar un cuadro · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Barras grises en Memoria: limpieza de memoria (GC), tan altas como su pausa · ▲: cuadro por encima de la escala (su tiempo al pasar el puntero)</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>No se puede abrir la grabación. Está dañada o es de una versión más reciente.</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un rango · Clic: seleccionar un cuadro · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Barras grises en Memoria: limpieza de memoria (GC), tan altas como su pausa · ▲: cuadro por encima de la escala (su tiempo al pasar el puntero) · Clic en un elemento de la lista: su parte de cada barra (otra vez para quitarlo; mientras se dibuja, apunta a otro para previsualizarlo)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar lo que se muestra como texto</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copiar texto</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Se copiaron los resultados de rendimiento.</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Copiado.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Inicia el juego para grabar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} no se inició porque el juego no se está ejecutando.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} no se inició porque hay más de un juego ejecutándose.</value></data>
@@ -394,6 +378,10 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Más lento</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Peor 1%</value></data>
+  <data name="ProfileRangeWhole" xml:space="preserve"><value>Total</value></data>
+  <data name="ProfileRangeSelected" xml:space="preserve"><value>Selección</value></data>
+  <data name="ProfileClearSelection" xml:space="preserve"><value>Quitar la selección (Esc)</value></data>
+  <data name="ProfileClearSelectionHint" xml:space="preserve"><value>✕ en la selección o Esc: quitar la selección</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Pico de heap</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Pico de VRAM</value></data>
@@ -406,6 +394,8 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Cada barra es una limpieza de memoria (GC). Su ancho y altura muestran cuánto tiempo se detuvo el juego; la barra más alta es la pausa más larga del rango visible.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memoria que el juego ocupa en la tarjeta gráfica. La escala va del valor más bajo al más alto del rango visible.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: asignado</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>La memoria que asignaron los scripts del mod resaltado, una barra por momento, frente al máximo en uno de ellos. Basura que se acumula justo antes de las limpiezas de arriba apunta a este mod.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} veces, en pausa {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Función</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Archivo</value></data>
@@ -417,16 +407,99 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileColumnDetail" xml:space="preserve"><value>Detalles</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Abrir grabación…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Guardar como…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Guardar selección</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Selección guardada como nueva grabación: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Más</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Scripts (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Código del juego (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Asignación de memoria</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Árbol de llamadas</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Agrupa las funciones de este propietario por las rutas de llamada que llevaron a ellas: arriba la función más externa, como un controlador de eventos, y dentro lo que llamó. Solo cuentan las muestras que terminaron en funciones de este propietario. Desactivado: una lista simple de funciones.</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Expandir</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Contraer</value></data>
+  <data name="ProfileSearch" xml:space="preserve"><value>Buscar</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Comparar con</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>No hay otra grabación con la cual comparar</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Hilos</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>¿Se trabó hace un momento? Presiona aquí: el juego conservó aproximadamente el último minuto y se guarda como grabación. Modo: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Llamada desde la línea {1} de {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Líneas ejecutadas por sí misma · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (llamada)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa de GC</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Haz clic para ocultar o mostrar esta fila</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Atajo: {0}</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nuevo nombre (vacío para el automático)</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Últimos {0} min</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Grabación {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} s</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} min</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} min {1} s</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Hoy {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Ayer {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Cambiar nombre</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Atajos de teclado</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>También funcionan en el juego. Mientras PZ Tools está abierto, las teclas configuradas aquí dejan de estar disponibles para otros programas. Cada una responde con un sonido y un aviso sobre la cabeza de tu personaje.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Guardar últimos minutos</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Guarda como grabación los minutos que conservó el juego.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Iniciar/detener grabación</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Inicia una grabación en el modo elegido en la página Rendimiento; presiona de nuevo para detenerla.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Cambiar modo de grabación (Estándar/Detallado)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Cambia el modo de la próxima grabación entre Estándar y Detallado, como en la página Rendimiento. Una grabación en curso conserva su modo.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Activar/desactivar últimos minutos</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Activa o desactiva «Conservar los últimos minutos», más arriba.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Copia manual</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Crea de inmediato una copia de la partida que estás jugando.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Activar/desactivar copias automáticas</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Activa o desactiva «Copias automáticas» en la configuración.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Mostrar estado</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Muestra sobre tu personaje el tiempo hasta la próxima copia, la última copia y lo que se está grabando.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Otro programa ya usa esta tecla.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Solo funciona con «Conservar los últimos minutos» activado.</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Presiona las teclas… (Esc cancela)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Ninguna</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Borrar el atajo de {0}</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Esta tecla no se puede usar.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Presiónala con Ctrl o Alt.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Otra acción ya usa esta tecla.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>No hay partida que copiar. Carga una partida en el juego.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>No hay últimos minutos que guardar. Activa «Conservar los últimos minutos» en Configuración.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Activar últimos minutos</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Guardar últimos {0} min</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Guardando últimos {0} min…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Rendimiento</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>El juego conserva sus últimos minutos, así que un trabón se puede guardar después de que ocurra.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Conservar los últimos minutos</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Mientras está activado, el juego conserva sus últimos minutos siempre que se ejecuta. El modo Estándar casi no consume nada.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Modo</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detallado muestra más, pero hace el juego un poco más lento (aprox. 10%) mientras esté activado. Úsalo mientras buscas un trabón.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Duración (minutos)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>De 1 a 10 minutos. Una duración mayor le cuesta lo mismo al juego, solo usa más disco.</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Empieza a conservar el último minuto cuando el juego esté en ejecución.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Empezando a conservar el último minuto…</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>No hay últimos minutos que guardar. Se vuelve a grabar desde ahora.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Tomando el último minuto</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Dejar de comparar</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparado con toda {0}</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Comparado con {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>Cargando {0}…</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Cifras ±: cuántos puntos del tiempo del rango ganó (rojo) o perdió (verde) una parte frente a la misma parte allí.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} p. p.</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Cambio</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>El total de la línea como parte del tiempo del rango, menos la parte de la misma función en la grabación comparada, en puntos porcentuales. Rojo: más tiempo; verde: menos.</value></data>
+  <data name="ProfileLineFormat" xml:space="preserve"><value>Línea {0}</value></data>
+  <data name="ProfileLineUnknown" xml:space="preserve"><value>Línea desconocida</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>B</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>KB</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>MB</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>GB</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>TB</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>ms</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>s</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Expandir {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Contraer {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Asignado</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memoria que el hilo del juego asignó mientras se ejecutaban los scripts de este mod en el rango seleccionado, incluidas las funciones del juego que llamaron. Cuanto más se asigna, más seguido se limpia la memoria (GC). Una estimación a partir de las muestras, como el tiempo.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memoria que el hilo del juego asignó mientras se ejecutaban los scripts de este mod en el rango seleccionado, incluidas las funciones Java llamadas desde Lua. Cuanto más se asigna, más seguido se limpia la memoria (GC). Los valores por mod son estimaciones.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Todo el hilo del juego, con o sin scripts: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>No se registraron asignaciones de scripts en este rango.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Cómo usar la gráfica</value></data>
@@ -470,19 +543,19 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Elemento</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Tiempo del tramo</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Parte de ejecución</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Qué parte del tramo seleccionado estuvo ejecutándose este script. Incluye el tiempo de las funciones del juego que llamó el script.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Qué parte del tiempo de ejecución del código del juego en el tramo seleccionado correspondió a este elemento. Las funciones del juego llamadas por scripts Lua cuentan aquí como «Juego base». Las esperas y pausas largas muestran un conteo en lugar de una parte.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Qué parte del tramo seleccionado estuvo ejecutándose este script. Incluye el tiempo de las funciones Java que llamó el script.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Qué parte del tiempo de ejecución del código del juego en el tramo seleccionado correspondió a este elemento. Las funciones Java llamadas desde Lua cuentan aquí como «Juego base». Las esperas y pausas largas muestran un conteo en lugar de una parte.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} veces</value></data>
-  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>El juego no se está ejecutando. Inicia el juego y vuelve a intentarlo.</value></data>
-  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Hay más de un juego en ejecución, así que no se puede elegir el objetivo.</value></data>
-  <data name="ProfileError.Link" xml:space="preserve"><value>No se pudo conectar con el juego. Si actualizaste el juego o PZ Tools, reinicia el juego.</value></data>
-  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools se actualizó. Reinicia el juego una vez para grabar.</value></data>
-  <data name="ProfileError.Busy" xml:space="preserve"><value>Hay otra operación en curso. Vuelve a intentarlo en un momento.</value></data>
-  <data name="ProfileError.Convert" xml:space="preserve"><value>La grabación terminó, pero no se pudo procesar el resultado. Revisa el registro para ver los detalles.</value></data>
-  <data name="ProfileError.Generic" xml:space="preserve"><value>La grabación falló. Revisa el registro para ver los detalles.</value></data>
-  <data name="RecoveryError.Busy" xml:space="preserve"><value>El juego u otra operación está utilizando esta partida. Deja de jugar y espera a que termine la operación antes de intentarlo de nuevo. La partida original no se modificó.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>Esta partida tiene cambios pendientes. Sal del juego de forma normal y vuelve a intentarlo. La partida original no se modificó.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>No se pudo determinar qué personaje recuperar. Esta función solo admite partidas individuales y, si una partida tiene varios personajes, hay que elegir uno. La partida no se modificó.</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>El juego no se está ejecutando.</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Hay más de un juego abierto. Deja solo uno.</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>No se pudo conectar con el juego. Intenta reiniciarlo.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>Reinicia el juego una vez para grabar.</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>Hay otra operación en curso. Inténtalo de nuevo en un momento.</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>No se pudo crear el archivo de grabación. Revisa los registros.</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>No se pudo grabar. Revisa los registros.</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>El juego u otra operación está usando esta partida. La partida no cambió.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>El juego no cerró bien esta partida. Cárgala en el juego y sal normalmente. La partida no cambió.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Solo se pueden curar partidas individuales. La partida no cambió.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Esta partida tiene varios personajes. Elige el que quieres recuperar; los demás no se modifican.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Buscando el zombi o el cadáver del personaje…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Elige de dónde recuperar las pertenencias.</value></data>
@@ -496,22 +569,21 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="HealRemainsNone" xml:space="preserve"><value>Revivir sin pertenencias</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>No se encontró ningún zombi ni cadáver de este personaje. Se revivirá sin pertenencias.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>No se pudo buscar de antemano el zombi o el cadáver del personaje. La recuperación lo buscará de nuevo.</value></data>
-  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>El zombi o el cadáver elegido cambió mientras tanto. Vuelve a abrir la ventana de recuperación. La partida no se modificó.</value></data>
-  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>El personaje elegido ya no está en esta partida. Es posible que la partida haya cambiado mientras tanto; inténtalo de nuevo. La partida no se modificó.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>No se puede editar esta partida de forma segura. Verifica que tu versión de PZ Tools sea compatible con la del juego. No se cambió el original.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>El zombi o el cadáver elegido cambió. Vuelve a elegir. La partida no cambió.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>No se encuentra el personaje elegido. Inténtalo de nuevo. La partida no cambió.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Esta partida no se puede curar. Intenta actualizar PZ Tools. La partida no cambió.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Tiempo de supervivencia no disponible · comprobando de nuevo</value></data>
-  <data name="OperationError.FileInUse" xml:space="preserve"><value>El juego u otra operación está usando un archivo necesario. Espera a que termine el guardado o esa operación y vuelve a intentarlo.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>La partida cambió mientras se exportaba. Sal del juego y vuelve a exportar. Se conservó cualquier archivo existente.</value></data>
-  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Los datos guardados de este respaldo están dañados y no se pueden leer. Elige otro respaldo. La partida actual y los archivos existentes no se modificaron.</value></data>
-  <data name="OperationError.DiskFull" xml:space="preserve"><value>No hay suficiente espacio libre. Libera espacio en la unidad de destino y vuelve a intentarlo.</value></data>
-  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Faltan archivos necesarios de la aplicación. Extrae todo el contenido descargado en una misma carpeta o reinstala PZ Tools y vuelve a abrirlo.</value></data>
-  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Esta carpeta de copias usa otro formato de almacenamiento. Elige una nueva carpeta vacía en Configuración. Conserva la carpeta anterior si necesitas sus copias y no borres tus partidas guardadas.</value></data>
-  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Espera a que termine la operación actual antes de cambiar las carpetas o reiniciar PZ Tools.</value></data>
-  <data name="OperationError.Configuration" xml:space="preserve"><value>No se pudo aplicar la configuración. Revisa los valores ingresados y los archivos editados en la configuración avanzada.</value></data>
-  <data name="OperationError.RestartFailed" xml:space="preserve"><value>No se pudo reiniciar PZ Tools. Cuando terminen las operaciones en curso, cierra la aplicación y vuelve a abrirla.</value></data>
-  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>No se pudieron usar las carpetas seleccionadas y se restauró la configuración anterior. Revisa las ubicaciones y los permisos.</value></data>
-  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>No se pudieron usar las nuevas carpetas ni restaurar la configuración anterior. Revisa las ubicaciones en Configuración antes de continuar.</value></data>
-  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Reutilizando datos idénticos de copias anteriores</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>El juego u otra operación está usando el archivo. Inténtalo de nuevo en un momento.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>La partida cambió durante la exportación. Sal del juego e inténtalo de nuevo.</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Esta copia está dañada. Elige otra. La partida no cambió.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>No hay suficiente espacio en disco.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Faltan archivos de PZ Tools. Vuelve a extraer el paquete descargado.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Esta versión no puede abrir esta carpeta de copias. Elige una carpeta nueva en Configuración. No borres la anterior.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Inténtalo de nuevo cuando termine la operación actual.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>No se pudo aplicar la configuración. Revisa lo que ingresaste.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>No se pudo reiniciar. Cierra y vuelve a abrir la aplicación.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>No se puede usar esta carpeta, así que se restauró la configuración anterior.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>No se pudo cambiar la carpeta. Revisa las carpetas en Configuración.</value></data>
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Reutilizando datos idénticos de copias anteriores</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Activado</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Desactivado</value></data>
@@ -520,7 +592,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Juego en pausa</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Verificando el estado del juego</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Ejecuta solo una instancia de Project Zomboid</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>No se conoce el resultado de la copia anterior, así que se omite este intervalo.</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Se omite esta copia</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Quitar filtro</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Quitar todos</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · haz clic para filtrar</value></data>
@@ -580,8 +652,8 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Por ahora no se aplica porque no hay conexión con el juego.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Próxima copia (sin guardar la partida)</value></data>
   <data name="GameLinkCardMessage" xml:space="preserve"><value>Las copias se hacen sin guardar la partida.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>No se puede leer el estado del juego</value></data>
-  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Las copias se hacen sin guardar la partida. PZ Tools se actualizó; reinicia el juego para volver a conectar.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Sin conexión con el juego</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Reinicia el juego.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibilidad y estado</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>No hay registros de nivel {0} o superior.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>No hay registros que coincidan con los filtros seleccionados.</value></data>
@@ -603,7 +675,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Versión del juego no compatible</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Reportar un problema</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Herramienta no oficial para Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Graba el rendimiento mientras el juego se ejecuta y muestra el tiempo de scripts de cada mod.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Descubre por qué se traba el juego. Guarda los últimos minutos justo después de un tirón y muestra el tiempo de ejecución de cada mod y si faltó memoria.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Juego en ejecución</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Juego sin ejecutar</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Sin partidas</value></data>
@@ -614,4 +686,65 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="Home.AgoMinutes" xml:space="preserve"><value>hace {0} min</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>hace {0} h</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>hace {0} d</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>Versión</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Aviso de nueva versión</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Avisa en la barra lateral cuando sale una versión nueva.</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Buscar ahora</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Descargar</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>Actualizado</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>Hay una versión nueva: {0}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>Aún no se han buscado actualizaciones</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>Buscando…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>No se pudieron buscar actualizaciones. Revisa la conexión a internet.</value></data>
+  <data name="UpdateCardFormat" xml:space="preserve"><value>Descargar la versión {0}</value></data>
+  <data name="GameLinkRestartTitle" xml:space="preserve"><value>PZ Tools se actualizó</value></data>
+  <data name="SavesUnavailable" xml:space="preserve"><value>No se pudo cargar la lista de partidas.</value></data>
+  <data name="OperationDiscoveredItemsFormat" xml:space="preserve"><value>{0:N0} archivos encontrados</value></data>
+  <data name="LoadFailed.State" xml:space="preserve"><value>Error al cargar las partidas</value></data>
+  <data name="LoadFailed.Backup" xml:space="preserve"><value>Error al cargar las copias</value></data>
+  <data name="LoadFailed.Details" xml:space="preserve"><value>Error al cargar los datos de la partida</value></data>
+  <data name="LoadFailedRetrying" xml:space="preserve"><value>Volviendo a intentarlo.</value></data>
+  <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Buscar actualizaciones</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Página de descarga</value></data>
+  <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Abrir la página de descarga</value></data>
+  <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Abrir</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Incluye el tiempo de las funciones Java llamadas desde Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Las funciones Java llamadas desde Lua cuentan aquí como juego. Revisa la pestaña Scripts para cada mod.</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Tiempo de este tramo</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código del juego</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Otros scripts</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Una opción de inicio del juego bloquea la conexión.</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>No se pudo conectar porque una opción de inicio del juego lo impide. Revisa las opciones de inicio del juego.</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>No se pudo conectar con el juego</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Juego</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Cambia cómo se inicia el juego. Los cambios se aplican desde el próximo inicio.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Memoria del juego</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>La memoria que puede usar el juego. Si se traba seguido con muchos mods, dale más.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>Predeterminado del juego ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>Predeterminado del juego</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (recomendado)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>No se encontró la carpeta del juego. Inicia el juego una vez y se encontrará.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>El archivo de configuración del juego no es el esperado, así que no se modificó.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>No se puede escribir en la carpeta del juego; no se cambió nada.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Una actualización del juego deshizo el ajuste de {0}. Vuelve a elegirlo para aplicarlo.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>La memoria del juego volvió a {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Una actualización del juego deshizo el ajuste.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Aplicar {0} de nuevo</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Se detuvo {0} veces por falta de memoria</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memoria casi llena</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Ajuste de memoria</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Al juego le faltó la memoria que puede usar ({0}). Con más memoria se detendrá menos.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Se detuvo {0} veces por falta de memoria al grabar</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memoria casi llena al grabar</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>ahora ajustada a {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Los archivos de PZ Tools no están completos</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Vuelve a extraer el ZIP descargado en una carpeta vacía.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Abrir página de descarga</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: se aplica al reiniciar el juego.</value></data>
+  <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Respaldos automáticos al reiniciar el juego</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Iniciando el juego</value></data>
+  <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · en uso</value></data>
+  <data name="GameMemoryNextStart" xml:space="preserve"><value>Se aplica desde el próximo inicio del juego.</value></data>
 </root>

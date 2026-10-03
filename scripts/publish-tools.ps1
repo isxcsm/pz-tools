@@ -4,13 +4,13 @@
     [string] $Output = 'artifacts/tools',
     [string] $DotNetPath,
     [string] $JdkPath,
-    [string] $SaveBridgeOutput
+    [string] $GameBridgeOutput
 )
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-if ([string]::IsNullOrWhiteSpace($SaveBridgeOutput)) { $SaveBridgeOutput = "artifacts/save-bridge/$Configuration" }
-$bridgePath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $SaveBridgeOutput))
+if ([string]::IsNullOrWhiteSpace($GameBridgeOutput)) { $GameBridgeOutput = "artifacts/game-bridge/$Configuration" }
+$bridgePath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $GameBridgeOutput))
 $outputPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Output))
 if (Test-Path -LiteralPath $outputPath) {
     if (-not (Test-Path -LiteralPath $outputPath -PathType Container) -or
@@ -39,7 +39,7 @@ if ([string]::IsNullOrWhiteSpace($DotNetPath) -or -not (Test-Path -LiteralPath $
     throw 'dotnet 실행 파일을 찾을 수 없습니다. -DotNetPath로 경로를 지정하십시오.'
 }
 $dotnet = [System.IO.Path]::GetFullPath($DotNetPath)
-$bridgeProperties = @("-p:SaveBridgeDirectory=$bridgePath")
+$bridgeProperties = @("-p:GameBridgeDirectory=$bridgePath")
 if (-not [string]::IsNullOrWhiteSpace($JdkPath)) { $bridgeProperties += "-p:JdkPath=$JdkPath" }
 $projects = @(
     'src/PzTools.Backup.Cli/PzTools.Backup.Cli.csproj',

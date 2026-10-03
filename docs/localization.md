@@ -40,6 +40,11 @@ Review labels and instructions in context, where they appear. In every language:
 - Keep the warnings on destructive operations.
 - Never promise that an interrupted operation will recover on its own.
 - Keep placeholder arguments, numeric formats, conditions and paragraph boundaries.
+- Build a sentence from one resource with placeholders, never by joining two in code: word
+  order and punctuation differ by language (*Expand {0}*, *{0} aufklappen*).
+- Sizes and times use the language's own unit symbols, the ones Windows uses in it
+  (`Unit.*`: *Ko* and *Mo* in French, *КБ* and *мс* in Russian), after the number and a
+  space; numbers use the language's format. *FPS* is not translated.
 
 Review wording and rendered layout separately from the structural checks under
 [verification](#verification).
@@ -112,7 +117,7 @@ Start-Process -FilePath $smoke -ArgumentList @("`"$strings`"", "`"$result`"") -W
 Get-Content -LiteralPath $result
 ```
 
-The [bridge test script](../scripts/test-save-bridge.ps1) runs an isolated synthetic JVM.
+The [bridge test script](../scripts/test-game-bridge.ps1) runs an isolated synthetic JVM.
 Its tests cover the shared in-game notices as well as timing, game-thread execution,
 failure and [payload](glossary.md#payload) replacement. They do not replace opt-in tests
 in the real game.

@@ -21,10 +21,11 @@ For people running the app who want more detail than the user guide.
 | [Configuration](configuration.md) | What each setting does, where settings are stored, and how backup limits work |
 | [Game-aware backup timing](runtime-pause-backups.md) | Why the countdown paused, or why a backup ran without a game save |
 | [Death backups](runtime-character-death.md) | When a death backup is made, why periodic backups stop after a death, and what the last-save report shows |
-| [Saving the game before a backup](save-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
+| [Saving the game before a backup](game-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
 | [Character recovery](character-recovery.md) | What healing, revival and inventory recovery can and cannot do |
 | [Game extensions](game-extensions.md) | What the optional in-game features are and when their settings take effect |
-| [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares |
+| [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares; the last minutes after a stutter, comparing and saving ranges, and hotkeys |
+| [Game memory](game-memory.md) | How the app gives the game more memory, and what a game update does to it |
 | [Vehicle test guide](e2e-vehicle-drivetrain.md) | How to test the vehicle extension in a real game, tune it and back out |
 | [Command line](cli.md) | How to run backup, restore, ZIP and maintenance without the app |
 | [Advanced component settings](runtime-configuration.md) | How to tune the background programs' settings files: timeouts, buffers and polling intervals |

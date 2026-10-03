@@ -6,6 +6,7 @@
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+        <ResourceDictionary Source="ms-appx:///CardStyles.xaml" />
       </ResourceDictionary.MergedDictionaries>
       <Thickness x:Key="PageContentPadding">24,0,24,16</Thickness>
       <Thickness x:Key="PageHeaderMargin">0,0,0,8</Thickness>

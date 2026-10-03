@@ -2,13 +2,15 @@ using System.Globalization;
 using System.Text.Json;
 using PzTools.Process.Contracts;
 using PzTools.Process.Telemetry;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 // Launch check only: proves Windows allows this executable to start. No work, no output.
 if (args is ["--probe"]) return 0;
 
 // One process is one recording: it asks the game to start, waits for the stop signal, asks the game
 // to stop and converts the result. The game does the measuring; nothing here touches game files.
+// The rolling recording is the exception: it runs in the game between short commands, each its own process
+// (roll-start, roll-save, roll-stop), as it lasts for as long as the app wants it.
 const string component = "profiler";
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;
@@ -20,15 +22,19 @@ using var stopRequest = PzTools.Process.Hosting.ProcessStopSignal.Listen(cancell
 string? recordingPath = null;
 try
 {
-    if (args.Length == 0 || args[0] != "record") throw new ArgumentException("Expected: record --output <file> --stop-file <file> --mode general|detailed --run-index <n> --telemetry-identity <path>");
+    var command = args.Length == 0 ? "" : args[0];
+    if (command is not ("record" or "roll-start" or "roll-save" or "roll-stop"))
+        throw new ArgumentException("Expected: record --output <file> --stop-file <file> --mode general|detailed --run-index <n> --telemetry-identity <path>, "
+            + "or roll-start --mode general|detailed --seconds <n>, roll-save --output <file> --seconds <n>, roll-stop.");
     runIndex = CommandLine.Int64(Required("--run-index"), "--run-index");
+    if (command != "record") return await RollAsync(command);
     var output = Path.GetFullPath(Required("--output"));
     var stopFile = Path.GetFullPath(Required("--stop-file"));
     var mode = Required("--mode");
     if (mode is not ("general" or "detailed")) throw new ArgumentException("--mode must be general or detailed.");
     var maximumSeconds = CommandLine.Int32(Optional("--max-seconds") ?? "600", "--max-seconds", 5, GameProfileClient.MaximumSeconds);
     if (!output.EndsWith(".pzprof", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("--output must end with .pzprof.");
-    var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "save-bridge");
+    var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "game-bridge");
     var explicitProcess = Optional("--process-id");
 
     telemetry = await ProcessTelemetrySession.StartAsync(Required("--telemetry-identity"), component, runIndex);
@@ -43,15 +49,18 @@ try
     Directory.CreateDirectory(directory);
     recordingPath = output + ".jfr";
     var client = new GameProfileClient(bridge);
+    // The app run asking: the game ends the recording once that run's lease lapses, as it does the rolling one.
+    var recordOwner = Optional("--owner") is { } recordOwnerText ? GameRuntimeClient.IsAppRun(recordOwnerText) ? recordOwnerText
+        : throw new ArgumentException("--owner must be an app run (32 lowercase hex digits).") : null;
 
     phase = "start";
     GameProfileStatus status;
-    try { status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token)); }
+    try { status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token, recordOwner)); }
     catch (GameSaveException leftover) when (leftover.Code == "already-recording")
     {
         // A recording whose worker died is still running in the game. End it and start the one that was asked for.
         await WhenFreeAsync(() => client.StopAsync(processId, cancellation.Token));
-        status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token));
+        status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token, recordOwner));
     }
     RemoveLeftovers(directory, recordingPath);
     var lua = status.Lua.StartsWith("unavailable", StringComparison.Ordinal) ? "unavailable" : status.Lua;
@@ -84,7 +93,7 @@ try
     {
         // Stopping is owed even when this run was cancelled: the game must not keep recording for nobody.
         try { await WhenFreeAsync(() => client.StopAsync(processId, CancellationToken.None), patienceSeconds: 180); }
-        catch (GameSaveException gone) when (gone.Code is "not-recording" or "game-not-running" or "attach-failed" or "connection-timeout")
+        catch (GameSaveException gone) when (gone.Code is "not-recording" or "game-not-running" or "connection-timeout" || gone.LinkUnavailable)
         {
             if (!File.Exists(recordingPath)) throw;
         }
@@ -151,9 +160,12 @@ catch (Exception exception) when (exception is ArgumentException or FormatExcept
         component, Math.Max(1, runIndex), ProcessOutcome.Failed, started, "invalid-arguments", exception.Message)));
     return ProcessExitCodes.InvalidArguments;
 }
-catch (GameSaveException missing) when (phase == "connect" && missing.Code is "game-not-running" or "multiple-games")
+catch (GameSaveException missing) when (phase == "connect" && missing.Code is "game-not-running" or "multiple-games"
+    || missing.Code == "restart-required")
 {
-    // No game to record, or no way to tell which: nothing was attempted, so nothing failed. The app says why.
+    // No game to record, or no way to tell which: nothing was attempted, so nothing failed. The app says why. Nor
+    // with a game that still runs a bridge from before an update: it records again once restarted, as the app's card
+    // already says, and a start of the last minutes it refuses at every try is not an error each time.
     var code = "profile-" + missing.Code;
     telemetry?.RecordEvent("run.unavailable", FailureTelemetry.FromException(code, missing, status: "Unavailable", phase: phase, operation: "profile"));
     Console.WriteLine(ProcessResultJson.Serialize(ProcessResultEnvelope<object>.Failure(
@@ -172,6 +184,91 @@ catch (Exception exception)
 }
 finally { if (telemetry is not null) await telemetry.DisposeAsync(); }
 
+// The rolling recording's commands. Saving takes what the game holds, cut to the window, as a recording like any
+// other; its video memory is not known, as nothing outside the game was reading it.
+async Task<int> RollAsync(string command)
+{
+    var keepSeconds = command == "roll-stop" ? 0 : CommandLine.Int32(Required("--seconds"), "--seconds",
+        GameProfileClient.MinimumRollingSeconds, GameProfileClient.MaximumRollingSeconds);
+    var mode = command == "roll-start" ? Required("--mode") : null;
+    if (mode is not (null or "general" or "detailed")) throw new ArgumentException("--mode must be general or detailed.");
+    var output = command == "roll-save" ? Path.GetFullPath(Required("--output")) : null;
+    if (output is not null && !output.EndsWith(".pzprof", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("--output must end with .pzprof.");
+    var bridge = Optional("--bridge") ?? Path.Combine(AppContext.BaseDirectory, "game-bridge");
+    var explicitProcess = Optional("--process-id");
+    var operation = command == "roll-save" ? "profile" : "profile-roll";
+
+    telemetry = await ProcessTelemetrySession.StartAsync(Required("--telemetry-identity"), component, runIndex);
+    telemetry.RecordEvent("run.started", JsonSerializer.Serialize(new { operation, command, mode }));
+    await using var heartbeat = ProcessTelemetryHeartbeat.Start(telemetry);
+
+    phase = "connect";
+    var processId = explicitProcess is null ? GameProfileClient.FindGame() : CommandLine.Int32(explicitProcess, "--process-id");
+    var client = new GameProfileClient(bridge);
+    object result;
+    switch (command)
+    {
+        case "roll-start":
+        {
+            phase = "start";
+            var megabytes = Optional("--max-megabytes") is { } limit
+                ? CommandLine.Int32(limit, "--max-megabytes", GameProfileClient.MinimumRollingMegabytes, GameProfileClient.MaximumRollingMegabytes) : 0;
+            var owner = Optional("--owner") is { } ownerText ? GameRuntimeClient.IsAppRun(ownerText) ? ownerText
+                : throw new ArgumentException("--owner must be an app run (32 lowercase hex digits).") : null;
+            var status = await WhenFreeAsync(() => client.StartRollingAsync(processId, mode == "detailed", keepSeconds, cancellation.Token, megabytes, owner));
+            var lua = status.Lua.StartsWith("unavailable", StringComparison.Ordinal) ? "unavailable" : status.Lua;
+            result = new { mode, keepSeconds, lua, hasFrames = status.HasFrames };
+            break;
+        }
+        case "roll-save":
+        {
+            phase = "save";
+            Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+            recordingPath = output + ".jfr";
+            // The game writes what it holds when asked, so the window ends no earlier than this: it begins this long
+            // before, and the converter cuts there without reading the file to find its end.
+            var asked = DateTimeOffset.UtcNow;
+            var status = await WhenFreeAsync(() =>
+            {
+                // Each try: a wait for the channel is not part of the window.
+                asked = DateTimeOffset.UtcNow;
+                return client.SaveRollingAsync(processId, recordingPath, cancellation.Token);
+            }, patienceSeconds: 60);
+            var lua = status.Lua.StartsWith("unavailable", StringComparison.Ordinal) ? "unavailable" : status.Lua;
+            phase = "convert";
+            telemetry.SetProgress("profile.converting", 0, 0, 0, 0, null);
+            var exported = await client.ExportAsync(recordingPath, output!, new Dictionary<string, string>
+            {
+                ["mode"] = status.Mode,
+                ["lua"] = lua,
+                ["hasFrames"] = status.HasFrames ? "true" : "false",
+                ["endedBy"] = "rolling",
+                ["toolVersion"] = typeof(GameProfileClient).Assembly.GetName().Version?.ToString() ?? "0",
+            }, cancellation.Token, keepFrom: asked.AddSeconds(-keepSeconds));
+            TryDelete(recordingPath);
+            result = new
+            {
+                path = output, mode = status.Mode, lua, hasFrames = status.HasFrames, endedBy = "rolling",
+                samples = exported.Samples, frames = exported.Frames, luaSamples = exported.LuaSamples,
+                durationMicroseconds = exported.DurationMicroseconds,
+            };
+            break;
+        }
+        default:
+        {
+            phase = "stop";
+            // A rolling recording only: one someone asked for is left to its own worker.
+            var status = await WhenFreeAsync(() => client.StopRollingAsync(processId, cancellation.Token), patienceSeconds: 60);
+            result = new { state = status.State };
+            break;
+        }
+    }
+    telemetry.RecordEvent("run.committed", JsonSerializer.Serialize(new { operation, command, mode }));
+    Console.WriteLine(ProcessResultJson.Serialize(ProcessResultEnvelope<object>.Success(
+        component, runIndex, ProcessOutcome.Succeeded, started, result)));
+    return ProcessExitCodes.Success;
+}
+
 // A backup's save request may hold the game's request channel for a while; recording control simply waits its turn.
 // Starting gives up after 20 seconds. Stopping waits out a whole game save (a backup allows it 150 seconds by default):
 // giving up there would leave the game recording for nobody until its limit.
@@ -188,13 +285,15 @@ async Task<GameProfileStatus> WhenFreeAsync(Func<Task<GameProfileStatus>> reques
     }
 }
 
-// Raw recordings of runs that never finished. They are large and hold full file paths, so they are not kept.
+// Raw recordings of runs that never finished. They are large and hold full file paths, so they are not kept. Only
+// ones an hour old: a save of the last minutes may be converting its raw file in the same folder right now.
 void RemoveLeftovers(string directory, string current)
 {
     try
     {
+        var before = DateTime.UtcNow.AddHours(-1);
         foreach (var file in Directory.EnumerateFiles(directory, "*.pzprof.jfr"))
-            if (!file.Equals(current, StringComparison.OrdinalIgnoreCase)) TryDelete(file);
+            if (!file.Equals(current, StringComparison.OrdinalIgnoreCase) && File.GetLastWriteTimeUtc(file) < before) TryDelete(file);
     }
     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
 }

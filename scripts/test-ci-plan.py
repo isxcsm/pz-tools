@@ -21,8 +21,8 @@ class PlanTests(unittest.TestCase):
 
     def test_engine_and_bridge_keep_jvm_tests(self):
         for path in ["src/PzTools.Backup.Engine/StableFileCapturer.cs",
-                     "src/PzTools.SaveBridge.Agent/java/pztools/bridge/AgentEntry.java",
-                     "tests/save-bridge/zombie/GameWindow.java"]:
+                     "src/PzTools.GameBridge.Agent/java/pztools/bridge/AgentEntry.java",
+                     "tests/game-bridge/zombie/GameWindow.java"]:
             with self.subTest(path=path):
                 self.assertTrue(plan([path])["bridge"])
 

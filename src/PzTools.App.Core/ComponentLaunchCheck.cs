@@ -23,7 +23,7 @@ public sealed class ComponentLaunchCheck(IManagedProcessLauncher launcher)
         var probes = AppWorkerDirectoryResolver.RequiredExecutables
             .Select(name => (Path: Path.Combine(workerDirectory, name), Arguments: (IReadOnlyList<string>)["--probe"]))
             // The bundled runtime that attaches to the game is a separate executable with its own verdict.
-            .Append((Path: Path.Combine(workerDirectory, "save-bridge", "runtime", "bin", "java.exe"), Arguments: (IReadOnlyList<string>)["-version"]))
+            .Append((Path: Path.Combine(workerDirectory, "game-bridge", "runtime", "bin", "java.exe"), Arguments: (IReadOnlyList<string>)["-version"]))
             .Where(probe => File.Exists(probe.Path)).ToArray();
         var results = await Task.WhenAll(probes.Select(async probe =>
         {

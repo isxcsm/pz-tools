@@ -10,7 +10,7 @@ expected, or why a backup ran without a game save.
 
 The setting is **Delay scheduled backups while paused or asleep**
 (`[backup].pause_periodic_during_game`), on by default. PZ Tools reads pause and sleep
-from the running game through the [save bridge](glossary.md#save-bridge); it does not
+from the running game through the [game bridge](glossary.md#game-bridge); it does not
 guess them from which files the game has open.
 
 ## What you see
@@ -42,7 +42,7 @@ remaining value, and its display follows the system's animation preference.
 - **Turning Save game before backup off** also leaves that reading on. A pause-aware
   periodic backup then uses a guarded check to confirm the backup is allowed
   ([admission](glossary.md#admission)) without saving the game. See
-  [saving the game before a backup](save-bridge.md).
+  [saving the game before a backup](game-bridge.md).
 - **Automatic backups switched off** wins over either timing choice. Manual and death
   backups follow their own rules.
 - **Changing the interval or the timing setting** starts a new interval. Restarting
@@ -61,6 +61,7 @@ unrecognised game state must not end backups silently.
 | **Observation lost**: the connection is failing, stale, or answering without a recognisable game state, for longer than the grace period (about 90 seconds) | Periodic backups follow the wall clock at the configured interval. The target is the save the game's file locks point at, and each backup runs only while that save is still in use. They are ordinary unguarded backups. When the game can be read again, scheduling returns to game time. |
 | **Save request unreachable**: the helper cannot start or attach, the connection times out, or the bridge is missing or too old | Nothing was asked of the game, so the backup goes ahead with the files as they are on disk and records a warning. This applies to manual, periodic and death backups. |
 | **Sleep unreadable** | The clock keeps running; pausing still holds it. |
+| **Restart needed after an update of PZ Tools**: the game still runs the bridge from before it | Automatic backups wait until the game restarts, and the schedule line says *Automatic backups after a game restart*. A restart mends this, unlike the cases above, so a save the game was not asked to write is not copied: its files may be of different moments, and such backups would push good ones out of those retained. A backup you start yourself still runs, without the game's save. The app does not ask that game to connect again until it restarts. |
 
 A game that is still starting up is not a lost observation, however long it takes. Its
 state is read once per frame of the game's main loop, which first runs after the
@@ -75,8 +76,12 @@ While the connection is lost, the app shows one card for it, the schedule line s
 backups run without a game save, and the settings that need the game are locked until
 the connection returns. Their saved values are kept. The card suggests restarting the
 game only when that is known to help: the game still runs the bridge from before a PZ
-Tools update. A game version this PZ Tools cannot read stays unreadable after a
-restart, and backups keep running without a game save.
+Tools update. That card does not wait out the grace period, as such a link cannot come
+back without a restart; it shows as soon as the game refuses the connection, and it has
+no ✕, as automatic backups wait for the restart (see the table above). Recordings
+and extensions refused for the same reason are logged as information, not as failures,
+since the card already says what to do. A game version this PZ Tools cannot read stays
+unreadable after a restart, and backups keep running without a game save.
 
 ## When a backup attempt fails
 
@@ -94,7 +99,7 @@ remaining time. The uncertain result survives a scheduler restart.
 
 **Not unknown.** An error before any worker was dispatched, a worker that did nothing
 (`Skipped`), and a reservation that never reached its worker keep the slot, and it is
-tried again. See [save-bridge behaviour](save-bridge.md#admission-and-failures).
+tried again. See [game-bridge behaviour](game-bridge.md#admission-and-failures).
 
 **Background processes.** Extension control runs beside the game-state reading and
 cannot end it. An extension-controller failure is reported and retried on its own. With
@@ -136,7 +141,7 @@ anchored again.
 | Layer | Responsibility |
 | --- | --- |
 | Java adapter and observer | Read game state, maintain world/clock identity and cumulative active time |
-| SaveBridge / State.Scheduler | Authenticate the stream, reconnect and publish observations |
+| GameBridge / State.Scheduler | Authenticate the stream, reconnect and publish observations |
 | Zomboid.State | Commit semantic transitions and an idempotent [outbox](glossary.md#collector-reactor-projection-outbox) |
 | Scheduling | Own remaining time, policy generation and admission tickets |
 | Projections / WinUI | Display immutable status without controlling admission |

@@ -433,14 +433,45 @@ public sealed class OperationCoordinator(
     public Task<AppOperationResult> RecordProfileAsync(
         string outputPath, string stopFile, bool detailed, int maximumSeconds,
         Action<string>? progress = null, CancellationToken cancellationToken = default, string? operationId = null) =>
-        RunArchiveAsync("profile", Path.GetFullPath(outputPath), OperationScope.SaveWrite,
+        // Only one recording asked for at a time, whatever its file is called.
+        RunArchiveAsync("profile", Path.Combine(operationsRoot, "profiler"), OperationScope.SaveWrite,
             [
                 "record", "--output", Path.GetFullPath(outputPath), "--stop-file", Path.GetFullPath(stopFile),
                 "--mode", detailed ? "detailed" : "general",
                 "--max-seconds", maximumSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                "--bridge", Path.Combine(workerDirectory, "save-bridge"),
+                "--bridge", Path.Combine(workerDirectory, "game-bridge"),
+                // Ended by the game once this run of the app has gone, as the rolling recording is (AppRun).
+                "--owner", AppRun.Id,
             ], cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId,
             line => { if (line.StartsWith("PROFILE\t", StringComparison.Ordinal)) progress?.Invoke(line["PROFILE\t".Length..]); });
+
+    /// <summary>
+    /// One command to the game's rolling recording: "roll-start" (in the given mode), "roll-save" (to
+    /// <paramref name="outputPath"/>, cut to <paramref name="keepSeconds"/>) or "roll-stop". Starting and stopping are
+    /// quick and show no card of their own; a save is a recording the user asked for, and shows as one.
+    /// </summary>
+    public Task<AppOperationResult> RollProfileAsync(
+        string command, bool detailed, int keepSeconds, string? outputPath = null,
+        CancellationToken cancellationToken = default, string? operationId = null, int maxMegabytes = 0)
+    {
+        var seconds = keepSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string[] arguments = command switch
+        {
+            // This run of the app: the game ends the rolling recording once the run's lease lapses, whatever way the
+            // app went (AppRun).
+            "roll-start" => ["roll-start", "--mode", detailed ? "detailed" : "general", "--seconds", seconds,
+                "--owner", AppRun.Id,
+                .. maxMegabytes > 0 ? ["--max-megabytes", maxMegabytes.ToString(System.Globalization.CultureInfo.InvariantCulture)] : Array.Empty<string>()],
+            "roll-save" => ["roll-save", "--output", Path.GetFullPath(outputPath ?? throw new ArgumentNullException(nameof(outputPath))), "--seconds", seconds],
+            "roll-stop" => ["roll-stop"],
+            _ => throw new ArgumentOutOfRangeException(nameof(command)),
+        };
+        // Its own admission: the rolling recording runs in the game beside one asked for, so its commands do not wait
+        // for that recording's worker, only for each other.
+        return RunArchiveAsync(command == "roll-save" ? "profile" : "profile-roll", Path.Combine(operationsRoot, "profiler-rolling"),
+            OperationScope.SaveWrite, [.. arguments, "--bridge", Path.Combine(workerDirectory, "game-bridge")],
+            cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId);
+    }
 
     private async Task<AppOperationResult> RunArchiveAsync(
         string kind,
@@ -458,8 +489,6 @@ public sealed class OperationCoordinator(
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
         await using var admission = await TryAcquireAsync(component == "character-recovery"
             ? [(scope, identity), (OperationScope.RepositoryWrite, repository.RepositoryPath)]
-            // Only one recording at a time, whatever its file is called.
-            : component == "profiler" ? [(scope, Path.Combine(operationsRoot, "profiler"))]
             : [(scope, identity)], cancellationToken);
         if (admission is null)
             return new AppOperationResult(operationId, 0, ProcessOutcome.Busy, null, "operation-busy");

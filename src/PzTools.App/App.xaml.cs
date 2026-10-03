@@ -16,12 +16,21 @@ public partial class App : Application
     private string? runtimeRoot;
     private readonly SemaphoreSlim settingsGate = new(1, 1);
     private SystemTrayIcon? trayIcon;
+    private HotKeyController? hotKeys;
     private bool useSystemTray;
     private bool exitConfirmed;
     private bool exitDialogOpen;
 
     private IDisposable? activationListener;
     private static int fatalReported;
+    private UpdateChecker? updates;
+    private readonly CancellationTokenSource updateLoop = new();
+
+    /// <summary>What the app knows of its newer releases; null before the window exists.</summary>
+    internal UpdateChecker? Updates => updates;
+    private GameMemory? gameMemory;
+    /// <summary>The game's memory setting, in the game's own launcher file.</summary>
+    internal GameMemory? GameMemory => gameMemory;
 
     public App()
     {
@@ -64,11 +73,19 @@ public partial class App : Application
 
     public AppHost? Host { get; private set; }
     public Window MainWindow => window ?? throw new InvalidOperationException(Localizer.Get("WindowNotCreated"));
+    /// <summary>The key combinations the app holds for its actions; null before the window exists.</summary>
+    internal HotKeyController? HotKeys => hotKeys;
 
     internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message)
     {
         if (window?.Content is MainWindowShell shell)
             shell.ShowSidebarNotification(severity, title, message);
+    }
+
+    /// <summary>Opens Settings at the switch that has the game keep its last minutes.</summary>
+    internal void ShowRollingSetting()
+    {
+        if (window?.Content is MainWindowShell shell) shell.ShowSetting(SettingTarget.Rolling);
     }
 
     internal void ExplainOnOperationCard(string operationId, string message)
@@ -108,6 +125,9 @@ public partial class App : Application
         }
         Host.PublishSettings(settings);
         ApplyLanguage(settings.Language, reloadContent: false);
+        updates = new UpdateChecker(Path.Combine(runtimeRoot, "update.json"),
+            typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0));
+        gameMemory = new GameMemory(Path.Combine(runtimeRoot, "game-memory.json"));
         window = new MainWindow();
         // Log entries the app wrote in another language are shown in today's; the table for that takes a second.
         Localizer.Warm();
@@ -118,6 +138,9 @@ public partial class App : Application
         {
             activationListener?.Dispose();
             activationListener = null;
+            updateLoop.Cancel();
+            hotKeys?.Dispose();
+            hotKeys = null;
             trayIcon?.Dispose();
             trayIcon = null;
             if (Host is not null) await Host.DisposeAsync();
@@ -129,7 +152,106 @@ public partial class App : Application
                 Localizer.Get("SettingsTitle.Text"),
                 UserFacingError.FromConfigurationException(configurationError));
         ConfigureTray(settings.UseSystemTray);
+        hotKeys = new HotKeyController(this, window);
+        hotKeys.Apply(settings);
         _ = StartHostAsync();
+        _ = CheckForUpdatesAsync(updateLoop.Token);
+        _ = WatchGameMemoryAsync(updateLoop.Token);
+        _ = CheckInstallAsync(updateLoop.Token);
+    }
+
+    /// <summary>What is wrong with the app folder, once checked; none while it is whole or unchecked.</summary>
+    internal InstallProblem? InstallProblem { get; private set; }
+
+    // The app folder against the list of files it was published with, a little after the start, on a background thread
+    // (the first start of a release reads every file once). A folder that is not whole says so on a card, and the
+    // files go to the log.
+    private async Task CheckInstallAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(8), cancellationToken);
+            var root = runtimeRoot ?? throw new InvalidOperationException("No data folder.");
+            var problem = await Task.Run(() => InstallIntegrity.Check(AppContext.BaseDirectory,
+                Path.Combine(root, "install-check.json"), cancellationToken), cancellationToken);
+            if (problem is null) return;
+            InstallProblem = problem;
+            Host?.RecordActionIssue(Localizer.Get("InstallBrokenTitle"), Localizer.Get("InstallBrokenMessage"), failed: true,
+                diagnostics: problem.Describe());
+            window?.DispatcherQueue.TryEnqueue(() => (window?.Content as MainWindowShell)?.ApplyInstallProblem());
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }
+    }
+
+    // The game's file is read soon after the start and then every two minutes: a game update that puts its own memory
+    // back is noticed while the app runs, not only at the next start. It is one small file.
+    private async Task WatchGameMemoryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
+            do
+            {
+                if (gameMemory is { } memory)
+                {
+                    try { await memory.RefreshAsync(cancellationToken); }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(exception);
+                    }
+                }
+            }
+            while (await timer.WaitForNextTickAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    /// <summary>Opens Settings at the game's memory.</summary>
+    internal void ShowGameMemorySetting()
+    {
+        if (window?.Content is MainWindowShell shell) shell.ShowSetting(SettingTarget.GameMemory);
+    }
+
+    // A while after the start, then every hour (unless the last check is under an hour old, after a restart). A failed
+    // check is silent; the settings say when the last one succeeded, and checking there reports its failure.
+    private async Task CheckForUpdatesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(20), cancellationToken);
+            using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
+            do
+            {
+                if (updates is { } checker && Host?.Views.ReadIfChanged<PzTools.Projections.SettingsView>(
+                        PzTools.Projections.ViewKey.Settings, 0).Snapshot?.CheckForUpdates == true)
+                {
+                    try { await checker.CheckAsync(force: false, cancellationToken); }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(exception);
+                    }
+                }
+            }
+            while (await timer.WaitForNextTickAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    /// <summary>Opens a release page of this app's repository in the browser.</summary>
+    internal bool OpenReleasePage(Uri page)
+    {
+        try
+        {
+            using var _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(page.ToString()) { UseShellExecute = true });
+            return true;
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("UpdateSection.Header"), UserFacingError.FromException(exception));
+            return false;
+        }
     }
 
     public void ApplyTheme(AppTheme theme)
@@ -289,6 +411,7 @@ public partial class App : Application
             ApplyLanguage(settings.Language);
             ApplyTheme(settings.Theme);
             ConfigureTray(settings.UseSystemTray);
+            hotKeys?.Apply(settings);
         }
     }
 
@@ -300,6 +423,7 @@ public partial class App : Application
         if (window is not null) window.Content = new MainWindowShell();
         ApplyTheme(settings.Theme);
         ConfigureTray(settings.UseSystemTray);
+        hotKeys?.Apply(settings);
     }
 
     public void ApplyLanguage(SupportedLanguage language, bool reloadContent = true)

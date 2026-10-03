@@ -1,4 +1,4 @@
-﻿namespace PzTools.Profiling;
+namespace PzTools.Profiling;
 
 /// <summary>
 /// One row of a breakdown. <see cref="Self"/> is time spent in the item itself, <see cref="Total"/>
@@ -52,11 +52,30 @@ public sealed class ProfileCallNode
         return byFunction[function] = new ProfileCallNode(function, source.Name, source.File);
     }
 
-    internal void Count(bool self, long allocated)
+    /// <summary>
+    /// The lines the function was at on this path, most samples first: each sample through the node was at one of
+    /// them, so their samples add up to the node's. Empty for the root.
+    /// </summary>
+    public IReadOnlyList<ProfileLineTotal> Lines { get; private set; } = [];
+    private Dictionary<int, LineCount>? lineCounts;
+
+    /// <summary>The line of the function above it that called it most often on this path; 0 for an outermost one.</summary>
+    public int CalledFromLine { get; private set; }
+    private Dictionary<int, int>? callerLines;
+
+    internal void CountCaller(int line, int samples)
     {
-        Samples++;
-        if (self) SelfSamples++;
-        if (allocated < 0) return;
+        if (line <= 0) return;
+        callerLines ??= [];
+        callerLines[line] = callerLines.GetValueOrDefault(line) + samples;
+    }
+
+    /// <summary><paramref name="samples"/> more samples through this node, with the bytes they allocated together.</summary>
+    internal void Count(int samples, bool self, long allocated, int line = -1)
+    {
+        Samples += samples;
+        if (self) SelfSamples += samples;
+        if (line >= 0) (lineCounts ??= []).Add(line, samples, self, allocated);
         AllocatedTotal += allocated;
         if (self) AllocatedSelf += allocated;
     }
@@ -66,8 +85,41 @@ public sealed class ProfileCallNode
         Total = Math.Min(1, Samples * perSample);
         Self = Math.Min(1, SelfSamples * perSample);
         children = byFunction.Values.OrderByDescending(node => node.Samples).ThenBy(node => node.Name, StringComparer.Ordinal).ToArray();
+        if (lineCounts is not null) Lines = ProfileLineTotals.Ordered(lineCounts);
+        lineCounts = null;
+        if (callerLines is not null)
+            CalledFromLine = callerLines.OrderByDescending(item => item.Value).ThenBy(item => item.Key).First().Key;
+        callerLines = null;
         foreach (var child in children) child.Finish(perSample);
     }
+}
+
+/// <summary>A line's counts while they are added up; <see cref="ProfileLineTotal"/> is made once, at the end.</summary>
+internal sealed class LineCount
+{
+    public int SelfSamples, Samples;
+    public long AllocatedSelf, AllocatedTotal;
+}
+
+internal static class ProfileLineTotals
+{
+    /// <summary>
+    /// <paramref name="samples"/> more samples at <paramref name="line"/>, with the bytes they allocated together;
+    /// <paramref name="self"/> when they were running the line itself.
+    /// </summary>
+    public static void Add(this Dictionary<int, LineCount> lines, int line, int samples, bool self, long allocated)
+    {
+        if (!lines.TryGetValue(line, out var count)) lines[line] = count = new LineCount();
+        count.Samples += samples;
+        count.AllocatedTotal += allocated;
+        if (!self) return;
+        count.SelfSamples += samples;
+        count.AllocatedSelf += allocated;
+    }
+
+    public static ProfileLineTotal[] Ordered(Dictionary<int, LineCount> lines) =>
+        lines.Select(item => new ProfileLineTotal(item.Key, item.Value.SelfSamples, item.Value.Samples, item.Value.AllocatedSelf, item.Value.AllocatedTotal))
+            .OrderByDescending(line => line.Samples).ThenByDescending(line => line.SelfSamples).ThenBy(line => line.Line).ToArray();
 }
 
 /// <summary>
@@ -77,8 +129,29 @@ public sealed class ProfileCallNode
 public sealed record ProfileFunctionTotal(int Function, string Name, string File, int SelfSamples, int Samples,
     long AllocatedSelf, long AllocatedTotal);
 
+/// <summary>
+/// One line of a Lua function: <see cref="Samples"/> found it at that line, whatever it had called from there (once
+/// per sample, however often a recursion passed the line); <see cref="SelfSamples"/> found it running that line
+/// itself, the innermost frame, so a function's lines' self samples add up to its own. Line 0 is a frame the
+/// interpreter gave no line for.
+/// </summary>
+public sealed record ProfileLineTotal(int Line, int SelfSamples, int Samples, long AllocatedSelf, long AllocatedTotal);
+
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
+
+/// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one.</summary>
+public sealed record ProfileTimeBreakdown(double Scripts, double GameCode, double Collections, double Waiting);
+
+/// <summary>How short of memory the game ran: its allocation stalls, and the share of heap readings near the maximum.</summary>
+/// <param name="StalledMicroseconds">The stalls' time, added up.</param>
+/// <param name="FullShare">The share of heap readings at or above <see cref="ProfileAnalysis.NearlyFull"/> of the maximum.</param>
+/// <param name="MaximumBytes">The largest heap the game could grow to.</param>
+public sealed record ProfileMemoryPressure(int Stalls, long StalledMicroseconds, double FullShare, long MaximumBytes)
+{
+    /// <summary>Short enough of memory to suggest more.</summary>
+    public bool Short => Stalls > 0 || FullShare >= 0.25;
+}
 
 public sealed record ProfileRange(
     long Start, long End,
@@ -107,10 +180,27 @@ public sealed record ProfileRange(
     /// <summary>Samples of the chosen thread(s) left out because the thread was only waiting inside a native call.</summary>
     public int WaitingSamples { get; init; }
     /// <summary>
+    /// The share of the range the one chosen thread was running, by its samples' periods; null for all threads together,
+    /// whose times overlap.
+    /// </summary>
+    public double? RunningShare { get; init; }
+    /// <summary>
+    /// How long, inside the range, the chosen thread was stopped for memory: the collector's pauses, which stop every
+    /// thread, and the thread's own allocation stalls, overlaps counted once. Null in recordings without the pauses.
+    /// </summary>
+    public double? MemoryStopMilliseconds { get; init; }
+    /// <summary>
     /// Per owner (the keys of <see cref="LuaGroups"/>), the call paths of the samples that ended in its functions, as a
     /// tree under a root: its outermost functions sum to the owner's own samples, as its row in the list does.
     /// </summary>
     public IReadOnlyDictionary<string, ProfileCallNode> LuaCallTrees { get; init; } = new Dictionary<string, ProfileCallNode>();
+    /// <summary>
+    /// Per owner, the same samples by each function's lines: each line a function was at counts a sample once (a
+    /// recursion passing it again included), and the innermost frame is the line being run. The list's functions open
+    /// into these, and each shows its heaviest.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<int, IReadOnlyList<ProfileLineTotal>>> LuaLines { get; init; } =
+        new Dictionary<string, IReadOnlyDictionary<int, IReadOnlyList<ProfileLineTotal>>>();
 }
 
 /// <summary>Answers "what was the game doing between these two moments" from a loaded recording.</summary>
@@ -131,22 +221,19 @@ public static class ProfileAnalysis
         start = Math.Max(0, start);
         end = Math.Max(start + 1, Math.Min(Math.Max(recording.Duration, 1), end));
 
-        // A sample stands for the time until the next one of its kind, so its weight is that period.
+        // A sample stands for the time until the next one of its kind, so its weight is that period. The same few
+        // hundred stacks make up almost every sample: they are counted first, each stack and kind once, and each stack
+        // is then walked once for all its samples.
         var samples = recording.Samples;
         var first = LowerBound(samples, start, sample => sample.Time);
-        var methodSelf = new Dictionary<int, (double Weight, int Count)>();
-        var methodTotal = new Dictionary<int, double>();
-        var threadWeight = new Dictionary<int, (double Weight, int Count)>();
-        double weightSum = 0;
-        var count = 0;
-        var seen = new HashSet<int>();
-        // Per group, each method's total over the samples that ended in that group's code: the group's table counts its
-        // own samples only, as a script owner's does, so a total never exceeds the group.
-        var groupOf = new string?[recording.Methods.Count];
-        var totalInGroup = new Dictionary<(string Group, int Method), double>();
+        var stackCount = recording.Stacks.Count;
+        var javaOn = new int[stackCount];
+        var nativeOn = new int[stackCount];
+        var threadWeight = new double[recording.Threads.Count];
+        var threadCount = new int[recording.Threads.Count];
         // A thread inside a native call is sampled whether it works there (drawing, reading a file) or only waits (for
         // a connection, a timer, an event). The waits are left out, so a thread's share is time it ran.
-        var waits = new bool?[recording.Stacks.Count];
+        var waits = new bool?[stackCount];
         var waiting = 0;
         for (var index = first; index < samples.Length && samples[index].Time < end; index++)
         {
@@ -157,34 +244,49 @@ public static class ProfileAnalysis
                 if (thread < 0 || sample.Thread == thread) waiting++;
                 continue;
             }
-            double weight = sample.Native ? recording.NativePeriod : recording.JavaPeriod;
-            var byThread = threadWeight.GetValueOrDefault(sample.Thread);
-            threadWeight[sample.Thread] = (byThread.Weight + weight, byThread.Count + 1);
+            threadWeight[sample.Thread] += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+            threadCount[sample.Thread]++;
             if (thread >= 0 && sample.Thread != thread) continue;
-            count++;
-            weightSum += weight;
-            var stack = recording.Stacks[sample.Stack];
-            if (stack.Length == 0) continue;
-            var self = methodSelf.GetValueOrDefault(stack[0]);
-            methodSelf[stack[0]] = (self.Weight + weight, self.Count + 1);
-            var group = groupOf[stack[0]] ??= GroupOf(recording.Methods[stack[0]]);
-            // Recursion must not count one sample twice for the same method.
-            seen.Clear();
-            foreach (var method in stack)
-                if (seen.Add(method))
-                {
-                    methodTotal[method] = methodTotal.GetValueOrDefault(method) + weight;
-                    if ((groupOf[method] ??= GroupOf(recording.Methods[method])) == group)
-                        totalInGroup[(group, method)] = totalInGroup.GetValueOrDefault((group, method)) + weight;
-                }
+            if (sample.Native) nativeOn[sample.Stack]++; else javaOn[sample.Stack]++;
         }
-        var indexed = methodTotal
-            .Select(item =>
+        var methodCount = recording.Methods.Count;
+        var selfWeight = new double[methodCount];
+        var selfCount = new int[methodCount];
+        var totalWeight = new double[methodCount];
+        // Per method, its total over the samples that ended in its own group's code: a group's table counts its own
+        // samples only, as a script owner's does, so a total never exceeds the group.
+        var totalInGroup = new double[methodCount];
+        var groupOf = new string?[methodCount];
+        var counted = new List<int>();
+        // Recursion must not count one sample twice for the same method: a method is marked with the stack it was
+        // last counted for.
+        var seenFor = new int[methodCount];
+        double weightSum = 0;
+        var count = 0;
+        for (var stackIndex = 0; stackIndex < stackCount; stackIndex++)
+        {
+            var on = javaOn[stackIndex] + nativeOn[stackIndex];
+            if (on == 0) continue;
+            double weight = javaOn[stackIndex] * (double)recording.JavaPeriod + nativeOn[stackIndex] * (double)recording.NativePeriod;
+            count += on;
+            weightSum += weight;
+            var stack = recording.Stacks[stackIndex];
+            if (stack.Length == 0) continue;
+            selfWeight[stack[0]] += weight;
+            selfCount[stack[0]] += on;
+            var group = groupOf[stack[0]] ??= GroupOf(recording.Methods[stack[0]]);
+            foreach (var method in stack)
             {
-                var self = methodSelf.GetValueOrDefault(item.Key);
-                return (Method: item.Key, Row: new ProfileShare(recording.Methods[item.Key], "", self.Weight / Math.Max(1, weightSum),
-                    item.Value / Math.Max(1, weightSum), self.Count));
-            })
+                if (seenFor[method] == stackIndex + 1) continue;
+                seenFor[method] = stackIndex + 1;
+                if (totalWeight[method] == 0) counted.Add(method);
+                totalWeight[method] += weight;
+                if ((groupOf[method] ??= GroupOf(recording.Methods[method])) == group) totalInGroup[method] += weight;
+            }
+        }
+        var indexed = counted
+            .Select(method => (Method: method, Row: new ProfileShare(recording.Methods[method], "", selfWeight[method] / Math.Max(1, weightSum),
+                totalWeight[method] / Math.Max(1, weightSum), selfCount[method])))
             .OrderByDescending(item => item.Row.Self).ThenByDescending(item => item.Row.Total).ThenBy(item => item.Row.Name, StringComparer.Ordinal)
             .ToArray();
         var allMethods = indexed.Select(item => item.Row).ToArray();
@@ -196,78 +298,119 @@ public static class ProfileAnalysis
             .Select(group =>
             {
                 var rows = group
-                    .Select(item => item.Row with { Total = totalInGroup.GetValueOrDefault((group.Key, item.Method)) / Math.Max(1, weightSum) })
+                    .Select(item => item.Row with { Total = totalInGroup[item.Method] / Math.Max(1, weightSum) })
                     .Where(row => row.Total > 0)
                     .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal);
                 return new ProfileGroup(group.Key, group.Sum(item => item.Row.Self), group.Sum(item => item.Row.Samples), rows.Take(maximumRows).ToArray());
             })
             .Where(group => group.Samples > 0)
             .OrderByDescending(group => group.Self).ThenBy(group => group.Key, StringComparer.Ordinal).ToArray();
-        var allThreads = threadWeight.Values.Sum(item => item.Weight);
-        var threads = threadWeight
-            .Select(item => new ProfileShare(recording.Threads[item.Key], "", item.Value.Weight / Math.Max(1, allThreads),
-                item.Value.Weight / Math.Max(1, allThreads), item.Value.Count))
+        var allThreads = threadWeight.Sum();
+        var threads = Enumerable.Range(0, threadWeight.Length).Where(index => threadCount[index] > 0)
+            .Select(index => new ProfileShare(recording.Threads[index], "", threadWeight[index] / Math.Max(1, allThreads),
+                threadWeight[index] / Math.Max(1, allThreads), threadCount[index]))
             .OrderByDescending(row => row.Self).ThenBy(row => row.Name, StringComparer.Ordinal).Take(maximumRows).ToArray();
 
+        // Lua the same way: each stack's samples counted, with the bytes they allocated, then each stack walked once.
         var lua = recording.LuaSamples;
-        var luaFirst = LowerBound(lua, start, sample => sample.Time);
-        var functionSelf = new Dictionary<int, int>();
-        var functionTotal = new Dictionary<int, int>();
+        var luaStackCount = recording.LuaStacks.Count;
+        var luaOn = new int[luaStackCount];
+        var allocatedOn = new long[luaStackCount];
+        var allocationsOn = new int[luaStackCount];
+        for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
+        {
+            if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
+            var sample = lua[index];
+            luaOn[sample.Stack]++;
+            if (sample.Allocated < 0) continue;
+            allocatedOn[sample.Stack] += sample.Allocated;
+            allocationsOn[sample.Stack]++;
+        }
+        var functionCount = recording.LuaFunctions.Count;
+        var functionSelf = new int[functionCount];
+        var functionTotal = new int[functionCount];
+        var functionsCounted = new List<int>();
         var ownerSelf = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var ownerTotal = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var luaCount = 0;
         var owners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        // Worked out once per function, not once per sample and depth.
-        var ownerOf = new string?[recording.LuaFunctions.Count];
-        // Bytes the game thread allocated, given to the functions each sample found, the way its time is.
-        var allocatedSelf = new Dictionary<int, (long Bytes, int Count)>();
-        var allocatedTotal = new Dictionary<int, long>();
+        var ownerOf = FunctionOwners(recording);
+        // Bytes the game thread allocated, given to the functions each sample found, the way its time is; only
+        // functions some sample with a known figure found are in the allocation tab.
+        var allocatedSelf = new long[functionCount];
+        var allocationsSelf = new int[functionCount];
+        var allocatedTotal = new long[functionCount];
+        var allocationCounted = new bool[functionCount];
         long luaAllocated = 0;
         var callTrees = new Dictionary<string, ProfileCallNode>(StringComparer.OrdinalIgnoreCase);
-        for (var index = luaFirst; index < lua.Length && lua[index].Time < end; index++)
+        var lineCounts = new Dictionary<string, Dictionary<int, Dictionary<int, LineCount>>>(StringComparer.OrdinalIgnoreCase);
+        var functionSeenFor = new int[functionCount];
+        var seenLines = new HashSet<(int Function, int Line)>();
+        for (var stackIndex = 0; stackIndex < luaStackCount; stackIndex++)
         {
-            if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
-            var stack = recording.LuaStacks[lua[index].Stack];
+            var on = luaOn[stackIndex];
+            if (on == 0) continue;
+            if ((stackIndex & 1023) == 0) cancellation.ThrowIfCancellationRequested();
+            var stack = recording.LuaStacks[stackIndex];
             if (stack.Length == 0) continue;
-            luaCount++;
-            functionSelf[stack[0].Function] = functionSelf.GetValueOrDefault(stack[0].Function) + 1;
-            var allocated = lua[index].Allocated;
-            if (allocated >= 0)
+            luaCount += on;
+            var innermost = stack[0].Function;
+            functionSelf[innermost] += on;
+            var allocated = allocatedOn[stackIndex];
+            var known = allocationsOn[stackIndex] > 0;
+            if (known)
             {
                 luaAllocated += allocated;
-                var self = allocatedSelf.GetValueOrDefault(stack[0].Function);
-                allocatedSelf[stack[0].Function] = (self.Bytes + allocated, self.Count + 1);
+                allocatedSelf[innermost] += allocated;
+                allocationsSelf[innermost] += allocationsOn[stackIndex];
             }
-            seen.Clear(); owners.Clear();
+            owners.Clear();
             for (var depth = 0; depth < stack.Length; depth++)
             {
                 var function = stack[depth].Function;
-                if (seen.Add(function))
+                if (functionSeenFor[function] != stackIndex + 1)
                 {
-                    functionTotal[function] = functionTotal.GetValueOrDefault(function) + 1;
-                    if (allocated >= 0) allocatedTotal[function] = allocatedTotal.GetValueOrDefault(function) + allocated;
+                    functionSeenFor[function] = stackIndex + 1;
+                    if (functionTotal[function] == 0) functionsCounted.Add(function);
+                    functionTotal[function] += on;
+                    if (known)
+                    {
+                        allocatedTotal[function] += allocated;
+                        allocationCounted[function] = true;
+                    }
                 }
-                var owner = ownerOf[function] ??= OwnerOf(recording.LuaFunctions[function].File);
-                if (depth == 0) ownerSelf[owner] = ownerSelf.GetValueOrDefault(owner) + 1;
-                if (owners.Add(owner)) ownerTotal[owner] = ownerTotal.GetValueOrDefault(owner) + 1;
+                var owner = ownerOf[function];
+                if (depth == 0) ownerSelf[owner] = ownerSelf.GetValueOrDefault(owner) + on;
+                if (owners.Add(owner)) ownerTotal[owner] = ownerTotal.GetValueOrDefault(owner) + on;
             }
-            // The sample's path, outermost first, in the tree of the owner whose function it ended in.
-            var innermostOwner = ownerOf[stack[0].Function]!;
+            // The samples' path, outermost first, in the tree of the owner whose function they ended in.
+            var innermostOwner = ownerOf[innermost];
+            if (!lineCounts.TryGetValue(innermostOwner, out var ownerLines)) lineCounts[innermostOwner] = ownerLines = [];
+            seenLines.Clear();
+            for (var depth = 0; depth < stack.Length; depth++)
+            {
+                var frame = stack[depth];
+                if (!seenLines.Add((frame.Function, frame.Line))) continue;
+                if (!ownerLines.TryGetValue(frame.Function, out var lines)) ownerLines[frame.Function] = lines = [];
+                lines.Add(frame.Line, on, depth == 0, allocated);
+            }
             if (!callTrees.TryGetValue(innermostOwner, out var node))
                 callTrees[innermostOwner] = node = new ProfileCallNode(-1, innermostOwner, "");
-            node.Count(false, allocated);
+            node.Count(on, false, allocated);
             for (var depth = stack.Length - 1; depth >= 0; depth--)
             {
                 node = node.Child(stack[depth].Function, recording);
-                node.Count(depth == 0, allocated);
+                node.Count(on, depth == 0, allocated, stack[depth].Line);
+                // Where the function above called it: the caller's line in these samples.
+                if (depth < stack.Length - 1) node.CountCaller(stack[depth + 1].Line, on);
             }
         }
         // Lua rows are shares of the whole range, so a mod's row reads directly as "this much of the time".
         var perLuaSample = recording.LuaPeriod <= 0 ? 0 : Math.Min(1.0, (double)recording.LuaPeriod / (end - start));
         foreach (var tree in callTrees.Values) tree.Finish(perLuaSample);
-        var allLuaFunctions = functionTotal
-            .Select(item => new ProfileShare(recording.LuaFunctions[item.Key].Name, recording.LuaFunctions[item.Key].File,
-                Math.Min(1, functionSelf.GetValueOrDefault(item.Key) * perLuaSample), Math.Min(1, item.Value * perLuaSample), functionSelf.GetValueOrDefault(item.Key)))
+        var allLuaFunctions = functionsCounted
+            .Select(function => new ProfileShare(recording.LuaFunctions[function].Name, recording.LuaFunctions[function].File,
+                Math.Min(1, functionSelf[function] * perLuaSample), Math.Min(1, functionTotal[function] * perLuaSample), functionSelf[function]))
             .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal)
             .ToArray();
         var luaFunctions = allLuaFunctions.Take(maximumRows).ToArray();
@@ -288,12 +431,11 @@ public static class ProfileAnalysis
             .OrderByDescending(item => item.Duration).Take(10).ToArray();
 
         // The same owners as the time, ranked by what their functions allocated themselves.
-        var allocationGroups = allocatedTotal
-            .Select(item =>
+        var allocationGroups = functionsCounted.Where(function => allocationCounted[function])
+            .Select(function =>
             {
-                var self = allocatedSelf.GetValueOrDefault(item.Key);
-                var function = recording.LuaFunctions[item.Key];
-                return new ProfileAllocation(function.Name, function.File, self.Bytes, item.Value, self.Count);
+                var source = recording.LuaFunctions[function];
+                return new ProfileAllocation(source.Name, source.File, allocatedSelf[function], allocatedTotal[function], allocationsSelf[function]);
             })
             .OrderByDescending(row => row.Self).ThenByDescending(row => row.Total).ThenBy(row => row.Name, StringComparer.Ordinal)
             .GroupBy(row => OwnerOf(row.Detail), StringComparer.OrdinalIgnoreCase)
@@ -307,10 +449,43 @@ public static class ProfileAnalysis
         {
             LuaAllocationGroups = allocationGroups,
             LuaCallTrees = callTrees,
+            LuaLines = lineCounts.ToDictionary(owner => owner.Key,
+                owner => (IReadOnlyDictionary<int, IReadOnlyList<ProfileLineTotal>>)owner.Value.ToDictionary(
+                    function => function.Key, function => (IReadOnlyList<ProfileLineTotal>)ProfileLineTotals.Ordered(function.Value)),
+                StringComparer.OrdinalIgnoreCase),
             WaitingSamples = waiting,
+            RunningShare = thread < 0 ? null : Math.Min(1, weightSum / (end - start)),
             LuaAllocated = luaAllocated,
             GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
+            MemoryStopMilliseconds = MemoryStopIn(recording, start, end, thread),
         };
+    }
+
+    /// <summary>The recording's kinds of pause: the collector's, which stop every thread, and a thread's wait for memory.</summary>
+    public const string CollectorPause = "GCPhasePause", AllocationStall = "ZAllocationStall";
+
+    /// <summary>
+    /// How long <paramref name="thread"/> was stopped for memory inside the range, in milliseconds: the collector's
+    /// pauses, as they happened (a collection is written where its cycle began, its pauses added up, so a frame-sized
+    /// range finds them on the wrong frame), and the thread's own allocation stalls, which leave no samples behind. A
+    /// stall waits for a collection, so where they overlap the time counts once. Null without the collector's pauses.
+    /// </summary>
+    public static double? MemoryStopIn(ProfileRecording recording, long start, long end, int thread)
+    {
+        if (!recording.HasCollectorPauses) return null;
+        var pauses = recording.Pauses;
+        long stopped = 0, covered = start;
+        // In time order: each counts from where the ones before it ended.
+        for (var index = LowerBound(pauses, start - LongestCollection, item => item.Time); index < pauses.Count && pauses[index].Time < end; index++)
+        {
+            var pause = pauses[index];
+            if (pause.Kind != CollectorPause && !(pause.Kind == AllocationStall && thread >= 0 && pause.Thread == thread)) continue;
+            long from = Math.Max(covered, pause.Time), to = Math.Min(end, pause.Time + pause.Duration);
+            if (to <= from) continue;
+            stopped += to - from;
+            covered = to;
+        }
+        return stopped / 1000.0;
     }
 
     // Native calls that only wait: for a connection or data, a selector or completion port, a timer, a lock, the
@@ -374,6 +549,73 @@ public static class ProfileAnalysis
     }
 
     /// <summary>
+    /// What names a script function across recordings: its name and its file from the mod's media/lua on, the part
+    /// that holds when a mod moves (a workshop download, a local copy) or is updated. Function numbers are one
+    /// recording's.
+    /// </summary>
+    public static string ScriptKey(string name, string file)
+    {
+        var at = file.IndexOf("media/lua/", StringComparison.OrdinalIgnoreCase);
+        return name + "\n" + (at < 0 ? file : file[at..]);
+    }
+
+    /// <summary>
+    /// Where one thread's time in the range went, as shares of the range that add up to one: its scripts running (the
+    /// game functions they called included), the game's own code running, the thread stopped for memory (the collector's
+    /// pauses and its own waits for memory), and the rest,
+    /// which the thread spent waiting (for the next frame, mostly). The answer to "was this stutter the scripts, the game
+    /// or the memory", without adding up figures from tabs that count the same time two ways. Null for all threads
+    /// together, whose times overlap.
+    /// </summary>
+    public static ProfileTimeBreakdown? TimeBreakdown(ProfileRange range)
+    {
+        if (range.RunningShare is not { } running) return null;
+        var length = Math.Max(1, range.End - range.Start);
+        // Stopped for memory: the collector's pauses where they fell and the thread's waits for memory; a recording
+        // without the pauses has only the collections' totals.
+        var collections = Math.Clamp((range.MemoryStopMilliseconds ?? range.CollectionPauseMilliseconds) * 1000 / length, 0, 1);
+        // Two samplers measure the scripts and the running code; where they disagree a little, the scripts win.
+        var scripts = Math.Clamp(range.LuaShare, 0, 1 - collections);
+        var game = Math.Clamp(Math.Max(running, scripts) - scripts, 0, 1 - collections - scripts);
+        return new ProfileTimeBreakdown(scripts, game, collections, Math.Max(0, 1 - scripts - game - collections));
+    }
+
+    /// <summary>
+    /// Each node of <paramref name="current"/> with the one at the same call path in <paramref name="baseline"/>, matched
+    /// by <see cref="ScriptKey"/> level by level; a path the baseline never took is left out.
+    /// </summary>
+    public static IReadOnlyDictionary<ProfileCallNode, ProfileCallNode> MatchCallTrees(ProfileCallNode current, ProfileCallNode baseline)
+    {
+        var matched = new Dictionary<ProfileCallNode, ProfileCallNode>(ReferenceEqualityComparer.Instance);
+        void Match(ProfileCallNode node, ProfileCallNode other)
+        {
+            matched[node] = other;
+            if (node.Children.Count == 0 || other.Children.Count == 0) return;
+            var byKey = new Dictionary<string, ProfileCallNode>();
+            // Two functions of one name in one file (a local function and a global) share a key; the heavier one is
+            // kept, as the children come most samples first.
+            foreach (var child in other.Children) byKey.TryAdd(ScriptKey(child.Name, child.File), child);
+            foreach (var child in node.Children)
+                if (byKey.TryGetValue(ScriptKey(child.Name, child.File), out var same)) Match(child, same);
+        }
+        Match(current, baseline);
+        return matched;
+    }
+
+    /// <summary>
+    /// Each function of an owner's tree with its total as a part of the whole range, by <see cref="ScriptKey"/>: the
+    /// owner's share split by the samples that passed through the function.
+    /// </summary>
+    public static IReadOnlyDictionary<string, double> FunctionShares(ProfileCallNode tree)
+    {
+        var shares = new Dictionary<string, double>();
+        if (tree.Samples <= 0) return shares;
+        foreach (var row in FunctionsIn(tree))
+            shares.TryAdd(ScriptKey(row.Name, row.File), tree.Total * row.Samples / tree.Samples);
+        return shares;
+    }
+
+    /// <summary>
     /// What the game thread allocated in the range, in Lua or not; null without readings. Each reading covers the time
     /// since the one before (the first, a second), and counts in the part of it that falls inside the range.
     /// </summary>
@@ -395,34 +637,65 @@ public static class ProfileAnalysis
     public static (long? Heap, long? VideoMemory) MemoryPeaksIn(ProfileRecording recording, long start, long end)
     {
         long? heap = null, video = null;
-        foreach (var item in recording.Heap)
-            if (item.Time >= start && item.Time < end) heap = Math.Max(heap ?? 0, item.Used);
-        foreach (var item in recording.VideoMemory)
-            if (item.Time >= start && item.Time < end) video = Math.Max(video ?? 0, item.Dedicated);
+        var heapReadings = recording.Heap;
+        for (var index = LowerBound(heapReadings, start, item => item.Time); index < heapReadings.Count && heapReadings[index].Time < end; index++)
+            heap = Math.Max(heap ?? 0, heapReadings[index].Used);
+        var videoReadings = recording.VideoMemory;
+        for (var index = LowerBound(videoReadings, start, item => item.Time); index < videoReadings.Count && videoReadings[index].Time < end; index++)
+            video = Math.Max(video ?? 0, videoReadings[index].Dedicated);
         return (heap, video);
     }
+
+    /// <summary>
+    /// Whether the game ran short of memory in the recording: threads stopped until memory was freed (the collector's
+    /// allocation stalls), or the heap stood near its maximum for a quarter of its readings or more. Either says the
+    /// game's memory, not its code, is what to change. Judged on the whole recording, not a range: the setting is.
+    /// </summary>
+    public static ProfileMemoryPressure MemoryPressure(ProfileRecording recording)
+    {
+        int stalls = 0;
+        long stalled = 0;
+        foreach (var pause in recording.Pauses)
+        {
+            if (pause.Kind != AllocationStall) continue;
+            stalls++;
+            stalled += pause.Duration;
+        }
+        var readings = recording.Heap.Where(sample => sample.Maximum > 0).ToArray();
+        // Too few readings say nothing about how long the heap stood full.
+        double full = readings.Length < 8 ? 0
+            : readings.Count(sample => sample.Used >= sample.Maximum * NearlyFull) / (double)readings.Length;
+        return new(stalls, stalled, full, readings.Length > 0 ? readings.Max(sample => sample.Maximum) : 0);
+    }
+
+    /// <summary>The share of the maximum above which the heap counts as full.</summary>
+    public const double NearlyFull = 0.9;
 
     /// <summary>The last readings at or before a moment: what memory looked like then.</summary>
     public static (ProfileHeapSample? Heap, ProfileVideoMemorySample? VideoMemory) MemoryAt(ProfileRecording recording, long time)
     {
-        ProfileHeapSample? heap = null;
-        foreach (var item in recording.Heap) { if (item.Time > time) break; heap = item; }
-        ProfileVideoMemorySample? video = null;
-        foreach (var item in recording.VideoMemory) { if (item.Time > time) break; video = item; }
-        return (heap, video);
+        var heapIndex = LowerBound(recording.Heap, time + 1, item => item.Time) - 1;
+        var videoIndex = LowerBound(recording.VideoMemory, time + 1, item => item.Time) - 1;
+        return (heapIndex >= 0 ? recording.Heap[heapIndex] : null, videoIndex >= 0 ? recording.VideoMemory[videoIndex] : null);
     }
 
     /// <summary>
     /// Garbage collections that overlap the range, and how long they paused the game in all. A pause stops
     /// every thread, so it leaves no samples behind; this is where it shows instead.
     /// </summary>
+    // No collection pauses the game this long; one that began longer before a range cannot reach into it.
+    private const long LongestCollection = 60_000_000;
+
     public static (int Count, double PauseMilliseconds) CollectionsIn(ProfileRecording recording, long start, long end)
     {
         var count = 0;
         long pause = 0;
-        foreach (var item in recording.Collections)
+        var collections = recording.Collections;
+        // In time order; one that began a little before the range may still reach into it.
+        for (var index = LowerBound(collections, start - LongestCollection, item => item.Time); index < collections.Count && collections[index].Time < end; index++)
         {
-            if (item.Time >= end || item.Time + item.Duration < start) continue;
+            var item = collections[index];
+            if (item.Time + item.Duration < start) continue;
             count++;
             pause += item.Duration;
         }
@@ -442,6 +715,90 @@ public static class ProfileAnalysis
         var worst = Math.Max(1, durations.Count / 100);
         return new(durations.Count, durations.Average() / 1000.0, durations[durations.Count / 2] / 1000.0, durations[^1] / 1000.0,
             durations.Skip(durations.Count - worst).Average() / 1000.0);
+    }
+
+    /// <summary>
+    /// For each slice the frame graph draws, how many milliseconds of its bar (the slice's slowest frame) one owner's
+    /// code ran: a mod's or the game's scripts (<paramref name="java"/> false, a key of <see cref="ProfileRange.LuaGroups"/>)
+    /// or a part of the game code (true, a key of <see cref="ProfileRange.MethodGroups"/>). The same frame as the bar, so
+    /// the two compare directly; 0 where no frame began. Counted from samples, so in steps of a sampling period.
+    /// </summary>
+    /// <param name="thread">For game code, the thread whose samples count (the game thread: frames are its own); -1 all.</param>
+    public static double[] OwnerTimePerBucket(ProfileRecording recording, long start, long end, int buckets, bool java, string owner, int thread)
+    {
+        var result = new double[Math.Max(1, buckets)];
+        if (end <= start) return result;
+        var frames = recording.Frames;
+        var slowest = new int[result.Length];
+        Array.Fill(slowest, -1);
+        var span = (double)(end - start);
+        for (var index = LowerBound(frames, start, frame => frame.Start); index < frames.Length && frames[index].Start < end; index++)
+        {
+            var bucket = Math.Min(result.Length - 1, (int)((frames[index].Start - start) / span * result.Length));
+            if (slowest[bucket] < 0 || frames[index].Duration > frames[slowest[bucket]].Duration) slowest[bucket] = index;
+        }
+        for (var bucket = 0; bucket < result.Length; bucket++)
+        {
+            if (slowest[bucket] < 0) continue;
+            var frame = frames[slowest[bucket]];
+            result[bucket] = OwnerTimeIn(recording, frame.Start, frame.Start + frame.Duration, java, owner, thread);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// For each of <paramref name="buckets"/> equal slices of the range, the bytes the game thread allocated while one
+    /// owner's scripts ran (a key of <see cref="ProfileRange.LuaGroups"/>), by the Lua samples taken in it: the same
+    /// figures as the allocation tab, spread over time. All 0 for a recording without allocations.
+    /// </summary>
+    public static long[] OwnerAllocationPerBucket(ProfileRecording recording, long start, long end, int buckets, string owner)
+    {
+        var result = new long[Math.Max(1, buckets)];
+        if (end <= start || !recording.HasLuaAllocations) return result;
+        var lua = recording.LuaSamples;
+        var span = (double)(end - start);
+        var ownerOf = new Dictionary<int, bool>();
+        for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
+        {
+            var sample = lua[index];
+            var stack = recording.LuaStacks[sample.Stack];
+            if (sample.Allocated <= 0 || stack.Length == 0) continue;
+            var function = stack[0].Function;
+            if (!ownerOf.TryGetValue(function, out var mine))
+                ownerOf[function] = mine = OwnerOf(recording.LuaFunctions[function].File).Equals(owner, StringComparison.OrdinalIgnoreCase);
+            if (!mine) continue;
+            result[Math.Min(result.Length - 1, (int)((sample.Time - start) / span * result.Length))] += sample.Allocated;
+        }
+        return result;
+    }
+
+    /// <summary>Milliseconds one owner's code ran between two moments, by the samples taken then (see <see cref="OwnerTimePerBucket"/>).</summary>
+    public static double OwnerTimeIn(ProfileRecording recording, long start, long end, bool java, string owner, int thread)
+    {
+        double micros = 0;
+        if (!java)
+        {
+            var lua = recording.LuaSamples;
+            var owners = FunctionOwners(recording);
+            for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++)
+            {
+                var stack = recording.LuaStacks[lua[index].Stack];
+                if (stack.Length > 0 && owners[stack[0].Function].Equals(owner, StringComparison.OrdinalIgnoreCase))
+                    micros += recording.LuaPeriod;
+            }
+            return micros / 1000;
+        }
+        var samples = recording.Samples;
+        for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
+        {
+            var sample = samples[index];
+            if (thread >= 0 && sample.Thread != thread) continue;
+            var stack = recording.Stacks[sample.Stack];
+            // As in the shares: a thread only waiting in a native call was not running anyone's code.
+            if (stack.Length == 0 || sample.Native && Waits(recording, stack)) continue;
+            if (MethodGroups(recording)[stack[0]] == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+        }
+        return micros / 1000;
     }
 
     /// <summary>
@@ -472,6 +829,17 @@ public static class ProfileAnalysis
     }
 
     /// <summary>Which mod a Lua file belongs to, from the shortened path the recording keeps.</summary>
+    // Each Lua function's owner and each method's group, worked out once per recording: the frame graph asks for them
+    // for every sample of every bar it draws, and again on each pan, zoom and pointer over the list.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, string[]> functionOwners = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, string[]> methodGroups = new();
+
+    private static string[] FunctionOwners(ProfileRecording recording) =>
+        functionOwners.GetValue(recording, current => Array.ConvertAll(current.LuaFunctions.ToArray(), function => OwnerOf(function.File)));
+
+    private static string[] MethodGroups(ProfileRecording recording) =>
+        methodGroups.GetValue(recording, current => Array.ConvertAll(current.Methods.ToArray(), GroupOf));
+
     public static string OwnerOf(string file)
     {
         var path = file.Replace('\\', '/');
@@ -496,9 +864,9 @@ public static class ProfileAnalysis
         return Libraries;
     }
 
-    private static int LowerBound<T>(T[] items, long time, Func<T, long> key)
+    private static int LowerBound<T>(IReadOnlyList<T> items, long time, Func<T, long> key)
     {
-        int low = 0, high = items.Length;
+        int low = 0, high = items.Count;
         while (low < high)
         {
             var middle = (low + high) >>> 1;

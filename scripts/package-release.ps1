@@ -1,9 +1,13 @@
 #Requires -Version 7.2
 param(
     [Parameter(Mandatory)][string] $PublishDirectory,
-    [Parameter(Mandatory)][string] $OutputArchive
+    [Parameter(Mandatory)][string] $OutputArchive,
+    # The ZIP's one top-level folder. A release names it for its version, so extracting a new release makes a new
+    # folder rather than overwriting the one in use.
+    [string] $RootFolder = 'PzTools'
 )
 $ErrorActionPreference = 'Stop'
+if ($RootFolder -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]*$') { throw 'RootFolder must be a plain folder name.' }
 
 function Assert-NoReparse([string] $Path) {
     $item = Get-Item -LiteralPath $Path -Force
@@ -81,7 +85,7 @@ try {
     try {
         foreach ($name in $files.Keys) {
             $file = $files[$name]
-            $entry = $zip.CreateEntry('PzTools/' + $name, [IO.Compression.CompressionLevel]::SmallestSize)
+            $entry = $zip.CreateEntry("$RootFolder/" + $name, [IO.Compression.CompressionLevel]::SmallestSize)
             $entry.LastWriteTime = [DateTimeOffset]::new(2020, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
             $destination = $entry.Open()
             try { $file.Stream.CopyTo($destination) } finally { $destination.Dispose() }
@@ -97,7 +101,7 @@ try {
         $index = 0
         foreach ($name in $files.Keys) {
             $entry = $zip.Entries[$index++]
-            if ($entry.FullName -cne ('PzTools/' + $name) -or $entry.Length -ne $files[$name].Length) { throw "ZIP entry mismatch: $name" }
+            if ($entry.FullName -cne ("$RootFolder/" + $name) -or $entry.Length -ne $files[$name].Length) { throw "ZIP entry mismatch: $name" }
             $entryStream = $entry.Open()
             try { $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($entryStream)) }
             finally { $entryStream.Dispose() }

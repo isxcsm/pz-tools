@@ -42,6 +42,9 @@ public sealed class BackupScheduler(
         }
         if (now < busyRetryAt)
             return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
+        if (WaitsForGameRestart(admission))
+            return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
+
 
         var repository = await RepositoryDatabase.CreateOrOpenAsync(
             admission.RepositoryPath, cancellationToken);
@@ -111,7 +114,7 @@ public sealed class BackupScheduler(
             // Rechecked at the tick's own time (not the controller's clock read above), as when admitted.
             var currentAdmission = currentSelection.Enabled ? currentSelection.Admission
                 : await schedulerDatabase.PrepareBackupTickAsync(now, cancellationToken, preparationLead);
-            bool valid = currentAdmission?.AdmissionId == admission.AdmissionId
+            bool valid = currentAdmission?.AdmissionId == admission.AdmissionId && !WaitsForGameRestart(admission)
                 && (currentSelection.Enabled && !RuntimeScheduleController.IsFallback(admission)
                     || (isTargetActive is null || isTargetActive(admission.Target)) && !WaitsForNewCharacter(admission));
             if (!valid) backup = new WorkerInvocation(false, ProcessOutcome.Skipped,
@@ -253,6 +256,23 @@ public sealed class BackupScheduler(
     private bool WaitsForNewCharacter(BackupTickAdmission admission) =>
         admission.Kind == BackupAdmissionKind.Periodic && runtimeSchedule?.Observation is { IsCharacterDead: true } observation
         && StringComparer.OrdinalIgnoreCase.Equals(observation.Snapshot!.SavePath, admission.Target.SourcePath);
+
+    // The game still runs the bridge from before an update of this app, so it cannot be asked to save; one restart of
+    // the game brings it back. Until then a periodic backup stays due rather than copy a save the game was not asked to
+    // write: its files may be of different moments, and such backups would push good ones out of those retained. This
+    // is unlike a game the app cannot read for other reasons (a game update), which a restart does not mend and whose
+    // files are backed up as they are. A backup the user asks for still runs, without the game's save.
+    // The hold lasts until the game is gone or answers again: between refusals the link reports other reasons for a
+    // moment ("connecting", a state feed restarting), and a periodic backup long due would run in that moment.
+    private bool WaitsForGameRestart(BackupTickAdmission admission)
+    {
+        var observation = runtimeSchedule?.Observation;
+        if (observation is null || observation.Quality == RuntimeQuality.Offline || observation.IsFresh) restartHeld = false;
+        else if (observation.Reason == RuntimeObservation.RestartRequiredReason) restartHeld = true;
+        return admission.Kind == BackupAdmissionKind.Periodic && restartHeld;
+    }
+
+    private bool restartHeld;
 
     private async Task TryRecordTelemetryAsync(
         long runIndex,

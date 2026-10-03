@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PzTools.App.Core;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts;
 using PzTools.Projections;
@@ -175,6 +176,31 @@ public sealed class AutomaticBackupRegressionTests
         Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due);
     }
 
+    [Fact]
+    public async Task APauseLeftByAnEarlierVersion_IsDropped_AndHoldsNothing()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.GetPath("scheduler.db");
+        var database = await ConfiguredAsync(temp);
+        var now = DateTimeOffset.UtcNow;
+        await database.EnqueueTargetCommandAsync(new("active", BackupTargetCommandKind.ActivateTarget, Target(temp)));
+        await database.PrepareBackupTickAsync(now);
+        // As 0.2.1's hotkey left it: automatic backups paused for half an hour.
+        await using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TABLE IF NOT EXISTS backup_pause(singleton INTEGER PRIMARY KEY CHECK(singleton=1), until_utc TEXT NOT NULL) STRICT;"
+                + $"INSERT INTO backup_pause VALUES(1,'{now.AddMinutes(30):O}');";
+            await command.ExecuteNonQueryAsync();
+        }
+        var reopened = await SchedulerDatabase.CreateOrOpenAsync(path);
+        var scheduler = new BackupScheduler(reopened, _ => throw new TimeoutException("allocated"),
+            (_, _, _, _, _) => throw new InvalidOperationException("must not launch"),
+            (_, _, _, _, _) => throw new InvalidOperationException("must not maintain"));
+        // Due and not held: it goes on (here, as far as allocating its run).
+        await Assert.ThrowsAsync<TimeoutException>(() => scheduler.TickAsync(now.AddMinutes(10)));
+    }
     [Fact]
     public async Task StopArrivingAfterAdmission_IsRecheckedBeforeLaunchingWorker()
     {

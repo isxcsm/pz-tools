@@ -1,4 +1,4 @@
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 using PzTools.Zomboid.State;
 
 namespace PzTools.Zomboid.Backup;
@@ -40,7 +40,7 @@ public sealed class BackupGameSave(Func<string, CancellationToken, Task<string>>
         catch (GameSaveException exception) when (exception.LinkUnavailable)
         {
             // Nothing was asked of the game. A backup of what is on disk beats no backup at all.
-            return new(SaveUnavailable, exception.Message);
+            return new(SaveUnavailable, exception.Diagnostics ?? exception.Message);
         }
     }
 

@@ -7,6 +7,9 @@ namespace PzTools.Profiling;
 /// <summary>One stack sample. <see cref="Native"/>: the thread was inside a native call, not running Java.</summary>
 public readonly record struct ProfileSample(long Time, int Thread, int Stack, bool Native);
 public readonly record struct ProfileFrame(long Start, long Duration);
+
+/// <summary>What a recording is: the game's last minutes saved, or a recording; its mode; how long, in microseconds.</summary>
+public sealed record ProfileRecordingSummary(bool Rolling, bool Detailed, long DurationMicros);
 /// <summary>
 /// One Lua sample. <see cref="Allocated"/>: the bytes the game thread allocated since the sampler's previous look, which
 /// count for the function found running, as the sample's time does; -1 when the recording does not have them.
@@ -48,6 +51,8 @@ public sealed class ProfileRecording
     public required ProfileLuaSample[] LuaSamples { get; init; }
     public required IReadOnlyList<ProfileCollection> Collections { get; init; }
     public required IReadOnlyList<ProfilePause> Pauses { get; init; }
+    /// <summary>Whether <see cref="Pauses"/> holds the collector's own pauses, as recordings since they were kept do.</summary>
+    public bool HasCollectorPauses { get; init; }
     /// <summary>Empty in recordings made before heap use was recorded.</summary>
     public IReadOnlyList<ProfileHeapSample> Heap { get; init; } = [];
     /// <summary>Empty when the system could not report it, and in older recordings.</summary>
@@ -57,6 +62,8 @@ public sealed class ProfileRecording
     /// <summary>The game thread's allocations, about once a second; empty without them.</summary>
     public IReadOnlyList<ProfileAllocationReading> GameThreadAllocations { get; init; } = [];
     public required long Duration { get; init; }
+    /// <summary>Where time 0 lies in the file's own times, which the reader rebases.</summary>
+    internal long Origin { get; init; }
     public required long JavaPeriod { get; init; }
     public required long NativePeriod { get; init; }
     /// <summary>Microseconds between Lua samples; 0 when Lua was not sampled.</summary>
@@ -66,6 +73,30 @@ public sealed class ProfileRecording
     public DateTimeOffset? StartedUtc =>
         long.TryParse(Information.GetValueOrDefault("startEpochMillis"), NumberStyles.None, CultureInfo.InvariantCulture, out var millis) && millis > 0
             ? DateTimeOffset.FromUnixTimeMilliseconds(millis) : null;
+
+    /// <summary>
+    /// What a recording is, for a list of them, without reading its records: its information lines, the length the
+    /// converter wrote at its end (a recording without it is read whole). Still a whole decompression, so done once.
+    /// </summary>
+    public static ProfileRecordingSummary ReadSummary(string path)
+    {
+        var information = new Dictionary<string, string>(StringComparer.Ordinal);
+        using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan))
+        using (var gzip = new GZipStream(file, CompressionMode.Decompress))
+        using (var reader = new StreamReader(gzip, Encoding.UTF8, false, 1 << 16))
+        {
+            if (reader.ReadLine() != Signature) throw new InvalidDataException("Not a PZ Tools recording, or a newer format.");
+            while (reader.ReadLine() is { } line)
+            {
+                if (!line.StartsWith("I\t", StringComparison.Ordinal)) continue;
+                var fields = line.Split('\t');
+                if (fields.Length == 3) information[fields[1]] = fields[2];
+            }
+        }
+        var duration = long.TryParse(information.GetValueOrDefault("durationMicros"), NumberStyles.None, CultureInfo.InvariantCulture, out var micros)
+            ? micros : Load(path).Duration;
+        return new(information.GetValueOrDefault("endedBy") == "rolling", information.GetValueOrDefault("mode") == "detailed", duration);
+    }
 
     public static ProfileRecording Load(string path)
     {
@@ -96,6 +127,8 @@ public sealed class ProfileRecording
         var luaAllocations = new Dictionary<long, long>();
         var gameAllocations = new List<ProfileAllocationReading>();
         long luaPeriod = 0, records = 0;
+        // The Lua sampler's reports: when, and how many ticks it took since the one before.
+        var luaReports = new List<(long Time, long Taken)>();
 
         while (reader.ReadLine() is { } line)
         {
@@ -124,7 +157,10 @@ public sealed class ProfileRecording
                     break;
                 case "L" when fields.Length == 3: luaSamples.Add(new(Number(fields[1]), Index(fields[2]))); break;
                 case "LA" when fields.Length == 3: luaAllocations[Number(fields[1])] = Math.Max(0, Number(fields[2])); break;
-                case "LH" when fields.Length == 5: luaPeriod = Math.Max(luaPeriod, Number(fields[4])); break;
+                case "LH" when fields.Length == 5:
+                    luaPeriod = Math.Max(luaPeriod, Number(fields[4]));
+                    luaReports.Add((Number(fields[1]), Math.Max(0, Number(fields[2]))));
+                    break;
                 case "GA" when fields.Length == 3: gameAllocations.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
                 case "G" when fields.Length == 5:
                     collections.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], fields[4]));
@@ -148,6 +184,12 @@ public sealed class ProfileRecording
         foreach (var item in frames) origin = Math.Min(origin, item.Start);
         foreach (var item in luaSamples) origin = Math.Min(origin, item.Time);
         if (origin == long.MaxValue) origin = 0;
+        // A range saved from a longer recording (see ProfileTrim) spans exactly that range, not what it kept of it.
+        long? rangeEnd = null;
+        if (long.TryParse(information.GetValueOrDefault(ProfileTrim.FromKey), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var from)
+            && long.TryParse(information.GetValueOrDefault(ProfileTrim.ToKey), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var to)
+            && to > from)
+            (origin, rangeEnd) = (from, to - from);
 
         // A pause that belongs to no Java thread (a collector pause) carries -1.
         var threadIds = threadNames.Keys.Concat(samples.Select(item => item.Thread))
@@ -188,12 +230,18 @@ public sealed class ProfileRecording
         if (orderedSamples.Length > 0) end = Math.Max(end, orderedSamples[^1].Time);
         if (orderedFrames.Length > 0) end = Math.Max(end, orderedFrames[^1].Start + orderedFrames[^1].Duration);
         if (orderedLua.Length > 0) end = Math.Max(end, orderedLua[^1].Time);
+        if (rangeEnd is { } span) end = span;
 
         long Setting(string key, long fallback) =>
             long.TryParse(information.GetValueOrDefault(key), NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value > 0 ? value : fallback;
         var detailed = information.GetValueOrDefault("mode") == "detailed";
+        // A saved range keeps what a sample stood for in the whole recording: measured again from a few seconds, its
+        // figures would not be the ones the range showed there.
+        long pinnedJava = Setting(ProfileTrim.JavaPeriodKey, 0), pinnedNative = Setting(ProfileTrim.NativePeriodKey, 0),
+            pinnedLua = Setting(ProfileTrim.LuaPeriodKey, 0);
         return new ProfileRecording
         {
+            Origin = origin,
             Information = information,
             Threads = threads,
             GameThread = long.TryParse(information.GetValueOrDefault("gameThread"), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var game)
@@ -208,6 +256,9 @@ public sealed class ProfileRecording
             Collections = collections.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Pauses = pauses.Select(item => new ProfilePause(item.Time - origin, item.Duration, item.Kind,
                 threadIndex.GetValueOrDefault(item.Thread, -1), item.Detail)).OrderBy(item => item.Time).ToArray(),
+            // A saved range says so for its source, which may have had none inside the range.
+            HasCollectorPauses = pauses.Any(item => item.Kind == ProfileAnalysis.CollectorPause)
+                || information.GetValueOrDefault(ProfileTrim.CollectorPausesKey) == "1",
             // Memory readings carry on the same time scale but do not stretch the recording: they may start before
             // the first sample or run on after the last.
             Heap = heap.Select(item => item with { Time = item.Time - origin }).Where(item => item.Time >= 0 && item.Time <= end)
@@ -217,9 +268,11 @@ public sealed class ProfileRecording
             HasLuaAllocations = luaAllocations.Count > 0,
             GameThreadAllocations = gameAllocations.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Duration = end,
-            JavaPeriod = EffectivePeriod(orderedSamples, threads.Length, false, Setting("javaPeriodMicros", detailed ? 1_000 : 10_000)),
-            NativePeriod = EffectivePeriod(orderedSamples, threads.Length, true, Setting("nativePeriodMicros", detailed ? 10_000 : 20_000)),
-            LuaPeriod = EffectiveLuaPeriod(orderedLua, luaPeriod),
+            JavaPeriod = pinnedJava > 0 ? pinnedJava
+                : EffectivePeriod(orderedSamples, threads.Length, false, Setting("javaPeriodMicros", detailed ? 1_000 : 10_000)),
+            NativePeriod = pinnedNative > 0 ? pinnedNative
+                : EffectivePeriod(orderedSamples, threads.Length, true, Setting("nativePeriodMicros", detailed ? 10_000 : 20_000)),
+            LuaPeriod = pinnedLua > 0 ? pinnedLua : EffectiveLuaPeriod(luaReports, luaPeriod),
         };
     }
 
@@ -246,19 +299,25 @@ public sealed class ProfileRecording
         return Math.Clamp(gaps[gaps.Count / 2], requested, requested * 4);
     }
 
-    /// <summary>The same correction for the Lua sampler, whose wait is also longer than asked for.</summary>
-    private static long EffectiveLuaPeriod(ProfileLuaSample[] samples, long requested)
+    /// <summary>
+    /// What one Lua sample stands for: the time between the sampler's reports over the ticks it took in it. Its
+    /// samples are only those taken in Lua, so the gaps between them were no measure: Lua that runs a few milliseconds
+    /// a frame leaves gaps of several periods, and read as the period that inflated every Lua figure up to fourfold.
+    /// With too few reports to tell, the requested period.
+    /// </summary>
+    private static long EffectiveLuaPeriod(List<(long Time, long Taken)> reports, long requested)
     {
         if (requested <= 0) return 0;
-        var gaps = new List<long>();
-        for (var index = 1; index < samples.Length; index++)
+        reports.Sort((left, right) => left.Time.CompareTo(right.Time));
+        long span = 0, taken = 0;
+        // Each report counts the ticks since the one before; the first one's began before anything here.
+        for (var index = 1; index < reports.Count; index++)
         {
-            var gap = samples[index].Time - samples[index - 1].Time;
-            if (gap <= requested * 4) gaps.Add(gap);
+            span += reports[index].Time - reports[index - 1].Time;
+            taken += reports[index].Taken;
         }
-        if (gaps.Count < 50) return requested;
-        gaps.Sort();
-        return Math.Clamp(gaps[gaps.Count / 2], requested, requested * 4);
+        if (taken < 50 || span <= 0) return requested;
+        return Math.Clamp(span / taken, requested, requested * 4);
     }
 
     /// <summary>

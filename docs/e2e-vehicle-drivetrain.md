@@ -25,7 +25,7 @@ driving model and the calibration work still open.
    `PZTOOLS_TOOLS_DIR` override does not point somewhere else.
 6. If the game has already loaded an older, incompatible
    [bootstrap](glossary.md#bootstrap), restart the game fully once. The
-   [compatibility table](save-bridge.md#compatibility-and-lifecycle) lists which
+   [compatibility table](game-bridge.md#compatibility-and-lifecycle) lists which
    bootstrap versions need this. Starting the game before the app is fine when no older
    agent is resident, and while the bootstrap stays compatible, restarting the app does
    not require restarting the game each time.
@@ -224,7 +224,7 @@ to a running game. Choose a fresh output directory when publishing.
 
 ```powershell
 dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath="$jdk"
-./scripts/test-save-bridge.ps1 -JdkPath $jdk -Configuration Release -ReuseBuild -PrepareOnly
+./scripts/test-game-bridge.ps1 -JdkPath $jdk -Configuration Release -ReuseBuild -PrepareOnly
 ./scripts/test-game-extensions.ps1 -JdkPath $jdk -Configuration Release -InstalledGameJar $gameJar
 $env:PZTOOLS_LIVE_PROBE_PID = $null
 $env:PZTOOLS_LIVE_PROBE_SAVE = $null

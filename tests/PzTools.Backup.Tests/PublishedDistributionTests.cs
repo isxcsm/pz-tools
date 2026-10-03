@@ -28,18 +28,45 @@ public sealed class PublishedDistributionTests
     }
 
     [DistributionFact]
-    public void RuntimePayloadPreservesUiSqliteAndSaveBridgeWithoutUnusedComponents()
+    public void PublishedApp_ListsEveryFileItShipsWith()
+    {
+        // The list the app checks its folder against at start: every published file in it, whole as listed.
+        var listed = PzTools.App.Core.InstallIntegrity.Parse(File.ReadAllText(Path.Combine(Root, PzTools.App.Core.InstallIntegrity.ManifestName)));
+        Assert.NotNull(listed);
+        var files = Directory.EnumerateFiles(Root, "*", SearchOption.AllDirectories)
+            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
+            .Where(file => file != PzTools.App.Core.InstallIntegrity.ManifestName).Order(StringComparer.Ordinal);
+        Assert.Equal(files, listed!.Select(entry => entry.Path).Order(StringComparer.Ordinal));
+        using var temp = new TempDirectory();
+        Assert.Null(PzTools.App.Core.InstallIntegrity.Check(Root, temp.GetPath("install-check.json")));
+    }
+
+    [DistributionFact]
+    public void PublishedAppCarriesNoDeveloperTools()
+    {
+        // The card preview is compiled only without PzToolsDistribution: neither its method names nor its variable's
+        // name may be in the published app.
+        var app = File.ReadAllBytes(Path.Combine(Root, "PzTools.App.dll"));
+        foreach (var name in new[] { "PreviewCard", "PZTOOLS_PREVIEW_CARDS" })
+        {
+            Assert.Equal(-1, app.AsSpan().IndexOf(System.Text.Encoding.UTF8.GetBytes(name)));
+            Assert.Equal(-1, app.AsSpan().IndexOf(System.Text.Encoding.Unicode.GetBytes(name)));
+        }
+    }
+
+    [DistributionFact]
+    public void RuntimePayloadPreservesUiSqliteAndGameBridgeWithoutUnusedComponents()
     {
         string[] required = ["PzTools.App.pri", "Microsoft.ui.xaml.dll", "Microsoft.WinUI.dll",
             "Microsoft.WindowsAppRuntime.dll", "CommunityToolkit.WinUI.Controls.SettingsControls.dll",
-            "e_sqlite3.dll", "THIRD_PARTY_NOTICES.md", "save-bridge/pztools-save-bridge.jar", "save-bridge/pztools-save-bootstrap.jar",
-            "save-bridge/pztools-attach-bootstrap.dll", "save-bridge/runtime/bin/java.exe",
-            "save-bridge/runtime/bin/server/jvm.dll", "save-bridge/runtime/lib/modules",
-            "save-bridge/runtime/release", "Assets/Brand/pztools.png", "Assets/Brand/pztools-home.png",
+            "e_sqlite3.dll", "THIRD_PARTY_NOTICES.md", "game-bridge/pztools-game-bridge.jar", "game-bridge/pztools-game-bootstrap.jar",
+            "game-bridge/pztools-attach-bootstrap.dll", "game-bridge/runtime/bin/java.exe",
+            "game-bridge/runtime/bin/server/jvm.dll", "game-bridge/runtime/lib/modules",
+            "game-bridge/runtime/release", "Assets/Brand/pztools.png", "Assets/Brand/pztools-home.png",
             "Assets/Navigation/home.svg", "Assets/Navigation/extensions.svg", "Assets/Navigation/pztools.ico"];
         foreach (var path in required)
             Assert.True(File.Exists(Path.Combine(Root, path)), path);
-        Assert.NotEmpty(Directory.GetFiles(Path.Combine(Root, "save-bridge/runtime/legal"), "*", SearchOption.AllDirectories));
+        Assert.NotEmpty(Directory.GetFiles(Path.Combine(Root, "game-bridge/runtime/legal"), "*", SearchOption.AllDirectories));
         Assert.NotEmpty(Directory.GetFiles(Path.Combine(Root, "defaults"), "*.toml", SearchOption.AllDirectories));
         Assert.False(Directory.Exists(Path.Combine(Root, "runtimes")));
         Assert.False(Directory.Exists(Path.Combine(Root, "workers")));
@@ -59,7 +86,7 @@ public sealed class PublishedDistributionTests
     [DistributionFact]
     public void VehicleExtensionPublishesAnAbiConsistentCatalogueModuleAndValidatedConfiguration()
     {
-        var bridge = Path.Combine(Root, "save-bridge");
+        var bridge = Path.Combine(Root, "game-bridge");
         var extensions = Path.Combine(bridge, "extensions");
         string[] payload = ["pztools-extension-runtime.jar",
             "pztools-vehicle-drivetrain.jar", "catalog.tsv", "vehicle-drivetrain.toml"];
@@ -98,11 +125,11 @@ public sealed class PublishedDistributionTests
             Assert.NotNull(module.GetEntry("pztools/extensions/vehicle/model/SteeringModel.class"));
             Assert.NotNull(module.GetEntry("pztools/extensions/vehicle/model/VehicleProfile.class"));
         }
-        foreach (var name in new[] { "pztools-save-bootstrap.jar", "pztools-save-bridge.jar" })
+        foreach (var name in new[] { "pztools-game-bootstrap.jar", "pztools-game-bridge.jar" })
         {
             using var jar = ZipFile.OpenRead(Path.Combine(bridge, name));
-            Assert.Equal("10", Manifest(jar)["PzTools-Bootstrap-Api"]);
-            if (name == "pztools-save-bootstrap.jar")
+            Assert.Equal("11", Manifest(jar)["PzTools-Bootstrap-Api"]);
+            if (name == "pztools-game-bootstrap.jar")
             {
                 Assert.NotNull(jar.GetEntry("pztools/bridge/AgentEntry.class"));
                 Assert.NotNull(jar.GetEntry("pztools/extensions/api/VehicleHooks.class"));

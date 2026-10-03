@@ -41,7 +41,7 @@ diff <source> <catalog.json>
 
 | Option of `backup` | Effect |
 | --- | --- |
-| `--save-game` | Asks the matching running single-player world to save first ([save bridge](save-bridge.md)) |
+| `--save-game` | Asks the matching running single-player world to save first ([game bridge](game-bridge.md)) |
 | `--require-active-game` | Skips automatic work if that world stops before files are captured |
 | `--scheduled-utc` | Allows preparation in advance, but no saving or capture before the scheduled time |
 | `--game-version` | Records the running game's version with the new backup. The app and the scheduler pass it while the game has that save loaded. |
@@ -90,14 +90,22 @@ PzTools.Zomboid.Recovery.Cli --repository <path> --saves-root <path> --save-id <
     --run-index <n> --telemetry-identity <path>
 PzTools.Profiler.Cli record --output <file.pzprof> --stop-file <file> --mode general|detailed
     --run-index <n> --telemetry-identity <path>
-    [--max-seconds <5..>] [--process-id <pid>] [--bridge <save-bridge-dir>]
+    [--max-seconds <5..>] [--process-id <pid>] [--bridge <game-bridge-dir>] [--owner <app-run>]
+PzTools.Profiler.Cli roll-start --mode general|detailed --seconds <n> [--max-megabytes <n>] [--owner <app-run>]
+PzTools.Profiler.Cli roll-save --output <file.pzprof> --seconds <n>
+PzTools.Profiler.Cli roll-stop
+    (each: --run-index <n> --telemetry-identity <path> [--process-id <pid>] [--bridge <game-bridge-dir>])
 ```
 
 - `PzTools.Zomboid.Recovery.Cli` performs [character recovery](character-recovery.md)
   on a save that is not being played.
 - `PzTools.Profiler.Cli` makes one [performance recording](profiler.md): it records until
   the stop file appears or `--max-seconds` (default 600) runs out, then converts the
-  result. Without `--process-id` it looks for the single running game.
+  result. Without `--process-id` it looks for the single running game. With `--owner`, an
+  app run's identifier, the game ends the recording once that run's lease lapses (see
+  [leases](game-bridge.md#leases)). `roll-start`, `roll-save` and `roll-stop` start, save
+  and stop [the last minutes](profiler.md#the-last-minutes); they are internal, started by
+  the app.
 - `PzTools.Maintenance.Cli` is the maintenance worker. It is internal: MaintenanceRunner
   and StateScheduler start it with the options they need (`--lane`,
   `--dispatch-lanes`, `--saves-root` and others).

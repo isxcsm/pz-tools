@@ -36,26 +36,30 @@ internal sealed class AnimatedListSelectionBar
         list.SelectionChanged += (_, _) =>
         {
             Update();
-            list.DispatcherQueue.TryEnqueue(Update);
+            list.DispatcherQueue.TryEnqueue(() => { if (!unloaded) Update(); });
         };
         list.Loaded += (_, _) =>
         {
+            unloaded = false;
             if (!scrollHooked) scrollHooked = HookScrollViewer(list);
             Update();
         };
+        // Closing the window unloads the list and then runs what is still queued: by then the list is torn down,
+        // and reading it fails with E_UNEXPECTED, which ends the process on the way out.
+        list.Unloaded += (_, _) => unloaded = true;
         // LayoutUpdated fires for every layout pass anywhere in the window (a countdown tick, a
         // progress card), several times a frame. One follow-up per dispatcher turn is enough to catch
         // a selected row that moved; selection and scrolling still update at once.
         list.LayoutUpdated += (_, _) =>
         {
-            if (layoutQueued) return;
+            if (layoutQueued || unloaded) return;
             layoutQueued = list.DispatcherQueue.TryEnqueue(
-                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; Update(); });
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; if (!unloaded) Update(); });
         };
         surface.SizeChanged += (_, _) => Update();
     }
 
-    private bool layoutQueued;
+    private bool layoutQueued, unloaded;
 
     private void Update()
     {

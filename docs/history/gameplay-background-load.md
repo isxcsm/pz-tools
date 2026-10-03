@@ -5,7 +5,7 @@
 > **Historical record.** This page describes the code and measurements at the time it was written. It is kept for reference and is not updated; for current behaviour start at the [documentation index](../README.md).
 
 Historical implementation record based on dev `51c8db8`; format 2 / schema 5 was
-unchanged. The work reduced overhead around game saving. See [save bridge](../save-bridge.md),
+unchanged. The work reduced overhead around game saving. See [game bridge](../game-bridge.md),
 [configuration](../configuration.md) and [cleanup policy](../repository-housekeeping.md)
 for maintained behavior and limits.
 

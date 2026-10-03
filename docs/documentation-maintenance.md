@@ -92,7 +92,7 @@ Current facts should be checked against their source, not copied from an old REA
 | Backup interval and retention defaults | [App settings](../src/PzTools.App.Core/AppSettings.cs) |
 | Backup worker defaults | [Backup worker template](../config/defaults/backup-worker/default.toml) |
 | Version shown in the app | [Home page](../src/PzTools.App/HomePage.xaml) footer |
-| Game and recovery limits | [Save bridge](save-bridge.md), [character recovery](character-recovery.md) |
+| Game and recovery limits | [Game bridge](game-bridge.md), [character recovery](character-recovery.md) |
 | Storage compatibility | [Repository format](repository-format.md) and [schema](../src/PzTools.Backup.Storage/Repository/RepositorySchema.cs) |
 
 ## Automated checks

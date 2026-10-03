@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Текущее сохранение</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Папка сохранения</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Копирование текущего сохранения</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Нельзя экспортировать текущее сохранение во время игры. Выйдите из мира и повторите попытку.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Нельзя экспортировать во время игры. Выйдите из игры.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Нельзя восстанавливать копии во время игры. Выйдите из мира и повторите попытку.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Выберите в списке резервную копию для восстановления</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Нельзя удалять сохранение во время игры. Выйдите из мира и повторите попытку.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Нельзя исцелять персонажа во время игры. Выйдите из мира и повторите попытку.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Нельзя исцелять во время игры. Выйдите из игры.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Копий пока нет</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Создать копию</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Восстановить</value></data>
@@ -54,14 +54,14 @@
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Хранит столько последних автоматических копий, а более старые удаляет (1–100). Ручные копии не учитываются и не удаляются.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Создавать копию при смерти персонажа</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>После смерти персонажа автоматические копии прекращаются, чтобы копии, сделанные при жизни, не вытеснялись. Включите, чтобы сохранить одну копию на момент смерти.</value></data>
-  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Во время резервного копирования файлы сохранения постоянно менялись. Дождитесь завершения сохранения в игре и повторите попытку.</value></data>
+  <data name="OperationError.SaveChanged" xml:space="preserve"><value>Сохранение постоянно менялось, копия не создана. Повторите чуть позже.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Следующая копия: ожидание</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Системная</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Светлая</value></data>
   <data name="ThemeDark.Content" xml:space="preserve"><value>Тёмная</value></data>
-  <data name="HostNotReady" xml:space="preserve"><value>Приложение ещё не готово. Повторите попытку чуть позже.</value></data>
-  <data name="WindowNotCreated" xml:space="preserve"><value>PZ Tools ещё запускается. Повторите попытку чуть позже.</value></data>
-  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Не удалось запустить автоматическое копирование.</value></data>
+  <data name="HostNotReady" xml:space="preserve"><value>Ещё идёт подготовка. Повторите чуть позже.</value></data>
+  <data name="WindowNotCreated" xml:space="preserve"><value>Ещё запускается. Повторите чуть позже.</value></data>
+  <data name="BackgroundServiceStartFailed" xml:space="preserve"><value>Не удалось запустить автокопирование</value></data>
   <data name="GameModeFormat" xml:space="preserve"><value>Режим игры: {0}</value></data>
   <data name="VersionCharacterFormat" xml:space="preserve"><value>Персонаж: {0}</value></data>
   <data name="VersionSurvivalFormat" xml:space="preserve"><value>Время выживания: {0}</value></data>
@@ -78,18 +78,13 @@
   <data name="Importing" xml:space="preserve"><value>Импорт</value></data>
   <data name="Restoring" xml:space="preserve"><value>Восстановление</value></data>
   <data name="ExportingDynamic" xml:space="preserve"><value>Экспорт</value></data>
-  <data name="TelemetryProgressUnavailable" xml:space="preserve"><value>Сведения о ходе операции недоступны.</value></data>
-  <data name="BackupScanPhase" xml:space="preserve"><value>Проверка файлов сохранения</value></data>
-  <data name="BackupHashPhase" xml:space="preserve"><value>Поиск изменений в содержимом</value></data>
   <data name="LogPhase.hash" xml:space="preserve"><value>Сравнение содержимого файлов</value></data>
   <data name="BackupCopyPhase" xml:space="preserve"><value>Копирование файлов сохранения</value></data>
   <data name="BackupCopyRetryPhase" xml:space="preserve"><value>Файл изменился · повторное копирование</value></data>
-  <data name="BackupCapturePhase" xml:space="preserve"><value>Резервное копирование файлов</value></data>
   <data name="ArchiveRestorePhase" xml:space="preserve"><value>Восстановление во временную папку</value></data>
   <data name="ArchiveCompressPhase" xml:space="preserve"><value>Сжатие</value></data>
   <data name="ArchiveFinalizePhase" xml:space="preserve"><value>Завершение</value></data>
   <data name="Processing" xml:space="preserve"><value>Обработка</value></data>
-  <data name="ProcessingNow" xml:space="preserve"><value>Обработка</value></data>
   <data name="AutomaticBackupOff" xml:space="preserve"><value>Автоматическое копирование отключено</value></data>
   <data name="NextBackupWaitingDynamic" xml:space="preserve"><value>Следующая копия: ожидание</value></data>
   <data name="Unknown" xml:space="preserve"><value>Неизвестно</value></data>
@@ -97,8 +92,8 @@
   <data name="Import" xml:space="preserve"><value>Импортировать</value></data>
   <data name="Cancel" xml:space="preserve"><value>Отмена</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Импорт архива</value></data>
-  <data name="InvalidArchiveFormat" xml:space="preserve"><value>Невозможно импортировать этот архив. Убедитесь, что файл не повреждён.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Степень сжатия архива необычно высока. Безопасный импорт невозможен.</value></data>
+  <data name="InvalidArchiveFormat" xml:space="preserve"><value>Этот файл нельзя импортировать. Убедитесь, что его экспортировал PZ Tools.</value></data>
+  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Не импортировано: архив небезопасен.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ручная копия</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Восстановить выбранную копию?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Заменить текущие файлы «{0}» резервной копией «{1}». Прогресс после создания этой копии будет потерян. Если восстановление прервётся, снова откройте PZ Tools, прежде чем загружать это сохранение в игре.</value></data>
@@ -107,21 +102,14 @@
   <data name="ArchiveFileType" xml:space="preserve"><value>Резервная копия PZ Tools</value></data>
   <data name="ExportArchiveTitle" xml:space="preserve"><value>Экспорт ZIP</value></data>
   <data name="OperationSucceeded" xml:space="preserve"><value>Готово.</value></data>
-  <data name="OperationNoChange" xml:space="preserve"><value>Изменённых файлов нет.</value></data>
-  <data name="OperationBusy" xml:space="preserve"><value>Пропущено: выполняется другая операция.</value></data>
-  <data name="OperationFailed" xml:space="preserve"><value>Операция завершилась ошибкой.</value></data>
+  <data name="OperationNoChange" xml:space="preserve"><value>Ничего не изменилось.</value></data>
+  <data name="OperationBusy" xml:space="preserve"><value>Пропущено: шла другая операция.</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>Ошибка. Проверьте журнал.</value></data>
   <data name="NoPlayHistory" xml:space="preserve"><value>Нет истории игры</value></data>
-  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Информация о следующей копии недоступна.</value></data>
-  <data name="ProjectorStatusTitle" xml:space="preserve"><value>Не удалось обновить часть сведений</value></data>
-  <data name="ProjectorStatusMessage" xml:space="preserve"><value>Не обновляются: {0}</value></data>
-  <data name="ProjectorArea.State" xml:space="preserve"><value>Состояние сохранения</value></data>
-  <data name="ProjectorArea.Backup" xml:space="preserve"><value>Список резервных копий</value></data>
+  <data name="SchedulerStatusUnavailable" xml:space="preserve"><value>Время следующей копии неизвестно</value></data>
   <data name="ProjectorArea.Schedule" xml:space="preserve"><value>Следующее копирование</value></data>
-  <data name="ProjectorArea.Details" xml:space="preserve"><value>Сведения о сохранении</value></data>
-  <data name="ProjectorArea.Logs" xml:space="preserve"><value>Операции и журналы</value></data>
-  <data name="ProjectorArea.Other" xml:space="preserve"><value>Информация на экране</value></data>
-  <data name="OperationCancelled" xml:space="preserve"><value>Операция отменена.</value></data>
-  <data name="OperationDegraded" xml:space="preserve"><value>Операция завершена, но возникли проблемы. Перед повторным запуском проверьте журнал.</value></data>
+  <data name="OperationCancelled" xml:space="preserve"><value>Отменено.</value></data>
+  <data name="OperationDegraded" xml:space="preserve"><value>Завершено с проблемой. Проверьте журнал.</value></data>
   <data name="LogsNavigation.Content" xml:space="preserve"><value>Журнал</value></data>
   <data name="LogLevel.Trace" xml:space="preserve"><value>Трассировка</value></data>
   <data name="LogLevel.Information" xml:space="preserve"><value>Информация</value></data>
@@ -165,7 +153,7 @@
   <data name="RelatedLogsMoreFormat" xml:space="preserve"><value>Ещё {0:N0}</value></data>
   <data name="TechnicalDetails" xml:space="preserve"><value>Технические сведения</value></data>
   <data name="CopyLogDetails" xml:space="preserve"><value>Копировать сведения</value></data>
-  <data name="LogDetailsCopied" xml:space="preserve"><value>Сведения о записи скопированы в буфер обмена.</value></data>
+  <data name="LogDetailsCopied" xml:space="preserve"><value>Скопировано.</value></data>
   <data name="Close" xml:space="preserve"><value>Закрыть</value></data>
   <data name="RawLogPayload" xml:space="preserve"><value>Исходная запись</value></data>
   <data name="LoadingLogs" xml:space="preserve"><value>Загрузка журналов…</value></data>
@@ -271,12 +259,11 @@
   <data name="RenameRevisionTitle" xml:space="preserve"><value>Изменить имя копии</value></data>
   <data name="EditRevisionLabel" xml:space="preserve"><value>Переименовать {0}</value></data>
   <data name="ClearRevisionNameLabel" xml:space="preserve"><value>Очистить имя</value></data>
-  <data name="RevisionRenamed" xml:space="preserve"><value>Имя копии изменено.</value></data>
+  <data name="RevisionRenamed" xml:space="preserve"><value>Переименовано.</value></data>
   <data name="DeleteSaveTitle" xml:space="preserve"><value>Удалить сохранение</value></data>
   <data name="DeletingSave" xml:space="preserve"><value>Удаление сохранения</value></data>
   <data name="DeleteSaveValidatePhase" xml:space="preserve"><value>Проверка файлов сохранения…</value></data>
   <data name="DeleteSaveDiscoverPhase" xml:space="preserve"><value>Поиск файлов для удаления…</value></data>
-  <data name="OperationDiscoveredFormat" xml:space="preserve"><value>{0} · Найдено: {1:N0}</value></data>
   <data name="DeleteSaveFilesPhase" xml:space="preserve"><value>Удаление файлов сохранения…</value></data>
   <data name="DeleteSaveBackupsPhase" xml:space="preserve"><value>Удаление связанных копий…</value></data>
   <data name="DeleteRevisionTitle" xml:space="preserve"><value>Удалить копию</value></data>
@@ -284,16 +271,16 @@
   <data name="DeleteAllBackupsTooltip" xml:space="preserve"><value>Удалить все копии «{0}»</value></data>
   <data name="DeleteAllBackupsTitle" xml:space="preserve"><value>Удалить все копии</value></data>
   <data name="DeleteAllBackupsConfirmation" xml:space="preserve"><value>Удалить все копии «{0}» ({1})?&#xA;&#xA;Файлы текущего сохранения останутся. Удалённые копии сразу исчезнут из списка; их больше нельзя будет восстановить или экспортировать. Занимаемое ими место будет освобождено позже. Это действие нельзя отменить.</value></data>
-  <data name="AllBackupsDeleted" xml:space="preserve"><value>Копии удалены. Сохранение осталось.</value></data>
+  <data name="AllBackupsDeleted" xml:space="preserve"><value>Всё удалено. Сохранение не изменено.</value></data>
   <data name="DeleteSaveLabel" xml:space="preserve"><value>Удалить сохранение {0}</value></data>
   <data name="DeleteRevisionLabel" xml:space="preserve"><value>Удалить {0}</value></data>
   <data name="DeleteSaveConfirmation" xml:space="preserve"><value>Удалить сохранение «{0}»?&#xA;&#xA;Объект: {1}&#xA;Выбранная папка сохранения и все её файлы будут безвозвратно удалены вместе со всеми копиями этого сохранения. Корзина и папки восстановления не используются. Это действие нельзя отменить. Удалённые копии нельзя будет восстановить или экспортировать; занимаемое ими место будет освобождено позже.</value></data>
   <data name="DeleteRevisionConfirmation" xml:space="preserve"><value>Удалить «{1}» из «{0}»?&#xA;&#xA;Текущее сохранение и остальные копии останутся. Удалённую копию больше нельзя будет восстановить или экспортировать. Занимаемое ею место будет освобождено позже.</value></data>
-  <data name="SaveDeletedPermanently" xml:space="preserve"><value>Папка сохранения безвозвратно удалена, а все её копии удалены из списка.</value></data>
-  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Папка сохранения удалена, но её копии удалить не удалось. Проверьте список копий.</value></data>
-  <data name="RevisionDeleted" xml:space="preserve"><value>Выбранная копия удалена.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Состояние сохранения изменилось. Прекратите игру и дождитесь обновления состояния, затем повторите попытку.</value></data>
-  <data name="MutationRefreshFailed" xml:space="preserve"><value>Операция завершена, но список не удалось сразу обновить. Не повторяйте операцию. Проверьте список чуть позже.</value></data>
+  <data name="SaveDeletedPermanently" xml:space="preserve"><value>Сохранение и его копии удалены.</value></data>
+  <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Сохранение удалено, но его копии остались.</value></data>
+  <data name="RevisionDeleted" xml:space="preserve"><value>Удалено.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Сохранение изменилось. Выйдите из игры и повторите попытку.</value></data>
+  <data name="MutationRefreshFailed" xml:space="preserve"><value>Готово, но список может обновиться с задержкой. Не запускайте повторно.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Резервное копирование</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Восстановление</value></data>
   <data name="LogComponent.Archive" xml:space="preserve"><value>Архив</value></data>
@@ -312,26 +299,24 @@
   <data name="LogActivity.Maintenance" xml:space="preserve"><value>Очистка копий</value></data>
   <data name="LogActivity.Other" xml:space="preserve"><value>Другая операция</value></data>
   <data name="LogEvent.Other" xml:space="preserve"><value>Зарегистрирована операция: {0}.</value></data>
-  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Нет разрешения на доступ к нужному файлу или папке. Проверьте права доступа и повторите попытку.</value></data>
-  <data name="OperationError.FileMissing" xml:space="preserve"><value>Не найден необходимый файл или папка. Проверьте путь.</value></data>
-  <data name="OperationError.Generic" xml:space="preserve"><value>Не удалось завершить операцию. Подробности см. в журналах.</value></data>
-  <data name="OperationCardWaiting" xml:space="preserve"><value>Операция ожидает</value></data>
-  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Безопасность Windows заблокировала компонент</value></data>
-  <data name="ComponentBlockedMessage" xml:space="preserve"><value>Политика безопасности Windows (например, интеллектуальное управление приложениями) не позволила запустить компоненты: {0}. Автоматические копии и некоторые функции могут не работать. Проверьте «Безопасность Windows» → «Управление приложениями и браузером».</value></data>
+  <data name="OperationError.AccessDenied" xml:space="preserve"><value>Нет доступа к файлу или папке.</value></data>
+  <data name="OperationError.FileMissing" xml:space="preserve"><value>Файл или папка не найдены.</value></data>
+  <data name="OperationError.Generic" xml:space="preserve"><value>Не удалось завершить. Проверьте журнал.</value></data>
+  <data name="OperationCardWaiting" xml:space="preserve"><value>Ожидание</value></data>
+  <data name="ComponentBlockedTitle" xml:space="preserve"><value>Заблокировано Безопасностью Windows</value></data>
+  <data name="ComponentBlockedMessage" xml:space="preserve"><value>PZ Tools не будет нормально работать, пока его не разблокируют.</value></data>
   <data name="CardOpenSettings" xml:space="preserve"><value>Открыть настройки</value></data>
-  <data name="CardAcknowledge" xml:space="preserve"><value>ОК</value></data>
   <data name="FatalErrorMessageFormat" xml:space="preserve"><value>PZ Tools будет закрыт из-за непредвиденной ошибки. Отчёт об ошибке: {0}</value></data>
-  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Политика безопасности Windows (например, интеллектуальное управление приложениями) заблокировала компонент PZ Tools. Проверьте «Безопасность Windows» → «Управление приложениями и браузером».</value></data>
+  <data name="OperationError.BlockedByPolicy" xml:space="preserve"><value>Безопасность Windows заблокировала PZ Tools. Проверьте параметр «Интеллектуальное управление приложениями».</value></data>
   <data name="MaintenanceRunning" xml:space="preserve"><value>Очистка копий</value></data>
-  <data name="MaintenanceDeferred" xml:space="preserve"><value>Очистка отложена ради копии или игры.</value></data>
+  <data name="MaintenanceDeferred" xml:space="preserve"><value>Очистка будет в следующий раз.</value></data>
   <data name="MaintenancePhase.revisionreclamation" xml:space="preserve"><value>Удаление старых копий</value></data>
   <data name="MaintenancePhase.artifactcleanup" xml:space="preserve"><value>Удаление временных файлов</value></data>
   <data name="MaintenancePhase.orphanbackups" xml:space="preserve"><value>Удаление копий удалённых сохранений</value></data>
   <data name="MaintenancePhase.packreclamation" xml:space="preserve"><value>Освобождение неиспользуемого места</value></data>
   <data name="LogEvent.PackSpaceReclaimedFormat" xml:space="preserve"><value>Освобождено {0:N1} МБ неиспользуемого места резервных копий.</value></data>
   <data name="BackupRecordedTimeFormat" xml:space="preserve"><value>Записано: {0}</value></data>
-  <data name="BackupGameSavePhase" xml:space="preserve"><value>Проверка активной игры и сохранение при необходимости…</value></data>
-  <data name="BackupPreparingPhase" xml:space="preserve"><value>Подготовка резервной копии</value></data>
+  <data name="BackupGameSavePhase" xml:space="preserve"><value>Сохранение игры</value></data>
   <data name="LogPhase.source.prepare" xml:space="preserve"><value>Сохранять игру перед копированием</value></data>
   <data name="LogEvent.GameSaveStarted" xml:space="preserve"><value>Проверяется, нужно ли сохранить игру перед копированием.</value></data>
   <data name="LogEvent.GameSaveCompleted" xml:space="preserve"><value>Этап сохранения в игре завершён. Резервное копирование продолжится.</value></data>
@@ -342,8 +327,8 @@
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Обратный отсчёт в игре</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>За 5 секунд до того, как автоматическая копия сохранит игру, показывает над персонажем обратный отсчёт, а затем результат. Копии, запущенные в приложении, сохраняются сразу без него. Если выключить, автоматические копии тоже сохраняются без него.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Сохраняет игру прямо перед копированием, чтобы в копию попал последний прогресс. Во время сохранения игра может замереть примерно на полсекунды. Если выключить, несохранённый прогресс может не попасть в копию, поэтому рекомендуется оставить включённым.</value></data>
-  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Следующая копия: ожидание запуска</value></data>
-  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Следующая копия: ожидание завершения текущей операции</value></data>
+  <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Следующая копия: скоро</value></data>
+  <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Следующая копия: после текущей операции</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Исцелить персонажа</value></data>
   <data name="HealCharacterTitle" xml:space="preserve"><value>Исцелить / воскресить персонажа</value></data>
   <data name="ConfirmHealCharacterBody" xml:space="preserve"><value>Исцелить персонажа {0}?
@@ -358,8 +343,8 @@
   <data name="HealCharacterSucceeded" xml:space="preserve"><value>Персонаж вылечен.</value></data>
   <data name="HealCharacterRevived" xml:space="preserve"><value>Персонаж воскрешён.</value></data>
   <data name="HealCharacterRevivedWithItems" xml:space="preserve"><value>Воскрешён. Возвращено предметов: {0}.</value></data>
-  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Восстановление остановлено: вещи нельзя вернуть безопасно. Сохранение не изменено.</value></data>
-  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Нужно завершить предыдущее изменение сохранения. Откройте PZ Tools заново, прежде чем загружать это сохранение в игре.</value></data>
+  <data name="RecoveryError.Inventory" xml:space="preserve"><value>Остановлено: вещи нельзя безопасно вернуть. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.PendingEdit" xml:space="preserve"><value>Прошлое изменение не завершено. Перезапустите PZ Tools, прежде чем загружать это сохранение.</value></data>
   <data name="LogActivity.CharacterRecovery" xml:space="preserve"><value>Восстановление персонажа</value></data>
   <data name="ProfilerNavigation" xml:space="preserve"><value>Производительность</value></data>
   <data name="ProfileRecordStart" xml:space="preserve"><value>Начать запись</value></data>
@@ -375,16 +360,15 @@
   <data name="ProfileNoFrames" xml:space="preserve"><value>Не удаётся определить границы кадров, поэтому в этой записи нет графика кадров.</value></data>
   <data name="ProfileRecordingTitle" xml:space="preserve"><value>Запись производительности</value></data>
   <data name="ProfilePhaseRecording" xml:space="preserve"><value>Записывается производительность игры…</value></data>
-  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Обработка записи…</value></data>
+  <data name="ProfilePhaseConverting" xml:space="preserve"><value>Создание файла записи</value></data>
   <data name="LogActivity.Profile" xml:space="preserve"><value>Запись производительности</value></data>
-  <data name="ProfileRecordingItemFormat" xml:space="preserve"><value>{0} · {1:N0} KB</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Удалить эту запись? Это действие нельзя отменить.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Записей пока нет.</value></data>
-  <data name="ProfileLoadFailed" xml:space="preserve"><value>Не удаётся открыть эту запись. Файл повреждён или создан в более новой версии.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё · Серые столбцы в панели «Память»: очистка памяти (GC), высота — длина паузы · ▲: кадр выше шкалы (время при наведении)</value></data>
+  <data name="ProfileLoadFailed" xml:space="preserve"><value>Не удаётся открыть запись. Она повреждена или из более новой версии.</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё · Серые столбцы в панели «Память»: очистка памяти (GC), высота — длина паузы · ▲: кадр выше шкалы (время при наведении) · Щелчок по пункту списка: его доля в каждом столбце (ещё раз — убрать; пока показано, наведение на другой пункт — предпросмотр)</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Скопировать показанное как текст</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Копировать текст</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Результаты производительности скопированы.</value></data>
+  <data name="ProfileResultsCopied" xml:space="preserve"><value>Скопировано.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустите игру, чтобы записывать.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не запущено, потому что игра не запущена.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0}: не запущено, потому что запущено больше одной игры.</value></data>
@@ -394,6 +378,10 @@
   <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Самый медленный</value></data>
   <data name="ProfileStatWorst" xml:space="preserve"><value>Худший 1%</value></data>
+  <data name="ProfileRangeWhole" xml:space="preserve"><value>Всего</value></data>
+  <data name="ProfileRangeSelected" xml:space="preserve"><value>Выделение</value></data>
+  <data name="ProfileClearSelection" xml:space="preserve"><value>Снять выделение (Esc)</value></data>
+  <data name="ProfileClearSelectionHint" xml:space="preserve"><value>✕ у выделения или Esc: снять выделение</value></data>
   <data name="ProfileStatCollections" xml:space="preserve"><value>GC</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Пик кучи</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>Пик VRAM</value></data>
@@ -406,6 +394,8 @@
   <data name="ProfileMemoryCollectionsRowTip" xml:space="preserve"><value>Каждый столбец — одна очистка памяти (GC). Его ширина и высота показывают, сколько игра из-за неё стояла; самый высокий столбец — самая долгая пауза в видимом диапазоне.</value></data>
   <data name="ProfileMemoryVideoRow" xml:space="preserve"><value>VRAM</value></data>
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Память, которую игра занимает на видеокарте. Шкала идёт от наименьшего до наибольшего значения в видимом диапазоне.</value></data>
+  <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: выделено</value></data>
+  <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Память, выделенная скриптами выделенного мода, по столбцу на момент, относительно наибольшего из них. Мусор, копящийся прямо перед очистками выше, указывает на этот мод.</value></data>
   <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} раз, пауза {1}</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функция</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>
@@ -417,16 +407,99 @@
   <data name="ProfileColumnDetail" xml:space="preserve"><value>Подробности</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Открыть запись…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Сохранить как…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Сохранить выделение</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Выделение сохранено как новая запись: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Ещё</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Скрипты (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Код игры (Java)</value></data>
   <data name="ProfileTabAllocation" xml:space="preserve"><value>Выделение памяти</value></data>
   <data name="ProfileCallTree" xml:space="preserve"><value>Дерево вызовов</value></data>
   <data name="ProfileCallTreeTip" xml:space="preserve"><value>Группирует функции этого владельца по путям вызовов, которые к ним привели: наверху самая внешняя функция, например обработчик события, внутри — то, что она вызвала. Учитываются только выборки, завершившиеся в функциях этого владельца. Выключено: простой список функций.</value></data>
-  <data name="ProfileTreeExpand" xml:space="preserve"><value>Развернуть</value></data>
-  <data name="ProfileTreeCollapse" xml:space="preserve"><value>Свернуть</value></data>
+  <data name="ProfileSearch" xml:space="preserve"><value>Поиск</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Сравнить с</value></data>
+  <data name="ProfileCompareNone" xml:space="preserve"><value>Нет другой записи для сравнения</value></data>
+  <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
+  <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Вызвана из строки {1} функции {0}</value></data>
+  <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Строки, выполненные ею самой · {0}</value></data>
+  <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (вызов)</value></data>
+  <data name="ProfileStatGcPause" xml:space="preserve"><value>Пауза GC</value></data>
+  <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
+  <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Нажмите, чтобы скрыть или показать эту строку</value></data>
+  <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сочетание клавиш: {0}</value></data>
+  <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Новое имя (пусто — автоматическое)</value></data>
+  <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Последние {0} мин</value></data>
+  <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Запись {0}</value></data>
+  <data name="ProfileDurationSecondsFormat" xml:space="preserve"><value>{0} с</value></data>
+  <data name="ProfileDurationMinutesFormat" xml:space="preserve"><value>{0} мин</value></data>
+  <data name="ProfileDurationMinutesSecondsFormat" xml:space="preserve"><value>{0} мин {1} с</value></data>
+  <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Сегодня {0}</value></data>
+  <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Вчера {0}</value></data>
+  <data name="ProfileRename" xml:space="preserve"><value>Переименовать</value></data>
+  <data name="HotKeysTitle" xml:space="preserve"><value>Горячие клавиши</value></data>
+  <data name="HotKeySettings.Description" xml:space="preserve"><value>Работают и в игре. Пока PZ Tools запущен, заданные здесь клавиши недоступны другим программам. Каждая отвечает звуком и сообщением над головой вашего персонажа.</value></data>
+  <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Сохранить последние минуты</value></data>
+  <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Сохраняет как запись минуты, которые хранила игра.</value></data>
+  <data name="HotKey.Record.Header" xml:space="preserve"><value>Начать/остановить запись</value></data>
+  <data name="HotKey.Record.Description" xml:space="preserve"><value>Начинает запись в режиме, выбранном на странице «Производительность»; повторное нажатие останавливает её.</value></data>
+  <data name="HotKey.RecordMode.Header" xml:space="preserve"><value>Переключить режим записи (обычный/подробный)</value></data>
+  <data name="HotKey.RecordMode.Description" xml:space="preserve"><value>Переключает режим следующей записи между обычным и подробным, как на странице «Производительность». Идущая запись сохраняет свой режим.</value></data>
+  <data name="HotKey.RollingToggle.Header" xml:space="preserve"><value>Хранение минут вкл./выкл.</value></data>
+  <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Включает или выключает «Хранить последние минуты» выше.</value></data>
+  <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Копия вручную</value></data>
+  <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Сразу создаёт копию сохранения, в которое вы играете.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Автоматические копии вкл./выкл.</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Включает или выключает «Автоматические копии» в настройках.</value></data>
+  <data name="HotKey.Status.Header" xml:space="preserve"><value>Показать состояние</value></data>
+  <data name="HotKey.Status.Description" xml:space="preserve"><value>Показывает над персонажем время до следующей копии, последнюю копию и то, что сейчас записывается.</value></data>
+  <data name="HotKeyTaken" xml:space="preserve"><value>Занята другой программой.</value></data>
+  <data name="HotKeyNeedsRolling" xml:space="preserve"><value>Работает, только когда включено «Хранить последние минуты».</value></data>
+  <data name="HotKeyPress" xml:space="preserve"><value>Нажмите клавиши… (Esc — отмена)</value></data>
+  <data name="HotKeyNone" xml:space="preserve"><value>Нет</value></data>
+  <data name="HotKeyClearFormat" xml:space="preserve"><value>Сбросить клавишу: {0}</value></data>
+  <data name="HotKeyUnknownKey" xml:space="preserve"><value>Эту клавишу нельзя использовать.</value></data>
+  <data name="HotKeyNeedsModifier" xml:space="preserve"><value>Нажимайте вместе с Ctrl или Alt.</value></data>
+  <data name="HotKeyDuplicate" xml:space="preserve"><value>Уже назначена другому действию.</value></data>
+  <data name="HotKeyRefusedFormat" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="HotKeyNoSave" xml:space="preserve"><value>Нет сохранения для копии. Загрузите сохранение в игре.</value></data>
+  <data name="ProfileRollingNotReady" xml:space="preserve"><value>Нет последних минут для сохранения. Включите «Хранить последние минуты» в настройках.</value></data>
+  <data name="ProfileRollingTurnOn" xml:space="preserve"><value>Включить хранение минут</value></data>
+  <data name="ProfileRollingSaveFormat" xml:space="preserve"><value>Сохранить посл. {0} мин</value></data>
+  <data name="ProfileRollingSavingFormat" xml:space="preserve"><value>Сохранение посл. {0} мин…</value></data>
+  <data name="ProfilerSettings.Header" xml:space="preserve"><value>Производительность</value></data>
+  <data name="ProfilerSettings.Description" xml:space="preserve"><value>Игра хранит последние несколько минут, поэтому подвисание можно сохранить уже после того, как оно случилось.</value></data>
+  <data name="RollingSetting.Header" xml:space="preserve"><value>Хранить последние минуты</value></data>
+  <data name="RollingSetting.Description" xml:space="preserve"><value>Когда включено, игра хранит последние несколько минут всё время, пока запущена. Обычный режим почти ничего не стоит.</value></data>
+  <data name="RollingModeSetting.Header" xml:space="preserve"><value>Режим</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Подробный показывает больше, но, пока включён, немного замедляет игру (примерно на 10%). Включайте его, когда ищете подвисание.</value></data>
+  <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Длина (минуты)</value></data>
+  <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>От 1 до 10 минут. Большая длина нагружает игру так же, только занимает больше места на диске.</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Начнёт хранить последнюю минуту, когда игра будет запущена.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск хранения последней минуты…</value></data>
+  <data name="ProfileError.NotRolling" xml:space="preserve"><value>Нет последних минут для сохранения. Запись начата заново.</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Получение последней минуты</value></data>
+  <data name="ProfileCompareOff" xml:space="preserve"><value>Прекратить сравнение</value></data>
+  <data name="ProfileCompareTitle" xml:space="preserve"><value>Сравнение со всей записью {0}</value></data>
+  <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Сравнение: {0}</value></data>
+  <data name="ProfileCompareLoadingFormat" xml:space="preserve"><value>Загрузка {0}…</value></data>
+  <data name="ProfileChangeFormat" xml:space="preserve"><value>{0} {1} → {2}</value></data>
+  <data name="ProfileCompareNote" xml:space="preserve"><value>Числа ±: на сколько процентных пунктов времени диапазона доля выросла (красный) или снизилась (зелёный) по сравнению с той же долей там.</value></data>
+  <data name="ProfileDeltaFormat" xml:space="preserve"><value>{0} п. п.</value></data>
+  <data name="ProfileColumnDelta" xml:space="preserve"><value>Изменение</value></data>
+  <data name="ProfileColumnDeltaTip" xml:space="preserve"><value>Общая доля строки во времени диапазона минус доля той же функции в сравниваемой записи, в процентных пунктах. Красный — больше времени, зелёный — меньше.</value></data>
+  <data name="ProfileLineFormat" xml:space="preserve"><value>Строка {0}</value></data>
+  <data name="ProfileLineUnknown" xml:space="preserve"><value>Строка неизвестна</value></data>
+  <data name="Unit.Byte" xml:space="preserve"><value>Б</value></data>
+  <data name="Unit.Kilobyte" xml:space="preserve"><value>КБ</value></data>
+  <data name="Unit.Megabyte" xml:space="preserve"><value>МБ</value></data>
+  <data name="Unit.Gigabyte" xml:space="preserve"><value>ГБ</value></data>
+  <data name="Unit.Terabyte" xml:space="preserve"><value>ТБ</value></data>
+  <data name="Unit.Millisecond" xml:space="preserve"><value>мс</value></data>
+  <data name="Unit.Second" xml:space="preserve"><value>с</value></data>
+  <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Развернуть {0}</value></data>
+  <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Свернуть {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Выделено</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Память, которую игровой поток выделил, пока в выбранном диапазоне работали скрипты этого мода, включая вызванные ими функции игры. Чем больше выделяется, тем чаще идёт очистка памяти (GC). Оценка по выборкам, как и время.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Память, которую игровой поток выделил, пока в выбранном диапазоне работали скрипты этого мода, включая функции Java, вызванные из Lua. Чем больше выделяется, тем чаще идёт очистка памяти (GC). Значения по модам — оценки.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Весь игровой поток, со скриптами и без: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>В этом диапазоне выделение памяти скриптами не записано.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Как пользоваться графиком</value></data>
@@ -470,19 +543,19 @@
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Элемент</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Время отрезка</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Доля работы</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Какую часть выбранного отрезка выполнялся этот скрипт. Включает время игровых функций, вызванных скриптом.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Какая часть времени работы игрового кода в выбранном отрезке пришлась на этот элемент. Игровые функции, вызванные скриптами Lua, здесь относятся к «Базовая игра». Для долгих ожиданий и остановок показано количество, а не доля.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Какую часть выбранного отрезка выполнялся этот скрипт. Включает время функций Java, вызванных скриптом.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Какая часть времени работы игрового кода в выбранном отрезке пришлась на этот элемент. Функции Java, вызванные из Lua, здесь относятся к «Базовая игра». Для долгих ожиданий и остановок показано количество, а не доля.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} раз</value></data>
-  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Игра не запущена. Запустите игру и попробуйте снова.</value></data>
-  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Запущено несколько копий игры, поэтому не удаётся выбрать нужную.</value></data>
-  <data name="ProfileError.Link" xml:space="preserve"><value>Не удалось подключиться к игре. Если вы обновили игру или PZ Tools, перезапустите игру.</value></data>
-  <data name="ProfileError.Restart" xml:space="preserve"><value>PZ Tools обновлён. Чтобы записывать, один раз перезапустите игру.</value></data>
-  <data name="ProfileError.Busy" xml:space="preserve"><value>Выполняется другая операция. Попробуйте чуть позже.</value></data>
-  <data name="ProfileError.Convert" xml:space="preserve"><value>Запись завершена, но обработать результат не удалось. Подробности смотрите в журнале.</value></data>
-  <data name="ProfileError.Generic" xml:space="preserve"><value>Не удалось выполнить запись. Подробности смотрите в журнале.</value></data>
-  <data name="RecoveryError.Busy" xml:space="preserve"><value>Это сохранение используется игрой или другой операцией. Прекратите игру и повторите попытку. Оригинал не изменён.</value></data>
-  <data name="RecoveryError.Journal" xml:space="preserve"><value>В этом сохранении есть незавершённые изменения. Выйдите из игры обычным способом и повторите попытку. Исходное сохранение не изменено.</value></data>
-  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Не удалось определить, какого персонажа восстановить. Функция работает только с сохранениями одиночной игры, а если в сохранении несколько персонажей, нужно выбрать одного. Сохранение не изменено.</value></data>
+  <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Игра не запущена.</value></data>
+  <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Запущено несколько игр. Оставьте только одну.</value></data>
+  <data name="ProfileError.Link" xml:space="preserve"><value>Не удалось подключиться к игре. Попробуйте перезапустить игру.</value></data>
+  <data name="ProfileError.Restart" xml:space="preserve"><value>Для записи один раз перезапустите игру.</value></data>
+  <data name="ProfileError.Busy" xml:space="preserve"><value>Выполняется другая операция. Повторите чуть позже.</value></data>
+  <data name="ProfileError.Convert" xml:space="preserve"><value>Не удалось создать файл записи. Проверьте журнал.</value></data>
+  <data name="ProfileError.Generic" xml:space="preserve"><value>Не удалось выполнить запись. Проверьте журнал.</value></data>
+  <data name="RecoveryError.Busy" xml:space="preserve"><value>Это сохранение использует игра или другая операция. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.Journal" xml:space="preserve"><value>Игра некорректно закрыла это сохранение. Загрузите его в игре и выйдите обычным способом. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Исцелять можно только в сохранениях одиночной игры. Сохранение не изменено.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>В этом сохранении несколько персонажей. Выберите, кого восстановить; остальные не изменятся.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Поиск зомби или трупа персонажа…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Выберите, откуда вернуть вещи.</value></data>
@@ -496,22 +569,21 @@
   <data name="HealRemainsNone" xml:space="preserve"><value>Воскресить без вещей</value></data>
   <data name="HealRemainsNotFound" xml:space="preserve"><value>Зомби или труп этого персонажа не найден. Персонаж будет воскрешён без вещей.</value></data>
   <data name="HealRemainsReadFailed" xml:space="preserve"><value>Не удалось заранее найти зомби или труп персонажа. Восстановление поищет снова.</value></data>
-  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Выбранный зомби или труп за это время изменился. Откройте окно восстановления снова. Сохранение не изменено.</value></data>
-  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Выбранного персонажа больше нет в этом сохранении. Возможно, сохранение за это время изменилось; попробуйте ещё раз. Сохранение не изменено.</value></data>
-  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Это сохранение нельзя безопасно изменить. Проверьте совместимость версий PZ Tools и игры. Оригинал не был изменён.</value></data>
+  <data name="RecoveryError.RemainsChanged" xml:space="preserve"><value>Выбранный зомби или труп изменился. Выберите заново. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.CharacterChanged" xml:space="preserve"><value>Выбранный персонаж не найден. Повторите попытку. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.Unsupported" xml:space="preserve"><value>В этом сохранении исцеление недоступно. Попробуйте обновить PZ Tools. Сохранение не изменено.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Время выживания недоступно · проверка будет повторена</value></data>
-  <data name="OperationError.FileInUse" xml:space="preserve"><value>Игра или другая операция использует нужный файл. Дождитесь завершения сохранения или операции и повторите попытку.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Сохранение изменилось во время экспорта. Выйдите из игры и повторите экспорт. Существующий файл сохранён без изменений.</value></data>
-  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Данные этой резервной копии повреждены и не читаются. Выберите другую копию. Текущее сохранение и существующие файлы не изменены.</value></data>
-  <data name="OperationError.DiskFull" xml:space="preserve"><value>Недостаточно свободного места. Освободите место на диске назначения и повторите попытку.</value></data>
-  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Отсутствуют необходимые файлы приложения. Распакуйте весь скачанный архив в одну папку или переустановите PZ Tools, затем откройте приложение снова.</value></data>
-  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Эта папка резервных копий использует другой формат хранения. Выберите новую пустую папку в настройках. Если старые копии ещё нужны, сохраните прежнюю папку. Не удаляйте игровые сохранения.</value></data>
-  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Дождитесь завершения текущей операции, прежде чем менять папки или перезапускать PZ Tools.</value></data>
-  <data name="OperationError.Configuration" xml:space="preserve"><value>Не удалось применить настройки. Проверьте введённые значения и файлы, изменённые в расширенных настройках.</value></data>
-  <data name="OperationError.RestartFailed" xml:space="preserve"><value>Не удалось перезапустить PZ Tools. После завершения текущих операций закройте приложение и откройте его снова.</value></data>
-  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Выбранные папки недоступны, поэтому восстановлены прежние настройки. Проверьте расположение папок и права доступа.</value></data>
-  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Не удалось использовать новые папки или восстановить прежние настройки. Перед продолжением проверьте расположение папок в настройках.</value></data>
-  <data name="BackupDeduplicationPhase" xml:space="preserve"><value>Повторное использование совпадающих данных резервной копии</value></data>
+  <data name="OperationError.FileInUse" xml:space="preserve"><value>Файл использует игра или другая операция. Повторите чуть позже.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Сохранение изменилось во время экспорта. Выйдите из игры и повторите попытку.</value></data>
+  <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Эта копия повреждена. Выберите другую копию. Сохранение не изменено.</value></data>
+  <data name="OperationError.DiskFull" xml:space="preserve"><value>Недостаточно места на диске.</value></data>
+  <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Не хватает файлов PZ Tools. Распакуйте скачанный архив заново.</value></data>
+  <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Эта версия не может открыть эту папку копий. Выберите новую папку в настройках. Старую не удаляйте.</value></data>
+  <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Повторите, когда текущая операция завершится.</value></data>
+  <data name="OperationError.Configuration" xml:space="preserve"><value>Не удалось применить настройки. Проверьте введённые значения.</value></data>
+  <data name="OperationError.RestartFailed" xml:space="preserve"><value>Не удалось перезапустить. Закройте и снова откройте приложение.</value></data>
+  <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Эту папку нельзя использовать, поэтому возвращены прежние настройки.</value></data>
+  <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Не удалось сменить папку. Проверьте папки в настройках.</value></data>
   <data name="LogPhase.deduplication" xml:space="preserve"><value>Повторное использование совпадающих данных резервной копии</value></data>
   <data name="SettingEnabled" xml:space="preserve"><value>Включено</value></data>
   <data name="SettingDisabled" xml:space="preserve"><value>Выключено</value></data>
@@ -520,7 +592,7 @@
   <data name="RuntimeBackupPaused" xml:space="preserve"><value>Игра на паузе</value></data>
   <data name="RuntimeBackupWaiting" xml:space="preserve"><value>Проверка состояния игры</value></data>
   <data name="RuntimeBackupAmbiguous" xml:space="preserve"><value>Запустите только одну игру</value></data>
-  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Результат предыдущего резервного копирования неизвестен, поэтому этот интервал пропускается.</value></data>
+  <data name="RuntimeBackupCompletionUnknown" xml:space="preserve"><value>Эта копия пропущена</value></data>
   <data name="LogFilterClear" xml:space="preserve"><value>Снять фильтр</value></data>
   <data name="LogFiltersClearAll" xml:space="preserve"><value>Снять все</value></data>
   <data name="LogFilterHeaderHint" xml:space="preserve"><value>{0} · нажмите для фильтрации</value></data>
@@ -580,8 +652,8 @@
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Сейчас не применяется: нет связи с игрой.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Следующая копия (без сохранения игры)</value></data>
   <data name="GameLinkCardMessage" xml:space="preserve"><value>Копии создаются без сохранения игры.</value></data>
-  <data name="GameLinkCardTitle" xml:space="preserve"><value>Не удаётся прочитать состояние игры</value></data>
-  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Копии создаются без сохранения игры. PZ Tools обновлён, поэтому перезапустите игру, чтобы снова подключиться.</value></data>
+  <data name="GameLinkCardTitle" xml:space="preserve"><value>Нет связи с игрой</value></data>
+  <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Перезапустите игру.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Совместимость и состояние</value></data>
   <data name="NoLogsAtOrAboveFormat" xml:space="preserve"><value>Нет записей уровня «{0}» и выше.</value></data>
   <data name="NoFilteredLogs" xml:space="preserve"><value>Нет записей, соответствующих выбранным фильтрам.</value></data>
@@ -603,7 +675,7 @@
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Неподдерживаемая версия игры</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Сообщить о проблеме</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Неофициальный инструмент для Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Записывает производительность во время игры и показывает время скриптов каждого мода.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Выясняет, почему игра подтормаживает. Сохраняет последние минуты сразу после рывка и показывает время работы каждого мода и нехватку памяти.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Игра запущена</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Игра не запущена</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Нет сохранений</value></data>
@@ -614,4 +686,65 @@
   <data name="Home.AgoMinutes" xml:space="preserve"><value>{0} мин назад</value></data>
   <data name="Home.AgoHours" xml:space="preserve"><value>{0} ч назад</value></data>
   <data name="Home.AgoDays" xml:space="preserve"><value>{0} дн. назад</value></data>
+  <data name="UpdateSection.Header" xml:space="preserve"><value>Версия</value></data>
+  <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Уведомление о новой версии</value></data>
+  <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Сообщает на боковой панели о выходе новой версии.</value></data>
+  <data name="UpdateCheckNow" xml:space="preserve"><value>Проверить</value></data>
+  <data name="UpdateDownload" xml:space="preserve"><value>Скачать</value></data>
+  <data name="UpdateStatusCurrent" xml:space="preserve"><value>Последняя версия</value></data>
+  <data name="UpdateStatusAvailable" xml:space="preserve"><value>Доступна новая версия: {0}</value></data>
+  <data name="UpdateStatusUnknown" xml:space="preserve"><value>Обновления ещё не проверялись</value></data>
+  <data name="UpdateStatusChecking" xml:space="preserve"><value>Проверка…</value></data>
+  <data name="UpdateStatusFailed" xml:space="preserve"><value>Не удалось проверить обновления. Проверьте подключение к интернету.</value></data>
+  <data name="UpdateCardFormat" xml:space="preserve"><value>Скачать версию {0}</value></data>
+  <data name="GameLinkRestartTitle" xml:space="preserve"><value>PZ Tools обновлён</value></data>
+  <data name="SavesUnavailable" xml:space="preserve"><value>Не удалось загрузить список сохранений.</value></data>
+  <data name="OperationDiscoveredItemsFormat" xml:space="preserve"><value>Найдено файлов: {0:N0}</value></data>
+  <data name="LoadFailed.State" xml:space="preserve"><value>Не удалось загрузить список сохранений</value></data>
+  <data name="LoadFailed.Backup" xml:space="preserve"><value>Не удалось загрузить список копий</value></data>
+  <data name="LoadFailed.Details" xml:space="preserve"><value>Не удалось загрузить сведения о сохранении</value></data>
+  <data name="LoadFailedRetrying" xml:space="preserve"><value>Повторная попытка.</value></data>
+  <data name="UpdateCheckSetting.Header" xml:space="preserve"><value>Проверка обновлений</value></data>
+  <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Страница загрузки</value></data>
+  <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Открыть страницу загрузки</value></data>
+  <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Открыть</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Включает время функций Java, вызванных из Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Функции Java, вызванные из Lua, здесь считаются игрой. Время каждого мода — на вкладке «Скрипты».</value></data>
+  <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Время этого участка</value></data>
+  <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипты</value></data>
+  <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код игры</value></data>
+  <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Ожидание</value></data>
+  <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Другие скрипты</value></data>
+  <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Параметр запуска игры блокирует подключение.</value></data>
+  <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Не удалось подключиться: его блокирует параметр запуска игры. Проверьте параметры запуска игры.</value></data>
+  <data name="LogEvent.GameLinkFailed" xml:space="preserve"><value>Не удалось подключиться к игре</value></data>
+  <data name="GameSettings.Header" xml:space="preserve"><value>Игра</value></data>
+  <data name="GameSettings.Description" xml:space="preserve"><value>Меняет параметры запуска игры. Изменения действуют со следующего запуска.</value></data>
+  <data name="GameMemorySetting.Header" xml:space="preserve"><value>Память игры</value></data>
+  <data name="GameMemorySetting.Description" xml:space="preserve"><value>Память, которую может использовать игра. Если с множеством модов она часто подтормаживает, дайте ей больше.</value></data>
+  <data name="GameMemoryDefaultFormat" xml:space="preserve"><value>По умолчанию в игре ({0})</value></data>
+  <data name="GameMemoryDefault" xml:space="preserve"><value>По умолчанию в игре</value></data>
+  <data name="GameMemoryRecommendedFormat" xml:space="preserve"><value>{0} (рекомендуется)</value></data>
+  <data name="GameMemoryNotFound" xml:space="preserve"><value>Папка игры не найдена. Запустите игру один раз, и она будет найдена.</value></data>
+  <data name="GameMemoryUnsupported" xml:space="preserve"><value>Файл настроек игры не такой, как ожидалось, поэтому он не изменён.</value></data>
+  <data name="GameMemoryUnwritable" xml:space="preserve"><value>Нельзя записать в папку игры; ничего не изменено.</value></data>
+  <data name="GameMemoryRevertedFormat" xml:space="preserve"><value>Обновление игры отменило настройку {0}. Выберите её снова, чтобы применить.</value></data>
+  <data name="GameMemoryRevertedTitleFormat" xml:space="preserve"><value>Память игры снова {0}</value></data>
+  <data name="GameMemoryRevertedMessage" xml:space="preserve"><value>Обновление игры отменило настройку.</value></data>
+  <data name="GameMemoryReapplyFormat" xml:space="preserve"><value>Снова применить {0}</value></data>
+  <data name="ProfileMemoryStallsFormat" xml:space="preserve"><value>Остановок из-за нехватки памяти: {0}</value></data>
+  <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Память почти заполнена</value></data>
+  <data name="ProfileMemorySetting" xml:space="preserve"><value>Настройка памяти</value></data>
+  <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Игре не хватило доступной памяти ({0}). Чем её больше, тем меньше остановок.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Во время записи остановок из-за нехватки памяти: {0}</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Во время записи память была почти заполнена</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>сейчас установлено {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Файлы PZ Tools повреждены</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Распакуйте скачанный ZIP заново в пустую папку.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Открыть страницу загрузки</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: заработает после перезапуска игры.</value></data>
+  <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Автобэкапы после перезапуска игры</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Игра запускается</value></data>
+  <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · сейчас</value></data>
+  <data name="GameMemoryNextStart" xml:space="preserve"><value>Применится при следующем запуске игры.</value></data>
 </root>

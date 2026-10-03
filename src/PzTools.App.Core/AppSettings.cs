@@ -27,8 +27,20 @@ public sealed record AppSettings(
     bool SaveGameBeforeBackup = true,
     bool GameSaveCountdown = true,
     bool AutomaticBackupEnabled = true,
-    bool PausePeriodicDuringGame = true)
+    bool PausePeriodicDuringGame = true,
+    // The game keeps its last minutes for a save right after a stutter, in this mode, this many minutes long.
+    bool RollingEnabled = false,
+    bool RollingDetailed = false,
+    int RollingMinutes = AppSettings.DefaultRollingMinutes,
+    HotKeySettings? HotKeys = null,
+    // About once an hour the app asks GitHub for its latest release, and says so when there is a newer one.
+    bool CheckForUpdates = true)
 {
+    public HotKeySettings Keys => HotKeys ?? new();
+
+    /// <summary>How many minutes the game keeps at first: enough to hold the stutter and what led to it.</summary>
+    public const int DefaultRollingMinutes = 2;
+
     public static AppSettings CreateDefault()
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -60,10 +72,16 @@ public sealed record AppSettings(
             throw new ArgumentOutOfRangeException(nameof(LogMaxEntries));
         ArgumentException.ThrowIfNullOrWhiteSpace(SavesRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(BackupRoot);
+        if (RollingMinutes is < 1 or > 10)
+            throw new ArgumentOutOfRangeException(nameof(RollingMinutes));
+        var keys = Keys.Normalized();
+        if (keys.HasDuplicates()) throw new ArgumentException("One key combination was given to two actions.", nameof(HotKeys));
         return this with
         {
             SavesRoot = Path.GetFullPath(SavesRoot),
             BackupRoot = Path.GetFullPath(BackupRoot),
+            // The defaults are written as none, so settings read back from the file equal the ones that wrote it.
+            HotKeys = keys == new HotKeySettings() ? null : keys,
         };
     }
 }
@@ -92,7 +110,12 @@ public sealed class SettingsProjector(RevisionedViewStore views)
                 value.SaveGameBeforeBackup,
                 value.GameSaveCountdown,
                 value.AutomaticBackupEnabled,
-                value.PausePeriodicDuringGame),
+                value.PausePeriodicDuringGame,
+                value.RollingEnabled,
+                value.RollingDetailed,
+                value.RollingMinutes,
+                value.Keys,
+                value.CheckForUpdates),
             comparer: EqualityComparer<SettingsView>.Default);
     }
 }
@@ -234,7 +257,12 @@ public sealed class AppSettingsService
             GetBoolean(model, "backup", "game_save_countdown",
                 GetBoolean(backupConfig, "capture", "game_save_countdown", true)),
             automaticEnabled,
-            ReadPausePolicy(model, defaults.PausePeriodicDuringGame));
+            ReadPausePolicy(model, defaults.PausePeriodicDuringGame),
+            GetBoolean(model, "profiler", "rolling_enabled", false),
+            GetBoolean(model, "profiler", "rolling_detailed", false),
+            Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)), 1, 10),
+            ReadHotKeys(model),
+            GetBoolean(model, "ui", "check_updates", true));
         // 기존 설정의 추적 표시값은 새 기록 하한보다 낮을 수 있습니다.
         return (loaded with { LogMinimumLevel =
             (LogLevel)Math.Max((int)loaded.LogMinimumLevel, (int)loaded.LogRecordMinimumLevel) }).Validate();
@@ -265,6 +293,11 @@ public sealed class AppSettingsService
                 LogMaxEntries = settings.LogMaxEntries,
                 SaveGameBeforeBackup = settings.SaveGameBeforeBackup,
                 GameSaveCountdown = settings.GameSaveCountdown,
+                RollingEnabled = settings.RollingEnabled,
+                RollingDetailed = settings.RollingDetailed,
+                RollingMinutes = settings.RollingMinutes,
+                HotKeys = settings.HotKeys,
+                CheckForUpdates = settings.CheckForUpdates,
             })
         {
             // These settings do not change the running job or scheduler. The next worker
@@ -329,7 +362,8 @@ public sealed class AppSettingsService
         $"[ui]{Environment.NewLine}"
         + $"language = \"{LanguageCatalog.Get(value.Language).Tag}\"{Environment.NewLine}"
         + $"theme = \"{value.Theme}\"{Environment.NewLine}"
-        + $"system_tray = {value.UseSystemTray.ToString().ToLowerInvariant()}{Environment.NewLine}{Environment.NewLine}"
+        + $"system_tray = {value.UseSystemTray.ToString().ToLowerInvariant()}{Environment.NewLine}"
+        + $"check_updates = {value.CheckForUpdates.ToString().ToLowerInvariant()}{Environment.NewLine}{Environment.NewLine}"
         + $"[paths]{Environment.NewLine}"
         + $"saves_root = {Quote(value.SavesRoot)}{Environment.NewLine}"
         + $"backup_root = {Quote(value.BackupRoot)}{Environment.NewLine}{Environment.NewLine}"
@@ -344,7 +378,19 @@ public sealed class AppSettingsService
         + Environment.NewLine
         + $"[logs]{Environment.NewLine}"
         + $"minimum_level = \"{value.LogMinimumLevel}\"{Environment.NewLine}"
-        + $"display_limit = {value.LogDisplayLimit}{Environment.NewLine}";
+        + $"display_limit = {value.LogDisplayLimit}{Environment.NewLine}{Environment.NewLine}"
+        + $"[profiler]{Environment.NewLine}"
+        + $"rolling_enabled = {value.RollingEnabled.ToString().ToLowerInvariant()}{Environment.NewLine}"
+        + $"rolling_detailed = {value.RollingDetailed.ToString().ToLowerInvariant()}{Environment.NewLine}"
+        + $"rolling_minutes = {value.RollingMinutes}{Environment.NewLine}{Environment.NewLine}"
+        + $"[hotkeys]{Environment.NewLine}"
+        + $"save_last = {Quote(value.Keys.SaveLast)}{Environment.NewLine}"
+        + $"record = {Quote(value.Keys.Record)}{Environment.NewLine}"
+        + $"record_mode = {Quote(value.Keys.RecordMode)}{Environment.NewLine}"
+        + $"rolling_toggle = {Quote(value.Keys.RollingToggle)}{Environment.NewLine}"
+        + $"manual_backup = {Quote(value.Keys.ManualBackup)}{Environment.NewLine}"
+        + $"backup_toggle = {Quote(value.Keys.BackupToggle)}{Environment.NewLine}"
+        + $"status = {Quote(value.Keys.Status)}{Environment.NewLine}";
 
     private async Task EnsureLoggingConfigurationAsync(
         AppSettings settings, CancellationToken cancellationToken)
@@ -413,8 +459,8 @@ public sealed class AppSettingsService
 
     private static void ValidateLoggingDocument(TomlTable root)
     {
-        if (root.Keys.Any(key => key is not ("logs" or "runtime")))
-            throw new InvalidDataException("App advanced settings support only [logs] and [runtime].");
+        if (root.Keys.Any(key => key is not ("logs" or "runtime" or "profiler" or "hotkeys")))
+            throw new InvalidDataException("App advanced settings support only [logs], [runtime], [profiler] and [hotkeys].");
         if (!root.TryGetValue("logs", out var section) || section is not TomlTable logs)
             throw new InvalidDataException("The app's advanced settings need a [logs] section.");
         if (logs.Keys.Any(key => key is not ("record_minimum_level" or "max_entries")))
@@ -445,6 +491,27 @@ public sealed class AppSettingsService
         if (minutes < 1)
             throw new InvalidDataException("backup.interval_minutes must be an integer from 1 to 60.");
         return (flag, minutes);
+    }
+
+    // A combination that is no combination, or the same one twice, is dropped rather than refusing the whole file:
+    // the keys are a convenience, the rest of the settings are not.
+    private static HotKeySettings ReadHotKeys(TomlTable root)
+    {
+        var defaults = new HotKeySettings();
+        var keys = new HotKeySettings(
+            SaveLast: GetString(root, "hotkeys", "save_last", defaults.SaveLast),
+            Record: GetString(root, "hotkeys", "record", defaults.Record),
+            RecordMode: GetString(root, "hotkeys", "record_mode", defaults.RecordMode),
+            RollingToggle: GetString(root, "hotkeys", "rolling_toggle", defaults.RollingToggle),
+            ManualBackup: GetString(root, "hotkeys", "manual_backup", defaults.ManualBackup),
+            // The key once set to pause automatic backups (for half an hour, then on again by themselves) is not taken
+            // over: pressed out of habit, the key that turns them on and off would leave them off for good.
+            BackupToggle: GetString(root, "hotkeys", "backup_toggle", defaults.BackupToggle),
+            Status: GetString(root, "hotkeys", "status", defaults.Status)).Normalized();
+        var seen = new HashSet<HotKeyGesture>();
+        foreach (var action in Enum.GetValues<HotKeyAction>())
+            if (HotKeyGesture.Parse(keys.Get(action)) is { } gesture && !seen.Add(gesture)) keys = keys.With(action, "");
+        return keys;
     }
 
     private static bool ReadPausePolicy(TomlTable root, bool fallback)

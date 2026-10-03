@@ -103,6 +103,9 @@ public sealed partial class SchedulerDatabase
                 next_due_utc TEXT NOT NULL,
                 next_run_index INTEGER NOT NULL
             ) STRICT;
+
+            -- A timed pause of automatic backups is gone: the setting turns them off. A pause left behind goes too.
+            DROP TABLE IF EXISTS backup_pause;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
 

@@ -1,6 +1,6 @@
 using System.IO.Compression;
 using PzTools.Profiling;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 
 namespace PzTools.Backup.Tests;
 
@@ -12,7 +12,7 @@ public sealed partial class GameSaveClientTests
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         await File.WriteAllTextAsync(temp.GetPath("busy-game"), "busy");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
         var raw = temp.GetPath("recording.pzprof.jfr");
 
         Assert.Equal("idle", (await client.StatusAsync(game.Pid)).State);
@@ -75,11 +75,190 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
+    public async Task RollingRecording_KeepsGoingThroughASave_CutsItToItsWindow_AndRunsBesideARecording()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
+        Assert.Equal("not-rolling",
+            (await Assert.ThrowsAsync<GameSaveException>(() => client.SaveRollingAsync(game.Pid, temp.GetPath("none.jfr")))).Code);
+
+        var started = await client.StartRollingAsync(game.Pid, detailed: false, 10);
+        Assert.True(started.Rolling);
+        Assert.Equal(("sampling", true), (started.Lua, started.HasFrames));
+        await Task.Delay(3000);
+        var raw = temp.GetPath("last.pzprof.jfr");
+        var saved = await client.SaveRollingAsync(game.Pid, raw);
+        Assert.True(saved.Rolling);
+        Assert.True(saved.HasFrames);
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+
+        // Cut to its last second: the frames and the mod's Lua of that second, and no more.
+        var output = temp.GetPath("last.pzprof");
+        var exported = await client.ExportAsync(raw, output, new Dictionary<string, string> { ["mode"] = "general" }, keepLastSeconds: 1);
+        Assert.InRange(exported.DurationMicroseconds, 500_000, 1_100_000);
+        var recording = ProfileRecording.Load(output);
+        Assert.True(recording.Frames.Length is > 5 and < 80, $"frames: {recording.Frames.Length}");
+        Assert.Equal("ExampleMod", Assert.Single(ProfileAnalysis.Analyze(recording, 0, recording.Duration, recording.GameThread).LuaGroups).Key);
+
+        // A recording asked for runs beside it, in another mode: a save still takes the rolling one, in its own mode,
+        // and stopping either leaves the other.
+        Assert.True((await client.StartAsync(game.Pid, temp.GetPath("asked.pzprof.jfr"), detailed: true, 60)).Recording);
+        Assert.True((await client.StatusAsync(game.Pid)).Recording);
+        var beside = await client.SaveRollingAsync(game.Pid, temp.GetPath("beside.pzprof.jfr"));
+        Assert.Equal(("rolling", "general"), (beside.State, beside.Mode));
+        Assert.True((await client.StopRollingAsync(game.Pid)).Rolling);
+        Assert.True((await client.StatusAsync(game.Pid)).Recording);
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10)).Rolling);
+        Assert.True((await client.StopAsync(game.Pid)).Recording);
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: true, 10)).Rolling);
+        Assert.True((await client.StopRollingAsync(game.Pid)).Rolling);
+        Assert.Equal("idle", (await client.StatusAsync(game.Pid)).State);
+    }
+
+    [BridgeFact]
+    public async Task RollingRecording_LastsWhileItsAppRunIsHeardFrom_AndEndsAfterItHasGone()
+    {
+        using var temp = new TempDirectory();
+        // An app run's lease lasts two seconds here, two minutes in the game, so its lapse is seen within a test.
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties: ["pztools.bridge.lease.seconds=2"]);
+        var bridge = Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!;
+        var client = new GameProfileClient(bridge);
+        var run = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        // The run's state stream, as the state scheduler keeps it: while it is open, it renews the run's lease.
+        using var watching = new CancellationTokenSource();
+        var watch = Task.Run(async () =>
+        {
+            try { await foreach (var _ in new GameRuntimeClient(bridge).WatchAsync(game.Pid, run, watching.Token)) { } }
+            catch (Exception) when (watching.IsCancellationRequested) { }
+        });
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10, owner: run)).Rolling);
+        // Twice the lease's term on, the stream has kept it.
+        await Task.Delay(4000);
+        Assert.False(watch.IsCompleted, "The state stream ended.");
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+        // The app gone, as a crash or a kill would take it and its scheduler: the stream ends, and the lease lapses.
+        await watching.CancelAsync();
+        await watch;
+        var stopped = false;
+        for (var attempt = 0; attempt < 40 && !stopped; attempt++)
+        {
+            await Task.Delay(200);
+            stopped = (await client.StatusAsync(game.Pid)).State == "idle";
+        }
+        Assert.True(stopped, "The game kept the rolling recording after the app run had gone.");
+    }
+
+    [BridgeFact]
+    public async Task RollingRecording_WithoutAStream_LastsTheLeaseItsStartGave()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties: ["pztools.bridge.lease.seconds=2"]);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
+        // A start is the run's own word: it holds the lease from then, even before its state stream connects.
+        var run = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10, owner: run)).Rolling);
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+        var stopped = false;
+        for (var attempt = 0; attempt < 40 && !stopped; attempt++)
+        {
+            await Task.Delay(200);
+            stopped = (await client.StatusAsync(game.Pid)).State == "idle";
+        }
+        Assert.True(stopped, "Nothing renewed the lease, yet the game kept the rolling recording.");
+    }
+
+    [BridgeFact]
+    public async Task ARecordingAskedFor_EndsWithTheLeaseOfTheRunThatAskedForIt()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties: ["pztools.bridge.lease.seconds=2"]);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
+        var run = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        // Asked for half an hour by a run that then went (no state stream, no stop).
+        await client.StartAsync(game.Pid, temp.GetPath("asked.jfr"), detailed: false, 1800, owner: run);
+        Assert.NotEqual("idle", (await client.StatusAsync(game.Pid)).State);
+        var stopped = false;
+        for (var attempt = 0; attempt < 40 && !stopped; attempt++)
+        {
+            await Task.Delay(200);
+            stopped = (await client.StatusAsync(game.Pid)).State == "idle";
+        }
+        Assert.True(stopped, "The game kept the recording asked for after the app run had gone.");
+    }
+
+    [BridgeFact]
+    public async Task TheAppInAFolderNamedInKorean_StillAttaches()
+    {
+        using var temp = new TempDirectory();
+        // Reported: the app unpacked under a Korean folder name could not attach ("... was not loaded"), as the game's
+        // JVM misreads such a path for the files handed to it at attach.
+        var bridge = Path.Combine(temp.Path, "한글 경로", "game-bridge");
+        CopyDirectory(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!, bridge);
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        Assert.Equal("idle", (await new GameProfileClient(bridge).StatusAsync(game.Pid)).State);
+        await new GameSaveClient(bridge).RequestAsync(game.Pid, temp.Path, save: false);
+    }
+
+    private static void CopyDirectory(string source, string target)
+    {
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
+        Directory.CreateDirectory(target);
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+            File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)));
+    }
+
+    [BridgeFact]
+    public async Task AGameWithAnOlderBootstrap_IsAskedToRestart_AndIsSentNothing()
+    {
+        using var temp = new TempDirectory();
+        // What a bootstrap of API 10 (PZ Tools 0.2.1 and before) leaves in a game it was attached to: its endpoint and
+        // its API. This build's payload cannot run under it.
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties:
+            ["pztools.bridge.control.v1=2:1:1:" + new string('0', 64), "pztools.bridge.bootstrap.api=10"]);
+        var bridge = Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!;
+
+        // A recording says restart, which the app shows as such.
+        Assert.Equal("restart-required",
+            (await Assert.ThrowsAsync<GameSaveException>(() => new GameProfileClient(bridge).StatusAsync(game.Pid))).Code);
+        // A save falls back to the files on disk, and its reason still names the restart.
+        var save = await Assert.ThrowsAsync<GameSaveException>(() => new GameSaveClient(bridge).RequestAsync(game.Pid, temp.Path, save: false));
+        Assert.True(save.LinkUnavailable);
+        Assert.True(GameSaveException.NamesRestart(save.Message), save.Message);
+    }
+
+    [BridgeFact]
+    public async Task GameNotice_ShowsCatalogNotesOverThePlayer_OnTheGameThread_AndRefusesAnyOtherText()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
+
+        // The countdown in minutes and seconds, as the app's sidebar writes it.
+        Assert.True(await client.NotifyAsync(game.Pid, "ko-KR", ["saved-last:2", "next-backup-time:270"]));
+        var notices = temp.GetPath("notices.txt");
+        for (var attempt = 0; attempt < 50 && !File.Exists(notices); attempt++) await Task.Delay(100);
+        var shown = Assert.Single(await File.ReadAllLinesAsync(notices)).Split('\t');
+        Assert.Equal(("직전 2분 저장됨 · 다음 백업 · 04:30 남음", "Synthetic-game-thread"), (shown[1], shown[2]));
+
+        // Only the game's own catalog: no other key, no number where a note has none, none missing where it has one.
+        foreach (string[] items in new[] { new[] { "anything" }, ["backup-done:3"], ["saved-last"] })
+            Assert.Equal("unsupported-protocol",
+                (await Assert.ThrowsAsync<GameSaveException>(() => client.NotifyAsync(game.Pid, "en-US", items))).Code);
+        Assert.Equal("unsupported-protocol",
+            (await Assert.ThrowsAsync<GameSaveException>(() => client.NotifyAsync(game.Pid, "xx-XX", ["backup-done"]))).Code);
+        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyAsync(game.Pid, "en-US", ["Free text\there"]));
+        Assert.Single(await File.ReadAllLinesAsync(notices));
+    }
+
+    [BridgeFact]
     public async Task ProfileRecording_EndsByItselfAtItsLimit_AndIsCollectedAfterwards()
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
         var raw = temp.GetPath("limit.pzprof.jfr");
         await client.StartAsync(game.Pid, raw, detailed: true, 5);
         await Task.Delay(7000);
@@ -100,7 +279,7 @@ public sealed partial class GameSaveClientTests
     {
         using var temp = new TempDirectory();
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_SAVE_BRIDGE_DIR")!);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
         await client.StartAsync(game.Pid, temp.GetPath("standard.pzprof.jfr"), detailed: false, 5);
         // As if the recording program had gone: nobody sends a stop.
         await Task.Delay(7000);

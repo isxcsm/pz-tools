@@ -1,5 +1,5 @@
 <Project DefaultTargets="Build">
-  <Import Project="..\..\build\SaveBridge.props" />
+  <Import Project="..\..\build\GameBridge.props" />
   <PropertyGroup>
     <ExtensionOutput>$(BridgeOutputPath)\extensions</ExtensionOutput>
     <Classes>$(MSBuildProjectDirectory)\obj\$(Configuration)\classes</Classes>
@@ -8,7 +8,7 @@
   <ItemGroup><JavaSource Include="$(MSBuildProjectDirectory)\java\**\*.java" /></ItemGroup>
   <Target Name="Runtime" DependsOnTargets="ValidateBridgeToolchain">
     <MSBuild Projects="..\PzTools.GameExtensions.Java\PzTools.GameExtensions.Java.proj" Targets="Build"
-             Properties="Configuration=$(Configuration);SaveBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
+             Properties="Configuration=$(Configuration);GameBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
   </Target>
   <!-- A deleted source changes no timestamp; the list does, so its classes are not left in the JAR. -->
   <Target Name="ListSources">

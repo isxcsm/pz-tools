@@ -97,7 +97,12 @@ public sealed record SettingsView(
     bool SaveGameBeforeBackup = true,
     bool GameSaveCountdown = true,
     bool AutomaticBackupEnabled = true,
-    bool PausePeriodicDuringGame = true);
+    bool PausePeriodicDuringGame = true,
+    bool RollingEnabled = false,
+    bool RollingDetailed = false,
+    int RollingMinutes = 2,
+    HotKeySettings? HotKeys = null,
+    bool CheckForUpdates = true);
 
 public sealed record ProjectorHealthView(IReadOnlyList<ProjectorStatus> Projectors)
 {

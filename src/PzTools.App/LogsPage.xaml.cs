@@ -722,6 +722,12 @@ public sealed partial class LogsPage : UserControl
         ("profile", "recording") => Localizer.Get("ProfilePhaseRecording"),
         ("profile", "stop") => Localizer.Get("ProfilePhase.Stop"),
         ("profile", "convert") => Localizer.Get("ProfilePhaseConverting"),
+        ("profile", "save") => Localizer.Get("ProfilePhase.Save"),
+        // The rolling recording's start and stop.
+        ("profile-roll", "arguments") => Localizer.Get("ProfilePhase.Prepare"),
+        ("profile-roll", "connect") => Localizer.Get("ProfilePhase.Connect"),
+        ("profile-roll", "start") => Localizer.Get("ProfilePhase.Start"),
+        ("profile-roll", "stop") => Localizer.Get("ProfilePhase.Stop"),
         _ => LocalizedPhase(phase),
     };
 
@@ -926,6 +932,8 @@ public sealed class LogEntryUiItem
     private string ActivityMessage(string key) => Localizer.Format(key, ActivityName);
     public string Message => model.EventName switch
     {
+        "extension.runtime.changed" when PayloadText("state") == "RestartRequired" && PayloadText("reason") == "bootstrap-update" =>
+            Localizer.Format("LogEvent.ExtensionRestartFormat", ExtensionTitle),
         "extension.runtime.changed" when model.Level >= LogLevel.Warning =>
             Localizer.Format("LogEvent.RunFailed", ExtensionTitle),
         "extension.runtime.changed" =>
@@ -937,6 +945,7 @@ public sealed class LogEntryUiItem
         "source.prepare.completed" when outcome == "save-unavailable" => Localizer.Get("LogEvent.GameSaveUnavailable"),
         "tick.completed" when outcome == "Failed" => ActivityMessage("LogEvent.TickFailed"),
         "tick.failed" => ActivityMessage("LogEvent.TickFailed"),
+        "game.link.failed" => Localizer.Get("LogEvent.GameLinkFailed"),
         var name when name.EndsWith(".completed", StringComparison.Ordinal)
             && outcome is "Failed" or "Abandoned" => ActivityMessage("LogEvent.RunFailed"),
         var name when name.EndsWith(".completed", StringComparison.Ordinal)
@@ -978,6 +987,7 @@ public sealed class LogEntryUiItem
             Localizer.Get("LogEvent.BackupSkipped"),
         "run.cancelled" => ActivityMessage("LogEvent.RunCancelled"),
         "run.unavailable" when Diagnostics?.FailureCode == "profile-multiple-games" => ActivityMessage("LogEvent.RunMultipleGames"),
+        "run.unavailable" when Diagnostics?.FailureCode == "profile-restart-required" => Localizer.Get("ProfileError.Restart"),
         "run.unavailable" => ActivityMessage("LogEvent.RunGameNotRunning"),
         var name when name.StartsWith("maintenance.", StringComparison.Ordinal)
             && name.EndsWith(".started", StringComparison.Ordinal) => ActivityMessage("LogEvent.RunStarted"),

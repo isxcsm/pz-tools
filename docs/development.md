@@ -20,7 +20,7 @@ To build, install:
 The projects restore the Windows App SDK and the managed dependencies themselves. The
 game's trimmed Java runtime cannot be used as a build JDK. For the native build
 requirements, and how `JdkPath`, `JAVA_HOME` and bundled toolchains are chosen, see
-[bridge build prerequisites](save-bridge.md#building-and-publishing).
+[bridge build prerequisites](game-bridge.md#building-and-publishing).
 
 To run the published app, end users need the
 [.NET 10 runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0),
@@ -48,6 +48,19 @@ through [AppWorkers.targets](../build/AppWorkers.targets).
 - Development runs use the same documented user data paths as an installed app. They
   are not kept apart from your local app configuration automatically.
 
+**Previewing the sidebar's cards.** Cards for states that are hard to bring about (a
+component blocked by Windows Security, a lost or outdated game connection, part of the
+saves page that keeps failing to load, a new release, the results of an action) can be
+shown without them: *Settings → Advanced → Card preview* picks one and shows it, and
+*Clear all* puts the real state back. For a scripted run, `PZTOOLS_PREVIEW_CARDS=blocked,update` (or
+`all`) shows those cards from the start; the keys are listed in
+[`MainWindowShell.CardPreview.cs`](../src/PzTools.App/MainWindowShell.CardPreview.cs).
+The cards go through the same code as the real state, so the preview shows what users
+see, but not whether the state is detected. Previewed warnings and errors write nothing
+to the log. This exists in every build except a published app:
+[`publish-app.ps1`](../scripts/publish-app.ps1) passes `PzToolsDistribution=true`,
+which compiles none of it, and the published-folder tests check that.
+
 ## Publish a runnable folder
 
 ```powershell
@@ -55,12 +68,15 @@ pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
 [`publish-app.ps1`](../scripts/publish-app.ps1) calls
-[`publish-tools.ps1`](../scripts/publish-tools.ps1) itself. Do not publish the tools to
+[`publish-tools.ps1`](../scripts/publish-tools.ps1) itself. It ends by writing
+`pztools-files.txt`, the list of the published files with their sizes and SHA-256, which
+the app checks its folder against (see [checking the folder](deployment-layout.md#the-app-folder));
+anything added to the folder after it is not listed. Do not publish the tools to
 that folder first and then run `publish-app.ps1` on the same, now nonempty, folder.
 
 - **The output folder must be new or empty.** Use another `-Output` for the next
   publication. The scripts do not erase an existing installation or user settings.
-- **Use a fresh `-SaveBridgeOutput` folder for a release** as well, so the Java payload
+- **Use a fresh `-GameBridgeOutput` folder for a release** as well, so the Java payload
   does not reuse files from earlier development builds.
 
 ## Build a release
@@ -96,8 +112,10 @@ The archive's parent folder must already exist. The packager:
 
 1. refuses output files that already exist
 2. adds the short [release guide](../build/START-HERE.txt)
-3. puts everything under a `PzTools/` top-level folder, with a fixed entry order and
-   fixed timestamps
+3. puts everything under one top-level folder, with a fixed entry order and fixed
+   timestamps. `-RootFolder` names it (`PzTools` by default); a release built by
+   `build-release.ps1` names it `PzTools-v<version>`, so a new release extracts beside
+   the old one rather than over it
 4. checks every file against its streamed SHA-256 before completing the ZIP and its
    `.sha256` sidecar
 5. rejects links, and input files that change while it runs
@@ -151,7 +169,7 @@ on different values for them, use a separate PowerShell session.
 ## Synthetic game integration and opt-in tests
 
 ```powershell
-pwsh scripts/test-save-bridge.ps1 -JdkPath $jdk
+pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 ```
 
 This script runs against an isolated synthetic JVM, not a real running game.

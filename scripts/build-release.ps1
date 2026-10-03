@@ -37,7 +37,7 @@ $app = Join-Path $releaseDirectory 'PzTools'
 Write-Host "== Publishing PZ Tools $version ($commit)"
 # A fresh Java build folder, so the payload reuses nothing from earlier development builds.
 & (Join-Path $PSScriptRoot 'publish-app.ps1') -Configuration Release -JdkPath $JdkPath -Output (Join-Path $relative 'PzTools') `
-    -SaveBridgeOutput (Join-Path $relative 'save-bridge-build')
+    -GameBridgeOutput (Join-Path $relative 'game-bridge-build')
 if ($LASTEXITCODE -ne 0) { throw 'Publishing failed.' }
 $published = (Get-Item -LiteralPath (Join-Path $app 'PzTools.App.exe')).VersionInfo.ProductVersion
 if ($published.Split('+')[0] -ne $version) { throw "The published app says $published, not $version." }
@@ -56,7 +56,8 @@ finally {
 
 Write-Host '== Packaging'
 $archive = Join-Path $releaseDirectory "PzTools-v$version-win-x64.zip"
-& (Join-Path $PSScriptRoot 'package-release.ps1') -PublishDirectory $app -OutputArchive $archive
+# The ZIP's folder is named for the version: a new release extracts beside the old one, never over it.
+& (Join-Path $PSScriptRoot 'package-release.ps1') -PublishDirectory $app -OutputArchive $archive -RootFolder "PzTools-v$version"
 
 Write-Host ''
 Write-Host "PZ Tools $version from commit $commit"

@@ -5,6 +5,7 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Projections;
+using PzTools.GameBridge;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 
@@ -95,12 +96,13 @@ public sealed class AppHost : IAsyncDisposable
         TelemetrySources = telemetrySources ?? new TelemetrySourceCatalog();
         Settings = new AppSettingsService(this.paths.RuntimeRoot, HasRunningOperation);
         extensionDiagnostics = new(this.paths.RuntimeRoot, () => LogInbox);
-        Profiles = new ProfileRecordingService(Path.Combine(this.paths.RuntimeRoot, "profiles"), () => Operations);
+        Profiles = new ProfileRecordingService(Path.Combine(this.paths.RuntimeRoot, "profiles"), () => Operations,
+            options: runtime.ProfilerOptions);
         saveVersions = new SaveGameVersionMemory(this.paths.RuntimeRoot);
         GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
             () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
             () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
-            Path.Combine(this.paths.WorkerDirectory, "save-bridge", "extensions", "catalog.tsv"),
+            Path.Combine(this.paths.WorkerDirectory, "game-bridge", "extensions", "catalog.tsv"),
             () => { var o = runtimeSnapshot.Read(); var s = o.Snapshot; var result = s?.LastSave;
                 return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; },
             moduleId => ExtensionActivationView.SelectCurrentStatus(runtimeSnapshot.Read(), moduleId),
@@ -247,9 +249,22 @@ public sealed class AppHost : IAsyncDisposable
         Projections.AddLoop("game-extensions", GameExtensions.RefreshRuntimeAsync, projectionInterval);
         Projections.AddLoop("details", composer.ComposeOnceAsync, projectionInterval);
         var gameLink = new GameLinkMonitor();
+        long? linkLost = null;
         Projections.AddLoop("game-link", _ =>
         {
-            Views.Publish(GameLinkViewKey, gameLink.Update(runtimeSnapshot.Read()));
+            var observation = runtimeSnapshot.Read();
+            Views.Publish(GameLinkViewKey, gameLink.Update(observation));
+            // The state link holds the lease the game's rolling recording follows. Away for longer than the lease
+            // lasts, the game has ended that recording by itself, and the app would learn it only when a save found
+            // nothing: started again once the link is back.
+            if (observation.Quality == Process.Contracts.GameRuntime.RuntimeQuality.Offline) linkLost = null;
+            else if (observation.IsFresh || observation.Reason == Process.Contracts.GameRuntime.RuntimeObservation.GameStartingReason)
+            {
+                if (linkLost is { } lost && System.Diagnostics.Stopwatch.GetElapsedTime(lost) >= ProfileRecordingService.LeaseTerm)
+                    Profiles.RollingLeaseLapsed();
+                linkLost = null;
+            }
+            else linkLost ??= System.Diagnostics.Stopwatch.GetTimestamp();
             return Task.CompletedTask;
         }, projectionInterval);
         Projections.AddLoop("telemetry", token => telemetry.ProjectOnceAsync(cancellationToken: token),
@@ -283,6 +298,8 @@ public sealed class AppHost : IAsyncDisposable
             "--repository", settings.BackupRoot,
             "--worker-directory", paths.WorkerDirectory,
             "--control-db", paths.ControlDatabasePath!,
+            // Renewed in the game while the state stream is open: what this run asked of the game lasts as long.
+            "--app-run", AppRun.Id,
         };
         supervisors.Add(SuperviseAsync(
             "backup-scheduler",
@@ -436,8 +453,52 @@ public sealed class AppHost : IAsyncDisposable
         }
     }
 
+    // How long a note waits for the game to finish another request.
+    private static readonly TimeSpan NoticePatience = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// A note over the player's head for something asked for from inside the game, built in the game from its own
+    /// catalog (see <see cref="GameProfileClient.NotifyAsync"/>). False when nobody saw it: notes are off, there is no
+    /// single game, no player (the main menu), or the game did not answer in time.
+    /// </summary>
+    public async Task<bool> NotifyGameAsync(IReadOnlyList<string> items, CancellationToken cancellationToken = default)
+    {
+        if (!runtime.HotKeyOptions.GameNotices) return false;
+        var language = Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.Language ?? "en-US";
+        try
+        {
+            var processId = await Task.Run(GameProfileClient.FindGame, cancellationToken).ConfigureAwait(false);
+            var client = new GameProfileClient(Path.Combine(paths.WorkerDirectory, "game-bridge"), connectionTimeoutSeconds: 10);
+            // The game takes one request at a time, and a save, a probe or a recording's start or stop holds it for a
+            // moment: wait for it a few seconds, not longer, so a note that meets one (as "backup complete" may, just
+            // after the backup's own save) still arrives. Nothing was sent on a busy answer: trying again never shows a
+            // note twice. Each try starts a helper process, so they are a second apart.
+            var patience = System.Diagnostics.Stopwatch.StartNew();
+            while (true)
+            {
+                try { return await client.NotifyAsync(processId, language, items, cancellationToken).ConfigureAwait(false); }
+                catch (GameSaveException busy) when (busy.Code == "busy" && patience.Elapsed < NoticePatience)
+                {
+                    await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception exception) when (exception is GameSaveException or IOException or InvalidOperationException
+            or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+        // Given up by the caller: a note that would only come after its moment.
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return false; }
+    }
+
+
     public void PublishSettings(AppSettings settings)
-        => SettingsProjector.Project(settings);
+    {
+        SettingsProjector.Project(settings);
+        // The game keeps its last minutes as the settings say; before the workers start it waits for them.
+        Profiles.ApplyRolling(settings.RollingEnabled, settings.RollingDetailed, settings.RollingMinutes);
+    }
 
     public async Task RefreshSaveViewsAsync(bool collectState = true, CancellationToken cancellationToken = default)
     {
@@ -507,7 +568,8 @@ public sealed class AppHost : IAsyncDisposable
     /// in the logs. Its card expires; the log entry and the unread badge stay until the user has seen them.
     /// Never throws: a failed log write must not turn one failure into two.
     /// </summary>
-    public void RecordActionIssue(string title, string message, bool failed)
+    /// <param name="diagnostics">Technical detail for the log's copied details (file names, codes); not shown as the message.</param>
+    public void RecordActionIssue(string title, string message, bool failed, string? diagnostics = null)
     {
         if (LogInbox is not { } inbox) return;
         var id = Guid.NewGuid();
@@ -519,6 +581,7 @@ public sealed class AppHost : IAsyncDisposable
                 outcome = failed ? "Failed" : "Degraded",
                 title,
                 message,
+                diagnostics,
             }));
         _ = Task.Run(async () =>
         {
@@ -646,7 +709,7 @@ public sealed class AppHost : IAsyncDisposable
 
     public bool HasRunningOperation() =>
         Operations?.IsDeletionRunning == true || Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
-            .Any(item => item.Status == OperationStatus.Running && item.Kind != "profile") == true;
+            .Any(item => item.Status == OperationStatus.Running && !item.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
 
     private void RegisterTelemetrySources(
         AppSettings settings,

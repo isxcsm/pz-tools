@@ -217,7 +217,7 @@ public sealed class RuntimeScheduleIntegrationTests
     [InlineData("connection-timeout", false)]
     [InlineData("unsupported-protocol", false)]
     public void OnlyAnUnansweredSaveCommandLeavesTheOutcomeUnknown(string code, bool unknown) =>
-        Assert.Equal(unknown, new PzTools.SaveBridge.GameSaveException(code, "fixture").SaveOutcomeUnknown);
+        Assert.Equal(unknown, new PzTools.GameBridge.GameSaveException(code, "fixture").SaveOutcomeUnknown);
 
     [Fact]
     public async Task WorkerThatNeverStarted_IsNotAnUnknownCompletion()

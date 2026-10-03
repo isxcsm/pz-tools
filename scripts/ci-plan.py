@@ -22,12 +22,12 @@ def plan(paths, *, full=False, manual=False, benchmarks=False):
         or (path.startswith("tests/") and any(part in path for part in ("IntegrationTests", "Distribution", "StateStartup")))
         for path in paths)
     bridge = full or publish or any(
-        path.startswith(("src/PzTools.SaveBridge", "tests/save-bridge/",
+        path.startswith(("src/PzTools.GameBridge", "tests/game-bridge/",
                          "src/PzTools.GameExtensions", "config/game-extensions/", "tests/game-extensions", "scripts/test-game-extensions",
                          "src/PzTools.Backup.Engine/", "src/PzTools.Zomboid.Backup/",
                          "src/PzTools.Scheduling/", "src/PzTools.Process.Hosting/",
-                         "src/PzTools.Process.Contracts/", "scripts/build-save-bridge",
-                         "scripts/test-save-bridge", "scripts/generate-bridge"))
+                         "src/PzTools.Process.Contracts/", "scripts/build-game-bridge",
+                         "scripts/test-game-bridge", "scripts/generate-bridge"))
         or path.endswith(("GameSaveClientTests.cs", "GameSaveClientExtensionsTests.cs", "SavePipelineIntegrationTests.cs", "GameRuntimeBridgeTests.cs", "RuntimeExtensionIntegrationTests.cs", "ExtensionVersionTests.cs", "LiveCharacterBridgeTests.cs", "RuntimeDeathPolicyTests.cs")) for path in paths)
     return dict(windows=full or (manual and not benchmarks) or any(not docs_only(path) for path in paths),
                 publish=publish, bridge=bridge, benchmarks=benchmarks)

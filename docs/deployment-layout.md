@@ -4,7 +4,9 @@
 
 PZ Tools keeps its files in three separate places: the app folder with the program
 itself, your own data under `%LOCALAPPDATA%\PzTools`, and the backup folders you
-choose. This page lists what is in each, so you know which files are yours to edit,
+choose. Outside them it changes one file of the game's, and only when you set the game's
+memory: the memory options in `ProjectZomboid64.json` in the game folder (see
+[game memory](game-memory.md)). This page lists what is in each, so you know which files are yours to edit,
 which belong to the app, and what a backup folder contains. It also covers the limits
 for importing ZIP archives and how jobs are numbered.
 
@@ -22,11 +24,29 @@ or next to archives you import. Development runs use the same layout for app dat
 ### The app folder
 
 ```text
-<app folder>\                          # for example C:\Program Files\PzTools\
+<app folder>\                          # for example C:\Games\PzTools-v0.2.2\
   PzTools.App.exe and worker executables
   defaults\<component>\default.toml    # read-only packaged defaults
-  save-bridge\                         # the save bridge, its attach runtime, extensions
+  game-bridge\                         # the game bridge, its attach runtime, extensions
+  pztools-files.txt                    # every file above, with its size and SHA-256
 ```
+
+**Checking the folder.** A release lists its files in `pztools-files.txt`. A little after
+each start the app checks its folder against it, in the background: when the list is new to
+the folder (the first start of a release, or a release extracted over it) every file is read
+and hashed once; after that only missing files and sizes are looked at. A folder that is not
+whole (usually a release extracted over the one running, whose files in use kept the old
+version) shows a card, *PZ Tools files are not intact*, asking for the ZIP to be extracted
+again into an empty folder, with the download page one click away; the files are named in
+the log entry's details. Files the list does not name, such as ones left from an older release,
+are not reported: nothing the app runs loads a file only because it is in its folder. A
+development build has no list and is not checked. A file another program holds for a moment
+(a scanner) is not blamed, and the folder is then checked whole again at the next start.
+
+If the app folder's path has letters outside ASCII (a Korean folder name, say), two small
+files of the bridge are also copied to `%TEMP%\PzTools\attach\` (or, if that path is not
+ASCII either, to a folder only you can write under `%ProgramData%\PzTools\attach\`), as
+the game cannot load them from such a path. See [getting into the game](game-bridge.md#getting-into-the-game).
 
 The packaged defaults are the starting point for each
 [component's](glossary.md#component) settings. To update the app, see the
@@ -37,8 +57,13 @@ The packaged defaults are the starting point for each
 ```text
 %LOCALAPPDATA%\PzTools\
   settings.toml                       # choices saved from the app
+  update.json                         # what the last update check found
+  install-check.json                  # the app folder last found whole, and its file list
+  game-memory.json                    # the game memory chosen, and the game's own from before
+  game-memory-original.json           # the game's launcher file as shipped, kept at the first change
   config\<component>\default.toml     # editable component settings
-  config-backups\                     # TOML copies made by Restore defaults
+  config-backups\                     # TOML copies made by Restore default settings
+  profiles-index.json                 # what each recording is, read once
   extensions\                         # game-extension settings
   control.db                          # installation-wide run_index allocator
   state.db                            # current game and save state

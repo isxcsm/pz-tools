@@ -10,7 +10,7 @@ default): PZ Tools then makes one backup when the death happens. This page is fo
 players who want to know when that backup is made and why periodic backups stop.
 
 Deaths are read live from the running game through the
-[save bridge](glossary.md#save-bridge), not from the save files.
+[game bridge](glossary.md#game-bridge), not from the save files.
 
 ## What happens when your character dies
 
@@ -91,7 +91,7 @@ held through weak references.
 The [WATCH](glossary.md#watch) stream carries life, character identity, death ID, sleep
 and an optional report on the last save, over the existing authenticated connection.
 Its message format is listed in the
-[compatibility table](save-bridge.md#compatibility-and-lifecycle). The state
+[compatibility table](game-bridge.md#compatibility-and-lifecycle). The state
 [reactor](glossary.md#collector-reactor-projection-outbox) commits the change and its
 outbox entry together, and scheduling consumes them in the same transaction.
 

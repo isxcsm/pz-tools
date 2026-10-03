@@ -152,14 +152,13 @@ public sealed class UserFacingMessageTests
         foreach (var key in new[] { "OperationError.FileInUse", "OperationError.DiskFull", "OperationError.WorkersMissing",
             "OperationError.RepositoryIncompatible", "OperationError.SettingsBusy", "OperationError.Configuration",
             "OperationError.RestartFailed", "OperationError.SettingsReverted", "OperationError.SettingsRecoveryFailed",
-            "SettingEnabled", "SettingDisabled", "BackupDeduplicationPhase", "LogPhase.deduplication" })
+            "SettingEnabled", "SettingDisabled", "LogPhase.deduplication" })
         {
             Assert.False(string.IsNullOrWhiteSpace(resources[key]), $"{tag}/{key}");
             Assert.Equal(0, CompositeFormat.Parse(resources[key]).MinimumArgumentCount);
         }
         Assert.NotEqual(resources["SettingEnabled"], resources["SettingDisabled"]);
         Assert.Equal(language.AutomaticBackupName, resources["AutomaticSaveLabel"]);
-        Assert.Equal(resources["BackupDeduplicationPhase"], resources["LogPhase.deduplication"]);
         Assert.NotEqual(language.SaveCompleted, language.AutomaticBackupName);
         Assert.Equal(1, CompositeFormat.Parse(language.SaveCountdown).MinimumArgumentCount);
         Assert.Equal(2, CompositeFormat.Parse(resources["ConfirmRestoreBody"]).MinimumArgumentCount);

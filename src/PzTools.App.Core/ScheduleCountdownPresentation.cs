@@ -8,12 +8,19 @@ public sealed record CountdownPresentation(string MessageKey, long? RemainingSec
 /// <summary>Display policy only. Never starts, postpones or consumes a backup.</summary>
 public static class ScheduleCountdownPresentation
 {
-    public static CountdownPresentation Resolve(ScheduleStatusView? schedule, DateTimeOffset now, bool unavailable = false)
+    /// <param name="restartRequired">The game runs a bridge from before an update of the app: automatic backups wait
+    /// for its restart (BackupScheduler), and the line says so instead of a time.</param>
+    /// <param name="starting">The game is starting (GameLinkView.Starting): its state is not read yet, and the line says
+    /// it starts rather than that it is being checked.</param>
+    public static CountdownPresentation Resolve(ScheduleStatusView? schedule, DateTimeOffset now, bool unavailable = false,
+        bool restartRequired = false, bool starting = false)
     {
         if (unavailable) return new("SchedulerStatusUnavailable");
         if (schedule is null) return new("NextBackupWaitingDynamic");
         if ((schedule.Hold & ScheduleHold.GameOffline) != 0) return new("RuntimeBackupOffline");
         if (!schedule.AutomaticEnabled) return new("AutomaticBackupOff");
+
+        if (restartRequired) return new("RuntimeBackupRestartRequired");
         // The game cannot be read, so backups follow the clock and take the files as they are.
         if (schedule.Fallback && schedule.NextDueUtc is { } fallbackDue)
             return fallbackDue <= now ? new(WaitingKey(schedule))
@@ -30,7 +37,8 @@ public static class ScheduleCountdownPresentation
             long? seconds = schedule.RemainingMilliseconds is { } ms ? (long)Math.Ceiling(Math.Max(0, ms) / 1000d) : null;
             if ((schedule.Hold & ScheduleHold.Ambiguous) != 0) return new("RuntimeBackupAmbiguous", seconds, true);
             // While the state is unknown a remaining time says nothing; show the message alone.
-            if ((schedule.Hold & (ScheduleHold.Unknown | ScheduleHold.Unsupported)) != 0) return new(CheckingKey);
+            if ((schedule.Hold & (ScheduleHold.Unknown | ScheduleHold.Unsupported)) != 0)
+                return new(starting ? "RuntimeBackupStarting" : CheckingKey);
             if ((schedule.Hold & ScheduleHold.NoWorld) != 0) return new("NextBackupWaitingDynamic");
             if ((schedule.Hold & ScheduleHold.Sleeping) != 0) return new("RuntimeBackupSleeping", seconds, true);
             if ((schedule.Hold & ScheduleHold.GamePaused) != 0) return new("RuntimeBackupPaused", seconds, true);

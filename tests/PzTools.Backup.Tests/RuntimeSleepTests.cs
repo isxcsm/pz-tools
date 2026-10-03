@@ -57,6 +57,24 @@ public sealed class RuntimeSleepTests
         Assert.Throws<InvalidDataException>(() => RuntimeSnapshot.ParseWire(frame.Replace("\tAsleep", "\tTypo")));
     }
 
+    [Fact]
+    public void HeapFrame_SaysTheGamesMemory_AndAnOlderBridgeSaysNone()
+    {
+        string path = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(@"C:\fixture\Saves\Sandbox\World"));
+        string older = $"STATE4\t{Id}\t{Id}\t{Id}\t1\t1\t1\tReady\tRunning\tLocalSinglePlayer\t4\t120000\t0\t{path}\t{RuntimeSnapshot.Capabilities}\t-\tAlive\t{Id}\t-\t-\tAwake";
+        var state = RuntimeSnapshot.ParseWire(older.Replace("STATE4", "STATE5") + "\t8192");
+        Assert.Equal(8192, state.HeapMaximumMegabytes);
+        Assert.Equal(state, RuntimeJson.Read<RuntimeSnapshot>(RuntimeJson.Write(state)));
+        Assert.Null(RuntimeSnapshot.ParseWire(older).HeapMaximumMegabytes);
+        // It does not change while the game runs, so it starts no state transition.
+        Assert.Equal(state.SemanticKey, (state with { HeapMaximumMegabytes = 3072 }).SemanticKey);
+        // The settings read it through the link view, kept through a moment the game cannot be read.
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
+        Assert.Equal(8192, monitor.Update(new(Id, RuntimeQuality.Fresh, state)).GameHeapMegabytes);
+        Assert.Equal(8192, monitor.Update(RuntimeObservation.Unknown("connecting")).GameHeapMegabytes);
+        Assert.Null(monitor.Update(new("", RuntimeQuality.Offline, null)).GameHeapMegabytes);
+    }
+
     [Theory]
     [InlineData(ScheduleHold.GamePaused, "RuntimeBackupPaused")]
     [InlineData(ScheduleHold.Sleeping, "RuntimeBackupSleeping")]

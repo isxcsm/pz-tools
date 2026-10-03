@@ -1,5 +1,5 @@
 <Project DefaultTargets="Build">
-  <Import Project="..\..\build\SaveBridge.props" />
+  <Import Project="..\..\build\GameBridge.props" />
   <PropertyGroup>
     <ExtensionOutput>$(BridgeOutputPath)\extensions</ExtensionOutput>
     <Classes>$(MSBuildProjectDirectory)\obj\$(Configuration)\classes</Classes>

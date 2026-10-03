@@ -181,35 +181,42 @@ waiting for it and follow the wall clock instead. See
 
 ## Inside the game
 
-### Save bridge
+### Game bridge
 
 The Java component PZ Tools loads into the running game. It saves on request,
-streams the game's state and hosts extensions. See [save bridge](save-bridge.md).
+streams the game's state and hosts extensions. See [game bridge](game-bridge.md).
 
 ### Attach
 
 Java's standard way to load code into a running Java program. PZ Tools uses it to
-load the save bridge; no game file is changed.
+load the game bridge; no game file is changed.
 
 ### Bootstrap
 
-The part of the save bridge that stays loaded until the game exits: it accepts
+The part of the game bridge that stays loaded until the game exits: it accepts
 connections and hands commands to the other parts. If PZ Tools ships an incompatible
 bootstrap, the game has to be restarted once to use it. Pages also call it the
 *resident* part.
 
 ### Payload
 
-The replaceable part of the save bridge: saving, the state stream and extension
-control. A newer payload replaces the old one while the game runs, at an idle moment.
-See [component updates](module-reload.md).
+The replaceable part of the game bridge: saving, the state stream, performance recording,
+in-game notes and extension control. A newer payload replaces the old one while the game
+runs, at an idle moment. See [component updates](module-reload.md).
 
 ### WATCH
 
 The state stream from the game to the state scheduler: process, world, pause, sleep,
 active play time, and the character's life and death. `WATCH` is the connection
 kind the app asks for when it opens the stream. The current message format is in
-the [compatibility table](save-bridge.md#compatibility-and-lifecycle).
+the [compatibility table](game-bridge.md#compatibility-and-lifecycle).
+
+### Lease (app run)
+
+What the app asks of the game lasts only while the app is there. Each run of the app has
+an identifier (32 hex digits); its WATCH stream, and each recording it starts, renew that
+run's lease in the game. Two minutes after the run was last heard from, the lease lapses
+and the game ends the recordings it held. See [leases](game-bridge.md#leases).
 
 ### Observer epoch
 

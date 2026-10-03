@@ -17,6 +17,11 @@
     <!-- No Main/Singleton services are used; framework components ship locally. -->
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
   </PropertyGroup>
+  <!-- Developer tools (the card preview in Settings > Advanced) are in every build except a published app:
+       scripts/publish-app.ps1 passes PzToolsDistribution=true, and nothing of them is compiled then. -->
+  <PropertyGroup Condition="'$(PzToolsDistribution)' != 'true'">
+    <DefineConstants>$(DefineConstants);PZTOOLS_DEV_TOOLS</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
     <!-- SettingsControls also depends on the SDK metapackage. Exclude unused

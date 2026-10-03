@@ -46,6 +46,8 @@ public sealed partial class MainWindowShell : UserControl
     private IDisposable? viewSubscription;
     private long saveListRevision;
     private long scheduleRevision;
+    // Only the update notice's switch is read from the settings here.
+    private long settingsRevision;
     private long operationsRevision;
     private long projectorHealthRevision;
     private long blockedComponentsRevision;
@@ -66,6 +68,16 @@ public sealed partial class MainWindowShell : UserControl
     private string? displayedDetailSaveId;
     private ScheduleStatusView? schedule;
     private ProjectorHealthView? projectorHealth;
+    // What the cards show in place of the real state while a developer build previews them (MainWindowShell.CardPreview);
+    // always null in a published app, which compiles nothing that sets them.
+#pragma warning disable CS0649
+    private BlockedComponentsView? previewBlocked;
+    private GameLinkView? previewGameLink;
+    private ProjectorHealthView? previewProjectors;
+    private UpdateRelease? previewUpdate;
+    private GameMemoryState? previewGameMemory;
+    private bool previewInstallProblem;
+#pragma warning restore CS0649
     private SaveListView? saveListSnapshot;
     private bool hostStartFailed;
     private bool narrow;
@@ -196,15 +208,17 @@ public sealed partial class MainWindowShell : UserControl
         if (Navigation.SettingsItem is NavigationViewItem settings)
             settings.Content = Localizer.Get("SettingsTitle.Text");
         if (IsLoaded) RefreshOperationCards();
+        if (IsLoaded) ApplyUpdate();
         if (blockedComponents is not null) ApplyBlockedComponents(blockedComponents);
         if (gameLink is not null) ApplyGameLink(gameLink);
         NextBackupText.Text = Localizer.Get("NextBackupWaiting.Text");
-        ProjectorStatusTitle.Text = Localizer.Get("ProjectorStatusTitle");
+        foreach (var card in new[] { LoadFailureCard, ComponentBlockedCard, GameLinkCard }) card.Localize();
+        UpdateLoadFailure();
         SetIconContent(ImportButton, "\uE8B5", Localizer.Get("ImportArchive.Content"));
         SetIconContent(DeleteAllBackupsButton, "\uE74D", Localizer.Get("DeleteAllBackupsButton"));
         NoSavesText.Text = Localizer.Get("NoSaves.Text");
         LoadingSavesText.Text = Localizer.Get("LoadingSaves.Text");
-        SavesUnavailableText.Text = Localizer.Get("ProjectorStatusTitle");
+        SavesUnavailableText.Text = Localizer.Get("SavesUnavailable");
         LoadingBackupsText.Text = Localizer.Get("LoadingBackups.Text");
         SelectSaveText.Text = Localizer.Get("SelectSave.Text");
         NarrowBackButton.Content = Localizer.Get("BackToList.Content");
@@ -263,6 +277,7 @@ public sealed partial class MainWindowShell : UserControl
         ProfilerRoot.ApplyLocalizedText();
         saveListRevision = 0;
         scheduleRevision = 0;
+        settingsRevision = 0;
         operationsRevision = 0;
         projectorHealthRevision = 0;
         logsRevision = 0;
@@ -292,6 +307,14 @@ public sealed partial class MainWindowShell : UserControl
         }
         ApplyNavigationSpacing();
         UpdateSaveListPlaceholder();
+        if (App.Updates is { } updates) { updates.Changed -= Updates_Changed; updates.Changed += Updates_Changed; }
+        ApplyUpdate();
+        if (App.GameMemory is { } memory) { memory.Changed -= GameMemory_Changed; memory.Changed += GameMemory_Changed; }
+        ApplyGameMemory();
+        ApplyInstallProblem();
+#if PZTOOLS_DEV_TOOLS
+        PreviewCardsFromEnvironment();
+#endif
         var host = App.Host;
         if (host is null) return;
         viewSubscription ??= host.Views.Subscribe((_, _) =>
@@ -333,9 +356,12 @@ public sealed partial class MainWindowShell : UserControl
         // A replaced shell must not wake up later and start refreshing cards nobody sees.
         operationCardExpiryTimer.Stop();
         operationCardsHoverTimer.Stop();
+        loadFailureTimer?.Stop();
         StopOperationProgressRefresh();
         viewSubscription?.Dispose();
         viewSubscription = null;
+        if (App.Updates is { } updates) updates.Changed -= Updates_Changed;
+        if (App.GameMemory is { } memory) memory.Changed -= GameMemory_Changed;
     }
 
     private void RefreshChangedViews()
@@ -348,6 +374,13 @@ public sealed partial class MainWindowShell : UserControl
         {
             saveListRevision = saves.ViewRevision;
             ApplySaveList(saves.Snapshot, saves.ViewRevision);
+        }
+
+        var settingsView = host.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, settingsRevision);
+        if (settingsView.Modified)
+        {
+            settingsRevision = settingsView.ViewRevision;
+            ApplyUpdate();
         }
 
         var scheduler = host.Views.ReadIfChanged<ScheduleStatusView>(
@@ -483,6 +516,67 @@ public sealed partial class MainWindowShell : UserControl
             ? Visibility.Visible : Visibility.Collapsed;
         UnavailableSaves.Visibility = placeholder == SaveListPlaceholder.Unavailable
             ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // A read that fails for a moment (a file briefly locked) is tried again on its own and needs no word; only one
+    // that keeps failing gets a card.
+    private static readonly TimeSpan LoadFailureGrace = TimeSpan.FromSeconds(10);
+    private static readonly string[] LoadFailureAreas = ["state", "backup", "details"];
+    private readonly Dictionary<string, DateTimeOffset> loadFailureSince = new(StringComparer.Ordinal);
+    private bool loadFailureDismissed;
+    private DispatcherQueueTimer? loadFailureTimer;
+
+    /// <summary>
+    /// What the saves page has not been able to read for a while, as a card naming it: the list or details shown may
+    /// be out of date and the actions that need them are off, until a try succeeds. There is nothing to do about it,
+    /// so it says only that it is tried again; it leaves by itself, or through its ✕ until the next failure.
+    /// </summary>
+    private void UpdateLoadFailure()
+    {
+        var health = previewProjectors ?? projectorHealth;
+        var now = DateTimeOffset.UtcNow;
+        foreach (var area in LoadFailureAreas)
+        {
+            if (health?.IsFaulted(area) != true) loadFailureSince.Remove(area);
+            // A preview shows the card at once.
+            else loadFailureSince.TryAdd(area, previewProjectors is null ? now : now - LoadFailureGrace);
+        }
+        if (loadFailureSince.Count == 0) loadFailureDismissed = false;
+        var lasting = LoadFailureAreas.FirstOrDefault(area => loadFailureSince.TryGetValue(area, out var since) && now - since >= LoadFailureGrace);
+        LoadFailureCard.Visibility = lasting is not null && !loadFailureDismissed ? Visibility.Visible : Visibility.Collapsed;
+        if (lasting is not null)
+        {
+            LoadFailureCard.Title = Localizer.Get(lasting switch
+            {
+                "state" => "LoadFailed.State",
+                "backup" => "LoadFailed.Backup",
+                _ => "LoadFailed.Details",
+            });
+            LoadFailureCard.Message = Localizer.Get("LoadFailedRetrying");
+        }
+        UpdateInteractiveCards();
+        // Look again when the first failure still under its grace would reach it.
+        loadFailureTimer?.Stop();
+        if (loadFailureSince.Values.Where(since => now - since < LoadFailureGrace).DefaultIfEmpty().Min() is var next && next != default)
+        {
+            loadFailureTimer ??= CreateLoadFailureTimer();
+            loadFailureTimer.Interval = next + LoadFailureGrace - now + TimeSpan.FromMilliseconds(50);
+            loadFailureTimer.Start();
+        }
+    }
+
+    private DispatcherQueueTimer CreateLoadFailureTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => UpdateLoadFailure();
+        return timer;
+    }
+
+    private void LoadFailureClose_Click(object? sender, EventArgs e)
+    {
+        loadFailureDismissed = true;
+        UpdateInteractiveCards();
     }
 
     private async Task LoadLiveThumbnailForItemAsync(SaveListUiItem item, SaveListItemView model)
@@ -963,7 +1057,7 @@ public sealed partial class MainWindowShell : UserControl
         if (!Navigation.IsPaneOpen || OperationCards.Visibility != Visibility.Visible) return;
         menuItemsScroller ??= FindNamedDescendant<ScrollViewer>(Navigation, "MenuItemsScrollViewer");
         if (menuItemsScroller is null || menuItemsScroller.ViewportHeight <= 0) return;
-        const double spacing = 8;
+        const double spacing = 6;
         var shown = shownOperationCards
             .Where(card => operationCardElements.ContainsKey(card.Key))
             .Select(card => (Card: card, Root: operationCardElements[card.Key].Root)).ToList();
@@ -1015,9 +1109,9 @@ public sealed partial class MainWindowShell : UserControl
     private OperationCardElements CreateOperationCard()
     {
         // Hierarchy by colour, not weight: Malgun Gothic has no semibold, so SemiBold drew a heavy Bold title.
-        var secondary = (Style)Resources["OperationCardSecondaryTextStyle"];
-        var icon = new FontIcon { FontSize = 14, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 3, 0, 0) };
-        var title = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var secondary = CardStyle("OperationCardSecondaryTextStyle");
+        var icon = new FontIcon { FontSize = 13, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) };
+        var title = new TextBlock { Style = CardStyle("CardTitleTextStyle"), VerticalAlignment = VerticalAlignment.Top };
         var percent = new TextBlock { Style = secondary, VerticalAlignment = VerticalAlignment.Top };
         Grid.SetColumn(title, 1);
         Grid.SetColumn(percent, 2);
@@ -1048,14 +1142,17 @@ public sealed partial class MainWindowShell : UserControl
         {
             Style = secondary, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis,
         };
-        var content = new StackPanel { Spacing = 6 };
+        var content = new StackPanel { Spacing = 4 };
         content.Children.Add(header);
         content.Children.Add(progress);
         content.Children.Add(detail);
         content.Children.Add(message);
-        var root = new Border { Style = (Style)Resources["OperationCardStyle"], Child = content };
+        var root = new Border { Style = CardStyle("OperationCardStyle"), Child = content };
         return new(root, icon, title, percent, progress, detail, phase, amount, message);
     }
+
+    // The cards' shared look (CardStyles.xaml), the same as the cards written in XAML.
+    private static Style CardStyle(string key) => (Style)Application.Current.Resources[key];
 
     // Finished work shows its outcome as an icon next to its name; running work has its progress bar instead.
     private void ApplyOutcomeIcon(FontIcon icon, OperationStatus status)
@@ -1071,7 +1168,7 @@ public sealed partial class MainWindowShell : UserControl
         icon.Visibility = glyph is null ? Visibility.Collapsed : Visibility.Visible;
         if (glyph is null) return;
         icon.Glyph = glyph;
-        icon.Style = (Style)Resources[style!];
+        icon.Style = CardStyle(style!);
     }
 
     private static string OperationCardTitle(OperationCard card)
@@ -1146,10 +1243,11 @@ public sealed partial class MainWindowShell : UserControl
         if (running)
         {
             var culture = Localizer.Culture;
-            if (telemetryUnavailable) phase = Localizer.Get("TelemetryProgressUnavailable");
+            // Progress that cannot be read shows no line: the bar and the title say the work goes on.
+            if (telemetryUnavailable) { }
             else if (byteBased)
             {
-                phase = ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup);
+                phase = ProgressPhaseText(operation.Phase);
                 amount = string.Format(culture, "{0:N1} / {1:N1} MB",
                     operation.CompletedBytes / 1048576.0, operation.TotalBytes!.Value / 1048576.0);
                 percent = string.Format(culture, "{0:N0}%",
@@ -1157,14 +1255,14 @@ public sealed partial class MainWindowShell : UserControl
             }
             else if (operation.TotalItems is > 0 and var total)
             {
-                phase = ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup);
+                phase = ProgressPhaseText(operation.Phase);
                 amount = string.Format(culture, "{0:N0} / {1:N0}", operation.CompletedItems, total);
                 percent = string.Format(culture, "{0:N0}%",
                     Math.Floor(Math.Clamp(100.0 * operation.CompletedItems / total, 0, 100)));
             }
             else phase = operation.CompletedItems > 0
-                ? Localizer.Format("OperationDiscoveredFormat", ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup), operation.CompletedItems)
-                : ProgressPhaseText(operation.Phase, card.Group == OperationCardGroup.Backup);
+                ? Localizer.Format("OperationDiscoveredItemsFormat", operation.CompletedItems)
+                : ProgressPhaseText(operation.Phase);
         }
         elements.Percent.Text = percent;
         elements.Percent.Visibility = percent.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -1204,35 +1302,14 @@ public sealed partial class MainWindowShell : UserControl
         AppToolTip.SetTip(elements.Message, message.Length == 0 || whole ? null : message);
     }
 
-    private static string ProgressPhaseText(string? phase, bool backup) => phase switch
+    // Only a step that explains a wait is named: the game saving before a backup (it may stall a moment), and a
+    // recording being turned into a file after it stopped. How the work is done inside is the log's; the card has its
+    // title, its bar and its amount.
+    private static string ProgressPhaseText(string? phase) => phase switch
     {
-        "maintenance.revisionreclamation" or "maintenance.artifactcleanup" or "maintenance.orphanbackups"
-            or "maintenance.packreclamation"
-            => Localizer.Get($"MaintenancePhase.{phase["maintenance.".Length..]}"),
-        "profile.recording" => Localizer.Get("ProfilePhaseRecording"),
-        "profile.converting" => Localizer.Get("ProfilePhaseConverting"),
-        "delete.discover" => Localizer.Get("DeleteSaveDiscoverPhase"),
-        "delete.validate" => Localizer.Get("DeleteSaveValidatePhase"),
-        "delete.files" => Localizer.Get("DeleteSaveFilesPhase"),
-        "delete.backups" => Localizer.Get("DeleteSaveBackupsPhase"),
         "source.prepare" => Localizer.Get("BackupGameSavePhase"),
-        "boundary" or "pack" or "commit" => Localizer.Get($"LogPhase.{phase}"),
-        "planning" => Localizer.Get("LogPhase.planning"),
-        "scan" => Localizer.Get("BackupScanPhase"),
-        "hash" => Localizer.Get("BackupHashPhase"),
-        "copy" => Localizer.Get("BackupCopyPhase"),
-        "copy.retry" => Localizer.Get("BackupCopyRetryPhase"),
-        "capture" => Localizer.Get("BackupCapturePhase"),
-        "deduplication" => Localizer.Get("BackupDeduplicationPhase"),
-        "restore" => Localizer.Get("Restoring"),
-        "archive.restore" => Localizer.Get("ArchiveRestorePhase"),
-        "archive.snapshot" => Localizer.Get("ArchiveSnapshotPhase"),
-        "archive.compress" => Localizer.Get("ArchiveCompressPhase"),
-        "archive.finalize" => Localizer.Get("ArchiveFinalizePhase"),
-        "import" => Localizer.Get("Importing"),
-        // Before a backup reports its first step: its worker is starting and opening the repository.
-        null when backup => Localizer.Get("BackupPreparingPhase"),
-        _ => Localizer.Get("ProcessingNow"),
+        "profile.converting" => Localizer.Get("ProfilePhaseConverting"),
+        _ => "",
     };
 
     private void RefreshOperationCards()
@@ -1354,15 +1431,16 @@ public sealed partial class MainWindowShell : UserControl
     // user closes it or Windows stops blocking, and comes back only if a different set gets blocked.
     private void ApplyBlockedComponents(BlockedComponentsView view)
     {
+        view = previewBlocked ?? view;
         blockedComponents = view;
         var signature = string.Join("|", view.Components);
         if (view.Components.Count == 0) dismissedBlockedComponents = null;
         ComponentBlockedCard.Visibility = view.Components.Count == 0 || signature == dismissedBlockedComponents
             ? Visibility.Collapsed : Visibility.Visible;
-        ComponentBlockedTitle.Text = Localizer.Get("ComponentBlockedTitle");
-        ComponentBlockedMessage.Text = Localizer.Format("ComponentBlockedMessage", string.Join(", ", view.Components));
-        ComponentBlockedOpenButton.Content = Localizer.Get("CardOpenSettings");
-        ComponentBlockedCloseButton.Content = Localizer.Get("CardAcknowledge");
+        // Which files were blocked is for the log, which already has it; the card says what it means and where to go.
+        ComponentBlockedCard.Title = Localizer.Get("ComponentBlockedTitle");
+        ComponentBlockedCard.Message = Localizer.Get("ComponentBlockedMessage");
+        ComponentBlockedCard.ActionLabel = Localizer.Get("CardOpenSettings");
         UpdateInteractiveCards();
     }
 
@@ -1370,35 +1448,160 @@ public sealed partial class MainWindowShell : UserControl
     // closed until the game has been readable again and is lost anew; the schedule line keeps saying so.
     private void ApplyGameLink(GameLinkView view)
     {
+        view = previewGameLink ?? view;
         gameLink = view;
         SettingsRoot.ApplyGameLink(view);
         if (!view.LinkUnavailable) gameLinkDismissed = false;
+        // A restart after an update holds automatic backups back until it happens: that card cannot be put away.
+        if (view.RestartRequired) gameLinkDismissed = false;
+        GameLinkCard.CanClose = !view.RestartRequired;
         GameLinkCard.Visibility = view.LinkUnavailable && !gameLinkDismissed ? Visibility.Visible : Visibility.Collapsed;
-        GameLinkTitle.Text = Localizer.Get("GameLinkCardTitle");
-        GameLinkMessage.Text = Localizer.Get(view.RestartRequired ? "GameLinkCardRestartMessage" : "GameLinkCardMessage");
-        GameLinkCloseButton.Content = Localizer.Get("CardAcknowledge");
+        // After an update the cause is the update, and restarting the game is what to do about it.
+        GameLinkCard.Title = Localizer.Get(view.RestartRequired ? "GameLinkRestartTitle" : "GameLinkCardTitle");
+        // A known cause the player can change says what to change; otherwise, what the backups do meanwhile.
+        GameLinkCard.Message = Localizer.Get(view.RestartRequired ? "GameLinkCardRestartMessage" : view.Cause switch
+        {
+            RuntimeObservation.AttachDisabledReason => "GameLinkCardDisabledMessage",
+            _ => "GameLinkCardMessage",
+        });
         UpdateInteractiveCards();
     }
 
-    private void GameLinkClose_Click(object sender, RoutedEventArgs e)
+    private void GameLinkClose_Click(object? sender, EventArgs e)
     {
         gameLinkDismissed = true;
-        GameLinkCard.Visibility = Visibility.Collapsed;
         UpdateInteractiveCards();
+    }
+
+    // ---- The app folder ----
+
+    private bool installDismissed;
+
+    // Files of the app folder missing or not as published: the way out is a fresh copy in an empty folder.
+    internal void ApplyInstallProblem()
+    {
+        bool broken = previewInstallProblem || App.InstallProblem is not null;
+        InstallCard.Visibility = broken && !installDismissed ? Visibility.Visible : Visibility.Collapsed;
+        if (broken)
+        {
+            InstallCard.Title = Localizer.Get("InstallBrokenTitle");
+            InstallCard.Message = Localizer.Get("InstallBrokenMessage");
+            InstallCard.ActionLabel = Localizer.Get("InstallBrokenAction");
+        }
+        UpdateInteractiveCards();
+    }
+
+    private void InstallClose_Click(object? sender, EventArgs e)
+    {
+        installDismissed = true;
+        ApplyInstallProblem();
+    }
+
+    private void InstallOpen_Click(object? sender, EventArgs e) => App.OpenReleasePage(UpdateChecker.ReleasesPage);
+
+    // ---- The game's memory ----
+
+    // The chosen heap and the file's when the card was closed: it comes back only when either changes.
+    private (int?, int?)? gameMemoryDismissed;
+
+    private void GameMemory_Changed() => DispatcherQueue.TryEnqueue(ApplyGameMemory);
+
+    // The player chose a heap and the game's file no longer has it (a game update or Steam's file check put the game's
+    // own back): a card says so, and its button applies the choice again, for the game's next start.
+    private void ApplyGameMemory()
+    {
+        var state = previewGameMemory ?? App.GameMemory?.State;
+        bool reverted = state is { Status: GameMemoryStatus.Reverted, ChosenMegabytes: not null, MaximumMegabytes: not null };
+        (int?, int?) key = (state?.ChosenMegabytes, state?.MaximumMegabytes);
+        if (!reverted) gameMemoryDismissed = null;
+        GameMemoryCard.Visibility = reverted && gameMemoryDismissed != key ? Visibility.Visible : Visibility.Collapsed;
+        if (reverted)
+        {
+            GameMemoryCard.Title = Localizer.Format("GameMemoryRevertedTitleFormat", SettingsPage.Size(state!.MaximumMegabytes!.Value));
+            GameMemoryCard.Message = Localizer.Get("GameMemoryRevertedMessage");
+            GameMemoryCard.ActionLabel = Localizer.Format("GameMemoryReapplyFormat", SettingsPage.Size(state.ChosenMegabytes!.Value));
+        }
+        UpdateInteractiveCards();
+        SettingsRoot.ApplyGameMemory();
+    }
+
+    private void GameMemoryClose_Click(object? sender, EventArgs e)
+    {
+        var state = previewGameMemory ?? App.GameMemory?.State;
+        gameMemoryDismissed = (state?.ChosenMegabytes, state?.MaximumMegabytes);
+        GameMemoryCard.Visibility = Visibility.Collapsed;
+        UpdateInteractiveCards();
+    }
+
+    private async void GameMemoryReapply_Click(object? sender, EventArgs e)
+    {
+        if (App.GameMemory is not { } memory || memory.State.ChosenMegabytes is not { } chosen) return;
+        try { await memory.ApplyAsync(chosen); }
+        catch (GameMemoryException error)
+        {
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), Localizer.Get(error.Code switch
+            {
+                "not-found" => "GameMemoryNotFound",
+                "unsupported" => "GameMemoryUnsupported",
+                _ => "GameMemoryUnwritable",
+            }));
+        }
+        // A handler of a click: whatever else went wrong is said, not left to end the app.
+        catch (Exception exception)
+        {
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), UserFacingError.FromException(exception));
+        }
+    }
+
+    // ---- Updates ----
+
+    private void Updates_Changed() => DispatcherQueue.TryEnqueue(ApplyUpdate);
+
+    // A newer release, while the notice is on: one line in the pane until the app is updated. With the pane folded to
+    // its icons the cards cannot be read, so the settings icon carries a dot instead. The settings page says the rest.
+    private void ApplyUpdate()
+    {
+        var notice = UpdateNotice();
+        UpdateCard.Visibility = notice is null ? Visibility.Collapsed : Visibility.Visible;
+        if (notice is not null)
+        {
+            UpdateCardText.Text = Localizer.Format("UpdateCardFormat", "v" + notice.Version.ToString(3));
+            AutomationProperties.SetName(UpdateCard, UpdateCardText.Text);
+            AppToolTip.SetTip(UpdateCard, notice.Page.ToString());
+        }
+        UpdateInteractiveCards();
+        if (Navigation.SettingsItem is NavigationViewItem settings)
+        {
+            var dot = notice is not null && Navigation.DisplayMode != NavigationViewDisplayMode.Expanded;
+            if (dot && settings.InfoBadge is null)
+                settings.InfoBadge = new InfoBadge { Style = (Style)Application.Current.Resources["AttentionDotInfoBadgeStyle"] };
+            else if (!dot && settings.InfoBadge is not null)
+                settings.InfoBadge = null;
+        }
+        SettingsRoot.ApplyUpdate();
+    }
+
+    // The newer release to point at, unless the notice is turned off in the settings.
+    private UpdateRelease? UpdateNotice() => previewUpdate
+        ?? (App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.CheckForUpdates == false
+            ? null : App.Updates?.Available);
+
+    private void UpdateCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (UpdateNotice() is { } release) App.OpenReleasePage(release.Page);
     }
 
     private void UpdateInteractiveCards() =>
         InteractiveCards.Visibility = InteractiveCards.Children.Any(card => card.Visibility == Visibility.Visible)
             ? Visibility.Visible : Visibility.Collapsed;
 
-    private void ComponentBlockedClose_Click(object sender, RoutedEventArgs e)
+    private void ComponentBlockedClose_Click(object? sender, EventArgs e)
     {
         dismissedBlockedComponents = string.Join("|", blockedComponents?.Components ?? []);
-        ComponentBlockedCard.Visibility = Visibility.Collapsed;
         UpdateInteractiveCards();
     }
 
-    private void ComponentBlockedOpen_Click(object sender, RoutedEventArgs e)
+    private void ComponentBlockedOpen_Click(object? sender, EventArgs e)
     {
         // Opens the Smart App Control page of Windows Security; the app changes no security setting itself.
         try
@@ -1415,24 +1618,12 @@ public sealed partial class MainWindowShell : UserControl
 
     private void ApplyProjectorHealth()
     {
+        // No card of its own: each view that could not be read says so where it shows (the saves page, the next
+        // backup line, the logs page). A card with nothing to do about it only worried.
         UpdateSaveListPlaceholder();
+        UpdateLoadFailure();
         if (projectorHealth?.IsFaulted("telemetry") == true)
             LogsRoot.ShowLoadFailure();
-        var faults = projectorHealth?.Projectors
-            .Where(item => item.Health == ProjectorHealth.Faulted).ToArray() ?? [];
-        ProjectorStatusCard.Visibility = faults.Length == 0
-            ? Visibility.Collapsed : Visibility.Visible;
-        UpdateInteractiveCards();
-        ProjectorStatusMessage.Text = Localizer.Format(
-            "ProjectorStatusMessage", string.Join(", ", faults.Select(item => item.Name switch
-            {
-                "state" => Localizer.Get("ProjectorArea.State"),
-                "backup" => Localizer.Get("ProjectorArea.Backup"),
-                "scheduler" => Localizer.Get("ProjectorArea.Schedule"),
-                "details" => Localizer.Get("ProjectorArea.Details"),
-                "telemetry" => Localizer.Get("ProjectorArea.Logs"),
-                _ => Localizer.Get("ProjectorArea.Other"),
-            })));
         var operations = App.Host?.Views.ReadIfChanged<OperationsView>(
             ViewKey.Operations, 0).Snapshot;
         if (operations is not null) ApplyOperations(operations);
@@ -1447,7 +1638,7 @@ public sealed partial class MainWindowShell : UserControl
         projectorHealth?.IsFaulted("telemetry") != true
         && App.Host?.Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
             // A recording only watches the game; it holds no save and no repository.
-            .Any(operation => operation.Status == OperationStatus.Running && operation.Kind != "profile") == true;
+            .Any(operation => operation.Status == OperationStatus.Running && !operation.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
 
     private void ShowLoadingBackups(bool visible)
     {
@@ -1462,7 +1653,7 @@ public sealed partial class MainWindowShell : UserControl
     {
         var now = DateTimeOffset.UtcNow;
         var display = countdownStabilizer.Apply(ScheduleCountdownPresentation.Resolve(schedule, now,
-            projectorHealth?.IsFaulted("scheduler") == true), now);
+            projectorHealth?.IsFaulted("scheduler") == true, gameLink?.RestartRequired == true, gameLink?.Starting == true), now);
         // Assign only what changed: even an equal string makes the window draw a frame, every second, for as
         // long as the app runs (also minimised or in the tray).
         SetText(NextBackupText, Localizer.Get(display.MessageKey));
@@ -1507,7 +1698,11 @@ public sealed partial class MainWindowShell : UserControl
     }
 
     private void Navigation_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args)
-        => ApplyNavigationSpacing();
+    {
+        ApplyNavigationSpacing();
+        // Folded, the update notice moves to a dot on the settings icon.
+        ApplyUpdate();
+    }
 
     private void Navigation_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
@@ -2719,17 +2914,6 @@ public sealed class SaveVersionUiItem : DeletableUiItem
             : Localizer.Format("SurvivalHoursMinutesFormat", minutes / 60, minutes % 60);
     }
 
-    private static string FormatBytes(long bytes)
-    {
-        string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
-        var value = (double)bytes;
-        var suffix = 0;
-        while (value >= 1024 && suffix < suffixes.Length - 1)
-        {
-            value /= 1024;
-            suffix++;
-        }
-        // The UI language's decimal mark; the thread's culture can still be the one the app started with.
-        return string.Create(Localizer.Culture, $"{value:0.#} {suffixes[suffix]}");
-    }
+    // The UI language's decimal mark and unit symbols; the thread's culture can still be the one the app started with.
+    private static string FormatBytes(long bytes) => Units.Bytes(bytes);
 }

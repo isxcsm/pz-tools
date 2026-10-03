@@ -4,7 +4,7 @@
 
 The **Performance** page records what the running game is doing and shows where the time
 went: which part of the game, which mod, which function. Nothing is measured unless a
-recording is running.
+recording is running or *Keep the last minutes* is on.
 
 ## Recording
 
@@ -18,7 +18,8 @@ and *Game code* what the game itself was loading. What happens before the main m
 cannot be recorded, as the game is not running yet; it is the same scripts as a reload
 plus the game's own start, which neither players nor mod authors can change.
 A recording also ends by itself when the game exits or when its time limit is reached
-(30 minutes in Standard mode, 10 minutes in Detailed mode).
+(30 minutes in Standard mode, 10 minutes in Detailed mode; see the advanced settings
+under [Hotkeys](#hotkeys)).
 
 **Start recording** is available while exactly one game is running, or before the first
 check has answered; the page checks every two seconds, and resting the pointer on the button says what is missing. Nothing
@@ -28,7 +29,7 @@ recording that really fails is logged once, by the recording itself, and its car
 the reason. When the game still runs a bridge bootstrap from before an update that this
 build cannot use, the card says plainly that the game needs one restart to record, rather
 than the general "could not connect"; an update that keeps the bootstrap compatible needs
-no restart at all (see [compatibility](save-bridge.md#compatibility-and-lifecycle)).
+no restart at all (see [compatibility](game-bridge.md#compatibility-and-lifecycle)).
 
 | Mode | Java samples | Lua samples | Extra |
 | --- | --- | --- | --- |
@@ -68,6 +69,69 @@ It is restored when the recording ends.
 Backups, saving and game extensions keep working during a recording. Recording control
 uses the ordinary short request channel to the game; if a backup's save request is using
 it, start or stop simply waits for it.
+
+### The last minutes
+
+A stutter is often over before a recording could be started. **Keep the last minutes**,
+under *Settings > Performance*, has the game record all the time and hold only its last
+few minutes: 1 to 10 of them (2 at first), in Standard or Detailed mode, both set there.
+**Save last 2 min** (with the number set) stands beside **Start recording**, whose arrow
+chooses the mode for recordings only.
+Press it right after a stutter, and those minutes become a recording like any other,
+listed and opened at once. While Detailed is kept, the button says so (*Save last 2 min ·
+Detailed*), as that mode slows the game for as long as it is on.
+The game goes on keeping the next ones. Changing the mode or the length restarts the
+keeping that way; the button's tip says which mode is kept, or why there is nothing yet
+(no game, the game's bridge needs a restart). While the setting is off there is nothing
+to save, so the button reads *Turn on last minutes →* instead and opens Settings at that
+switch, with the keyboard on it. A key set for it is named in the button's tip.
+
+The game started later, or restarted, gets it within five seconds, whether or not the
+page is open. **Start recording** runs beside it, so reaching for the record button after
+a stutter loses nothing: the last minutes are still there to save, during the recording
+and after it. The two may be in different modes. While either is in Detailed mode the
+game is sampled at Detailed's pace; each file is taken back to its own mode as it is
+converted, so a Standard one reads as if it had run alone. The setting is kept, so it
+starts again with the app; it ends when switched off, and while the app is closed nothing
+records the game: the recording lasts while the app run that asked for it holds its lease in
+the game (see [leases](game-bridge.md#leases)), so an app that crashed or was ended from the
+Task Manager does not leave it recording for more than two minutes.
+
+The cost is that of a recording that never ends. Standard mode is light; Detailed mode
+costs the game frame rate for as long as it is on (roughly 10% in a synthetic test), so
+use it while hunting a stutter, not all evening. A longer window costs the game nothing
+more, only disk. The game's timer resolution stays at 1 ms while it is on. Older data is
+discarded a piece at a time on disk, so a save holds somewhat more, which is cut to the
+window as it is converted; at most 256 MB is held (`rolling_max_megabytes` below), which
+a long Detailed window can reach, and then holds less. Saved minutes have no video
+memory, which only a recording worker reads.
+
+### Hotkeys
+
+The game has the keyboard when it stutters, so the app's actions can have keys, set under
+*Settings > Hotkeys* by pressing them: save the last minutes, start or stop a recording,
+switch the next recording between Standard and Detailed (the same choice as on the page;
+one under way keeps its mode, and the note says *Next recording: Detailed*), turn the
+last minutes on or off, back up the save being played, turn automatic backups on or off
+(the settings' own switch, as if flipped there: nothing turns them on again by itself),
+and show the status. Only saving the last minutes has a key at
+first, Ctrl+Shift+F9. While the app runs, Windows gives each set combination to it alone,
+so a key another program uses is refused when it is chosen, and one taken later is
+marked on its card. A letter or digit needs Ctrl or Alt with it; function keys may stand
+alone. Saving the last minutes holds its key only while they are kept.
+
+Nothing of the app shows over the game, so each key answers twice: with Windows' own
+sounds (heard; done; or its error sound, the reason then waiting in the app), and with a
+short note over the character's head, like the backup countdown's, in the app's
+language: *Saved the last 2 min*, *Backup complete*, *Next backup · 04:30 remaining · Last backup
+6 min ago · Keeping the last 2 min*. The notes come from a fixed list the game itself
+holds, with a number at most: the app cannot put other text into the game. The status note says what the sidebar's line says at that moment, the remaining time in minutes and seconds as it shows there, or *Automatic backups after a game restart* while they wait for one. At the main
+menu there is no one to show a note to, and the sounds alone answer. A saved recording is
+listed and opened in the app without bringing it in front of the game.
+
+The advanced settings file (`config\app\default.toml`) holds the rest: `[profiler]`
+`general_limit_minutes` and `detailed_limit_minutes` (when a forgotten recording ends by
+itself) and `rolling_max_megabytes`; `[hotkeys]` `sounds` and `game_notices`.
 
 ## What depends on the game version
 
@@ -109,19 +173,42 @@ When something does not fit, the profiler is what stops, and only it:
 
 ## Reading the result
 
-The recording tools share the title line: record, mode, which recording, which thread,
-and a **…** menu with *Open recording*, *Save as*, *Open folder* and *Delete*. In a narrow
-window they move below the title. What the recording is doing appears under that line only
-while a recording starts, runs or is being processed.
+The tools stand on two lines, each saying only what differs from the usual. The title's
+line holds making a recording, at its right: **Save last 2 min** and **Start recording**,
+whose arrow chooses Standard or Detailed (the button names Detailed while it is chosen;
+a key set for a button is in its tip). The next line is the recording shown: its name,
+a pencil to rename it, a bin to delete it (after asking), *Compare with*, and a **…**
+menu with *Open recording*, *Save as*, *Save selection* (while a range is selected) and
+*Open folder*. In a narrow window the
+recording tools move below the title and the buttons keep their icons alone, their names
+as tips. What the recording is doing appears under these lines only while a recording
+starts, runs or is being processed.
+
+The line above the graph shows the range, the average and the worst 1%; the frame count
+and the slowest frame are one hover away and in the copied text.
+Beside them, which thread the results count, the game's or all of them: a choice for the
+whole analysis, both tabs. The chosen owner's table is a card of its own, level with the
+owner list's card; its line above sits level with the tabs: the owner's name, the search
+button, the **Call tree** switch, **Copy text**, and last its samples out of the tab's. In
+a narrow window the line and the card come under the owner list, and the samples and the
+copy's label give way first.
 
 The frame graph stays in place; drag the handle under it to make it taller or shorter. The
-line above the graph describes the range the results show: its start, end and length,
-then the frame count (how many frames the range holds, not frames per second), the average
-frame time, the same average as a frame rate (*FPS 7.4*), slowest and worst 1 %, names
-muted and numbers not. It keeps to the frames, so it stays one line in every language. A
-range of one frame shows that frame's time alone. Resting the pointer on the line adds the
-sample count and recording mode; while the pointer is over the graph the line shows the
-time and frame under it instead. The **?** beside it lists the graph's mouse controls.
+line above the graph describes the range the results show, every number with its name:
+*Total 80.37 s* for the whole recording, or *Selection 8.20 s (12.30–20.50 s)* for a
+selected part, its length first and where it lies after. A selection shows as a chip with
+a ✕, like an active filter: pressing it, or Escape anywhere on the page, clears the
+selection and the results describe the whole recording again (the zoom stays; *Show all*
+and a double-click only zoom out and keep the selection). Then *Average 23.6 FPS (42.4 ms)*
+and *Worst 1% 4.0 FPS (251.6 ms)*, both as a frame rate first, which is how players read
+them, and the frame time the graph is scaled in after. Names are muted and numbers not. It
+keeps to the frames, so it stays one line in every language. A range of one frame shows
+that frame's time alone. Resting the pointer on the line adds the frame count (how many
+frames the range holds, not frames per second), the slowest frame, the sample count and
+recording mode; while the pointer is over the graph the line shows the
+time and frame under it instead, and while dragging a selection, the range being drawn
+(its length, where it lies, its frames, and under the graph its memory figures), so the
+size of the drag reads as it grows. The **?** beside it lists the graph's mouse controls.
 
 Under the graph, a line carries the range's other figures, the memory ones in their lines'
 colours: heap peak, video memory peak, and garbage collections (*GC 3 times, paused
@@ -129,6 +216,21 @@ colours: heap peak, video memory peak, and garbage collections (*GC 3 times, pau
 it; this is where it shows. Over either graph the figures follow the pointer: the
 collections that overlapped the frame there, and memory at that moment. The copied text
 starts with the range line followed by these figures.
+
+Above the tabs, a thin bar splits the range's time on the game thread four ways, with
+their shares beside it: *Scripts* (mods' and the game's scripts running, the game
+functions they called included), *Game code* (the game's own code running), *GC pause*
+(the game stopped for memory: the collector's pauses where they fell, and the game thread
+waiting for memory to be freed, overlaps counted once; a recording from before the pauses
+were kept has the collections' totals instead) and *Waiting* (the thread waiting: for the next frame
+usually, or, in a stutter, stuck on a file or another thread). The four add up to the
+range. It answers at a glance whether a stutter was the scripts, the game or the memory,
+which adding up the two tabs cannot: they count the same time two ways (below). The bar
+follows the frame graph: while a mod is drawn over the graph (clicked in *Scripts*, or
+pointed at while another is drawn), it stands apart within the scripts' part, solid
+beside the lighter *Other scripts*, with its name and its figure from the list: how
+much of this stretch was that mod. With none drawn, the bar is the whole range's. It is shown for the game thread with enough samples, and goes into the
+copied text.
 
 The results are in tabs, *Scripts (Lua)* and *Game code (Java)*, and *Memory allocation*
 for recordings that have allocations. Each tab is split in
@@ -138,7 +240,10 @@ heading over every column. The owner list has headings too, and the one over its
 says what they are when the pointer rests on it: in *Scripts* (*Range time*) the share
 of the range a mod's scripts were running, game functions they called included, with the
 figure for all scripts together beside the heading; in *Game code* (*Run share*) the share of the game
-code's running time, where game functions called from Lua count as the base game. *Long
+code's running time, where game functions called from Lua count as the base game. The
+same two facts stand under each tab's list, on the page and not only one hover away: read
+the other way, a mod that called heavy game functions seemed lighter than one that only
+counted, as players found. *Long
 waits and pauses* shows a count with its unit instead of a share. Above the table, on the line of the tabs, stand the owner's
 name and its samples out of the tab's, such as *Samples 9/70*. The **Copy text** button beside the
 name puts what the page shows on the clipboard as text (the recording, the range,
@@ -179,6 +284,51 @@ a copy carries the tree as indented text. A path deeper than the 24 innermost fu
 the recorder keeps starts at the 24th. The list is still the way to see a helper that
 many paths call: the tree splits its cost among them, the list adds it up.
 
+The *File* column names the line the function ran itself the most, as `Client.lua:125`
+(in *Memory allocation*, where it allocated most): what to change, not only where. In the
+list, a function's row opens into all its lines, most samples first; a line it only
+called from is marked *(call)*, as its time is the called function's. In the tree, a node
+opens into what it called, the heaviest first, and after them one closed row, *Lines it
+ran itself · 25*, opening into the lines where it did its own work, the most first; the
+lines it called from are its children's rows already, and resting the pointer on a
+child's file says which line of its caller called it. A line's *Total* counts the samples
+that found the function there, whatever it had called from that line, once per sample
+even if a recursion passed the line again; its *Self* those where it was running the
+line itself. So in the list a function's lines' *Samples*, those that ended there, add up
+to the function's, and in the tree a node's lines' samples add up to the node's. *Line
+unknown* is a frame the game gave no line for.
+
+The **search** button (or Ctrl+F) opens a box where the button is, the owner's name giving
+way to it; it narrows the
+table to the rows whose name or file holds the text, in any case; in the tree it keeps the
+paths that lead to a match, opened down to it. It applies to the game code's methods and
+the threads too, and holds while other owners and ranges are shown. The box stays open as
+long as it holds text, so a narrowed table always shows why; Escape clears and closes it,
+and leaving it empty closes it.
+
+**Comparing two recordings.** *Compare with* on the title line lists the other
+recordings; pick one, say from before a mod was added or updated, and the shown range is
+compared with the whole of it. A long recording takes a few seconds to read; meanwhile the
+button turns a small ring and says it is loading, and its ✕ takes the choice back. A
+comparison already shown stays until the new one is ready, and stays if the choice is
+taken back. There
+is no bar of its own: the button then names the
+recording compared with, in the accent colour, with a ✕ beside it to stop, and each figure
+carries its change where it stands. On the line above the graph the average and worst 1%
+frame rates are followed by ▲ (more frames per second, green) or ▼ (fewer, red), their
+before → after one hover away; the scripts' part beside the list's heading by how many
+points it moved. The
+owner list in *Scripts* and *Game code* gains a small figure beside each part, and the
+table a *Change* column: how many percentage points of the range's time the owner or the
+function gained (red) or lost (green) against the same one there. Parts are compared, not
+times, so recordings of different lengths compare; a function is the same one by its name
+and its file from *media/lua/* on, so a mod moved from the workshop to a local copy, or
+updated, still matches. In the tree a row is matched by its whole path; a path the other
+recording never took counts as all gain. *Memory allocation* is not compared, as its bytes
+depend on how long each recording ran. The comparison stays while other recordings and
+ranges are shown; press the ✕ beside the button, or choose *Stop comparing*, to end it.
+To compare with a part of a recording only, save that part first with *Save selection*.
+
 Tree and list count the same samples, those that ended in the chosen owner's functions,
 and their percentages are parts of the owner, the owner being 100%: the question there is
 where inside it the time went, and parts of a long range shrank to 0.0%. They have two
@@ -203,22 +353,54 @@ heading says what its column means when the pointer rests on it.
   ordinary ones; taller bars reach the top with a **▲**, their time on hover. The scale
   is rounded up in fine steps (…, 250, 300, 400, 500 ms), so the bars fill the graph. As
   it follows each recording, dashed lines at 60 FPS (16.7 ms) and 30 FPS (33.3 ms), over
-  the bars and named at the right, give it a fixed meaning: a bar above the 30 FPS line
+  the bars and named on a pill in the scale's margin (a scale value it would cover gives way), give it a fixed meaning: a bar above the 30 FPS line
   is a stutter on any computer. A line too close to the floor or to the other is left
-  out. Wheel zooms
+  out.
+- **Highlight.** Clicking an owner in the *Scripts* or *Game code* list (a mod, the
+  game's scripts, a part of the game code) fades every bar and draws, solid inside it,
+  how much of the same frame that owner's code ran: a mod that costs a little every
+  frame and one that spikes every few seconds look different at once. While it is drawn
+  the scale fits the owner's parts, found the same way as the frames' (spikes cut and
+  marked with ▲), since a mod is usually a few milliseconds of a frame and would lie
+  along the floor on the frames' scale; the faint frames behind reach the top where
+  they are longer. Clicking it again
+  stops; clicking another moves the highlight there, and a small graph mark beside the
+  owner's figure says which is drawn. While one is drawn, pointing at another owner
+  shows that one until the pointer leaves, to compare without clicking. Over the graph,
+  the line above it adds the owner's time in the frame under the pointer. It counts the
+  samples taken in that frame (the game thread's, for game code), so it moves in steps of
+  a sampling period: coarse for short frames in Standard mode, fine in Detailed mode. A
+  new recording starts with nothing highlighted.
+
+  The memory panel's heap, collections and video memory are the whole game's and cannot
+  be split by mod. What can is the memory a mod's scripts allocate: when a mod (or the
+  game's scripts) is highlighted and the recording has allocations, the panel gains a
+  row of it under the collections, one bar per moment against the most in one of them,
+  so garbage that piles up just before collections points at that mod. *Memory
+  allocation* highlights the same way: there the row is the point, and the frame graph
+  shows the same mod's time. Parts of the game code have no such row, as allocations
+  are recorded for scripts only. Wheel zooms
   around the pointer, right-button drag or the scroll bar moves, double-click shows
   everything.
 - **Memory panel.** When the recording has memory readings or garbage collections, the
   **Memory** button on the line under the frame graph opens a second, short graph with a
-  row for each it has: the Java heap in use (green) on top, the collections (grey) in the
-  middle, under the heap whose drops they cause, and the game's video memory on the
-  graphics card (text colour) at the bottom. The memory rows are lines fitted to their own
+  row for each it has: the Java heap in use (green) with the collections (grey) under its
+  line, as they are its drops, then the highlighted mod's allocations when there is one,
+  and the game's video memory on the graphics card (text colour) at the bottom. The
+  figures on the panel's line put their rows away and back when clicked (the
+  collections' figure their marks), for as long as the app runs; a figure whose row is
+  away stands faint, and the panel opens when one is brought back. A collection that
+  stopped the game for 2 ms or more is also marked on the frame graph itself, panel open
+  or not: a dashed line up the graph and a small triangle on its floor in the alert
+  colour, and the frame under the pointer names the pause. The many short ones stay the
+  panel's; with none marked, the stutters are not the collector's. The memory rows are lines fitted to their own
   lowest and highest reading in view, as their sizes differ too much for one scale and a
   fitted one shows small changes. Each collection is a bar as long as it paused the game
   (at least two pixels) and as tall as that pause against the longest one in view, so a
   frame spike above a tall bar is a frame the game spent collecting; the bars are drawn as
-  one shape, as a game may collect several times a second. Each row's name stands at its
-  top left in the row's colour (*Heap in use*, *GC pauses*, *VRAM*), and resting the
+  one shape, as a game may collect several times a second. Under the heap they take the
+  row's lower part, and the scale at the left is the heap's. Each row's name stands at its
+  top left in the row's colour (*Heap in use · GC pauses*, *VRAM*), and resting the
   pointer on the name says how to read the row; the ends of its scale stand at the left
   of the graph. The panel shares the frame graph's margins and
   time axis: zoom, scrolling, the selection and the pointer line move both, and a range
@@ -253,9 +435,37 @@ requested period.
 ## Files
 
 Each recording is one file, `%LOCALAPPDATA%\PzTools\profiles\profile-<date>-<time>.pzprof`.
+The list names it by what it is: *Last 2 min · Today 3:43 PM*, *Recording 1 min 20 s ·
+Detailed · Yesterday 9:10 PM* (Standard, the usual mode, goes unsaid; older ones show
+their date). What a recording is lies inside it, its length at its very end, so each is
+read once in the background and kept in `%LOCALAPPDATA%\PzTools\profiles-index.json`, by
+file name, size and time; until then it is listed by its time. The pencil right beside the
+list renames the selected recording in place: type over the name, Enter or clicking
+elsewhere keeps it, Esc does not, and an empty name gives it an automatic name again, from
+when the file was written. The name
+is the file's, so whoever is sent the file sees it too, ahead of the rest: *mod A added ·
+Recording 3 min · Today 3:43 PM*. Characters a file name cannot hold become `_`, and a
+name already taken gets a number: *mine (2)* for a name of yours, *profile-…-2* for an
+automatic one, which stays known as automatic.
 *Open recording* copies a `.pzprof` file from elsewhere into that folder, keeping its
 time, and lists it with the others; a file that is not a readable recording is refused
 and nothing is copied. *Save as* copies the selected recording to a place you choose.
+*Save selection* saves the range selected on the graph as a recording of its own beside the
+others, named after this one and the range: *mod A added (12.30–20.50 s)*, and shows it
+at once (unless another recording was opened meanwhile; the **…** button turns a ring while it
+saves). Its analysis shows the very figures the range showed: its records are the source's, those
+outside the range left out by the rules the analysis counts a range by (a collection or
+pause that reaches into it stays, as do the allocation readings either side of it), and it
+says which range it is and what a sample stood for in the whole, which a few seconds would
+not measure again. Stacks and functions only the rest referred to are left out too, so a
+short range makes a small file. It is then a recording to compare with, so a clean stretch
+can be the baseline, or the first half of a recording compared with its second; and a file
+to pass on. A version from before this reads such a file too, measuring its span and
+periods from what it holds, so its figures may differ slightly for a very short range.
+What is judged on a whole recording (whether the game ran short of memory) is judged on
+the range alone, as it is now a recording of its own. A source with a damaged table is
+refused rather than written as a file that would not open, and a save cut short leaves a
+`.tmp` file that the next save clears once it is an hour old.
 Recordings are not written to the log or telemetry databases; those only receive the
 start, finish and failure of a recording, which is what the operation card and the log
 page show.
@@ -279,14 +489,43 @@ starts.
 (`PROFILE_START`), waits for the stop file, the time limit or the game's exit, asks the
 game to stop (`PROFILE_STOP`) and converts the flight recording with the bundled Java
 runtime, outside the game. The app only starts this worker and reads the finished file.
-If the app or the worker is closed mid-recording, the game stops recording at the time
-limit and also stops sampling Lua and timing frames, so an abandoned recording costs
-nothing afterwards. The next recording ends any leftover first.
+If the app closes or crashes mid-recording, the game ends the recording two minutes later,
+when the app run's lease lapses (see [leases](game-bridge.md#leases)); if only the worker is
+closed, at the time limit. Either way it also stops sampling Lua and timing frames, so an
+abandoned recording costs nothing afterwards. The next recording ends any leftover first.
+
+The last minutes are kept by the game between short commands, each one process:
+`roll-start` (`PROFILE_ROLL_START`, a mode, how many seconds to hold and, optionally, the
+most megabytes to hold), `roll-save`
+(`PROFILE_ROLL_SAVE`: the game writes what it holds to a flight recording, which is
+converted cut to its window, as a recording is) and `roll-stop` (`PROFILE_ROLL_STOP`,
+which ends only the rolling recording, never one someone started; `PROFILE_STOP` likewise
+ends only the one asked for). They wait only for each other, not for a recording's worker,
+as the two recordings run side by side in the game: the flight recorder takes each event
+once for both, the frame marks, Lua sampler and timer resolution are shared, and the
+converter thins a file's samples back to its own mode's period and leaves out the waits
+only Detailed mode records. Starting and stopping
+show no card; a save shows as a recording does. A game whose bridge refuses `roll-start`
+(one from before it, or one that cannot attach) is not asked again until it restarts or
+the settings change; the button's tip gives the reason.
+
+A hotkey's note is one more short command, sent by the app itself:
+`NOTICE <language> <item> ...`, each item a key of the game's own list of notes
+(`src/PzTools.GameBridge.Agent/notices.tsv`, compiled into the bridge), optionally with
+`:number`. The game refuses any other key, a number where the note has none, or none
+where it has one, and answers at once; the note is shown on the game thread through the
+same per-frame relay the recording uses.
+
+A recording in which the game ran short of memory (allocation stalls, or a heap standing
+nearly full) says so above the memory graphs, with a link to the game's memory setting; see
+[game memory](game-memory.md#on-the-performance-page).
 
 ## Limits
 
 - Only a local game process started normally is supported; the recorder attaches the
-  same way the save bridge does. See [game-save bridge](save-bridge.md).
+  same way the game bridge does. A game started with attaching turned off cannot be
+  recorded, and the app says so. See
+  [when attaching fails](game-bridge.md#when-attaching-fails).
 - Time spent inside native code (rendering driver, physics, sound) is attributed to the
   Java method that called it, not to anything inside the native library.
 - A thread that is asleep or waiting produces no samples. In Detailed mode long waits are

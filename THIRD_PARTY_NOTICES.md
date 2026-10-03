@@ -47,7 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Application and backup-worker builds include a trimmed Eclipse Temurin OpenJDK 25 runtime for the
 local JVM Attach helper. Its licenses and notices are included under
-`save-bridge/runtime/legal/`; its build information is in `save-bridge/runtime/release`.
+`game-bridge/runtime/legal/`; its build information is in `game-bridge/runtime/release`.
 OpenJDK is licensed under GPL version 2 with the Classpath Exception, with
 additional component notices in that directory. Corresponding Temurin source
 and build releases: https://github.com/adoptium/temurin25-binaries/releases

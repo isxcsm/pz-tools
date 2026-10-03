@@ -2,7 +2,7 @@ using System.Diagnostics;
 using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 using PzTools.Scheduling;
 using PzTools.Zomboid.State;
 
@@ -11,9 +11,13 @@ namespace PzTools.State.Scheduler;
 /// <summary>Composition root for observation. Reception never waits for slow save discovery/SQLite.</summary>
 internal sealed class RuntimeObservationCoordinator(StateDatabase state, SchedulerDatabase scheduler,
     string savesRoot, string bridgeDirectory, RuntimeSnapshotStore published,
-    string runtimeRoot, RuntimeExtensionStatusStore extensions, ExtensionControlOptions extensionOptions)
+    string runtimeRoot, RuntimeExtensionStatusStore extensions, ExtensionControlOptions extensionOptions,
+    Func<CancellationToken, Task<long>>? allocateRunIndex = null, string? telemetryConfigurationPath = null,
+    string? appRun = null)
 {
     private readonly RuntimeSnapshotStore received = new();
+    // The game process that refused the link for a reason that lasts as long as it runs, and why; not asked again.
+    private (int Id, DateTime Started, string Reason)? refusedGame;
 
     public async Task RunAsync(CancellationToken token)
     {
@@ -44,6 +48,17 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 }
                 var game = games[0];
                 var started = game.StartTime.ToUniversalTime(); // Bind discovery to an OS process instance, not just PID.
+                // A game that refused for running a bridge from before an update, or for having been started with
+                // connecting turned off, keeps refusing until it restarts: asked again it would only start another
+                // attach helper. Its state stays said until it exits.
+                if (refusedGame is { } refused && (refused.Id, refused.Started) == (game.Id, started))
+                {
+                    received.Publish(RuntimeObservation.Unknown(refused.Reason));
+                    if (refused.Reason == RuntimeObservation.RestartRequiredReason)
+                        extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
+                    failures = 0; await Task.Delay(1000, token); continue;
+                }
+                refusedGame = null;
                 string stream = Guid.NewGuid().ToString("N");
                 received.Publish(RuntimeObservation.Unknown("connecting"));
                 using var connection = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -67,7 +82,8 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 try
                 {
                     long lastConfigurationCheck = 0;
-                    await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(game.Id, connection.Token))
+                    // The stream renews the app run's lease in the game: what the run asked of it lasts while connected.
+                    await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(game.Id, appRun, connection.Token))
                     {
                         if (game.HasExited || game.StartTime.ToUniversalTime() != started) break;
                         failures = 0;
@@ -106,13 +122,50 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 or Microsoft.Data.Sqlite.SqliteException)
             {
                 bool restart = error is GameSaveException { Code: "restart-required" };
-                received.Publish(RuntimeObservation.Unknown(restart ? RuntimeObservation.RestartRequiredReason : "runtime-unavailable"));
+                var reason = error is GameSaveException { Code: var code } ? code switch
+                {
+                    "restart-required" => RuntimeObservation.RestartRequiredReason,
+                    AttachDiagnostics.DisabledCode => RuntimeObservation.AttachDisabledReason,
+                    _ => "runtime-unavailable",
+                } : "runtime-unavailable";
+                received.Publish(RuntimeObservation.Unknown(reason));
                 if (restart) extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
+                // Both last as long as the game process: asked again, it would refuse again.
+                if (reason is RuntimeObservation.RestartRequiredReason or RuntimeObservation.AttachDisabledReason && games.Length == 1)
+                {
+                    try { refusedGame = (games[0].Id, games[0].StartTime.ToUniversalTime(), reason); }
+                    catch (Exception gone) when (gone is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                }
+                if (error is GameSaveException { Diagnostics: not null } attach && games.Length == 1)
+                    await RecordAttachFailureAsync(games[0], attach, token);
             }
             finally { foreach (var game in games) game.Dispose(); }
             failures = Math.Min(5, failures + 1);
             await Task.Delay(TimeSpan.FromSeconds(Math.Min(30, 1 << failures)), token);
         }
+    }
+
+    // The game and cause last written to the log: the link retries every half minute, and one entry per game and
+    // cause says all a repeat would.
+    private (int ProcessId, DateTime Started, string Code)? attachLogged;
+
+    private async Task RecordAttachFailureAsync(System.Diagnostics.Process game, GameSaveException failure, CancellationToken token)
+    {
+        if (allocateRunIndex is null) return;
+        DateTime started;
+        try { started = game.StartTime; }
+        catch (Exception error) when (error is InvalidOperationException or System.ComponentModel.Win32Exception) { return; }
+        var key = (game.Id, started, failure.Code);
+        if (attachLogged == key) return;
+        attachLogged = key;
+        long run;
+        // The log is a record, never a reason to stop watching the game.
+        try { run = await allocateRunIndex(token); }
+        catch (Exception error) when (error is not OperationCanceledException) { return; }
+        await PzTools.Process.Telemetry.BestEffortProcessTelemetry.TryRecordAsync(scheduler.DatabasePath, "state-scheduler",
+            run, "game.link.failed",
+            FailureTelemetry.FromException(failure.Code, failure, phase: "attach", operation: "game-link"),
+            telemetryConfigurationPath);
     }
 
     private async Task PublishAsync(CancellationToken token)

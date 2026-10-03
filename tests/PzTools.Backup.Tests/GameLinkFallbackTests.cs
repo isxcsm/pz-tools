@@ -3,7 +3,7 @@ using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
 using PzTools.Projections;
-using PzTools.SaveBridge;
+using PzTools.GameBridge;
 using PzTools.Scheduling;
 using PzTools.Zomboid.Backup;
 using PzTools.Zomboid.State;
@@ -82,7 +82,8 @@ public sealed class GameLinkFallbackTests
         await controller.PrepareAsync(now, TimeSpan.Zero, default);
         await controller.PrepareAsync(now.AddMinutes(10), TimeSpan.Zero, default);
         Assert.Null((await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
-        Assert.Equal(GameLinkView.Available, new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true)
+        // Not a lost link: a game starting, said as such.
+        Assert.Equal(new GameLinkView(Starting: true), new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true)
             .Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)));
     }
 
@@ -140,6 +141,51 @@ public sealed class GameLinkFallbackTests
     }
 
     [Fact]
+    public async Task AGameThatNeedsARestartAfterAnUpdate_GetsNoAutomaticBackupUntilItRestarts()
+    {
+        using var temp = new TempDirectory();
+        var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
+        Directory.CreateDirectory(target.SourcePath);
+        var now = DateTimeOffset.UtcNow.AddMinutes(-5).AddSeconds(-1);
+        await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
+        var feed = new RuntimeSnapshotStore();
+        // The game refused the link for running the bridge from before an update: a restart would mend it, so the
+        // files are not backed up as they are, as they are for a game that cannot be read for other reasons.
+        feed.Publish(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason));
+        var controller = new RuntimeScheduleController(db, feed, linkGrace: TimeSpan.Zero);
+        await controller.PrepareAsync(now, TimeSpan.Zero, default);
+        await controller.PrepareAsync(now.AddMinutes(5), TimeSpan.Zero, default);
+        await db.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));
+        int backups = 0; long run = 0;
+        var scheduler = new BackupScheduler(db, _ => Task.FromResult(++run),
+            (_, _, _, _, _) => { backups++; return Task.FromResult(new WorkerInvocation(true, ProcessOutcome.Skipped, null)); },
+            (_, _, _, _, _) => Task.FromResult(new WorkerInvocation(false, ProcessOutcome.Skipped, null)),
+            isTargetActive: _ => true, runtimeSchedule: controller);
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due);
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(11))).Due);
+        Assert.Equal(0, backups);
+        // The line says why, rather than a time.
+        Assert.Equal("RuntimeBackupRestartRequired", ScheduleCountdownPresentation.Resolve(RuntimeScheduleProjection.Build(
+            await db.ReadBackupStateIfChangedAsync(-1), await db.ReadRuntimeScheduleAsync(), feed.Read()), now.AddMinutes(6),
+            restartRequired: true).MessageKey);
+        // Between refusals the link reports other reasons for a moment (a retry connecting, the state feed restarting):
+        // the same game still needs its restart, and the backup long due still waits.
+        foreach (var flicker in new[] { "connecting", "runtime-feed-disconnected", "runtime-unavailable" })
+        {
+            feed.Publish(RuntimeObservation.Unknown(flicker));
+            await controller.PrepareAsync(now.AddMinutes(11), TimeSpan.Zero, default);
+            Assert.False((await scheduler.TickAsync(now.AddMinutes(11))).Due);
+        }
+        Assert.Equal(0, backups);
+        // Once the game has gone, the hold ends with it: the backup long due runs.
+        feed.Publish(new RuntimeObservation("", RuntimeQuality.Offline, null));
+        await controller.PrepareAsync(now.AddMinutes(11), TimeSpan.Zero, default);
+        Assert.True((await scheduler.TickAsync(now.AddMinutes(11))).Due);
+        Assert.Equal(1, backups);
+    }
+
+    [Fact]
     public async Task BriefOutage_DoesNotStartTheFallback()
     {
         using var temp = new TempDirectory();
@@ -156,6 +202,7 @@ public sealed class GameLinkFallbackTests
 
     [Theory]
     [InlineData("attach-failed", BackupGameSave.SaveUnavailable)]
+    [InlineData(AttachDiagnostics.DisabledCode, BackupGameSave.SaveUnavailable)]
     [InlineData("connection-timeout", BackupGameSave.SaveUnavailable)]
     [InlineData("bridge-not-built", BackupGameSave.SaveUnavailable)]
     [InlineData("not-in-world", "not-in-world")]
@@ -197,5 +244,57 @@ public sealed class GameLinkFallbackTests
         Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).RestartRequired);
         Assert.Equal(GameLinkView.Available, monitor.Update(new("", RuntimeQuality.Offline, null)));
         Assert.False(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).RestartRequired);
+    }
+
+    [Fact]
+    public void Monitor_SaysARestartIsNeeded_WithoutWaitingOutTheGrace()
+    {
+        // A link that may come back by itself waits out the grace; one refused for an older bridge cannot come back.
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
+        Assert.Equal(GameLinkView.Available, monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")));
+        Assert.Equal(new GameLinkView(LinkUnavailable: true, RestartRequired: true),
+            monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason)));
+        Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).RestartRequired);
+    }
+
+    [Fact]
+    public void Monitor_SaysTheGameIsStarting_OnlyWhenItKnows()
+    {
+        var path = @"C:\fixture\Saves\Sandbox\World";
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
+        // Started beside a game already running: it cannot tell a game starting from one it has not read yet.
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
+        // The game seen absent, then launched: starting while it connects and until its first frame.
+        monitor.Update(new("", RuntimeQuality.Offline, null));
+        Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
+        Assert.True(monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)).Starting);
+        // Read once, it is no longer starting; a later reconnection is checking, not starting. A frame that carries the
+        // game's heap counts as read too.
+        Assert.False(monitor.Update(new(Id(), RuntimeQuality.Fresh, World(path) with { HeapMaximumMegabytes = 8192 })).Starting);
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Starting);
+        // Connected and before the first frame says so whatever came before.
+        Assert.True(monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)).Starting);
+        // The countdown says it in place of checking.
+        var schedule = new PzTools.Projections.ScheduleStatusView(1, default, null, null, null, null, true, 0,
+            PauseAware: true, Hold: ScheduleHold.Unknown);
+        Assert.Equal("RuntimeBackupStarting", ScheduleCountdownPresentation.Resolve(schedule, DateTimeOffset.UtcNow, starting: true).MessageKey);
+        Assert.Equal("RuntimeBackupWaiting", ScheduleCountdownPresentation.Resolve(schedule, DateTimeOffset.UtcNow).MessageKey);
+    }
+
+    [Fact]
+    public void Monitor_NamesACauseThePlayerCanChange_ForTheWholeOutage()
+    {
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true);
+        Assert.Null(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Cause);
+        Assert.Equal(RuntimeObservation.AttachDisabledReason,
+            monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason)).Cause);
+        Assert.Equal(RuntimeObservation.AttachDisabledReason, monitor.Update(RuntimeObservation.Unknown("connecting")).Cause);
+        // Connected again, or the game gone: the cause goes with the outage.
+        Assert.Equal(GameLinkView.Available, monitor.Update(new("", RuntimeQuality.Offline, null)));
+        Assert.Null(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Cause);
+        // Still within the grace, nothing is shown, the cause included.
+        var patient = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
+        Assert.Equal(GameLinkView.Available, patient.Update(RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason)));
     }
 }
