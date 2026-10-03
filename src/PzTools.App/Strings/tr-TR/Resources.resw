@@ -675,7 +675,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Desteklenmeyen oyun sürümü</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Sorun bildir</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid için resmî olmayan bir araç</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Oyun çalışırken performansı kaydeder ve her modun betik süresini gösterir.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Oyunun neden takıldığını bulur. Takılmanın hemen ardından son birkaç dakikayı kaydeder; her modun çalışma süresini ve belleğin yetip yetmediğini gösterir.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Oyun çalışıyor</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Kayıt yok</value></data>

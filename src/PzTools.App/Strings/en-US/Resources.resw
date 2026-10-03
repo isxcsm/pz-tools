@@ -674,7 +674,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Unsupported game version</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Report an issue</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Unofficial tool for Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Records performance while the game runs and shows script time per mod.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Finds out why the game stutters. Saves the last few minutes right after a stutter and shows each mod&apos;s running time and whether memory ran short.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Game running</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Game not running</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>No saves</value></data>

@@ -682,7 +682,7 @@
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>เวอร์ชันเกมที่ไม่รองรับ</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>รายงานปัญหา</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>เครื่องมือที่ไม่เป็นทางการสำหรับ Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>บันทึกประสิทธิภาพขณะเกมทำงาน และแสดงเวลาที่สคริปต์ของแต่ละม็อดใช้</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>หาสาเหตุที่เกมกระตุก บันทึกช่วงไม่กี่นาทีล่าสุดทันทีหลังกระตุก แล้วแสดงเวลาทำงานของแต่ละม็อดและหน่วยความจำไม่พอหรือไม่</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>เกมกำลังทำงาน</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>เกมไม่ได้ทำงาน</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>ไม่มีเซฟ</value></data>

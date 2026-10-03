@@ -360,9 +360,10 @@ public sealed partial class SettingsPage : UserControl
             key.PreviewKeyDown += (_, args) => CaptureKey(action, args);
             key.LostFocus += (_, _) => { if (capturing == action) StopCapture(); };
             clear.Click += (_, _) => SetHotKey(action, "");
+            // The clear button stands before the key, so every key's right edge lines up whether a key is set or not.
             var holder = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-            holder.Children.Add(key);
             holder.Children.Add(clear);
+            holder.Children.Add(key);
             var card = new SettingsCard { Content = holder, HeaderIcon = new SymbolIcon(Symbol.Keyboard) };
             hotKeyCards[action] = (card, key, clear);
             HotKeySection.Items.Add(card);

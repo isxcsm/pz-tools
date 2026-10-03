@@ -675,7 +675,7 @@
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>不支援的遊戲版本</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>回報問題</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid 非官方工具</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>在遊戲執行時錄製效能，並顯示每個模組的指令碼執行時間。</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>找出遊戲卡頓的原因。卡頓後立即保存最近幾分鐘，並顯示每個模組的執行時間以及記憶體是否不足。</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>遊戲執行中</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>遊戲未執行</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>沒有存檔</value></data>

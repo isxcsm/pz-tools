@@ -675,7 +675,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Version du jeu non prise en charge</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Signaler un problème</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Outil non officiel pour Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Enregistre les performances pendant que le jeu tourne et montre le temps de script par mod.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Trouve pourquoi le jeu saccade. Enregistre les dernières minutes juste après une saccade et montre le temps d’exécution de chaque mod et si la mémoire a manqué.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Jeu en cours</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Jeu non lancé</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Aucune partie</value></data>

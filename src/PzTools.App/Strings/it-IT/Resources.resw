@@ -675,7 +675,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Versione del gioco non supportata</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Segnala un problema</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Strumento non ufficiale per Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Registra le prestazioni mentre il gioco è in esecuzione e mostra il tempo degli script per ogni mod.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Scopre perché il gioco scatta. Salva gli ultimi minuti subito dopo uno scatto e mostra il tempo di esecuzione di ogni mod e se è mancata memoria.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Gioco in esecuzione</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Gioco non in esecuzione</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Nessun salvataggio</value></data>

@@ -674,7 +674,7 @@
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>지원하지 않는 게임 버전</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>문제 신고</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboid 비공식 도구</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>게임 실행 중 성능을 녹화해 모드별 스크립트 실행 시간을 보여 줍니다.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>렉이 왜 생기는지 찾습니다. 끊긴 직후 직전 몇 분을 저장하고, 모드별 실행 시간과 메모리 부족 여부를 보여 줍니다.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>게임 실행 중</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>게임 실행 중이 아님</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>세이브 없음</value></data>

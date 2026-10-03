@@ -675,7 +675,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Versi gim tidak didukung</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Laporkan masalah</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Alat tidak resmi untuk Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Merekam performa saat gim berjalan dan menampilkan waktu skrip per mod.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Mencari tahu mengapa gim tersendat. Menyimpan beberapa menit terakhir tepat setelah tersendat, lalu menunjukkan waktu jalan tiap mod dan apakah memori kurang.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Gim berjalan</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Gim tidak berjalan</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Tidak ada simpanan</value></data>

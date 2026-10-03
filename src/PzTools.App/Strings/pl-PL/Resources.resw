@@ -675,7 +675,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Nieobsługiwana wersja gry</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Zgłoś problem</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Nieoficjalne narzędzie do Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Nagrywa wydajność podczas działania gry i pokazuje czas skryptów każdego moda.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Ustala, dlaczego gra się zacina. Zapisuje ostatnie minuty tuż po zacięciu i pokazuje czas działania każdego moda oraz to, czy zabrakło pamięci.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Gra uruchomiona</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Gra nie jest uruchomiona</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Brak zapisów</value></data>

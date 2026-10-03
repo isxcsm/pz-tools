@@ -685,7 +685,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="Home.NoSave" xml:space="preserve"><value>Žádné uložené hry</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Hra neběží</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Hra běží</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Za běhu hry nahrává výkon a ukazuje dobu běhu skriptů jednotlivých modů.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Zjistí, proč se hra zasekává. Hned po zaseknutí uloží posledních pár minut a ukáže čas běhu každého modu a zda chyběla paměť.</value></data>
   <data name="UpdateSection.Header" xml:space="preserve"><value>Verze</value></data>
   <data name="UpdateAutoSetting.Header" xml:space="preserve"><value>Upozornění na novou verzi</value></data>
   <data name="UpdateAutoSetting.Description" xml:space="preserve"><value>Když vyjde nová verze, upozorní na ni v postranním panelu.</value></data>

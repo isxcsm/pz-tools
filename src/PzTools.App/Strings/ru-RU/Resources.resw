@@ -675,7 +675,7 @@
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Неподдерживаемая версия игры</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Сообщить о проблеме</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Неофициальный инструмент для Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Записывает производительность во время игры и показывает время скриптов каждого мода.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Выясняет, почему игра подтормаживает. Сохраняет последние минуты сразу после рывка и показывает время работы каждого мода и нехватку памяти.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Игра запущена</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Игра не запущена</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Нет сохранений</value></data>

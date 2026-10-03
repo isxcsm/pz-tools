@@ -675,7 +675,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Versión del juego no compatible</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Informar de un problema</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Herramienta no oficial para Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Graba el rendimiento mientras el juego se ejecuta y muestra el tiempo de scripts de cada mod.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Descubre por qué se traba el juego. Guarda los últimos minutos justo después de un tirón y muestra el tiempo de ejecución de cada mod y si faltó memoria.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Juego en ejecución</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Juego sin ejecutar</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Sin partidas</value></data>

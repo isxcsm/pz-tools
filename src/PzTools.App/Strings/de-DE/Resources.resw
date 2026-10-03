@@ -675,7 +675,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>Nicht unterstützte Spielversion</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>Problem melden</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Inoffizielles Tool für Project Zomboid</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Zeichnet die Leistung auf, während das Spiel läuft, und zeigt die Skriptlaufzeit je Mod.</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>Findet heraus, warum das Spiel ruckelt. Speichert direkt nach einem Ruckler die letzten Minuten und zeigt die Laufzeit jeder Mod und ob der Speicher knapp war.</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>Spiel läuft</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>Spiel läuft nicht</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>Keine Spielstände</value></data>

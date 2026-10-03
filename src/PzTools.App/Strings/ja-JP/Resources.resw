@@ -675,7 +675,7 @@
   <data name="Home.ExtensionUnsupported" xml:space="preserve"><value>未対応のゲームバージョン</value></data>
   <data name="Home.ReportIssue" xml:space="preserve"><value>問題を報告</value></data>
   <data name="Home.UnofficialNotice" xml:space="preserve"><value>Project Zomboidの非公式ツール</value></data>
-  <data name="Home.ProfilerDescription" xml:space="preserve"><value>ゲーム実行中のパフォーマンスを記録し、MOD ごとのスクリプト実行時間を表示します。</value></data>
+  <data name="Home.ProfilerDescription" xml:space="preserve"><value>カクつきの原因を探します。カクついた直後に直前の数分を保存し、MOD ごとの実行時間とメモリ不足の有無を表示します。</value></data>
   <data name="Home.GamePlaying" xml:space="preserve"><value>ゲーム実行中</value></data>
   <data name="Home.GameNotPlaying" xml:space="preserve"><value>ゲーム未実行</value></data>
   <data name="Home.NoSave" xml:space="preserve"><value>セーブなし</value></data>
