@@ -311,7 +311,9 @@ and leaving it empty closes it.
 **Comparing two recordings.** *Compare with* on the title line lists the other
 recordings; pick one, say from before a mod was added or updated, and the shown range is
 compared with the whole of it. A long recording takes a few seconds to read; meanwhile the
-button turns a small ring and says it is loading, and its ✕ takes the choice back. There
+button turns a small ring and says it is loading, and its ✕ takes the choice back. A
+comparison already shown stays until the new one is ready, and stays if the choice is
+taken back. There
 is no bar of its own: the button then names the
 recording compared with, in the accent colour, with a ✕ beside it to stop, and each figure
 carries its change where it stands. On the line above the graph the average and worst 1%
@@ -452,7 +454,8 @@ time, and lists it with the others; a file that is not a readable recording is r
 and nothing is copied. *Save as* copies the selected recording to a place you choose.
 *Save selection* saves the range selected on the graph as a recording of its own beside the
 others, named after this one and the range: *mod A added (12.30–20.50 s)*, and shows it
-at once. It shows the very figures the range showed: its records are the source's, those
+at once (unless another recording was opened meanwhile; the **…** button turns a ring while it
+saves). Its analysis shows the very figures the range showed: its records are the source's, those
 outside the range left out by the rules the analysis counts a range by (a collection or
 pause that reaches into it stays, as do the allocation readings either side of it), and it
 says which range it is and what a sample stood for in the whole, which a few seconds would
@@ -461,6 +464,10 @@ short range makes a small file. It is then a recording to compare with, so a cle
 can be the baseline, or the first half of a recording compared with its second; and a file
 to pass on. A version from before this reads such a file too, measuring its span and
 periods from what it holds, so its figures may differ slightly for a very short range.
+What is judged on a whole recording (whether the game ran short of memory) is judged on
+the range alone, as it is now a recording of its own. A source with a damaged table is
+refused rather than written as a file that would not open, and a save cut short leaves a
+`.tmp` file that the next save clears once it is an hour old.
 Recordings are not written to the log or telemetry databases; those only receive the
 start, finish and failure of a recording, which is what the operation card and the log
 page show.

@@ -535,6 +535,7 @@ public sealed partial class ProfilerPage : UserControl
             // The open recording and the one compared with are the same files under their new name.
             if (item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase)) loadedPath = renamed;
             if (item.File.Path.Equals(baselinePath, StringComparison.OrdinalIgnoreCase)) baselinePath = renamed;
+            if (item.File.Path.Equals(pendingPath, StringComparison.OrdinalIgnoreCase)) pendingPath = renamed;
             RefreshList(renamed);
             if (renamed.Equals(baselinePath, StringComparison.OrdinalIgnoreCase)
                 && RecordingList.Items.OfType<RecordingItem>().FirstOrDefault(other => other.File.Path == renamed) is { } baselineItem)
@@ -678,15 +679,21 @@ public sealed partial class ProfilerPage : UserControl
         var start = Math.Max(0, Math.Min(first, last));
         var end = Math.Min(loaded.Duration, Math.Max(first, last));
         if (end <= start) return;
-        var range = $" ({SecondsNumber(start)}–{Seconds(end)})";
+        // A range shorter than a tenth of a second (a frame or a few) to the millisecond, so its two ends differ.
+        string At(long micros) => end - start >= 100_000 ? SecondsNumber(micros)
+            : (micros / 1_000_000.0).ToString("0.000", Localizer.Culture);
+        var range = $" ({At(start)}–{Units.Seconds(At(end))})";
         var name = System.IO.Path.GetFileNameWithoutExtension(source);
         // The range is the part a name too long for a file must not lose.
         name = name[..Math.Min(name.Length, Math.Max(1, 80 - range.Length))] + range;
         savingRange = true;
+        ShowSaving(true);
         try
         {
             var saved = await Task.Run(() => profiles.SaveRange(source, loaded, start, end, name));
-            RefreshList(saved);
+            // Shown at once, unless another recording was chosen meanwhile: that one stays.
+            RefreshList(source.Equals(loadedPath, StringComparison.OrdinalIgnoreCase) ? saved
+                : (RecordingList.SelectedItem as RecordingItem)?.File.Path ?? loadedPath);
             App.ShowSidebarNotification(InfoBarSeverity.Success, Localizer.Get("ProfilerNavigation"),
                 Localizer.Format("ProfileRangeSavedFormat", System.IO.Path.GetFileNameWithoutExtension(saved)));
         }
@@ -698,7 +705,19 @@ public sealed partial class ProfilerPage : UserControl
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
-        finally { savingRange = false; }
+        finally
+        {
+            savingRange = false;
+            ShowSaving(false);
+        }
+    }
+
+    // A long Detailed recording takes seconds to save a range of: the menu's button turns a ring meanwhile.
+    private void ShowSaving(bool saving)
+    {
+        MoreProgress.IsActive = saving;
+        MoreProgress.Visibility = saving ? Visibility.Visible : Visibility.Collapsed;
+        MoreIcon.Visibility = saving ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void OpenFolderItem_Click(object sender, RoutedEventArgs e)
@@ -1094,10 +1113,13 @@ public sealed partial class ProfilerPage : UserControl
         MemoryBorder.Height = 14 + rows * MemoryRowHeight + Math.Max(0, rows - 1) * MemoryRowGap;
     }
 
-    // The whole recording's, as the setting it points to is: stalls waiting for memory, or a heap standing full.
+    // The whole recording's, as the setting it points to is: stalls waiting for memory, or a heap standing full. Worked
+    // out once per recording, as it reads every pause; the line is shown again on each tab, click and toggle.
     private void ApplyMemoryShort()
     {
-        var pressure = recording is null ? null : ProfileAnalysis.MemoryPressure(recording);
+        if (recording is { } current && !ReferenceEquals(pressureOf, current))
+            (pressureOf, pressureOfRecording) = (current, ProfileAnalysis.MemoryPressure(current));
+        var pressure = recording is null ? null : pressureOfRecording;
         MemoryShortPanel.Visibility = pressure is { Short: true } ? Visibility.Visible : Visibility.Collapsed;
         if (pressure is not { Short: true }) return;
         var stalls = pressure.Stalls.ToString("N0", Localizer.Culture);
@@ -1126,6 +1148,9 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(MemoryShortButton, MemoryShortButtonText.Text);
         AutomationProperties.SetHelpText(MemoryShortButton, MemoryShortText.Text + "\n" + tip);
     }
+
+    private ProfileRecording? pressureOf;
+    private ProfileMemoryPressure? pressureOfRecording;
 
     private void MemoryShortButton_Click(object sender, RoutedEventArgs e) => App.ShowGameMemorySetting();
 
@@ -1850,7 +1875,9 @@ public sealed partial class ProfilerPage : UserControl
                 range.Threads.Sum(row => row.Samples), DetailKind.Threads, range.Threads, []));
         if (range.LongestPauses.Count > 0)
             javaGroups.Add(new ResultGroup("#pauses", Localizer.Get("ProfilePausesSection"), null, 0, DetailKind.Pauses, [], range.LongestPauses));
-        // After the owners, so a mod drawn over the graph finds its figure in this range.
+        // After the owners, so a mod drawn over the graph finds its figure in this range. Always shown again: a range
+        // kept from before (the whole recording's) comes back the same.
+        shownBreakdown = null;
         ShowTimeBreakdown(range);
         ShowTab();
     }
@@ -1859,6 +1886,10 @@ public sealed partial class ProfilerPage : UserControl
     // overlap, nor for a range too short to carry percentages.
     private void ShowTimeBreakdown(ProfileRange range)
     {
+        // Drawn with the graph, which pans, zooms and follows the pointer: only a new range, tab or mod drawn changes it.
+        var key = (range, Tab, HighlightedOwner());
+        if (shownBreakdown == key) return;
+        shownBreakdown = key;
         var breakdown = range.Samples < 20 ? null : ProfileAnalysis.TimeBreakdown(range);
         TimeBreakdownPanel.Visibility = breakdown is null ? Visibility.Collapsed : Visibility.Visible;
         if (breakdown is null) return;
@@ -1885,6 +1916,8 @@ public sealed partial class ProfilerPage : UserControl
         SpareValue.Text = BreakdownPercent(breakdown.Waiting);
         AutomationProperties.SetName(TimeBreakdownPanel, TimeBreakdownText());
     }
+
+    private (ProfileRange, ResultTab, HighlightedGroup?)? shownBreakdown;
 
     // Two decimals, as the owner lists; a share that is there but rounds to nothing (a collection's fraction of a
     // millisecond in a long range) says so rather than reading as none.
@@ -2041,7 +2074,7 @@ public sealed partial class ProfilerPage : UserControl
                 Text = item.Text, IsChecked = item.File.Path.Equals(pendingPath ?? baselinePath, StringComparison.OrdinalIgnoreCase),
             };
             // The click has already flipped the check: checked is a new choice, unchecked the current one taken back.
-            choice.Click += (_, _) => { if (choice.IsChecked) _ = SetBaselineAsync(item.File.Path, item.Text); else ClearBaseline(); };
+            choice.Click += (_, _) => { if (choice.IsChecked) _ = SetBaselineAsync(item.File.Path, item.Text); else TakeBackChoice(); };
             CompareMenu.Items.Add(choice);
         }
         // An empty menu would look broken: it says why there is nothing to choose.
@@ -2073,8 +2106,42 @@ public sealed partial class ProfilerPage : UserControl
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileLoadFailed"));
             return;
         }
-        (baselinePath, baselineName, baseline, baselineRange) = (path, name, loaded, null);
-        await AnalyzeBaselineAsync();
+        // Analysed before it takes the place of the one compared with until now, which stays shown meanwhile: the
+        // figures never stand under the wrong name, and taking the choice back leaves the comparison as it was.
+        var thread = BaselineThread(loaded);
+        ProfileRange range;
+        try { range = await Task.Run(() => ProfileAnalysis.Analyze(loaded, 0, loaded.Duration, thread, MaximumGroupRows)); }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (version == baselineLoadVersion) EndPending();
+            return;
+        }
+        if (version != baselineLoadVersion) return;
+        baselineVersion++;
+        baselineCancel?.Cancel();
+        (baselinePath, baselineName, baseline, baselineRange) = (path, name, loaded, range);
+        (pendingPath, pendingName, pendingShown) = (null, null, false);
+        baselineMatches.Clear();
+        baselineShares.Clear();
+        ShowComparison();
+        if (shown is not null) ShowTab();
+        // The thread chosen meanwhile: analysed again for it.
+        if (BaselineThread(loaded) != thread) await AnalyzeBaselineAsync();
+    }
+
+    private int BaselineThread(ProfileRecording other) => ThreadBox.SelectedIndex == 1 || other.GameThread < 0 ? -1 : other.GameThread;
+
+    // The ✕, or the choice unticked: a choice still loading is taken back, leaving any comparison from before; else the
+    // comparison ends.
+    private void TakeBackChoice()
+    {
+        if (pendingPath is not null && baselineRange is not null)
+        {
+            baselineLoadVersion++;
+            EndPending();
+            return;
+        }
+        ClearBaseline();
     }
 
     // A choice ready within a moment never flashes the loading state.
@@ -2097,7 +2164,7 @@ public sealed partial class ProfilerPage : UserControl
     {
         if (baseline is not { } other) return;
         var version = ++baselineVersion;
-        var thread = ThreadBox.SelectedIndex == 1 || other.GameThread < 0 ? -1 : other.GameThread;
+        var thread = BaselineThread(other);
         // An analysis a newer one replaces is stopped, not left to finish a whole recording on a worker.
         baselineCancel?.Cancel();
         var cancel = baselineCancel = new CancellationTokenSource();
@@ -2115,8 +2182,7 @@ public sealed partial class ProfilerPage : UserControl
         baselineRange = range;
         baselineMatches.Clear();
         baselineShares.Clear();
-        // The old baseline analysed again for another thread leaves a newer choice still loading.
-        if (string.Equals(pendingPath, baselinePath, StringComparison.OrdinalIgnoreCase)) (pendingPath, pendingName, pendingShown) = (null, null, false);
+        // Analysed again for another thread: a newer choice still loading stays so.
         ShowComparison();
         if (shown is not null) ShowTab();
     }
@@ -2162,7 +2228,7 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is not null && HoverLine.Visibility == Visibility.Collapsed) ShowDefaultChartInfo();
     }
 
-    private void CompareClearButton_Click(object sender, RoutedEventArgs e) => ClearBaseline();
+    private void CompareClearButton_Click(object sender, RoutedEventArgs e) => TakeBackChoice();
 
     // Owners and lines compared: the scripts' and the game code's, as parts of the range. Bytes depend on how long each
     // recording ran, and the threads and pauses are no parts.

@@ -68,7 +68,7 @@ public static class ProfileTrim
                     var kind = Kind(line);
                     if (kind == "GA")
                     {
-                        if (Number(Field(line, 1)) is { } reading) allocations.Add((reading, line));
+                        if (Number(FieldSpan(line, 1)) is { } reading) allocations.Add((reading, line));
                         continue;
                     }
                     if (!Keeps(kind, line, from, to)) continue;
@@ -144,23 +144,28 @@ public static class ProfileTrim
                 if ((++count & 0xFFFF) == 0) cancellationToken.ThrowIfCancellationRequested();
                 switch (Kind(line))
                 {
-                    case "K" when Index(Field(line, 1)) is { } id && Field(line, 2) is { } frames: stackFrames[id] = frames; break;
-                    case "LK" when Index(Field(line, 1)) is { } id && Field(line, 2) is { } frames: luaStackFrames[id] = frames; break;
-                    case "S" when Keeps("S", line, from, to) && Index(Field(line, 3)) is { } stack: stacks.Add(stack); break;
-                    case "L" when Keeps("L", line, from, to) && Index(Field(line, 2)) is { } stack: luaStacks.Add(stack); break;
+                    case "K" when Index(FieldSpan(line, 1)) is { } id && Field(line, 2) is { } frames: stackFrames[id] = frames; break;
+                    case "LK" when Index(FieldSpan(line, 1)) is { } id && Field(line, 2) is { } frames: luaStackFrames[id] = frames; break;
+                    case "S" when Keeps("S", line, from, to) && Index(FieldSpan(line, 3)) is { } stack: stacks.Add(stack); break;
+                    case "L" when Keeps("L", line, from, to) && Index(FieldSpan(line, 2)) is { } stack: luaStacks.Add(stack); break;
                 }
             }
         }
+        // A sample's stack must be there, every frame of it readable: the range would otherwise be written as a file
+        // its own reader refuses. The reader fills a gap in a table, which may have let such a source open.
         var methods = new HashSet<int>();
         foreach (var stack in stacks)
-            foreach (var frame in Split(stackFrames.GetValueOrDefault(stack)))
-                if (Index(frame) is { } method) methods.Add(method);
+            foreach (var frame in Split(stackFrames.TryGetValue(stack, out var written) ? written : throw Incomplete()))
+                methods.Add(Index(frame) ?? throw Incomplete());
         var luaFunctions = new HashSet<int>();
         foreach (var stack in luaStacks)
-            foreach (var frame in Split(luaStackFrames.GetValueOrDefault(stack)))
-                if (Index(frame.Split(':')[0]) is { } function) luaFunctions.Add(function);
+            foreach (var frame in Split(luaStackFrames.TryGetValue(stack, out var luaWritten) ? luaWritten : throw Incomplete()))
+                luaFunctions.Add(Index(frame.AsSpan(0, frame.IndexOf(':') is var colon and >= 0 ? colon : frame.Length))
+                    ?? throw Incomplete());
         return new(Dense(stacks), Dense(methods), Dense(luaStacks), Dense(luaFunctions));
     }
+
+    private static InvalidDataException Incomplete() => new("The recording refers to a stack it does not contain.");
 
     private static Dictionary<int, int> Dense(HashSet<int> used)
     {
@@ -176,22 +181,23 @@ public static class ProfileTrim
     {
         "I" => Field(line, 1) is { } key && !Replaced.Contains(key),
         // Points in time: those in the range, as the analysis counts them.
-        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" => Number(Field(line, 1)) is { } time && time >= from && time < to,
+        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
         // Spans: those that reach into it, as the analysis counts collections and pauses.
-        "G" or "P" => Number(Field(line, 1)) is { } time && Number(Field(line, 2)) is { } duration
+        "G" or "P" => Number(FieldSpan(line, 1)) is { } time && Number(FieldSpan(line, 2)) is { } duration
             && time < to && time + Math.Max(0, duration) >= from,
         // Tables, renumbered as they are written; threads are kept whole, being few. A kind this version does not
         // know is kept as it is; the reader skips it.
         _ => true,
     };
 
-    // The line with the number in one field changed to its new one; null when the range does not use it.
+    // The line with the number in one field changed to its new one; null when the range does not use it. Most samples
+    // of a range keep their number, and their line as it is.
     private static string? Renumber(string line, int field, Dictionary<int, int> numbers)
     {
-        var fields = line.Split('\t');
-        if (fields.Length <= field || Index(fields[field]) is not { } id || !numbers.TryGetValue(id, out var renumbered)) return null;
-        fields[field] = renumbered.ToString(CultureInfo.InvariantCulture);
-        return string.Join('\t', fields);
+        if (!TryField(line, field, out var start, out var length) || Index(line.AsSpan(start, length)) is not { } id
+            || !numbers.TryGetValue(id, out var renumbered)) return null;
+        return renumbered == id ? line
+            : string.Concat(line.AsSpan(0, start), renumbered.ToString(CultureInfo.InvariantCulture), line.AsSpan(start + length));
     }
 
     // A stack line's frames, each method or Lua function (before ":line") under its new number.
@@ -216,7 +222,8 @@ public static class ProfileTrim
     {
         var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
         var reader = new StreamReader(new GZipStream(input, CompressionMode.Decompress), Encoding.UTF8, false, 1 << 16);
-        if (reader.ReadLine() is { } first && first.StartsWith("PZPROF\t", StringComparison.Ordinal))
+        // The one format this version reads, as the reader does.
+        if (reader.ReadLine() is { } first && first == "PZPROF\t1")
         {
             signature = first;
             return reader;
@@ -225,27 +232,43 @@ public static class ProfileTrim
         throw new InvalidDataException("Not a PZ Tools recording, or a newer format.");
     }
 
+    // The record's kind, without a string made for each of millions of lines; "" for one this version does not know.
     private static string Kind(string line)
     {
         var tab = line.IndexOf('\t');
-        return tab < 0 ? line : line[..tab];
+        return (tab < 0 ? line.AsSpan() : line.AsSpan(0, tab)) switch
+        {
+            "S" => "S", "F" => "F", "L" => "L", "LA" => "LA", "LH" => "LH", "GA" => "GA", "H" => "H", "V" => "V",
+            "G" => "G", "P" => "P", "I" => "I", "T" => "T", "M" => "M", "K" => "K", "LM" => "LM", "LK" => "LK",
+            _ => "",
+        };
     }
 
-    private static string? Field(string line, int index)
+    private static bool TryField(string line, int index, out int start, out int length)
     {
-        var start = 0;
+        start = 0;
         for (var skipped = 0; skipped < index; skipped++)
         {
             start = line.IndexOf('\t', start) + 1;
-            if (start == 0) return null;
+            if (start == 0) { length = 0; return false; }
         }
         var end = line.IndexOf('\t', start);
-        return end < 0 ? line[start..] : line[start..end];
+        length = (end < 0 ? line.Length : end) - start;
+        return true;
     }
 
-    private static long? Number(string? text) =>
+    // Empty when there is no such field, which then reads as no number.
+    private static ReadOnlySpan<char> FieldSpan(string line, int index) =>
+        TryField(line, index, out var start, out var length) ? line.AsSpan(start, length) : default;
+
+    private static string? Field(string line, int index) =>
+        TryField(line, index, out var start, out var length) ? line.Substring(start, length) : null;
+
+    private static long? Number(ReadOnlySpan<char> text) =>
         long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : null;
 
-    private static int? Index(string? text) =>
+    private static int? Index(ReadOnlySpan<char> text) =>
         int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
+
+    private static int? Index(string? text) => Index(text.AsSpan());
 }

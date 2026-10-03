@@ -498,6 +498,12 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         var clean = CleanName(name);
         if (clean.Length == 0) clean = "profile-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         var target = Available(clean, IsAutomaticName(clean));
+        // What a save cut short (the app ended) left: not listed, and taking room. None is written for an hour.
+        foreach (var left in new DirectoryInfo(Directory).EnumerateFiles("*" + ProfileRecording.Extension + ".tmp"))
+        {
+            try { if (DateTime.UtcNow - left.LastWriteTimeUtc > TimeSpan.FromHours(1)) left.Delete(); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        }
         ProfileTrim.Save(recording, full, target, start, end, cancellationToken);
         return target;
     }

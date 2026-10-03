@@ -144,7 +144,11 @@
         </Button>
         <Button x:Name="MoreButton" Grid.Column="6" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
                 Style="{StaticResource SubtleButtonStyle}">
-          <FontIcon Glyph="&#xE712;" FontSize="16" />
+          <!-- A ring in place of the dots while a selection is being saved. -->
+          <Grid>
+            <FontIcon x:Name="MoreIcon" Glyph="&#xE712;" FontSize="16" />
+            <ProgressRing x:Name="MoreProgress" Width="16" Height="16" MinWidth="0" MinHeight="0" IsActive="False" Visibility="Collapsed" />
+          </Grid>
           <Button.Flyout>
             <MenuFlyout Placement="BottomEdgeAlignedRight" Opening="MoreMenu_Opening">
               <MenuFlyoutItem x:Name="ImportItem" Click="ImportItem_Click">
@@ -346,7 +350,8 @@
             <Rectangle Grid.Column="3" Fill="{ThemeResource SystemFillColorCautionBrush}" />
             <Rectangle Grid.Column="4" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
           </Grid>
-          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="16">
+          <!-- Up to six items, a mod's name among them: in a narrow window they go on to a second line. -->
+          <local:WrapPanel Grid.Row="1" HorizontalSpacing="16" VerticalSpacing="4">
             <TextBlock x:Name="TimeBreakdownTitle" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             <StackPanel x:Name="SelectedLegend" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
@@ -374,7 +379,7 @@
               <TextBlock x:Name="SpareLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="SpareValue" FontSize="12" />
             </StackPanel>
-          </StackPanel>
+          </local:WrapPanel>
         </Grid>
       </StackPanel>
 
