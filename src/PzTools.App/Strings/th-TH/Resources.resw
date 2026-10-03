@@ -754,6 +754,6 @@
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: จะมีผลเมื่อเปิดเกมใหม่</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>สำรองอัตโนมัติหลังเปิดเกมใหม่</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>กำลังเปิดเกม</value></data>
-  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>เกมที่กำลังทำงาน: {0}</value></data>
-  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>เกมที่กำลังทำงาน: {0} · {1} ตั้งแต่การเปิดครั้งถัดไป</value></data>
+  <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · ใช้อยู่</value></data>
+  <data name="GameMemoryNextStart" xml:space="preserve"><value>มีผลตั้งแต่การเปิดเกมครั้งถัดไป</value></data>
 </root>

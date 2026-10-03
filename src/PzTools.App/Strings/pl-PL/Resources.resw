@@ -747,6 +747,6 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: zadziała po ponownym uruchomieniu gry.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Kopie automatyczne po restarcie gry</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Uruchamianie gry</value></data>
-  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Uruchomiona gra: {0}</value></data>
-  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Uruchomiona gra: {0} · {1} od następnego uruchomienia</value></data>
+  <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · używane</value></data>
+  <data name="GameMemoryNextStart" xml:space="preserve"><value>Obowiązuje od następnego uruchomienia gry.</value></data>
 </root>

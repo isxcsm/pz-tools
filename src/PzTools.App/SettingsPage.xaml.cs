@@ -672,14 +672,32 @@ public sealed partial class SettingsPage : UserControl
             GameMemoryStatus.Reverted when state.ChosenMegabytes is { } chosen => Localizer.Format("GameMemoryRevertedFormat", Size(chosen)),
             _ => null,
         };
-        // The running game's memory, read from it: whether the setting is what it started with, or comes at its next start.
-        var running = gameLink.GameHeapMegabytes is { } heap && state.MaximumMegabytes is { } next && state.Status != GameMemoryStatus.NotFound
-            ? Math.Abs(heap - next) < 128 ? Localizer.Format("GameMemoryRunningFormat", Size((int)heap))
-                : Localizer.Format("GameMemoryRunningNextFormat", Size((int)heap), Size(next))
-            : gameLink.GameHeapMegabytes is { } only ? Localizer.Format("GameMemoryRunningFormat", Size((int)only)) : null;
+        // The running game started with other memory than the file now gives: the choice waits for its next start.
+        var waiting = note is null && gameLink.GameHeapMegabytes is { } heap && state.MaximumMegabytes is { } next
+            && Math.Abs(heap - next) >= 128 ? Localizer.Get("GameMemoryNextStart") : null;
         GameMemorySettingCard.Description = Localizer.Get("GameMemorySetting.Description") + (note is null ? "" : " " + note)
-            + (running is null ? "" : " " + running);
+            + (waiting is null ? "" : " " + waiting);
+        MarkRunningGameMemory(GameMemoryCombo.IsDropDownOpen);
     }
+
+    // The list, while open, marks the memory the running game was started with ("8 GB · Running"); closed, it shows
+    // the choice alone. Each item's own words are kept in its name for screen readers and for taking the mark off.
+    private void MarkRunningGameMemory(bool open)
+    {
+        var heap = gameLink.GameHeapMegabytes;
+        var own = App.GameMemory?.State is { } state ? state.DefaultMegabytes ?? state.MaximumMegabytes : null;
+        foreach (var item in GameMemoryCombo.Items.OfType<ComboBoxItem>())
+        {
+            var label = Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(item) is { Length: > 0 } kept ? kept : item.Content as string ?? "";
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, label);
+            int megabytes = item.Tag is int tag && tag > 0 ? tag : own ?? -1;
+            bool running = open && heap is { } value && megabytes > 0 && Math.Abs(value - megabytes) < 128;
+            item.Content = running ? Localizer.Format("GameMemoryRunningMarkFormat", label) : label;
+        }
+    }
+
+    private void GameMemoryCombo_DropDownOpened(object? sender, object e) => MarkRunningGameMemory(true);
+    private void GameMemoryCombo_DropDownClosed(object? sender, object e) => MarkRunningGameMemory(false);
 
     /// <summary>A heap in gigabytes, as the choices are whole ones: "6 GB".</summary>
     internal static string Size(int megabytes) =>

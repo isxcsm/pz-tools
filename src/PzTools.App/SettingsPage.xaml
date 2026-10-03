@@ -188,7 +188,8 @@
             <toolkit:SettingsExpander.Items>
               <toolkit:SettingsCard x:Name="GameMemorySettingCard" Header="게임 메모리">
                 <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xEEA0;" /></toolkit:SettingsCard.HeaderIcon>
-                <ComboBox x:Name="GameMemoryCombo" MinWidth="180" SelectionChanged="GameMemoryCombo_SelectionChanged" />
+                <ComboBox x:Name="GameMemoryCombo" MinWidth="180" SelectionChanged="GameMemoryCombo_SelectionChanged"
+                          DropDownOpened="GameMemoryCombo_DropDownOpened" DropDownClosed="GameMemoryCombo_DropDownClosed" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>

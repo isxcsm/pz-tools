@@ -747,6 +747,6 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0} : s’applique au redémarrage du jeu.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Sauvegardes auto après redémarrage du jeu</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Démarrage du jeu</value></data>
-  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Jeu en cours : {0}</value></data>
-  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Jeu en cours : {0} · {1} au prochain lancement</value></data>
+  <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · en cours</value></data>
+  <data name="GameMemoryNextStart" xml:space="preserve"><value>S&apos;applique au prochain lancement du jeu.</value></data>
 </root>

@@ -746,6 +746,6 @@
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: 게임을 다시 시작하면 적용됩니다.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>게임 재시작 후 자동 백업</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>게임 시작 중</value></data>
-  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>실행 중인 게임: {0}</value></data>
-  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>실행 중인 게임: {0} · 다음 실행부터 {1}</value></data>
+  <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 실행 중</value></data>
+  <data name="GameMemoryNextStart" xml:space="preserve"><value>다음 게임 실행부터 적용됩니다.</value></data>
 </root>

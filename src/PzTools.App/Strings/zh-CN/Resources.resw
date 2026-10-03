@@ -747,6 +747,6 @@
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}：重新启动游戏后生效。</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>重启游戏后自动备份</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>游戏启动中</value></data>
-  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>运行中的游戏：{0}</value></data>
-  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>运行中的游戏：{0} · 下次启动起为 {1}</value></data>
+  <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 使用中</value></data>
+  <data name="GameMemoryNextStart" xml:space="preserve"><value>从下次启动游戏起生效。</value></data>
 </root>
