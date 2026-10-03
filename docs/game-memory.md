@@ -71,4 +71,8 @@ graphs, with **Memory setting →** leading to the setting:
 - *Memory nearly full*: no stalls, but the heap stood at 90% of its maximum or more for a
   quarter of its readings or more, so collections ran almost without a break.
 
-It is judged on the whole recording, as the setting is not about any one moment.
+It is judged on the whole recording, as the setting is not about any one moment. What a
+recording shows stays true of it after the setting changes: once the game's file gives it
+more than the recording had, the line says what was and what is set now (*Memory nearly
+full when recorded · now set to 8 GB*), in muted text with an information icon and no
+link, as there is nothing left to do. New recordings are judged on their own heap.

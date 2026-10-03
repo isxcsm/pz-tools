@@ -737,4 +737,7 @@
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>메모리가 거의 가득 참</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>메모리 설정</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>게임이 쓸 수 있는 메모리({0})가 모자랐습니다. 늘리면 멈춤이 줄어듭니다.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>녹화 당시 메모리 부족으로 {0}번 멈춤</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>녹화 당시 메모리가 거의 가득 참</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>지금은 {0}로 설정됨</value></data>
 </root>

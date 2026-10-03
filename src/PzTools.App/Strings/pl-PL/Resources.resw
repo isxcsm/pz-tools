@@ -738,4 +738,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Pamięć prawie pełna</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Ustawienie pamięci</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Grze zabrakło pamięci, której może używać ({0}). Więcej pamięci to mniej zatrzymań.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Podczas nagrania zatrzymana {0} razy z braku pamięci</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Pamięć prawie pełna podczas nagrania</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>teraz ustawiono {0}</value></data>
 </root>

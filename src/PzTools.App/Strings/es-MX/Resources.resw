@@ -738,4 +738,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memoria casi llena</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Ajuste de memoria</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Al juego le faltó la memoria que puede usar ({0}). Con más memoria se detendrá menos.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Se detuvo {0} veces por falta de memoria al grabar</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memoria casi llena al grabar</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>ahora ajustada a {0}</value></data>
 </root>

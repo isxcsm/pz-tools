@@ -738,4 +738,7 @@
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>記憶體幾乎已滿</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>記憶體設定</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>遊戲可用的記憶體 ({0}) 不足。調高後停頓會減少。</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>錄製時因記憶體不足停頓 {0} 次</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>錄製時記憶體幾乎已滿</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>現已設為 {0}</value></data>
 </root>

@@ -745,4 +745,7 @@
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>หน่วยความจำใกล้เต็ม</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>ตั้งค่าหน่วยความจำ</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>หน่วยความจำที่เกมใช้ได้ ({0}) ไม่พอ ถ้าเพิ่มขึ้นจะหยุดน้อยลง</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>ตอนบันทึกหยุดเพราะหน่วยความจำไม่พอ {0} ครั้ง</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>ตอนบันทึกหน่วยความจำใกล้เต็ม</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>ตอนนี้ตั้งเป็น {0}</value></data>
 </root>

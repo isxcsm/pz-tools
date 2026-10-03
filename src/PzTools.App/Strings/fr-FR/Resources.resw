@@ -738,4 +738,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Mémoire presque pleine</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Réglage de la mémoire</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Le jeu a manqué de la mémoire qu’il peut utiliser ({0}). Plus de mémoire, moins d’arrêts.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Arrêté {0} fois par manque de mémoire lors de l’enregistrement</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Mémoire presque pleine lors de l’enregistrement</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>désormais réglée sur {0}</value></data>
 </root>

@@ -738,4 +738,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memória quase cheia</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Configuração de memória</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Faltou ao jogo a memória que ele pode usar ({0}). Com mais memória, menos paradas.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Parou {0} vezes por falta de memória na gravação</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memória quase cheia na gravação</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>agora definida para {0}</value></data>
 </root>

@@ -268,9 +268,11 @@
             <TextBlock x:Name="HeapValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
             <TextBlock x:Name="VideoValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <!-- The game ran short of memory in this recording: said here, beside the heap it is about, with the way to
-                 give it more. -->
+                 give it more; or, once the game has been given more since, said as what was, with what it has now. -->
             <StackPanel x:Name="MemoryShortPanel" Orientation="Horizontal" Spacing="4" Visibility="Collapsed" VerticalAlignment="Center">
-              <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+              <FontIcon x:Name="MemoryShortIcon" Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+              <FontIcon x:Name="MemoryRaisedIcon" Glyph="&#xE946;" FontSize="12" Visibility="Collapsed"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="MemoryShortText" FontSize="12" VerticalAlignment="Center" />
               <HyperlinkButton x:Name="MemoryShortButton" AutomationProperties.AutomationId="ProfileMemorySettingButton" Padding="6,1" FontSize="12" Click="MemoryShortButton_Click">
                 <StackPanel Orientation="Horizontal" Spacing="4">

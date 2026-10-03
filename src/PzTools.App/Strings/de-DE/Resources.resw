@@ -738,4 +738,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Speicher fast voll</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Speichereinstellung</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Dem Spiel ging der nutzbare Speicher ({0}) aus. Mehr Speicher bedeutet weniger Stopps.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Bei der Aufnahme {0}-mal wegen Speichermangel angehalten</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Speicher bei der Aufnahme fast voll</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>jetzt auf {0} gesetzt</value></data>
 </root>

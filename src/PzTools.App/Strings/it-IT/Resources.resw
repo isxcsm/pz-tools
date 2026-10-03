@@ -738,4 +738,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memoria quasi piena</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Impostazione memoria</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Al gioco è mancata la memoria che può usare ({0}). Con più memoria si ferma meno.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Fermato {0} volte per mancanza di memoria durante la registrazione</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memoria quasi piena durante la registrazione</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>ora impostata a {0}</value></data>
 </root>

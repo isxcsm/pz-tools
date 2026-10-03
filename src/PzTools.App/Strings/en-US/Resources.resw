@@ -737,4 +737,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memory nearly full</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Memory setting</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>The game ran short of the memory it can use ({0}). Giving it more means fewer stops.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Stopped {0} times for lack of memory when recorded</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memory nearly full when recorded</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>now set to {0}</value></data>
 </root>

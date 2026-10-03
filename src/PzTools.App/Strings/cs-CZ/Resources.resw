@@ -738,4 +738,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Paměť téměř plná</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Nastavení paměti</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Hře došla paměť, kterou může používat ({0}). Víc paměti znamená méně zastavení.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Při nahrávání {0}× zastavena kvůli nedostatku paměti</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Paměť při nahrávání téměř plná</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>nyní nastaveno na {0}</value></data>
 </root>

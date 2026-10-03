@@ -76,6 +76,7 @@ public sealed partial class ProfilerPage : UserControl
         Loaded += (_, _) =>
         {
             Attach();
+            if (App.GameMemory is { } memory) { memory.Changed -= GameMemory_Changed; memory.Changed += GameMemory_Changed; }
             if (watchedWindow is not null) watchedWindow.Changed -= AppWindow_Changed;
             watchedWindow = App.MainWindow.AppWindow;
             watchedWindow.Changed += AppWindow_Changed;
@@ -93,6 +94,7 @@ public sealed partial class ProfilerPage : UserControl
             if (service is not null) { service.Changed -= Session_Changed; service.Saved -= Profiles_Saved; }
             service = null;
             if (App.HotKeys is { } keys) keys.Changed -= HotKeys_Changed;
+            if (App.GameMemory is { } memory) memory.Changed -= GameMemory_Changed;
         };
         // Text and grid lines drawn in code hold the brush of the theme they were drawn in.
         ActualThemeChanged += (_, _) => { if (shown is not null) ShowRange(shown); else { ShowComparison(); QueueRender(); } };
@@ -1055,9 +1057,26 @@ public sealed partial class ProfilerPage : UserControl
         var pressure = recording is null ? null : ProfileAnalysis.MemoryPressure(recording);
         MemoryShortPanel.Visibility = pressure is { Short: true } ? Visibility.Visible : Visibility.Collapsed;
         if (pressure is not { Short: true }) return;
-        MemoryShortText.Text = pressure.Stalls > 0
-            ? Localizer.Format("ProfileMemoryStallsFormat", pressure.Stalls.ToString("N0", Localizer.Culture))
-            : Localizer.Get("ProfileMemoryNearlyFull");
+        var stalls = pressure.Stalls.ToString("N0", Localizer.Culture);
+        // The game's file already gives it more than the recording had: what the recording shows is past, and there
+        // is nothing to do. A quarter of a gigabyte spares a heap the collector reports a little under what was set.
+        var raised = App.GameMemory?.State is { MaximumMegabytes: { } now, Status: not GameMemoryStatus.NotFound }
+            && now * 1024L * 1024 > pressure.MaximumBytes + 256L * 1024 * 1024 ? (int?)now : null;
+        MemoryShortIcon.Visibility = raised is null ? Visibility.Visible : Visibility.Collapsed;
+        MemoryRaisedIcon.Visibility = raised is null ? Visibility.Collapsed : Visibility.Visible;
+        MemoryShortButton.Visibility = raised is null ? Visibility.Visible : Visibility.Collapsed;
+        if (raised is { } megabytes)
+        {
+            MemoryShortText.Text = (pressure.Stalls > 0 ? Localizer.Format("ProfileMemoryStallsThenFormat", stalls)
+                : Localizer.Get("ProfileMemoryNearlyFullThen")) + " · " + Localizer.Format("ProfileMemoryRaisedFormat", SettingsPage.Size(megabytes));
+            MemoryShortText.Foreground = Muted;
+        }
+        else
+        {
+            MemoryShortText.Text = pressure.Stalls > 0 ? Localizer.Format("ProfileMemoryStallsFormat", stalls)
+                : Localizer.Get("ProfileMemoryNearlyFull");
+            MemoryShortText.ClearValue(TextBlock.ForegroundProperty);
+        }
         MemoryShortButtonText.Text = Localizer.Get("ProfileMemorySetting");
         var tip = Localizer.Format("ProfileMemoryShortTipFormat", Bytes(pressure.MaximumBytes));
         AppToolTip.SetTip(MemoryShortPanel, tip);
@@ -1066,6 +1085,9 @@ public sealed partial class ProfilerPage : UserControl
     }
 
     private void MemoryShortButton_Click(object sender, RoutedEventArgs e) => App.ShowGameMemorySetting();
+
+    // The game given more memory meanwhile changes what the line says about the recording open.
+    private void GameMemory_Changed() => DispatcherQueue.TryEnqueue(() => { if (MemoryHeader.Visibility == Visibility.Visible) ApplyMemoryShort(); });
 
     private void MemoryToggle_Click(object sender, RoutedEventArgs e)
     {

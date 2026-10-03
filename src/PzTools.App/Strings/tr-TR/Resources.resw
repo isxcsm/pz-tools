@@ -738,4 +738,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Bellek neredeyse dolu</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Bellek ayarı</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Oyunun kullanabileceği bellek ({0}) yetmedi. Daha fazla bellek, daha az durma demektir.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Kayıt sırasında bellek yetersizliğinden {0} kez durdu</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Kayıt sırasında bellek neredeyse doluydu</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>şimdi {0} olarak ayarlı</value></data>
 </root>

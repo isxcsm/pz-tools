@@ -738,4 +738,7 @@
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Пам’ять майже заповнена</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Налаштування пам’яті</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Грі забракло доступної пам’яті ({0}). Що її більше, то менше зупинок.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Під час запису зупинок через нестачу пам’яті: {0}</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Під час запису пам’ять була майже заповнена</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>зараз встановлено {0}</value></data>
 </root>

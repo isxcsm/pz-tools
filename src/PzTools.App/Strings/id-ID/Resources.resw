@@ -738,4 +738,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Memori hampir penuh</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Pengaturan memori</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Gim kekurangan memori yang dapat dipakainya ({0}). Memori lebih banyak berarti lebih sedikit berhenti.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Saat direkam berhenti {0} kali karena kekurangan memori</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memori hampir penuh saat direkam</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>kini diatur ke {0}</value></data>
 </root>

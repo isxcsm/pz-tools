@@ -738,4 +738,7 @@
   <data name="ProfileMemoryNearlyFull" xml:space="preserve"><value>Память почти заполнена</value></data>
   <data name="ProfileMemorySetting" xml:space="preserve"><value>Настройка памяти</value></data>
   <data name="ProfileMemoryShortTipFormat" xml:space="preserve"><value>Игре не хватило доступной памяти ({0}). Чем её больше, тем меньше остановок.</value></data>
+  <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Во время записи остановок из-за нехватки памяти: {0}</value></data>
+  <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Во время записи память была почти заполнена</value></data>
+  <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>сейчас установлено {0}</value></data>
 </root>
