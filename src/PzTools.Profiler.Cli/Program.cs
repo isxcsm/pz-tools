@@ -210,7 +210,8 @@ async Task<int> RollAsync(string command)
             phase = "start";
             var megabytes = Optional("--max-megabytes") is { } limit
                 ? CommandLine.Int32(limit, "--max-megabytes", GameProfileClient.MinimumRollingMegabytes, GameProfileClient.MaximumRollingMegabytes) : 0;
-            var owner = Optional("--owner-pid") is { } ownerText ? CommandLine.Int32(ownerText, "--owner-pid", 1, int.MaxValue) : 0;
+            var owner = Optional("--owner") is { } ownerText ? GameRuntimeClient.IsAppRun(ownerText) ? ownerText
+                : throw new ArgumentException("--owner must be an app run (32 lowercase hex digits).") : null;
             var status = await WhenFreeAsync(() => client.StartRollingAsync(processId, mode == "detailed", keepSeconds, cancellation.Token, megabytes, owner));
             var lua = status.Lua.StartsWith("unavailable", StringComparison.Ordinal) ? "unavailable" : status.Lua;
             result = new { mode, keepSeconds, lua, hasFrames = status.HasFrames };

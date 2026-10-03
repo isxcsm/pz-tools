@@ -61,7 +61,8 @@ try
         var observation = new RuntimeObservationCoordinator(stateDb, schedulerDb, savesRoot,
             Path.Combine(options.GetValueOrDefault("--worker-directory") ?? AppContext.BaseDirectory, "game-bridge"), runtime,
             options.GetValueOrDefault("--runtime-root") ?? Path.GetDirectoryName(Path.GetFullPath(schedulerPath))!, extensions,
-            settings.Extensions, runToken => allocator.AllocateAsync(cancellationToken: runToken), configurationPath);
+            settings.Extensions, runToken => allocator.AllocateAsync(cancellationToken: runToken), configurationPath,
+            options.GetValueOrDefault("--app-run") is { } run && PzTools.GameBridge.GameRuntimeClient.IsAppRun(run) ? run : null);
         var runtimeObservation = observation.RunAsync(runtimeCancellation.Token);
         try
         {
@@ -123,6 +124,6 @@ catch (Exception exception) { Console.Error.WriteLine(exception.Message); return
 
 static Dictionary<string, string?> Parse(string[] arguments) => CommandLine.Parse(arguments,
     ["--scheduler-db", "--state-db", "--saves-root", "--interval-seconds",
-        "--worker-directory", "--config", "--control-db", "--repository", "--runtime-root"],
+        "--worker-directory", "--config", "--control-db", "--repository", "--runtime-root", "--app-run"],
     ["--once"]);
 static string Required(Dictionary<string, string?> values, string name) => CommandLine.Required(values, name);

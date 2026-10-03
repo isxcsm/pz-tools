@@ -118,30 +118,55 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
-    public async Task RollingRecording_EndsWhenTheAppThatAskedForItHasGone()
+    public async Task RollingRecording_LastsWhileItsAppRunIsHeardFrom_AndEndsAfterItHasGone()
     {
         using var temp = new TempDirectory();
-        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
-        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
-        // A stand-in for the app: a process that waits until it is ended, as a crash or a kill would end the app.
-        using var app = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c pause")
-            { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true })!;
-        try
+        // An app run's lease lasts two seconds here, two minutes in the game, so its lapse is seen within a test.
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties: ["pztools.bridge.lease.seconds=2"]);
+        var bridge = Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!;
+        var client = new GameProfileClient(bridge);
+        var run = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        // The run's state stream, as the state scheduler keeps it: while it is open, it renews the run's lease.
+        using var watching = new CancellationTokenSource();
+        var watch = Task.Run(async () =>
         {
-            Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10, ownerProcessId: app.Id)).Rolling);
-            await Task.Delay(1500);
-            Assert.True((await client.StatusAsync(game.Pid)).Rolling);
-            app.Kill(entireProcessTree: true);
-            await app.WaitForExitAsync();
-            var stopped = false;
-            for (var attempt = 0; attempt < 30 && !stopped; attempt++)
-            {
-                await Task.Delay(200);
-                stopped = (await client.StatusAsync(game.Pid)).State == "idle";
-            }
-            Assert.True(stopped, "The game kept the rolling recording after the app had gone.");
+            try { await foreach (var _ in new GameRuntimeClient(bridge).WatchAsync(game.Pid, run, watching.Token)) { } }
+            catch (Exception) when (watching.IsCancellationRequested) { }
+        });
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10, owner: run)).Rolling);
+        // Twice the lease's term on, the stream has kept it.
+        await Task.Delay(4000);
+        Assert.False(watch.IsCompleted, "The state stream ended.");
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+        // The app gone, as a crash or a kill would take it and its scheduler: the stream ends, and the lease lapses.
+        await watching.CancelAsync();
+        await watch;
+        var stopped = false;
+        for (var attempt = 0; attempt < 40 && !stopped; attempt++)
+        {
+            await Task.Delay(200);
+            stopped = (await client.StatusAsync(game.Pid)).State == "idle";
         }
-        finally { if (!app.HasExited) app.Kill(entireProcessTree: true); }
+        Assert.True(stopped, "The game kept the rolling recording after the app run had gone.");
+    }
+
+    [BridgeFact]
+    public async Task RollingRecording_WithoutAStream_LastsTheLeaseItsStartGave()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties: ["pztools.bridge.lease.seconds=2"]);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
+        // A start is the run's own word: it holds the lease from then, even before its state stream connects.
+        var run = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        Assert.True((await client.StartRollingAsync(game.Pid, detailed: false, 10, owner: run)).Rolling);
+        Assert.True((await client.StatusAsync(game.Pid)).Rolling);
+        var stopped = false;
+        for (var attempt = 0; attempt < 40 && !stopped; attempt++)
+        {
+            await Task.Delay(200);
+            stopped = (await client.StatusAsync(game.Pid)).State == "idle";
+        }
+        Assert.True(stopped, "Nothing renewed the lease, yet the game kept the rolling recording.");
     }
 
     [BridgeFact]

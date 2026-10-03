@@ -285,6 +285,8 @@ public sealed class AppHost : IAsyncDisposable
             "--repository", settings.BackupRoot,
             "--worker-directory", paths.WorkerDirectory,
             "--control-db", paths.ControlDatabasePath!,
+            // Renewed in the game while the state stream is open: what this run asked of the game lasts as long.
+            "--app-run", AppRun.Id,
         };
         supervisors.Add(SuperviseAsync(
             "backup-scheduler",

@@ -11,9 +11,19 @@ namespace PzTools.GameBridge;
 /// <summary>Owns a read-only stream, never takes GameSaveClient's request gate.</summary>
 public sealed class GameRuntimeClient(string bridgeDirectory)
 {
-    public async IAsyncEnumerable<RuntimeSnapshot> WatchAsync(int processId,
+    /// <summary>An app run's name for the game: 32 lowercase hex digits.</summary>
+    public static bool IsAppRun(string value) =>
+        value.Length == 32 && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    public IAsyncEnumerable<RuntimeSnapshot> WatchAsync(int processId, CancellationToken cancellationToken = default) =>
+        WatchAsync(processId, null, cancellationToken);
+
+    /// <param name="appRun">The app run this stream speaks for: the game renews its lease while the stream is open, and
+    /// what the run asked of the game lasts as long (the game bridge's Leases).</param>
+    public async IAsyncEnumerable<RuntimeSnapshot> WatchAsync(int processId, string? appRun,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        if (appRun is not null && !IsAppRun(appRun)) throw new ArgumentException("Not an app run.", nameof(appRun));
         if (processId <= 0) throw new ArgumentOutOfRangeException(nameof(processId));
         var java = Path.Combine(bridgeDirectory, "runtime", "bin", "java.exe");
         var jar = Path.Combine(bridgeDirectory, "pztools-game-bridge.jar");
@@ -55,6 +65,9 @@ public sealed class GameRuntimeClient(string bridgeDirectory)
             using var reader = new StreamReader(client.GetStream(), Encoding.UTF8);
             if (await ReadLineAsync(reader, connection.Token) != $"RUNTIME\t1\t{processId}\t{secret}")
                 throw new GameSaveException("authentication-failed", "Unexpected runtime observer identity.");
+            // The one thing this stream says to the game, once: which run of the app it is.
+            if (appRun is not null)
+                await client.GetStream().WriteAsync(Encoding.ASCII.GetBytes($"LEASE\t{appRun}\n"), connection.Token);
             RuntimeSnapshot? previous = null;
             while (true)
             {

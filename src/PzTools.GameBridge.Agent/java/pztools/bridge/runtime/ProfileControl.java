@@ -12,15 +12,11 @@ import pztools.bridge.AgentEntry;
  */
 final class ProfileControl {
     private static Thread monitor;
-    // The app that asked for the rolling recording, and when that process began: it keeps the recording only while
-    // the app runs, so an app that crashed or was killed does not leave the game recording, sampling Lua and with its
-    // timer raised until it exits. The start time tells the app from a later process given the same number.
-    // The app runs as administrator and the game does not: the game cannot open the app's process, so it cannot ask
-    // whether it is alive or when it began (ProcessHandle.of finds nothing). It can still see it in the list of
-    // processes, by its number; that is how it is followed then, a little less often, as the list costs more.
-    private static long rollingOwner = -1;
-    private static java.time.Instant rollingOwnerStarted;
-    private static long ownerChecked;
+    // The app run that asked for the rolling recording: it keeps the recording only while that run holds its lease
+    // (Leases), so an app that crashed or was killed does not leave the game recording, sampling Lua and with its timer
+    // raised until it exits. The game follows the run, not its process, which it cannot even open: the app runs as
+    // administrator and the game does not.
+    private static String rollingOwner;
     private static boolean ownsFrameHook;
     // Whether the rolling recording marks frames, said again with each save.
     private static String rollingFrames = "frames";
@@ -44,21 +40,22 @@ final class ProfileControl {
                 }
                 // Keeps only the last stretch, for as long as the app wants it, until a save takes what it holds.
                 case "PROFILE_ROLL_START" -> {
-                    // Optional: the most the game may hold on disk, in megabytes (0 for the default), then the app's
-                    // process, whose end ends the rolling recording (see rollingOwner).
+                    // Optional: the most the game may hold on disk, in megabytes (0 for the default), then the app run
+                    // whose lease the rolling recording follows (see rollingOwner).
                     if (command.length < 3 || command.length > 5 || !(command[1].equals("general") || command[1].equals("detailed")))
                         return error("protocol", "Invalid rolling start request");
                     int seconds = Integer.parseInt(command[2]);
                     int megabytes = command.length >= 4 && Integer.parseInt(command[3]) > 0 ? Integer.parseInt(command[3])
                         : ProfileRecorder.DEFAULT_ROLLING_MEGABYTES;
-                    long owner = command.length == 5 ? Long.parseLong(command[4]) : -1;
-                    if (owner >= 0 && !listed(owner)) return error("profile-failed", "The app that asked is not running");
+                    String owner = command.length == 5 ? command[4] : null;
+                    if (owner != null && !Leases.validApp(owner)) return error("protocol", "Invalid app run");
+                    // The request is that run's own word: it holds its lease from now, whether or not its state stream
+                    // has connected yet.
+                    if (owner != null) Leases.renewApp(owner);
                     Hook hook = hookFrames();
                     String status = ProfileRecorder.startRolling(command[1].equals("detailed"), seconds, megabytes, hook.game());
                     rollingFrames = hook.frames();
                     rollingOwner = owner;
-                    rollingOwnerStarted = owner < 0 ? null
-                        : ProcessHandle.of(owner).flatMap(handle -> handle.info().startInstant()).orElse(null);
                     startMonitor();
                     return ok(status + ";" + rollingFrames);
                 }
@@ -69,7 +66,7 @@ final class ProfileControl {
                 case "PROFILE_ROLL_STOP" -> {
                     if (command.length != 1) return error("protocol", "Invalid rolling stop request");
                     String status = ProfileRecorder.stopRolling();
-                    rollingOwner = -1;
+                    rollingOwner = null;
                     if (!ProfileRecorder.active()) releaseFrameHook();
                     return ok(status);
                 }
@@ -190,12 +187,9 @@ final class ProfileControl {
                         // program may be gone): it should no longer set the Lua sampler's pace, and with no rolling
                         // recording beside it, nothing should keep sampling the game or marking its frames.
                         ProfileRecorder.wrapUpIfEnded();
-                        if (rollingOwner >= 0 && System.nanoTime() - ownerChecked > (rollingOwnerStarted != null ? 1 : 5) * 1_000_000_000L) {
-                            ownerChecked = System.nanoTime();
-                            if (!ownerRuns()) {
-                                ProfileRecorder.stopRolling();
-                                rollingOwner = -1;
-                            }
+                        if (rollingOwner != null && !Leases.appHolds(rollingOwner)) {
+                            ProfileRecorder.stopRolling();
+                            rollingOwner = null;
                         }
                         if (!ProfileRecorder.active()) {
                             if (!noticeHook) releaseFrameHook();
@@ -214,20 +208,6 @@ final class ProfileControl {
         monitor.start();
     }
 
-    // Alive and the same process, where the game may open it; else still in the list under its number.
-    private static boolean ownerRuns() {
-        if (rollingOwnerStarted == null) return listed(rollingOwner);
-        var handle = ProcessHandle.of(rollingOwner).orElse(null);
-        if (handle == null || !handle.isAlive()) return false;
-        var started = handle.info().startInstant().orElse(null);
-        return started == null || started.equals(rollingOwnerStarted);
-    }
-
-    // In the list of processes, which shows every process, including those the game may not open.
-    private static boolean listed(long pid) {
-        if (ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) return true;
-        return ProcessHandle.allProcesses().anyMatch(process -> process.pid() == pid);
-    }
 
     static String ok(String detail) { return "OK\t" + encode(detail); }
     static String error(String code, String message) {

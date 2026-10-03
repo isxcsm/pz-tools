@@ -151,6 +151,30 @@ Anything else stays `attach-failed`. Where to find the entry, for a user's repor
 
 **Copy details** on the Logs page includes it.
 
+### Leases
+
+What the app asks of the game must end once the app has gone, however it went, and must
+not end each time a connection does: the app's scheduler restarts, a game load drops the
+link for a moment. So what the app asked for follows a lease, not a connection.
+
+- Each run of the app makes an identifier when it starts (32 hex digits), which tells it
+  from an earlier or later run. The game knows nothing of the app's process, which it could
+  not even open: the app runs as administrator, the game does not.
+- The run's state stream (WATCH) names the run once when it connects, and renews its lease
+  for as long as it is open. A request that names the run (starting the last minutes'
+  recording) renews it too, so the request holds even before the stream connects.
+- The lease lapses two minutes after the run was last heard from; what it holds then ends.
+  The state scheduler ends with the app, as the app's workers do, so the stream closes when
+  the app goes.
+
+| Holder | Lease | Ends |
+| --- | --- | --- |
+| The last minutes' recording | The app run's | Two minutes after the run was last heard from |
+| Extension control | Its own connection's, renewed by each command | Five seconds without a command, or at once when its connection ends: a vehicle must not keep forces nobody controls |
+
+Both are kept by the same lease type in the bridge; a new holder chooses which lease it
+follows and its term. Leases live in the replaceable payload, not in the bootstrap.
+
 ### Layers
 
 The bridge is loaded once per game session and reused for every request. It has

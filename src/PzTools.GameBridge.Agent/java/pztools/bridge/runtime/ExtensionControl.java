@@ -71,14 +71,16 @@ public final class ExtensionControl {
         private final ClassLoader loader;
         private final PzRuntimeAdapter adapter;
         private final Field gameThread;
-        private final LongSupplier clock;
+
         private final Callable<ContinuousModules> moduleHost;
         // Serialize this owner's host calls through retirement. The game thread must never wait
         // for a command that can retransform classes or drain provider callbacks.
         private final ReentrantLock operations = new ReentrantLock();
         private final Map<String, Cached> completed = new HashMap<>();
         private volatile ContinuousModules modules;
-        private volatile long deadline;
+        // This controller's right to the extensions: renewed by each command, ended with its connection. It is its own
+        // and short, unlike an app run's (Leases): a vehicle must not keep forces nobody controls any longer.
+        private final Leases.Lease lease;
         private final AtomicBoolean active = new AtomicBoolean(true);
         private volatile ContinuousProvider.Context context;
         private String epoch;
@@ -92,10 +94,10 @@ public final class ExtensionControl {
                 Callable<ContinuousModules> moduleHost) throws Exception {
             this.instrumentation = instrumentation; loader = window.getClassLoader();
             this.moduleHost = moduleHost;
-            this.clock = clock; deadline = clock.getAsLong() + LEASE_NANOS;
+            lease = new Leases.Lease(clock, LEASE_NANOS);
             adapter = new PzRuntimeAdapter(window); gameThread = window.getField("gameThread");
         }
-        boolean expired() { return !active.get() || clock.getAsLong() - deadline >= 0; }
+        boolean expired() { return !active.get() || lease.lapsed(); }
         void poll() {
             if (!active.get() || !operations.tryLock()) return;
             try { if (active.get()) pollOwned(); }
@@ -142,7 +144,7 @@ public final class ExtensionControl {
             Cached cached = completed.get(p[1]);
             if (cached != null) {
                 if (!cached.request.equals(line)) throw new IOException("Command identity reused");
-                deadline = clock.getAsLong() + LEASE_NANOS; return cached.response;
+                lease.renew(); return cached.response;
             }
             ContinuousModules.Status result;
             boolean mutating = p[0].equals("APPLY") || p[0].equals("OFF");
@@ -154,7 +156,7 @@ public final class ExtensionControl {
                 long expected = Long.parseLong(p[5]), revision = Long.parseLong(p[6]);
                 if (expected < -1 || revision < 0) throw new IOException("Invalid configuration revision");
                 var config = parseConfig(p[9]);
-                deadline = clock.getAsLong() + LEASE_NANOS;
+                lease.renew();
                 try {
                     ContinuousModules next = moduleHost.call(); modules = next;
                     result = next.apply(new ContinuousModules.Apply(p[3], p[4], expected, revision, p[7], p[8].equals("force"), config),
@@ -170,7 +172,7 @@ public final class ExtensionControl {
             } else if ((p.length == 3 || p.length == 4) && Set.of("STATUS", "PING", "OFF").contains(p[0])) {
                 // Three fields address the host as a whole (OFF retires every module); a fourth names one module.
                 if (p.length == 4 && !p[3].matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+")) throw new IOException("Invalid module identity");
-                deadline = clock.getAsLong() + LEASE_NANOS;
+                lease.renew();
                 ContinuousModules target = modules;
                 // A new controller must see the resident host's failure, not manufacture a clean Disabled state.
                 // Commands run only after acquiring the lifecycle slot; a rejected owner never touches that host.
@@ -184,6 +186,7 @@ public final class ExtensionControl {
         }
         void close() {
             if (!active.compareAndSet(true, false)) return;
+            lease.end();
             invalidateWorld();
             ContinuousModules target = modules;
             // Revoke admission immediately, even if a game callback is still in flight.

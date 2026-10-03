@@ -95,11 +95,9 @@ and after it. The two may be in different modes. While either is in Detailed mod
 game is sampled at Detailed's pace; each file is taken back to its own mode as it is
 converted, so a Standard one reads as if it had run alone. The setting is kept, so it
 starts again with the app; it ends when switched off, and while the app is closed nothing
-records the game: the game checks that the app which asked is still running, so an app that
-crashed or was ended from the Task Manager does not leave it recording. The app runs as
-administrator and the game does not, so the game cannot open the app's process; it finds it
-by its number in the list of processes instead, every five seconds (once a second for an app
-it can open, which it also tells from a later process given the same number).
+records the game: the recording lasts while the app run that asked for it holds its lease in
+the game (see [leases](game-bridge.md#leases)), so an app that crashed or was ended from the
+Task Manager does not leave it recording for more than two minutes.
 
 The cost is that of a recording that never ends. Standard mode is light; Detailed mode
 costs the game frame rate for as long as it is on (roughly 10% in a synthetic test), so

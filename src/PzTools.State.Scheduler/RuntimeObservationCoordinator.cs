@@ -12,7 +12,8 @@ namespace PzTools.State.Scheduler;
 internal sealed class RuntimeObservationCoordinator(StateDatabase state, SchedulerDatabase scheduler,
     string savesRoot, string bridgeDirectory, RuntimeSnapshotStore published,
     string runtimeRoot, RuntimeExtensionStatusStore extensions, ExtensionControlOptions extensionOptions,
-    Func<CancellationToken, Task<long>>? allocateRunIndex = null, string? telemetryConfigurationPath = null)
+    Func<CancellationToken, Task<long>>? allocateRunIndex = null, string? telemetryConfigurationPath = null,
+    string? appRun = null)
 {
     private readonly RuntimeSnapshotStore received = new();
     // The game process that refused the link for running a bridge from before an update; not asked again.
@@ -79,7 +80,8 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 try
                 {
                     long lastConfigurationCheck = 0;
-                    await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(game.Id, connection.Token))
+                    // The stream renews the app run's lease in the game: what the run asked of it lasts while connected.
+                    await foreach (var snapshot in new GameRuntimeClient(bridgeDirectory).WatchAsync(game.Id, appRun, connection.Token))
                     {
                         if (game.HasExited || game.StartTime.ToUniversalTime() != started) break;
                         failures = 0;
