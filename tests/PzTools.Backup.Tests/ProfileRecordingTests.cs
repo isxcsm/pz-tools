@@ -466,9 +466,9 @@ public sealed class ProfileRecordingTests
         {
             "PZPROF|1", "I|mode|general", "I|endedBy|rolling", "I|durationMicros|20000000",
             "M|0|zombie.GameWindow.logic", "M|1|zombie.iso.IsoCell.update", "M|2|se.krka.kahlua.vm.KahluaThread.luaMainloop",
-            "M|3|org.lwjgl.opengl.GL11.glDrawArrays", "K|0|1 0", "K|1|2 0", "K|2|3",
-            "LM|0|slow|workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua", "LM|1|OnTick|media/lua/client/ISUI/ISGame.lua",
-            "LK|0|0:12 1:80", "LK|1|1:81",
+            "M|3|org.lwjgl.opengl.GL11.glDrawArrays", "M|4|org.lwjgl.opengl.GL11.glDrawElements", "K|0|1 0", "K|1|2 0", "K|2|3",
+            "K|3|4", "LM|0|slow|workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua", "LM|1|OnTick|media/lua/client/ISUI/ISGame.lua",
+            "LM|2|early|media/lua/client/Early.lua", "LK|0|0:12 1:80", "LK|1|1:81", "LK|2|2:3 1:80",
         };
         for (long time = 0, index = 0; time < 20_000_000; time += 20_000, index++)
             lines.Add($"F|{raw + time}|{15_000 + index % 7 * 1_000}");
@@ -478,10 +478,11 @@ public sealed class ProfileRecordingTests
             var stack = index % 3 == 0 ? 1 : 0;
             lines.Add($"S|{raw + time}|7|{stack}|J");
         }
-        for (long time = 3_000; time < 20_000_000; time += 25_000) lines.Add($"S|{raw + time}|9|2|N");
+        // The first second draws one way and runs a script of its own, the rest not: a range after it uses neither.
+        for (long time = 3_000; time < 20_000_000; time += 25_000) lines.Add($"S|{raw + time}|9|{(time < 1_000_000 ? 2 : 3)}|N");
         for (long time = 1_000, index = 0; time < 20_000_000; time += 37_500, index++)
         {
-            var stack = index % 4 == 0 ? 1 : 0;
+            var stack = time < 1_000_000 && index % 2 == 0 ? 2 : index % 4 == 0 ? 1 : 0;
             lines.Add($"L|{raw + time}|{stack}");
             lines.Add($"LA|{raw + time}|{1_000 + index % 5 * 100}");
         }
@@ -547,10 +548,15 @@ public sealed class ProfileRecordingTests
         Assert.Equal(Figures(whole, start, end), Figures(part, 0, part.Duration));
         // And a range of the range is the same range of the whole.
         Assert.Equal(Figures(whole, start + 100_000, start + 200_000), Figures(part, 100_000, 200_000));
-        // Listed as a recording of its length, not as the game's last minutes; the tables came along whole.
+        // Listed as a recording of its length, not as the game's last minutes.
         var summary = ProfileRecording.ReadSummary(target);
         Assert.Equal(new ProfileRecordingSummary(false, false, end - start), summary);
-        Assert.Equal(whole.Methods, part.Methods);
+        // What only the rest used is left out, the rest numbered again.
+        var early = start < 1_000_000;
+        Assert.Equal(early, part.Methods.Contains("org.lwjgl.opengl.GL11.glDrawArrays"));
+        Assert.Equal(early, part.LuaFunctions.Any(function => function.Name == "early"));
+        Assert.Equal(early ? 5 : 4, part.Methods.Count);
+        Assert.Equal(early ? 4 : 3, part.Stacks.Count);
         Assert.Equal(whole.StartedUtc, part.StartedUtc);
         Assert.False(File.Exists(target + ".tmp"));
     }

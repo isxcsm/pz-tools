@@ -449,14 +449,15 @@ automatic one, which stays known as automatic.
 time, and lists it with the others; a file that is not a readable recording is refused
 and nothing is copied. *Save as* copies the selected recording to a place you choose.
 *Save selection* saves the range selected on the graph as a recording of its own beside the
-others, named after this one and the range: *mod A added (12.30–20.50 s)*. It shows the
-very figures the range showed: its records are the source's, those outside the range left
-out by the rules the analysis counts a range by (a collection or pause that reaches into it
-stays, as do the allocation readings either side of it), and it says which range it is and
-what a sample stood for in the whole, which a few seconds would not measure again. It is
-then a recording to compare with, so a clean stretch can be the baseline, or the first half
-of a recording compared with its second; and a short file to pass on. The recording shown
-stays shown. A version from before this reads such a file too, measuring its span and
+others, named after this one and the range: *mod A added (12.30–20.50 s)*, and shows it
+at once. It shows the very figures the range showed: its records are the source's, those
+outside the range left out by the rules the analysis counts a range by (a collection or
+pause that reaches into it stays, as do the allocation readings either side of it), and it
+says which range it is and what a sample stood for in the whole, which a few seconds would
+not measure again. Stacks and functions only the rest referred to are left out too, so a
+short range makes a small file. It is then a recording to compare with, so a clean stretch
+can be the baseline, or the first half of a recording compared with its second; and a file
+to pass on. A version from before this reads such a file too, measuring its span and
 periods from what it holds, so its figures may differ slightly for a very short range.
 Recordings are not written to the log or telemetry databases; those only receive the
 start, finish and failure of a recording, which is what the operation card and the log

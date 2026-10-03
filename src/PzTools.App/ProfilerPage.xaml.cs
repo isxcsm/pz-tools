@@ -668,8 +668,8 @@ public sealed partial class ProfilerPage : UserControl
 
     /// <summary>
     /// The selected range as a recording of its own, named after this one and the range as the line above the graph
-    /// gives it: "mod A added (12.30–20.50 s)". It joins the list and the recordings to compare with; this one stays
-    /// shown, as the next range to compare is usually picked here.
+    /// gives it: "mod A added (12.30–20.50 s)". It joins the list and the recordings to compare with, and is shown at
+    /// once: what was saved is what it shows.
     /// </summary>
     private async void SaveRangeItem_Click(object sender, RoutedEventArgs e)
     {
@@ -686,7 +686,7 @@ public sealed partial class ProfilerPage : UserControl
         try
         {
             var saved = await Task.Run(() => profiles.SaveRange(source, loaded, start, end, name));
-            RefreshList((RecordingList.SelectedItem as RecordingItem)?.File.Path ?? loadedPath);
+            RefreshList(saved);
             App.ShowSidebarNotification(InfoBarSeverity.Success, Localizer.Get("ProfilerNavigation"),
                 Localizer.Format("ProfileRangeSavedFormat", System.IO.Path.GetFileNameWithoutExtension(saved)));
         }
