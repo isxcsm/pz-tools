@@ -119,6 +119,9 @@ internal sealed class HotKeyController : IDisposable
             return;
         }
         Sound(SystemSound.Accepted);
+        // Said before the save asks the game for its minutes, as a recording's stop is: the save takes a few seconds.
+        // Not waited on for long: a game that does not answer must not hold the save up.
+        await Task.WhenAny(host.NotifyGameAsync([$"save-last-started:{Math.Max(1, rolling.OnMinutes)}"]), Task.Delay(TimeSpan.FromSeconds(3)));
         var (path, result) = await profiles.SaveRollingAsync();
         if (path is null)
         {
