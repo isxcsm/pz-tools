@@ -745,4 +745,5 @@
   <data name="InstallBrokenAction" xml:space="preserve"><value>다운로드 페이지 열기</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: 게임을 다시 시작하면 적용됩니다.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>게임 재시작 후 자동 백업</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>게임 시작 중</value></data>
 </root>

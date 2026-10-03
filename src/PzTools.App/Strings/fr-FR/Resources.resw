@@ -746,4 +746,5 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="InstallBrokenAction" xml:space="preserve"><value>Ouvrir la page de téléchargement</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0} : s’applique au redémarrage du jeu.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Sauvegardes auto après redémarrage du jeu</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Démarrage du jeu</value></data>
 </root>

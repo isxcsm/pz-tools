@@ -746,4 +746,5 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="InstallBrokenAction" xml:space="preserve"><value>Buka halaman unduhan</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: berlaku setelah gim dimulai ulang.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Cadangan otomatis setelah gim dimulai ulang</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Gim sedang dimulai</value></data>
 </root>

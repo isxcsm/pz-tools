@@ -745,4 +745,5 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="InstallBrokenAction" xml:space="preserve"><value>Open download page</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: applies once the game is restarted.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Automatic backups after a game restart</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Game starting</value></data>
 </root>

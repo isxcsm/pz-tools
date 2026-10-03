@@ -746,4 +746,5 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="InstallBrokenAction" xml:space="preserve"><value>Abrir página de descarga</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: se aplica al reiniciar el juego.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Copias automáticas tras reiniciar el juego</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Iniciando el juego</value></data>
 </root>

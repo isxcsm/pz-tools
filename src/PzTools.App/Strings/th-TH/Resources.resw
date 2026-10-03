@@ -753,4 +753,5 @@
   <data name="InstallBrokenAction" xml:space="preserve"><value>เปิดหน้าดาวน์โหลด</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: จะมีผลเมื่อเปิดเกมใหม่</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>สำรองอัตโนมัติหลังเปิดเกมใหม่</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>กำลังเปิดเกม</value></data>
 </root>

@@ -1649,7 +1649,7 @@ public sealed partial class MainWindowShell : UserControl
     {
         var now = DateTimeOffset.UtcNow;
         var display = countdownStabilizer.Apply(ScheduleCountdownPresentation.Resolve(schedule, now,
-            projectorHealth?.IsFaulted("scheduler") == true, gameLink?.RestartRequired == true), now);
+            projectorHealth?.IsFaulted("scheduler") == true, gameLink?.RestartRequired == true, gameLink?.Starting == true), now);
         // Assign only what changed: even an equal string makes the window draw a frame, every second, for as
         // long as the app runs (also minimised or in the tray).
         SetText(NextBackupText, Localizer.Get(display.MessageKey));

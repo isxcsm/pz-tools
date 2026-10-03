@@ -746,4 +746,5 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="InstallBrokenAction" xml:space="preserve"><value>Otwórz stronę pobierania</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: zadziała po ponownym uruchomieniu gry.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Kopie automatyczne po restarcie gry</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Uruchamianie gry</value></data>
 </root>

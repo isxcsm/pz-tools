@@ -746,4 +746,5 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Abrir página de download</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: será aplicado ao reiniciar o jogo.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Backups automáticos após reiniciar o jogo</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Iniciando o jogo</value></data>
 </root>

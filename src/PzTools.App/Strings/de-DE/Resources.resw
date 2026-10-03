@@ -746,4 +746,5 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="InstallBrokenAction" xml:space="preserve"><value>Downloadseite öffnen</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: wird nach einem Neustart des Spiels angewendet.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Automatische Backups nach Spielneustart</value></data>
+  <data name="RuntimeBackupStarting" xml:space="preserve"><value>Spiel startet</value></data>
 </root>

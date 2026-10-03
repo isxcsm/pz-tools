@@ -82,7 +82,8 @@ public sealed class GameLinkFallbackTests
         await controller.PrepareAsync(now, TimeSpan.Zero, default);
         await controller.PrepareAsync(now.AddMinutes(10), TimeSpan.Zero, default);
         Assert.Null((await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
-        Assert.Equal(GameLinkView.Available, new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true)
+        // Not a lost link: a game starting, said as such.
+        Assert.Equal(new GameLinkView(Starting: true), new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true)
             .Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)));
     }
 
@@ -246,6 +247,30 @@ public sealed class GameLinkFallbackTests
         Assert.Equal(new GameLinkView(LinkUnavailable: true, RestartRequired: true),
             monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason)));
         Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).RestartRequired);
+    }
+
+    [Fact]
+    public void Monitor_SaysTheGameIsStarting_OnlyWhenItKnows()
+    {
+        var path = @"C:\fixture\Saves\Sandbox\World";
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
+        // Started beside a game already running: it cannot tell a game starting from one it has not read yet.
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
+        // The game seen absent, then launched: starting while it connects and until its first frame.
+        monitor.Update(new("", RuntimeQuality.Offline, null));
+        Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
+        Assert.True(monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)).Starting);
+        // Read once, it is no longer starting; a later reconnection is checking, not starting.
+        Assert.False(monitor.Update(new(Id(), RuntimeQuality.Fresh, World(path))).Starting);
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Starting);
+        // Connected and before the first frame says so whatever came before.
+        Assert.True(monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)).Starting);
+        // The countdown says it in place of checking.
+        var schedule = new PzTools.Projections.ScheduleStatusView(1, default, null, null, null, null, true, 0,
+            PauseAware: true, Hold: ScheduleHold.Unknown);
+        Assert.Equal("RuntimeBackupStarting", ScheduleCountdownPresentation.Resolve(schedule, DateTimeOffset.UtcNow, starting: true).MessageKey);
+        Assert.Equal("RuntimeBackupWaiting", ScheduleCountdownPresentation.Resolve(schedule, DateTimeOffset.UtcNow).MessageKey);
     }
 
     [Fact]
