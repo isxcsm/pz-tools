@@ -55,8 +55,11 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
         // running an older bridge cannot: that is said at once.
         bool linkUnavailable = linkSince is { } link && (restartRequired || time.GetElapsedTime(link) >= linkGrace);
         if (observation.Quality == RuntimeQuality.Offline) { launching = true; heap = null; }
-        else if (observation.Snapshot?.HeapMaximumMegabytes is { } read) heap = read;
-        else if (observation.Reason is not (ConnectingReason or RuntimeObservation.GameStartingReason)) launching = false;
+        else
+        {
+            if (observation.Snapshot?.HeapMaximumMegabytes is { } read) heap = read;
+            if (observation.Reason is not (ConnectingReason or RuntimeObservation.GameStartingReason)) launching = false;
+        }
         bool starting = !linkUnavailable && (observation.Reason == RuntimeObservation.GameStartingReason
             || launching && observation.Reason == ConnectingReason);
         return new(linkUnavailable, sleepSince is { } sleep && time.GetElapsedTime(sleep) >= valueGrace,

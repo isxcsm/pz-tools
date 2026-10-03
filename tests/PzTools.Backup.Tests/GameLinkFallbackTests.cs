@@ -169,8 +169,17 @@ public sealed class GameLinkFallbackTests
         Assert.Equal("RuntimeBackupRestartRequired", ScheduleCountdownPresentation.Resolve(RuntimeScheduleProjection.Build(
             await db.ReadBackupStateIfChangedAsync(-1), await db.ReadRuntimeScheduleAsync(), feed.Read()), now.AddMinutes(6),
             restartRequired: true).MessageKey);
-        // Any other unreadable game: the files on disk are backed up on the clock.
-        feed.Publish(RuntimeObservation.Unknown("runtime-unavailable"));
+        // Between refusals the link reports other reasons for a moment (a retry connecting, the state feed restarting):
+        // the same game still needs its restart, and the backup long due still waits.
+        foreach (var flicker in new[] { "connecting", "runtime-feed-disconnected", "runtime-unavailable" })
+        {
+            feed.Publish(RuntimeObservation.Unknown(flicker));
+            await controller.PrepareAsync(now.AddMinutes(11), TimeSpan.Zero, default);
+            Assert.False((await scheduler.TickAsync(now.AddMinutes(11))).Due);
+        }
+        Assert.Equal(0, backups);
+        // Once the game has gone, the hold ends with it: the backup long due runs.
+        feed.Publish(new RuntimeObservation("", RuntimeQuality.Offline, null));
         await controller.PrepareAsync(now.AddMinutes(11), TimeSpan.Zero, default);
         Assert.True((await scheduler.TickAsync(now.AddMinutes(11))).Due);
         Assert.Equal(1, backups);
@@ -260,8 +269,9 @@ public sealed class GameLinkFallbackTests
         monitor.Update(new("", RuntimeQuality.Offline, null));
         Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
         Assert.True(monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)).Starting);
-        // Read once, it is no longer starting; a later reconnection is checking, not starting.
-        Assert.False(monitor.Update(new(Id(), RuntimeQuality.Fresh, World(path))).Starting);
+        // Read once, it is no longer starting; a later reconnection is checking, not starting. A frame that carries the
+        // game's heap counts as read too.
+        Assert.False(monitor.Update(new(Id(), RuntimeQuality.Fresh, World(path) with { HeapMaximumMegabytes = 8192 })).Starting);
         Assert.False(monitor.Update(RuntimeObservation.Unknown("connecting")).Starting);
         Assert.False(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Starting);
         // Connected and before the first frame says so whatever came before.
