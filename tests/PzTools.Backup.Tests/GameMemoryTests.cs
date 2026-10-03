@@ -134,6 +134,68 @@ public sealed class GameMemoryTests
     }
 
     [Fact]
+    public async Task TheChoiceIsKeptBeforeTheGamesFileChanges_AndNotChangedWhenItCannotBe()
+    {
+        using var temp = new TempDirectory();
+        var file = temp.GetPath(GameMemory.ConfigFileName);
+        File.WriteAllText(file, Shipped);
+        // Where the app keeps its record, something it cannot write over.
+        var record = temp.GetPath("data", "game-memory.json");
+        Directory.CreateDirectory(record);
+        var memory = new GameMemory(record, () => file, 32 * Gigabyte);
+        Assert.Equal("unwritable", (await Assert.ThrowsAsync<GameMemoryException>(() => memory.ApplyAsync(8192))).Code);
+        // The game's own heap, kept nowhere, could not be given back: the file is left as the game wrote it.
+        Assert.Equal(Shipped, File.ReadAllText(file));
+        await memory.RefreshAsync();
+        Assert.Equal(GameMemoryStatus.Default, memory.State.Status);
+    }
+
+    [Fact]
+    public async Task AChoiceThisPCNoLongerOffers_IsStillAppliedAgain()
+    {
+        using var temp = new TempDirectory();
+        var file = temp.GetPath(GameMemory.ConfigFileName);
+        File.WriteAllText(file, Shipped);
+        var record = temp.GetPath("data", "game-memory.json");
+        await new GameMemory(record, () => file, 64 * Gigabyte).ApplyAsync(16384);
+        // Memory taken out, and a game update put the game's own back.
+        File.WriteAllText(file, Shipped);
+        var smaller = new GameMemory(record, () => file, 16 * Gigabyte);
+        await smaller.RefreshAsync();
+        Assert.Equal(GameMemoryStatus.Reverted, smaller.State.Status);
+        await smaller.ApplyAsync(16384);
+        Assert.Equal(GameMemoryStatus.Applied, smaller.State.Status);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => smaller.ApplyAsync(24576));
+    }
+
+    [Fact]
+    public async Task TheRunningGamesFile_IsTheOneChanged_AndAFileHeldForAMomentChangesNothingShown()
+    {
+        using var temp = new TempDirectory();
+        var installed = temp.GetPath("Steam", GameMemory.ConfigFileName);
+        var copy = temp.GetPath("Copy", GameMemory.ConfigFileName);
+        foreach (var path in new[] { installed, copy })
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, Shipped);
+        }
+        var record = temp.GetPath("data", "game-memory.json");
+        await new GameMemory(record, () => installed, 32 * Gigabyte).RefreshAsync();
+        // The one remembered is not the one the running game reads.
+        var memory = new GameMemory(record, () => installed, 32 * Gigabyte, running: () => copy);
+        await memory.ApplyAsync(8192);
+        Assert.Equal((8192, 8192), GameMemory.ReadHeap(File.ReadAllText(copy)));
+        Assert.Equal(Shipped, File.ReadAllText(installed));
+
+        // Steam rewriting it, a scanner reading it: held without sharing, it is not "not as expected".
+        using (new FileStream(copy, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await memory.RefreshAsync();
+            Assert.Equal(GameMemoryStatus.Applied, memory.State.Status);
+        }
+    }
+
+    [Fact]
     public void SteamLibraries_AreReadFromSteamsList()
     {
         using var temp = new TempDirectory();

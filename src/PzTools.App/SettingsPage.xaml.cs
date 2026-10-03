@@ -631,13 +631,12 @@ public sealed partial class SettingsPage : UserControl
     // A check asked for here: it runs whatever the last one was, and its failure is said in the line.
     private bool checkingUpdates, updateCheckFailed;
 
-    /// <summary>The version line: whether a newer one can be had, as last asked, and this version as its value.</summary>
     // ---- The game's memory ----
 
     // Set while the list is filled from the game's file, so that is not taken for the player's choice.
     private bool showingGameMemory;
-    // Why the last change could not be made, until the next one.
-    private string? gameMemoryError;
+    // Why the last change could not be made, and in what state: said while the file is still as it was then.
+    private (string Text, GameMemoryState At)? gameMemoryError;
     private bool applyingGameMemory;
 
     /// <summary>
@@ -666,13 +665,17 @@ public sealed partial class SettingsPage : UserControl
                     Tag = choice.Megabytes,
                 });
             var shown = state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0;
-            GameMemoryCombo.SelectedItem = GameMemoryCombo.Items.OfType<ComboBoxItem>().FirstOrDefault(item => (int)item.Tag == shown)
-                ?? GameMemoryCombo.Items[0];
+            // Put back by the game, the list shows the game's own without selecting it: either choice is then one, the
+            // game's own (letting the player's go) as much as the player's again.
+            var reverted = state.Status == GameMemoryStatus.Reverted;
+            GameMemoryCombo.PlaceholderText = reverted ? (string)((ComboBoxItem)GameMemoryCombo.Items[0]).Content : "";
+            GameMemoryCombo.SelectedItem = reverted ? null
+                : GameMemoryCombo.Items.OfType<ComboBoxItem>().FirstOrDefault(item => (int)item.Tag == shown) ?? GameMemoryCombo.Items[0];
             GameMemoryCombo.IsEnabled = !applyingGameMemory && state.Status is GameMemoryStatus.Default or GameMemoryStatus.Applied
                 or GameMemoryStatus.Reverted;
         }
         finally { showingGameMemory = false; }
-        var note = gameMemoryError ?? state.Status switch
+        var note = (gameMemoryError is { } error && error.At == state ? error.Text : null) ?? state.Status switch
         {
             GameMemoryStatus.NotFound => Localizer.Get("GameMemoryNotFound"),
             GameMemoryStatus.Unsupported => Localizer.Get("GameMemoryUnsupported"),
@@ -715,20 +718,20 @@ public sealed partial class SettingsPage : UserControl
         if (showingGameMemory || App.GameMemory is not { } memory || GameMemoryCombo.SelectedItem is not ComboBoxItem { Tag: int megabytes })
             return;
         var state = memory.State;
-        // The list showing what the file holds already is no change.
-        if (megabytes == (state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0)
-            && !(megabytes == 0 && state.Status == GameMemoryStatus.Reverted)) return;
+        // The list showing what the file holds already is no change; put back by the game, either choice is one.
+        if (state.Status != GameMemoryStatus.Reverted && megabytes == (state.Status == GameMemoryStatus.Applied ? state.ChosenMegabytes ?? 0 : 0))
+            return;
         applyingGameMemory = true;
         gameMemoryError = null;
         try { await memory.ApplyAsync(megabytes == 0 ? null : megabytes); }
         catch (GameMemoryException error)
         {
-            gameMemoryError = Localizer.Get(error.Code switch
+            gameMemoryError = (Localizer.Get(error.Code switch
             {
                 "not-found" => "GameMemoryNotFound",
                 "unsupported" => "GameMemoryUnsupported",
                 _ => "GameMemoryUnwritable",
-            });
+            }), memory.State);
         }
         finally
         {
@@ -737,6 +740,7 @@ public sealed partial class SettingsPage : UserControl
         }
     }
 
+    /// <summary>The version line: whether a newer one can be had, as last asked, and this version as its value.</summary>
     internal void ApplyUpdate()
     {
         if (App.Updates is not { } updates) return;
@@ -759,8 +763,10 @@ public sealed partial class SettingsPage : UserControl
         (checkingUpdates, updateCheckFailed) = (true, false);
         ApplyUpdate();
         try { await updates.CheckAsync(force: true); }
+        // A release list not as expected (a field of another type) fails the check too, not the app.
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException
-            or IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+            or IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException
+            or FormatException or KeyNotFoundException)
         {
             updateCheckFailed = true;
         }

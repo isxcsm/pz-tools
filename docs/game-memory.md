@@ -38,18 +38,25 @@ the choice differs from what the running game started with, the setting says it 
 from the game's next start.
 The file is written beside itself and moved over, so a game starting meanwhile never reads
 half of it. A running game holds the file open and lets others read and write it, but not
-replace it; then it is written in place, which that game no longer reads. The file as the game shipped it is kept once, as `game-memory-original.json` in
-the app's data folder (see [files and folders](deployment-layout.md)).
+replace it; then it is written in place, which that game no longer reads: the new text over
+the old and the end cut only after, so the file is never left empty, and put back to the
+old text if writing fails partway. The file as the game shipped it is kept once, as `game-memory-original.json` in
+the app's data folder (see [files and folders](deployment-layout.md)). The choice and the
+game's own heap are kept in `game-memory.json` before the game's file is changed; when that
+cannot be written, the game's file is left alone and the setting says it cannot be changed,
+as a heap kept nowhere could not be given back.
 
 The file is left alone when it is not as expected: no `vmArgs` list, no `-Xmx` in it, an
 option twice, or a heap option anywhere else in the file (such as the per-Windows-version
-lists), which could override the one changed.
+lists), which could override the one changed. A file held for a moment (Steam writing it, a
+scanner) changes nothing shown; it is read again at the next look.
 
 ## Finding the game
 
-The running game's folder, else the Steam library that holds Project Zomboid (app 108600),
-read from Steam's own list of libraries. A game folder that cannot be written to is reported
-under the setting; nothing asks for administrator rights.
+The running game's folder; else the file found before, while it is there; else the Steam
+library that holds Project Zomboid (app 108600), read from Steam's own list of libraries. A
+game folder that cannot be written to is reported under the setting; nothing asks for
+administrator rights.
 
 ## After a game update
 
@@ -57,7 +64,10 @@ A game update or Steam's file check writes the launcher file back with the game'
 options. The choice is kept by the app, which reads the file soon after it starts and every
 two minutes. When the file no longer holds the chosen size, a card in the sidebar says
 *Game memory back to 3 GB* with *Apply 8 GB again*, and the setting shows the game's own
-size with a note. The card leaves when the choice is in the file again, or through ✕.
+size, unselected, with a note: choosing either the game's own (letting the choice go) or a
+size is a change. The card leaves when the choice is in the file again, when the choice is
+let go, or through ✕. A size no longer offered (memory taken out of the PC) can still be
+applied again.
 
 Two other ways were tried and not used:
 

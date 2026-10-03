@@ -1547,6 +1547,11 @@ public sealed partial class MainWindowShell : UserControl
                 _ => "GameMemoryUnwritable",
             }));
         }
+        // A handler of a click: whatever else went wrong is said, not left to end the app.
+        catch (Exception exception)
+        {
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), UserFacingError.FromException(exception));
+        }
     }
 
     // ---- Updates ----

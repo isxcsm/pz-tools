@@ -62,18 +62,21 @@ public sealed partial class GameMemory
     private static readonly int[] Steps = [4096, 6144, 8192, 12288, 16384, 24576, 32768];
 
     private readonly string statePath;
-    private readonly Func<string?> locate;
+    private readonly Func<string?> locate, running;
     private readonly SemaphoreSlim gate = new(1, 1);
     private Saved saved;
     private GameMemoryState state = new(GameMemoryStatus.Unknown);
 
     /// <param name="statePath">Where the choice is kept, with the game's own heap from before it.</param>
-    /// <param name="locate">Finds the launcher file; by default the running game's folder, else Steam's libraries.</param>
+    /// <param name="locate">Finds the launcher file of a game not running; by default in Steam's libraries.</param>
     /// <param name="installedBytes">This PC's memory; by default as Windows reports it.</param>
-    public GameMemory(string statePath, Func<string?>? locate = null, long? installedBytes = null)
+    /// <param name="running">The running game's launcher file; by default from its process, unless
+    /// <paramref name="locate"/> is given.</param>
+    public GameMemory(string statePath, Func<string?>? locate = null, long? installedBytes = null, Func<string?>? running = null)
     {
         this.statePath = Path.GetFullPath(statePath);
-        this.locate = locate ?? Locate;
+        this.locate = locate ?? Installed;
+        this.running = running ?? (locate is null ? Running : () => null);
         saved = Read(this.statePath);
         Choices = ChoicesFor(installedBytes ?? InstalledMemory());
     }
@@ -136,8 +139,11 @@ public sealed partial class GameMemory
         if (path is null) return new(GameMemoryStatus.NotFound, ChosenMegabytes: saved.Chosen);
         (int? Maximum, int? Initial) heap;
         try { heap = ReadHeap(File.ReadAllText(path)); }
-        catch (Exception error) when (error is FormatException or JsonException or IOException or UnauthorizedAccessException)
+        catch (Exception error) when (error is FormatException or JsonException)
         { return new(GameMemoryStatus.Unsupported, path, ChosenMegabytes: saved.Chosen); }
+        // Held for a moment (Steam writing it, a scanner): what was known stands until the next look.
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { return state.Status == GameMemoryStatus.Unknown ? new(GameMemoryStatus.Unknown, path, ChosenMegabytes: saved.Chosen) : state; }
         if (saved.Chosen is not { } chosen) return new(GameMemoryStatus.Default, path, heap.Maximum, heap.Maximum);
         bool ours = heap.Maximum == chosen && heap.Initial == chosen;
         return new(ours ? GameMemoryStatus.Applied : GameMemoryStatus.Reverted, path, heap.Maximum,
@@ -146,7 +152,8 @@ public sealed partial class GameMemory
 
     private GameMemoryState Change(int? megabytes)
     {
-        if (megabytes is { } value && Choices.All(choice => choice.Megabytes != value))
+        // The choice already made may be applied again even if it is no longer offered (memory taken out of this PC).
+        if (megabytes is { } value && value != saved.Chosen && Choices.All(choice => choice.Megabytes != value))
             throw new ArgumentOutOfRangeException(nameof(megabytes), "Not a heap this PC can give the game.");
         var path = Find() ?? throw new GameMemoryException("not-found", "The game's launcher file was not found.");
         string text;
@@ -177,23 +184,43 @@ public sealed partial class GameMemory
             // A file the game put back already holds its own heap.
             written = ours && saved.DefaultMaximum is { } maximum ? Rewrite(text, maximum, saved.DefaultInitial) : null;
         }
-        if (written is not null && written != text) Write(path, written);
-        Save(next with { ConfigPath = path });
+        // What is kept first, and the file only once it is: the game's own heap kept nowhere could not be given back,
+        // and a file holding the player's heap would then pass for the game's own.
+        var before = saved;
+        if (!Save(next with { ConfigPath = path }))
+        {
+            saved = before;
+            throw new GameMemoryException("unwritable", "The app's own record of the change cannot be written.");
+        }
+        if (written is not null && written != text)
+        {
+            try { Write(path, written, text); }
+            catch (GameMemoryException)
+            {
+                Save(before);
+                throw;
+            }
+        }
         return Look();
     }
 
-    // Only a file the game reads, in a game folder: the one remembered while it is there, else the running game's,
-    // else the one in Steam's libraries.
+    // Only a file the game reads, in a game folder: the running game's, which its next start reads; else the one
+    // remembered while it is there; else the one in Steam's libraries.
     private string? Find()
     {
-        if (saved.ConfigPath is { } known && File.Exists(known)) return known;
-        string? found;
-        // Steam's registry key or library list that cannot be read is a game not found, not a failure.
-        try { found = locate(); }
-        catch (Exception error) when (error is System.Security.SecurityException or IOException or UnauthorizedAccessException)
-        { found = null; }
+        var found = Try(running);
+        if (found is null && saved.ConfigPath is { } known && File.Exists(known)) return known;
+        found ??= Try(locate);
         if (found is not null && found != saved.ConfigPath) Save(saved with { ConfigPath = found });
         return found;
+
+        // Steam's registry key or library list that cannot be read is a game not found, not a failure.
+        static string? Try(Func<string?> look)
+        {
+            try { return look(); }
+            catch (Exception error) when (error is System.Security.SecurityException or IOException or UnauthorizedAccessException)
+            { return null; }
+        }
     }
 
     // ---- The file's text ----
@@ -286,8 +313,10 @@ public sealed partial class GameMemory
 
     // Written beside it and moved over it, so a game starting meanwhile never reads half a file. A running game holds
     // the file open, letting others read and write it but not replace it: then it is written in place, which that game
-    // no longer reads (it read the file when it started) and the next start reads whole.
-    private static void Write(string path, string text)
+    // no longer reads (it read the file when it started) and the next start reads whole. Written in place, the new
+    // text goes over the old one and the end is cut only after, so the file is never left empty; a failure partway is
+    // put back to the old text.
+    private static void Write(string path, string text, string original)
     {
         var temporary = path + ".pztools-" + Guid.NewGuid().ToString("N")[..8];
         try
@@ -303,10 +332,13 @@ public sealed partial class GameMemory
             {
                 using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
                 {
-                    var bytes = content.GetPreamble().Concat(content.GetBytes(text)).ToArray();
-                    stream.SetLength(0);
-                    stream.Write(bytes);
-                    stream.Flush(flushToDisk: true);
+                    try { Overwrite(stream, content, text); }
+                    catch (IOException)
+                    {
+                        try { Overwrite(stream, content, original); }
+                        catch (IOException) { }
+                        throw;
+                    }
                 }
                 File.Delete(temporary);
             }
@@ -319,6 +351,15 @@ public sealed partial class GameMemory
         }
     }
 
+    private static void Overwrite(FileStream stream, UTF8Encoding content, string text)
+    {
+        var bytes = content.GetPreamble().Concat(content.GetBytes(text)).ToArray();
+        stream.Position = 0;
+        stream.Write(bytes);
+        stream.SetLength(bytes.Length);
+        stream.Flush(flushToDisk: true);
+    }
+
     // A copy of the file as the game shipped it, beside the app's state, once: the way back by hand if ever needed.
     private void KeepOriginal(string text)
     {
@@ -329,8 +370,8 @@ public sealed partial class GameMemory
 
     // ---- Finding the game ----
 
-    /// <summary>The launcher file of the running game, else of the game installed through Steam; none when neither.</summary>
-    public static string? Locate()
+    /// <summary>The launcher file of the running game; none when no game runs, or it does not say where it is.</summary>
+    public static string? Running()
     {
         foreach (var game in GameProcessFinder.Find())
         {
@@ -347,6 +388,12 @@ public sealed partial class GameMemory
                     or NotSupportedException) { }
             }
         }
+        return null;
+    }
+
+    /// <summary>The launcher file of the game installed through Steam; none when it is not.</summary>
+    public static string? Installed()
+    {
         if (!OperatingSystem.IsWindows()) return null;
         if (Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null) is not string steam)
             return null;
@@ -415,7 +462,8 @@ public sealed partial class GameMemory
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { return new(); }
     }
 
-    private void Save(Saved next)
+    // False when it could not be written: it still holds for this run, and the next start only looks again.
+    private bool Save(Saved next)
     {
         saved = next;
         try
@@ -424,8 +472,8 @@ public sealed partial class GameMemory
             var temporary = statePath + ".tmp";
             File.WriteAllText(temporary, JsonSerializer.Serialize(next));
             File.Move(temporary, statePath, overwrite: true);
+            return true;
         }
-        // The choice still holds for this run; the next start only looks again.
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
     }
 }
