@@ -504,8 +504,9 @@ public sealed class AppSettingsService
             RecordMode: GetString(root, "hotkeys", "record_mode", defaults.RecordMode),
             RollingToggle: GetString(root, "hotkeys", "rolling_toggle", defaults.RollingToggle),
             ManualBackup: GetString(root, "hotkeys", "manual_backup", defaults.ManualBackup),
-            // The key once set to pause automatic backups now turns them on and off: it is read where it was kept.
-            BackupToggle: GetString(root, "hotkeys", "backup_toggle", GetString(root, "hotkeys", "backup_pause", defaults.BackupToggle)),
+            // The key once set to pause automatic backups (for half an hour, then on again by themselves) is not taken
+            // over: pressed out of habit, the key that turns them on and off would leave them off for good.
+            BackupToggle: GetString(root, "hotkeys", "backup_toggle", defaults.BackupToggle),
             Status: GetString(root, "hotkeys", "status", defaults.Status)).Normalized();
         var seen = new HashSet<HotKeyGesture>();
         foreach (var action in Enum.GetValues<HotKeyAction>())

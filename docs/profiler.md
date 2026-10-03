@@ -115,8 +115,9 @@ The game has the keyboard when it stutters, so the app's actions can have keys, 
 switch the next recording between Standard and Detailed (the same choice as on the page;
 one under way keeps its mode, and the note says *Next recording: Detailed*), turn the
 last minutes on or off, back up the save being played, turn automatic backups on or off
-(the settings' own switch, as if flipped there: nothing turns them on again by itself),
-and show the status. Only saving the last minutes has a key at
+(the settings' own switch, as if flipped there: nothing turns them on again by itself; a
+key set before for the old half-hour pause is not carried over to it, as pressed out of
+habit it would leave backups off), and show the status. Only saving the last minutes has a key at
 first, Ctrl+Shift+F9. While the app runs, Windows gives each set combination to it alone,
 so a key another program uses is refused when it is chosen, and one taken later is
 marked on its card. A letter or digit needs Ctrl or Alt with it; function keys may stand
@@ -127,7 +128,7 @@ sounds (heard; done; or its error sound, the reason then waiting in the app), an
 short note over the character's head, like the backup countdown's, in the app's
 language: *Saved the last 2 min*, *Backup complete*, *Next backup · 04:30 remaining · Last backup
 6 min ago · Keeping the last 2 min*. The notes come from a fixed list the game itself
-holds, with a number at most: the app cannot put other text into the game. The status note says what the sidebar's line says at that moment, the remaining time in minutes and seconds as it shows there. At the main
+holds, with a number at most: the app cannot put other text into the game. The status note says what the sidebar's line says at that moment, the remaining time in minutes and seconds as it shows there, or *Automatic backups after a game restart* while they wait for one. At the main
 menu there is no one to show a note to, and the sounds alone answer. A saved recording is
 listed and opened in the app without bringing it in front of the game.
 

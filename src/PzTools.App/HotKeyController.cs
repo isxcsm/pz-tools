@@ -246,6 +246,8 @@ internal sealed class HotKeyController : IDisposable
         var line = ScheduleCountdownPresentation.Resolve(schedule, now, restartRequired: link?.RestartRequired == true,
             starting: link?.Starting == true);
         if (line.MessageKey == "AutomaticBackupOff") items.Add("backups-off");
+        // Held until the game restarts after an update: what the player is to do, not a time.
+        else if (line.MessageKey == "RuntimeBackupRestartRequired") items.Add("backups-after-restart");
         else if (line.RemainingSeconds is { } seconds && line.MessageKey switch
         {
             "ProjectorArea.Schedule" => "next-backup-time",

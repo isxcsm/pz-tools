@@ -124,10 +124,10 @@ public sealed class AppCoreTests
         var edited = service.Load();
         Assert.Equal(("Ctrl+F9", "", 10), (edited.Keys.SaveLast, edited.Keys.Record, edited.RollingMinutes));
 
-        // The key once set to pause automatic backups now turns them on and off; written back under its new name.
+        // The key once set to pause automatic backups for a while is not taken over by the one that turns them off.
         text = (await File.ReadAllTextAsync(service.SettingsPath)).Replace("backup_toggle = \"\"", "backup_pause = \"Ctrl+Alt+P\"");
         await File.WriteAllTextAsync(service.SettingsPath, text);
-        Assert.Equal("Ctrl+Alt+P", service.Load().Keys.BackupToggle);
+        Assert.Equal("", service.Load().Keys.BackupToggle);
     }
 
     [Fact]
