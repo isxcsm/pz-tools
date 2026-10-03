@@ -125,9 +125,9 @@ alone. Saving the last minutes holds its key only while they are kept.
 Nothing of the app shows over the game, so each key answers twice: with Windows' own
 sounds (heard; done; or its error sound, the reason then waiting in the app), and with a
 short note over the character's head, like the backup countdown's, in the app's
-language: *Saved the last 2 min*, *Backup complete*, *Next backup in 4 min · Last backup
+language: *Saved the last 2 min*, *Backup complete*, *Next backup · 04:30 remaining · Last backup
 6 min ago · Keeping the last 2 min*. The notes come from a fixed list the game itself
-holds, with a number at most: the app cannot put other text into the game. At the main
+holds, with a number at most: the app cannot put other text into the game. The status note says what the sidebar's line says at that moment, the remaining time in minutes and seconds as it shows there. At the main
 menu there is no one to show a note to, and the sounds alone answer. A saved recording is
 listed and opened in the app without bringing it in front of the game.
 

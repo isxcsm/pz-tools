@@ -217,11 +217,12 @@ public sealed partial class GameSaveClientTests
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
 
-        Assert.True(await client.NotifyAsync(game.Pid, "ko-KR", ["saved-last:2", "next-backup:5"]));
+        // The countdown in minutes and seconds, as the app's sidebar writes it.
+        Assert.True(await client.NotifyAsync(game.Pid, "ko-KR", ["saved-last:2", "next-backup-time:270"]));
         var notices = temp.GetPath("notices.txt");
         for (var attempt = 0; attempt < 50 && !File.Exists(notices); attempt++) await Task.Delay(100);
         var shown = Assert.Single(await File.ReadAllLinesAsync(notices)).Split('\t');
-        Assert.Equal(("직전 2분 저장됨 · 다음 백업 5분 후", "Synthetic-game-thread"), (shown[1], shown[2]));
+        Assert.Equal(("직전 2분 저장됨 · 다음 백업 · 04:30 남음", "Synthetic-game-thread"), (shown[1], shown[2]));
 
         // Only the game's own catalog: no other key, no number where a note has none, none missing where it has one.
         foreach (string[] items in new[] { new[] { "anything" }, ["backup-done:3"], ["saved-last"] })

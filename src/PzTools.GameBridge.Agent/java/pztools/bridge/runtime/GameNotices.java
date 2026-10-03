@@ -62,12 +62,17 @@ final class GameNotices {
             String line = lines.get(key(item));
             if (line == null) throw new IllegalArgumentException("Unknown notice");
             int colon = item.indexOf(':');
-            boolean wantsNumber = line.contains("{0}");
+            // {0} is the number as it is; {0:time} a number of seconds as minutes and seconds ("04:30"), as the app's
+            // own countdown writes it.
+            boolean wantsTime = line.contains("{0:time}");
+            boolean wantsNumber = wantsTime || line.contains("{0}");
             if (wantsNumber != (colon > 0)) throw new IllegalArgumentException("Notice number mismatch");
             if (wantsNumber) {
                 String number = item.substring(colon + 1);
                 if (!number.matches("[0-9]{1,6}")) throw new IllegalArgumentException("Invalid notice number");
-                line = line.replace("{0}", Integer.toString(Integer.parseInt(number)));
+                int value = Integer.parseInt(number);
+                line = wantsTime ? line.replace("{0:time}", String.format(java.util.Locale.ROOT, "%02d:%02d", value / 60, value % 60))
+                    : line.replace("{0}", Integer.toString(value));
             }
             if (text.length() != 0) text.append(" · ");
             text.append(line);

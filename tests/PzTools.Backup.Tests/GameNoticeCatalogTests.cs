@@ -18,13 +18,16 @@ public sealed partial class GameNoticeCatalogTests
         foreach (var line in File.ReadLines(Path.Combine(root, "src", "PzTools.App", "HotKeyController.cs")))
         {
             if (!line.Contains("Note(", StringComparison.Ordinal) && !line.Contains("NotifyGameAsync", StringComparison.Ordinal)
-                && !line.Contains("items.Add(", StringComparison.Ordinal)) continue;
+                && !line.Contains("items.Add(", StringComparison.Ordinal)
+                // The status line's notes, chosen by the sidebar's message.
+                && !line.Contains("=> \"next-backup", StringComparison.Ordinal)) continue;
             foreach (Match match in NoteKey().Matches(line)) sent.Add(match.Groups[1].Value);
         }
         // The keys the hotkeys are known to send, so the scan itself cannot quietly find nothing.
         Assert.Contains("next-recording-detailed", sent);
         Assert.Contains("saved-last", sent);
         Assert.Contains("busy", sent);
+        Assert.Contains("next-backup-paused", sent);
         Assert.Empty(sent.Except(catalog));
     }
 

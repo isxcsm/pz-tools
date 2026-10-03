@@ -238,9 +238,21 @@ internal sealed class HotKeyController : IDisposable
         var saves = host.Views.ReadIfChanged<SaveListView>(ViewKey.SaveList, 0).Snapshot;
         var catalog = host.Views.ReadIfChanged<BackupCatalogView>(ViewKey.BackupCatalog, 0).Snapshot;
         var items = new List<string>();
-        if (schedule is { AutomaticEnabled: false }) items.Add("backups-off");
-        else if (ScheduleCountdownPresentation.Resolve(schedule, now).RemainingSeconds is { } seconds)
-            items.Add(seconds < 60 ? "next-backup-soon" : $"next-backup:{Minutes(seconds)}");
+        // The sidebar's own line, worked out the same way: the same words and the same minutes and seconds.
+        var link = host.Views.ReadIfChanged<GameLinkView>(AppHost.GameLinkViewKey, 0).Snapshot;
+        var line = ScheduleCountdownPresentation.Resolve(schedule, now, restartRequired: link?.RestartRequired == true,
+            starting: link?.Starting == true);
+        if (line.MessageKey == "AutomaticBackupOff") items.Add("backups-off");
+        else if (line.RemainingSeconds is { } seconds && line.MessageKey switch
+        {
+            "ProjectorArea.Schedule" => "next-backup-time",
+            "RuntimeBackupPaused" => "next-backup-paused",
+            "RuntimeBackupSleeping" => "next-backup-sleeping",
+            "RuntimeBackupFallback" => "next-backup-fallback",
+            "RuntimeBackupCompletionUnknown" => "next-backup-skipped",
+            _ => null,
+        } is { } note)
+            items.Add($"{note}:{Math.Min(seconds, 999_999)}");
         var home = HomeStatusSource.From(saves, catalog, null, schedule);
         if (home.LastBackupUtc is { } last) items.Add($"last-backup:{(int)Math.Max(0, (now - last).TotalMinutes)}");
         else if (home.SavesKnown) items.Add("last-backup-none");
@@ -255,7 +267,6 @@ internal sealed class HotKeyController : IDisposable
     // As many notes as the game puts in one line.
     private const int GameNoticeLimit = 4;
 
-    private static long Minutes(double seconds) => (long)Math.Ceiling(seconds / 60);
 
     // A failure the player cannot read in the game: on the work's own card, or beside it when none ran.
     private void Explain(AppOperationResult result)
