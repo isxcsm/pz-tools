@@ -170,6 +170,25 @@ public sealed partial class GameSaveClientTests
     }
 
     [BridgeFact]
+    public async Task ARecordingAskedFor_EndsWithTheLeaseOfTheRunThatAskedForIt()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties: ["pztools.bridge.lease.seconds=2"]);
+        var client = new GameProfileClient(Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!);
+        var run = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        // Asked for half an hour by a run that then went (no state stream, no stop).
+        await client.StartAsync(game.Pid, temp.GetPath("asked.jfr"), detailed: false, 1800, owner: run);
+        Assert.NotEqual("idle", (await client.StatusAsync(game.Pid)).State);
+        var stopped = false;
+        for (var attempt = 0; attempt < 40 && !stopped; attempt++)
+        {
+            await Task.Delay(200);
+            stopped = (await client.StatusAsync(game.Pid)).State == "idle";
+        }
+        Assert.True(stopped, "The game kept the recording asked for after the app run had gone.");
+    }
+
+    [BridgeFact]
     public async Task TheAppInAFolderNamedInKorean_StillAttaches()
     {
         using var temp = new TempDirectory();

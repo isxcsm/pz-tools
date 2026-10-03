@@ -249,9 +249,22 @@ public sealed class AppHost : IAsyncDisposable
         Projections.AddLoop("game-extensions", GameExtensions.RefreshRuntimeAsync, projectionInterval);
         Projections.AddLoop("details", composer.ComposeOnceAsync, projectionInterval);
         var gameLink = new GameLinkMonitor();
+        long? linkLost = null;
         Projections.AddLoop("game-link", _ =>
         {
-            Views.Publish(GameLinkViewKey, gameLink.Update(runtimeSnapshot.Read()));
+            var observation = runtimeSnapshot.Read();
+            Views.Publish(GameLinkViewKey, gameLink.Update(observation));
+            // The state link holds the lease the game's rolling recording follows. Away for longer than the lease
+            // lasts, the game has ended that recording by itself, and the app would learn it only when a save found
+            // nothing: started again once the link is back.
+            if (observation.Quality == Process.Contracts.GameRuntime.RuntimeQuality.Offline) linkLost = null;
+            else if (observation.IsFresh || observation.Reason == Process.Contracts.GameRuntime.RuntimeObservation.GameStartingReason)
+            {
+                if (linkLost is { } lost && System.Diagnostics.Stopwatch.GetElapsedTime(lost) >= ProfileRecordingService.LeaseTerm)
+                    Profiles.RollingLeaseLapsed();
+                linkLost = null;
+            }
+            else linkLost ??= System.Diagnostics.Stopwatch.GetTimestamp();
             return Task.CompletedTask;
         }, projectionInterval);
         Projections.AddLoop("telemetry", token => telemetry.ProjectOnceAsync(cancellationToken: token),

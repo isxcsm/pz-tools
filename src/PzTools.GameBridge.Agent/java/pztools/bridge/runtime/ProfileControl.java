@@ -17,6 +17,8 @@ final class ProfileControl {
     // raised until it exits. The game follows the run, not its process, which it cannot even open: the app runs as
     // administrator and the game does not.
     private static String rollingOwner;
+    // The same for the recording asked for, which otherwise runs to its maximum (up to half an hour) after its app went.
+    private static String recordOwner;
     private static boolean ownsFrameHook;
     // Whether the rolling recording marks frames, said again with each save.
     private static String rollingFrames = "frames";
@@ -29,12 +31,17 @@ final class ProfileControl {
         try {
             switch (command[0]) {
                 case "PROFILE_START" -> {
-                    if (command.length != 4 || !(command[2].equals("general") || command[2].equals("detailed")))
+                    // Optional last: the app run whose lease the recording follows, as the rolling one does.
+                    if (command.length < 4 || command.length > 5 || !(command[2].equals("general") || command[2].equals("detailed")))
                         return error("protocol", "Invalid profile start request");
+                    String owner = command.length == 5 ? command[4] : null;
+                    if (owner != null && !Leases.validApp(owner)) return error("protocol", "Invalid app run");
+                    if (owner != null) Leases.renewApp(owner);
                     Path destination = path(command[1]);
                     int seconds = Integer.parseInt(command[3]);
                     Hook hook = hookFrames();
                     String status = ProfileRecorder.start(destination, command[2].equals("detailed"), seconds, hook.game());
+                    recordOwner = owner;
                     startMonitor();
                     return ok(status + ";" + hook.frames());
                 }
@@ -72,6 +79,7 @@ final class ProfileControl {
                 }
                 case "PROFILE_STOP" -> {
                     if (command.length != 1) return error("protocol", "Invalid profile stop request");
+                    recordOwner = null;
                     String status = ProfileRecorder.stop();
                     // A rolling recording may still mark frames.
                     if (!ProfileRecorder.active()) releaseFrameHook();
@@ -190,6 +198,12 @@ final class ProfileControl {
                         if (rollingOwner != null && !Leases.appHolds(rollingOwner)) {
                             ProfileRecorder.stopRolling();
                             rollingOwner = null;
+                        }
+                        // The recording asked for, by an app that has gone: no one will stop it or take its file.
+                        if (recordOwner != null && !Leases.appHolds(recordOwner)) {
+                            recordOwner = null;
+                            // Ended already (at its maximum), or failing to stop: either way nothing more to do here.
+                            try { ProfileRecorder.stop(); } catch (Exception ended) { }
                         }
                         if (!ProfileRecorder.active()) {
                             if (!noticeHook) releaseFrameHook();

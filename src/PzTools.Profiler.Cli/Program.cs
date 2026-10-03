@@ -49,15 +49,18 @@ try
     Directory.CreateDirectory(directory);
     recordingPath = output + ".jfr";
     var client = new GameProfileClient(bridge);
+    // The app run asking: the game ends the recording once that run's lease lapses, as it does the rolling one.
+    var recordOwner = Optional("--owner") is { } recordOwnerText ? GameRuntimeClient.IsAppRun(recordOwnerText) ? recordOwnerText
+        : throw new ArgumentException("--owner must be an app run (32 lowercase hex digits).") : null;
 
     phase = "start";
     GameProfileStatus status;
-    try { status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token)); }
+    try { status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token, recordOwner)); }
     catch (GameSaveException leftover) when (leftover.Code == "already-recording")
     {
         // A recording whose worker died is still running in the game. End it and start the one that was asked for.
         await WhenFreeAsync(() => client.StopAsync(processId, cancellation.Token));
-        status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token));
+        status = await WhenFreeAsync(() => client.StartAsync(processId, recordingPath, mode == "detailed", maximumSeconds, cancellation.Token, recordOwner));
     }
     RemoveLeftovers(directory, recordingPath);
     var lua = status.Lua.StartsWith("unavailable", StringComparison.Ordinal) ? "unavailable" : status.Lua;

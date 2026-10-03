@@ -50,15 +50,18 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
         finally { foreach (var game in games) game.Dispose(); }
     }
 
+    /// <param name="owner">The app run asking (AppRun): the game ends the recording once that run's lease lapses.</param>
     public Task<GameProfileStatus> StartAsync(int processId, string recordingPath, bool detailed, int maximumSeconds,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string? owner = null)
     {
         if (!Path.IsPathFullyQualified(recordingPath) || !recordingPath.EndsWith(".jfr", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("An absolute .jfr path is required.", nameof(recordingPath));
         if (maximumSeconds is < 5 or > MaximumSeconds) throw new ArgumentOutOfRangeException(nameof(maximumSeconds));
-        return RequestAsync(processId, string.Join('\t', "PROFILE_START",
+        if (owner is not null && !GameRuntimeClient.IsAppRun(owner)) throw new ArgumentException("Not an app run.", nameof(owner));
+        var command = string.Join('\t', "PROFILE_START",
             Convert.ToBase64String(Encoding.UTF8.GetBytes(recordingPath)), detailed ? "detailed" : "general",
-            maximumSeconds.ToString(CultureInfo.InvariantCulture)), cancellationToken);
+            maximumSeconds.ToString(CultureInfo.InvariantCulture));
+        return RequestAsync(processId, owner is null ? command : command + "\t" + owner, cancellationToken);
     }
 
     public Task<GameProfileStatus> StopAsync(int processId, CancellationToken cancellationToken = default) =>

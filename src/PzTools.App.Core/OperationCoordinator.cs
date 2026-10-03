@@ -440,6 +440,8 @@ public sealed class OperationCoordinator(
                 "--mode", detailed ? "detailed" : "general",
                 "--max-seconds", maximumSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--bridge", Path.Combine(workerDirectory, "game-bridge"),
+                // Ended by the game once this run of the app has gone, as the rolling recording is (AppRun).
+                "--owner", AppRun.Id,
             ], cancellationToken, "profiler", "PzTools.Profiler.Cli.exe", operationId,
             line => { if (line.StartsWith("PROFILE\t", StringComparison.Ordinal)) progress?.Invoke(line["PROFILE\t".Length..]); });
 

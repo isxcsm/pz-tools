@@ -170,6 +170,21 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     // start's answer never came.
     private bool rollingMaybeOn;
 
+    /// <summary>How long the game keeps a run's rolling recording without hearing from it (Leases.APP_TERM).</summary>
+    public static readonly TimeSpan LeaseTerm = TimeSpan.FromSeconds(120);
+
+    /// <summary>
+    /// The game's state link, which holds the lease, was away longer than <see cref="LeaseTerm"/>: the game has ended
+    /// the rolling recording by itself. Started again, rather than found missing when the player saves.
+    /// </summary>
+    public void RollingLeaseLapsed()
+    {
+        if (!Rolling.On) return;
+        SetRolling(state => state with { On = false });
+        ResetRollingRetries();
+        WakeRolling();
+    }
+
     private static bool IsLasting(string? error) => error is "profile-restart-required" or "profile-unsupported-protocol"
         or "profile-unsupported-runtime" or "profile-bridge-not-built" or "profile-attach-disabled"
         or PzTools.Process.Hosting.LaunchFailure.Blocked;

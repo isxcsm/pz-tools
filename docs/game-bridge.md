@@ -166,18 +166,22 @@ link for a moment. So what the app asked for follows a lease, not a connection.
   from an earlier or later run. The game knows nothing of the app's process, which it could
   not even open: the app runs as administrator, the game does not.
 - The run's state stream (WATCH) names the run once when it connects, and renews its lease
-  for as long as it is open. A request that names the run (starting the last minutes'
-  recording) renews it too, so the request holds even before the stream connects.
+  for as long as it is open. A request that names the run (starting a recording) renews it
+  too, so the request holds even before the stream connects.
 - The lease lapses two minutes after the run was last heard from; what it holds then ends.
   The state scheduler ends with the app, as the app's workers do, so the stream closes when
   the app goes.
+- The app, still there, sees its state stream away for longer than that (the scheduler
+  failing again and again) and starts the last minutes' recording again once the stream is
+  back, as the game has ended it.
 
 | Holder | Lease | Ends |
 | --- | --- | --- |
 | The last minutes' recording | The app run's | Two minutes after the run was last heard from |
+| A recording asked for | The app run's | The same; else at its stop or its maximum length |
 | Extension control | Its own connection's, renewed by each command | Five seconds without a command, or at once when its connection ends: a vehicle must not keep forces nobody controls |
 
-Both are kept by the same lease type in the bridge; a new holder chooses which lease it
+All are kept by the same lease type in the bridge; a new holder chooses which lease it
 follows and its term. Leases live in the replaceable payload, not in the bootstrap.
 
 ### Layers

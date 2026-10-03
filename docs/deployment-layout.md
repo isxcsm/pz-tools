@@ -27,7 +27,7 @@ or next to archives you import. Development runs use the same layout for app dat
   defaults\<component>\default.toml    # read-only packaged defaults
   game-bridge\                         # the game bridge, its attach runtime, extensions
   pztools-files.txt                    # every file above, with its size and SHA-256
-``
+```
 
 **Checking the folder.** A release lists its files in `pztools-files.txt`. A little after
 each start the app checks its folder against it, in the background: when the list is new to
@@ -38,7 +38,8 @@ version) shows a card, *PZ Tools files are not intact*, asking for the ZIP to be
 again into an empty folder, with the download page one click away; the files are named in
 the log entry's details. Files the list does not name, such as ones left from an older release,
 are not reported: nothing the app runs loads a file only because it is in its folder. A
-development build has no list and is not checked.`
+development build has no list and is not checked. A file another program holds for a moment
+(a scanner) is not blamed, and the folder is then checked whole again at the next start.
 
 If the app folder's path has letters outside ASCII (a Korean folder name, say), two small
 files of the bridge are also copied to `%TEMP%\PzTools\attach\` (or, if that path is not
