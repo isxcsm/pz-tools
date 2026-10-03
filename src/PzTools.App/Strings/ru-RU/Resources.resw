@@ -747,4 +747,6 @@
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: заработает после перезапуска игры.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Автобэкапы после перезапуска игры</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Игра запускается</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Запущенная игра: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Запущенная игра: {0} · {1} со следующего запуска</value></data>
 </root>

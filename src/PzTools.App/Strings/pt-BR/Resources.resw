@@ -747,4 +747,6 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: será aplicado ao reiniciar o jogo.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Backups automáticos após reiniciar o jogo</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Iniciando o jogo</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Jogo em execução: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Jogo em execução: {0} · {1} a partir do próximo início</value></data>
 </root>

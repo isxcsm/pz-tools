@@ -747,4 +747,6 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: oyun yeniden başlatılınca uygulanır.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Otomatik yedek oyun yeniden başlayınca</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Oyun başlatılıyor</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Çalışan oyun: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Çalışan oyun: {0} · sonraki açılıştan itibaren {1}</value></data>
 </root>

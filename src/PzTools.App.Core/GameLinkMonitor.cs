@@ -13,8 +13,10 @@ namespace PzTools.App.Core;
 /// (<see cref="RuntimeObservation.AttachDisabledReason"/>).</param>
 /// <param name="Starting">The game is starting: launched while the app watched and not read yet, or connected and
 /// before its first frame. Not an unknown state, and said as such.</param>
+/// <param name="GameHeapMegabytes">The memory the running game was started with (its Java heap's maximum), once
+/// read; none without a game, or a bridge too old to say.</param>
 public sealed record GameLinkView(bool LinkUnavailable = false, bool SleepUnavailable = false, bool RestartRequired = false,
-    string? Cause = null, bool Starting = false)
+    string? Cause = null, bool Starting = false, long? GameHeapMegabytes = null)
 {
     public static GameLinkView Available { get; } = new();
 }
@@ -34,6 +36,8 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
     // The game was seen absent, then present, and has not been read since: it is being launched. An app started
     // beside a game already running cannot tell, and says it is checking.
     private bool launching;
+    // The running game's memory, kept through a moment it cannot be read, as it does not change while the game runs.
+    private long? heap;
     private string? cause;
 
     public GameLinkView Update(RuntimeObservation observation)
@@ -50,12 +54,13 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
         // The grace is for a link that may come back by itself (a game still loading). One the game has refused for
         // running an older bridge cannot: that is said at once.
         bool linkUnavailable = linkSince is { } link && (restartRequired || time.GetElapsedTime(link) >= linkGrace);
-        if (observation.Quality == RuntimeQuality.Offline) launching = true;
+        if (observation.Quality == RuntimeQuality.Offline) { launching = true; heap = null; }
+        else if (observation.Snapshot?.HeapMaximumMegabytes is { } read) heap = read;
         else if (observation.Reason is not (ConnectingReason or RuntimeObservation.GameStartingReason)) launching = false;
         bool starting = !linkUnavailable && (observation.Reason == RuntimeObservation.GameStartingReason
             || launching && observation.Reason == ConnectingReason);
         return new(linkUnavailable, sleepSince is { } sleep && time.GetElapsedTime(sleep) >= valueGrace,
-            linkUnavailable && restartRequired, linkUnavailable ? cause : null, starting);
+            linkUnavailable && restartRequired, linkUnavailable ? cause : null, starting, heap);
     }
 
     private const string ConnectingReason = "connecting";

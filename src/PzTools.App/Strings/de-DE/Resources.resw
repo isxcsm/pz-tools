@@ -747,4 +747,6 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: wird nach einem Neustart des Spiels angewendet.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Automatische Backups nach Spielneustart</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Spiel startet</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Laufendes Spiel: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Laufendes Spiel: {0} · {1} ab dem nächsten Start</value></data>
 </root>

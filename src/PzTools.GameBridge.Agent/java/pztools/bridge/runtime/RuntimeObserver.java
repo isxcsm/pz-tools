@@ -16,10 +16,12 @@ public final class RuntimeObserver {
         long sequence, String phase, String pause, String mode, int speed, long activeMillis, String path, String gameVersion, LiveCharacter.Facts character, SaveExecution.Report execution) {
         String wire(long age) {
             String encoded = path == null ? "-" : Base64.getEncoder().encodeToString(path.getBytes(StandardCharsets.UTF_8));
-            return String.join("\t", "STATE4", process, observer, world, Long.toString(clock),
+            // STATE5 adds the most the game's Java heap may grow to, in megabytes: the memory the game was started with.
+            return String.join("\t", "STATE5", process, observer, world, Long.toString(clock),
                 Long.toString(eligibility), Long.toString(sequence), phase, pause, mode,
                 Integer.toString(speed), Long.toString(activeMillis), Long.toString(age), encoded,
-                "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1,runtime.version.v1,runtime.character.v1,runtime.save-result.v1,runtime.sleep.v1", gameVersion == null ? "-" : Base64.getEncoder().encodeToString(gameVersion.getBytes(StandardCharsets.UTF_8)), character.life(), character.character() == null ? "-" : character.character(), character.death() == null ? "-" : character.death(), execution == null ? "-" : execution.wire(), character.sleep());
+                "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1,runtime.version.v1,runtime.character.v1,runtime.save-result.v1,runtime.sleep.v1,runtime.heap.v1", gameVersion == null ? "-" : Base64.getEncoder().encodeToString(gameVersion.getBytes(StandardCharsets.UTF_8)), character.life(), character.character() == null ? "-" : character.character(), character.death() == null ? "-" : character.death(), execution == null ? "-" : execution.wire(), character.sleep(),
+                Long.toString(Runtime.getRuntime().maxMemory() >> 20));
         }
     }
     /** A stopped generation is never mutated/reused by the next subscription. */

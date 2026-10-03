@@ -746,4 +746,6 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: applies once the game is restarted.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Automatic backups after a game restart</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Game starting</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Running game: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Running game: {0} · {1} from its next start</value></data>
 </root>

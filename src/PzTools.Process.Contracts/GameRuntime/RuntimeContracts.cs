@@ -20,7 +20,10 @@ public sealed record RuntimeSnapshot(
     string ProcessSession, string ObserverEpoch, string WorldSession, long ClockEpoch,
     long EligibilityEpoch, long Sequence, WorldPhase Phase, GamePause Pause,
     RuntimeMode Mode, int SpeedLevel, long ActiveMilliseconds, long SampleAgeMilliseconds,
-    string? SavePath, string? GameVersion = null, RuntimeCharacterLife CharacterLife = RuntimeCharacterLife.Unknown, string? CharacterSession = null, string? DeathId = null, RuntimeSaveExecution? LastSave = null, RuntimeSleep Sleep = RuntimeSleep.Unknown)
+    string? SavePath, string? GameVersion = null, RuntimeCharacterLife CharacterLife = RuntimeCharacterLife.Unknown, string? CharacterSession = null, string? DeathId = null, RuntimeSaveExecution? LastSave = null, RuntimeSleep Sleep = RuntimeSleep.Unknown,
+    // The most the game's Java heap may grow to, in megabytes (STATE5 on): the memory it was started with. Not part of
+    // the semantic key, as it does not change while the game runs.
+    long? HeapMaximumMegabytes = null)
 {
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
     public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
@@ -42,6 +45,7 @@ public sealed record RuntimeSnapshot(
             || GameVersion is { Length: > 80 } || GameVersion?.IndexOf('\0') >= 0
             || SavePath is { Length: > 4096 } || SavePath?.IndexOf('\0') >= 0
             || SavePath is not null && !Path.IsPathFullyQualified(SavePath)
+            || HeapMaximumMegabytes is < 0 or > 1L << 30
             || Phase == WorldPhase.Ready && SavePath is null)
             throw new InvalidDataException("Invalid runtime snapshot.");
         LastSave?.Validate();
@@ -54,7 +58,8 @@ public sealed record RuntimeSnapshot(
     public static RuntimeSnapshot ParseWire(string line)
     {
         var p = line.Split('\t');
-        if (!(p.Length == 15 && p[0] == "STATE1" || p.Length == 16 && p[0] == "STATE2" || p.Length == 20 && p[0] == "STATE3" || p.Length == 21 && p[0] == "STATE4")) throw new InvalidDataException("Unsupported runtime frame.");
+        if (!(p.Length == 15 && p[0] == "STATE1" || p.Length == 16 && p[0] == "STATE2" || p.Length == 20 && p[0] == "STATE3" || p.Length == 21 && p[0] == "STATE4"
+            || p.Length == 22 && p[0] == "STATE5")) throw new InvalidDataException("Unsupported runtime frame.");
         static long Number(string value) => long.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
         static T Kind<T>(string value) where T : struct, Enum =>
             Enum.TryParse<T>(value, false, out var result) && Enum.IsDefined(result)
@@ -62,7 +67,8 @@ public sealed record RuntimeSnapshot(
         return new RuntimeSnapshot(p[1], p[2], p[3], Number(p[4]), Number(p[5]), Number(p[6]),
             Kind<WorldPhase>(p[7]), Kind<GamePause>(p[8]), Kind<RuntimeMode>(p[9]),
             int.Parse(p[10], CultureInfo.InvariantCulture), Number(p[11]), Number(p[12]),
-            p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length >= 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null, p.Length == 21 ? Kind<RuntimeSleep>(p[20]) : RuntimeSleep.Unknown)
+            p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length >= 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null, p.Length >= 21 ? Kind<RuntimeSleep>(p[20]) : RuntimeSleep.Unknown,
+            p.Length >= 22 ? Number(p[21]) : null)
             .RequireCapabilities(p[14]).Validate();
     }
     private RuntimeSnapshot RequireCapabilities(string value)

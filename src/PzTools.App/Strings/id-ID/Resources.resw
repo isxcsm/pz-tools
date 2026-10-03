@@ -747,4 +747,6 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: berlaku setelah gim dimulai ulang.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Cadangan otomatis setelah gim dimulai ulang</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Gim sedang dimulai</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Gim yang berjalan: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Gim yang berjalan: {0} · {1} mulai dijalankan berikutnya</value></data>
 </root>

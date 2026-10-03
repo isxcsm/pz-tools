@@ -32,6 +32,9 @@ reserved. *Game default* gives the file back its own options as they were before
 change.
 
 The change applies from the game's next start; a running game keeps what it started with.
+While the game runs, the setting also says what it was started with, read from the game
+itself: *Running game: 3 GB*, or *Running game: 3 GB · 8 GB from its next start* when the
+setting differs.
 The file is written beside itself and moved over, so a game starting meanwhile never reads
 half of it. A running game holds the file open and lets others read and write it, but not
 replace it; then it is written in place, which that game no longer reads. The file as the game shipped it is kept once, as `game-memory-original.json` in

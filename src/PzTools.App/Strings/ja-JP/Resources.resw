@@ -747,4 +747,6 @@
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: ゲームを再起動すると適用されます。</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>ゲーム再起動後に自動バックアップ</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>ゲーム起動中</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>実行中のゲーム: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>実行中のゲーム: {0} · 次回起動から {1}</value></data>
 </root>

@@ -204,7 +204,7 @@ is the one place they are recorded; other pages link here.
 | Save protocol | 6 | The backup worker and the payload (`HELLO` line) | `unsupported-protocol`: nothing is asked of the game and the backup uses the files on disk, as in the table above |
 | Extension host ABI | 3 | The extension runtime and each module archive | The module is not loaded |
 | Extension control wire | 1 | Not checked on connection; the number labels the command format | Both sides come from the same build, and the payload in the game is replaced to match |
-| State stream (WATCH) | `STATE4` | The state scheduler and the state stream | The frame is rejected; older `STATE1`–`STATE3` are still read |
+| State stream (WATCH) | `STATE5` | The state scheduler and the state stream | The frame is rejected; older `STATE1`–`STATE4` are still read. `STATE5` adds the game's heap maximum |
 
 A compatible update of the payload or a module is picked up at an idle moment,
 including after the app has been moved to another folder. Use app and worker files

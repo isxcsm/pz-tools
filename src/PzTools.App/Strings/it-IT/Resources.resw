@@ -747,4 +747,6 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: si applica al riavvio del gioco.</value></data>
   <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Backup automatici dopo il riavvio del gioco</value></data>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Avvio del gioco</value></data>
+  <data name="GameMemoryRunningFormat" xml:space="preserve"><value>Gioco in esecuzione: {0}</value></data>
+  <data name="GameMemoryRunningNextFormat" xml:space="preserve"><value>Gioco in esecuzione: {0} · {1} dal prossimo avvio</value></data>
 </root>

@@ -173,8 +173,10 @@ public sealed partial class SettingsPage : UserControl
     internal void ApplyGameLink(GameLinkView view)
     {
         if (gameLink == view) return;
+        bool heapChanged = gameLink.GameHeapMegabytes != view.GameHeapMegabytes;
         gameLink = view;
         UpdateAvailability();
+        if (heapChanged) ApplyGameMemory();
     }
 
     // Each switch depends on the settings above it and on what it needs from the game. Locking
@@ -670,7 +672,13 @@ public sealed partial class SettingsPage : UserControl
             GameMemoryStatus.Reverted when state.ChosenMegabytes is { } chosen => Localizer.Format("GameMemoryRevertedFormat", Size(chosen)),
             _ => null,
         };
-        GameMemorySettingCard.Description = Localizer.Get("GameMemorySetting.Description") + (note is null ? "" : " " + note);
+        // The running game's memory, read from it: whether the setting is what it started with, or comes at its next start.
+        var running = gameLink.GameHeapMegabytes is { } heap && state.MaximumMegabytes is { } next && state.Status != GameMemoryStatus.NotFound
+            ? Math.Abs(heap - next) < 128 ? Localizer.Format("GameMemoryRunningFormat", Size((int)heap))
+                : Localizer.Format("GameMemoryRunningNextFormat", Size((int)heap), Size(next))
+            : gameLink.GameHeapMegabytes is { } only ? Localizer.Format("GameMemoryRunningFormat", Size((int)only)) : null;
+        GameMemorySettingCard.Description = Localizer.Get("GameMemorySetting.Description") + (note is null ? "" : " " + note)
+            + (running is null ? "" : " " + running);
     }
 
     /// <summary>A heap in gigabytes, as the choices are whole ones: "6 GB".</summary>
