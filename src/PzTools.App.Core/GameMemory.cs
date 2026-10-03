@@ -284,17 +284,32 @@ public sealed partial class GameMemory
         return (int)Math.Clamp(megabytes, 0, int.MaxValue);
     }
 
-    // Written beside it and moved over it, so a game starting meanwhile never reads half a file.
+    // Written beside it and moved over it, so a game starting meanwhile never reads half a file. A running game holds
+    // the file open, letting others read and write it but not replace it: then it is written in place, which that game
+    // no longer reads (it read the file when it started) and the next start reads whole.
     private static void Write(string path, string text)
     {
         var temporary = path + ".pztools-" + Guid.NewGuid().ToString("N")[..8];
         try
         {
             // The file's own encoding: with a byte order mark only if it had one.
-            var bytes = File.ReadAllBytes(path);
-            bool mark = bytes is [0xEF, 0xBB, 0xBF, ..];
-            File.WriteAllText(temporary, text, new UTF8Encoding(mark));
-            File.Move(temporary, path, overwrite: true);
+            bool mark = File.ReadAllBytes(path) is [0xEF, 0xBB, 0xBF, ..];
+            var content = new UTF8Encoding(mark);
+            File.WriteAllText(temporary, text, content);
+            try { File.Move(temporary, path, overwrite: true); }
+            // Replacing a file held open is refused as access denied, or as a sharing violation.
+            catch (Exception held) when (held is UnauthorizedAccessException
+                || held is IOException and not FileNotFoundException and not DirectoryNotFoundException)
+            {
+                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                {
+                    var bytes = content.GetPreamble().Concat(content.GetBytes(text)).ToArray();
+                    stream.SetLength(0);
+                    stream.Write(bytes);
+                    stream.Flush(flushToDisk: true);
+                }
+                File.Delete(temporary);
+            }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {

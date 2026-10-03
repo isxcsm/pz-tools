@@ -33,7 +33,8 @@ change.
 
 The change applies from the game's next start; a running game keeps what it started with.
 The file is written beside itself and moved over, so a game starting meanwhile never reads
-half of it. The file as the game shipped it is kept once, as `game-memory-original.json` in
+half of it. A running game holds the file open and lets others read and write it, but not
+replace it; then it is written in place, which that game no longer reads. The file as the game shipped it is kept once, as `game-memory-original.json` in
 the app's data folder (see [files and folders](deployment-layout.md)).
 
 The file is left alone when it is not as expected: no `vmArgs` list, no `-Xmx` in it, an

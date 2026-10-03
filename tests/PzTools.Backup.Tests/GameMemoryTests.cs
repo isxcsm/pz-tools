@@ -105,6 +105,24 @@ public sealed class GameMemoryTests
     }
 
     [Fact]
+    public async Task ARunningGameHoldingItsFile_StillHasItChanged_ForItsNextStart()
+    {
+        using var temp = new TempDirectory();
+        var file = temp.GetPath(GameMemory.ConfigFileName);
+        File.WriteAllText(file, Shipped);
+        var memory = new GameMemory(temp.GetPath("data", "game-memory.json"), () => file, 32 * Gigabyte);
+        // As the running game's launcher holds it: others may read and write it, not replace it.
+        using (new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            await memory.ApplyAsync(8192);
+            Assert.Equal(GameMemoryStatus.Applied, memory.State.Status);
+            await memory.ApplyAsync(null);
+        }
+        Assert.Equal(Shipped, File.ReadAllText(file));
+        Assert.Single(Directory.GetFiles(temp.Path));
+    }
+
+    [Fact]
     public async Task NoGame_OrAHeapThisPCCannotGive_ChangesNothing()
     {
         using var temp = new TempDirectory();
