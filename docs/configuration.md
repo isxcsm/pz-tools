@@ -30,7 +30,7 @@ To edit a component file:
 2. Edit the file and save it.
 3. Use **Apply settings and restart**.
 
-**Restore defaults** moves the current `config` directory into `config-backups` and
+**Restore default settings** (under *Reset advanced settings*) moves the current `config` directory into `config-backups` and
 recreates the templates. Your UI choices are kept.
 
 ## Which setting wins
@@ -65,6 +65,13 @@ These live in `settings.toml` and are normally changed from the Settings screen.
 | `[backup].automatic_enabled` | `true` | Turns automatic backups on or off, independently of the interval, death-backup and save-before-backup preferences. |
 | `[backup].interval_minutes` | `5` | Integer from 1 through 60. Editing it does not turn automatic backups on. |
 | `[backup].pause_periodic_during_game` | `true` | Keeps the remaining interval while the game is paused, the player is asleep, or the game's state is unknown, and resumes counting afterwards. See [game-aware timing](runtime-pause-backups.md). |
+| `[profiler].rolling_enabled` | `false` | *Keep the last minutes*: the game holds its last few minutes, for *Save last minutes* to turn into a recording. See [the last minutes](profiler.md#the-last-minutes). |
+| `[profiler].rolling_detailed` | `false` | Keeps them in Detailed mode instead of Standard. |
+| `[profiler].rolling_minutes` | `2` | How many minutes are kept, 1 through 10. |
+| `[hotkeys].save_last` | `"Ctrl+Shift+F9"` | Key combinations that work inside the game, empty for none: `save_last`, `record`, `record_mode`, `rolling_toggle`, `manual_backup`, `backup_toggle` (automatic backups on or off) and `status`. Only `save_last` has one at first; one combination for two actions is dropped. See [hotkeys](profiler.md#hotkeys). |
+
+The game's memory is not kept here: it is in the game's own launcher file, and the choice
+in `game-memory.json` beside `settings.toml`. See [game memory](game-memory.md).
 
 Turning automatic backups off keeps the chosen interval. It does not stop manual
 backups or backups that have already started. Turning them back on checks the current

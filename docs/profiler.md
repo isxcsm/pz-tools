@@ -4,7 +4,7 @@
 
 The **Performance** page records what the running game is doing and shows where the time
 went: which part of the game, which mod, which function. Nothing is measured unless a
-recording is running.
+recording is running or *Keep the last minutes* is on.
 
 ## Recording
 
@@ -75,9 +75,8 @@ it, start or stop simply waits for it.
 A stutter is often over before a recording could be started. **Keep the last minutes**,
 under *Settings > Performance*, has the game record all the time and hold only its last
 few minutes: 1 to 10 of them (2 at first), in Standard or Detailed mode, both set there.
-**Save last 2 min** (with the number set) stands at the left of the toolbar, set apart by
-a thin line from **Start recording · Standard** and the switch beside it, which set the
-mode for recordings only; the button names the mode the switch sets.
+**Save last 2 min** (with the number set) stands beside **Start recording**, whose arrow
+chooses the mode for recordings only.
 Press it right after a stutter, and those minutes become a recording like any other,
 listed and opened at once. While Detailed is kept, the button says so (*Save last 2 min ·
 Detailed*), as that mode slows the game for as long as it is on.
@@ -85,8 +84,7 @@ The game goes on keeping the next ones. Changing the mode or the length restarts
 keeping that way; the button's tip says which mode is kept, or why there is nothing yet
 (no game, the game's bridge needs a restart). While the setting is off there is nothing
 to save, so the button reads *Turn on last minutes →* instead and opens Settings at that
-switch, with the keyboard on it. With a key set for it
-the button says it too: *Save last 2 min (Ctrl+Shift+F9)*.
+switch, with the keyboard on it. A key set for it is named in the button's tip.
 
 The game started later, or restarted, gets it within five seconds, whether or not the
 page is open. **Start recording** runs beside it, so reaching for the record button after
@@ -115,9 +113,8 @@ The game has the keyboard when it stutters, so the app's actions can have keys, 
 switch the next recording between Standard and Detailed (the same choice as on the page;
 one under way keeps its mode, and the note says *Next recording: Detailed*), turn the
 last minutes on or off, back up the save being played, turn automatic backups on or off
-(the settings' own switch, as if flipped there: nothing turns them on again by itself; a
-key set before for the old half-hour pause is not carried over to it, as pressed out of
-habit it would leave backups off), and show the status. Only saving the last minutes has a key at
+(the settings' own switch, as if flipped there: nothing turns them on again by itself),
+and show the status. Only saving the last minutes has a key at
 first, Ctrl+Shift+F9. While the app runs, Windows gives each set combination to it alone,
 so a key another program uses is refused when it is chosen, and one taken later is
 marked on its card. A letter or digit needs Ctrl or Alt with it; function keys may stand
@@ -492,9 +489,10 @@ starts.
 (`PROFILE_START`), waits for the stop file, the time limit or the game's exit, asks the
 game to stop (`PROFILE_STOP`) and converts the flight recording with the bundled Java
 runtime, outside the game. The app only starts this worker and reads the finished file.
-If the app or the worker is closed mid-recording, the game stops recording at the time
-limit and also stops sampling Lua and timing frames, so an abandoned recording costs
-nothing afterwards. The next recording ends any leftover first.
+If the app closes or crashes mid-recording, the game ends the recording two minutes later,
+when the app run's lease lapses (see [leases](game-bridge.md#leases)); if only the worker is
+closed, at the time limit. Either way it also stops sampling Lua and timing frames, so an
+abandoned recording costs nothing afterwards. The next recording ends any leftover first.
 
 The last minutes are kept by the game between short commands, each one process:
 `roll-start` (`PROFILE_ROLL_START`, a mode, how many seconds to hold and, optionally, the
@@ -525,8 +523,8 @@ nearly full) says so above the memory graphs, with a link to the game's memory s
 ## Limits
 
 - Only a local game process started normally is supported; the recorder attaches the
-  same way the game bridge does. A game run as administrator while PZ Tools is not, or
-  started with attaching turned off, cannot be recorded, and the app says which. See
+  same way the game bridge does. A game started with attaching turned off cannot be
+  recorded, and the app says so. See
   [when attaching fails](game-bridge.md#when-attaching-fails).
 - Time spent inside native code (rendering driver, physics, sound) is attributed to the
   Java method that called it, not to anything inside the native library.

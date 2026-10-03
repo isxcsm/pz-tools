@@ -15,6 +15,8 @@ Create backups, browse save history, heal or revive characters in supported save
 - **Save before backup**, with an optional in-game countdown and completion notice.
 - **ZIP import/export** and offline character healing, revival and inventory recovery.
 - **Performance recording** of the running game, showing frame times and the script time of each mod.
+- **Game memory** for Project Zomboid set from Settings, without editing its launcher file by hand.
+- **Hotkeys** that work inside the game: save the last minutes, record, back up, and more.
 - **Optional vehicle controls** for acceleration, shifting, reversing and keyboard steering, plus a light around the vehicle while its headlights are on. The extension starts off; each of its four options can be switched separately.
 
 The Home page shows whether the game is running, the latest save's last backup and the vehicle extension's state. Includes 18 interface languages, themes, tray mode, progress cards and filtered logs. Documentation is English-only.
@@ -26,7 +28,7 @@ Requires **Windows x64** and the **[.NET 10 runtime](https://dotnet.microsoft.co
 WinUI components and the Java Attach runtime are included; no separate Java installation is needed.
 
 1. Get a runnable package from [Releases](https://github.com/isxcsm/pz-tools/releases), or build from source below. Extract the whole package and run `PzTools.App.exe`; GitHub's source ZIP is not a runnable app. Any folder works, including one with Korean or other non-English letters in its path; up to 0.2.1 the app could not connect to the game from such a folder, which is fixed (two small files are then copied to a folder of yours, see [files and folders](docs/deployment-layout.md)).
-2. Open Settings, choose your language and check the save and backup folders. Keep those folders separate.
+2. Open Settings in the sidebar, choose your language (a new install starts in Korean) and check the save and backup folders. Keep those folders separate.
 3. Create a manual backup and confirm it completes. Automatic backups default to **every 5 minutes**, keeping **20 automatic backups**.
 
 About once an hour while it runs, the app asks GitHub whether a newer release is out (one request to `api.github.com`; nothing else is sent and nothing is downloaded by itself). A new version shows as one line in the sidebar until you update; clicking it opens the release page. *Settings → Version* shows your version, checks on demand, and turns the notice (and the check) off.
@@ -35,9 +37,7 @@ To update, close the app and extract the new package: from 0.2.2 its folder is n
 
 Updating from 0.1.0: the first time 0.2.0 opens a backup folder, it upgrades the folder's catalog in place (all or nothing; nothing is lost). **After that, 0.1.0 can no longer open that folder**, so do not go back to 0.1.0 with it. The vehicle extension's new *Light around the vehicle* option starts on, so if the extension was on, the light comes on with headlights. Switch it off on the Game extensions page if you do not want it.
 
-Updating from 0.2.0 needs nothing: backup folders are unchanged, and a game left running keeps working; its next start picks up the improved bridge.
-
-Updating from 0.2.1 or earlier while the game is running: the app asks you to restart the game once before it can save it, record it or run its extensions. Automatic backups wait for that restart, as a backup without the game's save may not be whole; a backup you start yourself still runs. A game started after the update needs nothing, so update with the game closed if you can.
+Updating from 0.2.0 or 0.2.1: backup folders are unchanged. If the game is running, the app asks you to restart the game once before it can save it, record it or run its extensions. Automatic backups wait for that restart, as a backup without the game's save may not be whole; a backup you start yourself still runs. A game started after the update needs nothing, so update with the game closed if you can.
 
 <a id="backups-and-retention"></a>
 ## Backup history
@@ -84,11 +84,21 @@ Recovery works on the current save while it is not being played. It can heal or 
 <a id="performance-recording"></a>
 ## Performance recording
 
-The Performance page records the running game while you reproduce a lag, then shows a zoomable frame-time graph with 60 and 30 FPS lines. Drag a range (or click one frame) to see where the time went, grouped by base game, each mod and the Java runtime, with the number of samples behind every figure. Each mod's functions open as a call tree (from the event handler down to what it called) or as a plain list. Under the graph, a memory panel shows the Java heap, garbage collections and the game's video memory on the same time axis, and the *Memory allocation* tab ranks mods by the memory their scripts allocate, which is what makes collections frequent. A function in the list opens into the lines it spent its time on, and a search box narrows the table. Two recordings can be compared, say from before and after adding a mod: each mod's and function's share of the time is shown with how much it rose or fell. To measure loading, start a recording at the main menu, then load a save or reload the mods. For a stutter that is over before you could start recording, *Keep the last minutes* in the settings has the game hold its last 1 to 10 minutes, and *Save last minutes* (or Ctrl+Shift+F9 in the game) turns them into a recording right after the stutter. Hotkeys set in the settings also start or stop a recording, back up the save being played, turn automatic backups on or off and show the status from inside the game, answered with a sound and a note over your character's head. Nothing is measured unless a recording, or keeping the last minutes, is on. Standard mode has almost no effect on the game; Detailed mode samples more often and also records waits and pauses.
+The Performance page records the running game while you reproduce a lag, then shows a zoomable frame-time graph with 60 and 30 FPS lines. Drag a range (or click one frame) to see where the time went, grouped by base game, each mod and the Java runtime, with the number of samples behind every figure; a bar above the results splits it into scripts, game code, memory pauses and waiting. Each mod's functions open as a call tree (from the event handler down to what it called) or as a plain list. Under the graph, a memory panel shows the Java heap, garbage collections and the game's video memory on the same time axis, and the *Memory allocation* tab ranks mods by the memory their scripts allocate, which is what makes collections frequent. A function in the list opens into the lines it spent its time on, and a search box narrows the table. Two recordings can be compared, say from before and after adding a mod: each mod's and function's share of the time is shown with how much it rose or fell. *Save selection* keeps just a selected range as a recording of its own, to compare against or to send. To measure loading, start a recording at the main menu, then load a save or reload the mods. For a stutter that is over before you could start recording, *Keep the last minutes* in the settings has the game hold its last 1 to 10 minutes, and *Save last minutes* (or Ctrl+Shift+F9 in the game) turns them into a recording right after the stutter. Nothing is measured unless a recording, or keeping the last minutes, is on. Standard mode has almost no effect on the game; Detailed mode samples more often and also records waits and pauses. When the game ran short of memory during a recording, the page says so and leads to the game memory setting.
 
 ![A performance recording: a range of frames is selected, then the game code, each mod's memory allocation and a mod's call tree are opened](docs/media/profiler.webp)
 
 Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The *Copy text* button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/profiler.md).
+
+<a id="hotkeys"></a>
+## Hotkeys
+
+Under *Settings → Hotkeys*, keys can be set that work while the game has the keyboard: save the last minutes, start or stop a recording, switch the recording mode, turn keeping the last minutes on or off, back up the save being played, turn automatic backups on or off (as the settings' switch does: nothing turns them back on by itself) and show the status. Each answers with a sound and a short note over your character's head. Only *Save last minutes* has a key at first, Ctrl+Shift+F9. See [hotkeys](docs/profiler.md#hotkeys).
+
+<a id="game-memory"></a>
+## Game memory
+
+Project Zomboid gets 3 GB of memory by default, which a game with many mods fills, and then stutters while memory is freed. *Settings → Game → Game memory* sets more, up to half of your PC's memory, with a size suggested for it. The app changes only the memory options in the game's own launcher file (`ProjectZomboid64.json` in the game folder), keeps a copy of the file as the game shipped it, and the change applies from the game's next start. A game update or Steam's file check puts the game's own size back; the app notices and offers to apply yours again. See [game memory](docs/game-memory.md).
 
 <a id="vehicle-controls"></a>
 ## Vehicle controls
@@ -115,7 +125,7 @@ If a backup folder uses an unsupported storage format, PZ Tools leaves it unchan
 <a id="troubleshooting"></a>
 ## Troubleshooting
 
-Check Logs before retrying a failed operation. If automatic backups are not running, check that they are enabled, that a save is being played, and whether the game is paused or the character is asleep. Closing to the tray leaves the app running.
+Check Logs before retrying a failed operation. If automatic backups are not running, check that they are enabled (the *Automatic backups on/off* hotkey switches them off until switched on again), that a save is being played, and whether the game is paused or the character is asleep. After an app update with the game running, they wait for one game restart; the line in the sidebar says *Automatic backups after a game restart*. Closing to the tray leaves the app running.
 
 PZ Tools is not code-signed. Windows Smart App Control judges each executable separately from cloud reputation and can block some PZ Tools components even when the app itself starts; that verdict can change from day to day. The app reports blocked components in a card with a shortcut to the Smart App Control page in Windows Security (App & browser control). Recent Windows 11 updates let you turn Smart App Control off and back on there; whether to do so is your decision. A blocked component does not stop later automatic backups from being attempted.
 

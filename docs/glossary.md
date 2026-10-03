@@ -200,9 +200,9 @@ bootstrap, the game has to be restarted once to use it. Pages also call it the
 
 ### Payload
 
-The replaceable part of the game bridge: saving, the state stream and extension
-control. A newer payload replaces the old one while the game runs, at an idle moment.
-See [component updates](module-reload.md).
+The replaceable part of the game bridge: saving, the state stream, performance recording,
+in-game notes and extension control. A newer payload replaces the old one while the game
+runs, at an idle moment. See [component updates](module-reload.md).
 
 ### WATCH
 
@@ -210,6 +210,13 @@ The state stream from the game to the state scheduler: process, world, pause, sl
 active play time, and the character's life and death. `WATCH` is the connection
 kind the app asks for when it opens the stream. The current message format is in
 the [compatibility table](game-bridge.md#compatibility-and-lifecycle).
+
+### Lease (app run)
+
+What the app asks of the game lasts only while the app is there. Each run of the app has
+an identifier (32 hex digits); its WATCH stream, and each recording it starts, renew that
+run's lease in the game. Two minutes after the run was last heard from, the lease lapses
+and the game ends the recordings it held. See [leases](game-bridge.md#leases).
 
 ### Observer epoch
 

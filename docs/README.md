@@ -24,7 +24,7 @@ For people running the app who want more detail than the user guide.
 | [Saving the game before a backup](game-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
 | [Character recovery](character-recovery.md) | What healing, revival and inventory recovery can and cannot do |
 | [Game extensions](game-extensions.md) | What the optional in-game features are and when their settings take effect |
-| [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares |
+| [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares; the last minutes after a stutter, comparing and saving ranges, and hotkeys |
 | [Game memory](game-memory.md) | How the app gives the game more memory, and what a game update does to it |
 | [Vehicle test guide](e2e-vehicle-drivetrain.md) | How to test the vehicle extension in a real game, tune it and back out |
 | [Command line](cli.md) | How to run backup, restore, ZIP and maintenance without the app |

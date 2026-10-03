@@ -24,7 +24,8 @@ Two things happen independently:
 The game is reached through the **game bridge**: a small Java component that PZ Tools
 loads into the running game. It asks the game to save before a backup, reports the
 game's state, and hosts the optional **game extensions** (currently vehicle driving
-improvements). No game file is edited.
+improvements). The bridge edits no game file; the one game file the app changes, and only
+when asked, is the memory setting in the game's launcher file (see [game memory](game-memory.md)).
 
 ## The pieces
 
@@ -86,6 +87,7 @@ release is Windows x64.
 | `%LOCALAPPDATA%\PzTools` | Your preferences, editable component settings, and the small databases for scheduling, game state and logs. |
 | The backup folder you choose | The backup repository: `repository.db` plus compressed **pack** files. |
 | The game's `Saves` folder | Your saves. PZ Tools reads them. It writes to them only when you restore a backup, import a ZIP, recover a character or delete a save from the app. |
+| The game folder | The game itself. PZ Tools changes only the memory options in `ProjectZomboid64.json`, and only when you set the game's memory. |
 
 See [deployment layout](deployment-layout.md) for the full list and
 [configuration](configuration.md) for the settings files.

@@ -4,7 +4,9 @@
 
 PZ Tools keeps its files in three separate places: the app folder with the program
 itself, your own data under `%LOCALAPPDATA%\PzTools`, and the backup folders you
-choose. This page lists what is in each, so you know which files are yours to edit,
+choose. Outside them it changes one file of the game's, and only when you set the game's
+memory: the memory options in `ProjectZomboid64.json` in the game folder (see
+[game memory](game-memory.md)). This page lists what is in each, so you know which files are yours to edit,
 which belong to the app, and what a backup folder contains. It also covers the limits
 for importing ZIP archives and how jobs are numbered.
 
@@ -22,7 +24,7 @@ or next to archives you import. Development runs use the same layout for app dat
 ### The app folder
 
 ```text
-<app folder>\                          # for example C:\Program Files\PzTools\
+<app folder>\                          # for example C:\Games\PzTools-v0.2.2\
   PzTools.App.exe and worker executables
   defaults\<component>\default.toml    # read-only packaged defaults
   game-bridge\                         # the game bridge, its attach runtime, extensions
@@ -60,7 +62,8 @@ The packaged defaults are the starting point for each
   game-memory.json                    # the game memory chosen, and the game's own from before
   game-memory-original.json           # the game's launcher file as shipped, kept at the first change
   config\<component>\default.toml     # editable component settings
-  config-backups\                     # TOML copies made by Restore defaults
+  config-backups\                     # TOML copies made by Restore default settings
+  profiles-index.json                 # what each recording is, read once
   extensions\                         # game-extension settings
   control.db                          # installation-wide run_index allocator
   state.db                            # current game and save state

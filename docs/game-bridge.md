@@ -61,6 +61,7 @@ whether the backup is manual or automatic.
 | The save is confirmed not in use | Backs up the files; the game is not contacted | Not made: automatic backups need active play |
 | No game running, no world loaded, or a different save loaded | Backs up the files on disk | Skipped |
 | The bridge cannot be reached (helper cannot start or attach, connection times out, bridge missing or too old) | Backs up the files on disk and records a warning | Same: backs up the files on disk with a warning |
+| The game is busy with another short request (a hotkey's note, a recording starting) | Asked again for up to 10 seconds; still busy, no backup | The same |
 | Game-aware timing says not now (paused, asleep, not yet due) | — | Postponed; it keeps its place in the schedule and no backup is recorded |
 | The game refuses, reports failure, or never answers after the request was sent | No backup | No backup, and it is not retried automatically |
 | The game build is not supported, or it is unclear which save is meant | No backup | No backup |
@@ -133,8 +134,8 @@ machine, as the failure's `diagnostics`:
 - whether the app folder, the temporary folder and the user folder hold letters outside
   ASCII (yes or no, never the path);
 - the Windows version and the end of the helper's output, with paths cut to what does not
-  name anyone: the user's own and temporary folders by name (`%USERPROFILE%`, `%TEMP%`),
-  any other path by its last part.
+  name anyone: the user's own, local application data and temporary folders by name
+  (`%USERPROFILE%`, `%LOCALAPPDATA%`, `%TEMP%`), any other path by its last part.
 
 One cause the player can change gets its own code and words:
 
@@ -142,8 +143,8 @@ One cause the player can change gets its own code and words:
 | --- | --- | --- | --- |
 | The game was started with `-XX:+DisableAttachMechanism` | Java says the game does not support attaching | `attach-disabled` | A launch option is blocking the connection |
 
-Such a game is not asked again until it restarts, as one that needs a restart after an
-update is not. The app always runs as administrator (its manifest asks for it), so a game
+Like a game that needs a restart after an update, such a game is not asked again until it
+restarts. The app always runs as administrator (its manifest asks for it), so a game
 with more rights than the app is not a cause. Anything else stays `attach-failed`; a game
 busy for a moment with another request is tried again, and not logged. Where to find the
 entry, for a user's report:

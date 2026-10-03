@@ -61,8 +61,9 @@ narrow window never splits one.
 
 ## Settings page
 
-Settings are grouped Fluent cards on a scrollable page. The standard groups start
-expanded; the advanced settings start collapsed. Inputs shrink to fit narrow windows.
+Settings are grouped Fluent cards on a scrollable page: Version, Display, Paths, Backup,
+Game (game memory), Performance, Hotkeys and Advanced. Version and Advanced start
+collapsed, the rest expanded. Inputs shrink to fit narrow windows.
 Defaults and accepted values are listed in [configuration](configuration.md), not here.
 
 **Automatic backup** is the switch for both periodic and death-triggered backups.
@@ -288,9 +289,10 @@ on the card.
 - The card also leaves when a later check finds nothing blocked. It comes back only if a
   different set of components is blocked.
 
-The game-link card names a cause the player can change when the attach found one: the
-game run as administrator (*restart the game without administrator rights*) or a launch
-option that turns connecting off. Otherwise it says what backups do meanwhile. See
+The game-link card names a cause the player can change when the attach found one: a
+launch option that turns connecting off. After an app update with the game running it
+says to restart the game, and cannot be closed while automatic backups wait for that.
+Otherwise it says what backups do meanwhile. See
 [when attaching fails](game-bridge.md#when-attaching-fails).
 
 ### Writing a card
@@ -349,7 +351,9 @@ down, or held while the game is paused or the character is asleep.
 
 An unknown game state shows its message alone, and only once it has lasted about three
 seconds. Until then the previous text stays, so starting the app or the game connecting
-does not make it flicker. While a world is loading, the card says so.
+does not make it flicker. While a world is loading, the card says so. A game seen
+starting says *Game starting* rather than checking, and after an app update with the game
+running the line says *Automatic backups after a game restart*, not a time.
 
 ## Logs page
 
