@@ -140,6 +140,42 @@ public sealed class GameLinkFallbackTests
     }
 
     [Fact]
+    public async Task AGameThatNeedsARestartAfterAnUpdate_GetsNoAutomaticBackupUntilItRestarts()
+    {
+        using var temp = new TempDirectory();
+        var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
+        Directory.CreateDirectory(target.SourcePath);
+        var now = DateTimeOffset.UtcNow.AddMinutes(-5).AddSeconds(-1);
+        await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
+        var feed = new RuntimeSnapshotStore();
+        // The game refused the link for running the bridge from before an update: a restart would mend it, so the
+        // files are not backed up as they are, as they are for a game that cannot be read for other reasons.
+        feed.Publish(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason));
+        var controller = new RuntimeScheduleController(db, feed, linkGrace: TimeSpan.Zero);
+        await controller.PrepareAsync(now, TimeSpan.Zero, default);
+        await controller.PrepareAsync(now.AddMinutes(5), TimeSpan.Zero, default);
+        await db.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));
+        int backups = 0; long run = 0;
+        var scheduler = new BackupScheduler(db, _ => Task.FromResult(++run),
+            (_, _, _, _, _) => { backups++; return Task.FromResult(new WorkerInvocation(true, ProcessOutcome.Skipped, null)); },
+            (_, _, _, _, _) => Task.FromResult(new WorkerInvocation(false, ProcessOutcome.Skipped, null)),
+            isTargetActive: _ => true, runtimeSchedule: controller);
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due);
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(11))).Due);
+        Assert.Equal(0, backups);
+        // The line says why, rather than a time.
+        Assert.Equal("RuntimeBackupRestartRequired", ScheduleCountdownPresentation.Resolve(RuntimeScheduleProjection.Build(
+            await db.ReadBackupStateIfChangedAsync(-1), await db.ReadRuntimeScheduleAsync(), feed.Read()), now.AddMinutes(6),
+            restartRequired: true).MessageKey);
+        // Any other unreadable game: the files on disk are backed up on the clock.
+        feed.Publish(RuntimeObservation.Unknown("runtime-unavailable"));
+        await controller.PrepareAsync(now.AddMinutes(11), TimeSpan.Zero, default);
+        Assert.True((await scheduler.TickAsync(now.AddMinutes(11))).Due);
+        Assert.Equal(1, backups);
+    }
+
+    [Fact]
     public async Task BriefOutage_DoesNotStartTheFallback()
     {
         using var temp = new TempDirectory();

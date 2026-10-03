@@ -68,6 +68,16 @@ public sealed partial class AttentionCard : UserControl
         }
     }
 
+    /// <summary>
+    /// Whether the card can be put away with its ✕; false for one that must stay while its condition lasts, as the
+    /// app holds something back until the user acts.
+    /// </summary>
+    public bool CanClose
+    {
+        get => CloseButton.Visibility == Visibility.Visible;
+        set => CloseButton.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>Names the ✕ in the current language.</summary>
     public void Localize()
     {

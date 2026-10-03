@@ -745,4 +745,5 @@
   <data name="InstallBrokenMessage" xml:space="preserve"><value>Розпакуйте завантажений ZIP знову в порожню теку.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Відкрити сторінку завантаження</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: запрацює після перезапуску гри.</value></data>
+  <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Автокопії після перезапуску гри</value></data>
 </root>

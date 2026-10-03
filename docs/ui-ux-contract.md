@@ -275,7 +275,7 @@ is on the card or the keyboard is in it (still reachable with Tab when unseen).
 | The app folder is not as published ([checking the folder](deployment-layout.md#the-app-folder)), first of all; its button opens the download page | Through ✕, for this run |
 | Part of the saves page keeps failing to load ([projector failures](#projector-failures)) | When it loads again, or through ✕ |
 | App components blocked by Windows | When nothing is blocked any more, or through ✕ |
-| The game cannot be read ([game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read)), or PZ Tools was updated and the game needs a restart | When the game can be read again, or through ✕ |
+| The game cannot be read ([game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read)), or PZ Tools was updated and the game needs a restart | When the game can be read again, or through ✕; the restart card has no ✕, as automatic backups wait for the restart |
 | A game update put the game's own memory back over the chosen one ([game memory](game-memory.md#after-a-game-update)); its button applies the choice again | When the choice is in the game's file again, or through ✕ |
 
 The blocked-components card reports that a Windows security policy (for example Smart App

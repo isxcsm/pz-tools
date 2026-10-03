@@ -745,4 +745,5 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="InstallBrokenMessage" xml:space="preserve"><value>Rozbalte stažený ZIP znovu do prázdné složky.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Otevřít stránku ke stažení</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: projeví se po restartu hry.</value></data>
+  <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Automatické zálohy po restartu hry</value></data>
 </root>

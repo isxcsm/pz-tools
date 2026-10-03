@@ -1452,6 +1452,9 @@ public sealed partial class MainWindowShell : UserControl
         gameLink = view;
         SettingsRoot.ApplyGameLink(view);
         if (!view.LinkUnavailable) gameLinkDismissed = false;
+        // A restart after an update holds automatic backups back until it happens: that card cannot be put away.
+        if (view.RestartRequired) gameLinkDismissed = false;
+        GameLinkCard.CanClose = !view.RestartRequired;
         GameLinkCard.Visibility = view.LinkUnavailable && !gameLinkDismissed ? Visibility.Visible : Visibility.Collapsed;
         // After an update the cause is the update, and restarting the game is what to do about it.
         GameLinkCard.Title = Localizer.Get(view.RestartRequired ? "GameLinkRestartTitle" : "GameLinkCardTitle");
@@ -1646,7 +1649,7 @@ public sealed partial class MainWindowShell : UserControl
     {
         var now = DateTimeOffset.UtcNow;
         var display = countdownStabilizer.Apply(ScheduleCountdownPresentation.Resolve(schedule, now,
-            projectorHealth?.IsFaulted("scheduler") == true), now);
+            projectorHealth?.IsFaulted("scheduler") == true, gameLink?.RestartRequired == true), now);
         // Assign only what changed: even an equal string makes the window draw a frame, every second, for as
         // long as the app runs (also minimised or in the tray).
         SetText(NextBackupText, Localizer.Get(display.MessageKey));

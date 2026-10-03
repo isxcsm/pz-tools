@@ -15,6 +15,8 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
     Func<CancellationToken, Task<long>>? allocateRunIndex = null, string? telemetryConfigurationPath = null)
 {
     private readonly RuntimeSnapshotStore received = new();
+    // The game process that refused the link for running a bridge from before an update; not asked again.
+    private (int Id, DateTime Started)? refusedGame;
 
     public async Task RunAsync(CancellationToken token)
     {
@@ -45,6 +47,15 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                 }
                 var game = games[0];
                 var started = game.StartTime.ToUniversalTime(); // Bind discovery to an OS process instance, not just PID.
+                // A game that refused for running a bridge from before an update keeps refusing until it restarts:
+                // asked again it would only start another attach helper. Its state stays said until it exits.
+                if (refusedGame == (game.Id, started))
+                {
+                    received.Publish(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason));
+                    extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
+                    failures = 0; await Task.Delay(1000, token); continue;
+                }
+                refusedGame = null;
                 string stream = Guid.NewGuid().ToString("N");
                 received.Publish(RuntimeObservation.Unknown("connecting"));
                 using var connection = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -115,6 +126,11 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                     _ => "runtime-unavailable",
                 } : "runtime-unavailable"));
                 if (restart) extensions.Publish(new(RuntimeExtensionState.RestartRequired, "bootstrap-update"));
+                if (restart && games.Length == 1)
+                {
+                    try { refusedGame = (games[0].Id, games[0].StartTime.ToUniversalTime()); }
+                    catch (Exception gone) when (gone is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                }
                 if (error is GameSaveException { Diagnostics: not null } attach && games.Length == 1)
                     await RecordAttachFailureAsync(games[0], attach, token);
             }

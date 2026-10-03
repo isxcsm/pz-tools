@@ -745,4 +745,5 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="InstallBrokenMessage" xml:space="preserve"><value>Estrai di nuovo lo ZIP scaricato in una cartella vuota.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Apri pagina di download</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: si applica al riavvio del gioco.</value></data>
+  <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Backup automatici dopo il riavvio del gioco</value></data>
 </root>

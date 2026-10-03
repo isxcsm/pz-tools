@@ -745,4 +745,5 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="InstallBrokenMessage" xml:space="preserve"><value>İndirdiğiniz ZIP dosyasını boş bir klasöre yeniden çıkarın.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>İndirme sayfasını aç</value></data>
   <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: oyun yeniden başlatılınca uygulanır.</value></data>
+  <data name="RuntimeBackupRestartRequired" xml:space="preserve"><value>Otomatik yedek oyun yeniden başlayınca</value></data>
 </root>

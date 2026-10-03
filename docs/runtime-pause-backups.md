@@ -61,6 +61,7 @@ unrecognised game state must not end backups silently.
 | **Observation lost**: the connection is failing, stale, or answering without a recognisable game state, for longer than the grace period (about 90 seconds) | Periodic backups follow the wall clock at the configured interval. The target is the save the game's file locks point at, and each backup runs only while that save is still in use. They are ordinary unguarded backups. When the game can be read again, scheduling returns to game time. |
 | **Save request unreachable**: the helper cannot start or attach, the connection times out, or the bridge is missing or too old | Nothing was asked of the game, so the backup goes ahead with the files as they are on disk and records a warning. This applies to manual, periodic and death backups. |
 | **Sleep unreadable** | The clock keeps running; pausing still holds it. |
+| **Restart needed after an update of PZ Tools**: the game still runs the bridge from before it | Automatic backups wait until the game restarts, and the schedule line says *Automatic backups after a game restart*. A restart mends this, unlike the cases above, so a save the game was not asked to write is not copied: its files may be of different moments, and such backups would push good ones out of those retained. A backup you start yourself still runs, without the game's save. The app does not ask that game to connect again until it restarts. |
 
 A game that is still starting up is not a lost observation, however long it takes. Its
 state is read once per frame of the game's main loop, which first runs after the
@@ -76,7 +77,8 @@ backups run without a game save, and the settings that need the game are locked 
 the connection returns. Their saved values are kept. The card suggests restarting the
 game only when that is known to help: the game still runs the bridge from before a PZ
 Tools update. That card does not wait out the grace period, as such a link cannot come
-back without a restart; it shows as soon as the game refuses the connection. Recordings
+back without a restart; it shows as soon as the game refuses the connection, and it has
+no ✕, as automatic backups wait for the restart (see the table above). Recordings
 and extensions refused for the same reason are logged as information, not as failures,
 since the card already says what to do. A game version this PZ Tools cannot read stays
 unreadable after a restart, and backups keep running without a game save.

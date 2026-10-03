@@ -8,7 +8,10 @@ public sealed record CountdownPresentation(string MessageKey, long? RemainingSec
 /// <summary>Display policy only. Never starts, postpones or consumes a backup.</summary>
 public static class ScheduleCountdownPresentation
 {
-    public static CountdownPresentation Resolve(ScheduleStatusView? schedule, DateTimeOffset now, bool unavailable = false)
+    /// <param name="restartRequired">The game runs a bridge from before an update of the app: automatic backups wait
+    /// for its restart (BackupScheduler), and the line says so instead of a time.</param>
+    public static CountdownPresentation Resolve(ScheduleStatusView? schedule, DateTimeOffset now, bool unavailable = false,
+        bool restartRequired = false)
     {
         if (unavailable) return new("SchedulerStatusUnavailable");
         if (schedule is null) return new("NextBackupWaitingDynamic");
@@ -17,6 +20,7 @@ public static class ScheduleCountdownPresentation
         // Held at the user's request: the time until it resumes, not until a backup it will not start.
         if (schedule.PausedUntilUtc is { } until && now < until)
             return new("AutomaticBackupPausedUntil", (long)Math.Ceiling((until - now).TotalSeconds), true);
+        if (restartRequired) return new("RuntimeBackupRestartRequired");
         // The game cannot be read, so backups follow the clock and take the files as they are.
         if (schedule.Fallback && schedule.NextDueUtc is { } fallbackDue)
             return fallbackDue <= now ? new(WaitingKey(schedule))
