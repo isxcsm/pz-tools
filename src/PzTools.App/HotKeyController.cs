@@ -107,6 +107,15 @@ internal sealed class HotKeyController : IDisposable
     // The note goes on by itself; nothing waits for the game to show it.
     private static void Note(AppHost host, params string[] items) => _ = host.NotifyGameAsync(items);
 
+    // Said before the work asks the game for anything, and only then. A note still trying once the work begins would
+    // compete with it for the game, which takes one request at a time, and would come after its moment; and a game
+    // that does not answer must not hold the work up.
+    private static async Task NoteFirstAsync(AppHost host, string item)
+    {
+        using var late = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        await host.NotifyGameAsync([item], late.Token);
+    }
+
     private async Task SaveLastAsync(AppHost host)
     {
         var profiles = host.Profiles;
@@ -120,12 +129,8 @@ internal sealed class HotKeyController : IDisposable
         }
         Sound(SystemSound.Accepted);
         // Said before the save asks the game for its minutes, as a recording's stop is: the save takes a few seconds.
-        // Not waited on for long: a game that does not answer must not hold the save up.
-        var started = host.NotifyGameAsync([$"save-last-started:{Math.Max(1, rolling.OnMinutes)}"]);
-        await Task.WhenAny(started, Task.Delay(TimeSpan.FromSeconds(3)));
+        await NoteFirstAsync(host, $"save-last-started:{Math.Max(1, rolling.OnMinutes)}");
         var (path, result) = await profiles.SaveRollingAsync();
-        // After the first note, however late it got through: never "saving" over "saved".
-        await started;
         if (path is null)
         {
             Sound(SystemSound.Failed);
@@ -209,16 +214,12 @@ internal sealed class HotKeyController : IDisposable
             return;
         }
         Sound(SystemSound.Accepted);
-        // Before the backup asks the game to save: the note would otherwise wait for the save to finish. Not for
-        // long, though: a game that does not answer must not hold the backup up.
-        var started = host.NotifyGameAsync(["backup-started"]);
-        await Task.WhenAny(started, Task.Delay(TimeSpan.FromSeconds(3)));
+        // Before the backup asks the game to save: the note would otherwise wait for the save to finish.
+        await NoteFirstAsync(host, "backup-started");
         var result = await operations.BackupAsync(saveId, source);
         var done = result.Outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange;
         // The backup's own card says why it failed; the player hears it and reads the note.
         Sound(done ? SystemSound.Done : SystemSound.Failed);
-        // After the first note, however late it got through: never "started" over "complete".
-        await started;
         Note(host, done ? "backup-done" : result.Outcome == ProcessOutcome.Busy ? "busy" : "backup-failed");
     }
 

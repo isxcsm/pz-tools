@@ -63,6 +63,10 @@ public sealed class GameSaveClient(string bridgeDirectory,
         finally { foreach (var game in games) game.Dispose(); }
     }
 
+    // The attach helper's words when the game is busy with another request and nothing was sent (AttachMain).
+    internal const string ChannelBusy = "still active";
+    private static readonly TimeSpan BusyPatience = TimeSpan.FromSeconds(10);
+
     // Explicit PID supports a no-save probe and isolated JVM integration tests.
     public async Task<string> RequestAsync(int processId, string expectedSavePath, bool save,
         CancellationToken cancellationToken = default) =>
@@ -118,21 +122,33 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 processId.ToString(System.Globalization.CultureInfo.InvariantCulture), jar,
                 ((IPEndPoint)listener.LocalEndpoint).Port.ToString(System.Globalization.CultureInfo.InvariantCulture), token })
                 start.ArgumentList.Add(argument);
-            try { helper = DiagnosticsProcess.Start(start); }
-            catch (System.ComponentModel.Win32Exception blocked)
-            { throw new GameSaveException("attach-failed", "Could not start the attach helper: " + blocked.Message); }
-            if (helper is null) throw new GameSaveException("attach-failed", "Could not start the attach helper.");
-            var output = helper.StandardOutput.ReadToEndAsync(cancellationToken);
-            var error = helper.StandardError.ReadToEndAsync(cancellationToken);
             using var connectionDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             connectionDeadline.CancelAfter(TimeSpan.FromSeconds(connectionTimeoutSeconds));
             var accepted = listener.AcceptTcpClientAsync(connectionDeadline.Token).AsTask();
-            var exited = helper.WaitForExitAsync(connectionDeadline.Token);
-            if (await Task.WhenAny(accepted, exited) == exited)
+            // The game takes one request at a time, and another short one (a note over the player, a recording's
+            // start or stop) may hold it for a moment. Nothing was sent then: the helper is started again, for as long
+            // as the connection may take, rather than the files being copied unsaved as for a game that cannot be
+            // reached.
+            for (var busy = Stopwatch.StartNew(); ; )
             {
+                try { helper = DiagnosticsProcess.Start(start); }
+                catch (System.ComponentModel.Win32Exception blocked)
+                { throw new GameSaveException("attach-failed", "Could not start the attach helper: " + blocked.Message); }
+                if (helper is null) throw new GameSaveException("attach-failed", "Could not start the attach helper.");
+                var output = helper.StandardOutput.ReadToEndAsync(cancellationToken);
+                var error = helper.StandardError.ReadToEndAsync(cancellationToken);
+                var exited = helper.WaitForExitAsync(connectionDeadline.Token);
+                if (await Task.WhenAny(accepted, exited) != exited) break;
                 await exited;
-                if (helper.ExitCode != 0)
-                    throw AttachDiagnostics.Failure(processId, (await error + "\n" + await output).Trim(), helper.ExitCode, bridgeDirectory);
+                if (helper.ExitCode == 0) break;
+                var detail = (await error + "\n" + await output).Trim();
+                if (!detail.Contains(ChannelBusy, StringComparison.Ordinal))
+                    throw AttachDiagnostics.Failure(processId, detail, helper.ExitCode, bridgeDirectory);
+                helper.Dispose();
+                helper = null;
+                if (busy.Elapsed >= BusyPatience)
+                    throw new GameSaveException("busy", "The game was busy with another request. No save command was sent.");
+                await Task.Delay(500, connectionDeadline.Token);
             }
             using var client = await accepted;
             using var stream = client.GetStream();

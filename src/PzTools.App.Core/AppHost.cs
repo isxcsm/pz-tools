@@ -459,14 +459,14 @@ public sealed class AppHost : IAsyncDisposable
             // The game takes one request at a time, and a save, a probe or a recording's start or stop holds it for a
             // moment: wait for it a few seconds, not longer, so a note that meets one (as "backup complete" may, just
             // after the backup's own save) still arrives. Nothing was sent on a busy answer: trying again never shows a
-            // note twice.
+            // note twice. Each try starts a helper process, so they are a second apart.
             var patience = System.Diagnostics.Stopwatch.StartNew();
             while (true)
             {
                 try { return await client.NotifyAsync(processId, language, items, cancellationToken).ConfigureAwait(false); }
                 catch (GameSaveException busy) when (busy.Code == "busy" && patience.Elapsed < NoticePatience)
                 {
-                    await Task.Delay(400, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -475,6 +475,8 @@ public sealed class AppHost : IAsyncDisposable
         {
             return false;
         }
+        // Given up by the caller: a note that would only come after its moment.
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return false; }
     }
 
 
