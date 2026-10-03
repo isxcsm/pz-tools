@@ -174,7 +174,36 @@ final class ProfileRecorder {
     }
 
     /** The events both kinds of recording take, in the chosen mode. */
+    // JFR writes its chunks to the game's temporary folder from native code, which cannot write a path with letters
+    // outside ASCII (a Korean user name): the recording came out as an empty file. Such a game gets a repository under
+    // ProgramData, whose path is plain, once. Only recording data goes there, nothing run as code.
+    private static boolean repositoryChecked;
+
+    private static void plainRepository() {
+        if (repositoryChecked) return;
+        repositoryChecked = true;
+        String temporary = System.getProperty("java.io.tmpdir", ""), root = System.getenv("ProgramData");
+        if (plain(temporary) || root == null || !plain(root)) return;
+        try {
+            String account = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(System.getProperty("user.name", "").getBytes(java.nio.charset.StandardCharsets.UTF_8))).substring(0, 12);
+            Path repository = Path.of(root, "PzTools", "jfr", "u-" + account);
+            java.nio.file.Files.createDirectories(repository);
+            java.lang.management.ManagementFactory.getPlatformMBeanServer().invoke(
+                new javax.management.ObjectName("com.sun.management:type=DiagnosticCommand"), "jfrConfigure",
+                new Object[] { new String[] { "repositorypath=" + repository } }, new String[] { String[].class.getName() });
+        } catch (Throwable unavailable) {
+            // The default stays; a recording that comes out empty says so as before.
+        }
+    }
+
+    private static boolean plain(String text) {
+        for (int index = 0; index < text.length(); index++) if (text.charAt(index) > 0x7E) return false;
+        return true;
+    }
+
     private static Recording configured(boolean detailedMode) {
+        plainRepository();
         Recording next = new Recording();
         try {
             next.setName("PZ Tools");
