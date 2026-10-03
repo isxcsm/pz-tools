@@ -26,11 +26,11 @@ public static class RuntimeScheduleProjection
         if (fallbackDue is { } due)
             return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, due,
                 control.LastRunIndex, control.LastOutcome, control.AutomaticEnabled, control.PendingRuns,
-                PauseAware: true, Hold: hold, GamePhase: gamePhase, Fallback: true, PausedUntilUtc: control.PausedUntilUtc);
+                PauseAware: true, Hold: hold, GamePhase: gamePhase, Fallback: true);
         return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, null,
             control.LastRunIndex, control.LastOutcome, control.AutomaticEnabled, control.PendingRuns,
             PauseAware: true, RemainingMilliseconds: Math.Max(0, state.RemainingMilliseconds),
-            Hold: hold, CompletionUncertain: state.CompletionUncertain, GamePhase: gamePhase, PausedUntilUtc: control.PausedUntilUtc);
+            Hold: hold, CompletionUncertain: state.CompletionUncertain, GamePhase: gamePhase);
     }
 
     internal static WorldPhase ObservedGamePhase(RuntimeObservation observation) =>

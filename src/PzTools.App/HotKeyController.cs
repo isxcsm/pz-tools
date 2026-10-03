@@ -87,7 +87,7 @@ internal sealed class HotKeyController : IDisposable
                 case HotKeyAction.RecordMode: ToggleMode(host); break;
                 case HotKeyAction.RollingToggle: await ToggleRollingAsync(host); break;
                 case HotKeyAction.ManualBackup: await BackupAsync(host); break;
-                case HotKeyAction.BackupPause: await PauseAsync(host); break;
+                case HotKeyAction.BackupToggle: await ToggleBackupsAsync(host); break;
                 default: await StatusAsync(host); break;
             }
         }
@@ -220,28 +220,15 @@ internal sealed class HotKeyController : IDisposable
         }
     }
 
-    private async Task PauseAsync(AppHost host)
+    // The settings' own switch, as if flipped there: nothing else holds backups back, and nothing turns them on again
+    // by itself.
+    private async Task ToggleBackupsAsync(AppHost host)
     {
-        var schedule = host.Views.ReadIfChanged<ScheduleStatusView>(ViewKey.ScheduleStatus, 0).Snapshot;
-        var now = DateTimeOffset.UtcNow;
-        if (schedule is { AutomaticEnabled: false })
-        {
-            Sound(SystemSound.Failed);
-            Note(host, "backups-off");
-            return;
-        }
-        // The stored pause, not the view of it: a second press before the view caught up paused again.
-        if (await host.ReadBackupPauseAsync() is { } until && until > now)
-        {
-            await host.ResumeBackupsAsync();
-            Sound(SystemSound.Accepted);
-            Note(host, "backups-resumed");
-            return;
-        }
-        var minutes = host.RuntimeOptions.HotKeyOptions.BackupPauseMinutes;
-        await host.PauseBackupsAsync(now.AddMinutes(minutes));
+        var settings = host.Settings.Load();
+        var next = settings with { AutomaticBackupEnabled = !settings.AutomaticBackupEnabled };
+        await app.ApplySettingsAsync(next);
         Sound(SystemSound.Accepted);
-        Note(host, $"backups-paused:{minutes}");
+        Note(host, next.AutomaticBackupEnabled ? "backups-on" : "backups-off");
     }
 
     private Task StatusAsync(AppHost host)
@@ -252,7 +239,6 @@ internal sealed class HotKeyController : IDisposable
         var catalog = host.Views.ReadIfChanged<BackupCatalogView>(ViewKey.BackupCatalog, 0).Snapshot;
         var items = new List<string>();
         if (schedule is { AutomaticEnabled: false }) items.Add("backups-off");
-        else if (schedule?.PausedUntilUtc is { } until && until > now) items.Add($"backups-paused:{Minutes((until - now).TotalSeconds)}");
         else if (ScheduleCountdownPresentation.Resolve(schedule, now).RemainingSeconds is { } seconds)
             items.Add(seconds < 60 ? "next-backup-soon" : $"next-backup:{Minutes(seconds)}");
         var home = HomeStatusSource.From(saves, catalog, null, schedule);

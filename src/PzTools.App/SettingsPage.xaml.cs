@@ -411,10 +411,7 @@ public sealed partial class SettingsPage : UserControl
         {
             card.Header = Localizer.Get(HotKeyName(action) + ".Header");
             var text = hotKeySettings.Get(action);
-            // The pause says how long it lasts, from the advanced settings.
-            var description = action == HotKeyAction.BackupPause
-                ? Localizer.Format(HotKeyName(action) + ".Description", App.Host?.RuntimeOptions.HotKeyOptions.BackupPauseMinutes ?? 30)
-                : Localizer.Get(HotKeyName(action) + ".Description");
+            var description = Localizer.Get(HotKeyName(action) + ".Description");
             // Saving the last minutes is taken only while they are kept; another program's hold is said where it shows.
             if (text.Length > 0 && refused.Contains(action)) description += " " + Localizer.Get("HotKeyTaken");
             else if (text.Length > 0 && action == HotKeyAction.SaveLast && !RollingToggle.IsOn) description += " " + Localizer.Get("HotKeyNeedsRolling");

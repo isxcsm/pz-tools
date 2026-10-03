@@ -36,6 +36,8 @@ public sealed record AppRuntimeOptions(
     {
         config.ValidateSections("logs", "runtime", "profiler", "hotkeys");
         config.ValidateSection("profiler", "general_limit_minutes", "detailed_limit_minutes", "rolling_max_megabytes");
+        // backup_pause_minutes set the timed pause of automatic backups, which is gone; a file that still has it is
+        // read as before, and the value goes unused.
         config.ValidateSection("hotkeys", "sounds", "game_notices", "backup_pause_minutes");
         config.ValidateSection("runtime",
             "projection_interval_ms",
@@ -89,8 +91,7 @@ public sealed record AppRuntimeOptions(
                 config.GetInt32("profiler", "rolling_max_megabytes", 256, 64, 2048)),
             new HotKeyRuntimeOptions(
                 config.GetBoolean("hotkeys", "sounds", true),
-                config.GetBoolean("hotkeys", "game_notices", true),
-                config.GetInt32("hotkeys", "backup_pause_minutes", 30, 5, 240)));
+                config.GetBoolean("hotkeys", "game_notices", true)));
     }
 }
 
@@ -100,5 +101,5 @@ public sealed record AppRuntimeOptions(
 /// </summary>
 public sealed record ProfilerRuntimeOptions(int GeneralLimitMinutes = 30, int DetailedLimitMinutes = 10, int RollingMaxMegabytes = 256);
 
-/// <summary>How a hotkey answers from inside the game: a sound, a note over the player, and how long a pause lasts.</summary>
-public sealed record HotKeyRuntimeOptions(bool Sounds = true, bool GameNotices = true, int BackupPauseMinutes = 30);
+/// <summary>How a hotkey answers from inside the game: a sound and a note over the player.</summary>
+public sealed record HotKeyRuntimeOptions(bool Sounds = true, bool GameNotices = true);

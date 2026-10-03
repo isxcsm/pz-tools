@@ -99,5 +99,3 @@ rolling_max_megabytes = 256
 sounds = true
 # ... and with a short note over the character's head (true or false).
 game_notices = true
-# The pause hotkey holds automatic backups for this many minutes (5-240); press it again to resume.
-backup_pause_minutes = 30

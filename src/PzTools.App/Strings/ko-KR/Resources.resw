@@ -433,8 +433,6 @@
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>오늘 {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>어제 {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>이름 바꾸기</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>자동 백업 멈춤</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>지금 재개</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>단축키</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>게임 중에도 동작합니다. 지정한 키는 PZ Tools가 켜져 있는 동안 다른 프로그램에서 쓸 수 없습니다. 누르면 소리와 캐릭터 머리 위 말풍선으로 알려 줍니다.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>직전 기록 저장</value></data>
@@ -447,8 +445,8 @@
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>위의 '직전 기록 계속하기'를 켜고 끕니다.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>수동 백업</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>지금 플레이 중인 세이브를 바로 백업합니다.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>자동 백업 잠시 멈춤</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>누르면 자동 백업을 {0}분 동안 멈춥니다. 다시 누르거나 {0}분이 지나면 재개됩니다. 사망 시 백업은 계속됩니다.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>자동 백업 켜기/끄기</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>설정의 &apos;자동 백업&apos;을 켜고 끕니다.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>상태 보기</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>다음 백업까지 남은 시간, 마지막 백업, 기록 상태를 캐릭터 머리 위에 보여 줍니다.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>다른 프로그램이 쓰는 키입니다.</value></data>

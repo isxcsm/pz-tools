@@ -434,8 +434,6 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Hoje {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Ontem {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Renomear</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Backup automático pausado</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>Retomar agora</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Teclas de atalho</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Também funcionam no jogo. Enquanto o PZ Tools estiver aberto, as teclas definidas aqui ficam indisponíveis para outros programas. Cada uma responde com um som e um aviso acima da cabeça do seu personagem.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Salvar últimos minutos</value></data>
@@ -448,8 +446,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Liga ou desliga “Manter os últimos minutos”, acima.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Backup manual</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Faz na hora um backup da partida que você está jogando.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pausar backups automáticos</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Suspende os backups automáticos por {0} minutos. Pressione de novo, ou espere os {0} minutos, para retomar. Backups na morte do personagem continuam.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Ligar/desligar backups automáticos</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Liga ou desliga “Backups automáticos” nas configurações.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Mostrar status</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Mostra acima do seu personagem o tempo até o próximo backup, o último backup e o que está sendo gravado.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Usada por outro programa.</value></data>

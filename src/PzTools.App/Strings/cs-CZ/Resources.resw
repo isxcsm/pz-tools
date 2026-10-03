@@ -511,8 +511,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="HotKeyTaken" xml:space="preserve"><value>Klávesu používá jiný program.</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Nad postavou zobrazí čas do další zálohy, poslední zálohu a co se právě zaznamenává.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Zobrazit stav</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Pozastaví automatické zálohování na {0} min. Dalším stiskem nebo po {0} min se obnoví. Zálohy při smrti postavy pokračují.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pozastavit automatické zálohování</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Zapne nebo vypne „Automatické zálohování“ v nastavení.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Zapnout/vypnout automatické zálohování</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Ihned zálohuje uloženou hru, kterou právě hrajete.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Ruční záloha</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Zapne nebo vypne výše uvedené „Uchovávat poslední minuty“.</value></data>
@@ -524,8 +524,6 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Uloží jako záznam minuty, které hra uchovala.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Uložit poslední minuty</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Fungují i ve hře. Dokud PZ Tools běží, nastavené klávesy nemohou používat jiné programy. Každá odpoví zvukem a zprávou nad hlavou vaší postavy.</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatické zálohování je pozastaveno</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>Obnovit hned</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Klávesové zkratky</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Ukončit porovnání</value></data>
   <data name="ProfileLineFormat" xml:space="preserve"><value>Řádek {0}</value></data>

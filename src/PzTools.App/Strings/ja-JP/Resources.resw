@@ -434,8 +434,6 @@
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>今日 {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>昨日 {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>名前を変更</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>自動バックアップ一時停止中</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>今すぐ再開</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>ショートカットキー</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>ゲーム中も使えます。PZ Toolsの実行中は、ここで設定したキーをほかのプログラムで使えなくなります。押すと音とキャラクターの頭上のメッセージでお知らせします。</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>直前の数分を保存</value></data>
@@ -448,8 +446,8 @@
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>上の「直前の数分を記録し続ける」をオン/オフします。</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>手動バックアップ</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>プレイ中のセーブをすぐにバックアップします。</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>自動バックアップを一時停止</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>自動バックアップを {0} 分間止めます。もう一度押すか {0} 分たつと再開します。死亡時のバックアップは続きます。</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>自動バックアップのオン/オフ</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>設定の「自動バックアップ」をオン/オフします。</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>状態を表示</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>次のバックアップまでの時間、前回のバックアップ、記録中の内容をキャラクターの頭上に表示します。</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>ほかのプログラムが使っているキーです。</value></data>

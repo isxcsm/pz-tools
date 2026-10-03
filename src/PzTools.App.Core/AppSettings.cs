@@ -389,7 +389,7 @@ public sealed class AppSettingsService
         + $"record_mode = {Quote(value.Keys.RecordMode)}{Environment.NewLine}"
         + $"rolling_toggle = {Quote(value.Keys.RollingToggle)}{Environment.NewLine}"
         + $"manual_backup = {Quote(value.Keys.ManualBackup)}{Environment.NewLine}"
-        + $"backup_pause = {Quote(value.Keys.BackupPause)}{Environment.NewLine}"
+        + $"backup_toggle = {Quote(value.Keys.BackupToggle)}{Environment.NewLine}"
         + $"status = {Quote(value.Keys.Status)}{Environment.NewLine}";
 
     private async Task EnsureLoggingConfigurationAsync(
@@ -504,7 +504,8 @@ public sealed class AppSettingsService
             RecordMode: GetString(root, "hotkeys", "record_mode", defaults.RecordMode),
             RollingToggle: GetString(root, "hotkeys", "rolling_toggle", defaults.RollingToggle),
             ManualBackup: GetString(root, "hotkeys", "manual_backup", defaults.ManualBackup),
-            BackupPause: GetString(root, "hotkeys", "backup_pause", defaults.BackupPause),
+            // The key once set to pause automatic backups now turns them on and off: it is read where it was kept.
+            BackupToggle: GetString(root, "hotkeys", "backup_toggle", GetString(root, "hotkeys", "backup_pause", defaults.BackupToggle)),
             Status: GetString(root, "hotkeys", "status", defaults.Status)).Normalized();
         var seen = new HashSet<HotKeyGesture>();
         foreach (var action in Enum.GetValues<HotKeyAction>())

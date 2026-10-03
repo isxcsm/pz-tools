@@ -104,10 +104,8 @@ public sealed partial class SchedulerDatabase
                 next_run_index INTEGER NOT NULL
             ) STRICT;
 
-            CREATE TABLE IF NOT EXISTS backup_pause(
-                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
-                until_utc TEXT NOT NULL
-            ) STRICT;
+            -- A timed pause of automatic backups is gone: the setting turns them off. A pause left behind goes too.
+            DROP TABLE IF EXISTS backup_pause;
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
 
@@ -598,61 +596,7 @@ public sealed partial class SchedulerDatabase
             Modified = true,
             SchedulerRevision = revision ?? await ReadRevisionAsync(connection, transaction, cancellationToken),
             PendingRuns = pending,
-            PausedUntilUtc = await ReadPauseAsync(connection, transaction, cancellationToken),
         };
-    }
-
-    /// <summary>
-    /// Periodic backups wait until <paramref name="until"/>: the user asked for a quiet stretch. A due backup runs when
-    /// it ends; a final backup (a character's death, the game closing) is never held.
-    /// </summary>
-    public async Task PauseBackupsAsync(DateTimeOffset until, CancellationToken cancellationToken = default)
-    {
-        await using var connection = await OpenAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
-        await using (var write = connection.CreateCommand())
-        {
-            write.Transaction = transaction;
-            write.CommandText = "INSERT INTO backup_pause VALUES(1,$until) ON CONFLICT(singleton) DO UPDATE SET until_utc=$until;";
-            write.Parameters.AddWithValue("$until", until.ToUniversalTime().ToString("O"));
-            await write.ExecuteNonQueryAsync(cancellationToken);
-        }
-        await IncrementRevisionAsync(connection, transaction, cancellationToken);
-        transaction.Commit();
-    }
-
-    public async Task ResumeBackupsAsync(CancellationToken cancellationToken = default)
-    {
-        await using var connection = await OpenAsync(cancellationToken);
-        using var transaction = connection.BeginTransaction();
-        await using (var delete = connection.CreateCommand())
-        {
-            delete.Transaction = transaction;
-            delete.CommandText = "DELETE FROM backup_pause;";
-            if (await delete.ExecuteNonQueryAsync(cancellationToken) > 0)
-                await IncrementRevisionAsync(connection, transaction, cancellationToken);
-        }
-        transaction.Commit();
-    }
-
-    /// <summary>Until when periodic backups wait, or null; a pause that has ended reads as one still (compare it to now).</summary>
-    public Task<DateTimeOffset?> ReadBackupPauseAsync(CancellationToken cancellationToken = default) =>
-        ReadAsync(async connection =>
-        {
-            using var transaction = connection.BeginTransaction(deferred: true);
-            var until = await ReadPauseAsync(connection, transaction, cancellationToken);
-            transaction.Commit();
-            return until;
-        }, cancellationToken);
-
-    private static async Task<DateTimeOffset?> ReadPauseAsync(
-        SqliteConnection connection, SqliteTransaction transaction, CancellationToken cancellationToken)
-    {
-        await using var read = connection.CreateCommand();
-        read.Transaction = transaction;
-        read.CommandText = "SELECT until_utc FROM backup_pause WHERE singleton=1;";
-        return await read.ExecuteScalarAsync(cancellationToken) is string text
-            ? DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind) : null;
     }
 
     public async Task<bool> PrepareStateTickAsync(

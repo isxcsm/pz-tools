@@ -471,16 +471,6 @@ public sealed class AppHost : IAsyncDisposable
         }
     }
 
-    /// <summary>Periodic backups wait until <paramref name="until"/>; a final backup still runs.</summary>
-    public Task PauseBackupsAsync(DateTimeOffset until, CancellationToken cancellationToken = default) =>
-        (Scheduler ?? throw new InvalidOperationException("The app host is not ready.")).PauseBackupsAsync(until, cancellationToken);
-
-    public Task ResumeBackupsAsync(CancellationToken cancellationToken = default) =>
-        (Scheduler ?? throw new InvalidOperationException("The app host is not ready.")).ResumeBackupsAsync(cancellationToken);
-
-    /// <summary>Until when periodic backups are paused, as stored now; null when they are not.</summary>
-    public Task<DateTimeOffset?> ReadBackupPauseAsync(CancellationToken cancellationToken = default) =>
-        (Scheduler ?? throw new InvalidOperationException("The app host is not ready.")).ReadBackupPauseAsync(cancellationToken);
 
     public void PublishSettings(AppSettings settings)
     {

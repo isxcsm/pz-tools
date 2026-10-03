@@ -74,7 +74,7 @@ public readonly record struct HotKeyGesture(HotKeyModifiers Modifiers, int Key)
 }
 
 /// <summary>What each hotkey does; the settings keep one combination, or none, for each.</summary>
-public enum HotKeyAction { SaveLast, Record, RecordMode, RollingToggle, ManualBackup, BackupPause, Status }
+public enum HotKeyAction { SaveLast, Record, RecordMode, RollingToggle, ManualBackup, BackupToggle, Status }
 
 /// <summary>
 /// The combinations the user gave the app's actions, as written ("Ctrl+Shift+F9"), empty for none. Only saving the
@@ -86,7 +86,7 @@ public sealed record HotKeySettings(
     string RecordMode = "",
     string RollingToggle = "",
     string ManualBackup = "",
-    string BackupPause = "",
+    string BackupToggle = "",
     string Status = "")
 {
     public string Get(HotKeyAction action) => action switch
@@ -96,7 +96,7 @@ public sealed record HotKeySettings(
         HotKeyAction.RecordMode => RecordMode,
         HotKeyAction.RollingToggle => RollingToggle,
         HotKeyAction.ManualBackup => ManualBackup,
-        HotKeyAction.BackupPause => BackupPause,
+        HotKeyAction.BackupToggle => BackupToggle,
         _ => Status,
     };
 
@@ -107,7 +107,7 @@ public sealed record HotKeySettings(
         HotKeyAction.RecordMode => this with { RecordMode = value },
         HotKeyAction.RollingToggle => this with { RollingToggle = value },
         HotKeyAction.ManualBackup => this with { ManualBackup = value },
-        HotKeyAction.BackupPause => this with { BackupPause = value },
+        HotKeyAction.BackupToggle => this with { BackupToggle = value },
         _ => this with { Status = value },
     };
 

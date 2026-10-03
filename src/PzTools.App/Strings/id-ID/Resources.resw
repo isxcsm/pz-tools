@@ -434,8 +434,6 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Hari ini {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Kemarin {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Ganti nama</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Pencadangan otomatis dijeda</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>Lanjutkan sekarang</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Tombol pintas</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Juga berfungsi di dalam game. Selama PZ Tools berjalan, tombol yang diatur di sini tidak bisa dipakai program lain. Setiap tombol menjawab dengan suara dan pesan di atas kepala karakter Anda.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Simpan menit terakhir</value></data>
@@ -448,8 +446,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Mengaktifkan atau menonaktifkan “Simpan menit-menit terakhir terus-menerus” di atas.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Pencadangan manual</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Langsung mencadangkan simpanan yang sedang dimainkan.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Jeda pencadangan otomatis</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Menahan pencadangan otomatis selama {0} menit. Tekan lagi, atau tunggu {0} menit, untuk melanjutkan. Pencadangan saat karakter mati tetap berjalan.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Aktifkan/nonaktifkan pencadangan otomatis</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Mengaktifkan atau menonaktifkan “Pencadangan otomatis” di pengaturan.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Tampilkan status</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Menampilkan waktu hingga pencadangan berikutnya, pencadangan terakhir, dan apa yang sedang direkam di atas karakter.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Dipakai program lain.</value></data>

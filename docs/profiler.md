@@ -114,10 +114,9 @@ The game has the keyboard when it stutters, so the app's actions can have keys, 
 *Settings > Hotkeys* by pressing them: save the last minutes, start or stop a recording,
 switch the next recording between Standard and Detailed (the same choice as on the page;
 one under way keeps its mode, and the note says *Next recording: Detailed*), turn the
-last minutes on or off, back up the save being played, pause automatic backups (press
-again to resume, or press *Resume now* under the countdown in the sidebar; they resume
-by themselves after 30 minutes, which the card states as set, and a backup on death is
-never held), and show the status. Only saving the last minutes has a key at
+last minutes on or off, back up the save being played, turn automatic backups on or off
+(the settings' own switch, as if flipped there: nothing turns them on again by itself),
+and show the status. Only saving the last minutes has a key at
 first, Ctrl+Shift+F9. While the app runs, Windows gives each set combination to it alone,
 so a key another program uses is refused when it is chosen, and one taken later is
 marked on its card. A letter or digit needs Ctrl or Alt with it; function keys may stand
@@ -134,8 +133,7 @@ listed and opened in the app without bringing it in front of the game.
 
 The advanced settings file (`config\app\default.toml`) holds the rest: `[profiler]`
 `general_limit_minutes` and `detailed_limit_minutes` (when a forgotten recording ends by
-itself) and `rolling_max_megabytes`; `[hotkeys]` `sounds`, `game_notices` and
-`backup_pause_minutes`.
+itself) and `rolling_max_megabytes`; `[hotkeys]` `sounds` and `game_notices`.
 
 ## What depends on the game version
 

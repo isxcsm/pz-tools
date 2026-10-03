@@ -434,8 +434,6 @@
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Сегодня {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Вчера {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Переименовать</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Автоматическое копирование приостановлено</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>Возобновить сейчас</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Горячие клавиши</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Работают и в игре. Пока PZ Tools запущен, заданные здесь клавиши недоступны другим программам. Каждая отвечает звуком и сообщением над головой вашего персонажа.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Сохранить последние минуты</value></data>
@@ -448,8 +446,8 @@
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Включает или выключает «Хранить последние минуты» выше.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Копия вручную</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Сразу создаёт копию сохранения, в которое вы играете.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Пауза автоматических копий</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Приостанавливает автоматические копии на {0} мин. Нажмите ещё раз или подождите {0} мин, и они возобновятся. Копии при смерти персонажа продолжаются.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Автоматические копии вкл./выкл.</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Включает или выключает «Автоматические копии» в настройках.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Показать состояние</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Показывает над персонажем время до следующей копии, последнюю копию и то, что сейчас записывается.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Занята другой программой.</value></data>

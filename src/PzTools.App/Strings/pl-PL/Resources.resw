@@ -434,8 +434,6 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Dziś {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Wczoraj {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Zmień nazwę</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatyczne kopie wstrzymane</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>Wznów teraz</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Skróty klawiszowe</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Działają też w grze. Gdy PZ Tools jest uruchomiony, ustawione tu klawisze nie są dostępne dla innych programów. Każdy odpowiada dźwiękiem i komunikatem nad głową postaci.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Zapisz ostatnie minuty</value></data>
@@ -448,8 +446,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Włącza lub wyłącza opcję „Zachowuj ostatnie minuty” powyżej.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Ręczna kopia</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Od razu tworzy kopię zapisu, w który grasz.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Wstrzymaj automatyczne kopie</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Wstrzymuje automatyczne kopie na {0} min. Naciśnij ponownie lub poczekaj {0} min, aby je wznowić. Kopie po śmierci postaci są nadal tworzone.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Włącz/wyłącz automatyczne kopie</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Włącza lub wyłącza opcję „Automatyczne kopie zapasowe” w ustawieniach.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Pokaż stan</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Pokazuje nad postacią czas do następnej kopii, ostatnią kopię i to, co jest nagrywane.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Używany przez inny program.</value></data>

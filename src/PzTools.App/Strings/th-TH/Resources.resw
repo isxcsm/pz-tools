@@ -441,8 +441,6 @@
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>วันนี้ {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>เมื่อวาน {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>เปลี่ยนชื่อ</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>หยุดการสำรองอัตโนมัติชั่วคราว</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>ทำต่อเลย</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>ปุ่มลัด</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>ใช้ได้ในเกมด้วย ขณะที่ PZ Tools ทำงาน ปุ่มที่ตั้งไว้ที่นี่จะใช้กับโปรแกรมอื่นไม่ได้ แต่ละปุ่มจะตอบด้วยเสียงและข้อความเหนือหัวตัวละคร</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>บันทึกนาทีล่าสุด</value></data>
@@ -455,8 +453,8 @@
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>เปิดหรือปิด “เก็บนาทีล่าสุดไว้ตลอด” ด้านบน</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>สำรองเซฟที่กำลังเล่นอยู่ทันที</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>พักการสำรองอัตโนมัติ</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>พักการสำรองอัตโนมัติ {0} นาที กดอีกครั้งหรือรอ {0} นาทีเพื่อทำต่อ การสำรองเมื่อตัวละครเสียชีวิตยังทำตามปกติ</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>เปิด/ปิดการสำรองอัตโนมัติ</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>เปิดหรือปิด “การสำรองอัตโนมัติ” ในการตั้งค่า</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>แสดงสถานะ</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>แสดงเวลาที่เหลือก่อนการสำรองครั้งถัดไป การสำรองล่าสุด และสิ่งที่กำลังบันทึกไว้เหนือตัวละคร</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>โปรแกรมอื่นใช้ปุ่มนี้อยู่</value></data>

@@ -487,8 +487,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="HotKeyTaken" xml:space="preserve"><value>Used by another program.</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Shows the time to the next backup, the last backup and what is being recorded, over your character.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Show status</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Holds automatic backups for {0} minutes. Press again, or wait the {0} minutes, and they resume. Backups on death go on.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Pause automatic backups</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Turns &quot;Automatic backups&quot; in the settings on or off.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Automatic backups on/off</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Backs up the save you are playing, right away.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Manual backup</value></data>
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Turns "Keep the last minutes" above on or off.</value></data>
@@ -500,8 +500,6 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="HotKey.SaveLast.Description" xml:space="preserve"><value>Saves the minutes the game has kept as a recording.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Save last minutes</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>They work in the game too. While PZ Tools runs, the keys set here are taken from all other programs. Each answers with a sound and a note over your character's head.</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Automatic backups paused</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>Resume now</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Hotkeys</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last minute once the game is running.</value></data>
   <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last minute…</value></data>

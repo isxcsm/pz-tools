@@ -434,8 +434,6 @@
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>今天 {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>昨天 {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>重命名</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>自动备份已暂停</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>立即恢复</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>快捷键</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>在游戏中也能使用。PZ Tools 运行期间，这里设置的键其他程序无法使用。按下后会以提示音和角色头顶的提示告知。</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>保存最近几分钟</value></data>
@@ -448,8 +446,8 @@
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>开启或关闭上方的“持续保留最近几分钟”。</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>手动备份</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>立即备份正在游玩的存档。</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>暂停自动备份</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>暂停自动备份 {0} 分钟。再按一次或 {0} 分钟后恢复。死亡时的备份照常进行。</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>开关自动备份</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>开启或关闭设置中的“自动备份”。</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>显示状态</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>在角色头顶显示距下次备份的时间、上次备份以及正在录制的内容。</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>此键已被其他程序占用。</value></data>

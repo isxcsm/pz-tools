@@ -78,9 +78,7 @@ public sealed record ScheduleStatusView(
     // Live presentation only; committed scheduler facts still control admission.
     WorldPhase GamePhase = WorldPhase.Unknown,
     // The game cannot be observed: NextDueUtc is a wall-clock backup of the files on disk.
-    bool Fallback = false,
-    // Periodic backups wait until then at the user's request; compare it to now.
-    DateTimeOffset? PausedUntilUtc = null);
+    bool Fallback = false);
 
 public sealed record SettingsView(
     string Language,

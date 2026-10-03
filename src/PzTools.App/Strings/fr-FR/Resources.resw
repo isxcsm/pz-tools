@@ -434,8 +434,6 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileWhenTodayFormat" xml:space="preserve"><value>Aujourd’hui {0}</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Hier {0}</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Renommer</value></data>
-  <data name="AutomaticBackupPausedUntil" xml:space="preserve"><value>Sauvegarde automatique en pause</value></data>
-  <data name="AutomaticBackupResume" xml:space="preserve"><value>Reprendre maintenant</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Raccourcis clavier</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>Ils fonctionnent aussi en jeu. Tant que PZ Tools est lancé, les touches définies ici ne sont plus disponibles pour les autres programmes. Chacune répond par un son et un message au-dessus de la tête de votre personnage.</value></data>
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Enregistrer les dernières minutes</value></data>
@@ -448,8 +446,8 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="HotKey.RollingToggle.Description" xml:space="preserve"><value>Active ou désactive « Garder les dernières minutes » ci-dessus.</value></data>
   <data name="HotKey.ManualBackup.Header" xml:space="preserve"><value>Sauvegarde manuelle</value></data>
   <data name="HotKey.ManualBackup.Description" xml:space="preserve"><value>Sauvegarde immédiatement la partie en cours.</value></data>
-  <data name="HotKey.BackupPause.Header" xml:space="preserve"><value>Suspendre les sauvegardes automatiques</value></data>
-  <data name="HotKey.BackupPause.Description" xml:space="preserve"><value>Suspend les sauvegardes automatiques pendant {0} minutes. Appuyez de nouveau, ou attendez les {0} minutes, pour les reprendre. Les sauvegardes à la mort du personnage continuent.</value></data>
+  <data name="HotKey.BackupToggle.Header" xml:space="preserve"><value>Activer/désactiver les sauvegardes auto</value></data>
+  <data name="HotKey.BackupToggle.Description" xml:space="preserve"><value>Active ou désactive « Sauvegardes automatiques » dans les paramètres.</value></data>
   <data name="HotKey.Status.Header" xml:space="preserve"><value>Afficher l’état</value></data>
   <data name="HotKey.Status.Description" xml:space="preserve"><value>Affiche au-dessus de votre personnage le temps avant la prochaine sauvegarde, la dernière sauvegarde et ce qui est en cours d’enregistrement.</value></data>
   <data name="HotKeyTaken" xml:space="preserve"><value>Utilisée par un autre programme.</value></data>
