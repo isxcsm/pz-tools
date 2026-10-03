@@ -16,6 +16,8 @@ public sealed partial class GameSaveClientTests
         await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         await using var watch = new RuntimeWatchCapture(game.Pid);
         var first = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
+        // The memory the game was started with comes with each state.
+        Assert.True(first.HeapMaximumMegabytes > 0, $"heap: {first.HeapMaximumMegabytes}");
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
         await File.WriteAllTextAsync(temp.GetPath("pause-game"), "pause");
         var paused = await watch.WaitAsync(s => s.Pause == GamePause.Paused);
