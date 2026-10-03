@@ -407,6 +407,8 @@
   <data name="ProfileColumnDetail" xml:space="preserve"><value>详情</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>打开录制文件…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>另存为…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>保存所选范围</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>已将所选范围保存为新记录：{0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>更多</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>脚本 (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>游戏代码 (Java)</value></data>

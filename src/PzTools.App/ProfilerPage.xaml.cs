@@ -112,6 +112,7 @@ public sealed partial class ProfilerPage : UserControl
         AppToolTip.SetTip(RecordButton, Localizer.Get("ProfileModeTip"));
         ImportItem.Text = Localizer.Get("ProfileImport");
         SaveAsItem.Text = Localizer.Get("ProfileSaveAs");
+        SaveRangeItem.Text = Localizer.Get("ProfileSaveRange");
         OpenFolderItem.Text = Localizer.Get("AdvancedFiles.OpenFolder");
         AppToolTip.SetTip(DeleteButton, Localizer.Get("DeleteAction"));
         AutomationProperties.SetName(DeleteButton, Localizer.Get("DeleteAction"));
@@ -656,6 +657,48 @@ public sealed partial class ProfilerPage : UserControl
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
+    }
+
+    // Only with a range selected in the recording shown, and one at a time.
+    private void MoreMenu_Opening(object sender, object e) =>
+        SaveRangeItem.IsEnabled = !savingRange && recording is not null && selectionStart is not null && selectionEnd is not null
+            && RecordingList.SelectedItem is RecordingItem item && item.File.Path.Equals(loadedPath, StringComparison.OrdinalIgnoreCase);
+
+    private bool savingRange;
+
+    /// <summary>
+    /// The selected range as a recording of its own, named after this one and the range as the line above the graph
+    /// gives it: "mod A added (12.30–20.50 s)". It joins the list and the recordings to compare with; this one stays
+    /// shown, as the next range to compare is usually picked here.
+    /// </summary>
+    private async void SaveRangeItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (service is not { } profiles || recording is not { } loaded || loadedPath is not { } source
+            || selectionStart is not { } first || selectionEnd is not { } last || savingRange) return;
+        var start = Math.Max(0, Math.Min(first, last));
+        var end = Math.Min(loaded.Duration, Math.Max(first, last));
+        if (end <= start) return;
+        var range = $" ({SecondsNumber(start)}–{Seconds(end)})";
+        var name = System.IO.Path.GetFileNameWithoutExtension(source);
+        // The range is the part a name too long for a file must not lose.
+        name = name[..Math.Min(name.Length, Math.Max(1, 80 - range.Length))] + range;
+        savingRange = true;
+        try
+        {
+            var saved = await Task.Run(() => profiles.SaveRange(source, loaded, start, end, name));
+            RefreshList((RecordingList.SelectedItem as RecordingItem)?.File.Path ?? loadedPath);
+            App.ShowSidebarNotification(InfoBarSeverity.Success, Localizer.Get("ProfilerNavigation"),
+                Localizer.Format("ProfileRangeSavedFormat", System.IO.Path.GetFileNameWithoutExtension(saved)));
+        }
+        catch (Exception exception) when (exception is InvalidDataException or FormatException or EndOfStreamException)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileLoadFailed"));
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+        }
+        finally { savingRange = false; }
     }
 
     private void OpenFolderItem_Click(object sender, RoutedEventArgs e)

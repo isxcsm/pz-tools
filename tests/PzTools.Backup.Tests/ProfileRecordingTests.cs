@@ -455,6 +455,147 @@ public sealed class ProfileRecordingTests
         Assert.Equal(key, PzTools.App.Core.ProfileRecordingService.ErrorKey(code));
     }
 
+    /// <summary>
+    /// Twenty seconds of a recording whose samples came slower than asked (Java every 12 ms of a 10 ms request, the Lua
+    /// sampler's ticks 12.5 ms apart), on times that start late, with memory, collections, pauses and allocations.
+    /// </summary>
+    private static string LongRecording()
+    {
+        const long raw = 5_000_000;
+        var lines = new List<string>
+        {
+            "PZPROF|1", "I|mode|general", "I|endedBy|rolling", "I|durationMicros|20000000",
+            "M|0|zombie.GameWindow.logic", "M|1|zombie.iso.IsoCell.update", "M|2|se.krka.kahlua.vm.KahluaThread.luaMainloop",
+            "M|3|org.lwjgl.opengl.GL11.glDrawArrays", "K|0|1 0", "K|1|2 0", "K|2|3",
+            "LM|0|slow|workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua", "LM|1|OnTick|media/lua/client/ISUI/ISGame.lua",
+            "LK|0|0:12 1:80", "LK|1|1:81",
+        };
+        for (long time = 0, index = 0; time < 20_000_000; time += 20_000, index++)
+            lines.Add($"F|{raw + time}|{15_000 + index % 7 * 1_000}");
+        // A third of the game thread's samples in Lua, the rest in the game's own update.
+        for (long time = 0, index = 0; time < 20_000_000; time += 12_000, index++)
+        {
+            var stack = index % 3 == 0 ? 1 : 0;
+            lines.Add($"S|{raw + time}|7|{stack}|J");
+        }
+        for (long time = 3_000; time < 20_000_000; time += 25_000) lines.Add($"S|{raw + time}|9|2|N");
+        for (long time = 1_000, index = 0; time < 20_000_000; time += 37_500, index++)
+        {
+            var stack = index % 4 == 0 ? 1 : 0;
+            lines.Add($"L|{raw + time}|{stack}");
+            lines.Add($"LA|{raw + time}|{1_000 + index % 5 * 100}");
+        }
+        for (long second = 0; second <= 20; second++)
+        {
+            lines.Add($"LH|{raw + second * 1_000_000}|80|27|10000");
+            lines.Add($"GA|{raw + second * 1_000_000}|{5_000_000 + second}");
+        }
+        for (long time = 0; time < 20_000_000; time += 250_000) lines.Add($"H|{raw + time}|{400_000_000 + time}|800000000|900000000");
+        for (long time = 0; time < 20_000_000; time += 500_000) lines.Add($"V|{raw + time}|{100_000_000 + time}|5000");
+        for (long time = 400_000; time < 20_000_000; time += 1_300_000)
+        {
+            lines.Add($"G|{raw + time}|{2_500 + time % 3_000}|ZGC Minor|Allocation Rate");
+            lines.Add($"P|{raw + time + 700}|{1_500 + time % 900}|GCPhasePause|-1|Pause Mark Start");
+        }
+        lines.AddRange(["T|7|main", "T|9|Render", "I|gameThread|7", "I|javaPeriodMicros|10000", "I|nativePeriodMicros|20000",
+            "I|startEpochMillis|1790000000000"]);
+        return string.Join('\n', lines);
+    }
+
+    // What a range shows, in numbers: the analysis of either thread choice, the frames, collections and memory.
+    private static string Figures(ProfileRecording recording, long start, long end)
+    {
+        static string Rows(IEnumerable<ProfileShare> rows) =>
+            string.Join(";", rows.Select(row => $"{row.Name}={row.Self:0.000000}/{row.Total:0.000000}/{row.Samples}"));
+        var text = new StringBuilder();
+        foreach (var thread in new[] { recording.GameThread, -1 })
+        {
+            var range = ProfileAnalysis.Analyze(recording, start, end, thread);
+            text.AppendLine($"{range.Frames} {range.Samples} {range.WaitingSamples} {range.RunningShare:0.000000} {range.LuaShare:0.000000} {range.LuaSamples}");
+            text.AppendLine(Rows(range.Methods));
+            text.AppendLine(string.Join("|", range.MethodGroups.Select(group => $"{group.Key}:{group.Self:0.000000}:{Rows(group.Rows)}")));
+            text.AppendLine(Rows(range.Threads));
+            text.AppendLine(Rows(range.LuaFunctions) + " " + Rows(range.LuaOwners));
+            text.AppendLine(string.Join("|", range.LuaGroups.Select(group => $"{group.Key}:{group.Self:0.000000}:{Rows(group.Rows)}")));
+            text.AppendLine($"{range.Collections} {range.CollectionPauseMilliseconds:0.000} {range.LuaAllocated} {range.GameThreadAllocated}");
+            text.AppendLine(string.Join(";", range.LongestPauses.Select(pause => $"{pause.Time - start}/{pause.Duration}/{pause.Kind}")));
+            text.AppendLine(string.Join("|", range.LuaAllocationGroups.Select(group => $"{group.Key}:{group.Self}:{group.Samples}")));
+        }
+        text.AppendLine(ProfileAnalysis.MemoryPeaksIn(recording, start, end).ToString());
+        return text.ToString();
+    }
+
+    [Theory]
+    [InlineData(2_000_000, 9_000_000)]
+    // A third of a second: too short to measure what a sample stands for again.
+    [InlineData(3_210_000, 3_530_000)]
+    [InlineData(0, 20_000_000)]
+    public void SavedRange_ShowsWhatTheRangeShowedInItsRecording(long start, long end)
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("whole.pzprof");
+        File.WriteAllBytes(source, Compress(LongRecording()));
+        var whole = ProfileRecording.Load(source);
+        var target = temp.GetPath("part.pzprof");
+        ProfileTrim.Save(whole, source, target, start, end);
+        var part = ProfileRecording.Load(target);
+
+        end = Math.Min(end, whole.Duration);
+        Assert.Equal(end - start, part.Duration);
+        Assert.Equal((whole.JavaPeriod, whole.NativePeriod, whole.LuaPeriod), (part.JavaPeriod, part.NativePeriod, part.LuaPeriod));
+        // The figures are the range's, as its own recording.
+        Assert.Equal(Figures(whole, start, end), Figures(part, 0, part.Duration));
+        // And a range of the range is the same range of the whole.
+        Assert.Equal(Figures(whole, start + 100_000, start + 200_000), Figures(part, 100_000, 200_000));
+        // Listed as a recording of its length, not as the game's last minutes; the tables came along whole.
+        var summary = ProfileRecording.ReadSummary(target);
+        Assert.Equal(new ProfileRecordingSummary(false, false, end - start), summary);
+        Assert.Equal(whole.Methods, part.Methods);
+        Assert.Equal(whole.StartedUtc, part.StartedUtc);
+        Assert.False(File.Exists(target + ".tmp"));
+    }
+
+    [Fact]
+    public void SavedRange_IsMeasuredLikeAnyOtherRecording_ByAnOlderReader()
+    {
+        // A reader that predates saved ranges skips the lines that say what it is, and still reads the samples kept.
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("whole.pzprof");
+        File.WriteAllBytes(source, Compress(LongRecording()));
+        var whole = ProfileRecording.Load(source);
+        ProfileTrim.Save(whole, source, temp.GetPath("part.pzprof"), 2_000_000, 9_000_000);
+        using var file = File.OpenRead(temp.GetPath("part.pzprof"));
+        using var gzip = new GZipStream(file, CompressionMode.Decompress);
+        var text = new StreamReader(gzip).ReadToEnd();
+        var older = Load(string.Join('\n', text.Split('\n').Where(line => !line.Contains("rangeFromMicros") && !line.Contains("rangeToMicros")
+            && !line.Contains("EffectiveMicros"))).Replace('\t', '|'));
+        // Its span is then what it kept, within a frame of the range.
+        Assert.InRange(older.Duration, 6_950_000, 7_050_000);
+        Assert.Equal(ProfileAnalysis.Analyze(whole, 2_000_000, 9_000_000, 0).Samples, ProfileAnalysis.Analyze(older, 0, older.Duration + 1, 0).Samples);
+    }
+
+    [Fact]
+    public async Task SavedRange_JoinsTheRecordings_UnderItsOwnName()
+    {
+        using var temp = new TempDirectory();
+        var service = new PzTools.App.Core.ProfileRecordingService(temp.GetPath("profiles"), () => null);
+        Directory.CreateDirectory(service.Directory);
+        var path = Path.Combine(service.Directory, "mod A.pzprof");
+        await File.WriteAllBytesAsync(path, Compress(LongRecording()));
+        var whole = ProfileRecording.Load(path);
+
+        var saved = service.SaveRange(path, whole, 1_000_000, 3_000_000, "mod A (1–3 s)");
+        Assert.Equal(Path.Combine(service.Directory, "mod A (1–3 s).pzprof"), saved);
+        Assert.Equal(Path.Combine(service.Directory, "mod A (1–3 s) (2).pzprof"),
+            service.SaveRange(path, whole, 1_000_000, 3_000_000, "mod A (1–3 s)"));
+        Assert.True(await service.FillSummariesAsync());
+        Assert.Equal(2_000_000, service.List().Single(file => file.Path == saved).Summary!.DurationMicros);
+        // A range of nothing, or of a recording outside the folder, is refused and leaves nothing behind.
+        Assert.Throws<ArgumentException>(() => service.SaveRange(path, whole, 3_000_000, 3_000_000, "empty"));
+        Assert.Throws<ArgumentException>(() => service.SaveRange(temp.GetPath("elsewhere.pzprof"), whole, 0, 1, "x"));
+        Assert.Equal(3, Directory.GetFiles(service.Directory).Length);
+    }
+
     private static void WriteRecording(string path, string text)
     {
         using var file = File.Create(path);

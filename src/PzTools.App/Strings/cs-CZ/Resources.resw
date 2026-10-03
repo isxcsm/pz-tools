@@ -532,6 +532,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileMoreActions" xml:space="preserve"><value>Další</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Otevřít záznam…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Uložit jako…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Uložit výběr</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Výběr uložen jako nový záznam: {0}</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Záznam nelze otevřít. Je poškozený nebo z novější verze.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Zatím žádné záznamy.</value></data>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Smazat tento záznam? Tuto akci nelze vrátit zpět.</value></data>

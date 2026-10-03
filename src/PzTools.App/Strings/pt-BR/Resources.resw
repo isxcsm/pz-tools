@@ -407,6 +407,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileColumnDetail" xml:space="preserve"><value>Detalhes</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Abrir gravação…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Salvar como…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Salvar seleção</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Seleção salva como nova gravação: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Mais</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Scripts (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Código do jogo (Java)</value></data>

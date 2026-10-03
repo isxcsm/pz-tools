@@ -407,6 +407,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileColumnDetail" xml:space="preserve"><value>Detail</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Buka rekaman…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Simpan sebagai…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Simpan pilihan</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Pilihan disimpan sebagai rekaman baru: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Lainnya</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skrip (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kode game (Java)</value></data>

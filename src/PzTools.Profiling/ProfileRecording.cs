@@ -60,6 +60,8 @@ public sealed class ProfileRecording
     /// <summary>The game thread's allocations, about once a second; empty without them.</summary>
     public IReadOnlyList<ProfileAllocationReading> GameThreadAllocations { get; init; } = [];
     public required long Duration { get; init; }
+    /// <summary>Where time 0 lies in the file's own times, which the reader rebases.</summary>
+    internal long Origin { get; init; }
     public required long JavaPeriod { get; init; }
     public required long NativePeriod { get; init; }
     /// <summary>Microseconds between Lua samples; 0 when Lua was not sampled.</summary>
@@ -180,6 +182,12 @@ public sealed class ProfileRecording
         foreach (var item in frames) origin = Math.Min(origin, item.Start);
         foreach (var item in luaSamples) origin = Math.Min(origin, item.Time);
         if (origin == long.MaxValue) origin = 0;
+        // A range saved from a longer recording (see ProfileTrim) spans exactly that range, not what it kept of it.
+        long? rangeEnd = null;
+        if (long.TryParse(information.GetValueOrDefault(ProfileTrim.FromKey), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var from)
+            && long.TryParse(information.GetValueOrDefault(ProfileTrim.ToKey), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var to)
+            && to > from)
+            (origin, rangeEnd) = (from, to - from);
 
         // A pause that belongs to no Java thread (a collector pause) carries -1.
         var threadIds = threadNames.Keys.Concat(samples.Select(item => item.Thread))
@@ -220,12 +228,18 @@ public sealed class ProfileRecording
         if (orderedSamples.Length > 0) end = Math.Max(end, orderedSamples[^1].Time);
         if (orderedFrames.Length > 0) end = Math.Max(end, orderedFrames[^1].Start + orderedFrames[^1].Duration);
         if (orderedLua.Length > 0) end = Math.Max(end, orderedLua[^1].Time);
+        if (rangeEnd is { } span) end = span;
 
         long Setting(string key, long fallback) =>
             long.TryParse(information.GetValueOrDefault(key), NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value > 0 ? value : fallback;
         var detailed = information.GetValueOrDefault("mode") == "detailed";
+        // A saved range keeps what a sample stood for in the whole recording: measured again from a few seconds, its
+        // figures would not be the ones the range showed there.
+        long pinnedJava = Setting(ProfileTrim.JavaPeriodKey, 0), pinnedNative = Setting(ProfileTrim.NativePeriodKey, 0),
+            pinnedLua = Setting(ProfileTrim.LuaPeriodKey, 0);
         return new ProfileRecording
         {
+            Origin = origin,
             Information = information,
             Threads = threads,
             GameThread = long.TryParse(information.GetValueOrDefault("gameThread"), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var game)
@@ -249,9 +263,11 @@ public sealed class ProfileRecording
             HasLuaAllocations = luaAllocations.Count > 0,
             GameThreadAllocations = gameAllocations.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Duration = end,
-            JavaPeriod = EffectivePeriod(orderedSamples, threads.Length, false, Setting("javaPeriodMicros", detailed ? 1_000 : 10_000)),
-            NativePeriod = EffectivePeriod(orderedSamples, threads.Length, true, Setting("nativePeriodMicros", detailed ? 10_000 : 20_000)),
-            LuaPeriod = EffectiveLuaPeriod(luaReports, luaPeriod),
+            JavaPeriod = pinnedJava > 0 ? pinnedJava
+                : EffectivePeriod(orderedSamples, threads.Length, false, Setting("javaPeriodMicros", detailed ? 1_000 : 10_000)),
+            NativePeriod = pinnedNative > 0 ? pinnedNative
+                : EffectivePeriod(orderedSamples, threads.Length, true, Setting("nativePeriodMicros", detailed ? 10_000 : 20_000)),
+            LuaPeriod = pinnedLua > 0 ? pinnedLua : EffectiveLuaPeriod(luaReports, luaPeriod),
         };
     }
 

@@ -407,6 +407,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileColumnDetail" xml:space="preserve"><value>Szczegóły</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Otwórz nagranie…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Zapisz jako…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Zapisz zaznaczenie</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Zapisano zaznaczenie jako nowe nagranie: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Więcej</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Skrypty (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Kod gry (Java)</value></data>

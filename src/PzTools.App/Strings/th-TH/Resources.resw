@@ -414,6 +414,8 @@
   <data name="ProfileColumnDetail" xml:space="preserve"><value>รายละเอียด</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>เปิดไฟล์บันทึก…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>บันทึกเป็น…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>บันทึกช่วงที่เลือก</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>บันทึกช่วงที่เลือกเป็นการบันทึกใหม่แล้ว: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>เพิ่มเติม</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>สคริปต์ (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>โค้ดเกม (Java)</value></data>

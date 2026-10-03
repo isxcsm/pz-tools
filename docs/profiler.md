@@ -180,7 +180,8 @@ line holds making a recording, at its right: **Save last 2 min** and **Start rec
 whose arrow chooses Standard or Detailed (the button names Detailed while it is chosen;
 a key set for a button is in its tip). The next line is the recording shown: its name,
 a pencil to rename it, a bin to delete it (after asking), *Compare with*, and a **…**
-menu with *Open recording*, *Save as* and *Open folder*. In a narrow window the
+menu with *Open recording*, *Save as*, *Save selection* (while a range is selected) and
+*Open folder*. In a narrow window the
 recording tools move below the title and the buttons keep their icons alone, their names
 as tips. What the recording is doing appears under these lines only while a recording
 starts, runs or is being processed.
@@ -324,6 +325,7 @@ updated, still matches. In the tree a row is matched by its whole path; a path t
 recording never took counts as all gain. *Memory allocation* is not compared, as its bytes
 depend on how long each recording ran. The comparison stays while other recordings and
 ranges are shown; press the ✕ beside the button, or choose *Stop comparing*, to end it.
+To compare with a part of a recording only, save that part first with *Save selection*.
 
 Tree and list count the same samples, those that ended in the chosen owner's functions,
 and their percentages are parts of the owner, the owner being 100%: the question there is
@@ -446,6 +448,16 @@ automatic one, which stays known as automatic.
 *Open recording* copies a `.pzprof` file from elsewhere into that folder, keeping its
 time, and lists it with the others; a file that is not a readable recording is refused
 and nothing is copied. *Save as* copies the selected recording to a place you choose.
+*Save selection* saves the range selected on the graph as a recording of its own beside the
+others, named after this one and the range: *mod A added (12.30–20.50 s)*. It shows the
+very figures the range showed: its records are the source's, those outside the range left
+out by the rules the analysis counts a range by (a collection or pause that reaches into it
+stays, as do the allocation readings either side of it), and it says which range it is and
+what a sample stood for in the whole, which a few seconds would not measure again. It is
+then a recording to compare with, so a clean stretch can be the baseline, or the first half
+of a recording compared with its second; and a short file to pass on. The recording shown
+stays shown. A version from before this reads such a file too, measuring its span and
+periods from what it holds, so its figures may differ slightly for a very short range.
 Recordings are not written to the log or telemetry databases; those only receive the
 start, finish and failure of a recording, which is what the operation card and the log
 page show.

@@ -464,16 +464,41 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         var target = System.IO.Path.Combine(Directory, clean + ProfileRecording.Extension);
         if (string.Equals(target, full, StringComparison.Ordinal)) return full;
         // Only the letters' case differs: the same file, renamed in place.
-        if (!string.Equals(target, full, StringComparison.OrdinalIgnoreCase))
-            for (var suffix = 2; File.Exists(target) || IsReserved(target); suffix++)
-                target = System.IO.Path.Combine(Directory, automatic ? $"{clean}-{suffix}{ProfileRecording.Extension}"
-                    : $"{clean} ({suffix}){ProfileRecording.Extension}");
+        if (!string.Equals(target, full, StringComparison.OrdinalIgnoreCase)) target = Available(clean, automatic);
         var index = Summaries();
         var summary = index.Find(new FileInfo(full));
         File.Move(full, target);
         index.Remove(System.IO.Path.GetFileName(full));
         if (summary is not null) index.Set(new FileInfo(target), summary);
         index.Save(SummaryIndexPath);
+        return target;
+    }
+
+    // The name's file, or, when taken, the name with the first number free.
+    private string Available(string clean, bool automatic)
+    {
+        var target = System.IO.Path.Combine(Directory, clean + ProfileRecording.Extension);
+        for (var suffix = 2; File.Exists(target) || IsReserved(target); suffix++)
+            target = System.IO.Path.Combine(Directory, automatic ? $"{clean}-{suffix}{ProfileRecording.Extension}"
+                : $"{clean} ({suffix}){ProfileRecording.Extension}");
+        return target;
+    }
+
+    /// <summary>
+    /// Saves a range of a listed recording, read from it as <paramref name="recording"/>, as a recording of its own
+    /// named <paramref name="name"/> (with a number when taken), and returns where. See <see cref="ProfileTrim"/>.
+    /// </summary>
+    public string SaveRange(string path, ProfileRecording recording, long start, long end, string name,
+        CancellationToken cancellationToken = default)
+    {
+        var full = System.IO.Path.GetFullPath(path);
+        if (!string.Equals(System.IO.Path.GetDirectoryName(full), Directory, StringComparison.OrdinalIgnoreCase)
+            || !full.EndsWith(ProfileRecording.Extension, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+            throw new ArgumentException("Not a recording in the recordings folder.", nameof(path));
+        var clean = CleanName(name);
+        if (clean.Length == 0) clean = "profile-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var target = Available(clean, IsAutomaticName(clean));
+        ProfileTrim.Save(recording, full, target, start, end, cancellationToken);
         return target;
     }
 

@@ -407,6 +407,8 @@
   <data name="ProfileColumnDetail" xml:space="preserve"><value>Подробиці</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Відкрити запис…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Зберегти як…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Зберегти виділення</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Виділення збережено як новий запис: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Більше</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Скрипти (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Код гри (Java)</value></data>

@@ -407,6 +407,8 @@
   <data name="ProfileColumnDetail" xml:space="preserve"><value>内容</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>記録を開く…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>名前を付けて保存…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>選択範囲を保存</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>選択範囲を新しい記録として保存しました: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>その他</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>スクリプト (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>ゲームコード (Java)</value></data>

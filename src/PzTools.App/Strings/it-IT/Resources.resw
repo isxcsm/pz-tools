@@ -407,6 +407,8 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileColumnDetail" xml:space="preserve"><value>Dettagli</value></data>
   <data name="ProfileImport" xml:space="preserve"><value>Apri registrazione…</value></data>
   <data name="ProfileSaveAs" xml:space="preserve"><value>Salva con nome…</value></data>
+  <data name="ProfileSaveRange" xml:space="preserve"><value>Salva selezione</value></data>
+  <data name="ProfileRangeSavedFormat" xml:space="preserve"><value>Selezione salvata come nuova registrazione: {0}</value></data>
   <data name="ProfileMoreActions" xml:space="preserve"><value>Altro</value></data>
   <data name="ProfileTabLua" xml:space="preserve"><value>Script (Lua)</value></data>
   <data name="ProfileTabJava" xml:space="preserve"><value>Codice del gioco (Java)</value></data>
