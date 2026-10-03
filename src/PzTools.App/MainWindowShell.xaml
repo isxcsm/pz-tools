@@ -177,6 +177,9 @@
              happened in its title, then at most one line and one action. -->
         <StackPanel x:Name="InteractiveCards" Spacing="6" Visibility="Collapsed">
           <!-- Each in the shape every attention card shares (AttentionCard); the shell sets the words and when they show. -->
+          <!-- The app folder is not as published (a release extracted over the one running): first, as nothing else can
+               be trusted while it is so. -->
+          <local:AttentionCard x:Name="InstallCard" Visibility="Collapsed" Closed="InstallClose_Click" Action="InstallOpen_Click" />
           <!-- Part of the saves page that could not be read for a while; it is tried again on its own. -->
           <local:AttentionCard x:Name="LoadFailureCard" Visibility="Collapsed" Closed="LoadFailureClose_Click" />
           <local:AttentionCard x:Name="ComponentBlockedCard" Visibility="Collapsed"

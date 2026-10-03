@@ -741,4 +741,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Podczas nagrania zatrzymana {0} razy z braku pamięci</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Pamięć prawie pełna podczas nagrania</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>teraz ustawiono {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Pliki PZ Tools nie są kompletne</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Rozpakuj pobrany plik ZIP ponownie do pustego folderu.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Otwórz stronę pobierania</value></data>
 </root>

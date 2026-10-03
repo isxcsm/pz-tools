@@ -56,7 +56,8 @@ finally {
 
 Write-Host '== Packaging'
 $archive = Join-Path $releaseDirectory "PzTools-v$version-win-x64.zip"
-& (Join-Path $PSScriptRoot 'package-release.ps1') -PublishDirectory $app -OutputArchive $archive
+# The ZIP's folder is named for the version: a new release extracts beside the old one, never over it.
+& (Join-Path $PSScriptRoot 'package-release.ps1') -PublishDirectory $app -OutputArchive $archive -RootFolder "PzTools-v$version"
 
 Write-Host ''
 Write-Host "PZ Tools $version from commit $commit"

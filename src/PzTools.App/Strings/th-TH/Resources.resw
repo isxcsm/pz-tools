@@ -748,4 +748,7 @@
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>ตอนบันทึกหยุดเพราะหน่วยความจำไม่พอ {0} ครั้ง</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>ตอนบันทึกหน่วยความจำใกล้เต็ม</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>ตอนนี้ตั้งเป็น {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>ไฟล์ของ PZ Tools ไม่ครบถ้วน</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>แตก ZIP ที่ดาวน์โหลดมาใหม่ลงในโฟลเดอร์ว่าง</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>เปิดหน้าดาวน์โหลด</value></data>
 </root>

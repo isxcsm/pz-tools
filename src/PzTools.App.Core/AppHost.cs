@@ -555,7 +555,8 @@ public sealed class AppHost : IAsyncDisposable
     /// in the logs. Its card expires; the log entry and the unread badge stay until the user has seen them.
     /// Never throws: a failed log write must not turn one failure into two.
     /// </summary>
-    public void RecordActionIssue(string title, string message, bool failed)
+    /// <param name="diagnostics">Technical detail for the log's copied details (file names, codes); not shown as the message.</param>
+    public void RecordActionIssue(string title, string message, bool failed, string? diagnostics = null)
     {
         if (LogInbox is not { } inbox) return;
         var id = Guid.NewGuid();
@@ -567,6 +568,7 @@ public sealed class AppHost : IAsyncDisposable
                 outcome = failed ? "Failed" : "Degraded",
                 title,
                 message,
+                diagnostics,
             }));
         _ = Task.Run(async () =>
         {

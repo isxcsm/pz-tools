@@ -741,4 +741,7 @@
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>录制时因内存不足停顿 {0} 次</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>录制时内存几乎已满</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>现已设为 {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools 文件不完整</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>请将下载的 ZIP 重新解压到一个空文件夹。</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>打开下载页面</value></data>
 </root>

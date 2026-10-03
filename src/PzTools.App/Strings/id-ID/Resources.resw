@@ -741,4 +741,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Saat direkam berhenti {0} kali karena kekurangan memori</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memori hampir penuh saat direkam</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>kini diatur ke {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Berkas PZ Tools tidak utuh</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Ekstrak lagi ZIP yang diunduh ke folder kosong.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Buka halaman unduhan</value></data>
 </root>

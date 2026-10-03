@@ -741,4 +741,7 @@
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>録画時にメモリ不足で {0} 回停止</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>録画時はメモリがほぼいっぱい</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>現在は {0} に設定</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools のファイルが正しくありません</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>ダウンロードした ZIP を空のフォルダーに展開し直してください。</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>ダウンロードページを開く</value></data>
 </root>

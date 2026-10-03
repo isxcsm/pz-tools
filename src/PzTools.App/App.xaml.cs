@@ -157,6 +157,31 @@ public partial class App : Application
         _ = StartHostAsync();
         _ = CheckForUpdatesAsync(updateLoop.Token);
         _ = WatchGameMemoryAsync(updateLoop.Token);
+        _ = CheckInstallAsync(updateLoop.Token);
+    }
+
+    /// <summary>What is wrong with the app folder, once checked; none while it is whole or unchecked.</summary>
+    internal InstallProblem? InstallProblem { get; private set; }
+
+    // The app folder against the list of files it was published with, a little after the start, on a background thread
+    // (the first start of a release reads every file once). A folder that is not whole says so on a card, and the
+    // files go to the log.
+    private async Task CheckInstallAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(8), cancellationToken);
+            var root = runtimeRoot ?? throw new InvalidOperationException("No data folder.");
+            var problem = await Task.Run(() => InstallIntegrity.Check(AppContext.BaseDirectory,
+                Path.Combine(root, "install-check.json"), cancellationToken), cancellationToken);
+            if (problem is null) return;
+            InstallProblem = problem;
+            Host?.RecordActionIssue(Localizer.Get("InstallBrokenTitle"), Localizer.Get("InstallBrokenMessage"), failed: true,
+                diagnostics: problem.Describe());
+            window?.DispatcherQueue.TryEnqueue(() => (window?.Content as MainWindowShell)?.ApplyInstallProblem());
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }
     }
 
     // The game's file is read soon after the start and then every two minutes: a game update that puts its own memory

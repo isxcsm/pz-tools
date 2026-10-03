@@ -26,7 +26,19 @@ or next to archives you import. Development runs use the same layout for app dat
   PzTools.App.exe and worker executables
   defaults\<component>\default.toml    # read-only packaged defaults
   game-bridge\                         # the game bridge, its attach runtime, extensions
-```
+  pztools-files.txt                    # every file above, with its size and SHA-256
+``
+
+**Checking the folder.** A release lists its files in `pztools-files.txt`. A little after
+each start the app checks its folder against it, in the background: when the list is new to
+the folder (the first start of a release, or a release extracted over it) every file is read
+and hashed once; after that only missing files and sizes are looked at. A folder that is not
+whole (usually a release extracted over the one running, whose files in use kept the old
+version) shows a card, *PZ Tools files are not intact*, asking for the ZIP to be extracted
+again into an empty folder, with the download page one click away; the files are named in
+the log entry's details. Files the list does not name, such as ones left from an older release,
+are not reported: nothing the app runs loads a file only because it is in its folder. A
+development build has no list and is not checked.`
 
 If the app folder's path has letters outside ASCII (a Korean folder name, say), two small
 files of the bridge are also copied to `%TEMP%\PzTools\attach\` (or, if that path is not
@@ -43,6 +55,7 @@ The packaged defaults are the starting point for each
 %LOCALAPPDATA%\PzTools\
   settings.toml                       # choices saved from the app
   update.json                         # what the last update check found
+  install-check.json                  # the app folder last found whole, and its file list
   game-memory.json                    # the game memory chosen, and the game's own from before
   game-memory-original.json           # the game's launcher file as shipped, kept at the first change
   config\<component>\default.toml     # editable component settings

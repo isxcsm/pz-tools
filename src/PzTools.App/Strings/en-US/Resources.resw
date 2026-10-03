@@ -740,4 +740,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Stopped {0} times for lack of memory when recorded</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memory nearly full when recorded</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>now set to {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools files are not intact</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Extract the downloaded ZIP again into an empty folder.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Open download page</value></data>
 </root>

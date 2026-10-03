@@ -741,4 +741,7 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Arrêté {0} fois par manque de mémoire lors de l’enregistrement</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Mémoire presque pleine lors de l’enregistrement</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>désormais réglée sur {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Les fichiers de PZ Tools ne sont pas intacts</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Extrayez à nouveau le ZIP téléchargé dans un dossier vide.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Ouvrir la page de téléchargement</value></data>
 </root>

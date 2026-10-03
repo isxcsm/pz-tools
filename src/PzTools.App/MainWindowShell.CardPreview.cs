@@ -16,6 +16,7 @@ public sealed partial class MainWindowShell
     /// <summary>Each card that can be previewed, by key, with the name the settings list it under.</summary>
     internal static IReadOnlyList<(string Key, string Name)> CardPreviews { get; } =
     [
+        ("install", "앱 파일이 온전하지 않음"),
         ("blocked", "Windows 보안 차단"),
         ("game-link", "게임 연결 끊김"),
         ("game-restart", "게임 다시 시작 필요"),
@@ -59,6 +60,11 @@ public sealed partial class MainWindowShell
                 ]);
                 ApplyProjectorHealth();
                 break;
+            case "install":
+                previewInstallProblem = true;
+                installDismissed = false;
+                ApplyInstallProblem();
+                break;
             case "game-memory":
                 previewGameMemory = new GameMemoryState(GameMemoryStatus.Reverted, null, 3072, 3072, 8192);
                 gameMemoryDismissed = null;
@@ -96,12 +102,14 @@ public sealed partial class MainWindowShell
     internal void ClearCardPreviews()
     {
         (previewBlocked, previewGameLink, previewProjectors, previewUpdate, previewGameMemory) = (null, null, null, null, null);
+        previewInstallProblem = false;
         var views = App.Host?.Views;
         ApplyBlockedComponents(views?.ReadIfChanged<BlockedComponentsView>(AppHost.BlockedComponentsViewKey, 0).Snapshot ?? new([]));
         ApplyGameLink(views?.ReadIfChanged<GameLinkView>(AppHost.GameLinkViewKey, 0).Snapshot ?? GameLinkView.Available);
         ApplyProjectorHealth();
         ApplyUpdate();
         ApplyGameMemory();
+        ApplyInstallProblem();
     }
 
     // PZTOOLS_PREVIEW_CARDS=blocked,update (or "all") shows those cards from the start, for a run driven by a script.

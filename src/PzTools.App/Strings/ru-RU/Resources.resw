@@ -741,4 +741,7 @@
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Во время записи остановок из-за нехватки памяти: {0}</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Во время записи память была почти заполнена</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>сейчас установлено {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Файлы PZ Tools повреждены</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Распакуйте скачанный ZIP заново в пустую папку.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Открыть страницу загрузки</value></data>
 </root>

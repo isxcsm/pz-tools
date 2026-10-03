@@ -741,4 +741,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Při nahrávání {0}× zastavena kvůli nedostatku paměti</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Paměť při nahrávání téměř plná</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>nyní nastaveno na {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Soubory PZ Tools nejsou v pořádku</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Rozbalte stažený ZIP znovu do prázdné složky.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Otevřít stránku ke stažení</value></data>
 </root>

@@ -28,6 +28,20 @@ public sealed class PublishedDistributionTests
     }
 
     [DistributionFact]
+    public void PublishedApp_ListsEveryFileItShipsWith()
+    {
+        // The list the app checks its folder against at start: every published file in it, whole as listed.
+        var listed = PzTools.App.Core.InstallIntegrity.Parse(File.ReadAllText(Path.Combine(Root, PzTools.App.Core.InstallIntegrity.ManifestName)));
+        Assert.NotNull(listed);
+        var files = Directory.EnumerateFiles(Root, "*", SearchOption.AllDirectories)
+            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
+            .Where(file => file != PzTools.App.Core.InstallIntegrity.ManifestName).Order(StringComparer.Ordinal);
+        Assert.Equal(files, listed!.Select(entry => entry.Path).Order(StringComparer.Ordinal));
+        using var temp = new TempDirectory();
+        Assert.Null(PzTools.App.Core.InstallIntegrity.Check(Root, temp.GetPath("install-check.json")));
+    }
+
+    [DistributionFact]
     public void PublishedAppCarriesNoDeveloperTools()
     {
         // The card preview is compiled only without PzToolsDistribution: neither its method names nor its variable's

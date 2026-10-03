@@ -76,6 +76,7 @@ public sealed partial class MainWindowShell : UserControl
     private ProjectorHealthView? previewProjectors;
     private UpdateRelease? previewUpdate;
     private GameMemoryState? previewGameMemory;
+    private bool previewInstallProblem;
 #pragma warning restore CS0649
     private SaveListView? saveListSnapshot;
     private bool hostStartFailed;
@@ -310,6 +311,7 @@ public sealed partial class MainWindowShell : UserControl
         ApplyUpdate();
         if (App.GameMemory is { } memory) { memory.Changed -= GameMemory_Changed; memory.Changed += GameMemory_Changed; }
         ApplyGameMemory();
+        ApplyInstallProblem();
 #if PZTOOLS_DEV_TOOLS
         PreviewCardsFromEnvironment();
 #endif
@@ -1468,6 +1470,32 @@ public sealed partial class MainWindowShell : UserControl
         gameLinkDismissed = true;
         UpdateInteractiveCards();
     }
+
+    // ---- The app folder ----
+
+    private bool installDismissed;
+
+    // Files of the app folder missing or not as published: the way out is a fresh copy in an empty folder.
+    internal void ApplyInstallProblem()
+    {
+        bool broken = previewInstallProblem || App.InstallProblem is not null;
+        InstallCard.Visibility = broken && !installDismissed ? Visibility.Visible : Visibility.Collapsed;
+        if (broken)
+        {
+            InstallCard.Title = Localizer.Get("InstallBrokenTitle");
+            InstallCard.Message = Localizer.Get("InstallBrokenMessage");
+            InstallCard.ActionLabel = Localizer.Get("InstallBrokenAction");
+        }
+        UpdateInteractiveCards();
+    }
+
+    private void InstallClose_Click(object? sender, EventArgs e)
+    {
+        installDismissed = true;
+        ApplyInstallProblem();
+    }
+
+    private void InstallOpen_Click(object? sender, EventArgs e) => App.OpenReleasePage(UpdateChecker.ReleasesPage);
 
     // ---- The game's memory ----
 

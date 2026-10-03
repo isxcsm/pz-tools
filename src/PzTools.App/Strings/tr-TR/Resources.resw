@@ -741,4 +741,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Kayıt sırasında bellek yetersizliğinden {0} kez durdu</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Kayıt sırasında bellek neredeyse doluydu</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>şimdi {0} olarak ayarlı</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools dosyaları eksiksiz değil</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>İndirdiğiniz ZIP dosyasını boş bir klasöre yeniden çıkarın.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>İndirme sayfasını aç</value></data>
 </root>

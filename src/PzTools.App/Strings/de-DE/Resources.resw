@@ -741,4 +741,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Bei der Aufnahme {0}-mal wegen Speichermangel angehalten</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Speicher bei der Aufnahme fast voll</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>jetzt auf {0} gesetzt</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ-Tools-Dateien sind nicht vollständig</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Entpacken Sie die heruntergeladene ZIP erneut in einen leeren Ordner.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Downloadseite öffnen</value></data>
 </root>

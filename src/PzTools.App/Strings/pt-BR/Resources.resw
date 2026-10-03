@@ -741,4 +741,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Parou {0} vezes por falta de memória na gravação</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memória quase cheia na gravação</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>agora definida para {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Os arquivos do PZ Tools não estão íntegros</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Extraia o ZIP baixado novamente em uma pasta vazia.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Abrir página de download</value></data>
 </root>

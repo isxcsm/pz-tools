@@ -68,7 +68,10 @@ pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
 [`publish-app.ps1`](../scripts/publish-app.ps1) calls
-[`publish-tools.ps1`](../scripts/publish-tools.ps1) itself. Do not publish the tools to
+[`publish-tools.ps1`](../scripts/publish-tools.ps1) itself. It ends by writing
+`pztools-files.txt`, the list of the published files with their sizes and SHA-256, which
+the app checks its folder against (see [checking the folder](deployment-layout.md#the-app-folder));
+anything added to the folder after it is not listed. Do not publish the tools to
 that folder first and then run `publish-app.ps1` on the same, now nonempty, folder.
 
 - **The output folder must be new or empty.** Use another `-Output` for the next
@@ -109,8 +112,10 @@ The archive's parent folder must already exist. The packager:
 
 1. refuses output files that already exist
 2. adds the short [release guide](../build/START-HERE.txt)
-3. puts everything under a `PzTools/` top-level folder, with a fixed entry order and
-   fixed timestamps
+3. puts everything under one top-level folder, with a fixed entry order and fixed
+   timestamps. `-RootFolder` names it (`PzTools` by default); a release built by
+   `build-release.ps1` names it `PzTools-v<version>`, so a new release extracts beside
+   the old one rather than over it
 4. checks every file against its streamed SHA-256 before completing the ZIP and its
    `.sha256` sidecar
 5. rejects links, and input files that change while it runs

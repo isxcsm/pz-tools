@@ -741,4 +741,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>Se detuvo {0} veces por falta de memoria al grabar</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>Memoria casi llena al grabar</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>ahora ajustada a {0}</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>Los archivos de PZ Tools no están completos</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>Vuelve a extraer el ZIP descargado en una carpeta vacía.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>Abrir página de descarga</value></data>
 </root>

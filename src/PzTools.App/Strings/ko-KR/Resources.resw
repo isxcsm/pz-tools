@@ -740,4 +740,7 @@
   <data name="ProfileMemoryStallsThenFormat" xml:space="preserve"><value>녹화 당시 메모리 부족으로 {0}번 멈춤</value></data>
   <data name="ProfileMemoryNearlyFullThen" xml:space="preserve"><value>녹화 당시 메모리가 거의 가득 참</value></data>
   <data name="ProfileMemoryRaisedFormat" xml:space="preserve"><value>지금은 {0}로 설정됨</value></data>
+  <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools 파일이 온전하지 않음</value></data>
+  <data name="InstallBrokenMessage" xml:space="preserve"><value>받은 ZIP을 빈 폴더에 다시 풀어 주세요.</value></data>
+  <data name="InstallBrokenAction" xml:space="preserve"><value>다운로드 페이지 열기</value></data>
 </root>
