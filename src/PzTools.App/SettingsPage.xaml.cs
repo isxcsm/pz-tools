@@ -274,6 +274,7 @@ public sealed partial class SettingsPage : UserControl
             SavesPath.Text = value.SavesRoot;
             BackupPath.Text = value.BackupRoot;
             AutomaticBackupToggle.IsOn = value.AutomaticBackupEnabled;
+            backupEditedHere = false;
             PausePeriodicToggle.IsOn = value.PausePeriodicDuringGame;
             IntervalSlider.Value = IntervalNumber.Value = value.BackupIntervalMinutes;
             RetentionSlider.Value = RetentionNumber.Value = value.RetainedRevisions;
@@ -305,8 +306,9 @@ public sealed partial class SettingsPage : UserControl
         UpdateHotKeyCards();
     }
 
-    // The settings were applied elsewhere (a hotkey turned the last minutes on or off): show them, unless an edit made
-    // here is still waiting to be applied.
+    // The settings were applied elsewhere (a hotkey turned the last minutes or automatic backups on or off): show them,
+    // unless an edit made here is still waiting to be applied. The page writes all its values when it applies, so a
+    // switch it did not take would undo the hotkey's change with the next edit here.
     private void HotKeys_Changed()
     {
         DispatcherQueue.TryEnqueue(() =>
@@ -318,14 +320,22 @@ public sealed partial class SettingsPage : UserControl
                 // the hotkey's own switch is taken into the page, unless it is the one being edited.
                 if (!rollingEditedHere && RollingToggle.IsOn != value.RollingEnabled)
                     Synchronize(() => RollingToggle.IsOn = value.RollingEnabled);
+                if (!backupEditedHere && AutomaticBackupToggle.IsOn != value.AutomaticBackupEnabled)
+                    Synchronize(() => AutomaticBackupToggle.IsOn = value.AutomaticBackupEnabled);
                 return;
             }
-            Synchronize(() => LoadProfilerSettings(value));
+            Synchronize(() =>
+            {
+                LoadProfilerSettings(value);
+                AutomaticBackupToggle.IsOn = value.AutomaticBackupEnabled;
+                backupEditedHere = false;
+            });
         });
     }
 
-    // Whether the last minutes' switch was changed on this page since the settings were last shown.
-    private bool rollingEditedHere;
+    // Whether the last minutes' or the automatic backups' switch was changed on this page since the settings were last
+    // shown.
+    private bool rollingEditedHere, backupEditedHere;
 
     private void RollingSettingChanged(object sender, object e)
     {
@@ -801,7 +811,8 @@ public sealed partial class SettingsPage : UserControl
     {
         UpdateAvailability();
         if (loading || !IsLoaded) return;
-        // A pause switch must not be lost when navigating away before numeric debounce fires.
+        backupEditedHere = true;
+        // The switch must not be lost when navigating away before numeric debounce fires.
         requestedApply++;
         applyTimer.Stop();
         await ApplyPendingSettingsAsync();
