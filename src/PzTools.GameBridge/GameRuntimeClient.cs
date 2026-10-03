@@ -41,6 +41,8 @@ public sealed class GameRuntimeClient(string bridgeDirectory)
                 processId.ToString(System.Globalization.CultureInfo.InvariantCulture), jar,
                 ((IPEndPoint)listener.LocalEndpoint).Port.ToString(System.Globalization.CultureInfo.InvariantCulture), secret, "WATCH" })
                 start.ArgumentList.Add(value);
+            // The game's own account may read what the helper hands it (a copy, from a folder of plain letters).
+            AttachDiagnostics.PassGameAccount(start, processId);
             helper = System.Diagnostics.Process.Start(start) ?? throw new IOException("Cannot start runtime observer helper.");
             output = helper.StandardOutput.ReadToEndAsync(); error = helper.StandardError.ReadToEndAsync();
             using var connection = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

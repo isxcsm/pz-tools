@@ -122,6 +122,8 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 processId.ToString(System.Globalization.CultureInfo.InvariantCulture), jar,
                 ((IPEndPoint)listener.LocalEndpoint).Port.ToString(System.Globalization.CultureInfo.InvariantCulture), token })
                 start.ArgumentList.Add(argument);
+            // The game's own account may read what the helper hands it (a copy, from a folder of plain letters).
+            AttachDiagnostics.PassGameAccount(start, processId);
             using var connectionDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             connectionDeadline.CancelAfter(TimeSpan.FromSeconds(connectionTimeoutSeconds));
             var accepted = listener.AcceptTcpClientAsync(connectionDeadline.Token).AsTask();

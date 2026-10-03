@@ -15,6 +15,8 @@ public static partial class AttachDiagnostics
 {
     /// <summary>The helper's mark (AttachMain.FAILURE_MARK).</summary>
     public const string FailureMark = "PZTOOLS-ATTACH-FAILED";
+    /// <summary>The helper's line saying where each file it handed the game came from (AttachMain.handed).</summary>
+    public const string HandedMark = "PZTOOLS-ATTACH-HANDED";
 
     /// <summary>The game was started with attaching turned off (-XX:+DisableAttachMechanism).</summary>
     public const string DisabledCode = "attach-disabled";
@@ -65,6 +67,10 @@ public static partial class AttachDiagnostics
         text.Append("; gameElevated=").Append(YesNo(rights.GameElevated));
         if (rights.GameRightsKnown != true) text.Append(" (game rights unreadable: ").Append(rights.Note ?? "unknown").Append(')');
         text.Append("; gameJava=").Append(rights.GameImage ?? "unknown");
+        // Which files reached the game from their own path and which as a copy in a folder of plain letters.
+        foreach (var line in helperOutput.Split('\n'))
+            if (line.StartsWith(HandedMark + "\t", StringComparison.Ordinal))
+                text.Append("; handed=").Append(line[(HandedMark.Length + 1)..].TrimEnd('\r'));
         text.Append("; appFolderNonAscii=").Append(YesNo(NonAscii(bridgeDirectory)));
         text.Append("; tempNonAscii=").Append(YesNo(NonAscii(Path.GetTempPath())));
         text.Append("; profileNonAscii=").Append(YesNo(NonAscii(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
@@ -137,6 +143,50 @@ public static partial class AttachDiagnostics
         finally { Native.CloseHandle(process); }
     }
 
+    /// <summary>The variable that names, for the attach helper, the account the game runs as (AttachMain.principals).</summary>
+    public const string GameAccountVariable = "PZTOOLS_GAME_ACCOUNT";
+
+    /// <summary>
+    /// Names for the attach helper the account the game runs as, which must be able to read what it is handed: the app
+    /// runs as administrator, possibly as another account than the player's (an administrator's password typed for a
+    /// standard user), while the game runs as the player. Left unsaid when Windows does not tell; the helper then
+    /// takes the account the app was started for.
+    /// </summary>
+    public static void PassGameAccount(System.Diagnostics.ProcessStartInfo start, int processId)
+    {
+        if (AccountOf(processId) is { } account) start.Environment[GameAccountVariable] = account;
+    }
+
+    /// <summary>The account a process runs as, "DOMAIN\name"; none when Windows does not say.</summary>
+    public static string? AccountOf(int processId)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        var process = Native.OpenProcess(Native.ProcessQueryLimitedInformation, false, processId);
+        if (process == IntPtr.Zero) return null;
+        try
+        {
+            if (!Native.OpenProcessToken(process, Native.TokenQuery, out var token)) return null;
+            try
+            {
+                Native.GetTokenInformation(token, Native.TokenUser, IntPtr.Zero, 0, out var size);
+                if (size <= 0) return null;
+                var buffer = Marshal.AllocHGlobal(size);
+                try
+                {
+                    if (!Native.GetTokenInformation(token, Native.TokenUser, buffer, size, out _)) return null;
+                    // TOKEN_USER begins with the SID's address.
+                    var sid = new System.Security.Principal.SecurityIdentifier(Marshal.ReadIntPtr(buffer));
+                    return sid.Translate(typeof(System.Security.Principal.NTAccount)).Value;
+                }
+                finally { Marshal.FreeHGlobal(buffer); }
+            }
+            // An account Windows cannot name (removed meanwhile), or a SID it cannot read.
+            catch (SystemException) { return null; }
+            finally { Native.CloseHandle(token); }
+        }
+        finally { Native.CloseHandle(process); }
+    }
+
     private static bool? Elevated(IntPtr process, out int error)
     {
         error = 0;
@@ -168,6 +218,7 @@ public static partial class AttachDiagnostics
         public const uint ProcessQueryLimitedInformation = 0x1000;
         public const uint TokenQuery = 0x0008;
         public const int TokenElevation = 20;
+        public const int TokenUser = 1;
 
         [DllImport("kernel32.dll")]
         public static extern IntPtr GetCurrentProcess();

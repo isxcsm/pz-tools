@@ -146,6 +146,8 @@ public sealed partial class GameProfileClient(string bridgeDirectory, int connec
                 processId.ToString(CultureInfo.InvariantCulture), jar,
                 ((IPEndPoint)listener.LocalEndpoint).Port.ToString(CultureInfo.InvariantCulture), token })
                 start.ArgumentList.Add(argument);
+            // The game's own account may read what the helper hands it (a copy, from a folder of plain letters).
+            AttachDiagnostics.PassGameAccount(start, processId);
             try { helper = DiagnosticsProcess.Start(start); }
             catch (System.ComponentModel.Win32Exception blocked)
             { throw new GameSaveException("attach-failed", "Could not start the attach helper: " + blocked.Message); }

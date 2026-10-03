@@ -77,6 +77,8 @@ public sealed class GameExtensionClient : IGameExtensionSession
                 processId.ToString(CultureInfo.InvariantCulture), jar,
                 ((IPEndPoint)listener.LocalEndpoint).Port.ToString(CultureInfo.InvariantCulture), secret, "EXTENSIONS" })
                 start.ArgumentList.Add(value);
+            // The game's own account may read what the helper hands it (a copy, from a folder of plain letters).
+            AttachDiagnostics.PassGameAccount(start, processId);
             helper = System.Diagnostics.Process.Start(start) ?? throw new IOException("Cannot start extension helper.");
             output = helper.StandardOutput.ReadToEndAsync(); error = helper.StandardError.ReadToEndAsync();
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);

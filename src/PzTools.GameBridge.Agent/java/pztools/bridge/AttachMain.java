@@ -18,10 +18,13 @@ public final class AttachMain {
     /** The first line a failure prints, before its stack trace: the step it stopped at, then the error, for the app. */
     static final String FAILURE_MARK = "PZTOOLS-ATTACH-FAILED";
     private static String stage = "arguments";
+    // Where each file handed to the game came from, for the log of a failure: its own path, or a copy (see attachable).
+    private static final StringBuilder handed = new StringBuilder();
 
     public static void main(String[] args) throws Exception {
         try { run(args); }
         catch (Exception failure) {
+            if (handed.length() > 0) System.err.println("PZTOOLS-ATTACH-HANDED\t" + handed);
             String message = String.valueOf(failure.getMessage()).replace('\r', ' ').replace('\n', ' ');
             System.err.println(FAILURE_MARK + "\t" + stage + "\t" + failure.getClass().getName() + ": " + message);
             throw failure;
@@ -103,73 +106,118 @@ public final class AttachMain {
      *
      * <p>The game loads what it is handed as code, so the copy must be one no other user can change: the user's
      * temporary folder if its path is ASCII (a user named in Korean has one that is not), else a folder of this user's
-     * own under ProgramData. ProgramData lets every user create in it, so that folder is made writable by this user
-     * alone, and an existing one, or an existing copy, is used only if this user owns it and no one else may write it.
+     * own under ProgramData. ProgramData lets every user create in it, so that folder is made the user's alone, and an
+     * existing one, or an existing copy, is used only if no one else may change it.
+     *
+     * <p>Two principals count as the user here. The app runs as administrator, and what it creates is then owned by
+     * the Administrators group; the game, not elevated, reads as the player's own account, which a copy only the
+     * creator could read would refuse ("... was not loaded", access denied). So the game's account, which the app
+     * reads from the game's process and passes on, and the creator may both read and change the copies; no one else
+     * may change them, and one the game's account cannot read is not used.
      */
     static Path attachable(Path file) throws Exception {
+        Path given = copy(file);
+        handed.append(handed.length() == 0 ? "" : " ").append(file.getFileName()).append('=')
+            .append(given == file ? (ascii(file.toString()) ? "own" : "own-non-ascii")
+                : given.startsWith(String.valueOf(System.getProperty("java.io.tmpdir"))) ? "temp-copy" : "programdata-copy");
+        return given;
+    }
+
+    private static Path copy(Path file) throws Exception {
         if (ascii(file.toString())) return file;
         byte[] content = Files.readAllBytes(file);
         String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content)).substring(0, 16);
         String account = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
             .digest(System.getProperty("user.name", "").getBytes(StandardCharsets.UTF_8))).substring(0, 12);
-        UserPrincipal self = null;
+        UserPrincipal[] owners = null;
         for (String root : new String[] { System.getProperty("java.io.tmpdir"), System.getenv("ProgramData") }) {
             if (root == null || root.isEmpty() || !ascii(root)) continue;
             try {
-                if (self == null) self = currentUser();
-                Path base = Path.of(root, "PzTools", "attach", "u-" + account);
-                if (!privateDirectory(base, self)) continue;
+                if (owners == null) owners = principals();
+                // "s-": folders made since the game's account may read them; earlier ones may be the creator's alone.
+                Path base = Path.of(root, "PzTools", "attach", "s-" + account);
+                if (!privateDirectory(base, owners)) continue;
                 Path directory = base.resolve(digest);
                 Path staged = directory.resolve(file.getFileName().toString());
                 if (!Files.isDirectory(directory)) Files.createDirectory(directory);
-                if (!writableOnlyBy(directory, self)) continue;
+                if (!safe(directory, owners)) continue;
                 // A copy a running game holds open is already the same bytes, and is used as it is.
-                if (Files.isRegularFile(staged, LinkOption.NOFOLLOW_LINKS) && writableOnlyBy(staged, self)
+                if (Files.isRegularFile(staged, LinkOption.NOFOLLOW_LINKS) && safe(staged, owners)
                         && Arrays.equals(Files.readAllBytes(staged), content)) return staged;
                 Path partial = Files.createTempFile(directory, "staging", ".tmp");
                 try {
                     Files.write(partial, content);
                     Files.move(partial, staged, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
                 } finally { Files.deleteIfExists(partial); }
-                if (writableOnlyBy(staged, self)) return staged;
+                if (safe(staged, owners)) return staged;
             } catch (IOException | SecurityException | UnsupportedOperationException unusable) { }
         }
         return file;
     }
 
-    // Who this helper runs as: the owner of a file it creates.
-    private static UserPrincipal currentUser() throws IOException {
-        Path probe = Files.createTempFile("pztools-owner", ".tmp");
-        try { return Files.getOwner(probe); } finally { Files.deleteIfExists(probe); }
+    // The account the game reads as, then who this helper creates files as (the same when not elevated). No class of
+    // its own: the helper's jar holds this class alone.
+    private static boolean trusted(UserPrincipal[] owners, UserPrincipal principal) {
+        return owners[0].equals(principal) || owners[1].equals(principal);
     }
 
-    /** Makes the folder this user's alone, or checks that an existing one already is. */
-    private static boolean privateDirectory(Path directory, UserPrincipal self) throws IOException {
+    private static UserPrincipal[] principals() throws IOException {
+        Path probe = Files.createTempFile("pztools-owner", ".tmp");
+        UserPrincipal creator;
+        try { creator = Files.getOwner(probe); } finally { Files.deleteIfExists(probe); }
+        // The account the game runs as, which the app read from the game's process: the player's, even when the app
+        // was started with another administrator's password. Without it, the account the app was started for, which
+        // an elevated process keeps as its own; without that either, the creator.
+        String domain = System.getenv("USERDOMAIN"), name = System.getenv("USERNAME");
+        UserPrincipal user = lookup(System.getenv("PZTOOLS_GAME_ACCOUNT"));
+        if (user == null && name != null && !name.isEmpty())
+            user = lookup(domain == null || domain.isEmpty() ? name : domain + "\\" + name);
+        return new UserPrincipal[] { user == null ? creator : user, creator };
+    }
+
+    private static UserPrincipal lookup(String account) {
+        if (account == null || account.isEmpty()) return null;
+        try { return FileSystems.getDefault().getUserPrincipalLookupService().lookupPrincipalByName(account); }
+        catch (IOException unknown) { return null; }
+    }
+
+    /** Makes the folder the user's alone, or checks that an existing one already is. */
+    private static boolean privateDirectory(Path directory, UserPrincipal[] owners) throws IOException {
         if (Files.isSymbolicLink(directory)) return false;
         if (!Files.isDirectory(directory)) {
             Files.createDirectories(directory.getParent());
             Files.createDirectory(directory);
             var acl = Files.getFileAttributeView(directory, AclFileAttributeView.class);
             if (acl == null) return false;
-            acl.setAcl(java.util.List.of(AclEntry.newBuilder().setType(AclEntryType.ALLOW).setPrincipal(self)
-                .setPermissions(java.util.EnumSet.allOf(AclEntryPermission.class))
-                .setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.DIRECTORY_INHERIT).build()));
+            var entries = new java.util.ArrayList<AclEntry>();
+            for (UserPrincipal principal : owners[0].equals(owners[1])
+                    ? java.util.List.of(owners[0]) : java.util.List.of(owners[0], owners[1]))
+                entries.add(AclEntry.newBuilder().setType(AclEntryType.ALLOW).setPrincipal(principal)
+                    .setPermissions(java.util.EnumSet.allOf(AclEntryPermission.class))
+                    .setFlags(AclEntryFlag.FILE_INHERIT, AclEntryFlag.DIRECTORY_INHERIT).build());
+            acl.setAcl(entries);
         }
-        return writableOnlyBy(directory, self);
+        return safe(directory, owners);
     }
 
     private static final java.util.Set<AclEntryPermission> WRITES = java.util.EnumSet.of(AclEntryPermission.WRITE_DATA,
         AclEntryPermission.APPEND_DATA, AclEntryPermission.WRITE_ACL, AclEntryPermission.WRITE_OWNER, AclEntryPermission.DELETE,
         AclEntryPermission.DELETE_CHILD, AclEntryPermission.WRITE_ATTRIBUTES, AclEntryPermission.WRITE_NAMED_ATTRS);
 
-    /** Owned by this user, with no one else allowed to change it or what is in it. */
-    private static boolean writableOnlyBy(Path path, UserPrincipal self) throws IOException {
+    /**
+     * Owned by the user or the helper's creator, no one else allowed to change it or what is in it, and readable by
+     * the user's own account, which the game loads it as.
+     */
+    private static boolean safe(Path path, UserPrincipal[] owners) throws IOException {
         var view = Files.getFileAttributeView(path, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
-        if (view == null || !self.equals(view.getOwner())) return false;
-        for (AclEntry entry : view.getAcl())
-            if (entry.type() == AclEntryType.ALLOW && !self.equals(entry.principal())
-                    && entry.permissions().stream().anyMatch(WRITES::contains)) return false;
-        return true;
+        if (view == null || !trusted(owners, view.getOwner())) return false;
+        boolean readable = false;
+        for (AclEntry entry : view.getAcl()) {
+            if (entry.type() != AclEntryType.ALLOW) continue;
+            if (!trusted(owners, entry.principal()) && entry.permissions().stream().anyMatch(WRITES::contains)) return false;
+            if (owners[0].equals(entry.principal()) && entry.permissions().contains(AclEntryPermission.READ_DATA)) readable = true;
+        }
+        return readable;
     }
 
     private static boolean ascii(String text) {

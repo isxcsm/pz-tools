@@ -117,7 +117,14 @@ handed over from there; everything else is read from the app folder as it is. Th
 runs them as code, so the copy goes where only you can change it: your temporary folder
 (`%TEMP%\PzTools\attach\`) if its path is ASCII, else a folder of your own under
 `%ProgramData%\PzTools\attach\` that is made writable by you alone. A folder or copy there
-that someone else could change is not used.
+that someone else could change is not used. "You" is two principals here: the app runs as
+administrator, so what it creates belongs to the Administrators group, while the game,
+not elevated, reads as your own account. The app reads that account from the game's
+process and passes it on (so it is right even when the app was started with another
+administrator's password); if Windows does not say, the account the app was started for
+is taken. Both may read and change the copies, no one else may change them, and a copy the
+game's account cannot read is not used: a copy only the Administrators group could read
+would not load in the game.
 
 The bridge then calls the game's original `GameWindow.save(true)` on the game thread.
 
@@ -131,6 +138,8 @@ machine, as the failure's `diagnostics`:
 - whether the app and the game run as administrator, and why the game's rights could not
   be read if they could not;
 - the game's Java executable, by file name;
+- for each file handed to the game, whether it came from its own path or from a copy in a
+  folder of plain letters (`handed=`), as a Korean folder name needs;
 - whether the app folder, the temporary folder and the user folder hold letters outside
   ASCII (yes or no, never the path);
 - the Windows version and the end of the helper's output, with paths cut to what does not

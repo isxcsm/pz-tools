@@ -63,6 +63,26 @@ public sealed class AttachDiagnosticsTests
     }
 
     [Fact]
+    public void TheGamesAccount_IsReadFromItsProcess_AndPassedToTheHelper()
+    {
+        // This test's own process stands for the game.
+        Assert.Equal(System.Security.Principal.WindowsIdentity.GetCurrent().Name, AccountOf(Environment.ProcessId));
+        var start = new System.Diagnostics.ProcessStartInfo("java");
+        PassGameAccount(start, Environment.ProcessId);
+        Assert.Equal(AccountOf(Environment.ProcessId), start.Environment[GameAccountVariable]);
+        // A process that is not there: nothing is said, and the helper takes the account the app was started for.
+        Assert.Null(AccountOf(int.MaxValue - 7));
+    }
+
+    [Fact]
+    public void Failure_SaysWhereTheFilesHandedToTheGameCameFrom()
+    {
+        var output = HandedMark + "\tpztools-attach-bootstrap.dll=temp-copy\r\n" + FailureMark
+            + "\tnative-bootstrap\tcom.sun.tools.attach.AgentLoadException: Failed to load agent library";
+        Assert.Contains("handed=pztools-attach-bootstrap.dll=temp-copy;", Failure(int.MaxValue - 7, output, 1, Path.GetTempPath()).Diagnostics);
+    }
+
+    [Fact]
     public void ProfileErrors_NameTheKnownCauses()
     {
         Assert.Equal("ProfileError.AttachDisabled", ProfileRecordingService.ErrorKey("profile-" + DisabledCode));
