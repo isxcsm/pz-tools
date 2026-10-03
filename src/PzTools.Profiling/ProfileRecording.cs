@@ -51,6 +51,8 @@ public sealed class ProfileRecording
     public required ProfileLuaSample[] LuaSamples { get; init; }
     public required IReadOnlyList<ProfileCollection> Collections { get; init; }
     public required IReadOnlyList<ProfilePause> Pauses { get; init; }
+    /// <summary>Whether <see cref="Pauses"/> holds the collector's own pauses, as recordings since they were kept do.</summary>
+    public bool HasCollectorPauses { get; init; }
     /// <summary>Empty in recordings made before heap use was recorded.</summary>
     public IReadOnlyList<ProfileHeapSample> Heap { get; init; } = [];
     /// <summary>Empty when the system could not report it, and in older recordings.</summary>
@@ -254,6 +256,9 @@ public sealed class ProfileRecording
             Collections = collections.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Pauses = pauses.Select(item => new ProfilePause(item.Time - origin, item.Duration, item.Kind,
                 threadIndex.GetValueOrDefault(item.Thread, -1), item.Detail)).OrderBy(item => item.Time).ToArray(),
+            // A saved range says so for its source, which may have had none inside the range.
+            HasCollectorPauses = pauses.Any(item => item.Kind == ProfileAnalysis.CollectorPause)
+                || information.GetValueOrDefault(ProfileTrim.CollectorPausesKey) == "1",
             // Memory readings carry on the same time scale but do not stretch the recording: they may start before
             // the first sample or run on after the last.
             Heap = heap.Select(item => item with { Time = item.Time - origin }).Where(item => item.Time >= 0 && item.Time <= end)

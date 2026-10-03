@@ -126,10 +126,10 @@ public sealed class ProfileRecordingTests
     public void TimeBreakdown_SplitsTheGameThreadsRangeIntoScriptsGameCodeCollectionsAndWaiting()
     {
         var recording = Load(Sample);
-        // The slow frame: the scripts ran all of it by their sampler, but a 2.5 ms collection stopped the game in it,
-        // and the scripts give way to it.
+        // The slow frame: the scripts ran all of it by their sampler, but the collector's 1.5 ms pause stopped the game
+        // in it, and the scripts give way to it.
         var slow = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread))!;
-        Assert.Equal((0.9375, 0.0, 0.0625, 0.0), (Math.Round(slow.Scripts, 4), Math.Round(slow.GameCode, 4),
+        Assert.Equal((0.9625, 0.0, 0.0375, 0.0), (Math.Round(slow.Scripts, 4), Math.Round(slow.GameCode, 4),
             Math.Round(slow.Collections, 4), Math.Round(slow.Waiting, 4)));
         // The quick frame was the game's own code, all of it.
         var quick = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, 0, 10_000, recording.GameThread))!;
@@ -143,6 +143,30 @@ public sealed class ProfileRecordingTests
         var waited = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(idle, 0, 100_000, idle.GameThread))!;
         Assert.Equal((0.0, 0.2, 0.0, 0.8), (waited.Scripts, Math.Round(waited.GameCode, 4), waited.Collections, Math.Round(waited.Waiting, 4)));
         Assert.Equal(1.0, waited.Scripts + waited.GameCode + waited.Collections + waited.Waiting, 6);
+    }
+
+    [Fact]
+    public void TimeBreakdown_FindsMemoryStopsWhereTheyHappened_AndTheGameThreadsWaitsForMemory()
+    {
+        // A collection whose cycle began in the first 20 ms frame and paused the game 4 ms in all, in the third: 1 ms
+        // and 3 ms. In the third the game thread also waited 5 ms for memory, 2 ms of it during the second pause; the
+        // render thread waited too, which is not the game thread's time.
+        var recording = Load(string.Join('\n', "PZPROF|1", "M|0|zombie.GameWindow.logic", "K|0|0",
+            "F|0|20000", "F|20000|20000", "F|40000|20000", "S|0|7|0|J", "S|59000|7|0|J",
+            "G|1000|4000|ZGC Major|Allocation Rate",
+            "P|42000|1000|GCPhasePause|-1|Pause Mark Start", "P|50000|3000|GCPhasePause|-1|Pause Relocate Start",
+            "P|46000|6000|ZAllocationStall|7|", "P|44000|9000|ZAllocationStall|9|",
+            "T|7|main", "T|9|Render", "I|gameThread|7", "I|javaPeriodMicros|10000"));
+        double Stopped(long start, long end) =>
+            Math.Round(ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, start, end, recording.GameThread))!.Collections, 4);
+        // Not on the frame the cycle began in, where its total was written.
+        Assert.Equal(0.0, Stopped(0, 20_000));
+        // 1 ms pause, then 46-53 ms: the stall from 46 and the second pause to 53, once.
+        Assert.Equal(Math.Round(8_000 / 20_000.0, 4), Stopped(40_000, 60_000));
+        // A recording from before the collector's pauses were kept still has the collections' totals.
+        var older = Load(string.Join('\n', "PZPROF|1", "M|0|zombie.GameWindow.logic", "K|0|0", "F|0|20000", "S|0|7|0|J",
+            "G|1000|4000|ZGC Major|Allocation Rate", "T|7|main", "I|gameThread|7", "I|javaPeriodMicros|10000"));
+        Assert.Equal(0.2, ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(older, 0, 20_000, older.GameThread))!.Collections, 4);
     }
 
     [Fact]
@@ -518,7 +542,7 @@ public sealed class ProfileRecordingTests
             text.AppendLine(Rows(range.Threads));
             text.AppendLine(Rows(range.LuaFunctions) + " " + Rows(range.LuaOwners));
             text.AppendLine(string.Join("|", range.LuaGroups.Select(group => $"{group.Key}:{group.Self:0.000000}:{Rows(group.Rows)}")));
-            text.AppendLine($"{range.Collections} {range.CollectionPauseMilliseconds:0.000} {range.LuaAllocated} {range.GameThreadAllocated}");
+            text.AppendLine($"{range.Collections} {range.CollectionPauseMilliseconds:0.000} {range.MemoryStopMilliseconds:0.000} {range.LuaAllocated} {range.GameThreadAllocated}");
             text.AppendLine(string.Join(";", range.LongestPauses.Select(pause => $"{pause.Time - start}/{pause.Duration}/{pause.Kind}")));
             text.AppendLine(string.Join("|", range.LuaAllocationGroups.Select(group => $"{group.Key}:{group.Self}:{group.Samples}")));
         }

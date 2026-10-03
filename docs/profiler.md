@@ -222,7 +222,9 @@ starts with the range line followed by these figures.
 Above the tabs, a thin bar splits the range's time on the game thread four ways, with
 their shares beside it: *Scripts* (mods' and the game's scripts running, the game
 functions they called included), *Game code* (the game's own code running), *GC pause*
-(collections stopping the game) and *Waiting* (the thread waiting: for the next frame
+(the game stopped for memory: the collector's pauses where they fell, and the game thread
+waiting for memory to be freed, overlaps counted once; a recording from before the pauses
+were kept has the collections' totals instead) and *Waiting* (the thread waiting: for the next frame
 usually, or, in a stutter, stuck on a file or another thread). The four add up to the
 range. It answers at a glance whether a stutter was the scripts, the game or the memory,
 which adding up the two tabs cannot: they count the same time two ways (below). The bar

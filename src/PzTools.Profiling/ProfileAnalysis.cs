@@ -185,6 +185,11 @@ public sealed record ProfileRange(
     /// </summary>
     public double? RunningShare { get; init; }
     /// <summary>
+    /// How long, inside the range, the chosen thread was stopped for memory: the collector's pauses, which stop every
+    /// thread, and the thread's own allocation stalls, overlaps counted once. Null in recordings without the pauses.
+    /// </summary>
+    public double? MemoryStopMilliseconds { get; init; }
+    /// <summary>
     /// Per owner (the keys of <see cref="LuaGroups"/>), the call paths of the samples that ended in its functions, as a
     /// tree under a root: its outermost functions sum to the owner's own samples, as its row in the list does.
     /// </summary>
@@ -452,7 +457,35 @@ public static class ProfileAnalysis
             RunningShare = thread < 0 ? null : Math.Min(1, weightSum / (end - start)),
             LuaAllocated = luaAllocated,
             GameThreadAllocated = GameThreadAllocatedIn(recording, start, end),
+            MemoryStopMilliseconds = MemoryStopIn(recording, start, end, thread),
         };
+    }
+
+    /// <summary>The recording's kinds of pause: the collector's, which stop every thread, and a thread's wait for memory.</summary>
+    public const string CollectorPause = "GCPhasePause", AllocationStall = "ZAllocationStall";
+
+    /// <summary>
+    /// How long <paramref name="thread"/> was stopped for memory inside the range, in milliseconds: the collector's
+    /// pauses, as they happened (a collection is written where its cycle began, its pauses added up, so a frame-sized
+    /// range finds them on the wrong frame), and the thread's own allocation stalls, which leave no samples behind. A
+    /// stall waits for a collection, so where they overlap the time counts once. Null without the collector's pauses.
+    /// </summary>
+    public static double? MemoryStopIn(ProfileRecording recording, long start, long end, int thread)
+    {
+        if (!recording.HasCollectorPauses) return null;
+        var pauses = recording.Pauses;
+        long stopped = 0, covered = start;
+        // In time order: each counts from where the ones before it ended.
+        for (var index = LowerBound(pauses, start - LongestCollection, item => item.Time); index < pauses.Count && pauses[index].Time < end; index++)
+        {
+            var pause = pauses[index];
+            if (pause.Kind != CollectorPause && !(pause.Kind == AllocationStall && thread >= 0 && pause.Thread == thread)) continue;
+            long from = Math.Max(covered, pause.Time), to = Math.Min(end, pause.Time + pause.Duration);
+            if (to <= from) continue;
+            stopped += to - from;
+            covered = to;
+        }
+        return stopped / 1000.0;
     }
 
     // Native calls that only wait: for a connection or data, a selector or completion port, a timer, a lock, the
@@ -528,7 +561,8 @@ public static class ProfileAnalysis
 
     /// <summary>
     /// Where one thread's time in the range went, as shares of the range that add up to one: its scripts running (the
-    /// game functions they called included), the game's own code running, collections stopping the game, and the rest,
+    /// game functions they called included), the game's own code running, the thread stopped for memory (the collector's
+    /// pauses and its own waits for memory), and the rest,
     /// which the thread spent waiting (for the next frame, mostly). The answer to "was this stutter the scripts, the game
     /// or the memory", without adding up figures from tabs that count the same time two ways. Null for all threads
     /// together, whose times overlap.
@@ -537,7 +571,9 @@ public static class ProfileAnalysis
     {
         if (range.RunningShare is not { } running) return null;
         var length = Math.Max(1, range.End - range.Start);
-        var collections = Math.Clamp(range.CollectionPauseMilliseconds * 1000 / length, 0, 1);
+        // Stopped for memory: the collector's pauses where they fell and the thread's waits for memory; a recording
+        // without the pauses has only the collections' totals.
+        var collections = Math.Clamp((range.MemoryStopMilliseconds ?? range.CollectionPauseMilliseconds) * 1000 / length, 0, 1);
         // Two samplers measure the scripts and the running code; where they disagree a little, the scripts win.
         var scripts = Math.Clamp(range.LuaShare, 0, 1 - collections);
         var game = Math.Clamp(Math.Max(running, scripts) - scripts, 0, 1 - collections - scripts);
@@ -621,7 +657,7 @@ public static class ProfileAnalysis
         long stalled = 0;
         foreach (var pause in recording.Pauses)
         {
-            if (pause.Kind != "ZAllocationStall") continue;
+            if (pause.Kind != AllocationStall) continue;
             stalls++;
             stalled += pause.Duration;
         }
