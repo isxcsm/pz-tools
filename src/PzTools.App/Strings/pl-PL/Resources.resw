@@ -744,4 +744,5 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="InstallBrokenTitle" xml:space="preserve"><value>Pliki PZ Tools nie są kompletne</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>Rozpakuj pobrany plik ZIP ponownie do pustego folderu.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Otwórz stronę pobierania</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: zadziała po ponownym uruchomieniu gry.</value></data>
 </root>

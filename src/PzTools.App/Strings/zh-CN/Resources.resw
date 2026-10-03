@@ -744,4 +744,5 @@
   <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools 文件不完整</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>请将下载的 ZIP 重新解压到一个空文件夹。</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>打开下载页面</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}：重新启动游戏后生效。</value></data>
 </root>

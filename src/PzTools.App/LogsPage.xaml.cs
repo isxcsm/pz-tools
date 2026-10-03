@@ -932,6 +932,8 @@ public sealed class LogEntryUiItem
     private string ActivityMessage(string key) => Localizer.Format(key, ActivityName);
     public string Message => model.EventName switch
     {
+        "extension.runtime.changed" when PayloadText("state") == "RestartRequired" && PayloadText("reason") == "bootstrap-update" =>
+            Localizer.Format("LogEvent.ExtensionRestartFormat", ExtensionTitle),
         "extension.runtime.changed" when model.Level >= LogLevel.Warning =>
             Localizer.Format("LogEvent.RunFailed", ExtensionTitle),
         "extension.runtime.changed" =>
@@ -985,6 +987,7 @@ public sealed class LogEntryUiItem
             Localizer.Get("LogEvent.BackupSkipped"),
         "run.cancelled" => ActivityMessage("LogEvent.RunCancelled"),
         "run.unavailable" when Diagnostics?.FailureCode == "profile-multiple-games" => ActivityMessage("LogEvent.RunMultipleGames"),
+        "run.unavailable" when Diagnostics?.FailureCode == "profile-restart-required" => Localizer.Get("ProfileError.Restart"),
         "run.unavailable" => ActivityMessage("LogEvent.RunGameNotRunning"),
         var name when name.StartsWith("maintenance.", StringComparison.Ordinal)
             && name.EndsWith(".started", StringComparison.Ordinal) => ActivityMessage("LogEvent.RunStarted"),

@@ -202,6 +202,17 @@ public sealed class GameLinkFallbackTests
     }
 
     [Fact]
+    public void Monitor_SaysARestartIsNeeded_WithoutWaitingOutTheGrace()
+    {
+        // A link that may come back by itself waits out the grace; one refused for an older bridge cannot come back.
+        var monitor = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
+        Assert.Equal(GameLinkView.Available, monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")));
+        Assert.Equal(new GameLinkView(LinkUnavailable: true, RestartRequired: true),
+            monitor.Update(RuntimeObservation.Unknown(RuntimeObservation.RestartRequiredReason)));
+        Assert.True(monitor.Update(RuntimeObservation.Unknown("connecting")).RestartRequired);
+    }
+
+    [Fact]
     public void Monitor_NamesACauseThePlayerCanChange_ForTheWholeOutage()
     {
         var monitor = new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true);

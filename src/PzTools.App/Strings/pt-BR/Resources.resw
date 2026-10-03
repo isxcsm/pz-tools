@@ -744,4 +744,5 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="InstallBrokenTitle" xml:space="preserve"><value>Os arquivos do PZ Tools não estão íntegros</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>Extraia o ZIP baixado novamente em uma pasta vazia.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Abrir página de download</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: será aplicado ao reiniciar o jogo.</value></data>
 </root>

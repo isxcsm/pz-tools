@@ -743,4 +743,5 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools files are not intact</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>Extract the downloaded ZIP again into an empty folder.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Open download page</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: applies once the game is restarted.</value></data>
 </root>

@@ -75,8 +75,11 @@ While the connection is lost, the app shows one card for it, the schedule line s
 backups run without a game save, and the settings that need the game are locked until
 the connection returns. Their saved values are kept. The card suggests restarting the
 game only when that is known to help: the game still runs the bridge from before a PZ
-Tools update. A game version this PZ Tools cannot read stays unreadable after a
-restart, and backups keep running without a game save.
+Tools update. That card does not wait out the grace period, as such a link cannot come
+back without a restart; it shows as soon as the game refuses the connection. Recordings
+and extensions refused for the same reason are logged as information, not as failures,
+since the card already says what to do. A game version this PZ Tools cannot read stays
+unreadable after a restart, and backups keep running without a game save.
 
 ## When a backup attempt fails
 

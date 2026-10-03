@@ -744,4 +744,5 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools dosyaları eksiksiz değil</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>İndirdiğiniz ZIP dosyasını boş bir klasöre yeniden çıkarın.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>İndirme sayfasını aç</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: oyun yeniden başlatılınca uygulanır.</value></data>
 </root>

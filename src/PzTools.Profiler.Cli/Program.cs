@@ -157,9 +157,12 @@ catch (Exception exception) when (exception is ArgumentException or FormatExcept
         component, Math.Max(1, runIndex), ProcessOutcome.Failed, started, "invalid-arguments", exception.Message)));
     return ProcessExitCodes.InvalidArguments;
 }
-catch (GameSaveException missing) when (phase == "connect" && missing.Code is "game-not-running" or "multiple-games")
+catch (GameSaveException missing) when (phase == "connect" && missing.Code is "game-not-running" or "multiple-games"
+    || missing.Code == "restart-required")
 {
-    // No game to record, or no way to tell which: nothing was attempted, so nothing failed. The app says why.
+    // No game to record, or no way to tell which: nothing was attempted, so nothing failed. The app says why. Nor
+    // with a game that still runs a bridge from before an update: it records again once restarted, as the app's card
+    // already says, and a start of the last minutes it refuses at every try is not an error each time.
     var code = "profile-" + missing.Code;
     telemetry?.RecordEvent("run.unavailable", FailureTelemetry.FromException(code, missing, status: "Unavailable", phase: phase, operation: "profile"));
     Console.WriteLine(ProcessResultJson.Serialize(ProcessResultEnvelope<object>.Failure(

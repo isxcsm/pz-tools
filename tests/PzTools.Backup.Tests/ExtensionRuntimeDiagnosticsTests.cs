@@ -72,6 +72,7 @@ public sealed class ExtensionRuntimeDiagnosticsTests
     [InlineData(RuntimeExtensionState.Unsupported, "unsupported-game-resource", LogLevel.Warning)]
     [InlineData(RuntimeExtensionState.FaultedPassThrough, "callback-failed", LogLevel.Error)]
     [InlineData(RuntimeExtensionState.RestartRequired, "retirement-failed", LogLevel.Error)]
+    [InlineData(RuntimeExtensionState.RestartRequired, "bootstrap-update", LogLevel.Information)]
     [InlineData(RuntimeExtensionState.Active, "update-rejected:preflight:changed", LogLevel.Warning)]
     [InlineData(RuntimeExtensionState.Active, "configuration-invalid", LogLevel.Warning)]
     [InlineData(RuntimeExtensionState.Active, "revision-conflict", LogLevel.Warning)]

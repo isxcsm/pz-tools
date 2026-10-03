@@ -751,4 +751,5 @@
   <data name="InstallBrokenTitle" xml:space="preserve"><value>ไฟล์ของ PZ Tools ไม่ครบถ้วน</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>แตก ZIP ที่ดาวน์โหลดมาใหม่ลงในโฟลเดอร์ว่าง</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>เปิดหน้าดาวน์โหลด</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: จะมีผลเมื่อเปิดเกมใหม่</value></data>
 </root>

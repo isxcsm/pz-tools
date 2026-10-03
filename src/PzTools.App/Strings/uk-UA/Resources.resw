@@ -744,4 +744,5 @@
   <data name="InstallBrokenTitle" xml:space="preserve"><value>Файли PZ Tools пошкоджено</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>Розпакуйте завантажений ZIP знову в порожню теку.</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>Відкрити сторінку завантаження</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: запрацює після перезапуску гри.</value></data>
 </root>

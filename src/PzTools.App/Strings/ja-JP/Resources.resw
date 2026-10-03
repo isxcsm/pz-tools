@@ -744,4 +744,5 @@
   <data name="InstallBrokenTitle" xml:space="preserve"><value>PZ Tools のファイルが正しくありません</value></data>
   <data name="InstallBrokenMessage" xml:space="preserve"><value>ダウンロードした ZIP を空のフォルダーに展開し直してください。</value></data>
   <data name="InstallBrokenAction" xml:space="preserve"><value>ダウンロードページを開く</value></data>
+  <data name="LogEvent.ExtensionRestartFormat" xml:space="preserve"><value>{0}: ゲームを再起動すると適用されます。</value></data>
 </root>
