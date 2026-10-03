@@ -499,7 +499,7 @@
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Развернуть {0}</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Свернуть {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Выделено</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Память, которую игровой поток выделил, пока в выбранном диапазоне работали скрипты этого мода, включая вызванные ими функции игры. Чем больше выделяется, тем чаще идёт очистка памяти (GC). Оценка по выборкам, как и время.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Память, которую игровой поток выделил, пока в выбранном диапазоне работали скрипты этого мода, включая функции Java, вызванные из Lua. Чем больше выделяется, тем чаще идёт очистка памяти (GC). Значения по модам — оценки.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Весь игровой поток, со скриптами и без: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>В этом диапазоне выделение памяти скриптами не записано.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Как пользоваться графиком</value></data>
@@ -543,8 +543,8 @@
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Элемент</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Время отрезка</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Доля работы</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Какую часть выбранного отрезка выполнялся этот скрипт. Включает время игровых функций, вызванных скриптом.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Какая часть времени работы игрового кода в выбранном отрезке пришлась на этот элемент. Игровые функции, вызванные скриптами Lua, здесь относятся к «Базовая игра». Для долгих ожиданий и остановок показано количество, а не доля.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Какую часть выбранного отрезка выполнялся этот скрипт. Включает время функций Java, вызванных скриптом.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Какая часть времени работы игрового кода в выбранном отрезке пришлась на этот элемент. Функции Java, вызванные из Lua, здесь относятся к «Базовая игра». Для долгих ожиданий и остановок показано количество, а не доля.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} раз</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Игра не запущена.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Запущено несколько игр. Оставьте только одну.</value></data>
@@ -708,8 +708,8 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Страница загрузки</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Открыть страницу загрузки</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Открыть</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>Время мода включает вызванные им функции игры.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>Функции игры, вызванные скриптами, здесь считаются игрой. Время каждого мода — на вкладке «Скрипты».</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Включает время функций Java, вызванных из Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Функции Java, вызванные из Lua, здесь считаются игрой. Время каждого мода — на вкладке «Скрипты».</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Время этого участка</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипты</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код игры</value></data>

@@ -499,7 +499,7 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Expandir {0}</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Contraer {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Asignado</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memoria que el hilo del juego asignó mientras se ejecutaban los scripts de este mod en el rango seleccionado, incluidas las funciones del juego que llamaron. Cuanto más se asigna, más seguido se limpia la memoria (GC). Una estimación a partir de las muestras, como el tiempo.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memoria que el hilo del juego asignó mientras se ejecutaban los scripts de este mod en el rango seleccionado, incluidas las funciones Java llamadas desde Lua. Cuanto más se asigna, más seguido se limpia la memoria (GC). Los valores por mod son estimaciones.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Todo el hilo del juego, con o sin scripts: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>No se registraron asignaciones de scripts en este rango.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Cómo usar la gráfica</value></data>
@@ -543,8 +543,8 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Elemento</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Tiempo del tramo</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Parte de ejecución</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Qué parte del tramo seleccionado estuvo ejecutándose este script. Incluye el tiempo de las funciones del juego que llamó el script.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Qué parte del tiempo de ejecución del código del juego en el tramo seleccionado correspondió a este elemento. Las funciones del juego llamadas por scripts Lua cuentan aquí como «Juego base». Las esperas y pausas largas muestran un conteo en lugar de una parte.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Qué parte del tramo seleccionado estuvo ejecutándose este script. Incluye el tiempo de las funciones Java que llamó el script.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Qué parte del tiempo de ejecución del código del juego en el tramo seleccionado correspondió a este elemento. Las funciones Java llamadas desde Lua cuentan aquí como «Juego base». Las esperas y pausas largas muestran un conteo en lugar de una parte.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} veces</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>El juego no se está ejecutando.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Hay más de un juego abierto. Deja solo uno.</value></data>
@@ -708,8 +708,8 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Página de descarga</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Abrir la página de descarga</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Abrir</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>El tiempo de un mod incluye las funciones del juego que llamó.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>Las funciones del juego que llaman los scripts cuentan aquí como juego. Revisa la pestaña Scripts para cada mod.</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Incluye el tiempo de las funciones Java llamadas desde Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Las funciones Java llamadas desde Lua cuentan aquí como juego. Revisa la pestaña Scripts para cada mod.</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Tiempo de este tramo</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código del juego</value></data>

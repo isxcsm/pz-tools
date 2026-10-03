@@ -499,7 +499,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>{0} öğesini genişlet</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>{0} öğesini daralt</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Ayrılan</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Seçilen aralıkta bu modun betikleri çalışırken oyun iş parçacığının ayırdığı bellek; betiklerin çağırdığı oyun işlevleri de dahil. Ne kadar çok ayrılırsa bellek o kadar sık temizlenir (GC). Süre gibi örneklerden çıkan bir tahmindir.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Seçilen aralıkta bu modun betikleri çalışırken oyun iş parçacığının ayırdığı bellek; Lua&apos;nın çağırdığı Java işlevleri de dahil. Ne kadar çok ayrılırsa bellek o kadar sık temizlenir (GC). Mod başına değerler tahminidir.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Oyun iş parçacığının tamamı, betik olsun olmasın: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>Bu aralıkta betiklerin bellek ayırdığı kaydedilmedi.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Grafik nasıl kullanılır</value></data>
@@ -543,8 +543,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Öge</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Aralık süresi</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Çalışma payı</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Seçili aralığın ne kadarında bu betiğin çalıştığı. Betiğin çağırdığı oyun işlevlerinin süresini de içerir.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Seçili aralıkta oyun kodunun çalışma süresinin ne kadarının bu ögeye gittiği. Lua betiklerinin çağırdığı oyun işlevleri burada 'Ana oyun' içinde sayılır. Uzun beklemeler ve takılmalar pay yerine sayı gösterir.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Seçili aralığın ne kadarında bu betiğin çalıştığı. Betiğin çağırdığı Java işlevlerinin süresini de içerir.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Seçili aralıkta oyun kodunun çalışma süresinin ne kadarının bu ögeye gittiği. Lua&apos;nın çağırdığı Java işlevleri burada &apos;Ana oyun&apos; içinde sayılır. Uzun beklemeler ve takılmalar pay yerine sayı gösterir.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} kez</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Oyun çalışmıyor.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Birden fazla oyun çalışıyor. Yalnızca birini bırakın.</value></data>
@@ -708,8 +708,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>İndirme sayfası</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>İndirme sayfasını aç</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Aç</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>Bir modun süresi, çağırdığı oyun işlevlerini de içerir.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>Betiklerin çağırdığı oyun işlevleri burada oyuna sayılır. Her modun süresi için Betikler sekmesine bakın.</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Lua&apos;nın çağırdığı Java işlevlerinin süresini de içerir.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Lua&apos;nın çağırdığı Java işlevleri burada oyuna sayılır. Her modun süresi için Betikler sekmesine bakın.</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Bu aralığın süresi</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Betikler</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>

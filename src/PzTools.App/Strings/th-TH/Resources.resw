@@ -506,7 +506,7 @@
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>ขยาย {0}</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>ยุบ {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>จัดสรรแล้ว</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>หน่วยความจำที่เธรดของเกมจัดสรรขณะที่สคริปต์ของม็อดนี้ทำงานในช่วงที่เลือก รวมถึงฟังก์ชันของเกมที่สคริปต์เรียกใช้ ยิ่งจัดสรรมาก ยิ่งล้างหน่วยความจำ (GC) บ่อย เป็นค่าประมาณจากตัวอย่างเช่นเดียวกับเวลา</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>หน่วยความจำที่เธรดของเกมจัดสรรขณะที่สคริปต์ของม็อดนี้ทำงานในช่วงที่เลือก รวมถึงฟังก์ชัน Java ที่ Lua เรียกใช้ ยิ่งจัดสรรมาก ยิ่งล้างหน่วยความจำ (GC) บ่อย ค่าของแต่ละม็อดเป็นค่าประมาณ</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>ทั้งเธรดของเกม ทั้งในและนอกสคริปต์: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>ไม่มีการจัดสรรของสคริปต์ที่บันทึกไว้ในช่วงนี้</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>วิธีใช้กราฟ</value></data>
@@ -550,8 +550,8 @@
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>รายการ</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>เวลาช่วง</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>สัดส่วนการทำงาน</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>สัดส่วนของช่วงที่เลือกที่สคริปต์นี้กำลังทำงาน รวมเวลาของฟังก์ชันเกมที่สคริปต์เรียกใช้ด้วย</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>สัดส่วนของเวลาทำงานของโค้ดเกมในช่วงที่เลือกที่เป็นของรายการนี้ ฟังก์ชันเกมที่สคริปต์ Lua เรียกใช้จะนับเป็น 'เกมหลัก' ที่นี่ การรอและการหยุดนิ่งนาน ๆ จะแสดงเป็นจำนวนครั้งแทนสัดส่วน</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>สัดส่วนของช่วงที่เลือกที่สคริปต์นี้กำลังทำงาน รวมเวลาของฟังก์ชัน Java ที่สคริปต์เรียกใช้ด้วย</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>สัดส่วนของเวลาทำงานของโค้ดเกมในช่วงที่เลือกที่เป็นของรายการนี้ ฟังก์ชัน Java ที่ Lua เรียกใช้จะนับเป็น &apos;เกมหลัก&apos; ที่นี่ การรอและการหยุดนิ่งนาน ๆ จะแสดงเป็นจำนวนครั้งแทนสัดส่วน</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} ครั้ง</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>เกมไม่ได้เปิดอยู่</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>มีเกมเปิดอยู่มากกว่าหนึ่งตัว ปิดให้เหลือตัวเดียว</value></data>
@@ -715,8 +715,8 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>หน้าดาวน์โหลด</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>เปิดหน้าดาวน์โหลด</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>เปิด</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>เวลาของม็อดรวมเวลาฟังก์ชันของเกมที่ม็อดเรียกใช้ด้วย</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>ฟังก์ชันของเกมที่สคริปต์เรียกใช้จะนับเป็นของเกมที่นี่ ดูเวลาของแต่ละม็อดได้ในแท็บสคริปต์</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>รวมเวลาของฟังก์ชัน Java ที่ Lua เรียกใช้ด้วย</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>ฟังก์ชัน Java ที่ Lua เรียกใช้จะนับเป็นของเกมที่นี่ ดูเวลาของแต่ละม็อดได้ในแท็บสคริปต์</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>เวลาของช่วงนี้</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>สคริปต์</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>

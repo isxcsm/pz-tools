@@ -499,7 +499,7 @@
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Розгорнути {0}</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Згорнути {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Виділено</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Пам'ять, яку ігровий потік виділив, поки у вибраному діапазоні працювали скрипти цього мода, включно з викликаними ними функціями гри. Що більше виділяється, то частіше відбувається очищення пам'яті (GC). Оцінка за вибірками, як і час.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Пам&apos;ять, яку ігровий потік виділив, поки у вибраному діапазоні працювали скрипти цього мода, включно з функціями Java, викликаними з Lua. Що більше виділяється, то частіше відбувається очищення пам&apos;яті (GC). Значення за модами — оцінки.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Увесь ігровий потік, зі скриптами й без: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>У цьому діапазоні виділення пам'яті скриптами не записано.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Як користуватися графіком</value></data>
@@ -543,8 +543,8 @@
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Елемент</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Час відрізка</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Частка роботи</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Яку частину вибраного відрізка виконувався цей скрипт. Включає час ігрових функцій, викликаних скриптом.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Яка частина часу роботи ігрового коду у вибраному відрізку припала на цей елемент. Ігрові функції, викликані скриптами Lua, тут належать до «Базова гра». Для довгих очікувань і зупинок показано кількість, а не частку.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Яку частину вибраного відрізка виконувався цей скрипт. Включає час функцій Java, викликаних скриптом.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Яка частина часу роботи ігрового коду у вибраному відрізку припала на цей елемент. Функції Java, викликані з Lua, тут належать до «Базова гра». Для довгих очікувань і зупинок показано кількість, а не частку.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0} раз</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Гру не запущено.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Запущено кілька ігор. Залиште лише одну.</value></data>
@@ -708,8 +708,8 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Сторінка завантаження</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Відкрити сторінку завантаження</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Відкрити</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>Час мода включає викликані ним функції гри.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>Функції гри, викликані скриптами, тут рахуються грою. Час кожного мода — на вкладці «Скрипти».</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Включає час функцій Java, викликаних з Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Функції Java, викликані з Lua, тут рахуються грою. Час кожного мода — на вкладці «Скрипти».</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Час цієї ділянки</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипти</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код гри</value></data>

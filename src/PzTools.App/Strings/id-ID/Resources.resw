@@ -499,7 +499,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Bentangkan {0}</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Ciutkan {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Dialokasikan</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memori yang dialokasikan thread game selama skrip mod ini berjalan dalam rentang yang dipilih, termasuk fungsi game yang dipanggilnya. Makin banyak alokasi, makin sering memori dibersihkan (GC). Perkiraan dari sampel, seperti waktunya.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memori yang dialokasikan thread game selama skrip mod ini berjalan dalam rentang yang dipilih, termasuk fungsi Java yang dipanggil dari Lua. Makin banyak alokasi, makin sering memori dibersihkan (GC). Nilai per mod adalah perkiraan.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Seluruh thread game, skrip maupun bukan: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>Tidak ada alokasi skrip yang tercatat dalam rentang ini.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Cara menggunakan grafik</value></data>
@@ -543,8 +543,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Item</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Waktu rentang</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Porsi jalan</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Seberapa banyak rentang terpilih skrip ini sedang berjalan. Termasuk waktu fungsi game yang dipanggil skrip.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Seberapa banyak waktu jalan kode game dalam rentang terpilih yang dipakai item ini. Fungsi game yang dipanggil skrip Lua dihitung sebagai 'Game dasar' di sini. Tunggu dan henti panjang menampilkan jumlah, bukan porsi.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Seberapa banyak rentang terpilih skrip ini sedang berjalan. Termasuk waktu fungsi Java yang dipanggil skrip.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Seberapa banyak waktu jalan kode game dalam rentang terpilih yang dipakai item ini. Fungsi Java yang dipanggil dari Lua dihitung sebagai &apos;Game dasar&apos; di sini. Tunggu dan henti panjang menampilkan jumlah, bukan porsi.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0}×</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Gim tidak sedang berjalan.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Ada lebih dari satu gim berjalan. Sisakan satu saja.</value></data>
@@ -708,8 +708,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Halaman unduhan</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Buka halaman unduhan</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Buka</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>Waktu sebuah mod mencakup fungsi game yang dipanggilnya.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>Fungsi game yang dipanggil skrip dihitung sebagai game di sini. Lihat tab Skrip untuk tiap mod.</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Termasuk waktu fungsi Java yang dipanggil dari Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Fungsi Java yang dipanggil dari Lua dihitung sebagai game di sini. Lihat tab Skrip untuk tiap mod.</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Waktu rentang ini</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrip</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kode game</value></data>

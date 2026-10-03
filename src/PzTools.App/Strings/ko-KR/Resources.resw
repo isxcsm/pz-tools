@@ -498,7 +498,7 @@
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>{0} 펼치기</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>{0} 접기</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>할당량</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>선택한 구간에서 이 모드의 스크립트가 실행 중일 때 게임 스레드가 할당한 메모리입니다. 스크립트가 불러 쓴 게임 기능의 할당도 포함합니다. 많이 할당할수록 메모리 정리(GC)가 자주 일어납니다. 시간처럼 샘플에서 나온 추정치입니다.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>선택한 구간에서 이 모드의 스크립트가 실행 중일 때 게임 스레드가 할당한 메모리입니다. Lua가 호출한 Java 함수의 할당도 포함됩니다. 많이 할당할수록 메모리 정리(GC)가 자주 일어납니다. 모드별 값은 추정치입니다.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>게임 스레드 전체(스크립트 밖 포함): {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>이 구간에서 할당이 기록된 스크립트가 없습니다.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>그래프 사용법</value></data>
@@ -542,8 +542,8 @@
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>항목</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>구간 시간</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>실행 비중</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>선택한 구간 시간 중 이 스크립트가 실행 중이던 비율입니다. 스크립트가 불러 쓴 게임 기능의 시간도 포함합니다.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>선택한 구간에서 게임 코드가 실행된 시간 중 이 항목이 차지한 비율입니다. Lua 스크립트가 불러 쓴 게임 기능은 여기서 '게임 본체'로 잡힙니다. 긴 대기·멈춤은 비율 대신 횟수를 보여 줍니다.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>선택한 구간 시간 중 이 스크립트가 실행 중이던 비율입니다. 스크립트가 호출한 Java 함수의 시간도 포함됩니다.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>선택한 구간에서 게임 코드가 실행된 시간 중 이 항목이 차지한 비율입니다. Lua가 호출한 Java 함수는 여기서 &apos;게임 본체&apos;로 잡힙니다. 긴 대기·멈춤은 비율 대신 횟수를 보여 줍니다.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0}회</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>게임이 실행 중이 아닙니다.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>게임이 여러 개 실행 중입니다. 하나만 남겨 주세요.</value></data>
@@ -707,8 +707,8 @@
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>다운로드 페이지</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>다운로드 페이지 열기</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>열기</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>모드가 부른 게임 기능 시간도 포함합니다.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>스크립트가 불러 쓴 게임 기능은 여기서 게임 쪽으로 잡힙니다. 모드별로는 스크립트 탭에서 보세요.</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Lua가 호출한 Java 함수의 시간도 포함됩니다.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Lua가 호출한 Java 함수는 여기서 게임 쪽으로 잡힙니다. 모드별로는 스크립트 탭에서 보세요.</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>이 구간의 시간</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>스크립트</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>

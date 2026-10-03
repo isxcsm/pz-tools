@@ -357,8 +357,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Item</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Range time</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Run share</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>How much of the selected range this script was running. Includes the time of game functions the script called.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>How much of the game code's running time in the selected range went to this item. Game functions called by Lua scripts count as 'Base game' here. Long waits and stalls show a count instead of a share.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>How much of the selected range this script was running. Includes the time of Java functions the script called.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>How much of the game code&apos;s running time in the selected range went to this item. Java functions called from Lua count as &apos;Base game&apos; here. Long waits and stalls show a count instead of a share.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0}×</value></data>
   <data name="ProfileThreadsSection" xml:space="preserve"><value>Share by thread</value></data>
   <data name="ProfileColumnSamples" xml:space="preserve"><value>Samples</value></data>
@@ -528,7 +528,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Expand {0}</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Collapse {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Allocated</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memory the game thread allocated while this mod's scripts were running in the selected range, including game functions they called. The more is allocated, the more often memory is cleaned up (GC). An estimate from the samples, like the time.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Memory the game thread allocated while this mod&apos;s scripts were running in the selected range, including Java functions called from Lua. The more is allocated, the more often memory is cleaned up (GC). The figures per mod are estimates.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Whole game thread, scripts or not: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>No script allocations were recorded in this range.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>How to use the graph</value></data>
@@ -707,8 +707,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Download page</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Open the download page</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Open</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>A mod&apos;s time includes the game functions it called.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>Game functions called by scripts count as the game here. See the Scripts tab for each mod.</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Includes the time of Java functions called from Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Java functions called from Lua count as the game here. See the Scripts tab for each mod.</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>This range&apos;s time</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>

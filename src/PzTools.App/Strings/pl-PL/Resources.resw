@@ -499,7 +499,7 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileTreeExpandFormat" xml:space="preserve"><value>Rozwiń {0}</value></data>
   <data name="ProfileTreeCollapseFormat" xml:space="preserve"><value>Zwiń {0}</value></data>
   <data name="ProfileListAllocation" xml:space="preserve"><value>Przydzielono</value></data>
-  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Pamięć przydzielona przez wątek gry, gdy w wybranym zakresie działały skrypty tego moda, łącznie z wywoływanymi przez nie funkcjami gry. Im więcej przydziałów, tym częściej pamięć jest czyszczona (GC). Szacunek na podstawie próbek, tak jak czas.</value></data>
+  <data name="ProfileListAllocationTip" xml:space="preserve"><value>Pamięć przydzielona przez wątek gry, gdy w wybranym zakresie działały skrypty tego moda, łącznie z funkcjami Java wywołanymi z Lua. Im więcej przydziałów, tym częściej pamięć jest czyszczona (GC). Wartości dla modów są szacunkowe.</value></data>
   <data name="ProfileAllocationGameThreadFormat" xml:space="preserve"><value>Cały wątek gry, ze skryptami i bez: {0}</value></data>
   <data name="ProfileAllocationNone" xml:space="preserve"><value>W tym zakresie nie zarejestrowano przydziałów pamięci przez skrypty.</value></data>
   <data name="ProfileChartHelp" xml:space="preserve"><value>Jak korzystać z wykresu</value></data>
@@ -543,8 +543,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileListJavaOwner" xml:space="preserve"><value>Pozycja</value></data>
   <data name="ProfileListLuaShare" xml:space="preserve"><value>Czas zakresu</value></data>
   <data name="ProfileListJavaShare" xml:space="preserve"><value>Udział w działaniu</value></data>
-  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Jaką część wybranego zakresu ten skrypt był wykonywany. Obejmuje też czas funkcji gry wywołanych przez skrypt.</value></data>
-  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Jaką część czasu działania kodu gry w wybranym zakresie zajęła ta pozycja. Funkcje gry wywołane przez skrypty Lua liczą się tu do pozycji „Gra podstawowa”. Długie oczekiwania i zatrzymania pokazują liczbę zamiast udziału.</value></data>
+  <data name="ProfileListLuaShareTip" xml:space="preserve"><value>Jaką część wybranego zakresu ten skrypt był wykonywany. Obejmuje też czas funkcji Java wywołanych przez skrypt.</value></data>
+  <data name="ProfileListJavaShareTip" xml:space="preserve"><value>Jaką część czasu działania kodu gry w wybranym zakresie zajęła ta pozycja. Funkcje Java wywołane z Lua liczą się tu do pozycji „Gra podstawowa”. Długie oczekiwania i zatrzymania pokazują liczbę zamiast udziału.</value></data>
   <data name="ProfilePauseCount" xml:space="preserve"><value>{0}×</value></data>
   <data name="ProfileError.GameNotRunning" xml:space="preserve"><value>Gra nie jest uruchomiona.</value></data>
   <data name="ProfileError.MultipleGames" xml:space="preserve"><value>Uruchomiono więcej niż jedną grę. Zostaw tylko jedną.</value></data>
@@ -708,8 +708,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="UpdateReleasePage.Header" xml:space="preserve"><value>Strona pobierania</value></data>
   <data name="UpdateReleasePage.Name" xml:space="preserve"><value>Otwórz stronę pobierania</value></data>
   <data name="UpdateReleasePage.Open" xml:space="preserve"><value>Otwórz</value></data>
-  <data name="ProfileListLuaNote" xml:space="preserve"><value>Czas moda obejmuje też wywołane przez niego funkcje gry.</value></data>
-  <data name="ProfileListJavaNote" xml:space="preserve"><value>Funkcje gry wywołane przez skrypty liczą się tu jako gra. Czas każdego moda jest na karcie Skrypty.</value></data>
+  <data name="ProfileListLuaNote" xml:space="preserve"><value>Obejmuje też czas funkcji Java wywołanych z Lua.</value></data>
+  <data name="ProfileListJavaNote" xml:space="preserve"><value>Funkcje Java wywołane z Lua liczą się tu jako gra. Czas każdego moda jest na karcie Skrypty.</value></data>
   <data name="ProfileBreakdownTitle" xml:space="preserve"><value>Czas tego zakresu</value></data>
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrypty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kod gry</value></data>
