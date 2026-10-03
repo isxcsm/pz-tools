@@ -1,5 +1,7 @@
 # Game memory
 
+[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+
 *Settings > Game > Game memory* sets how much memory the game's Java may use. The game
 ships with 3 GB. A game with many mods fills that, and then spends its time freeing memory:
 with the collector it uses (ZGC, on Windows 10 1803 and later), threads that need memory

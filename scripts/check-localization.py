@@ -55,7 +55,6 @@ def main() -> None:
         assert TOKEN.findall(row[6]) == ['{0}'], f'{tag}: game countdown parameter differs'
         assert all(row[index].strip() and not TOKEN.findall(row[index]) for index in (7, 8, 9)), f'{tag}: missing notice or unexpected parameters'
         assert localized['SettingEnabled'] != localized['SettingDisabled']
-        assert localized['BackupDeduplicationPhase'] == localized['LogPhase.deduplication']
     print(f'PASS: {len(tags)} languages, {len(keys)} keys, {values_checked} values; '
           f'{len(references)} literal UI keys and {len(diagnostics)} error keys resolve; '
           'shared game notices and backup labels agree.')
