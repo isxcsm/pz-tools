@@ -56,6 +56,7 @@ public static class InstallIntegrity
             && string.Equals(state.Directory, root, StringComparison.OrdinalIgnoreCase);
         var missing = new List<string>();
         var changed = new List<string>();
+        var unread = false;
         foreach (var (path, size, hash) in entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -72,10 +73,10 @@ public static class InstallIntegrity
             }
             // A file another program holds open without sharing (a scanner, briefly) is not evidence of a broken
             // folder: it is read again at the next start, as the folder is not remembered as whole.
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { known = false; }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { unread = true; }
         }
         if (missing.Count > 0 || changed.Count > 0) return new(missing, changed);
-        if (!known) Remember(statePath, root, listHash);
+        if (!known && !unread) Remember(statePath, root, listHash);
         return null;
     }
 

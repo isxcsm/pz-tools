@@ -74,6 +74,21 @@ public sealed class InstallIntegrityTests
         Assert.Equal(["PzTools.App.dll"], problem.Changed);
     }
 
+    [Fact]
+    public void AFileHeldWithoutSharing_IsNotBlamed_NorTheFolderRememberedAsWhole()
+    {
+        using var temp = new TempDirectory();
+        var root = Publish(temp, Release);
+        var state = temp.GetPath("install-check.json");
+        // A scanner holding it, briefly: nothing is said, and the folder is not taken as whole without it.
+        using (new FileStream(Path.Combine(root, "game-bridge", "bridge.jar"), FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.Null(InstallIntegrity.Check(root, state));
+        Assert.False(File.Exists(state));
+        // Read at the next start, a file of the same size and other contents is found.
+        File.WriteAllText(Path.Combine(root, "game-bridge", "bridge.jar"), "jar v9");
+        Assert.Equal(["game-bridge/bridge.jar"], InstallIntegrity.Check(root, state)!.Changed);
+    }
+
     [Theory]
     [InlineData(null)]                                                   // a development build has no list
     [InlineData("something else\n")]
