@@ -495,6 +495,21 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         }
     }
 
+    // A Korean folder name is only a path Java's own launcher can start from where Windows' code page holds Korean
+    // (Korean Windows, or UTF-8): elsewhere, as on an English CI runner, java.exe there cannot find its own java.dll,
+    // which no player with that folder name would meet.
+    private sealed class KoreanPathBridgeFactAttribute : FactAttribute
+    {
+        public KoreanPathBridgeFactAttribute()
+        {
+            if (new BridgeFactAttribute().Skip is { } skip) Skip = skip;
+            else if (GetACP() is not (949 or 65001)) Skip = "Windows' code page here cannot hold a Korean folder name.";
+        }
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern uint GetACP();
+    }
+
     private sealed class LiveProbeFactAttribute : FactAttribute
     {
         public LiveProbeFactAttribute()
