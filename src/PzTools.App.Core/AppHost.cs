@@ -258,7 +258,8 @@ public sealed class AppHost : IAsyncDisposable
             // lasts, the game has ended that recording by itself, and the app would learn it only when a save found
             // nothing: started again once the link is back.
             if (observation.Quality == Process.Contracts.GameRuntime.RuntimeQuality.Offline) linkLost = null;
-            else if (observation.IsFresh || observation.Reason == Process.Contracts.GameRuntime.RuntimeObservation.GameStartingReason)
+            else if (observation.IsFresh || observation.Reason is Process.Contracts.GameRuntime.RuntimeObservation.GameStartingReason
+                or Process.Contracts.GameRuntime.RuntimeObservation.GameBusyReason)
             {
                 if (linkLost is { } lost && System.Diagnostics.Stopwatch.GetElapsedTime(lost) >= ProfileRecordingService.LeaseTerm)
                     Profiles.RollingLeaseLapsed();

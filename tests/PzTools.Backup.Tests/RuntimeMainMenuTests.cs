@@ -72,7 +72,8 @@ public sealed class RuntimeMainMenuTests
         feed.Publish(menu with { Snapshot = menu.Snapshot! with { SampleAgeMilliseconds = 1000 } });
         clock.Advance(1001);
         await projector.ProjectOnceAsync();
-        AssertNoMenu(); // Receipt heartbeats cannot refresh an old game-thread sample.
+        // Receipt heartbeats cannot refresh an old game-thread sample: the game is busy, not on its menu.
+        AssertNoMenu(WorldPhase.Loading);
 
         feed.Publish(Sample(WorldPhase.Menu));
         await projector.ProjectOnceAsync();
@@ -80,9 +81,9 @@ public sealed class RuntimeMainMenuTests
         await projector.ProjectOnceAsync();
         AssertNoMenu();
 
-        void AssertNoMenu()
+        void AssertNoMenu(WorldPhase shown = WorldPhase.Unknown)
         {
-            Assert.Equal(WorldPhase.Unknown, Read(views).GamePhase);
+            Assert.Equal(shown, Read(views).GamePhase);
             Assert.NotEqual("RuntimeBackupMainMenu",
                 ScheduleCountdownPresentation.Resolve(Read(views), Now).MessageKey);
         }
@@ -175,6 +176,43 @@ public sealed class RuntimeMainMenuTests
         Assert.Null((await database.ReadBackupStateIfChangedAsync(-1)).CurrentTarget);
         Assert.Null((await new RuntimeScheduleController(database, feed)
             .PrepareAsync(Now.AddDays(1), TimeSpan.Zero, default)).Admission);
+    }
+
+    [Fact]
+    public async Task GameBusyOutsideAWorld_IsLoading_NotALostLink()
+    {
+        using var temp = new TempDirectory();
+        var database = await CreateDatabaseAsync(temp, true);
+        var clock = new ManualClock();
+        var feed = new RuntimeSnapshotStore(clock);
+        var views = new RevisionedViewStore();
+        var projector = new SchedulerProjector(database, views, runtimeSnapshot: feed);
+        RuntimeObservation Unsampled(WorldPhase phase, long milliseconds)
+        {
+            var sample = Sample(phase);
+            return sample with { Snapshot = sample.Snapshot! with { SampleAgeMilliseconds = milliseconds } };
+        }
+
+        // Returning to the main menu reloads every mod: frames keep arriving while the game thread samples nothing,
+        // past the grace after which a lost link turns backups to the clock.
+        foreach (var phase in new[] { WorldPhase.Menu, WorldPhase.Unloading, WorldPhase.Loading, WorldPhase.Unknown })
+        {
+            feed.Publish(Unsampled(phase, 95_000));
+            var busy = feed.Read();
+            Assert.Equal(RuntimeObservation.GameBusyReason, busy.Reason);
+            Assert.False(busy.IsLinkUnusable);
+            Assert.False(new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true).Update(busy).LinkUnavailable);
+            await projector.ProjectOnceAsync();
+            Assert.Equal(new CountdownPresentation("RuntimeBackupLoading"), ScheduleCountdownPresentation.Resolve(Read(views), Now));
+        }
+
+        // In a world, a game that stops sampling may be hung, and backups must not wait on it for good.
+        feed.Publish(Unsampled(WorldPhase.Ready, 95_000));
+        Assert.True(feed.Read().IsLinkUnusable);
+        // Nor is a game whose frames stopped arriving busy.
+        feed.Publish(Sample(WorldPhase.Menu));
+        clock.Advance(2001);
+        Assert.True(feed.Read().IsLinkUnusable);
     }
 
     private static RuntimeObservation Sample(WorldPhase phase) =>

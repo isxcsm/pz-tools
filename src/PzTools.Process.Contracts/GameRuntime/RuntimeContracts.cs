@@ -111,6 +111,11 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     /// starts only after the initial load, and that load can take minutes.
     /// </summary>
     public const string GameStartingReason = "game-starting";
+    /// <summary>
+    /// Connected, outside a world, and the game has stopped sampling: its main loop is busy loading or unloading.
+    /// Returning to the main menu reloads every mod, which can take minutes. A known state, not a lost link.
+    /// </summary>
+    public const string GameBusyReason = "game-busy";
     /// <summary>The game still runs a bridge older than this app's; it connects again after a game restart.</summary>
     public const string RestartRequiredReason = "runtime-restart-required";
     /// <summary>The game was started with connecting turned off by a launch option.</summary>
@@ -121,7 +126,7 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     /// multiplayer, a game still starting and a loading world are known states, not an unusable link.
     /// </summary>
     public bool IsLinkUnusable => Quality is RuntimeQuality.Unknown && Reason != GameStartingReason
-        || Quality is RuntimeQuality.Stale
+        || Quality is RuntimeQuality.Stale && Reason != GameBusyReason
         || Quality == RuntimeQuality.Fresh && Snapshot is { Phase: WorldPhase.Unknown };
     /// <summary>The running game's version, only while it has this save loaded; a save records no version itself.</summary>
     public string? GameVersionFor(string savePath) =>

@@ -34,5 +34,6 @@ public static class RuntimeScheduleProjection
     }
 
     internal static WorldPhase ObservedGamePhase(RuntimeObservation observation) =>
-        observation.IsFresh ? observation.Snapshot!.Phase : WorldPhase.Unknown;
+        observation.IsFresh ? observation.Snapshot!.Phase
+        : observation.Reason == RuntimeObservation.GameBusyReason ? WorldPhase.Loading : WorldPhase.Unknown;
 }

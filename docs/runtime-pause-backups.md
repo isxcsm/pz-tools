@@ -69,6 +69,12 @@ initial load; until then the connection is up but no state has been read yet. A 
 that runs but whose state cannot be read is told apart within a fraction of a second,
 because its frames report the unreadable state.
 
+Nor is a game that is busy outside a world. Returning to the main menu reloads every
+mod, and with many mods the game's main loop can stand still for more than the grace
+period. The connection stays up meanwhile, so the schedule line says the game is
+loading. A game that stops reading its state while a world is loaded may be hung, and
+still falls back to the wall clock.
+
 A save the game refused, reported as failed, or left unanswered after the command was
 sent still fails; see the next section.
 
