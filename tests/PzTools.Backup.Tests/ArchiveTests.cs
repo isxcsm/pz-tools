@@ -40,6 +40,32 @@ public sealed class ArchiveTests
     }
 
     [Fact]
+    public async Task ExportAndImport_KeepTheSavesFileTimes()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(Path.Combine(source, "map"));
+        var players = Path.Combine(source, "players.db");
+        var chunk = Path.Combine(source, "map", "1.bin");
+        await File.WriteAllTextAsync(players, "player");
+        await File.WriteAllTextAsync(chunk, "chunk");
+        // Odd seconds: a zip keeps file times to two seconds, the manifest the last play exactly.
+        var played = new DateTime(2026, 9, 30, 21, 15, 7, 123, DateTimeKind.Utc);
+        var written = new DateTime(2026, 9, 29, 8, 0, 3, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(players, played);
+        File.SetLastWriteTimeUtc(chunk, written);
+        var service = new ZomboidArchiveService();
+        await service.ExportLiveAsync(source, "Sandbox/Current", temp.GetPath("save.zip"));
+
+        var imported = await service.ImportAsync(temp.GetPath("save.zip"), temp.GetPath("Imported"));
+
+        // The save says when it was last played, not when it was unpacked.
+        Assert.Equal(played, File.GetLastWriteTimeUtc(Path.Combine(imported.DestinationPath, "players.db")));
+        Assert.InRange(File.GetLastWriteTimeUtc(Path.Combine(imported.DestinationPath, "map", "1.bin")),
+            written.AddSeconds(-2), written.AddSeconds(2));
+    }
+
+    [Fact]
     public async Task Inspect_ReportsCharacterFromArchivedPlayersDatabase()
     {
         using var temp = new TempDirectory();

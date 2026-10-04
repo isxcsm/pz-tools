@@ -149,9 +149,10 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                         if (StringComparer.OrdinalIgnoreCase.Equals(file.RelativePath, "players.db"))
                             playersModified = file.ModifiedUtc.UtcDateTime;
                         // The archive's own manifest takes that name; a stored file with it is left out.
-                        return Task.FromResult(IsRootManifest(file.RelativePath)
-                            ? Stream.Null
-                            : archive.CreateEntry(savePrefix + file.RelativePath, CompressionLevel.Optimal).Open());
+                        if (IsRootManifest(file.RelativePath)) return Task.FromResult(Stream.Null);
+                        var zipEntry = archive.CreateEntry(savePrefix + file.RelativePath, CompressionLevel.Optimal);
+                        Stamp(zipEntry, file.ModifiedUtc.UtcDateTime);
+                        return Task.FromResult(zipEntry.Open());
                     },
                     ReportAsync, token);
                 return restored.Files;
@@ -205,6 +206,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 token.ThrowIfCancellationRequested();
                 var relative = savePrefix + file.RelativePath.Replace('\\', '/');
                 var zipEntry = archive.CreateEntry(relative, CompressionLevel.Optimal);
+                Stamp(zipEntry, file.LastWriteUtc);
                 // No FileStream buffer: the copy reads in large blocks itself, and a buffer per
                 // file would be allocated for each of a save's many small files.
                 await using var input = new FileStream(
@@ -238,6 +240,15 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
 
     private static bool IsRootManifest(string relativePath) =>
         StringComparer.OrdinalIgnoreCase.Equals(relativePath.Replace('\\', '/'), ManifestEntryName);
+
+    // A save's file times say when it was last played; kept through export and import, they are not the
+    // time it was unpacked. A zip holds local dates from 1980 to 2107 only, and stores the clock time it is
+    // given whatever its offset: given local time. A date outside keeps the time of writing.
+    private static void Stamp(ZipArchiveEntry entry, DateTime modifiedUtc)
+    {
+        if (modifiedUtc.Year is >= 1981 and <= 2106)
+            entry.LastWriteTime = new DateTimeOffset(modifiedUtc, TimeSpan.Zero).ToLocalTime();
+    }
 
     private sealed record SnapshotEntry(string RelativePath, bool IsDirectory, long Length, DateTime LastWriteUtc);
 
@@ -367,14 +378,18 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                     continue;
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-                await using var input = entry.Open();
-                await using var target = new FileStream(
+                await using (var input = entry.Open())
+                await using (var target = new FileStream(
                     output, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                    1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await CopyEntryBoundedAsync(input, target, entry.Length, cancellationToken,
-                    progress is null ? null : (copied, token) => progress(new ArchiveProgress(
-                        "import", files, fileEntries.LongLength, completedBytes + copied,
-                        totalBytes, entry.FullName), token), expectedCrc32: entry.Crc32);
+                    1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    await CopyEntryBoundedAsync(input, target, entry.Length, cancellationToken,
+                        progress is null ? null : (copied, token) => progress(new ArchiveProgress(
+                            "import", files, fileEntries.LongLength, completedBytes + copied,
+                            totalBytes, entry.FullName), token), expectedCrc32: entry.Crc32);
+                }
+                // The time the file was last written in the save, not the time it was unpacked.
+                File.SetLastWriteTimeUtc(output, entry.LastWriteTime.UtcDateTime);
                 files++;
                 completedBytes += entry.Length;
                 if (progress is not null)
@@ -386,8 +401,13 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 SafeChild(staging, SavePrefix(inspection.Manifest)
                     .Replace('/', Path.DirectorySeparatorChar)
                     .TrimEnd(Path.DirectorySeparatorChar));
-            if (!File.Exists(Path.Combine(stagedSave, "players.db")))
+            var players = Path.Combine(stagedSave, "players.db");
+            if (!File.Exists(players))
                 throw new InvalidDataException("Archive does not contain players.db.");
+            // The manifest keeps the exact time of the last play, also for archives whose entries carry the
+            // time they were written instead.
+            if (inspection.Manifest.LastPlayedUtc is { } played)
+                File.SetLastWriteTimeUtc(players, played.UtcDateTime);
             Directory.Move(stagedSave, destination);
             return new ArchiveImportResult(destination, inspection.Manifest.Mode, finalName, files);
         }

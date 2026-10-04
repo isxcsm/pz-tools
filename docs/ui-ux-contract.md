@@ -414,6 +414,9 @@ newest-first ordering are available for all entries.
 - When the name is taken, the save is imported as `SaveName(1)`, `SaveName(2)` and so on.
 - New archives store game files as `Mode/SaveName/file`. Version 1 archives from older
   versions, with files at the root, can still be read.
+- Files keep the times they had in the save, so an imported save's **Last played** is
+  when it was last played, not when it was imported. `players.db` takes the exact time
+  from the manifest; archives made before this keep their other files' export times.
 - The screen refreshes before completion is shown. If the refresh fails, that is
   reported separately from an import failure, so the user does not import the same files
   again.
