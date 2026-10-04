@@ -62,7 +62,8 @@ settings keys are in [configuration](configuration.md).
 ## Progress and liveness
 
 **Heartbeats.** Long-running backup, restore and archive operations emit
-`operation.heartbeat`, but only while they are working. A missed heartbeat marks a
+`operation.heartbeat`, but only while they are working. A backup records it at every
+recording level, as it is the run's liveness rather than a detail. A missed heartbeat marks a
 workflow stale only while it is `Running`. An idle producer or a finished operation is
 not a failure.
 

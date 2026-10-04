@@ -58,6 +58,23 @@ public sealed class TelemetryStoreTests
         Assert.Equal(expectedCount, (await store.ReadEventsAsync(1)).Count);
     }
 
+    [Theory]
+    [InlineData(TelemetryMode.Run)]
+    [InlineData(TelemetryMode.Phase)]
+    [InlineData(TelemetryMode.Raw)]
+    public async Task Heartbeat_IsRecordedAtEveryLevel(TelemetryMode mode)
+    {
+        using var temp = new TempDirectory();
+        var store = await TelemetryStore.CreateOrOpenAsync(temp.GetPath("repository"));
+        await using var session = await store.BeginRunAsync(1, 1, DateTimeOffset.UtcNow, CreateOptions(mode));
+        // A long phase with no progress (comparing every file of an imported save) is alive only by its heartbeat.
+        await using (PzTools.Backup.Engine.TelemetryHeartbeat.Start(session, TimeSpan.FromMilliseconds(10)))
+            await Task.Delay(200);
+        await session.CompleteAsync(RunStatus.Succeeded);
+
+        Assert.Contains(await store.ReadEventsAsync(1), item => item.Name == "operation.heartbeat");
+    }
+
     [Fact]
     public async Task RecoverAbandonedRuns_RequiresWriterLeaseAndDoesNotRunOnOpen()
     {
