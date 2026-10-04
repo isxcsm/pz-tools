@@ -188,7 +188,7 @@ public sealed partial class GameSaveClientTests
         Assert.True(stopped, "The game kept the recording asked for after the app run had gone.");
     }
 
-    [BridgeFact]
+    [KoreanPathBridgeFact]
     public async Task TheAppInAFolderNamedInKorean_StillAttaches()
     {
         using var temp = new TempDirectory();
