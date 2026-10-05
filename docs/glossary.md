@@ -22,7 +22,7 @@ keeps a record per source.
 ### Revision (backup)
 
 One backup of one source: which files it contains, their contents, and when and why
-it was made (manual, automatic or death). A revision exists only once it is committed;
+it was made (manual or automatic; a death backup is an automatic one). A revision exists only once it is committed;
 an interrupted backup leaves none. Automatic revisions beyond the retention limit are
 marked deleted first and their space is reclaimed later.
 For the other meanings see [settings revision](#settings-revision) and

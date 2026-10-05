@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Обзор</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Резервное копирование</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Автоматические копии</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Создаёт копию сохранения, в которое вы играете, через заданный интервал. Ручные копии доступны и при выключенной настройке.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Создаёт резервную копию текущего сохранения с заданным интервалом. Когда персонаж умирает, останавливается, пока вы не начнёте новым персонажем. Ручные копии работают и при выключенной функции.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Интервал копирования</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Время между автоматическими копиями (1–60 минут). После изменения отсчёт начинается заново.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Количество автоматических копий</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Хранит столько последних автоматических копий, а более старые удаляет (1–100). Ручные копии не учитываются и не удаляются.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Создавать копию при смерти персонажа</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>После смерти персонажа автоматические копии прекращаются, чтобы копии, сделанные при жизни, не вытеснялись. Включите, чтобы сохранить одну копию на момент смерти.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Если включено, создаёт одну копию сразу после смерти персонажа.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Сохранение постоянно менялось, копия не создана. Повторите чуть позже.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Следующая копия: ожидание</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Системная</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Копирование остановлено: сохранение игры не удалось подтвердить.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Сохранять игру перед копированием</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Обратный отсчёт в игре</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>За 5 секунд до того, как автоматическая копия сохранит игру, показывает над персонажем обратный отсчёт, а затем результат. Копии, запущенные в приложении, сохраняются сразу без него. Если выключить, автоматические копии тоже сохраняются без него.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Перед тем как автоматическая копия сохранит игру, показывает над персонажем обратный отсчёт за 5 секунд, а затем результат. Если выключено, сохраняет без него.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Сохраняет игру прямо перед копированием, чтобы в копию попал последний прогресс. Во время сохранения игра может замереть примерно на полсекунды. Если выключить, несохранённый прогресс может не попасть в копию, поэтому рекомендуется оставить включённым.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Выключено: прогресс после последнего сохранения игры не попадёт в копии. Рекомендуем оставить включённым.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Следующая копия: скоро</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Следующая копия: после текущей операции</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Исцелить персонажа</value></data>

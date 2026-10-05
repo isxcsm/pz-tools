@@ -386,6 +386,9 @@ public sealed partial class SchedulerDatabase
                     await IncrementRevisionAsync(connection, transaction, cancellationToken);
                     return null;
                 }
+                // The game is still settling the death (the body, the death screen) in the moment it is seen; a save
+                // a little after it holds the world as it then stands. The next one-second tick takes it.
+                if (now < pending.EnqueuedUtc + RuntimeDeathPolicy.Settle) return null;
             }
             return new BackupTickAdmission(
                 $"backup-scheduler:pending:{pending.PendingId}:{pending.AttemptSequence}",

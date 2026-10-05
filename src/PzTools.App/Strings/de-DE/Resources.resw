@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Durchsuchen</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Sicherung</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatische Sicherungen</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Sichert den Spielstand, den du gerade spielst, im eingestellten Intervall. Manuelle Sicherungen funktionieren auch, wenn dies aus ist.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Sichert den gespielten Spielstand im eingestellten Abstand. Stirbt deine Figur, pausiert sie, bis du eine neue Figur beginnst. Manuelle Sicherungen funktionieren auch, wenn dies aus ist.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Sicherungsintervall</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Zeit zwischen automatischen Sicherungen (1–60 Minuten). Nach einer Änderung beginnt die Zählung neu.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Anzahl automatischer Sicherungen</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Behält so viele der neuesten automatischen Sicherungen und löscht ältere (1–100). Manuelle Sicherungen zählen nicht mit und werden nie gelöscht.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Wenn dein Charakter stirbt, werden automatische Sicherungen angehalten, damit die zu Lebzeiten erstellten nicht verdrängt werden. Aktivieren, um eine Sicherung vom Zeitpunkt des Todes zu behalten.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Wenn an, wird direkt nach dem Tod deiner Figur eine Sicherung erstellt.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Der Spielstand änderte sich ständig und wurde nicht gesichert. Versuchen Sie es gleich erneut.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Nächste Sicherung: wartet</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>System</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Die Sicherung wurde gestoppt, weil die Spielspeicherung nicht bestätigt werden konnte.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Speicher-Countdown im Spiel</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zeigt ab 5 Sekunden, bevor eine automatische Sicherung das Spiel speichert, einen Countdown über deinem Charakter und danach das Ergebnis. In der App gestartete Sicherungen speichern sofort, ohne Anzeige. Wenn aus, speichern auch automatische Sicherungen ohne Anzeige.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Bevor eine automatische Sicherung das Spiel speichert, zeigt sie 5 Sekunden vorher einen Countdown über deiner Figur und danach das Ergebnis. Wenn aus, wird ohne ihn gespeichert.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Speichert das Spiel direkt vor einer Sicherung, damit sie den neuesten Fortschritt enthält. Beim Speichern kann das Spiel etwa eine halbe Sekunde stocken. Wenn aus, kann noch nicht gespeicherter Fortschritt in der Sicherung fehlen; daher wird empfohlen, dies eingeschaltet zu lassen.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Aus: Fortschritt seit dem letzten Speichern des Spiels fehlt in Sicherungen. Wir empfehlen, dies eingeschaltet zu lassen.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Nächste Sicherung: startet gleich</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Nächste Sicherung: nach dem laufenden Vorgang</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Charakter heilen</value></data>

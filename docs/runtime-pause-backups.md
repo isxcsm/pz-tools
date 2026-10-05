@@ -43,8 +43,8 @@ remaining value, and its display follows the system's animation preference.
   periodic backup then uses a guarded check to confirm the backup is allowed
   ([admission](glossary.md#admission)) without saving the game. See
   [saving the game before a backup](game-bridge.md).
-- **Automatic backups switched off** wins over either timing choice. Manual and death
-  backups follow their own rules.
+- **Automatic backups switched off** wins over either timing choice, death backups
+  included. Manual backups follow their own rules.
 - **Changing the interval or the timing setting** starts a new interval. Restarting
   the app also starts periodic timing afresh. A reconnect to the game keeps the
   countdown where it was.

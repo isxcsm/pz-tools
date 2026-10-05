@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>찾아보기</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>백업</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>자동 백업</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>플레이 중인 세이브를 설정한 간격마다 백업합니다. 꺼도 수동 백업은 그대로 쓸 수 있습니다.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>플레이 중인 세이브를 설정한 간격마다 백업합니다. 캐릭터가 죽으면 새 캐릭터로 시작할 때까지 멈춥니다. 꺼도 수동 백업은 그대로 쓸 수 있습니다.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>백업 간격</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>자동 백업을 실행하는 간격입니다(1~60분). 바꾸면 그때부터 다시 셉니다.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>자동 백업 보관 개수</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>자동 백업은 최근 것부터 이 개수만큼 남기고 오래된 것부터 지웁니다(1~100개). 수동 백업은 세지 않으며 지워지지 않습니다.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>캐릭터 사망 시 백업</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>캐릭터가 죽으면 자동 백업을 멈춰, 살아 있을 때의 백업이 밀려나지 않게 합니다. 켜면 죽은 시점의 백업을 하나 남깁니다.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>켜면 캐릭터가 죽은 직후 백업을 한 번 만듭니다.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>세이브가 계속 바뀌어 백업하지 못했습니다. 잠시 후 다시 시도해 주세요.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>다음 백업: 대기 중</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>시스템</value></data>
@@ -332,8 +332,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>게임 저장을 확인하지 못해 백업을 중단했습니다.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>백업 전 게임 저장</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>저장 전 카운트다운</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>자동 백업이 게임을 저장하기 5초 전부터 캐릭터 위에 카운트다운을 띄우고, 끝나면 저장 결과를 알려 줍니다. 앱에서 시작한 백업은 표시 없이 바로 저장합니다. 끄면 자동 백업도 표시 없이 저장합니다.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>자동 백업이 게임을 저장하기 5초 전부터 캐릭터 위에 카운트다운을 띄우고, 끝나면 저장 결과를 알려 줍니다. 끄면 표시 없이 저장합니다.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>백업 직전에 게임을 저장해 최신 진행 상황까지 담습니다. 저장하는 동안 게임이 0.5초쯤 멈칫할 수 있습니다. 끄면 아직 저장되지 않은 진행 상황이 백업에서 빠질 수 있어 켜 두기를 권장합니다.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>꺼져 있습니다: 게임이 마지막으로 저장된 뒤의 진행 상황은 백업에 들어가지 않습니다. 켜 두기를 권장합니다.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>다음 백업: 곧 시작</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>다음 백업: 작업이 끝나면 시작</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>캐릭터 회복</value></data>

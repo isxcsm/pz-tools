@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Telusuri</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Pencadangan</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Pencadangan otomatis</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Mencadangkan save yang sedang dimainkan pada interval yang ditetapkan. Cadangan manual tetap bisa dibuat saat ini dimatikan.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Mencadangkan simpanan yang sedang dimainkan pada interval yang diatur. Jika karakter mati, berhenti sampai kamu memulai karakter baru. Cadangan manual tetap bisa dipakai meski ini mati.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Interval pencadangan</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Waktu antara cadangan otomatis (1–60 menit). Jika diubah, hitungan dimulai ulang.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Jumlah cadangan otomatis</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Menyimpan sejumlah ini cadangan otomatis terbaru dan menghapus yang lebih lama (1–100). Cadangan manual tidak dihitung dan tidak pernah dihapus.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Cadangkan saat karakter mati</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Saat karakter mati, pencadangan otomatis berhenti agar cadangan yang dibuat saat masih hidup tidak tergeser. Aktifkan untuk menyimpan satu cadangan pada saat kematian.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Jika aktif, membuat satu cadangan tepat setelah karaktermu mati.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Simpanan terus berubah, jadi tidak dicadangkan. Coba lagi sebentar lagi.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Cadangan berikutnya: menunggu</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistem</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Pencadangan dihentikan karena penyimpanan gim tidak dapat dikonfirmasi.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Simpan gim sebelum pencadangan</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Hitung mundur penyimpanan di dalam gim</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Menampilkan hitung mundur di atas karakter mulai 5 detik sebelum pencadangan otomatis menyimpan gim, lalu hasilnya. Pencadangan yang dimulai dari aplikasi langsung menyimpan tanpa tampilan itu. Jika dimatikan, pencadangan otomatis juga menyimpan tanpa tampilan itu.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Sebelum cadangan otomatis menyimpan game, menampilkan hitung mundur di atas karakter sejak 5 detik sebelumnya, lalu hasilnya. Jika mati, menyimpan tanpa itu.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Menyimpan gim tepat sebelum pencadangan agar kemajuan terbaru ikut tercadangkan. Gim bisa tersendat sekitar setengah detik saat menyimpan. Jika dimatikan, kemajuan yang belum disimpan bisa tidak masuk ke cadangan, jadi sebaiknya tetap diaktifkan.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Mati: progres sejak game terakhir disimpan tidak masuk ke cadangan. Disarankan tetap dinyalakan.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Pencadangan berikutnya: segera</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Pencadangan berikutnya: setelah operasi ini</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Pulihkan karakter</value></data>

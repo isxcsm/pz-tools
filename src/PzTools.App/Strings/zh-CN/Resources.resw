@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>浏览</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>备份</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>自动备份</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>按设定的间隔备份正在游玩的存档。关闭后仍可手动备份。</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>按设定的间隔备份正在游玩的存档。角色死亡后会暂停，直到以新角色开始。关闭后仍可手动备份。</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>备份间隔</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>自动备份的间隔（1–60 分钟）。更改后重新开始计时。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自动备份保留数量</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>自动备份只保留最近的这么多个，更早的会被删除（1–100 个）。手动备份不计入，也不会被删除。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡时备份</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>角色死亡后停止自动备份，避免存活时的备份被挤掉。开启后会保留一份死亡时刻的备份。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>开启后，在角色死亡后立即备份一次。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>存档一直在变化，未能备份。请稍后重试。</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>下次备份：等待中</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>系统</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>无法确认游戏保存结果，已停止备份。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>备份前保存游戏</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>游戏内保存倒计时</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自动备份保存游戏前 5 秒起在角色头顶显示倒计时，结束后显示保存结果。在应用中开始的备份不显示，直接保存。关闭后自动备份也不显示，直接保存。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自动备份保存游戏前 5 秒起在角色上方显示倒计时，结束后告知保存结果。关闭后不显示直接保存。</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前先保存游戏，把最新进度也包含进去。保存时游戏可能会卡顿约 0.5 秒。关闭后，尚未保存的进度可能不会进入备份，建议保持开启。</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>已关闭：游戏上次保存之后的进度不会进入备份。建议保持开启。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次备份：即将开始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：当前任务结束后</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢复</value></data>

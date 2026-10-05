@@ -17,9 +17,11 @@ Deaths are read live from the running game through the
 1. PZ Tools sees the character go from alive to dead.
 2. Periodic backups are held, whether or not the death option is on. The countdown
    line shows *Character dead – backups waiting* (internally `ScheduleHold.CharacterDead`).
-3. If **Back up when the character dies** is on, one death backup is made. Pausing
-   the game and the periodic countdown do not hold it back. The main switch for
-   automatic backups still applies.
+3. If **Back up when the character dies** is on, one death backup is made, a second
+   after the death is seen, so the game has finished dying first. Pausing the game and
+   the periodic countdown do not hold it back. The main switch for automatic backups
+   still applies. It is an ordinary automatic backup: it takes one place in the kept
+   number like any other.
 4. When you play a new character, periodic backups resume with a fresh interval.
 
 While the character is dead, the active-time countdown is reset to a full interval and

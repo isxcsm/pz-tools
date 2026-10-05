@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>เรียกดู</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>การสำรองข้อมูล</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>การสำรองอัตโนมัติ</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>สำรองเซฟที่กำลังเล่นอยู่ตามช่วงเวลาที่ตั้งไว้ แม้ปิดไว้ก็ยังสำรองด้วยตนเองได้</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>สำรองเซฟที่กำลังเล่นตามช่วงเวลาที่ตั้งไว้ เมื่อตัวละครตาย จะหยุดจนกว่าจะเริ่มตัวละครใหม่ ปิดไว้ก็ยังสำรองด้วยตนเองได้</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>ช่วงเวลาสำรองข้อมูล</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>ระยะเวลาระหว่างการสำรองอัตโนมัติ (1–60 นาที) เมื่อเปลี่ยนค่าจะเริ่มนับใหม่</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>จำนวนข้อมูลสำรองอัตโนมัติที่เก็บไว้</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุดไว้ตามจำนวนนี้และลบรายการที่เก่ากว่า (1–100) ข้อมูลสำรองด้วยตนเองจะไม่ถูกนับและไม่ถูกลบ</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครเสียชีวิต</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>เมื่อตัวละครเสียชีวิต การสำรองอัตโนมัติจะหยุด เพื่อไม่ให้ข้อมูลสำรองตอนยังมีชีวิตถูกดันออก เปิดเพื่อเก็บข้อมูลสำรองหนึ่งรายการ ณ ตอนที่เสียชีวิต</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>เมื่อเปิด จะสร้างข้อมูลสำรองหนึ่งครั้งทันทีหลังตัวละครตาย</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนแปลงไม่หยุด จึงสำรองข้อมูลไม่ได้ ลองอีกครั้งในอีกสักครู่</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>สำรองครั้งถัดไป: รออยู่</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>ตามระบบ</value></data>
@@ -332,8 +332,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>หยุดการสำรองเนื่องจากยืนยันการบันทึกเกมไม่ได้</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>นับถอยหลังการบันทึกในเกม</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อนที่การสำรองอัตโนมัติจะบันทึกเกม แล้วแสดงผลการบันทึก การสำรองที่เริ่มจากแอปจะบันทึกทันทีโดยไม่แสดง หากปิด การสำรองอัตโนมัติก็จะบันทึกโดยไม่แสดงเช่นกัน</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>ก่อนการสำรองอัตโนมัติจะบันทึกเกม จะแสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อน แล้วแจ้งผล เมื่อปิด จะบันทึกโดยไม่แสดง</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกเกมก่อนสำรองทันทีเพื่อให้รวมความคืบหน้าล่าสุด เกมอาจสะดุดประมาณครึ่งวินาทีขณะบันทึก หากปิด ความคืบหน้าที่ยังไม่ได้บันทึกอาจไม่อยู่ในข้อมูลสำรอง จึงแนะนำให้เปิดไว้</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>ปิดอยู่: ความคืบหน้าหลังเกมบันทึกครั้งล่าสุดจะไม่อยู่ในข้อมูลสำรอง แนะนำให้เปิดไว้</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: เริ่มเร็ว ๆ นี้</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: หลังงานปัจจุบันเสร็จ</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>รักษาตัวละคร</value></data>

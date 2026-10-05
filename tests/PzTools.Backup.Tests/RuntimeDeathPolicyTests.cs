@@ -32,6 +32,9 @@ public sealed class RuntimeDeathPolicyTests
         await Publish(s);
         s = s with { CharacterLife = RuntimeCharacterLife.Dead, DeathId = Id(), Sequence = 2 };
         await Publish(s);
+        // Seen dead: its backup waits a moment for the game to finish dying first.
+        Assert.Null((await controller.PrepareAsync(DateTimeOffset.UtcNow, TimeSpan.Zero, default)).Admission);
+        now = DateTimeOffset.UtcNow.AddSeconds(30);
         var selected = await controller.PrepareAsync(now, TimeSpan.Zero, default);
         var admission = Assert.IsType<BackupTickAdmission>(selected.Admission);
         Assert.True(selected.Enabled); Assert.Equal(BackupAdmissionKind.RunOnce, admission.Kind);
@@ -48,7 +51,7 @@ public sealed class RuntimeDeathPolicyTests
         // A new character's death is a new episode, not a permanent suppression of this world.
         s = s with { CharacterSession = Id(), DeathId = Id(), ObserverEpoch = Id(), Sequence = 4 };
         await Publish(s);
-        Assert.NotNull((await controller.PrepareAsync(now, TimeSpan.Zero, default)).Admission);
+        Assert.NotNull((await controller.PrepareAsync(DateTimeOffset.UtcNow.AddSeconds(30), TimeSpan.Zero, default)).Admission);
     }
     [Fact]
     public void DeadCharacterHoldsPeriodicBackups_AndANewLifeStartsAFullInterval()
@@ -133,9 +136,10 @@ public sealed class RuntimeDeathPolicyTests
         await Apply(s, true, RuntimeQuality.Stale);
         Assert.Null(await db.PrepareBackupTickAsync(DateTimeOffset.UtcNow));
         await Apply(s, true);
-        Assert.NotNull(await db.PrepareBackupTickAsync(DateTimeOffset.UtcNow));
-        await Apply(s with { CharacterLife = RuntimeCharacterLife.Alive, CharacterSession = Id(), DeathId = null }, true);
         Assert.Null(await db.PrepareBackupTickAsync(DateTimeOffset.UtcNow));
+        Assert.NotNull(await db.PrepareBackupTickAsync(DateTimeOffset.UtcNow + RuntimeDeathPolicy.Settle + TimeSpan.FromSeconds(1)));
+        await Apply(s with { CharacterLife = RuntimeCharacterLife.Alive, CharacterSession = Id(), DeathId = null }, true);
+        Assert.Null(await db.PrepareBackupTickAsync(DateTimeOffset.UtcNow.AddSeconds(30)));
         Assert.Equal(0, (await db.ReadBackupStateIfChangedAsync(-1)).PendingRuns);
     }
     [Fact]

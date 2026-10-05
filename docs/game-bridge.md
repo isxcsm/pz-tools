@@ -20,7 +20,7 @@ The [overview](overview.md) shows where it sits.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| **Save game before backup** | On | Asks the game to save before each backup. Off: only what is already on disk is backed up. |
+| **Save game before backup** | On | Asks the game to save before each backup. Off: only what is already on disk is backed up, and its card in Settings turns to the caution colour with a warning icon, saying so in place of its description. |
 | **In-game save countdown** | On | Before an automatic backup saves the game, shows notices above your character: a countdown, then *saving*, then done or failed. A backup started from the app saves at once, without notices. |
 
 Both apply from the next backup; one already running keeps the settings it started

@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Przeglądaj</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Kopia zapasowa</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatyczne kopie zapasowe</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Tworzy kopię zapisu, w który grasz, w ustawionych odstępach. Ręczne kopie działają także po wyłączeniu.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Tworzy kopię zapasową granego zapisu w ustawionym odstępie. Gdy postać zginie, wstrzymuje się do rozpoczęcia nową postacią. Ręczne kopie działają także, gdy to jest wyłączone.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Odstęp między kopiami</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Czas między automatycznymi kopiami (1–60 minut). Po zmianie odliczanie zaczyna się od nowa.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Liczba automatycznych kopii</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Zachowuje tyle najnowszych automatycznych kopii, a starsze usuwa (1–100). Ręczne kopie nie są liczone i nigdy nie są usuwane.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Twórz kopię po śmierci postaci</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Po śmierci postaci automatyczne kopie są wstrzymywane, aby nie wypierały kopii zrobionych za jej życia. Włącz, aby zachować jedną kopię z chwili śmierci.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Po włączeniu tworzy jedną kopię zaraz po śmierci postaci.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Zapis ciągle się zmieniał, więc nie utworzono kopii. Spróbuj ponownie za chwilę.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Następna kopia: oczekiwanie</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Systemowy</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Przerwano tworzenie kopii, ponieważ nie udało się potwierdzić zapisu gry.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odliczanie zapisu w grze</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Na 5 sekund przed zapisem gry przez automatyczną kopię pokazuje odliczanie nad postacią, a potem wynik zapisu. Kopie uruchomione w aplikacji zapisują od razu, bez tej informacji. Po wyłączeniu automatyczne kopie też zapisują bez niej.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zanim automatyczna kopia zapisze grę, wyświetla nad postacią odliczanie od 5 sekund, a potem wynik. Po wyłączeniu zapisuje bez niego.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje grę tuż przed utworzeniem kopii, aby zawierała najnowsze postępy. Podczas zapisu gra może zaciąć się na około pół sekundy. Po wyłączeniu niezapisane jeszcze postępy mogą nie trafić do kopii, dlatego zalecamy pozostawienie tej opcji włączonej.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Wyłączone: postęp od ostatniego zapisu gry nie trafia do kopii. Zalecamy pozostawić włączone.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Następna kopia: wkrótce</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Następna kopia: po bieżącej operacji</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Ulecz postać</value></data>

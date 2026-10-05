@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Examinar</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Copia de seguridad</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Copias automáticas</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Crea una copia de la partida a la que estás jugando en el intervalo establecido. Las copias manuales siguen disponibles si está desactivado.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Hace una copia de la partida que juegas cada intervalo configurado. Si tu personaje muere, se detiene hasta que empieces con un personaje nuevo. Las copias manuales siguen funcionando aunque esto esté desactivado.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Intervalo de copia</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Tiempo entre copias automáticas (1–60 minutos). Al cambiarlo, la cuenta empieza de nuevo.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Cantidad de copias automáticas</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserva esta cantidad de copias automáticas más recientes y elimina las anteriores (1–100). Las copias manuales no cuentan y nunca se eliminan.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crear copia cuando muera el personaje</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Cuando tu personaje muere, las copias automáticas se detienen para que no desplacen a las hechas en vida. Actívalo para conservar una copia del momento de la muerte.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Si está activado, hace una copia justo después de que muera tu personaje.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>La partida no dejaba de cambiar y no se ha copiado. Inténtalo de nuevo en un momento.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Próxima copia: en espera</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistema</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Se ha detenido la copia porque no se ha podido confirmar el guardado del juego.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Guardar el juego antes de la copia</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Cuenta atrás dentro del juego</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Muestra una cuenta atrás sobre tu personaje desde 5 segundos antes de que una copia automática guarde la partida y después el resultado. Las copias que inicias en la aplicación guardan al momento, sin mostrarla. Si está desactivado, las copias automáticas también guardan sin mostrarla.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Antes de que una copia automática guarde la partida, muestra una cuenta atrás sobre tu personaje desde 5 segundos antes y luego el resultado. Si está desactivado, guarda sin mostrarla.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Guarda el juego justo antes de una copia para incluir tu progreso más reciente. El juego puede detenerse alrededor de medio segundo mientras guarda. Si está desactivado, el progreso aún no guardado puede faltar en la copia, por lo que se recomienda dejarlo activado.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Desactivado: el progreso desde el último guardado de la partida no entra en las copias. Se recomienda dejarlo activado.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próxima copia: empieza pronto</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próxima copia: tras la operación actual</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Curar personaje</value></data>

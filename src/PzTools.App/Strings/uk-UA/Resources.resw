@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Огляд</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Резервне копіювання</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Автоматичні копії</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Створює копію збереження, у яке ви граєте, через заданий інтервал. Ручні копії доступні й тоді, коли це вимкнено.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Створює резервну копію поточного збереження із заданим інтервалом. Коли персонаж помирає, зупиняється, доки ви не почнете новим персонажем. Ручні копії працюють і коли це вимкнено.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Інтервал копіювання</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Час між автоматичними копіями (1–60 хвилин). Після зміни відлік починається заново.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Кількість автоматичних копій</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Зберігає стільки найновіших автоматичних копій, а старіші видаляє (1–100). Ручні копії не враховуються й не видаляються.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Створювати копію після смерті персонажа</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Після смерті персонажа автоматичні копії припиняються, щоб копії, зроблені за життя, не витіснялися. Увімкніть, щоб зберегти одну копію на момент смерті.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Якщо ввімкнено, створює одну копію одразу після смерті персонажа.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Збереження постійно змінювалося, копію не створено. Повторіть трохи згодом.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Наступна копія: очікування</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Системна</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Копіювання зупинено: збереження гри не вдалося підтвердити.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Зберігати гру перед копіюванням</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Зворотний відлік у грі</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>За 5 секунд до того, як автоматична копія збереже гру, показує над персонажем зворотний відлік, а потім результат. Копії, запущені в застосунку, зберігаються одразу без нього. Якщо вимкнути, автоматичні копії теж зберігаються без нього.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Перед тим як автоматична копія збереже гру, показує над персонажем зворотний відлік за 5 секунд, а потім результат. Якщо вимкнено, зберігає без нього.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Зберігає гру безпосередньо перед копіюванням, щоб до копії потрапив останній прогрес. Під час збереження гра може завмерти приблизно на пів секунди. Якщо вимкнути, незбережений прогрес може не потрапити до копії, тому радимо залишити ввімкненим.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Вимкнено: поступ після останнього збереження гри не потрапить до копій. Радимо залишити ввімкненим.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Наступна копія: незабаром</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Наступна копія: після поточної операції</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Зцілити персонажа</value></data>

@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Sfoglia</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Backup</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Backup automatici</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Esegue il backup del salvataggio a cui stai giocando all’intervallo impostato. I backup manuali restano disponibili anche se è disattivato.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Esegue il backup del salvataggio in gioco all&apos;intervallo impostato. Quando il personaggio muore si ferma finché non inizi un nuovo personaggio. I backup manuali funzionano anche quando è disattivato.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Intervallo backup</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Tempo tra i backup automatici (1–60 minuti). Dopo una modifica il conteggio riparte.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Numero di backup automatici</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Conserva questo numero di backup automatici più recenti ed elimina i più vecchi (1–100). I backup manuali non vengono contati e non vengono mai eliminati.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crea un backup alla morte del personaggio</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Quando il personaggio muore, i backup automatici si fermano per non far uscire dalla cronologia quelli fatti da vivo. Attiva per conservare un backup del momento della morte.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Se attivo, crea un backup subito dopo la morte del personaggio.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Il salvataggio continuava a cambiare, quindi il backup non è stato fatto. Riprova tra poco.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Prossimo backup: in attesa</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistema</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Backup interrotto perché il salvataggio nel gioco non è stato confermato.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Salva il gioco prima del backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Conto alla rovescia nel gioco</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Mostra un conto alla rovescia sopra il personaggio da 5 secondi prima che un backup automatico salvi il gioco, poi il risultato. I backup avviati dall’app salvano subito, senza mostrarlo. Se disattivato, anche i backup automatici salvano senza mostrarlo.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Prima che un backup automatico salvi la partita, mostra un conto alla rovescia sopra il personaggio da 5 secondi prima, poi il risultato. Se disattivato, salva senza mostrarlo.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Salva il gioco subito prima di un backup per includere i progressi più recenti. Durante il salvataggio il gioco può bloccarsi per circa mezzo secondo. Se disattivato, i progressi non ancora salvati possono mancare nel backup; si consiglia di lasciarlo attivo.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Disattivato: i progressi dall&apos;ultimo salvataggio della partita restano fuori dai backup. Si consiglia di lasciarlo attivo.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Prossimo backup: a breve</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Prossimo backup: dopo l’operazione in corso</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Cura personaggio</value></data>

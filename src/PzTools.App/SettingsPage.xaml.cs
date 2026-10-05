@@ -197,7 +197,15 @@ public sealed partial class SettingsPage : UserControl
         PausePeriodicSettingCard.Description = Describe("PausePeriodicSetting.Description",
             gameLink.SleepUnavailable ? Localizer.Get("SettingSleepUnavailable") : null);
         DeathBackupSettingCard.Description = Describe("DeathBackupSetting.Description");
-        GameSaveSettingCard.Description = Describe("GameSaveSetting.Description");
+        // Off, the card says what is lost where it is read: the caution colour behind it, a warning in place of its icon,
+        // and what goes missing from backups in place of its description.
+        var unsaved = !GameSaveToggle.IsOn;
+        if (unsaved) GameSaveSettingCard.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBackgroundBrush"];
+        else GameSaveSettingCard.ClearValue(Microsoft.UI.Xaml.Controls.Control.BackgroundProperty);
+        GameSaveSettingCard.HeaderIcon = unsaved
+            ? new FontIcon { Glyph = "", Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"] }
+            : new SymbolIcon(Symbol.Save);
+        GameSaveSettingCard.Description = Describe(unsaved ? "GameSaveSettingOffWarning" : "GameSaveSetting.Description");
         GameSaveCountdownSettingCard.Description = Describe("GameSaveCountdownSetting.Description");
     }
 

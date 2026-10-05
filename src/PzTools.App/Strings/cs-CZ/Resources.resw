@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Procházet</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Zálohování</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatické zálohování</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Zálohuje uloženou hru, kterou právě hrajete, v nastaveném intervalu. Ruční zálohy fungují i při vypnutí.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Zálohuje hranou uloženou hru v nastaveném intervalu. Když postava zemře, zastaví se, dokud nezačnete s novou postavou. Ruční zálohy fungují i po vypnutí.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Interval zálohování</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Doba mezi automatickými zálohami (1–60 minut). Po změně se odpočet spustí znovu.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Počet automatických záloh</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>Uchová tento počet nejnovějších automatických záloh a starší smaže (1–100). Ruční zálohy se nepočítají a nikdy se nemažou.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Zálohovat při smrti postavy</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Když postava zemře, automatické zálohy se zastaví, aby nevytlačily zálohy vytvořené za jejího života. Zapněte, chcete-li uchovat jednu zálohu z okamžiku smrti.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Když je zapnuto, vytvoří jednu zálohu hned po smrti postavy.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Uložená hra se stále měnila, proto nebyla zálohována. Zkuste to za chvíli znovu.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Další záloha: čeká</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Systémový</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Zálohování bylo zastaveno, protože uložení hry se nepodařilo potvrdit.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odpočet uložení ve hře</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Od 5 sekund předtím, než automatická záloha uloží hru, zobrazuje nad postavou odpočet a poté výsledek. Zálohy spuštěné v aplikaci se uloží hned, bez něj. Při vypnutí se bez něj ukládají i automatické zálohy.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Než automatická záloha uloží hru, zobrazí nad postavou odpočet od 5 sekund a potom výsledek. Když je vypnuto, uloží bez něj.</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>Uloží hru těsně před zálohou, aby obsahovala váš nejnovější postup. Při ukládání se hra může asi na půl sekundy zaseknout. Při vypnutí může v záloze chybět dosud neuložený postup, proto doporučujeme nechat zapnuté.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Vypnuto: postup od posledního uložení hry se do záloh nedostane. Doporučujeme nechat zapnuté.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Příští záloha: brzy začne</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: po aktuální operaci</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Vyléčit postavu</value></data>

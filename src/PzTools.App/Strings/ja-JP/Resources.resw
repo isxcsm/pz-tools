@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>参照</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>バックアップ</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>自動バックアップ</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>プレイ中のセーブを設定した間隔でバックアップします。オフでも手動バックアップは使えます。</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>プレイ中のセーブを設定した間隔でバックアップします。キャラクターが死ぬと、新しいキャラクターで始めるまで止まります。オフでも手動バックアップは使えます。</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>バックアップ間隔</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>自動バックアップを実行する間隔です（1～60 分）。変更するとそこから数え直します。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動バックアップの保持数</value></data>
   <data name="RetentionSetting.Description" xml:space="preserve"><value>自動バックアップは新しいものからこの数だけ残し、古いものから削除します（1～100 個）。手動バックアップは数に含まれず、削除されません。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>キャラクター死亡時にバックアップ</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>キャラクターが死亡すると自動バックアップを止め、生存中のバックアップが押し出されないようにします。オンにすると、死亡時点のバックアップを 1 つ残します。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>オンにすると、キャラクターが死んだ直後にバックアップを 1 回作ります。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>セーブが変わり続けたため、バックアップできませんでした。少し待って再試行してください。</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>次のバックアップ：待機中</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>システム</value></data>
@@ -325,8 +325,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>ゲームの保存を確認できなかったため、バックアップを停止しました。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>バックアップ前にゲームを保存</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>ゲーム内の保存カウントダウン</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自動バックアップがゲームを保存する 5 秒前からキャラクターの上にカウントダウンを表示し、終わると保存結果を知らせます。アプリから開始したバックアップは表示なしですぐに保存します。オフにすると自動バックアップも表示なしで保存します。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自動バックアップがゲームを保存する 5 秒前からキャラクターの上にカウントダウンを表示し、終わると保存結果を知らせます。オフにすると表示せずに保存します。</value></data>
   <data name="GameSaveSetting.Description" xml:space="preserve"><value>バックアップの直前にゲームを保存し、最新の進行状況まで含めます。保存中にゲームが 0.5 秒ほど止まることがあります。オフにすると未保存の進行状況がバックアップに含まれないことがあるため、オンのままにすることをおすすめします。</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>オフ: ゲームが最後に保存された後の進行はバックアップに入りません。オンのままにすることをおすすめします。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>次回のバックアップ：まもなく開始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>次回のバックアップ：作業の完了後</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>キャラクターを回復</value></data>
