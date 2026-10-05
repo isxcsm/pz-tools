@@ -5,42 +5,19 @@ The fixture is the production schema itself, read from RepositorySchema.cs, and 
 under test is read from the C# source, so the check fails loudly when either changes shape.
 This supplements, not replaces, the dotnet RepositoryHousekeepingTests.
 """
-import re
 import sqlite3
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 
-REPOSITORY = Path(__file__).resolve().parents[1] / 'src/PzTools.Backup.Storage/Repository'
-
-
-def blocks(name):
-    return [textwrap.dedent(b).strip() for b in re.findall(r'"""(.*?)"""', (REPOSITORY / name).read_text(), re.S)]
+import repository_sql
 
 
 def block(name, marker):
-    found = [b for b in blocks(name) if marker in b]
-    if len(found) != 1:
-        raise SystemExit(f'{name}: expected one SQL block containing {marker!r}, found {len(found)}')
-    return found[0]
+    return repository_sql.block(repository_sql.source(name), marker, name)
 
 
-def production_schema():
-    """The fresh-repository migration, with its {{Name}} parts taken from the same file's constants."""
-    source = (REPOSITORY / 'RepositorySchema.cs').read_text()
-    constants = {name: textwrap.dedent(sql).strip()
-                 for name, sql in re.findall(r'public const string (\w+) =\s*"""(.*?)"""', source, re.S)}
-    migration = block('RepositorySchema.cs', 'CREATE TABLE repository_info')
-
-    def resolve(match):
-        if match.group(1) not in constants:
-            raise SystemExit(f'RepositorySchema.cs: no constant {match.group(1)} for the migration')
-        return constants[match.group(1)]
-    return re.sub(r'\{\{(\w+)\}\}', resolve, migration)
-
-
-SCHEMA = production_schema()
+SCHEMA = repository_sql.schema(repository_sql.source('RepositorySchema.cs'))
 HOUSEKEEPING = 'RepositoryDatabase.Housekeeping.cs'
 DUE = block(HOUSEKEEPING, 'SELECT COUNT(*) >= $batch')
 DUE_SOURCES = block(HOUSEKEEPING, 'SELECT revision.source_id FROM revisions')

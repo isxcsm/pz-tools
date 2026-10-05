@@ -12,24 +12,14 @@ from contextlib import closing
 import hashlib
 import json
 import pathlib
-import re
 import sqlite3
-import subprocess
 import tempfile
 import uuid
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-SCHEMA_PATH = 'src/PzTools.Backup.Storage/Repository/RepositorySchema.cs'
+from repository_sql import add_run, schema, source
+
 NOW_TEXT = '2026-09-25T00:00:00.1234567+00:00'
 NOW_TICKS = 639258912001234567
-
-
-def schema_sql(source: str) -> str:
-    section = source.split('internal static class RepositoryMigrationRunner')[0]
-    statements = re.findall(r'"""\s*\n(.*?)\n\s*"""', section, re.S)
-    if not statements:
-        raise ValueError('No production schema SQL found')
-    return '\n'.join(statements)
 
 
 def make_database(path: pathlib.Path, sql: str, count: int, compact: bool, dedup: bool) -> dict:
@@ -39,7 +29,7 @@ def make_database(path: pathlib.Path, sql: str, count: int, compact: bool, dedup
         db.executescript(sql)
         db.execute('INSERT INTO sources VALUES(1,?,?,?)', ('Sandbox/Test', '/synthetic/save', NOW_TEXT))
         db.execute('INSERT INTO source_state(source_id,current_revision) VALUES(1,1)')
-        db.execute("INSERT INTO runs VALUES(1,1,'Succeeded',?,?,NULL)", (NOW_TEXT, NOW_TEXT))
+        add_run(db, 1, 1, NOW_TEXT, NOW_TEXT)
         db.execute('INSERT INTO revisions(source_id,revision,run_index,created_utc) VALUES(1,1,1,?)', (NOW_TEXT,))
         encode_id = lambda n: uuid.UUID(int=n).bytes_le if compact else str(uuid.UUID(int=n))
         db.execute("INSERT INTO packs VALUES(?,?,1,1,'Committed',1,?)", (encode_id(1), 'packs/synthetic.pzpack', NOW_TEXT))
@@ -100,14 +90,14 @@ def main() -> None:
     args = parser.parse_args()
     if not 1 <= args.entries <= 1_000_000:
         parser.error('--entries must be between 1 and 1,000,000')
-    old = subprocess.check_output(['git', 'show', f'{args.baseline_ref}:{SCHEMA_PATH}'], cwd=ROOT, text=True)
-    new = (ROOT / SCHEMA_PATH).read_text()
+    old = schema(source('RepositorySchema.cs', args.baseline_ref))
+    new = schema(source('RepositorySchema.cs'))
     results = {'sqlite_version': sqlite3.sqlite_version, 'entries': args.entries, 'profiles': {}}
     with tempfile.TemporaryDirectory(prefix='pz-compact-layout-') as temp:
         for dedup in (False, True):
             profile = 'sha256-dedup' if dedup else 'xxhash64-default'
-            before = make_database(pathlib.Path(temp) / f'{profile}-old.db', schema_sql(old), args.entries, False, dedup)
-            after = make_database(pathlib.Path(temp) / f'{profile}-new.db', schema_sql(new), args.entries, True, dedup)
+            before = make_database(pathlib.Path(temp) / f'{profile}-old.db', old, args.entries, False, dedup)
+            after = make_database(pathlib.Path(temp) / f'{profile}-new.db', new, args.entries, True, dedup)
             results['profiles'][profile] = {'before': before, 'after': after,
                 'reduction_percent': round((1 - after['bytes'] / before['bytes']) * 100, 2)}
     print(json.dumps(results, indent=2))

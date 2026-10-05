@@ -3,7 +3,7 @@
 
 Run from a checkout containing the baseline commit:
 python scripts/measure-catalog-performance.py --baseline-ref 2f3ce6f
-Both queries read the same fresh schema-3 database (old aggregation uses the normalized read projection). Cached summaries are seeded
+Both queries read the same fresh current-schema database (old aggregation uses the normalized read projection). Cached summaries are seeded
 independently, all returned rows must match, and both queries are warmed first.
 """
 from __future__ import annotations
@@ -13,27 +13,20 @@ from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
-import re
 import sqlite3
 import statistics
-import subprocess
 import tempfile
 import time
 
-ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY = 'src/PzTools.Backup.Storage/Repository/'
+from repository_sql import add_run, blocks, constant, schema, source
+
 NOW = '2026-09-25T00:00:00+00:00'
 TICKS = 639258912000000000
 
 
-def raw_sql(source: str) -> list[str]:
-    return re.findall(r'"""\s*\n(.*?)\n\s*"""', source, re.S)
-
-
 def seed(db: sqlite3.Connection, files: int, revisions: int, changes: int) -> int:
     db.execute('PRAGMA foreign_keys=ON')
-    schema = (ROOT / (REPOSITORY + 'RepositorySchema.cs')).read_text()
-    db.executescript(raw_sql(schema.split('internal static class RepositoryMigrationRunner')[0])[0])
+    db.executescript(schema(source('RepositorySchema.cs')))
     db.execute('INSERT INTO sources VALUES(1,?,?,?)', ('Sandbox/Synthetic', '/synthetic/never-opened', NOW))
     db.execute('INSERT INTO source_state(source_id,current_revision) VALUES(1,?)', (revisions,))
     # One synthetic object is sufficient: we benchmark metadata lookup, not pack reads.
@@ -46,7 +39,7 @@ def seed(db: sqlite3.Connection, files: int, revisions: int, changes: int) -> in
     total = sum(sizes)
     rows = 0
     for revision in range(1, revisions + 1):
-        db.execute("INSERT INTO runs VALUES(?,1,'Succeeded',?,?,NULL)", (revision, NOW, NOW))
+        add_run(db, revision, 1, NOW, NOW)
         changed = range(files) if revision == 1 else [(revision * changes + i) % files for i in range(changes)]
         if revision > 1:
             for i in changed:
@@ -100,12 +93,14 @@ def main() -> None:
     if not (1 <= args.files <= 100000 and 1 <= args.revisions <= 1000
             and 0 <= args.changes <= args.files and 1 <= args.repetitions <= 20):
         parser.error('Invalid fixture size or repetition count')
-    before = subprocess.check_output(['git', 'show', args.baseline_ref + ':' + REPOSITORY +
-                                      'RepositoryDatabase.Read.cs'], cwd=ROOT, text=True)
-    old_sql = next(sql for sql in raw_sql(before) if 'SUM(CASE' in sql and 'FROM sources AS source' in sql)
+    before = source('RepositoryDatabase.Read.cs', args.baseline_ref)
+    found = [sql for sql in blocks(before) if 'SUM(CASE' in sql and 'FROM sources AS source' in sql]
+    if len(found) != 1:
+        raise SystemExit(f'{args.baseline_ref}: expected one aggregating catalog query in RepositoryDatabase.Read.cs, '
+                         f'found {len(found)}; pass a --baseline-ref from before cached revision summaries (e.g. 2f3ce6f)')
     # Compare aggregation algorithms on one normalized DB, not old-format I/O.
-    old_sql = old_sql.replace('JOIN entry_versions AS entry', 'JOIN entry_catalog AS entry')
-    new_sql = raw_sql((ROOT / (REPOSITORY + 'RepositoryDatabase.Summaries.cs')).read_text())[0]
+    old_sql = found[0].replace('JOIN entry_versions AS entry', 'JOIN entry_catalog AS entry')
+    new_sql = constant(source('RepositoryDatabase.Summaries.cs'), 'CatalogSummarySql', 'RepositoryDatabase.Summaries.cs')
     results = {'sqlite_version': sqlite3.sqlite_version, 'files': args.files,
                'revisions': args.revisions, 'changes_per_revision': args.changes,
                'query_sha256': {name: hashlib.sha256(sql.encode()).hexdigest()
@@ -117,7 +112,9 @@ def main() -> None:
                 parameters = {'metadataPathKey': key}
                 old_rows, old = measure(db, old_sql, parameters, args.repetitions)
                 new_rows, new = measure(db, new_sql, parameters, args.repetitions)
-                assert new_rows == old_rows, 'Catalog results changed'
+                # The current query appends columns added after the baseline (game_version); compare the baseline's.
+                width = len(old_rows[0]) if old_rows else 0
+                assert [row[:width] for row in new_rows] == old_rows, 'Catalog results changed'
                 assert not any('SCAN entry' in line for line in new['plan']), new['plan']
                 results['profiles']['no-metadata' if key is None else 'players-metadata'] = {
                     'before': old, 'after': new, 'equal_rows': len(new_rows),

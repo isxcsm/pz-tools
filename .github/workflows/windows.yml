@@ -59,6 +59,8 @@ jobs:
           python scripts/test-documentation-checker.py
           python scripts/check-documentation.py
           python scripts/check-localization.py
+          python scripts/check-housekeeping-sql.py
+          python scripts/check-path-normalization.py
       - name: Optional benchmarks
         if: steps.plan.outputs.benchmarks == 'true'
         run: |

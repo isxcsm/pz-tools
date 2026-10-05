@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """Exercise production schema, path interning/GC and staging SQL in private in-memory DBs."""
-from contextlib import closing
-from pathlib import Path
-import re
 import sqlite3
 import unittest
 
-ROOT = Path(__file__).resolve().parents[1] / 'src/PzTools.Backup.Storage/Repository'
-def sqls(name):
-    return re.findall(r'"""\s*\n(.*?)\n\s*"""', (ROOT/name).read_text(), re.S)
-SCHEMA = sqls('RepositorySchema.cs')[0]
-INTERN_PATH, INTERN_SPELLING = sqls('RepositoryDatabase.Paths.cs')
-SPELL_WINDOW, PATH_WINDOW, GC_SPELLING, GC_PATH = sqls('RepositoryDatabase.PathCollection.cs')
-INITIAL = sqls('RepositoryDatabase.InitialStaging.cs')[-1]
-CATALOG = sqls('RepositoryDatabase.Summaries.cs')[0]
+from repository_sql import add_run, block, constant, schema, source
+
+SCHEMA = schema(source('RepositorySchema.cs'))
+PATHS = source('RepositoryDatabase.Paths.cs')
+INTERN_PATH = block(PATHS, 'INSERT INTO paths(path_key) VALUES($key)', 'RepositoryDatabase.Paths.cs')
+INTERN_SPELLING = block(PATHS, 'INSERT INTO path_spellings(', 'RepositoryDatabase.Paths.cs')
+COLLECTION = source('RepositoryDatabase.PathCollection.cs')
+SPELL_WINDOW, PATH_WINDOW, GC_SPELLING, GC_PATH = (
+    constant(COLLECTION, name, 'RepositoryDatabase.PathCollection.cs') for name in
+    ('PathSpellingWindowSql', 'EmptyPathWindowSql', 'DeleteUnreferencedSpellingSql', 'DeleteEmptyPathSql'))
+INITIAL = block(source('RepositoryDatabase.InitialStaging.cs'), 'FROM full_scan_entries AS scan', 'RepositoryDatabase.InitialStaging.cs')
+CATALOG = constant(source('RepositoryDatabase.Summaries.cs'), 'CatalogSummarySql', 'RepositoryDatabase.Summaries.cs')
 
 def batch(db, sql, parameters):
     result = None
@@ -60,7 +61,7 @@ class PathNormalizationSqlTests(unittest.TestCase):
         self.db.executescript(SCHEMA)
         self.db.execute("INSERT INTO sources VALUES(1,'Sandbox/One','/synthetic','2000-01-01')")
         self.db.execute('INSERT INTO source_state(source_id,current_revision) VALUES(1,1)')
-        self.db.execute("INSERT INTO runs(run_index,source_id,status,started_utc) VALUES(1,1,'Succeeded','2000-01-01')")
+        add_run(self.db, 1, 1, '2000-01-01')
         self.db.execute("INSERT INTO revisions(source_id,revision,run_index,created_utc) VALUES(1,1,1,'2000-01-01')")
         self.db.commit()
     def tearDown(self):
