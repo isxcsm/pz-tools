@@ -724,7 +724,6 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} du temps propre de cette méthode · {1} de la plage</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Temps des scripts du mod choisi (fonctions Java appelées comprises)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Temps des autres scripts, sans le mod choisi</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC en cours</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Périodes où le ramasse-miettes tournait à côté du jeu. Des images plus longues ici signalent un manque de mémoire. Cliquez pour masquer.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Ce fichier n&apos;est pas sur ce PC. L&apos;enregistrement vient peut-être d&apos;un autre PC, ou le mod a été supprimé ou déplacé.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Modifié depuis l&apos;enregistrement : les numéros de ligne peuvent différer</value></data>

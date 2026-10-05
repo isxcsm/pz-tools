@@ -308,9 +308,10 @@ The *File* column names the line the function ran itself the most, as `Client.lu
 file reads as a link. Pressed, it finds the script on this PC from the path the recording
 keeps (a Workshop mod under Steam's libraries, a mod in the player's own *mods* folder,
 the game's own scripts under its install, each only inside its own folder and only a
-`.lua` file) and shows the full path with *Open* (through Explorer, so the editor does not
-start with the app's administrator rights), *Open line N in VS Code* (where VS Code is
-installed), *Show in folder* and *Copy path*. A script not on this PC (a recording made on
+`.lua` file) and shows the full path, wrapped, with a copy button beside it, then *Open*
+(through Explorer, so the editor does not start with the app's administrator rights),
+*Open line N in VS Code* (where VS Code is installed) and *Show in folder*. The file name
+is in the table's own colour; the pointer's hover shows it is a button. A script not on this PC (a recording made on
 another, a mod removed since) says so and leaves only the copy of the recorded path; one
 changed since the recording warns that its lines may have moved. In the
 list, a function's row opens into all its lines, most samples first; a line it only
@@ -565,8 +566,9 @@ nearly full) says so above the memory graphs, with a link to the game's memory s
 recording measured it: how much longer frames were while the collector was at work than
 while it was not (*frames 17% slower while GC ran*), from 5% and with at least 20 frames of
 each. On the frame graph, a light orange background marks the collector's runs, behind the
-bars, so its frames read against those beside it; a legend above the graph (*GC running*)
-names it and, pressed, puts it away with the collections' marks, as their figure does.
+bars, so its frames read against those beside it. Its key is the orange square in front of
+the collections' figure, first on the memory line beside the *Memory* button; pressing the
+figure puts the background away with the pause marks.
 
 A recording during which other programs kept the machine busy (on average 35% or more of
 all its processors, beside what the game used) says so on the same line (*Other programs

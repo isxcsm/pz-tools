@@ -724,7 +724,6 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} del tempo proprio di questo metodo · {1} dell&apos;intervallo</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tempo degli script della mod scelta (comprese le funzioni Java chiamate)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tempo degli altri script, senza la mod scelta</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC in corso</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Tratti in cui il raccoglitore girava accanto al gioco. Fotogrammi più lunghi qui indicano memoria scarsa. Clic per nascondere.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Questo file non è su questo PC. La registrazione può venire da un altro PC, oppure la mod è stata rimossa o spostata.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Modificato dopo la registrazione: i numeri di riga possono variare</value></data>

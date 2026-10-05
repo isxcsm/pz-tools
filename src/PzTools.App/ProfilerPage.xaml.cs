@@ -159,8 +159,7 @@ public sealed partial class ProfilerPage : UserControl
         ScriptsLabel.Text = Localizer.Get("ProfileBreakdownScripts");
         GameLabel.Text = Localizer.Get("ProfileBreakdownGame");
         CollectionsLabel.Text = Localizer.Get("ProfileBreakdownMemory");
-        CollectorLegendText.Text = Localizer.Get("ProfileChartCollectorLegend");
-        AppToolTip.SetTip(CollectorLegend, Localizer.Get("ProfileChartCollectorTip"));
+
         SpareLabel.Text = Localizer.Get("ProfileBreakdownWaiting");
         var thread = ThreadBox.SelectedIndex;
         // The same choice in new words: not a change of thread to analyse again for.
@@ -741,24 +740,71 @@ public sealed partial class ProfilerPage : UserControl
             full = scriptRoots is null ? null : ScriptFileLocator.Locate(script.File, scriptRoots);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException) { }
-        var menu = new MenuFlyout();
-        menu.Items.Add(new MenuFlyoutItem { Text = full ?? Localizer.Get("ProfileScriptMissing"), IsEnabled = false });
+        var flyout = new Flyout();
+        var panel = new StackPanel { Spacing = 2, MaxWidth = 380 };
+        // The path, wrapped to the flyout's width, with its copy beside it; or why the file is not here, beside a copy
+        // of the path the recording names, still what to look for.
+        var where = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 0, 0, 4) };
+        where.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        where.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        where.Children.Add(new TextBlock
+        {
+            Text = full ?? Localizer.Get("ProfileScriptMissing"), TextWrapping = TextWrapping.Wrap, FontSize = 12,
+            Foreground = Muted, IsTextSelectionEnabled = true, VerticalAlignment = VerticalAlignment.Center,
+        });
+        var copy = new Button
+        {
+            Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Top,
+            Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+            Content = new FontIcon { Glyph = "", FontSize = 14 },
+        };
+        AppToolTip.SetTip(copy, Localizer.Get("ProfileScriptCopyPath"));
+        AutomationProperties.SetName(copy, Localizer.Get("ProfileScriptCopyPath"));
+        copy.Click += (_, _) =>
+        {
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(full ?? script.File);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            flyout.Hide();
+        };
+        Grid.SetColumn(copy, 1);
+        where.Children.Add(copy);
+        panel.Children.Add(where);
         if (full is not null && recording?.StartedUtc is { } started && File.GetLastWriteTimeUtc(full) > started.UtcDateTime)
-            menu.Items.Add(new MenuFlyoutItem { Text = Localizer.Get("ProfileScriptChanged"), IsEnabled = false, Icon = new FontIcon { Glyph = "" } });
-        menu.Items.Add(new MenuFlyoutSeparator());
+            panel.Children.Add(new TextBlock
+            {
+                Text = Localizer.Get("ProfileScriptChanged"), TextWrapping = TextWrapping.Wrap, FontSize = 12,
+                Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"], Margin = new Thickness(0, 0, 0, 4),
+            });
+        panel.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
+        {
+            Height = 1, Margin = new Thickness(-4, 2, -4, 4),
+            Fill = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"],
+        });
         var code = full is null ? null : ScriptFileLocator.VisualStudioCode();
         void Add(string text, string glyph, bool enabled, Action run)
         {
-            var item = new MenuFlyoutItem { Text = text, Icon = new FontIcon { Glyph = glyph }, IsEnabled = enabled };
+            var item = new Button
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(8, 6, 8, 6), IsEnabled = enabled,
+                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                Content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 12,
+                    Children = { new FontIcon { Glyph = glyph, FontSize = 16 }, new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center } },
+                },
+            };
             item.Click += (_, _) =>
             {
+                flyout.Hide();
                 try { run(); }
                 catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
                 {
                     App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
                 }
             };
-            menu.Items.Add(item);
+            panel.Children.Add(item);
         }
         // Through Explorer, so the editor does not start with the app's administrator rights.
         Add(Localizer.Get("ProfileScriptOpen"), "", full is not null,
@@ -774,14 +820,8 @@ public sealed partial class ProfilerPage : UserControl
             });
         Add(Localizer.Get("ProfileScriptShowInFolder"), "", full is not null,
             () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { Arguments = $"/select,\"{full}\"" })?.Dispose());
-        // The path as the recording names it when the file is not here: still what to look for.
-        Add(Localizer.Get("ProfileScriptCopyPath"), "", true, () =>
-        {
-            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            package.SetText(full ?? script.File);
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        });
-        menu.ShowAt(anchor);
+        flyout.Content = panel;
+        flyout.ShowAt(anchor);
     }
 
     private void OpenFolderItem_Click(object sender, RoutedEventArgs e)
@@ -930,8 +970,7 @@ public sealed partial class ProfilerPage : UserControl
                 collector.Children.Add(new RectangleGeometry { Rect = new Rect(left, 0, Math.Max(1, right - left), height) });
             }
         CollectorPath.Data = collector;
-        CollectorLegend.Visibility = recording.CollectorRuns.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        CollectorLegend.Opacity = collectionMarks ? 1 : 0.45;
+
         // Faint: on the owner's scale most frames reach the top, and a wall of them would compete with its part.
         BarsPath.Opacity = SlowBarsPath.Opacity = parts is null ? 1 : 0.15;
         HighlightPath.Data = parts is null || pointed is not null ? null : part;
@@ -1203,7 +1242,10 @@ public sealed partial class ProfilerPage : UserControl
         // A figure whose row is put away stands faint.
         HeapValue.Opacity = heapRow ? 1 : 0.45;
         VideoValue.Opacity = videoRow ? 1 : 0.45;
-        CollectionValue.Opacity = collectionMarks ? 1 : 0.45;
+        CollectionFigure.Opacity = collectionMarks ? 1 : 0.45;
+        // The key to the frame graph's background, where the recording has the collector's runs to draw.
+        CollectorSwatch.Visibility = recording?.CollectorRuns.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        AppToolTip.SetTip(CollectorSwatch, Localizer.Get("ProfileChartCollectorTip"));
         foreach (var figure in new[] { HeapValue, VideoValue })
             AppToolTip.SetTip(figure, Localizer.Get("ProfileMemoryRowToggleTip"));
         // The collections' figure also says what its parts mean: ZGC's pauses read near nothing however short memory is.
@@ -1321,13 +1363,6 @@ public sealed partial class ProfilerPage : UserControl
 
     private void MemorySurface_SizeChanged(object sender, SizeChangedEventArgs e) => RenderMemoryPanel();
 
-    // The orange background's legend puts it away, and brings it back, as the collections' figure does.
-    private void CollectorLegend_Tapped(object sender, TappedRoutedEventArgs e)
-    {
-        collectionMarks = !collectionMarks;
-        ApplyMemoryPanel();
-        QueueRender();
-    }
 
     /// <summary>
     /// Heap on top, collections in the middle, video memory at the bottom, each on its own scale: the memory lines
@@ -1547,6 +1582,7 @@ public sealed partial class ProfilerPage : UserControl
             block.Text = text ?? "";
             block.Visibility = text is null ? Visibility.Collapsed : Visibility.Visible;
         }
+        CollectionFigure.Visibility = CollectionValue.Visibility;
         return new[] { collections, heap, video }.OfType<string>().ToList();
     }
 
@@ -3402,6 +3438,9 @@ public sealed partial class ProfilerPage : UserControl
                     Content = cell, Padding = new Thickness(0), MinHeight = 0, HorizontalAlignment = HorizontalAlignment.Left,
                     HorizontalContentAlignment = HorizontalAlignment.Left,
                 };
+                // In the table's own colour: the pointer's hover shows it is a button, and a column of links read loud.
+                foreach (var key in new[] { "HyperlinkButtonForeground", "HyperlinkButtonForegroundPointerOver", "HyperlinkButtonForegroundPressed" })
+                    link.Resources[key] = Application.Current.Resources["TextFillColorPrimaryBrush"];
                 link.Click += (_, _) => ShowScriptMenu(link, script);
                 if (tip is { Length: > 0 }) AppToolTip.SetTip(link, tip);
                 Grid.SetColumn(link, index);

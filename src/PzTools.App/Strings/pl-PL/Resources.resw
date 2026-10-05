@@ -724,7 +724,6 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} własnego czasu tej metody · {1} zakresu</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Czas skryptów wybranego modu (z wywołanymi funkcjami Javy)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Czas pozostałych skryptów, bez wybranego modu</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC działa</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Odcinki, w których obok gry działało odśmiecanie (GC). Dłuższe klatki tutaj oznaczają brak pamięci. Kliknij, aby ukryć.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Tego pliku nie ma na tym komputerze. Nagranie mogło powstać na innym komputerze albo mod usunięto lub przeniesiono.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Zmieniony od nagrania: numery wierszy mogą się różnić</value></data>

@@ -724,7 +724,6 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} vlastního času této metody · {1} úseku</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Čas běhu skriptů vybraného módu (včetně volaných funkcí Javy)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Čas běhu ostatních skriptů bez vybraného módu</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC běží</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Úseky, kdy vedle hry běžel úklid paměti (GC). Delší snímky v nich znamenají nedostatek paměti. Kliknutím skryjete.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Tento soubor v tomto počítači není. Záznam mohl vzniknout na jiném počítači, nebo byl mód odebrán či přesunut.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Od záznamu změněn: čísla řádků se mohou lišit</value></data>

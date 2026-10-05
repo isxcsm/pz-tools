@@ -723,7 +723,6 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} of this method&apos;s own time · {1} of the range</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Time the chosen mod&apos;s scripts ran (Java functions they called included)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Time the other scripts ran, the chosen mod&apos;s left out</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC running</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Where the garbage collector ran beside the game. Longer frames here mean memory is running short. Press to hide.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>This file is not on this PC. The recording may come from another PC, or the mod was removed or moved.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Changed since the recording: its line numbers may differ</value></data>

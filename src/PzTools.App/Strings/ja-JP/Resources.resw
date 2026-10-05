@@ -724,7 +724,6 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>このメソッド自体の時間の {0} · 区間の {1}</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>選んだ MOD のスクリプトの実行時間（呼んだ Java 関数を含む）</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>選んだ MOD を除いた残りのスクリプトの実行時間</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC 稼働中</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>メモリ整理（GC）がゲームと並行して動いていた区間です。ここでフレームが長ければメモリ不足が原因です。クリックで非表示。</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>このファイルはこの PC にありません。別の PC で記録したか、MOD が削除・移動された可能性があります。</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>記録後に変更されたファイルのため、行番号が異なる場合があります</value></data>

@@ -724,7 +724,6 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} der eigenen Zeit dieser Methode · {1} des Abschnitts</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Laufzeit der Skripte der gewählten Mod (samt aufgerufener Java-Funktionen)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Laufzeit der übrigen Skripte ohne die gewählte Mod</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC läuft</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Wo die Speicherbereinigung neben dem Spiel lief. Längere Frames hier bedeuten knappen Speicher. Zum Ausblenden klicken.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Diese Datei ist nicht auf diesem PC. Die Aufnahme stammt vielleicht von einem anderen PC, oder die Mod wurde entfernt oder verschoben.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Seit der Aufnahme geändert: die Zeilennummern können abweichen</value></data>

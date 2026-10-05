@@ -202,7 +202,6 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Button x:Name="SelectionChip" Visibility="Collapsed" Padding="10,3,8,4" MinHeight="0" CornerRadius="12"
                     VerticalAlignment="Center" Click="SelectionChip_Click" AutomationProperties.AutomationId="ProfileSelectionChip"
@@ -215,15 +214,6 @@
               </StackPanel>
             </Button>
             <TextBlock x:Name="ChartInfo" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
-            <!-- What the graph's orange background is: the collector at work. Pressed, it puts that away with the
-                 collections' marks, as their figure under the graph does. -->
-            <StackPanel x:Name="CollectorLegend" Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                        Visibility="Collapsed" Background="Transparent" Tapped="CollectorLegend_Tapped">
-              <Rectangle Width="12" Height="10" RadiusX="2" RadiusY="2" VerticalAlignment="Center"
-                         Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="0.35" />
-              <TextBlock x:Name="CollectorLegendText" FontSize="12" VerticalAlignment="Center"
-                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
           </Grid>
           <!-- Whose samples the results count, the game's thread or all of them: a choice for the whole analysis,
                both tabs, so it stands with the range the analysis is of. -->
@@ -289,6 +279,15 @@
             </StackPanel>
           </HyperlinkButton>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+            <!-- The collections first, beside the button, with the colour of the frame graph's background while the
+                 collector ran: the key to it where the eye is. Pressed, it puts that background and the pause marks away. -->
+            <StackPanel x:Name="CollectionFigure" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                        Background="Transparent" Tapped="MemoryFigure_Tapped">
+              <Rectangle x:Name="CollectorSwatch" Width="12" Height="10" RadiusX="2" RadiusY="2" VerticalAlignment="Center"
+                         Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="0.4" />
+              <TextBlock x:Name="CollectionValue" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
             <TextBlock x:Name="HeapValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
             <TextBlock x:Name="VideoValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <!-- The game ran short of memory in this recording: said here, beside the heap it is about, with the way to
@@ -312,8 +311,6 @@
               <TextBlock x:Name="OtherCpuText" FontSize="12" VerticalAlignment="Center" />
             </StackPanel>
           </StackPanel>
-          <TextBlock x:Name="CollectionValue" Tapped="MemoryFigure_Tapped" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </Grid>
         <!-- Heap above, video memory below, each on its own scale; the same time axis, zoom, selection and
              pointer line as the frame graph, whose margins it shares so the two line up. -->

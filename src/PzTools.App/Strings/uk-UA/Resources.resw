@@ -724,7 +724,6 @@ GC працює: частка відрізка, коли працював зби
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} власного часу цього методу · {1} відрізка</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Час скриптів вибраного мода (з викликаними функціями Java)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Час решти скриптів, без вибраного мода</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>Триває GC</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Відрізки, коли поруч із грою працювало збирання сміття. Довші кадри тут означають брак пам&apos;яті. Натисніть, щоб приховати.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Цього файлу немає на цьому ПК. Запис могли зробити на іншому ПК, або мод видалено чи переміщено.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Змінено після запису: номери рядків можуть відрізнятися</value></data>

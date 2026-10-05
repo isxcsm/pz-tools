@@ -724,7 +724,6 @@ GC работает: доля отрезка, когда работал сбор
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} собственного времени этого метода · {1} отрезка</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Время скриптов выбранного мода (с вызванными функциями Java)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Время остальных скриптов, без выбранного мода</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>Идёт GC</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Отрезки, когда рядом с игрой работала сборка мусора. Более длинные кадры здесь означают нехватку памяти. Нажмите, чтобы скрыть.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Этого файла нет на этом ПК. Запись могла быть сделана на другом ПК, или мод удалён либо перемещён.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Изменён после записи: номера строк могут отличаться</value></data>

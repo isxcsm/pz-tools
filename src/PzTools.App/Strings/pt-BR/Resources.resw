@@ -724,7 +724,6 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} do tempo próprio deste método · {1} do trecho</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tempo dos scripts do mod escolhido (com as funções Java que chamaram)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tempo dos outros scripts, sem o mod escolhido</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC rodando</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Trechos em que o coletor de lixo rodou junto ao jogo. Quadros mais longos aqui indicam falta de memória. Clique para ocultar.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Este arquivo não está neste PC. A gravação pode ter vindo de outro PC, ou o mod foi removido ou movido.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Alterado desde a gravação: os números de linha podem ser diferentes</value></data>

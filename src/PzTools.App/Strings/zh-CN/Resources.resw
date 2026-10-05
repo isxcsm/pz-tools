@@ -724,7 +724,6 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>此方法自身时间的 {0} · 区间的 {1}</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>所选模组的脚本运行时间（含其调用的 Java 函数）</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>除所选模组外其余脚本的运行时间</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC 运行中</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>垃圾回收与游戏同时运行的区间。此处帧更长说明内存不足。点击可隐藏。</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>此电脑上没有这个文件。录制可能来自另一台电脑，或模组已被删除或移动。</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>录制后文件已更改，行号可能不同</value></data>

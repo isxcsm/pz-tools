@@ -724,7 +724,6 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} del tiempo propio de este método · {1} del tramo</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tiempo de los scripts del mod elegido (con las funciones Java que llamaron)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tiempo del resto de scripts, sin el mod elegido</value></data>
-  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC en marcha</value></data>
   <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Tramos en que el recolector de basura corrió junto al juego. Fotogramas más largos aquí indican falta de memoria. Pulsa para ocultar.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Este archivo no está en este PC. La grabación puede venir de otro PC, o el mod se quitó o se movió.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Cambiado desde la grabación: los números de línea pueden variar</value></data>
