@@ -153,6 +153,9 @@ public sealed partial class SettingsPage : UserControl
         OpenConfigurationFolderButton.Content = Localizer.Get("AdvancedFiles.OpenFolder");
         RestartForConfigurationButton.Content = Localizer.Get("AdvancedFiles.Restart");
         ResetConfigurationButton.Content = Localizer.Get("AdvancedFiles.Reset");
+#if PZTOOLS_DEV_TOOLS
+        LocalizeCardPreview();
+#endif
         SetInputName(LanguageCombo, LanguageSettingCard.Header);
         SetInputName(ThemeCombo, ThemeSettingCard.Header);
         SetInputName(SystemTrayToggle, SystemTraySettingCard.Header);
@@ -407,14 +410,15 @@ public sealed partial class SettingsPage : UserControl
 
 #if PZTOOLS_DEV_TOOLS
     // Developer builds only: the sidebar's cards on demand (MainWindowShell.CardPreview).
+    private (SettingsCard Card, ComboBox Choice, Button Show, Button Clear)? cardPreview;
+
     private void BuildCardPreview()
     {
         var choice = new ComboBox { MinWidth = 180, MaxWidth = 320 };
-        foreach (var key in MainWindowShell.CardPreviews)
-            choice.Items.Add(new ComboBoxItem { Content = MainWindowShell.CardPreviewName(key), Tag = key });
+        foreach (var key in MainWindowShell.CardPreviews) choice.Items.Add(new ComboBoxItem { Tag = key });
         choice.SelectedIndex = 0;
-        var show = new Button { Content = Localizer.Get("CardPreview.Show") };
-        var clear = new Button { Content = Localizer.Get("CardPreview.Clear") };
+        var show = new Button();
+        var clear = new Button();
         show.Click += (_, _) =>
         {
             if (App.MainWindow.Content is MainWindowShell shell && choice.SelectedItem is ComboBoxItem { Tag: string key }) shell.PreviewCard(key);
@@ -424,16 +428,28 @@ public sealed partial class SettingsPage : UserControl
         holder.Children.Add(choice);
         holder.Children.Add(show);
         holder.Children.Add(clear);
-        SetInputName(choice, Localizer.Get("CardPreview.Header"));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(choice, "CardPreviewChoice");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(show, "CardPreviewShow");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(clear, "CardPreviewClear");
-        AdvancedSection.Items.Add(new SettingsCard
+        var card = new SettingsCard { HeaderIcon = new SymbolIcon(Symbol.Preview), Content = holder };
+        AdvancedSection.Items.Add(card);
+        cardPreview = (card, choice, show, clear);
+        LocalizeCardPreview();
+    }
+
+    // Like every other text on this page, in the app's language now, again after each language change.
+    private void LocalizeCardPreview()
+    {
+        if (cardPreview is not var (card, choice, show, clear)) return;
+        card.Header = Localizer.Get("CardPreview.Header");
+        card.Description = Localizer.Get("CardPreview.Description");
+        show.Content = Localizer.Get("CardPreview.Show");
+        clear.Content = Localizer.Get("CardPreview.Clear");
+        SetInputName(choice, Localizer.Get("CardPreview.Header"));
+        ComboBoxLocalization.UpdateLabels(choice, () =>
         {
-            Header = Localizer.Get("CardPreview.Header"),
-            Description = Localizer.Get("CardPreview.Description"),
-            HeaderIcon = new SymbolIcon(Symbol.Preview),
-            Content = holder,
+            foreach (var item in choice.Items.OfType<ComboBoxItem>())
+                item.Content = MainWindowShell.CardPreviewName((string)item.Tag);
         });
     }
 #endif

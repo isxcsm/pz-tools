@@ -16,6 +16,17 @@ public sealed class AppUiBehaviourSourceTests
         Assert.DoesNotContain("IsFaulted(\"telemetry\")", method);
     }
 
+    // Seen in the app: switched from Korean to English, the developer card preview stayed Korean.
+    [Fact]
+    public void TheCardPreviewIsLocalizedAgainOnALanguageChange()
+    {
+        var page = Source("SettingsPage.xaml.cs");
+        Assert.Contains("LocalizeCardPreview();", Method(page, "internal void ApplyLocalizedText()"));
+        var build = Method(page, "private void BuildCardPreview()");
+        Assert.DoesNotContain("Localizer.", build);
+        Assert.Contains("LocalizeCardPreview();", build);
+    }
+
     [Fact]
     public void EveryAttentionCardIsLocalizedAgainOnALanguageChange()
     {
