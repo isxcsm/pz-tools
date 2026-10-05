@@ -83,8 +83,29 @@ that folder first and then run `publish-app.ps1` on the same, now nonempty, fold
 
 ## Build a release
 
-Raise `<Version>` in [`Directory.Build.props`](../Directory.Build.props) (every assembly
-and executable carries it, and the Home page shows it), commit, then run:
+Releases are built by GitHub Actions, not on a developer's PC. Raise `<Version>` in
+[`Directory.Build.props`](../Directory.Build.props) (every assembly and executable carries
+it, and the Home page shows it), commit, run the tests that need the game locally (the
+CI's JVM is synthetic), then push a tag named for the version:
+
+```powershell
+git tag v0.2.4
+git push origin v0.2.4
+```
+
+The [workflow](../.github/workflows/windows.yml)'s `release` job runs once the checks and
+the Windows build and tests have passed for that commit. It:
+
+1. fails unless the tag is `v` followed by `<Version>`
+2. downloads the release JDK (Temurin 25.0.4.1+1) from Adoptium and checks its SHA-256
+3. runs `build-release.ps1` (below)
+4. attests the ZIP's build provenance, so anyone can run
+   `gh attestation verify PzTools-v<version>-win-x64.zip --repo isxcsm/pz-tools` to check
+   that it was built by this workflow from this repository's commit
+5. uploads the ZIP and its `.sha256` to a **draft** release; publishing it is yours
+
+A tag whose release is already published fails rather than replacing its files; a draft's
+files are replaced. To build one locally (to try the script, or without CI), run:
 
 ```powershell
 pwsh scripts/build-release.ps1 -JdkPath $jdk
@@ -100,7 +121,8 @@ writes to `artifacts/release/v<version>/`, which must not exist yet:
    published-worker checks)
 4. packages it as `PzTools-v<version>-win-x64.zip` with its `.sha256`, as below
 
-Attach those two files to the GitHub release.
+A local build has no attestation; attach its two files to a GitHub release by hand only
+when CI cannot build it.
 
 ## Package a release
 
@@ -221,7 +243,8 @@ records apart from the current user instructions.
 
 - **Publishing is not installing.** The publish workflow produces a runnable folder.
   Installation, code signing and a mode that runs without administrator permission are
-  outside it.
+  outside it. A release's attestation says where and from what it was built, not that it
+  is safe.
 - **Packaging is reproducible, builds are not claimed to be.** The same published files
   give the same archive. Separate builds with different toolchains are not claimed to
   produce identical binaries.

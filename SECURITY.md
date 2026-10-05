@@ -57,6 +57,17 @@ The hash must equal the one in the `.sha256` file. This shows the file arrived w
 since both come from the same release page, it cannot show who built it. Download only
 from [the releases page](https://github.com/isxcsm/pz-tools/releases).
 
+From 0.2.4, releases are built by GitHub Actions from the tagged commit, not on the
+author's PC, and carry a build provenance attestation. With the
+[GitHub CLI](https://cli.github.com/):
+
+```powershell
+gh attestation verify .\PzTools-v0.2.4-win-x64.zip --repo isxcsm/pz-tools
+```
+
+This checks that the ZIP was built by the repository's own workflow, from a commit in it
+you can read.
+
 Once extracted, the app checks its own files against the list built with it
 (`pztools-files.txt`) and says if any differ, which catches a package extracted over
 another. It is not a tamper check: the list is in the same folder.
