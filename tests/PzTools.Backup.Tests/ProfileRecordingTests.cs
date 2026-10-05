@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Text;
 using PzTools.Profiling;
 
@@ -661,6 +661,74 @@ public sealed class ProfileRecordingTests
             Assert.Null(ProfileAnalysis.MemoryAt(recording, 10_000).VideoMemory);
         }
         finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void VideoMemory_IsReadWhileAnythingRecords_ForTheGameRunningNow()
+    {
+        var clock = new ManualTime(DateTimeOffset.FromUnixTimeMilliseconds(1790000000000));
+        int? game = 10;
+        var opened = new List<int>();
+        var log = new PzTools.App.Core.VideoMemoryLog(() => game, id => { opened.Add(id); return new FixedReader(id * 100L); }, clock) { Background = false };
+        log.Configure(active: false, TimeSpan.FromMinutes(1), holdFrom: null);
+        void Every(int seconds) { for (var i = 0; i < seconds; i++) { log.SampleOnce(); clock.Advance(TimeSpan.FromSeconds(1)); } }
+
+        // The rolling window: the last minute is kept, and a little more for the moment a save is asked.
+        log.Configure(active: true, TimeSpan.FromMinutes(1), holdFrom: null);
+        Every(120);
+        var kept = log.Between(DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        Assert.InRange(kept.Count, 60, 66);
+        Assert.All(kept, reading => Assert.Equal(1000, reading.Dedicated));
+        Assert.Equal([10], opened);
+
+        // A recording under way keeps everything since it began, past the rolling window.
+        var began = clock.GetUtcNow();
+        log.Configure(active: true, TimeSpan.FromMinutes(1), holdFrom: began);
+        Every(150);
+        Assert.Equal(150, log.Between(began, clock.GetUtcNow()).Count);
+
+        // Another game: what was read belongs to the one before.
+        game = 20;
+        Every(3);
+        Assert.All(log.Between(DateTimeOffset.MinValue, DateTimeOffset.MaxValue), reading => Assert.Equal(2000, reading.Dedicated));
+        Assert.Equal([10, 20], opened);
+    }
+
+    [Fact]
+    public void Finish_JoinsTheVideoMemoryBeforeTheRecordingIsAnnounced()
+    {
+        using var temp = new TempDirectory();
+        // Read while the sample recording ran: its times count from 1 s after its start, for 50 ms.
+        var clock = new ManualTime(DateTimeOffset.FromUnixTimeMilliseconds(1790000000000 + 1010));
+        var log = new PzTools.App.Core.VideoMemoryLog(() => 7, _ => new FixedReader(3_000_000_000), clock) { Background = false };
+        log.Configure(active: true, TimeSpan.FromMinutes(1), holdFrom: null);
+        var start = clock.GetUtcNow();
+        for (var i = 0; i < 3; i++) { log.SampleOnce(); clock.Advance(TimeSpan.FromMilliseconds(10)); }
+        var service = new PzTools.App.Core.ProfileRecordingService(temp.GetPath("profiles"), () => null, videoMemory: log);
+        Directory.CreateDirectory(service.Directory);
+        var path = Path.Combine(service.Directory, "profile-20261005-120000.pzprof");
+        File.WriteAllBytes(path, Compress(Sample));
+        IReadOnlyList<ProfileVideoMemorySample>? seen = null;
+        service.Saved += saved => seen = ProfileRecording.Load(saved).VideoMemory;
+
+        service.Finish(path, start);
+
+        // Whatever the kind of recording, the page opening it finds its video memory there.
+        Assert.Equal([10_000L, 20_000L, 30_000L], seen!.Select(item => item.Time));
+        Assert.All(seen!, item => Assert.Equal(3_000_000_000, item.Dedicated));
+    }
+
+    private sealed class FixedReader(long bytes) : IVideoMemoryReader
+    {
+        public (long Dedicated, long Shared)? Read() => (bytes, 0);
+        public void Dispose() { }
+    }
+
+    private sealed class ManualTime(DateTimeOffset now) : TimeProvider
+    {
+        private DateTimeOffset current = now;
+        public override DateTimeOffset GetUtcNow() => current;
+        public void Advance(TimeSpan by) => current += by;
     }
 
     [Fact]

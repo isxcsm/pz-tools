@@ -38,14 +38,17 @@ no restart at all (see [compatibility](game-bridge.md#compatibility-and-lifecycl
 
 Memory is recorded in both modes. The **Java heap** (used, committed and maximum) is read
 by the game's own recorder four times a second. **Video memory** cannot be measured from
-inside the game: the recording worker reads the game process's figures from Windows five
-times a second (the per-process *GPU Process Memory* counters, the same numbers as Task
-Manager's GPU memory columns: on the graphics card, and system memory the card borrows),
-matched to the game by its process id, so other programs' use is left out. Once the
-recording is written, the worker adds these readings to its end on the recording's time
-scale. Where Windows has no such counters (before Windows 10 1709, or a driver that does
-not report them), the recording simply has no video memory. Neither tells how much of
-what is held each frame actually uses.
+inside the game: the app reads the game process's figures from Windows five times a
+second while anything records, a recording asked for or the last minutes (the
+per-process *GPU Process Memory* counters, the same numbers as Task Manager's GPU memory
+columns: on the graphics card, and system memory the card borrows), matched to the game
+by its process id, so other programs' use is left out. It keeps the last minutes, and all
+of a recording under way. Every recording written, either kind, passes through one step
+that adds the readings of its span to its end on the recording's time scale. Saves of the
+last minutes made before version 0.2.4 have none: until then only the recording worker
+read it, and only for recordings asked for. Where Windows has no such counters (before
+Windows 10 1709, or a driver that does not report them), the recording simply has no video
+memory. Neither tells how much of what is held each frame actually uses.
 
 **Allocations** say who fills the heap. Each time the Lua sampler looks at the game, it
 also reads how many bytes the game thread has allocated so far (the JVM's own per-thread
@@ -138,7 +141,7 @@ itself) and `rolling_max_megabytes`; `[hotkeys]` `sounds` and `game_notices`.
 | Part | Source | If the game changes |
 | --- | --- | --- |
 | Java stack samples, native-call samples, GC and pause events, heap use | The JVM's own flight recorder (`jdk.jfr`) | Unaffected: it depends on Java, not on game code |
-| Video memory | Windows performance counters, read by the recording worker | Unaffected: it depends on Windows and the graphics driver |
+| Video memory | Windows performance counters, read by the app | Unaffected: it depends on Windows and the graphics driver |
 | Allocations by script | The JVM's per-thread allocation counter, read by the Lua sampler for the thread that runs the frame hook | Needs both game-specific parts below; without either, or in a Java runtime without the `jdk.management` module, the recording has no allocations and the page no allocation tab |
 | Frame boundaries | The existing game-loop hook (`GameWindow.logic`) | The recording still works; there is no frame graph, only the time axis |
 | Lua function and mod attribution | Reads the Lua interpreter's call stack (`LuaManager.thread`, Kahlua call frames) from a sampler thread | The recording still works; the page says mod information is unavailable |

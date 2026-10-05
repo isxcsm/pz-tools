@@ -1,12 +1,14 @@
 using System.Runtime.InteropServices;
 
+namespace PzTools.Profiling;
+
 /// <summary>
 /// The video memory one process holds, as Windows counts it per process ("GPU Process Memory", the same
 /// figures as Task Manager's GPU memory columns): on the graphics card, and system memory the card borrows.
 /// Other programs' use is left out by matching the counter instances to the process id. Read from outside
 /// the game, since the game cannot measure this itself.
 /// </summary>
-internal sealed class GpuProcessMemory : IDisposable
+public sealed class GpuProcessMemory : IVideoMemoryReader
 {
     private const uint FormatLarge = 0x00000400;
     private const uint MoreData = 0x800007D2;
@@ -86,4 +88,11 @@ internal sealed class GpuProcessMemory : IDisposable
 
     [DllImport("pdh.dll")]
     private static extern uint PdhCloseQuery(IntPtr query);
+}
+
+/// <summary>Reads one process's video memory, in bytes: on the graphics card, and system memory the card borrows.</summary>
+public interface IVideoMemoryReader : IDisposable
+{
+    /// <summary>Bytes now, or null when no reading came this time.</summary>
+    (long Dedicated, long Shared)? Read();
 }
