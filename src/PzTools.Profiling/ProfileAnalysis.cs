@@ -260,13 +260,13 @@ public static class ProfileAnalysis
         var threadCount = new int[recording.Threads.Count];
         // A thread inside a native call is sampled whether it works there (drawing, reading a file) or only waits (for
         // a connection, a timer, an event). The waits are left out, so a thread's share is time it ran.
-        var waits = new bool?[stackCount];
+        var waits = WaitingStacks(recording);
         var waiting = 0;
         for (var index = first; index < samples.Length && samples[index].Time < end; index++)
         {
             if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
             var sample = samples[index];
-            if (sample.Native && (waits[sample.Stack] ??= Waits(recording, recording.Stacks[sample.Stack])))
+            if (sample.Native && waits[sample.Stack])
             {
                 if (thread < 0 || sample.Thread == thread) waiting++;
                 continue;
@@ -500,13 +500,15 @@ public static class ProfileAnalysis
     public static double? MemoryStopIn(ProfileRecording recording, long start, long end, int thread)
     {
         if (!recording.HasCollectorPauses) return null;
-        var pauses = recording.Pauses;
+        // Asked once per bar of the frame graph: only the pauses that stop for memory, from the first that could reach
+        // into the range by the longest of them, not a minute of every kind of wait before it.
+        var (pauses, longest) = MemoryPauses(recording);
         long stopped = 0, covered = start;
         // In time order: each counts from where the ones before it ended.
-        for (var index = LowerBound(pauses, start - LongestCollection, item => item.Time); index < pauses.Count && pauses[index].Time < end; index++)
+        for (var index = LowerBound(pauses, start - longest, item => item.Time); index < pauses.Length && pauses[index].Time < end; index++)
         {
             var pause = pauses[index];
-            if (pause.Kind != CollectorPause && !(pause.Kind == AllocationStall && thread >= 0 && pause.Thread == thread)) continue;
+            if (pause.Kind == AllocationStall && !(thread >= 0 && pause.Thread == thread)) continue;
             long from = Math.Max(covered, pause.Time), to = Math.Min(end, pause.Time + pause.Duration);
             if (to <= from) continue;
             stopped += to - from;
@@ -514,6 +516,32 @@ public static class ProfileAnalysis
         }
         return stopped / 1000.0;
     }
+
+    // The collector's pauses and the allocation stalls, in time order, with the longest of them: once per recording.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, Tuple<ProfilePause[], long>>
+        memoryPauses = new();
+
+    private static (ProfilePause[] Pauses, long Longest) MemoryPauses(ProfileRecording recording)
+    {
+        var found = memoryPauses.GetValue(recording, static current =>
+        {
+            var pauses = current.Pauses.Where(pause => pause.Kind is CollectorPause or AllocationStall).ToArray();
+            return Tuple.Create(pauses, pauses.Length == 0 ? 0L : pauses.Max(pause => pause.Duration));
+        });
+        return (found.Item1, found.Item2);
+    }
+
+    // Whether each stack's native sample was only waiting (see Waits), worked out once per recording for all of them:
+    // the frame graph asks it of every native sample in each bar it draws.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, bool[]> waitingStacks = new();
+
+    private static bool[] WaitingStacks(ProfileRecording recording) =>
+        waitingStacks.GetValue(recording, static current =>
+        {
+            var waiting = new bool[current.Stacks.Count];
+            for (var index = 0; index < waiting.Length; index++) waiting[index] = Waits(current, current.Stacks[index]);
+            return waiting;
+        });
 
     // Native calls that only wait: for a connection or data, a selector or completion port, a timer, a lock, the
     // scheduler. Only calls known to wait are listed; any other native call (drawing, file access, physics) is work.
@@ -623,11 +651,12 @@ public static class ProfileAnalysis
         if (thread < 0 || end <= start) return null;
         double length = end - start, running = 0;
         var samples = recording.Samples;
+        var waiting = WaitingStacks(recording);
         for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
         {
             var sample = samples[index];
             // As in the range's figures: a thread only waiting in a native call was not running.
-            if (sample.Thread != thread || sample.Native && Waits(recording, recording.Stacks[sample.Stack])) continue;
+            if (sample.Thread != thread || sample.Native && waiting[sample.Stack]) continue;
             running += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
         }
         var lua = recording.LuaSamples;
@@ -796,7 +825,7 @@ public static class ProfileAnalysis
             if (recording.Methods[index] == method) targets.Add(index);
         var root = new ProfileCallerNode(targets.Count > 0 ? targets.First() : -1) { Methods = [method] };
         if (targets.Count == 0 || end <= start) return root;
-        var waits = new bool?[recording.Stacks.Count];
+        var waits = WaitingStacks(recording);
         var interpreter = new bool?[recording.Methods.Count];
         var samples = recording.Samples;
         // The whole the method's own share is of in the lists: every sample of the thread(s) that ran, waits left out.
@@ -806,7 +835,7 @@ public static class ProfileAnalysis
             var sample = samples[index];
             if (thread >= 0 && sample.Thread != thread) continue;
             var stack = recording.Stacks[sample.Stack];
-            if (sample.Native && (waits[sample.Stack] ??= Waits(recording, stack))) continue;
+            if (sample.Native && waits[sample.Stack]) continue;
             var weight = (double)(sample.Native ? recording.NativePeriod : recording.JavaPeriod);
             whole += weight;
             if (stack.Length == 0 || !targets.Contains(stack[0])) continue;
@@ -1057,14 +1086,16 @@ public static class ProfileAnalysis
             return micros / 1000;
         }
         var samples = recording.Samples;
+        var waiting = WaitingStacks(recording);
+        var groups = MethodGroups(recording);
         for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
         {
             var sample = samples[index];
             if (thread >= 0 && sample.Thread != thread) continue;
             var stack = recording.Stacks[sample.Stack];
             // As in the shares: a thread only waiting in a native call was not running anyone's code.
-            if (stack.Length == 0 || sample.Native && Waits(recording, stack)) continue;
-            if (MethodGroups(recording)[stack[0]] == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+            if (stack.Length == 0 || sample.Native && waiting[sample.Stack]) continue;
+            if (groups[stack[0]] == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
         }
         return micros / 1000;
     }

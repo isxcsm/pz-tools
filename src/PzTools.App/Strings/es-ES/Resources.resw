@@ -731,6 +731,7 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código del juego</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
   <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua en ejecución)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>Buscando quién lo llama…</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} del tiempo propio de este método · {1} del tramo</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tiempo de los scripts del mod elegido (con las funciones Java que llamaron)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tiempo del resto de scripts, sin el mod elegido</value></data>

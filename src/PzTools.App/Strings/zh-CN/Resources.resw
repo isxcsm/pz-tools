@@ -731,6 +731,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>游戏代码</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
   <data name="ProfileLuaRun" xml:space="preserve"><value>（Lua 执行）</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>正在查找调用方…</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>此方法自身时间的 {0} · 区间的 {1}</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>所选模组的脚本运行时间（含其调用的 Java 函数）</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>除所选模组外其余脚本的运行时间</value></data>

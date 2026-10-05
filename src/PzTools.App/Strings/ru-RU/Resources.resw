@@ -731,6 +731,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код игры</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Ожидание</value></data>
   <data name="ProfileLuaRun" xml:space="preserve"><value>(выполнение Lua)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>Поиск вызывающих…</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} собственного времени этого метода · {1} отрезка</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Время скриптов выбранного мода (с вызванными функциями Java)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Время остальных скриптов, без выбранного мода</value></data>

@@ -731,6 +731,7 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Codice del gioco</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attesa</value></data>
   <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua in esecuzione)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>Ricerca dei chiamanti…</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} del tempo proprio di questo metodo · {1} dell&apos;intervallo</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tempo degli script della mod scelta (comprese le funzioni Java chiamate)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tempo degli altri script, senza la mod scelta</value></data>

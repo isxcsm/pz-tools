@@ -3274,7 +3274,11 @@ public sealed partial class ProfilerPage : UserControl
                 if (row.Self <= 0) { rows.Add(line with { Tree = new TreeItem(null, depth, path, false, false) }); return; }
                 var isOpen = opened.Contains(path);
                 rows.Add(line with { Tree = new TreeItem(null, depth, path, true, isOpen) });
-                if (isOpen) AddCallers(CallersOfMethod(row.Name), path, depth + 1, row.Self);
+                if (!isOpen) return;
+                if (CallersOfMethod(row.Name) is { } callers) AddCallers(callers, path, depth + 1, row.Self);
+                // Still being worked out: a line says so, and the table is drawn again when they are known.
+                else rows.Add(new TableLine([(Localizer.Get("ProfileCallersLoading"), null, false), ("", null, false), ("", null, true),
+                    ("", null, true), ("", null, true)], null, new TreeItem(null, depth + 1, path + "/…", false, false)));
             }
             void AddCallers(ProfileCallerNode node, string path, int depth, double own)
             {
@@ -3348,17 +3352,36 @@ public sealed partial class ProfilerPage : UserControl
     // A caller that is this much of its method opens by itself on the way up to the game's code.
     private const double CallerOpenedShare = 0.1;
 
-    // Who called each method, worked out when its row is first opened, for the range and thread shown.
+    // Who called each method, worked out when its row is first opened, for the range and thread shown (another range
+    // or thread is another analysis, which starts the cache afresh).
     private readonly Dictionary<string, ProfileCallerNode> callersOf = [];
+    private readonly HashSet<string> callersPending = [];
     private ProfileRange? callersFor;
 
-    private ProfileCallerNode CallersOfMethod(string method)
+    /// <summary>
+    /// The method's callers, or null while they are worked out: on a worker, as they walk every sample of the range (a
+    /// long recording's take a noticeable moment). The owner's table is drawn again when they are known.
+    /// </summary>
+    private ProfileCallerNode? CallersOfMethod(string method)
     {
-        if (!ReferenceEquals(callersFor, shown)) { callersOf.Clear(); callersFor = shown; }
-        if (!callersOf.TryGetValue(method, out var node))
-            callersOf[method] = node = ProfileAnalysis.CallersOf(recording!, shown!.Start, shown.End,
-                AnalysedThread(recording!), method);
-        return node;
+        if (!ReferenceEquals(callersFor, shown)) { callersOf.Clear(); callersPending.Clear(); callersFor = shown; }
+        if (callersOf.TryGetValue(method, out var node)) return node;
+        if (callersPending.Add(method) && recording is { } current && shown is { } range)
+            _ = WorkOutCallersAsync(current, range, AnalysedThread(current), method);
+        return null;
+    }
+
+    private async Task WorkOutCallersAsync(ProfileRecording current, ProfileRange range, int thread, string method)
+    {
+        ProfileCallerNode? node = null;
+        try { node = await Task.Run(() => ProfileAnalysis.CallersOf(current, range.Start, range.End, thread, method)); }
+        catch (Exception exception) when (exception is not OutOfMemoryException) { }
+        // A range or thread chosen meanwhile has its own callers; these are dropped.
+        if (!ReferenceEquals(callersFor, range)) return;
+        callersPending.Remove(method);
+        if (node is null) return;
+        callersOf[method] = node;
+        if (shownGroup is { Kind: DetailKind.Java } group) ShowGroup(group);
     }
 
     // The change as the last cell; empty for a line that is no function (a gathered rest, a function's line).
