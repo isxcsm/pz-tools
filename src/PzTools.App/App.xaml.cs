@@ -244,7 +244,8 @@ public partial class App : Application
     {
         try
         {
-            using var _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(page.ToString()) { UseShellExecute = true });
+            // The browser as the player's, not with this app's administrator rights.
+            ShellLaunch.Open(page.AbsoluteUri);
             return true;
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
@@ -543,9 +544,16 @@ public partial class App : Application
     {
         var layout = PzTools.Process.Contracts.PzToolsPathLayout.CreateDefault(
             dataRoot: runtime);
+        // The workers this app starts as administrator come from its own folder. Pointing it at others by an
+        // environment variable is a development aid only: in a release build any program of the player's could set
+        // it and have its own executables started with these rights.
         var workerDirectory = AppWorkerDirectoryResolver.Resolve(
             AppContext.BaseDirectory,
+#if DEBUG
             Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR"));
+#else
+            null);
+#endif
         return new AppHost(new AppHostPaths(
             runtime,
             workerDirectory,

@@ -43,8 +43,10 @@ or worker binaries into a new app build.
 **From Visual Studio**, F5 and Ctrl+F5 also build and stage the worker dependencies,
 through [AppWorkers.targets](../build/AppWorkers.targets).
 
-- `PZTOOLS_TOOLS_DIR` is an explicit development override. Remove it to use the normal
-  bundled workers.
+- `PZTOOLS_TOOLS_DIR` is an explicit development override, read by Debug builds of the app only
+  (a release build always starts the workers in its own folder: the app runs as
+  administrator, and any program could set the variable). The tests read it themselves.
+  Remove it to use the normal bundled workers.
 - Development runs use the same documented user data paths as an installed app. They
   are not kept apart from your local app configuration automatically.
 

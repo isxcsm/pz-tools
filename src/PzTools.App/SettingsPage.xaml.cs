@@ -547,11 +547,7 @@ public sealed partial class SettingsPage : UserControl
                     Localizer.Get("PathSettings.Header"), Localizer.Get("OperationError.FileMissing"));
                 return;
             }
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
-            {
-                Arguments = $"\"{Path.GetFullPath(folder)}\"",
-                UseShellExecute = false,
-            })?.Dispose();
+            ShellLaunch.Open(Path.GetFullPath(folder));
         }
         catch (Exception exception)
         {
@@ -851,10 +847,7 @@ public sealed partial class SettingsPage : UserControl
             var folder = App.Host?.Settings.ConfigurationRoot
                 ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             Directory.CreateDirectory(folder);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(folder)
-            {
-                UseShellExecute = true,
-            });
+            ShellLaunch.Open(folder);
         }
         catch (Exception exception)
         {

@@ -51,7 +51,7 @@
       <Grid x:Name="BrandHeaderSpace" Height="48" />
       <Grid x:Name="CoffeeSupportArea" Margin="12,8,12,4">
         <HyperlinkButton x:Name="CoffeeSupportButton" IsEnabled="False" Padding="10" MinHeight="40"
-                         Loaded="CoffeeSupportButton_Loaded" Unloaded="CoffeeSupportButton_Unloaded"
+                         Loaded="CoffeeSupportButton_Loaded" Unloaded="CoffeeSupportButton_Unloaded" Click="CoffeeSupportButton_Click"
                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                          Background="Transparent" Foreground="{ThemeResource TextFillColorSecondaryBrush}" CornerRadius="8">
           <!-- Preserve native input/focus states. Icon feedback follows the template's

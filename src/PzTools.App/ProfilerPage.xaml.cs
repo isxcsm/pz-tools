@@ -804,20 +804,14 @@ public sealed partial class ProfilerPage : UserControl
             };
             panel.Children.Add(item);
         }
-        // Through Explorer, so the editor does not start with the app's administrator rights.
+        // Through Explorer, VS Code too, so nothing opened from here runs with the app's administrator rights.
         Add(Localizer.Get("ProfileScriptOpen"), "", full is not null,
-            () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { Arguments = $"\"{full}\"" })?.Dispose());
+            () => ShellLaunch.Open(full!));
         Add(code is null && full is not null ? Localizer.Get("ProfileScriptNoCode")
                 : script.Line > 0 ? Localizer.Format("ProfileScriptOpenInCodeFormat", script.Line) : Localizer.Get("ProfileScriptOpenInCode"),
-            "", code is not null, () =>
-            {
-                var start = new System.Diagnostics.ProcessStartInfo(code!) { UseShellExecute = false };
-                start.ArgumentList.Add("--goto");
-                start.ArgumentList.Add(script.Line > 0 ? $"{full}:{script.Line}" : full!);
-                System.Diagnostics.Process.Start(start)?.Dispose();
-            });
+            "", code is not null, () => ShellLaunch.OpenInCode(full!, script.Line));
         Add(Localizer.Get("ProfileScriptShowInFolder"), "", full is not null,
-            () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { Arguments = $"/select,\"{full}\"" })?.Dispose());
+            () => ShellLaunch.Select(full!));
         flyout.Content = panel;
         // Opened from the keyboard too, where no press closed the link's tip: the menu is not opened under it.
         AppToolTip.CloseCurrent();
@@ -831,11 +825,8 @@ public sealed partial class ProfilerPage : UserControl
         {
             Directory.CreateDirectory(service.Directory);
             var selected = (RecordingList.SelectedItem as RecordingItem)?.File.Path;
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
-            {
-                Arguments = selected is not null && File.Exists(selected) ? $"/select,\"{selected}\"" : $"\"{service.Directory}\"",
-                UseShellExecute = false,
-            })?.Dispose();
+            if (selected is not null && File.Exists(selected)) ShellLaunch.Select(selected);
+            else ShellLaunch.Open(service.Directory);
         }
         catch (Exception exception)
         {

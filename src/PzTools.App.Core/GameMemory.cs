@@ -58,6 +58,10 @@ public sealed class GameMemoryException(string code, string message, Exception? 
 public sealed partial class GameMemory
 {
     public const string ConfigFileName = "ProjectZomboid64.json";
+
+    /// <summary>Whether a path names the game's launch file: a full path ending in its name (a stream of it would not).</summary>
+    internal static bool IsLaunchFile(string path) =>
+        Path.IsPathFullyQualified(path) && string.Equals(Path.GetFileName(path), ConfigFileName, StringComparison.OrdinalIgnoreCase);
     private const string SteamAppId = "108600";
     private static readonly int[] Steps = [4096, 6144, 8192, 12288, 16384, 24576, 32768];
 
@@ -209,7 +213,9 @@ public sealed partial class GameMemory
     private string? Find()
     {
         var found = Try(running);
-        if (found is null && saved.ConfigPath is { } known && File.Exists(known)) return known;
+        // The remembered path is in a file any program of the player's can write, and this app edits what it names
+        // with administrator rights: only ever the game's own launch file, by its name.
+        if (found is null && saved.ConfigPath is { } known && IsLaunchFile(known) && File.Exists(known)) return known;
         found ??= Try(locate);
         if (found is not null && found != saved.ConfigPath) Save(saved with { ConfigPath = found });
         return found;

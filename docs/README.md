@@ -20,6 +20,7 @@ For people running the app who want more detail than the user guide.
 | --- | --- |
 | [Configuration](configuration.md) | What each setting does, where settings are stored, and how backup limits work |
 | [Game-aware backup timing](runtime-pause-backups.md) | Why the countdown paused, or why a backup ran without a game save |
+| [Security](../SECURITY.md) | What PZ Tools does to the game, what goes over the network, why it needs administrator rights, and how to check a download |
 | [Death backups](runtime-character-death.md) | When a death backup is made, why periodic backups stop after a death, and what the last-save report shows |
 | [Saving the game before a backup](game-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
 | [Character recovery](character-recovery.md) | What healing, revival and inventory recovery can and cannot do |

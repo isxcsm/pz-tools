@@ -208,7 +208,10 @@ three layers, so that most of it can be updated without restarting the game (see
 
 State streaming, saving, extension control and profiling share the listener, but each
 has its own connection and its own rules for who may do what. The listener accepts a
-fixed set of commands from PZ Tools; it does not run Lua or Java code sent to it.
+fixed set of commands from PZ Tools; it does not run Lua or Java code sent to it. Loading
+the payload names a jar on disk, the one in PZ Tools' own folder: the secret that allows
+it is read by attaching to the game's JVM, which already lets the attaching program run
+its own code in the game, so it gives nothing that attaching does not.
 
 <a id="compatibility-and-lifecycle"></a>
 ### Compatibility between PZ Tools and the bridge in the game

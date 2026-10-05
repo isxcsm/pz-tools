@@ -6,6 +6,17 @@ namespace PzTools.Backup.Tests;
 /// <summary>The game's memory is changed in its own launcher file, one option at a time, and found again after an update.</summary>
 public sealed class GameMemoryTests
 {
+    [Theory]
+    [InlineData(@"C:\Steam\steamapps\common\ProjectZomboid\ProjectZomboid64.json", true)]
+    [InlineData(@"D:\Games\PZ\projectzomboid64.JSON", true)]
+    // A remembered path is the player's to write; the app edits it as administrator, so only the launch file goes.
+    [InlineData(@"C:\Windows\System32\drivers\etc\hosts", false)]
+    [InlineData(@"C:\PZ\ProjectZomboid64.json:hidden", false)]
+    [InlineData(@"ProjectZomboid64.json", false)]
+    [InlineData(@"..\ProjectZomboid64.json", false)]
+    public void IsLaunchFile_TakesOnlyTheGamesLaunchFileByAFullPath(string path, bool expected) =>
+        Assert.Equal(expected, GameMemory.IsLaunchFile(path));
+
     // The launcher file of Build 42, as Steam installs it (tabs, LF).
     private const string Shipped = "{\n\t\"mainClass\": \"zombie/gameStates/MainScreenState\",\n\t\"classpath\": [\n\t\t\".\",\n\t\t\"projectzomboid.jar\"\n\t],\n"
         + "\t\"vmArgs\": [\n\t\t\"-Djava.awt.headless=true\",\n\t\t\"--enable-native-access=ALL-UNNAMED\",\n\t\t\"-Xmx3072m\",\n"

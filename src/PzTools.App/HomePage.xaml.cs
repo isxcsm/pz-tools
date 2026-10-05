@@ -236,6 +236,11 @@ public sealed partial class HomePage : UserControl
         Grid.SetColumn(GameExtensionsButton, wide ? 1 : 0);
     }
 
+    private void ExternalLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string link }) ShellLaunch.Open(link);
+    }
+
     private void OpenSaves_Click(object sender, RoutedEventArgs e) =>
         NavigationRequested?.Invoke(this, HomeDestination.Saves);
 

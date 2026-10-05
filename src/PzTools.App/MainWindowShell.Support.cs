@@ -18,11 +18,13 @@ public sealed partial class MainWindowShell
         coffeeSupportFeedback = null;
     }
 
+    // Opened as the player's, not by the link's own navigation, which would start the browser with this app's rights.
+    private void CoffeeSupportButton_Click(object sender, RoutedEventArgs e) => ShellLaunch.Open(SupportPage.AbsoluteUri);
+
     private void LocalizeSupportButton()
     {
         CoffeeSupportTitle.Text = Localizer.Get("CoffeeSupport.Title");
         CoffeeSupportMessage.Text = Localizer.Get("CoffeeSupport.Message");
-        CoffeeSupportButton.NavigateUri = SupportPage;
         CoffeeSupportButton.IsEnabled = true;
         var label = $"{CoffeeSupportMessage.Text} {CoffeeSupportTitle.Text}";
         AutomationProperties.SetName(CoffeeSupportButton, label);

@@ -322,9 +322,9 @@ The *File* column names the line the function ran itself the most, as `Client.lu
 file reads as a link. Pressed, it finds the script on this PC from the path the recording
 keeps (a Workshop mod under Steam's libraries, a mod in the player's own *mods* folder,
 the game's own scripts under its install, each only inside its own folder and only a
-`.lua` file) and shows the full path, wrapped, with a copy button beside it, then *Open*
-(through Explorer, so the editor does not start with the app's administrator rights),
-*Open line N in VS Code* (where VS Code is installed) and *Show in folder*. The file name
+`.lua` file) and shows the full path, wrapped, with a copy button beside it, then *Open*,
+*Open line N in VS Code* (where VS Code is installed, through its own `vscode://` link) and *Show in folder*,
+all through Explorer, so neither the editor nor VS Code starts with the app's administrator rights. The file name
 is in the table's own colour; the pointer's hover shows it is a button. A script not on this PC (a recording made on
 another, a mod removed since) says so and leaves only the copy of the recorded path; one
 changed since the recording warns that its lines may have moved. In the

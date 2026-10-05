@@ -1606,8 +1606,7 @@ public sealed partial class MainWindowShell : UserControl
         // Opens the Smart App Control page of Windows Security; the app changes no security setting itself.
         try
         {
-            using var _ = System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo("windowsdefender://smartapp/") { UseShellExecute = true });
+            ShellLaunch.Open("windowsdefender://smartapp/");
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception
             or InvalidOperationException or System.IO.FileNotFoundException)
