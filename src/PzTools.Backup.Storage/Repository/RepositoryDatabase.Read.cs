@@ -221,6 +221,30 @@ public sealed partial class RepositoryDatabase
             CultureInfo.InvariantCulture) != 0;
     }
 
+    /// <summary>
+    /// The identity of the folder the current entries were read in: the parent recorded for a
+    /// top-level entry. Null when the source has no current top-level entry.
+    /// </summary>
+    public async Task<byte[]?> ReadCurrentRootIdentityAsync(
+        long sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT parent_file_id
+            FROM current_entry_catalog
+            WHERE source_id = $sourceId
+              AND valid_to_revision IS NULL
+              AND tombstone = 0
+              AND instr(path_key, '/') = 0
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$sourceId", sourceId);
+        return await command.ExecuteScalarAsync(cancellationToken) as byte[];
+    }
+
     public async Task<IReadOnlyList<CurrentTrackedPath>> ReadCurrentTrackedPathsAsync(
         long sourceId,
         IReadOnlyCollection<string> fileReferences,

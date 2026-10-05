@@ -2,7 +2,7 @@
 
 [Documentation index](../README.md)
 
-An incremental backup has to find what changed in the save since the previous one. On NTFS it reads the volume's change journal, the [USN journal](glossary.md#usn-journal), from a checkpoint saved with the previous backup. When the journal cannot be used it scans the whole save and compares it with the catalog. Both paths are meant to produce the same list of changes, with the journal only making it faster; links inside the save are the exception ([limits](#limits)). The code is in [`src/PzTools.Backup.ChangeTracking.Windows/`](../../src/PzTools.Backup.ChangeTracking.Windows/) and [`IncrementalBackupRunner`](../../src/PzTools.Backup.Engine/IncrementalBackupRunner.cs).
+An incremental backup has to find what changed in the save since the previous one. On NTFS it reads the volume's change journal, the [USN journal](glossary.md#usn-journal), from a checkpoint saved with the previous backup. When the journal cannot be used it scans the whole save and compares it with the catalog. Both paths produce the same list of changes, with the journal only making it faster; links follow one rule on both ([missing files and links](stable-capture.md#missing-files-and-links)). The code is in [`src/PzTools.Backup.ChangeTracking.Windows/`](../../src/PzTools.Backup.ChangeTracking.Windows/) and [`IncrementalBackupRunner`](../../src/PzTools.Backup.Engine/IncrementalBackupRunner.cs).
 
 ## Checkpoint
 
@@ -12,7 +12,7 @@ The boundary is taken when planning starts, before any record is read or file is
 
 ## Journal or full scan
 
-`UsnJournalReader.Query` resolves the volume of the save folder (`GetVolumePathName`, `GetVolumeNameForVolumeMountPoint`, `GetVolumeInformation` for the serial), opens it and calls `FSCTL_QUERY_USN_JOURNAL` for the journal ID, first USN and next USN. `UsnCheckpointEvaluator` then decides:
+`UsnJournalReader.Query` resolves the volume the save folder's files are on (`FinalVolumePath`: the opened folder's final path in volume-GUID form, which follows junctions and symbolic links; `GetVolumeInformation` for the serial), opens it and calls `FSCTL_QUERY_USN_JOURNAL` for the journal ID, first USN and next USN. `UsnCheckpointEvaluator` then decides:
 
 | Condition | Result |
 | --- | --- |
@@ -23,6 +23,7 @@ The boundary is taken when planning starts, before any record is read or file is
 | Checkpoint below the first readable USN | Full scan. The journal has a fixed size, and a busy drive can overwrite the records after the checkpoint between two backups; on one development machine this was about one backup in ten. |
 | Checkpoint above the next USN | Full scan |
 | Some current catalog entry lacks a file or parent identity | Full scan |
+| The save folder's identity differs from the parent recorded for the catalog's top-level entries | Full scan ("The save folder is not the folder the previous backup read.") |
 | Reading the records fails part way (Windows error, bad record, journal changed) | Full scan, and the journal handle is released before the scan starts |
 | Otherwise | Journal |
 
@@ -32,7 +33,7 @@ Any failure of the journal is a reason to scan, never a reason to fail the backu
 
 `ReadRange` queries the journal again, re-runs the evaluation, and refuses an upper bound beyond the current next USN. It then calls `FSCTL_READ_USN_JOURNAL` with a fixed 1 MiB buffer, all reason flags, `ReturnOnlyOnClose = 0` and record versions 2 to 3, from the checkpoint until the boundary captured at the start. Records at or past the boundary are ignored, even if the journal grows meanwhile.
 
-`UsnRecordParser` checks each record before producing it: record length inside the buffer, version 2 or 3, file-name offset and length inside the record and even, non-negative USN. Version 2 has 64-bit file references and version 3 has 128-bit ones; both become `UInt128`. A malformed record is an `InvalidDataException`, which leads to a full scan.
+`UsnRecordParser` checks each record before producing it: record length inside the buffer, version 2 or 3, file-name offset and length inside the record and even, non-negative USN, a timestamp a `DateTime` can hold. Version 2 has 64-bit file references and version 3 has 128-bit ones; both become `UInt128`. A malformed record is an `InvalidDataException`, which leads to a full scan.
 
 ## Turning records into changes
 
@@ -50,13 +51,13 @@ Each candidate path is then read from disk:
 | --- | --- |
 | Confirmed missing ([how](stable-capture.md#missing-files-and-links)) and in the catalog | A tombstone |
 | Confirmed missing and not in the catalog | Nothing |
-| A reparse point | The backup fails: links inside a save are not captured. A link met only while listing an affected folder is skipped instead. |
+| A junction or symbolic link, or a path beneath one, or any other reparse point | Treated as absent, as the full scan skips it: a tombstone if it is in the catalog, otherwise nothing |
 | Content-change reason recorded, new path, or any difference in spelling, kind, size, modified or change time, attributes, file identity or parent identity | A change to capture |
 | Otherwise | Unchanged |
 
 ## Full-scan fallback
 
-`StreamingFullScanner` walks the save folder and writes one row per entry into a connection-local `TEMP` table (`temp_store = FILE`), committing every `scan_batch_size` (512) rows. Reparse points inside the save are skipped and not entered; the save folder itself may be a junction (a save moved to another drive) and is followed. One SQL statement then compares the scan with the current catalog by path key:
+`StreamingFullScanner` walks the save folder and writes one row per entry into a connection-local `TEMP` table (`temp_store = FILE`), committing every `scan_batch_size` (512) rows. Reparse points inside the save are skipped and not entered; the save folder itself, or a folder above it, may be a junction (a save moved to another drive) and is followed. One SQL statement then compares the scan with the current catalog by path key:
 
 - **Added**: a key with no live current version.
 - **Modified**: spelling, kind, size, modified time, change time, attributes, file identity or parent identity differ.
@@ -85,8 +86,9 @@ FAT32 and exFAT drives, such as most USB sticks, have no journal, so every backu
 
 - **Administrator rights.** Opening the volume to query the journal needs an elevated process. The app and its workers run elevated; a worker started from a normal shell gets access denied and falls back to a full scan.
 - **Record versions 2 and 3 only.**
-- **Links inside the save differ by path.** A full scan skips a junction or symbolic link inside the save. The journal path fails the backup when a record names one. Neither captures it.
-- **A save folder that is itself a junction** is followed by the full scan. On the journal path, confirming a deletion refuses a save folder that is a reparse point ([missing files](stable-capture.md#missing-files-and-links)), so a backup that sees a deleted file there fails.
+- **Links inside the save are never captured**, on either path ([missing files and links](stable-capture.md#missing-files-and-links)).
+- **A save folder reached through a link** is followed. The journal and the local-NTFS check use the volume of the folder's final path (`FinalVolumePath`, from the opened folder's handle), not the drive letter written in the path, which for a junction to another drive would name the wrong journal.
+- **A save folder that is now another folder** (a copy moved into its place, a junction pointed elsewhere) can have nothing in the journal beneath it. When the save folder's identity differs from the parent recorded for the catalog's top-level entries, the backup scans in full.
 - **A full scan reads every file's metadata** and, with content comparison, every recently written file's content.
 
 ## Tests
@@ -94,5 +96,6 @@ FAT32 and exFAT drives, such as most USB sticks, have no journal, so every backu
 | Test | Needs |
 | --- | --- |
 | `UsnRecordParserTests` (binary parsing), `UsnCheckpointEvaluatorTests`, `UsnDeltaPlannerTests` | Nothing |
+| `LinkedSourceTests` (links inside the save and a linked save folder, journal and full scan alike) | Junctions, which need no elevation |
 | `UsnRecordParserTests` live volume query and range read (also checks references against `FILE_ID_INFO`) | `PZTOOLS_TEST_USN=1` in an elevated process; skipped otherwise |
 | `IncrementalBackupRunnerTests.FullScanOnFat_...` | `PZTOOLS_TEST_FAT_DIR` naming a folder on a FAT32 or exFAT drive. Backs up a file there and checks that a same-size rewrite with its old time restored is still captured. |

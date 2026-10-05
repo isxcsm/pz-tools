@@ -38,11 +38,12 @@ When a backup fails or is cancelled, its pack is invalidated and deleted, no rev
 
 A file is not treated as deleted because `File.Exists` or `Directory.Exists` returns false; those hide access and I/O errors. When reading a path's metadata reports "file not found" or "path not found", the planner confirms it before writing a tombstone (`ConfirmMissingEntry`):
 
-- Neither the save folder nor any of its ancestors may be a reparse point.
-- Starting at the save folder, each segment of the path is looked up by an exact-name listing of its parent that must finish without error. The first segment that is absent confirms the deletion. A segment that is now an ordinary file where a folder was also confirms it.
-- A reparse point on the way, a listing error or an inaccessible folder aborts the backup instead. So does finding every segment present after all.
+- Starting at the save folder, each segment of the path is looked up by an exact-name listing of its parent that must finish without error. The first segment that is absent confirms the deletion. A segment that is now an ordinary file where a folder was also confirms it, and so does a segment that is now a junction or symbolic link, since nothing beneath a link is part of the save.
+- A listing error or an inaccessible folder aborts the backup instead, as does a save folder that is a link whose target has gone. So does finding every segment present after all.
 
-An always-included file that was never in the catalog and is confirmed missing is skipped quietly. A link inside the save, a disconnected drive, denied access or an I/O error stops the backup before it commits its revision or checkpoint. This applies to journal planning and to `capture.always_include`. A full scan instead lists the whole tree; a listing error fails it, and a path missing from a complete listing is a deletion.
+Links follow one rule on both paths. A junction or symbolic link inside the save, and anything beneath it, is neither captured nor entered: the full scan skips it, and journal planning and `capture.always_include` treat it as absent, so a version recorded before the path became a link is closed. The save folder itself, and the folders above it, may be links (the Zomboid folder moved to another drive) and are followed; the journal is then read on the volume the files are really on ([USN journal](usn-journal.md#limits)).
+
+An always-included file that was never in the catalog and is confirmed missing is skipped quietly. A disconnected drive, denied access or an I/O error stops the backup before it commits its revision or checkpoint. This applies to journal planning and to `capture.always_include`. A full scan instead lists the whole tree; a listing error fails it, and a path missing from a complete listing is a deletion.
 
 ## Pipeline and memory
 
