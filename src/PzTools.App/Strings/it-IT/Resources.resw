@@ -572,6 +572,7 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Il gioco o un’altra operazione sta usando questo salvataggio. Il salvataggio è intatto.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Il gioco non ha chiuso bene questo salvataggio. Caricalo nel gioco ed esci normalmente. Il salvataggio è intatto.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Si può curare solo nei salvataggi per giocatore singolo. Il salvataggio è intatto.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Questo salvataggio contiene più personaggi. Scegline uno e riprova. Il salvataggio è intatto.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Questo salvataggio contiene più personaggi. Scegli quello da ripristinare; gli altri non vengono modificati.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Ricerca dello zombie o del cadavere del personaggio…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Scegli da dove recuperare gli oggetti.</value></data>
@@ -597,6 +598,7 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Questa versione non può aprire questa cartella dei backup. Scegli una nuova cartella nelle impostazioni. Non eliminare quella vecchia.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Riprova al termine dell’operazione in corso.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Impossibile applicare le impostazioni. Controlla i valori inseriti.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Impossibile applicare le impostazioni. Controlla il file {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Impossibile riavviare. Chiudi e riapri l’app.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Questa cartella non è utilizzabile, quindi sono state ripristinate le impostazioni precedenti.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Impossibile cambiare cartella. Controlla le cartelle nelle impostazioni.</value></data>

@@ -572,6 +572,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Это сохранение использует игра или другая операция. Сохранение не изменено.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Игра некорректно закрыла это сохранение. Загрузите его в игре и выйдите обычным способом. Сохранение не изменено.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Исцелять можно только в сохранениях одиночной игры. Сохранение не изменено.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>В этом сохранении несколько персонажей. Выберите одного и повторите попытку. Сохранение не изменено.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>В этом сохранении несколько персонажей. Выберите, кого восстановить; остальные не изменятся.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Поиск зомби или трупа персонажа…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Выберите, откуда вернуть вещи.</value></data>
@@ -597,6 +598,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Эта версия не может открыть эту папку копий. Выберите новую папку в настройках. Старую не удаляйте.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Повторите, когда текущая операция завершится.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Не удалось применить настройки. Проверьте введённые значения.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Не удалось применить настройки. Проверьте файл {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Не удалось перезапустить. Закройте и снова откройте приложение.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Эту папку нельзя использовать, поэтому возвращены прежние настройки.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Не удалось сменить папку. Проверьте папки в настройках.</value></data>

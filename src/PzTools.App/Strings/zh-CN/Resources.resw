@@ -572,6 +572,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。存档未被修改。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档上次未正常退出。请在游戏中载入后正常退出。存档未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>只能恢复单人存档。存档未被修改。</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>此存档中有多名角色。请选择一名后重试。存档未被修改。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>此存档中有多名角色。请选择要恢复的角色；未选择的角色不会被更改。</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>正在寻找该角色的僵尸或尸体…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>请选择从哪里取回物品。</value></data>
@@ -597,6 +598,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>此版本无法打开该备份文件夹。请在设置中选择新文件夹。请勿删除旧文件夹。</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>请在当前操作结束后重试。</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>无法应用设置。请检查输入的值。</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>无法应用设置。请检查文件 {0}。</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>无法重启。请手动关闭并重新打开应用。</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>无法使用此文件夹，已恢复之前的设置。</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>无法更改文件夹。请在设置中检查文件夹位置。</value></data>

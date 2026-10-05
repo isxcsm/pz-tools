@@ -571,6 +571,7 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or other work is using this save. The save is unchanged.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>The game did not close this save properly. Load it in the game and quit normally. The save is unchanged.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Only single-player saves can be healed. The save is unchanged.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>This save has several characters. Choose one and try again. The save is unchanged.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>This save has several characters. Choose the one to recover; the others are not changed.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Looking for the character's zombie or corpse…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Choose where to take the belongings back from.</value></data>
@@ -596,6 +597,7 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>This version cannot open this backup folder. Choose a new folder in the settings. Do not delete the old one.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Try again when the current work is done.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Could not apply the settings. Check what you entered.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Could not apply the settings. Check {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Could not restart. Close and reopen the app.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>This folder cannot be used, so the previous settings are back.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Could not change the folder. Check the folders in the settings.</value></data>

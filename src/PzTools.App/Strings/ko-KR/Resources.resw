@@ -571,6 +571,7 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="RecoveryError.Busy" xml:space="preserve"><value>게임이나 다른 작업이 이 세이브를 쓰는 중입니다. 세이브는 그대로입니다.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>게임이 정상 종료되지 않은 세이브입니다. 게임에서 불러왔다가 정상 종료해 주세요. 세이브는 그대로입니다.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>싱글플레이 세이브에서만 회복할 수 있습니다. 세이브는 그대로입니다.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>이 세이브에는 캐릭터가 여럿 있습니다. 한 명을 고른 뒤 다시 시도해 주세요. 세이브는 그대로입니다.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>이 세이브에는 캐릭터가 여럿 있습니다. 회복할 캐릭터를 고르세요. 고르지 않은 캐릭터는 바뀌지 않습니다.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>캐릭터의 좀비나 시체를 찾는 중…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>소지품을 어디서 되찾을지 고르세요.</value></data>
@@ -596,6 +597,7 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>이 버전에서 열 수 없는 백업 폴더입니다. 설정에서 새 폴더를 골라 주세요. 기존 폴더는 지우지 마세요.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>작업이 끝난 뒤 다시 시도해 주세요.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>설정을 적용하지 못했습니다. 입력한 값을 확인해 주세요.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>설정을 적용하지 못했습니다. {0} 파일을 확인해 주세요.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>다시 시작하지 못했습니다. 앱을 직접 껐다 켜 주세요.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>이 폴더를 쓸 수 없어 이전 설정으로 되돌렸습니다.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>폴더를 바꾸지 못했습니다. 설정에서 폴더 위치를 확인해 주세요.</value></data>

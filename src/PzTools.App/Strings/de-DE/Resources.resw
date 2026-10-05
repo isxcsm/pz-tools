@@ -572,6 +572,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang nutzt diesen Spielstand. Der Spielstand ist unverändert.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Das Spiel hat diesen Spielstand nicht richtig geschlossen. Laden Sie ihn im Spiel und beenden Sie normal. Der Spielstand ist unverändert.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Nur Einzelspieler-Spielstände können geheilt werden. Der Spielstand ist unverändert.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Dieser Spielstand enthält mehrere Charaktere. Wählen Sie einen und versuchen Sie es erneut. Der Spielstand ist unverändert.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Dieser Spielstand enthält mehrere Charaktere. Wählen Sie den Charakter, der wiederhergestellt werden soll; die anderen bleiben unverändert.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Zombie oder Leiche des Charakters wird gesucht…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Wählen Sie, woher die Habseligkeiten zurückgeholt werden.</value></data>
@@ -597,6 +598,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Diese Version kann den Sicherungsordner nicht öffnen. Wählen Sie in den Einstellungen einen neuen Ordner. Löschen Sie den alten nicht.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Versuchen Sie es nach dem laufenden Vorgang erneut.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Einstellungen nicht übernommen. Prüfen Sie Ihre Eingaben.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Einstellungen nicht übernommen. Prüfen Sie die Datei {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Neustart fehlgeschlagen. Schließen und öffnen Sie die App erneut.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Dieser Ordner ist nicht nutzbar, daher gelten die vorherigen Einstellungen wieder.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Ordner nicht geändert. Prüfen Sie die Ordner in den Einstellungen.</value></data>

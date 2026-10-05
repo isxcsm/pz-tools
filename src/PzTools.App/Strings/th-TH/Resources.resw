@@ -579,6 +579,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้เซฟนี้ เซฟยังเหมือนเดิม</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>เกมปิดเซฟนี้ไม่ถูกต้อง โหลดเซฟในเกมแล้วออกตามปกติ เซฟยังเหมือนเดิม</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>รักษาได้เฉพาะเซฟผู้เล่นคนเดียว เซฟยังเหมือนเดิม</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>เซฟนี้มีตัวละครหลายตัว เลือกหนึ่งตัวแล้วลองอีกครั้ง เซฟยังเหมือนเดิม</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>เซฟนี้มีตัวละครหลายตัว เลือกตัวละครที่จะฟื้นฟู ตัวละครอื่นจะไม่ถูกเปลี่ยนแปลง</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>กำลังค้นหาซอมบี้หรือศพของตัวละคร…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>เลือกว่าจะเอาข้าวของคืนจากที่ใด</value></data>
@@ -604,6 +605,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>เวอร์ชันนี้เปิดโฟลเดอร์สำรองนี้ไม่ได้ เลือกโฟลเดอร์ใหม่ในการตั้งค่า อย่าลบโฟลเดอร์เดิม</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>ลองอีกครั้งเมื่องานปัจจุบันเสร็จ</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>ใช้การตั้งค่าไม่ได้ ตรวจสอบค่าที่กรอก</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>ใช้การตั้งค่าไม่ได้ ตรวจสอบไฟล์ {0}</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>เริ่มใหม่ไม่ได้ ปิดแอปแล้วเปิดอีกครั้ง</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>ใช้โฟลเดอร์นี้ไม่ได้ จึงกลับไปใช้การตั้งค่าเดิม</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>เปลี่ยนโฟลเดอร์ไม่ได้ ตรวจสอบตำแหน่งโฟลเดอร์ในการตั้งค่า</value></data>

@@ -572,6 +572,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="RecoveryError.Busy" xml:space="preserve"><value>ゲームか別の処理がこのセーブを使用中です。セーブはそのままです。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>正常に終了されなかったセーブです。ゲームで読み込んでから正常に終了してください。セーブはそのままです。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>回復できるのはシングルプレイのセーブだけです。セーブはそのままです。</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>このセーブには複数のキャラクターがいます。1 人選んで再試行してください。セーブはそのままです。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>このセーブには複数のキャラクターがいます。回復するキャラクターを選んでください。選ばなかったキャラクターは変更されません。</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>キャラクターのゾンビや死体を探しています…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>所持品をどこから取り戻すか選んでください。</value></data>
@@ -597,6 +598,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>このバージョンでは開けないバックアップフォルダーです。設定で新しいフォルダーを選んでください。元のフォルダーは削除しないでください。</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>処理が終わってから再試行してください。</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>設定を適用できませんでした。入力した値を確認してください。</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>設定を適用できませんでした。ファイル {0} を確認してください。</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>再起動できませんでした。アプリを閉じて開き直してください。</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>このフォルダーは使えないため、以前の設定に戻しました。</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>フォルダーを変更できませんでした。設定でフォルダーの場所を確認してください。</value></data>

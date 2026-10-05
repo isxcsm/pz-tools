@@ -572,6 +572,7 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gim atau operasi lain sedang memakai simpanan ini. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Gim tidak menutup simpanan ini dengan benar. Muat di gim lalu keluar secara normal. Simpanan tidak diubah.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Hanya simpanan pemain tunggal yang bisa dipulihkan. Simpanan tidak diubah.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Simpanan ini memiliki beberapa karakter. Pilih satu lalu coba lagi. Simpanan tidak diubah.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Simpanan ini memiliki beberapa karakter. Pilih karakter yang ingin dipulihkan; karakter lain tidak diubah.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Mencari zombi atau mayat karakter…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Pilih dari mana barang-barang diambil kembali.</value></data>
@@ -597,6 +598,7 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Versi ini tidak dapat membuka folder cadangan ini. Pilih folder baru di pengaturan. Jangan hapus folder lama.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Coba lagi setelah operasi saat ini selesai.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Pengaturan tidak dapat diterapkan. Periksa nilai yang dimasukkan.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Pengaturan tidak dapat diterapkan. Periksa berkas {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Tidak dapat memulai ulang. Tutup lalu buka lagi aplikasi.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Folder ini tidak dapat dipakai, jadi pengaturan sebelumnya dikembalikan.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Folder tidak dapat diganti. Periksa folder di pengaturan.</value></data>

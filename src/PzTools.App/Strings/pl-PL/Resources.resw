@@ -572,6 +572,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Gra lub inna operacja używa tego zapisu. Zapis jest nienaruszony.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Gra nie zamknęła poprawnie tego zapisu. Wczytaj go w grze i wyjdź normalnie. Zapis jest nienaruszony.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Leczyć można tylko w zapisach jednoosobowych. Zapis jest nienaruszony.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Ten zapis zawiera kilka postaci. Wybierz jedną i spróbuj ponownie. Zapis jest nienaruszony.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Ten zapis zawiera kilka postaci. Wybierz postać do przywrócenia; pozostałe nie zostaną zmienione.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Wyszukiwanie zombie lub zwłok postaci…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Wybierz, skąd odzyskać rzeczy.</value></data>
@@ -597,6 +598,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Ta wersja nie otworzy tego folderu kopii. Wybierz nowy folder w ustawieniach. Nie usuwaj starego.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Spróbuj ponownie po zakończeniu bieżącej operacji.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Nie można zastosować ustawień. Sprawdź wprowadzone wartości.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Nie można zastosować ustawień. Sprawdź plik {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Nie udało się uruchomić ponownie. Zamknij i otwórz aplikację.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Nie można użyć tego folderu, więc przywrócono poprzednie ustawienia.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Nie udało się zmienić folderu. Sprawdź foldery w ustawieniach.</value></data>

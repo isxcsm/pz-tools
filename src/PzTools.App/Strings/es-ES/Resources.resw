@@ -572,6 +572,7 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="RecoveryError.Busy" xml:space="preserve"><value>El juego u otra operación está usando esta partida. La partida no ha cambiado.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>El juego no cerró bien esta partida. Cárgala en el juego y sal normalmente. La partida no ha cambiado.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Solo se pueden curar partidas individuales. La partida no ha cambiado.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Esta partida tiene varios personajes. Elige uno e inténtalo de nuevo. La partida no ha cambiado.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Esta partida tiene varios personajes. Elige el que quieres recuperar; los demás no se modifican.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Buscando el zombi o el cadáver del personaje…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Elige de dónde recuperar las pertenencias.</value></data>
@@ -597,6 +598,7 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Esta versión no puede abrir esta carpeta de copias. Elige una carpeta nueva en Configuración. No borres la anterior.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Inténtalo de nuevo cuando termine la operación actual.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>No se han podido aplicar los ajustes. Revisa lo que has introducido.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>No se han podido aplicar los ajustes. Revisa el archivo {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>No se ha podido reiniciar. Cierra y vuelve a abrir la aplicación.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>No se puede usar esta carpeta, así que se han restaurado los ajustes anteriores.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>No se ha podido cambiar la carpeta. Revisa las carpetas en Configuración.</value></data>

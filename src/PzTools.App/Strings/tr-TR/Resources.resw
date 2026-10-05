@@ -572,6 +572,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Oyun veya başka bir işlem bu kaydı kullanıyor. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Oyun bu kaydı düzgün kapatmadı. Kaydı oyunda yükleyip normal şekilde çıkın. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Yalnızca tek oyunculu kayıtlarda iyileştirme yapılabilir. Kayıt değiştirilmedi.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Birini seçip tekrar deneyin. Kayıt değiştirilmedi.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Kurtarılacak karakteri seçin; diğerleri değiştirilmez.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Karakterin zombisi veya cesedi aranıyor…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Eşyaların nereden geri alınacağını seçin.</value></data>
@@ -597,6 +598,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Bu sürüm bu yedek klasörünü açamıyor. Ayarlar&apos;dan yeni bir klasör seçin. Eskisini silmeyin.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Mevcut işlem bitince tekrar deneyin.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Ayarlar uygulanamadı. Girdiğiniz değerleri kontrol edin.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Ayarlar uygulanamadı. {0} dosyasını kontrol edin.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Yeniden başlatılamadı. Uygulamayı kapatıp yeniden açın.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Bu klasör kullanılamadığı için önceki ayarlara dönüldü.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Klasör değiştirilemedi. Ayarlar&apos;da klasörleri kontrol edin.</value></data>

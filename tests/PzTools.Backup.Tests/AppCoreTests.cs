@@ -563,6 +563,31 @@ public sealed class AppCoreTests
         Assert.Equal(changed, service.Load());
     }
 
+    // The backup worker's file is checked only by reading it as a backup would: a mistake there names the file too.
+    [Fact]
+    public async Task Settings_CheckNamesTheBackupWorkerFileItFoundWrong()
+    {
+        using var temp = new TempDirectory();
+        var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var service = new AppSettingsService(temp.GetPath("runtime"));
+        var settings = AppSettings.CreateDefault() with { SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups") };
+        await service.SaveAndApplyAsync(settings, scheduler);
+        var backupConfig = ComponentRuntimePaths.GetIdentityDefaultPath(settings.BackupRoot, "backup-worker", service.ConfigurationRoot);
+        var template = await File.ReadAllTextAsync(backupConfig);
+        Assert.Contains("full_scan_hash_comparison = true", template);
+        await File.WriteAllTextAsync(backupConfig, template.Replace("full_scan_hash_comparison = true", "full_scan_hash_comparison = 'yes'"));
+
+        var failure = Assert.Throws<InvalidDataException>(service.ValidateEditableConfiguration);
+        Assert.Equal(Path.Combine("backup-worker", "default.toml"), UserFacingErrorCatalog.InvalidSettingsFile(failure, service.ConfigurationRoot));
+        Assert.Equal("OperationError.Configuration", UserFacingErrorCatalog.FromConfigurationError(failure));
+
+        // The app's [logs], which loading the settings also reads: named as the app's file, not left unnamed.
+        await File.WriteAllTextAsync(backupConfig, template);
+        await File.WriteAllTextAsync(service.LoggingConfigurationPath, "[logs]\nmax_entries = 5\n");
+        failure = Assert.Throws<InvalidDataException>(service.ValidateEditableConfiguration);
+        Assert.Equal(Path.Combine("app", "default.toml"), UserFacingErrorCatalog.InvalidSettingsFile(failure, service.ConfigurationRoot));
+    }
+
     [Fact]
     public async Task Settings_ResetRestoresDefaultsAndArchivesEditedToml()
     {

@@ -212,7 +212,9 @@ public sealed class RuntimeConfigurationTests
         await using var host = new AppHost(new(runtime, temp.Path, temp.GetPath("state.db"), temp.GetPath("scheduler.db")));
         Assert.NotNull(host.Settings);
         await Assert.ThrowsAsync<InvalidDataException>(() => host.StartAsync());
-        Assert.Throws<InvalidDataException>(() => host.Settings.ValidateEditableConfiguration());
+        var failure = Assert.Throws<InvalidDataException>(() => host.Settings.ValidateEditableConfiguration());
+        // The player is told which file to fix, as the configuration folder shows it.
+        Assert.Equal(Path.Combine("app", "default.toml"), UserFacingErrorCatalog.InvalidSettingsFile(failure, host.Settings.ConfigurationRoot));
     }
 
     [Fact]
