@@ -265,8 +265,14 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <Button x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="6,2"
-                  Style="{StaticResource SubtleButtonStyle}">
+          <!-- Filled like the manual backup button: a bare chevron and word read as a label, and the graphs went unfound. -->
+          <Button x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="8,3"
+                  Style="{StaticResource ManualBackupButtonStyle}">
+            <Button.Resources>
+              <SolidColorBrush x:Key="SubtleButtonBackgroundPointerOver" Color="{ThemeResource TextFillColorPrimary}" Opacity="0.12" />
+              <SolidColorBrush x:Key="SubtleButtonBackgroundPressed" Color="{ThemeResource TextFillColorPrimary}" Opacity="0.16" />
+              <SolidColorBrush x:Key="SubtleButtonBackgroundDisabled" Color="{ThemeResource TextFillColorPrimary}" Opacity="0.05" />
+            </Button.Resources>
             <StackPanel Orientation="Horizontal" Spacing="6">
               <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" />
               <TextBlock x:Name="MemoryToggleText" />
