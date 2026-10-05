@@ -27,6 +27,17 @@ public sealed class AppUiBehaviourSourceTests
         Assert.Contains("LocalizeCardPreview();", build);
     }
 
+    // Seen in the app: switching Save game before backup flashed the card light grey between its two colours, as the
+    // card's template eased from the opaque caution colour to its nearly transparent default.
+    [Fact]
+    public void TheGameSaveWarningChangesTheCardsColourAtOnce()
+    {
+        var warning = Method(Source("SettingsPage.xaml.cs"), "private void ShowGameSaveWarning(");
+        var cleared = warning.IndexOf("templateRoot.BackgroundTransition = null;", StringComparison.Ordinal);
+        Assert.True(cleared >= 0);
+        Assert.True(cleared < warning.IndexOf("GameSaveSettingCard.Background =", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void EveryAttentionCardIsLocalizedAgainOnALanguageChange()
     {

@@ -220,6 +220,12 @@ public sealed partial class SettingsPage : UserControl
     {
         if (!force && warningShown == unsaved) return;
         warningShown = unsaved;
+        // The card's template eases its background from one brush to the next (PART_RootGrid's BackgroundTransition),
+        // mixing the colours as they are: between the opaque caution colour and the card's nearly transparent default it
+        // showed a light grey for a moment. This card's background changes only for the warning, and at once.
+        if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(GameSaveSettingCard) > 0
+            && Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(GameSaveSettingCard, 0) is Grid { Name: "PART_RootGrid" } templateRoot)
+            templateRoot.BackgroundTransition = null;
         if (unsaved) GameSaveSettingCard.Background = CautionBackgroundProbe.Background;
         else GameSaveSettingCard.ClearValue(Microsoft.UI.Xaml.Controls.Control.BackgroundProperty);
         GameSaveSettingCard.HeaderIcon = unsaved
