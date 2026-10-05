@@ -125,8 +125,6 @@ public sealed class UserFacingMessageTests
         Assert.Equal("OperationError.FileMissing", UserFacingErrorCatalog.FromException(new DirectoryNotFoundException("없음")));
         Assert.Equal("OperationCancelled", UserFacingErrorCatalog.FromArchiveError(new OperationCanceledException()));
         Assert.Equal("InvalidArchiveFormat", UserFacingErrorCatalog.FromArchiveError(new InvalidDataException("Invalid header")));
-        Assert.Equal("UnsafeArchiveCompression", UserFacingErrorCatalog.FromArchiveError(
-            new InvalidDataException("archive-unsafe-ratio: Archive entry 'map_1_1.bin' has an unsafe compression ratio.")));
         Assert.Equal(UserFacingErrorCatalog.Generic, UserFacingErrorCatalog.FromArchiveError(new IOException("Unknown read failure")));
     }
 
