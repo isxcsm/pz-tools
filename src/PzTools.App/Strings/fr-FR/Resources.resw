@@ -368,8 +368,10 @@ Détaillé : mesure environ toutes les 0,002 seconde et enregistre aussi attente
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossible d’ouvrir l’enregistrement. Il est endommagé ou vient d’une version plus récente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Molette : zoom · Glisser : sélectionner une plage · Clic : sélectionner une image · Glisser avec le bouton droit : déplacer · Double-clic : tout afficher · Barres grises dans Mémoire : nettoyage de la mémoire (GC), aussi hautes que leur pause · ▲ : image au-delà de l’échelle (sa durée au survol) · Clic sur un élément de la liste : sa part de chaque barre (à nouveau pour arrêter ; pendant ce temps, survoler un autre pour l’aperçu) · Fond orange clair : pendant le GC</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copier le contenu affiché en texte</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Copier le texte</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Copier pour une IA</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Copié.</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copie cette plage sous forme de rapport à coller dans une discussion avec une IA : les chiffres principaux de chaque onglet, dans le même format, quoi qu&apos;il soit déplié ici (en anglais).</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Rapport copié. Collez-le dans une discussion avec une IA.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Lancez le jeu pour enregistrer.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} n'a pas démarré, car le jeu n'est pas lancé.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} n'a pas démarré, car plusieurs jeux sont lancés.</value></data>

@@ -130,8 +130,9 @@ public sealed partial class ProfilerPage : UserControl
         AppToolTip.SetTip(ChartHelp, string.Join("\n", hints));
         AppToolTip.SetTip(SelectionChip, Localizer.Get("ProfileClearSelection"));
         AutomationProperties.SetName(ChartHelp, Localizer.Get("ProfileChartHelp"));
-        AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyResults"));
+        AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyReportTip"));
         CopyResultsText.Text = Localizer.Get("ProfileCopyText");
+        CopyShownItem.Text = Localizer.Get("ProfileCopyResults");
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
@@ -3485,10 +3486,35 @@ public sealed partial class ProfilerPage : UserControl
     // ---- Copy ----
 
     /// <summary>
+    /// The range as a report for an AI model (<see cref="ProfileReport"/>): every tab's heaviest, whatever is open here.
+    /// Its callers are worked out on a worker, as the page does when a row opens.
+    /// </summary>
+    private async void CopyResultsButton_Click(SplitButton sender, SplitButtonClickEventArgs args)
+    {
+        if (recording is not { } current || shown is not { } range) return;
+        var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
+        var name = (RecordingList.SelectedItem as RecordingItem)?.Text;
+        CopyResultsButton.IsEnabled = false;
+        try
+        {
+            var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name));
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(report);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            App.ShowSidebarNotification(InfoBarSeverity.Success, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileReportCopied"));
+        }
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+        }
+        finally { CopyResultsButton.IsEnabled = true; }
+    }
+
+    /// <summary>
     /// The page as text, as it reads on screen: the recording, the range, the tab's owners and the chosen
     /// owner's table. Meant to be pasted into a message, so the table's columns are padded to line up.
     /// </summary>
-    private void CopyResultsButton_Click(object sender, RoutedEventArgs e)
+    private void CopyShownItem_Click(object sender, RoutedEventArgs e)
     {
         if (recording is null || shown is null) return;
         var text = new System.Text.StringBuilder();

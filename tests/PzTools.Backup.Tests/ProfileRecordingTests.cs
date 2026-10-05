@@ -123,6 +123,34 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Report_SaysTheRangesHeaviestOfEveryKind_WithWhereToLookAndWhoCalled()
+    {
+        var recording = Load(Sample);
+        var range = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        string report;
+        // Invariant numbers whatever the player's language: a comma for a decimal point would read as another number.
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        try { report = ProfileReport.Build(recording, range, recording.GameThread, "Slow frame"); }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
+
+        Assert.StartsWith("# Project Zomboid performance recording", report);
+        Assert.Contains("- Name: Slow frame", report);
+        Assert.Contains("- Range analysed: 0.01 s to 0.05 s (0.04 s)", report);
+        Assert.Contains("1 frames, average 40.0 ms (25 FPS)", report);
+        Assert.Contains("| 1 | SlowMod | 50.00% | 2 |", report);
+        // The mod's function with the line it ran itself the most: where in the file to look.
+        Assert.Contains("| slow | workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua:12 | 50.00% | 75.00% |", report);
+        Assert.Contains("| Base game scripts (vanilla) |", report);
+        Assert.Contains("| Lua interpreter (Kahlua; runs the scripts above) | 75.00% |", report);
+        Assert.Contains("| se.krka.kahlua.vm.KahluaThread.luaMainloop | 75.00% | 100.00% |", report);
+        // A library method read in the game's terms: up to the game's code that called it.
+        Assert.Contains("<- zombie.GameWindow.logic", report);
+        Assert.Contains("Garbage collections: 1, their pauses 2.5 ms in all (collector: ZGC Minor)", report);
+        Assert.Contains("| Pause Mark Start |", report);
+    }
+
+    [Fact]
     public void TimeBreakdown_SplitsTheGameThreadsRangeIntoScriptsGameCodeCollectionsAndWaiting()
     {
         var recording = Load(Sample);

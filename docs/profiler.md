@@ -192,7 +192,7 @@ and the slowest frame are one hover away and in the copied text.
 Beside them, which thread the results count, the game's or all of them: a choice for the
 whole analysis, both tabs. The chosen owner's table is a card of its own, level with the
 owner list's card; its line above sits level with the tabs: the owner's name, the search
-button, the **Call tree** switch, **Copy text**, and last its samples out of the tab's. In
+button, the **Call tree** switch, **Copy for AI**, and last its samples out of the tab's. In
 a narrow window the line and the card come under the owner list, and the samples and the
 copy's label give way first.
 
@@ -264,10 +264,16 @@ same two facts stand under each tab's list, on the page and not only one hover a
 the other way, a mod that called heavy game functions seemed lighter than one that only
 counted, as players found. *Long
 waits and pauses* shows a count with its unit instead of a share. Above the table, on the line of the tabs, stand the owner's
-name and its samples out of the tab's, such as *Samples 9/70*. The **Copy text** button beside the
-name puts what the page shows on the clipboard as text (the recording, the range,
-the tab's owner list with its headings, and the chosen owner's table, columns lined up), ready to paste into a
-message to a mod's author. The
+name and its samples out of the tab's, such as *Samples 9/70*. The **Copy for AI** button beside the
+name puts the range on the clipboard as a Markdown report for a chat with an AI model, the way most players
+ask what a recording means. It is the same whatever the page has open: the recording and the range, the
+frames, where the thread's time went, memory and CPU, the twelve heaviest mods and the functions of the five
+heaviest with each one's file and heaviest line, the Java areas and heaviest methods with who called them up
+to the game's code, Lua allocations, threads (all threads only) and the longest pauses; a few lines on how to
+read the figures come first. It is in English with invariant numbers, a format rather than a page: a model
+reads it as well in whatever language it is then asked, and two reports read alike. Its menu has the page as
+it reads, *Copy what is shown as text* (the tab's owner list with its headings and the chosen owner's table as
+opened, columns lined up), for a message to a mod's author. The
 chosen owner stays chosen when the range changes, if it is still there. The *Game code*
 tab also lists *Share by thread* (with *All threads*) and *Long waits and pauses*. In a
 narrow window the table moves below the owner list; in a wide one the owner list is as
@@ -299,7 +305,7 @@ called, indented, with an arrow to open or close it (a click anywhere on the row
 same). The tree starts closed; what is opened or closed stays so for other ranges of the
 same recording. In *Memory allocation* the paths are ranked by bytes and those that
 allocated nothing are left out. The choice of list or tree holds while the app runs, and
-a copy carries the tree as indented text. A path deeper than the 24 innermost functions
+a copy of what is shown carries the tree as indented text. A path deeper than the 24 innermost functions
 the recorder keeps starts at the 24th. The list is still the way to see a helper that
 many paths call: the tree splits its cost among them, the list adds it up.
 

@@ -396,8 +396,10 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileZoomAll" xml:space="preserve"><value>Show all</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover) · Click an owner in the list: its part of each bar (again to stop; while one is drawn, point at another to preview it) · Light orange background: while GC ran</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copy what is shown as text</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Copy text</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Copy for AI</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Copied.</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copies this range as a report to paste into an AI chat: every tab&apos;s heaviest figures in the same format, whatever is open here (in English).</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Report copied. Paste it into an AI chat.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Start the game to record.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} did not start because the game is not running.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} did not start because more than one game is running.</value></data>

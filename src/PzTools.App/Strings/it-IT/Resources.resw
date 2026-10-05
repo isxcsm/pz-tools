@@ -368,8 +368,10 @@ Dettagliata: misura circa ogni 0,002 secondi e registra anche attese e pause. Il
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossibile aprire la registrazione. È danneggiata o creata con una versione più recente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Rotellina: zoom · Trascina: seleziona un intervallo · Clic: seleziona un frame · Trascina con il tasto destro: sposta · Doppio clic: mostra tutto · Barre grigie in Memoria: pulizia della memoria (GC), alte quanto la pausa · ▲: frame oltre la scala (il suo tempo al passaggio del puntatore) · Clic su una voce dell'elenco: la sua parte di ogni barra (di nuovo per smettere; intanto, punta un'altra voce per l'anteprima) · Sfondo arancione chiaro: mentre girava il GC</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copia il contenuto mostrato come testo</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Copia testo</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Copia per IA</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Copiato.</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia questo intervallo come rapporto da incollare in una chat con un&apos;IA: i valori principali di ogni scheda nello stesso formato, qualunque cosa sia aperta qui (in inglese).</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Rapporto copiato. Incollalo in una chat con un&apos;IA.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Avvia il gioco per registrare.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} non è stato avviato perché il gioco non è in esecuzione.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} non è stato avviato perché è in esecuzione più di un gioco.</value></data>

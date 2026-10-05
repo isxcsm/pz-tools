@@ -397,8 +397,10 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší) · Kliknutí na položku seznamu: její část v každém sloupci (znovu zruší; během zobrazení najetím na jinou položku náhled) · Světle oranžové pozadí: kdy běželo GC</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Zkopírovat zobrazený obsah jako text</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat text</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat pro AI</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Zkopírováno.</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Zkopíruje tento úsek jako zprávu k vložení do chatu s AI: nejvýraznější údaje všech karet ve stejném formátu, bez ohledu na to, co je tu rozbalené (v angličtině).</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Zpráva zkopírována. Vložte ji do chatu s AI.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} se nespustilo, protože běží více než jedna hra.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Nahrávat můžete po spuštění hry.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} se nespustilo, protože hra neběží.</value></data>

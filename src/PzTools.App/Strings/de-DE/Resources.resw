@@ -368,8 +368,10 @@ Detailliert: misst etwa alle 0,002 Sekunden und zeichnet auch Wartezeiten und Pa
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Aufzeichnung kann nicht geöffnet werden. Sie ist beschädigt oder aus einer neueren Version.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Mausrad: Zoomen · Ziehen: Bereich auswählen · Klick: einen Frame auswählen · Ziehen mit rechter Taste: Verschieben · Doppelklick: alles anzeigen · Graue Balken unter „Speicher“: Speicherbereinigung (GC), so hoch wie ihre Pause · ▲: Frame über der Skala (Zeit beim Daraufzeigen) · Eintrag in der Liste anklicken: sein Anteil an jedem Balken (erneut zum Beenden; währenddessen auf einen anderen zeigen für eine Vorschau) · Hellorange Hintergrund: während GC lief</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Angezeigten Inhalt als Text kopieren</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Text kopieren</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Für KI kopieren</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Kopiert.</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Kopiert diesen Bereich als Bericht zum Einfügen in einen KI-Chat: die wichtigsten Werte aller Tabs im selben Format, egal was hier aufgeklappt ist (auf Englisch).</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Bericht kopiert. Füge ihn in einen KI-Chat ein.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Starte das Spiel, um aufzunehmen.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} wurde nicht gestartet, weil das Spiel nicht läuft.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} wurde nicht gestartet, weil mehr als ein Spiel läuft.</value></data>

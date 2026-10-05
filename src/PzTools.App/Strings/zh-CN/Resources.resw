@@ -368,8 +368,10 @@
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开录制。文件已损坏，或由更新的版本创建。</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 内存面板中的灰色柱：内存清理（GC），高度为暂停时长 · ▲：超出刻度的帧（悬停显示时间） · 单击列表中的项：在每根柱中加深显示其部分（再次单击取消；显示期间指向其他项可预览） · 浅橙色背景：GC 运行期间</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>将显示的内容复制为文本</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>复制文本</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>复制给 AI</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已复制。</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>将此区间复制为可粘贴到 AI 对话中的报告：无论这里展开了什么，所有标签页的主要数据都以相同格式包含在内（英文）。</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>报告已复制。请粘贴到 AI 对话中。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>启动游戏后即可录制。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>游戏没有运行，未开始{0}。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>有多个游戏在运行，未开始{0}。</value></data>
