@@ -156,13 +156,14 @@ During the fallback the schedule line shows **Next backup (without game save)** 
 (game-aware timing, death backups, save before backup, countdown) are locked meanwhile and keep their saved
 values (`SettingsPage.UpdateAvailability`).
 
-With game-aware timing on, the state check also takes activity from the stream, not from file locks
-([choosing the backup target](process-architecture.md#game-state-decisions)). While the stream is unusable,
-every save reads `Unknown` and no new target command is written. The fallback therefore has a target only if
-the stream confirmed the save active before it was lost. A game that could not be read from its start (a game
-update this PZ Tools cannot read) leaves the last command from the previous session, normally the
-`ClearTarget` written when that game exited, and gets no fallback backups. `GameLinkFallbackTests` inserts the
-`ActivateTarget` by hand and does not cover this.
+With game-aware timing on, the state check takes activity from the stream
+([choosing the backup target](process-architecture.md#game-state-decisions)). While the stream is unusable
+(`IsLinkUnusable`), it reads each save's `players.db` lock instead (`GameActivityLane`), so the save the game has
+open still gets an `ActivateTarget` command. That keeps the fallback's target right when the game could not be
+read from its start, as after a game update this PZ Tools cannot read. Those commands only feed the fallback:
+game-aware timing does not apply file-derived commands to the schedule. A game still starting is a known state,
+not a lost link, and is not guessed from files. `GameLinkFallbackTests` covers the path from the state check to
+the target.
 
 <a id="when-a-backup-attempt-fails"></a>
 ## When a backup attempt fails

@@ -17,10 +17,12 @@ public sealed class GameSaveException(string code, string message, string? diagn
     public bool SaveOutcomeUnknown => Code is "completion-unknown" or "invalid-response";
     /// <summary>
     /// The game could not be reached at all and nothing was asked of it (a blocked helper, a game
-    /// update, a missing bridge). The files on disk can still be backed up as they are.
+    /// update, a missing bridge). The files on disk can still be backed up as they are. The unsupported
+    /// codes come from the bridge setting itself up in a game it does not fit, before any request is queued.
     /// </summary>
     public bool LinkUnavailable => Code is "attach-failed" or AttachDiagnostics.DisabledCode
-        or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
+        or "connection-timeout" or "bridge-not-built" or "unsupported-protocol"
+        or "unsupported-game" or "unsupported-runtime" or "unsupported-loader";
     public string? Diagnostics { get; } = diagnostics;
 
     /// <summary>

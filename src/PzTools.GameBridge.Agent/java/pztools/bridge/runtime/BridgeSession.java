@@ -217,19 +217,27 @@ public final class BridgeSession {
         if (installed) return;
         if (Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
             throw new BridgeFailure("unsupported-runtime", "This bridge requires Java 25 and class retransformation");
-        window = AgentEntry.ensureGameHook();
-        gameLoader = window.getClassLoader();
-        if (Class.forName(AgentEntry.class.getName(), false, gameLoader) != AgentEntry.class)
-            throw new BridgeFailure("unsupported-loader", "Game cannot access the bridge class");
-        Method logic = window.getDeclaredMethod("logic");
-        save = window.getMethod("save", boolean.class);
-        gameThread = window.getField("gameThread");
-        Class<?> worldType = gameClass("zombie.iso.IsoWorld");
-        worldInstance = worldType.getField("instance");
-        worldCell = worldType.getField("currentCell");
-        if (!Modifier.isStatic(logic.getModifiers()) || logic.getReturnType() != void.class
-                || !Modifier.isStatic(save.getModifiers()) || save.getReturnType() != void.class)
-            throw new BridgeFailure("unsupported-game", "Game method signatures have changed");
+        try {
+            window = AgentEntry.ensureGameHook();
+            gameLoader = window.getClassLoader();
+            if (Class.forName(AgentEntry.class.getName(), false, gameLoader) != AgentEntry.class)
+                throw new BridgeFailure("unsupported-loader", "Game cannot access the bridge class");
+            Method logic = window.getDeclaredMethod("logic");
+            save = window.getMethod("save", boolean.class);
+            gameThread = window.getField("gameThread");
+            Class<?> worldType = gameClass("zombie.iso.IsoWorld");
+            worldInstance = worldType.getField("instance");
+            worldCell = worldType.getField("currentCell");
+            if (!Modifier.isStatic(logic.getModifiers()) || logic.getReturnType() != void.class
+                    || !Modifier.isStatic(save.getModifiers()) || save.getReturnType() != void.class)
+                throw new BridgeFailure("unsupported-game", "Game method signatures have changed");
+        } catch (BridgeFailure failure) {
+            throw failure;
+        } catch (Exception | LinkageError changed) {
+            // A game update renamed or removed what the bridge hooks. No request is queued yet, so the app
+            // may still back up the files on disk; a generic failure would leave it unsure whether a save ran.
+            throw new BridgeFailure("unsupported-game", changed);
+        }
         installed = true;
     }
 

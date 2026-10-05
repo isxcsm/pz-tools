@@ -200,11 +200,63 @@ public sealed class GameLinkFallbackTests
         Assert.Null((await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
     }
 
+    // With the game unreadable from the start, as after a game update, nothing but the file lock says which save
+    // is open; without it the fallback backups had no target and never ran.
+    [Fact]
+    public void ActivityOfAnUnreadableGame_ComesFromTheSaveFileLock()
+    {
+        using var temp = new TempDirectory();
+        var players = temp.GetPath("players.db");
+        File.WriteAllText(players, "fixture");
+        foreach (var unreadable in new[] { RuntimeObservation.Unknown("runtime-unavailable"), RuntimeObservation.Unknown("connecting") })
+        {
+            var lane = new GameActivityLane(() => unreadable);
+            Assert.Equal(ActivityState.Inactive, lane.Probe(players).State);
+            using (new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+                Assert.Equal(ActivityState.Active, lane.Probe(players).State);
+        }
+        // A game still starting is a known state, not a lost link: no guessing from files.
+        var starting = new GameActivityLane(() => RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason));
+        using (new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+            Assert.Equal(ActivityState.Unknown, starting.Probe(players).State);
+    }
+
+    // End to end, from the state check to the target a fallback backup reads.
+    [Fact]
+    public async Task UnreadableGame_FromItsStart_StillGivesFallbackBackupsTheOpenSave()
+    {
+        using var temp = new TempDirectory();
+        var state = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
+        var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var save = temp.GetPath("saves/Sandbox/World");
+        Directory.CreateDirectory(save);
+        var players = Path.Combine(save, "players.db");
+        await using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={players};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TABLE localPlayers(id INTEGER,name TEXT,isDead INTEGER); INSERT INTO localPlayers VALUES(1,'Name',0);";
+            await command.ExecuteNonQueryAsync();
+        }
+        var pipeline = new StateCheckPipeline(() => RuntimeObservation.Unknown("runtime-unavailable"));
+        await using (new FileStream(players, FileMode.Open, FileAccess.Read, FileShare.None))
+            for (var run = 1; run <= 2; run++)
+                Assert.Equal(ProcessOutcome.Succeeded, (await pipeline.RunAsync(state, temp.GetPath("saves"), run)).Outcome);
+        await new StateOutboxRelay().RelayAsync(state, scheduler);
+        var target = await scheduler.ReadFileDerivedTargetAsync();
+        Assert.NotNull(target);
+        Assert.Equal(Path.GetFullPath(save), Path.GetFullPath(target.SourcePath), ignoreCase: true);
+    }
+
     [Theory]
     [InlineData("attach-failed", BackupGameSave.SaveUnavailable)]
     [InlineData(AttachDiagnostics.DisabledCode, BackupGameSave.SaveUnavailable)]
     [InlineData("connection-timeout", BackupGameSave.SaveUnavailable)]
     [InlineData("bridge-not-built", BackupGameSave.SaveUnavailable)]
+    // A game update the bridge does not fit: it fails setting itself up, before any request is queued.
+    [InlineData("unsupported-game", BackupGameSave.SaveUnavailable)]
+    [InlineData("unsupported-runtime", BackupGameSave.SaveUnavailable)]
+    [InlineData("unsupported-loader", BackupGameSave.SaveUnavailable)]
     [InlineData("not-in-world", "not-in-world")]
     public async Task UnreachableGame_IsBackedUpFromDisk_ButARefusedOrUncertainSaveStillFails(string code, string outcome)
     {

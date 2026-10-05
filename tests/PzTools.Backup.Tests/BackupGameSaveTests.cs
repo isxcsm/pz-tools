@@ -92,8 +92,9 @@ public sealed class BackupGameSaveTests
     [InlineData("save-failed")]
     [InlineData("completion-unknown")]
     [InlineData("queue-timeout")]
-    // A game that could not be reached at all is the one exception; see GameLinkFallbackTests.
-    [InlineData("unsupported-game")]
+    // A game that could not be reached at all, or that the bridge does not fit, is the one exception;
+    // see GameLinkFallbackTests.
+    [InlineData("bridge-failed")]
     [InlineData("multiple-games")]
     [InlineData("saving-disabled")]
     [InlineData("multiplayer")]

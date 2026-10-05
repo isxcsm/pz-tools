@@ -251,9 +251,9 @@ How a result is handled depends on whether the backup is manual, wall-clock auto
 | The save's `players.db` opens exclusively (inactive by its file lock) | No contact; files on disk are backed up | Skipped before contacting the game | Not checked; the game's guard decides |
 | The file lock gives no answer (`Unknown`: missing file, access denied, I/O error) | The game is asked as usual | Skipped: only a save confirmed `Active` is backed up | Not checked |
 | `game-not-running`, `not-in-world`, `save-mismatch` | Files on disk are backed up | Skipped | Failed, slot used |
-| Game unreachable: `attach-failed`, `attach-disabled`, `connection-timeout`, `bridge-not-built`, `unsupported-protocol` | Files on disk are backed up, with a `save-unavailable` warning | The same | The same |
+| Game unreachable: `attach-failed`, `attach-disabled`, `connection-timeout`, `bridge-not-built`, `unsupported-protocol`; or the bridge does not fit the game: `unsupported-runtime`, `unsupported-loader`, `unsupported-game` | Files on disk are backed up, with a `save-unavailable` warning | The same | The same |
 | `runtime-deferred` (any reason), `queue-timeout` | Failed | Failed | Skipped; the slot is kept |
-| `busy`, `missing-save`, `multiple-games`, `multiplayer`, `saving-disabled`, `unsupported-runtime`, `unsupported-loader`, `unsupported-game`, `wrong-thread`, `save-failed`, `bridge-failed`, `protocol`, `authentication-failed` | Failed | Failed | Failed, slot used |
+| `busy`, `missing-save`, `multiple-games`, `multiplayer`, `saving-disabled`, `wrong-thread`, `save-failed`, `bridge-failed`, `protocol`, `authentication-failed` | Failed | Failed | Failed, slot used |
 | `completion-unknown`, `invalid-response` | Failed | Failed | Failed; the periodic schedule waits one interval ([why](runtime-pause-backups.md#when-a-backup-attempt-fails)) |
 
 "Slot" applies to the game-aware periodic schedule. A death backup has no slot: its queued run is kept only
@@ -268,9 +268,10 @@ The split between "unreachable" and the rest is deliberate. When the helper coul
 was asked of it, so the files on disk are all there is and a backup of them beats none. Once the game has been
 asked, an error or an unclear answer is not taken as permission to copy files it may still be writing.
 
-Known limit: the unreachable list covers only failures before the payload answers. A game update that the
-helper can still attach to but whose classes no longer match (`unsupported-game`, `bridge-failed` from the
-hook checks) fails every backup that asks for a save, including wall-clock fallback backups.
+The unsupported codes belong with "unreachable" for the same reason. They come from `BridgeSession.install`,
+which sets the payload up in the game before any request is queued. A game update that renamed or removed what
+the bridge hooks (a missing method, field or class) is reported there as `unsupported-game` rather than the
+generic `bridge-failed`, which could also mean a failure after the request was queued.
 
 The `save-unavailable` warning is the `source.prepare.completed` log entry; its detail holds the attach
 diagnostics below.
