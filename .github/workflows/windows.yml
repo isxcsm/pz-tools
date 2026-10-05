@@ -15,6 +15,10 @@ on:
         description: 'Also run offline storage benchmarks (not needed for routine PRs)'
         type: boolean
         default: false
+      release_check:
+        description: 'Also build the release package as a tag would (kept as an artifact; no attestation, no release)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -45,7 +49,8 @@ jobs:
       - name: Select checks from the actual PR changes
         id: plan
         env:
-          CI_FULL: ${{ inputs.full }}
+          # A release check needs the Windows build and tests it waits for: a full run.
+          CI_FULL: ${{ inputs.full || inputs.release_check }}
           CI_BENCHMARKS: ${{ inputs.benchmarks }}
         run: python scripts/ci-plan.py
       - name: Offline checks (once, no SDK setup)
@@ -135,7 +140,9 @@ jobs:
     # It gets a provenance attestation (anyone can check that the ZIP was built by this workflow from this
     # repository's commit) and goes up as a draft, for the maintainer to read and publish.
     needs: [checks, windows]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Run by hand with release_check, it builds the package the same way and keeps it as an artifact, to try the job
+    # before a tag depends on it.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' && inputs.release_check
     runs-on: windows-2025
     timeout-minutes: 60
     permissions:
@@ -160,7 +167,7 @@ jobs:
         run: |
           [xml] $props = Get-Content -LiteralPath Directory.Build.props -Raw
           $version = @($props.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ })[0]
-          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME, but Directory.Build.props says $version." }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and "v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME, but Directory.Build.props says $version." }
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
       - name: The release's JDK
         run: |
@@ -174,10 +181,19 @@ jobs:
           "RELEASE_JDK=$((Get-ChildItem -LiteralPath $into -Directory)[0].FullName)" >> $env:GITHUB_ENV
       - name: Build, test the published folder, package
         run: ./scripts/build-release.ps1 -JdkPath $env:RELEASE_JDK
+      - name: Keep the package of a trial run
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-check-${{ github.sha }}
+          path: artifacts/release/v${{ env.RELEASE_VERSION }}/PzTools-v*
+          retention-days: 7
       - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        if: github.ref_type == 'tag'
         with:
           subject-path: artifacts/release/v${{ env.RELEASE_VERSION }}/PzTools-v${{ env.RELEASE_VERSION }}-win-x64.zip
       - name: Draft release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

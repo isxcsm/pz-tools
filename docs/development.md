@@ -105,7 +105,9 @@ the Windows build and tests have passed for that commit. It:
 5. uploads the ZIP and its `.sha256` to a **draft** release; publishing it is yours
 
 A tag whose release is already published fails rather than replacing its files; a draft's
-files are replaced. To build one locally (to try the script, or without CI), run:
+files are replaced. To try the job before a tag depends on it, run the workflow by hand
+(**Actions → CI → Run workflow**) with *release_check*: it builds the package the same way
+and keeps it as an artifact for a week, with no attestation and no release. To build one locally (to try the script, or without CI), run:
 
 ```powershell
 pwsh scripts/build-release.ps1 -JdkPath $jdk
