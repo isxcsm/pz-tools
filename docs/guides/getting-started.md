@@ -39,14 +39,12 @@ Automatic backups are on from the start. Look over **Settings → Backup** if yo
 Leave **Save game before backup** on. Without it, anything the game hasn't saved yet is
 missing from the backup.
 
-[Screenshot: Settings, the Backup section with its defaults]
-
 ## 4. Your first backup
 
 Open **Save manager**, select your save and press **Back up now**. The backup shows up at the
 top of the list on the right.
 
-[Screenshot: Save manager, a save selected, a new manual backup at the top of its list]
+![A manual backup: the progress card, then the new backup at the top of the list](../media/backup.webp)
 
 ## 5. Play
 
@@ -55,10 +53,10 @@ Start the game and load your save. The sidebar shows when the next backup is due
 Just before a backup, a countdown appears above your character and the game saves. It may
 hitch for about half a second.
 
-[Screenshot: In game, the countdown above the character before a backup]
+![The countdown above the character before an automatic backup](../media/countdown.webp)
 
 The countdown waits while the game is paused or your character is asleep. If your character
-dies, automatic backups stop until you start a new one, so the backups from your last life
+dies, automatic backups stop until you start a new one or [revive them](revive-a-character.md), so the backups from your last life
 stay in the list.
 
 Closing the window quits PZ Tools, and backups stop with it. Turn on **Settings → Appearance

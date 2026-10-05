@@ -27,8 +27,6 @@ minute is plenty.
 Leave the mode on **Standard**. **Detailed** shows more, but the game runs about 20% slower
 while it records.
 
-[Screenshot: Performance page, the Start recording and Save last 2 min buttons]
-
 ## 2. Select the stutter
 
 Each bar in the graph is as tall as the slowest frame in it, so the tall ones are the stutter. Drag across them, and
@@ -77,8 +75,6 @@ If the line under the graph says **Stopped N times for lack of memory** or **Mem
 full**, the problem is memory, not a mod. Press **Memory setting** next to it, or go to
 **Settings → Game → Game memory**, and pick a bigger size. It takes effect the next
 time you start the game. See [Give the game more memory](more-game-memory.md).
-
-[Screenshot: The memory line under the graph saying the game ran short, with Memory setting]
 
 ## 6. Make sure
 

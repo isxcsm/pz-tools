@@ -9,8 +9,6 @@ On the first PC, open **Save manager** and select the save. Select **Current sav
 the save as it is now, or a backup to take that one. Press **Export ZIP** and choose where to
 save the file.
 
-[Screenshot: Save manager, Current save selected, the Export ZIP button]
-
 To export the current save, quit to the main menu or close the game first. A backup can be
 exported while you play.
 
