@@ -33,7 +33,7 @@ no restart at all (see [compatibility](game-bridge.md#compatibility-and-lifecycl
 
 | Mode | Java samples | Lua samples | Extra |
 | --- | --- | --- | --- |
-| Standard | every 10 ms | every 10 ms | garbage-collection pauses and runs, Java heap use, video memory, memory allocated by scripts, CPU used each second (per thread, the game's and the machine's; recorded, not shown yet) |
+| Standard | every 10 ms | every 10 ms | garbage-collection pauses and runs, Java heap use, video memory, memory allocated by scripts, CPU used each second (per thread, the game's and the machine's) |
 | Detailed | 1 ms requested, about 1.5–2 ms in practice | every 1 ms | the above, and lock waits, parked threads, slow file reads/writes, JVM stop-the-world operations |
 
 Memory is recorded in both modes. The **Java heap** (used, committed and maximum) is read
@@ -101,7 +101,7 @@ the game (see [leases](game-bridge.md#leases)), so an app that crashed or was en
 Task Manager does not leave it recording for more than two minutes.
 
 The cost is that of a recording that never ends. Standard mode is light; Detailed mode
-costs the game frame rate for as long as it is on (roughly 10% in a synthetic test), so
+costs the game frame rate for as long as it is on (about 20%: frames came out a quarter longer in one test on one PC; the app says about 20%), so
 use it while hunting a stutter, not all evening. A longer window costs the game nothing
 more, only disk. The game's timer resolution stays at 1 ms while it is on. Older data is
 discarded a piece at a time on disk, so a save holds somewhat more, which is cut to the
@@ -229,19 +229,23 @@ starts with the range line followed by these figures.
 
 Above the tabs, a thin bar splits the range's time on the game thread four ways, with
 their shares beside it: *Scripts* (mods' and the game's scripts running, the game
-functions they called included), *Game code* (the game's own code running), *GC pause*
+functions they called included), *Game code* (the game's own code running), *Memory stop*
 (the game stopped for memory: the collector's pauses where they fell, and the game thread
 waiting for memory to be freed, overlaps counted once; a recording from before the pauses
 were kept has the collections' totals instead) and *Waiting* (the thread waiting: for the next frame
 usually, or, in a stutter, stuck on a file or another thread). The four add up to the
-range. It answers at a glance whether a stutter was the scripts, the game or the memory,
+range. *Memory stop* is shown only from 0.5% of the range: with ZGC, the game's default,
+it stays near nothing even when memory runs short, as the collector slows the game while
+it works rather than stopping it (in a test at 3 GB against 16 GB, frames about 40% longer,
+with no stop at all), and always on the bar it only read as noise. What running short
+costs shows instead on the frame graph and the memory line (below). It answers at a glance whether a stutter was the scripts, the game or the memory,
 which adding up the two tabs cannot: they count the same time two ways (below). The bar
 follows the frame graph: while a mod is drawn over the graph (clicked in *Scripts*, or
 pointed at while another is drawn), it stands apart within the scripts' part, solid
 beside the lighter *Other scripts*, with its name and its figure from the list: how
 much of this stretch was that mod. With none drawn, the bar is the whole range's. It is shown for the game thread with enough samples, and goes into the
 copied text. Resting the pointer on a part, on the bar or its legend, says what it counts
-and its time in the range (for *GC pause*, also how much of the range the collector was at
+and its time in the range (for *Memory stop*, also how much of the range the collector was at
 work beside the game, which ZGC's pauses never show), and draws that part of each frame
 on the graph in the part's colour, on the terms the bar uses, in place of a highlighted
 mod while the pointer stays: which frames of a stutter were scripts, game code, memory or
@@ -535,7 +539,17 @@ same per-frame relay the recording uses.
 
 A recording in which the game ran short of memory (allocation stalls, or a heap standing
 nearly full) says so above the memory graphs, with a link to the game's memory setting; see
-[game memory](game-memory.md#on-the-performance-page).
+[game memory](game-memory.md#on-the-performance-page). The line adds what it cost, as the
+recording measured it: how much longer frames were while the collector was at work than
+while it was not (*frames 17% slower while GC ran*), from 5% and with at least 20 frames of
+each. On the frame graph, a light orange background marks the collector's runs, behind the
+bars, so its frames read against those beside it; it goes away with the collections' marks.
+
+A recording during which other programs kept the machine busy (on average 35% or more of
+all its processors, beside what the game used) says so on the same line (*Other programs
+used 55% of the CPU on average*). A busy machine slows the game whatever its mods: in a
+test, a data job running beside the game more than doubled its frames. Recordings made
+before CPU use was kept say nothing.
 
 ## Limits
 

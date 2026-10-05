@@ -142,6 +142,12 @@ public sealed record ProfileFrameStatistics(int Count, double AverageMillisecond
 
 /// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one.</summary>
 public sealed record ProfileTimeBreakdown(double Scripts, double GameCode, double Collections, double Waiting);
+/// <summary>Frames' average length, in milliseconds, while the collector was at work and while it was not, with how many of each.</summary>
+public sealed record ProfileCollectorFrames(double During, int DuringCount, double Outside, int OutsideCount)
+{
+    /// <summary>How much longer frames were with the collector at work, 0.17 for 17%; null with too few of either to say.</summary>
+    public double? Slower => DuringCount >= 20 && OutsideCount >= 20 && Outside > 0 ? During / Outside - 1 : null;
+}
 
 /// <summary>How short of memory the game ran: its allocation stalls, and the share of heap readings near the maximum.</summary>
 /// <param name="StalledMicroseconds">The stalls' time, added up.</param>
@@ -731,6 +737,34 @@ public static class ProfileAnalysis
         }
         return Math.Clamp(busy / (double)(end - start), 0, 1);
     }
+
+    /// <summary>
+    /// How long frames took while the collector was at work against while it was not, in milliseconds on average: what
+    /// running short of memory cost the game in this recording, measured rather than guessed. ZGC hardly stops the game
+    /// but slows it while it works; the time breakdown counts that slower code as running. A frame counts as with the
+    /// collector when it ran through most of it, as without when none of it did. Null without the collector's runs.
+    /// </summary>
+    public static ProfileCollectorFrames? FramesWithCollector(ProfileRecording recording)
+    {
+        if (recording.CollectorRuns.Count == 0) return null;
+        double during = 0, outside = 0;
+        int duringCount = 0, outsideCount = 0;
+        foreach (var frame in recording.Frames)
+        {
+            var busy = CollectorBusyIn(recording, frame.Start, frame.Start + Math.Max(1, frame.Duration)) ?? 0;
+            if (busy >= 0.5) { during += frame.Duration; duringCount++; }
+            else if (busy == 0) { outside += frame.Duration; outsideCount++; }
+        }
+        return new(duringCount == 0 ? 0 : during / duringCount / 1000, duringCount,
+            outsideCount == 0 ? 0 : outside / outsideCount / 1000, outsideCount);
+    }
+
+    /// <summary>
+    /// The share of all the machine's processors other programs used while it recorded, on average: a machine kept busy
+    /// by something else slows the game however light its mods. Null in recordings made before it was kept.
+    /// </summary>
+    public static double? OtherProgramsCpu(ProfileRecording recording) => recording.MachineCpu.Count == 0 ? null
+        : recording.MachineCpu.Average(reading => Math.Max(0, reading.MachineTotal - reading.GameUser - reading.GameSystem));
 
     /// <summary>
     /// How many times a thread, any thread, stopped in the range until the collector freed memory for it, and the

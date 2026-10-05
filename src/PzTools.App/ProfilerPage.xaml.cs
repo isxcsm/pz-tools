@@ -158,7 +158,7 @@ public sealed partial class ProfilerPage : UserControl
         TimeBreakdownTitle.Text = Localizer.Get("ProfileBreakdownTitle");
         ScriptsLabel.Text = Localizer.Get("ProfileBreakdownScripts");
         GameLabel.Text = Localizer.Get("ProfileBreakdownGame");
-        CollectionsLabel.Text = Localizer.Get("ProfileStatGcPause");
+        CollectionsLabel.Text = Localizer.Get("ProfileBreakdownMemory");
         SpareLabel.Text = Localizer.Get("ProfileBreakdownWaiting");
         var thread = ThreadBox.SelectedIndex;
         // The same choice in new words: not a change of thread to analyse again for.
@@ -851,6 +851,18 @@ public sealed partial class ProfilerPage : UserControl
         }
         BarsPath.Data = normal;
         SlowBarsPath.Data = slow;
+        // The collector at work, behind the bars where its runs reach into the view: it slows the game without stopping
+        // it, so its frames are the longer ones beside it. Put away with the collections' marks, by their figure.
+        var collector = new GeometryGroup { FillRule = FillRule.Nonzero };
+        if (collectionMarks)
+            foreach (var run in recording.CollectorRuns)
+            {
+                if (run.Time >= viewEnd) break;
+                if (run.Time + run.Duration <= viewStart) continue;
+                double left = XAt(Math.Max(run.Time, viewStart)), right = XAt(Math.Min(run.Time + run.Duration, viewEnd));
+                collector.Children.Add(new RectangleGeometry { Rect = new Rect(left, 0, Math.Max(1, right - left), height) });
+            }
+        CollectorPath.Data = collector;
         // Faint: on the owner's scale most frames reach the top, and a wall of them would compete with its part.
         BarsPath.Opacity = SlowBarsPath.Opacity = parts is null ? 1 : 0.15;
         HighlightPath.Data = parts is null || pointed is not null ? null : part;
@@ -1132,6 +1144,7 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
         MemoryBorder.Visibility = rows > 0 && memoryOpen ? Visibility.Visible : Visibility.Collapsed;
         ApplyMemoryShort();
+        ApplyOtherCpu();
         // The surface's margins and the border's edges, then the rows apart by their gaps.
         MemoryBorder.Height = 14 + rows * MemoryRowHeight + Math.Max(0, rows - 1) * MemoryRowGap;
     }
@@ -1151,16 +1164,19 @@ public sealed partial class ProfilerPage : UserControl
         MemoryShortIcon.Visibility = raised is null ? Visibility.Visible : Visibility.Collapsed;
         MemoryRaisedIcon.Visibility = raised is null ? Visibility.Collapsed : Visibility.Visible;
         MemoryShortButton.Visibility = raised is null ? Visibility.Visible : Visibility.Collapsed;
+        // What it cost, as this recording measured it: frames with the collector at work against those without.
+        var cost = collectorFramesOfRecording?.Slower is { } slower and >= 0.05
+            ? " · " + Localizer.Format("ProfileMemoryGcSlowerFormat", slower) : "";
         if (raised is { } megabytes)
         {
             MemoryShortText.Text = (pressure.Stalls > 0 ? Localizer.Format("ProfileMemoryStallsThenFormat", stalls)
-                : Localizer.Get("ProfileMemoryNearlyFullThen")) + " · " + Localizer.Format("ProfileMemoryRaisedFormat", SettingsPage.Size(megabytes));
+                : Localizer.Get("ProfileMemoryNearlyFullThen")) + cost + " · " + Localizer.Format("ProfileMemoryRaisedFormat", SettingsPage.Size(megabytes));
             MemoryShortText.Foreground = Muted;
         }
         else
         {
-            MemoryShortText.Text = pressure.Stalls > 0 ? Localizer.Format("ProfileMemoryStallsFormat", stalls)
-                : Localizer.Get("ProfileMemoryNearlyFull");
+            MemoryShortText.Text = (pressure.Stalls > 0 ? Localizer.Format("ProfileMemoryStallsFormat", stalls)
+                : Localizer.Get("ProfileMemoryNearlyFull")) + cost;
             MemoryShortText.ClearValue(TextBlock.ForegroundProperty);
         }
         MemoryShortButtonText.Text = Localizer.Get("ProfileMemorySetting");
@@ -1172,6 +1188,24 @@ public sealed partial class ProfilerPage : UserControl
 
     private ProfileRecording? pressureOf;
     private ProfileMemoryPressure? pressureOfRecording;
+    private ProfileCollectorFrames? collectorFramesOfRecording;
+    private double? otherCpuOfRecording;
+
+    // The share of the machine other programs used above which the line says so: a backfill on the same machine took
+    // half of it and more than doubled the frames; the game's own share alone stayed near a quarter.
+    private const double OtherCpuShown = 0.35;
+
+    // Other programs kept the machine busy while it recorded: said beside the memory, as the other cause of a slow game
+    // that is not the mods.
+    private void ApplyOtherCpu()
+    {
+        CurrentPressure();
+        var shown = otherCpuOfRecording is >= OtherCpuShown;
+        OtherCpuPanel.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        if (!shown) return;
+        OtherCpuText.Text = Localizer.Format("ProfileOtherCpuFormat", otherCpuOfRecording!.Value);
+        AppToolTip.SetTip(OtherCpuPanel, Localizer.Get("ProfileOtherCpuTip"));
+    }
 
     // The shown recording's memory pressure, worked out once per recording; a recording newly shown also sets whether
     // the panel opens, until the player has chosen.
@@ -1181,6 +1215,8 @@ public sealed partial class ProfilerPage : UserControl
         if (!ReferenceEquals(pressureOf, current))
         {
             (pressureOf, pressureOfRecording) = (current, ProfileAnalysis.MemoryPressure(current));
+            collectorFramesOfRecording = ProfileAnalysis.FramesWithCollector(current);
+            otherCpuOfRecording = ProfileAnalysis.OtherProgramsCpu(current);
             if (!memoryChosen) memoryOpen = pressureOfRecording.Short;
         }
         return pressureOfRecording;
@@ -1952,7 +1988,12 @@ public sealed partial class ProfilerPage : UserControl
         ScriptsLabel.Text = Localizer.Get(chosen is null ? "ProfileBreakdownScripts" : "ProfileBreakdownOtherScripts");
         ScriptsValue.Text = BreakdownPercent(others);
         GameColumn.Width = new GridLength(breakdown.GameCode, GridUnitType.Star);
-        CollectionsColumn.Width = new GridLength(breakdown.Collections, GridUnitType.Star);
+        // The game thread stopped for memory, shown only where it is something: ZGC keeps it near nothing however short
+        // memory runs (the frame graph's collector background and the memory line say what that costs), and a
+        // hundredth of a percent always on the bar only taught to look past it.
+        var memoryShown = breakdown.Collections >= MemoryStopShown;
+        CollectionsLegend.Visibility = memoryShown ? Visibility.Visible : Visibility.Collapsed;
+        CollectionsColumn.Width = new GridLength(memoryShown ? breakdown.Collections : 0, GridUnitType.Star);
         SpareColumn.Width = new GridLength(breakdown.Waiting, GridUnitType.Star);
         GameValue.Text = BreakdownPercent(breakdown.GameCode);
         CollectionsValue.Text = BreakdownPercent(breakdown.Collections);
@@ -1962,6 +2003,9 @@ public sealed partial class ProfilerPage : UserControl
     }
 
     private (ProfileRange, ResultTab, HighlightedGroup?)? shownBreakdown;
+
+    // The share of a range the game thread must have stopped for memory before the time bar shows it.
+    private const double MemoryStopShown = 0.005;
 
     // The part of the time bar pointed at (its tag: Scripts, GameCode, Collections, Waiting), drawn over the frame graph
     // in its own colour while the pointer stays.
@@ -2022,7 +2066,8 @@ public sealed partial class ProfilerPage : UserControl
         TimeBreakdownTitle.Text,
         SelectedLegend.Visibility == Visibility.Visible ? $"{SelectedLabel.Text} {SelectedValue.Text}" : "",
         $"{ScriptsLabel.Text} {ScriptsValue.Text}", $"{GameLabel.Text} {GameValue.Text}",
-        $"{CollectionsLabel.Text} {CollectionsValue.Text}", $"{SpareLabel.Text} {SpareValue.Text}",
+        CollectionsLegend.Visibility == Visibility.Visible ? $"{CollectionsLabel.Text} {CollectionsValue.Text}" : "",
+        $"{SpareLabel.Text} {SpareValue.Text}",
     }.Where(part => part.Length > 0));
 
     private static string OwnerName(string key) =>

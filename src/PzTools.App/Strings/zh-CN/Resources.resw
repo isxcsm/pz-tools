@@ -351,7 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>停止录制</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>标准</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>详细</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>标准：每 0.01 秒记录一次，几乎不影响游戏。&#xA;详细：约每 0.002 秒记录一次，同时记录等待和停顿。游戏可能会稍微变慢。</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>标准：每 0.01 秒记录一次，几乎不影响游戏。
+详细：约每 0.002 秒记录一次，并记录等待和停顿原因。游戏会因此变慢（约 20%）。</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>先启动游戏，再开始录制。重现卡顿后停止录制，即可查看结果。</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>正在连接游戏…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>录制中 {0} · {1} 分钟后自动停止</value></data>
@@ -365,7 +366,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要删除这条录制吗？此操作无法撤销。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>还没有录制记录。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开录制。文件已损坏，或由更新的版本创建。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 内存面板中的灰色柱：内存清理（GC），高度为暂停时长 · ▲：超出刻度的帧（悬停显示时间） · 单击列表中的项：在每根柱中加深显示其部分（再次单击取消；显示期间指向其他项可预览）</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 内存面板中的灰色柱：内存清理（GC），高度为暂停时长 · ▲：超出刻度的帧（悬停显示时间） · 单击列表中的项：在每根柱中加深显示其部分（再次单击取消；显示期间指向其他项可预览） · 浅橙色背景：GC 运行期间</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>将显示的内容复制为文本</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>复制文本</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已复制。</value></data>
@@ -476,7 +477,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="RollingSetting.Header" xml:space="preserve"><value>持续保留最近几分钟</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>开启后，游戏运行时会一直保留最近几分钟。标准模式几乎没有开销。</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>模式</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>详细模式记录得更多，但开启期间游戏会稍微变慢（约 10%）。请在排查卡顿时使用。</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>详细模式记录得更多，但开启期间游戏会变慢（约 20%）。请在排查卡顿时使用。</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>时长（分钟）</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分钟。时长更长对游戏的开销不变，只会占用更多磁盘空间。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>游戏运行后开始保留最近 1 分钟。</value></data>
@@ -719,9 +720,14 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>脚本</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>游戏代码</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>内存停顿</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 运行时帧平均慢 {0:P0}</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>其他程序平均占用了 {0:P0} 的 CPU</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>录制期间，游戏以外的程序占用了这么多电脑 CPU。CPU 繁忙时，无论模组如何，游戏都会变慢，录制结果也会比平时慢。如需公平比较，请关闭这些程序后重新录制。</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>模组和游戏的 Lua 脚本运行的时间，包括脚本调用的 Java 函数。</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>游戏自身代码（Java）在游戏线程上运行的时间。</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>游戏线程因垃圾回收（GC）或等待内存而停下的时间。游戏默认的 ZGC 几乎不会让它停下，所以通常接近 0。内存是否不足，请看图表下方内存行的“GC 运行”和“等待内存”。</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>游戏线程因垃圾回收（GC）或等待内存而停下的时间。仅在占区间 0.5% 以上时显示。
+游戏默认的 ZGC 即使内存不足也几乎不会让游戏停下，而是在回收期间让游戏变慢。其影响请看图表的橙色背景（GC 运行期间）和内存行的警告。</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>游戏线程没有工作而在等待的时间：大多是到下一帧前的余量；卡顿时则是在等待文件或其他线程。</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>将指针停在上面，即可在图表的每一帧上显示这部分。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他脚本</value></data>

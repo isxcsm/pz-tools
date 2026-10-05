@@ -799,6 +799,32 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void FramesWithTheCollectorAtWork_AndOtherProgramsCpu_AreMeasured()
+    {
+        // 60 frames of 20 ms, the second 30 of them 30 ms while the collector ran through them.
+        var lines = new StringBuilder("PZPROF|1\nI|mode|general\nT|7|main\nI|gameThread|7\nM|0|zombie.GameWindow.logic\nK|0|0\n");
+        long time = 1_000_000;
+        for (var index = 0; index < 60; index++)
+        {
+            var length = index < 30 ? 20_000 : 30_000;
+            lines.Append($"F|{time}|{length}\nS|{time}|7|0|J\n");
+            time += length;
+        }
+        lines.Append($"GR|{1_000_000 + 30 * 20_000}|{30 * 30_000}\n");
+        // The machine busy at 60% and 40%, the game a fifth of it each time: other programs 40% and 20%.
+        lines.Append("CL|1100000|0.15|0.05|0.6\nCL|1500000|0.15|0.05|0.4\n");
+        var recording = Load(lines.ToString());
+
+        var frames = ProfileAnalysis.FramesWithCollector(recording)!;
+        Assert.Equal((30.0, 30, 20.0, 30), (frames.During, frames.DuringCount, frames.Outside, frames.OutsideCount));
+        Assert.Equal(0.5, frames.Slower!.Value, 6);
+        Assert.Equal(0.3, ProfileAnalysis.OtherProgramsCpu(recording)!.Value, 6);
+        // Recordings from before either was kept say nothing.
+        Assert.Null(ProfileAnalysis.FramesWithCollector(Load(Sample)));
+        Assert.Null(ProfileAnalysis.OtherProgramsCpu(Load(Sample)));
+    }
+
+    [Fact]
     public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
     {
         var recording = Load(Sample);

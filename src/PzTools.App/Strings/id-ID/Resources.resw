@@ -351,7 +351,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileRecordStop" xml:space="preserve"><value>Hentikan rekaman</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standar</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detail</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standar: mengukur setiap 0,01 detik dan hampir tidak membebani game.&#xA;Detail: mengukur kira-kira setiap 0,002 detik serta mencatat waktu tunggu dan jeda. Game mungkin berjalan sedikit lebih lambat.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standar: merekam setiap 0,01 detik hampir tanpa membebani gim.
+Detail: merekam sekitar setiap 0,002 detik dan juga mencatat waktu tunggu dan jeda. Gim jadi lebih lambat (sekitar 20%).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Jalankan game, lalu mulai merekam. Munculkan kembali lag-nya dan hentikan rekaman untuk melihat hasilnya.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Menghubungkan ke game…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Merekam {0} · berhenti otomatis setelah {1} menit</value></data>
@@ -365,7 +366,7 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Hapus rekaman ini? Tindakan ini tidak dapat dibatalkan.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Belum ada rekaman.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman tidak dapat dibuka. Berkas rusak atau dari versi yang lebih baru.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya) · Klik item di daftar: bagiannya di setiap batang (klik lagi untuk berhenti; selama ditampilkan, arahkan ke item lain untuk pratinjau)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya) · Klik item di daftar: bagiannya di setiap batang (klik lagi untuk berhenti; selama ditampilkan, arahkan ke item lain untuk pratinjau) · Latar oranye muda: saat GC berjalan</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Salin isi yang ditampilkan sebagai teks</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Salin teks</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Disalin.</value></data>
@@ -476,7 +477,7 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="RollingSetting.Header" xml:space="preserve"><value>Simpan menit-menit terakhir terus-menerus</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Saat aktif, game menahan beberapa menit terakhirnya setiap kali berjalan. Mode Standar hampir tidak membebani.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Mode</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detail menampilkan lebih banyak, tetapi sedikit memperlambat game (sekitar 10%) selama aktif. Gunakan saat mencari penyebab tersendat.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detail menampilkan lebih banyak, tetapi memperlambat gim selama aktif (sekitar 20%). Gunakan saat mencari penyebab tersendat.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Durasi (menit)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 sampai 10 menit. Durasi lebih panjang tidak menambah beban game, hanya memakai lebih banyak ruang disk.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Mulai menyimpan menit terakhir setelah game berjalan.</value></data>
@@ -719,9 +720,14 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrip</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kode game</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Menunggu</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Berhenti karena memori</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>bingkai {0:P0} lebih lambat saat GC berjalan</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Program lain memakai rata-rata {0:P0} CPU</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Selama merekam, program selain gim memakai CPU PC sebanyak ini. CPU yang sibuk memperlambat gim apa pun mod-nya, dan rekaman tampak lebih lambat dari biasanya. Untuk perbandingan yang adil, tutup program itu dan rekam ulang.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Waktu skrip Lua mod dan gim berjalan, termasuk fungsi Java yang mereka panggil.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Waktu kode gim sendiri (Java) berjalan di thread gim.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Waktu thread gim berhenti untuk pembersihan memori (GC) atau menunggu memori. ZGC, bawaan gim ini, hampir tidak pernah menghentikannya, jadi biasanya mendekati nol. Untuk melihat kekurangan memori, lihat GC bekerja dan Menunggu memori di baris memori di bawah grafik.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Waktu thread gim berhenti untuk pembersihan memori (GC) atau menunggu memori. Hanya ditampilkan mulai 0,5% rentang.
+ZGC, bawaan gim ini, hampir tidak menghentikan gim meski memori kurang; ia memperlambatnya selama membersihkan. Lihat itu di latar oranye grafik (saat GC berjalan) dan peringatan di baris memori.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Waktu thread gim menunggu alih-alih bekerja: sebagian besar sisa waktu sebelum bingkai berikutnya; saat tersendat, menunggu berkas atau thread lain.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Arahkan penunjuk ke sini untuk menampilkan bagian ini di setiap bingkai pada grafik.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Skrip lain</value></data>

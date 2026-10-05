@@ -351,7 +351,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileRecordStop" xml:space="preserve"><value>Kaydı durdur</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standart</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Ayrıntılı</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standart: 0,01 saniyede bir ölçüm alır, oyunu neredeyse hiç etkilemez.&#xA;Ayrıntılı: yaklaşık 0,002 saniyede bir ölçüm alır, beklemeleri ve duraklamaları da kaydeder. Oyun biraz yavaşlayabilir.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standart: her 0,01 saniyede kayıt alır, oyuna neredeyse hiç yük bindirmez.
+Ayrıntılı: yaklaşık her 0,002 saniyede kayıt alır, bekleme ve duraklamaları da kaydeder. Oyun bu yüzden yavaşlar (yaklaşık %20).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Oyunu açın, ardından kaydı başlatın. Takılmayı yeniden oluşturun ve sonucu görmek için kaydı durdurun.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Oyuna bağlanılıyor…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Kaydediliyor {0} · {1} dakika sonra otomatik olarak durur</value></data>
@@ -365,7 +366,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Bu kayıt silinsin mi? Bu işlem geri alınamaz.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Henüz kayıt yok.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Kayıt açılamıyor. Bozuk ya da daha yeni bir sürümden.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Bellek panelindeki gri çubuklar: bellek temizliği (GC), yüksekliği duraklama süresi · ▲: ölçeği aşan kare (süresi üzerine gelince) · Listedeki bir öğeye tıklayın: her çubuktaki payı (durdurmak için yeniden; bu sırada önizleme için başka birinin üzerine gelin)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Bellek panelindeki gri çubuklar: bellek temizliği (GC), yüksekliği duraklama süresi · ▲: ölçeği aşan kare (süresi üzerine gelince) · Listedeki bir öğeye tıklayın: her çubuktaki payı (durdurmak için yeniden; bu sırada önizleme için başka birinin üzerine gelin) · Açık turuncu arka plan: GC çalışırken</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Gösterilen içeriği metin olarak kopyala</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Metni kopyala</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Kopyalandı.</value></data>
@@ -476,7 +477,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RollingSetting.Header" xml:space="preserve"><value>Son dakikaları tut</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Açıkken oyun her çalıştığında son birkaç dakikasını tutar. Standart mod neredeyse hiç yük getirmez.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Mod</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Ayrıntılı daha fazlasını gösterir ama açık kaldığı sürece oyunu biraz yavaşlatır (yaklaşık %10). Bir takılmanın peşindeyken kullanın.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Ayrıntılı daha fazlasını gösterir ama açık kaldığı sürece oyunu yavaşlatır (yaklaşık %20). Bir takılmanın peşindeyken kullanın.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Süre (dakika)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ile 10 dakika arası. Daha uzun süre oyuna aynı yükü getirir, yalnızca daha fazla disk kullanır.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Oyun çalışınca son dakikayı tutmaya başlar.</value></data>
@@ -719,9 +720,14 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Betikler</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Bekleme</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Bellek duruşu</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC çalışırken kareler {0:P0} daha yavaş</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Diğer programlar ortalama işlemcinin {0:P0} kadarını kullanıyordu</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Kayıt sırasında oyun dışındaki programlar bilgisayarın işlemcisinin bu kadarını kullanıyordu. Meşgul bir işlemci, modlardan bağımsız olarak oyunu yavaşlatır ve kayıt her zamankinden yavaş çıkar. Adil bir karşılaştırma için onları kapatıp yeniden kaydedin.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Modların ve oyunun Lua betiklerinin, çağırdıkları Java işlevleri dahil çalıştığı süre.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Oyunun kendi kodunun (Java) oyun iş parçacığında çalıştığı süre.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Oyun iş parçacığının çöp toplama (GC) ya da bellek beklemesi yüzünden durduğu süre. Oyunun varsayılanı olan ZGC onu neredeyse hiç durdurmaz, bu yüzden genelde sıfıra yakındır. Bellek yetersizliği için grafiğin altındaki bellek satırında GC çalışıyor ve Bellek bekleme değerlerine bakın.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Oyun iş parçacığının çöp toplama (GC) ya da bellek beklemesi yüzünden durduğu süre. Yalnızca aralığın %0,5&apos;inden itibaren gösterilir.
+Oyunun varsayılanı olan ZGC, bellek azken bile oyunu neredeyse hiç durdurmaz; bunun yerine toplama sırasında yavaşlatır. Bunu grafiğin turuncu arka planında (GC çalışırken) ve bellek satırındaki uyarıda görün.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Oyun iş parçacığının çalışmak yerine beklediği süre: çoğunlukla sonraki kareye kalan pay; takılmada bir dosyayı ya da başka bir iş parçacığını bekleme.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Grafikte her karenin bu payını görmek için üzerine gelin.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Diğer betikler</value></data>

@@ -358,7 +358,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>หยุดบันทึก</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>มาตรฐาน</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>ละเอียด</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>มาตรฐาน: เก็บข้อมูลทุก 0.01 วินาที แทบไม่กระทบกับเกม&#xA;ละเอียด: เก็บข้อมูลประมาณทุก 0.002 วินาที และบันทึกการรอกับการหยุดชะงักด้วย เกมอาจช้าลงเล็กน้อย</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>มาตรฐาน: บันทึกทุก 0.01 วินาที แทบไม่เป็นภาระต่อเกม
+ละเอียด: บันทึกประมาณทุก 0.002 วินาที และเก็บสาเหตุการรอและการหยุดด้วย ทำให้เกมช้าลง (ราว 20%)</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>เปิดเกมก่อน แล้วค่อยเริ่มบันทึก ทำให้เกิดอาการแลคอีกครั้ง แล้วหยุดบันทึกเพื่อดูผลลัพธ์</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>กำลังเชื่อมต่อกับเกม…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>กำลังบันทึก {0} · หยุดอัตโนมัติหลังจาก {1} นาที</value></data>
@@ -372,7 +373,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>ลบการบันทึกนี้ใช่ไหม การลบนี้ย้อนกลับไม่ได้</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>ยังไม่มีการบันทึก</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกไม่ได้ ไฟล์เสียหายหรือมาจากเวอร์ชันที่ใหม่กว่า</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์) · คลิกรายการในลิสต์: แสดงส่วนของรายการนั้นในแต่ละแท่ง (คลิกอีกครั้งเพื่อยกเลิก ระหว่างแสดง ชี้รายการอื่นเพื่อดูตัวอย่าง)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์) · คลิกรายการในลิสต์: แสดงส่วนของรายการนั้นในแต่ละแท่ง (คลิกอีกครั้งเพื่อยกเลิก ระหว่างแสดง ชี้รายการอื่นเพื่อดูตัวอย่าง) · พื้นหลังสีส้มอ่อน: ขณะ GC ทำงาน</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>คัดลอกเนื้อหาที่แสดงเป็นข้อความ</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกข้อความ</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>คัดลอกแล้ว</value></data>
@@ -483,7 +484,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="RollingSetting.Header" xml:space="preserve"><value>เก็บนาทีล่าสุดไว้ตลอด</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>เมื่อเปิดไว้ เกมจะเก็บไม่กี่นาทีล่าสุดไว้ทุกครั้งที่ทำงาน โหมดมาตรฐานแทบไม่สิ้นเปลือง</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>โหมด</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>โหมดละเอียดแสดงข้อมูลมากกว่า แต่ทำให้เกมช้าลงเล็กน้อย (ประมาณ 10%) ตลอดที่เปิดอยู่ ใช้ขณะหาสาเหตุอาการกระตุก</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>โหมดละเอียดแสดงข้อมูลมากกว่า แต่ทำให้เกมช้าลงตลอดที่เปิดอยู่ (ราว 20%) ใช้ขณะหาสาเหตุอาการกระตุก</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>ความยาว (นาที)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ถึง 10 นาที ยิ่งยาวก็ไม่ทำให้เกมหนักขึ้น แค่ใช้พื้นที่ดิสก์มากขึ้น</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>จะเริ่มเก็บนาทีล่าสุดเมื่อเกมทำงาน</value></data>
@@ -726,9 +727,14 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>สคริปต์</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>รอ</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>หยุดเพราะหน่วยความจำ</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>เฟรมช้าลง {0:P0} ขณะ GC ทำงาน</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>โปรแกรมอื่นใช้ CPU เฉลี่ย {0:P0}</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>ระหว่างบันทึก โปรแกรมอื่นนอกจากเกมใช้ CPU ของพีซีมากเท่านี้ CPU ที่ยุ่งทำให้เกมช้าลงไม่ว่าจะมีม็อดอะไร และผลบันทึกจะช้ากว่าปกติ หากต้องการเปรียบเทียบอย่างยุติธรรม ให้ปิดโปรแกรมนั้นแล้วบันทึกใหม่</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์ Lua ของม็อดและของเกมทำงาน รวมถึงฟังก์ชัน Java ที่สคริปต์เรียก</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>เวลาที่โค้ดของเกมเอง (Java) ทำงานบนเธรดเกม</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>เวลาที่เธรดเกมหยุดเพื่อเก็บกวาดหน่วยความจำ (GC) หรือรอหน่วยความจำ ZGC ซึ่งเป็นค่าเริ่มต้นของเกมแทบไม่หยุดเกม ค่านี้จึงมักใกล้ศูนย์ ดูการขาดหน่วยความจำได้จาก GC ทำงาน และ รอหน่วยความจำ ในแถวหน่วยความจำใต้กราฟ</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>เวลาที่เธรดเกมหยุดเพื่อเก็บกวาดหน่วยความจำ (GC) หรือรอหน่วยความจำ แสดงเฉพาะเมื่อมีตั้งแต่ 0.5% ของช่วง
+ZGC ซึ่งเป็นค่าเริ่มต้นของเกมแทบไม่หยุดเกมแม้หน่วยความจำไม่พอ แต่จะทำให้เกมช้าลงระหว่างเก็บกวาดแทน ดูได้จากพื้นหลังสีส้มในกราฟ (ขณะ GC ทำงาน) และคำเตือนในแถวหน่วยความจำ</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>เวลาที่เธรดเกมรอแทนที่จะทำงาน ส่วนใหญ่คือเวลาว่างก่อนเฟรมถัดไป ในช่วงที่กระตุกคือการรอไฟล์หรือเธรดอื่น</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>วางเมาส์ไว้เพื่อแสดงส่วนนี้ของแต่ละเฟรมบนกราฟ</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>สคริปต์อื่น</value></data>

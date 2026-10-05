@@ -394,7 +394,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileThreadGame" xml:space="preserve"><value>Game thread</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Zoom to selection</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Show all</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover) · Click an owner in the list: its part of each bar (again to stop; while one is drawn, point at another to preview it)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover) · Click an owner in the list: its part of each bar (again to stop; while one is drawn, point at another to preview it) · Light orange background: while GC ran</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copy what is shown as text</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copy text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Copied.</value></data>
@@ -472,7 +472,7 @@ Waited for memory: how many times a thread stopped until memory was freed, becau
   <data name="ProfileRename" xml:space="preserve"><value>Rename</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 to 10 minutes. A longer one costs the game the same, only more disk.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Length (minutes)</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detailed shows more but slows the game a little (about 10%) for as long as it is on. Use it while hunting a stutter.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detailed shows more but slows the game for as long as it is on (about 20%). Use it while hunting a stutter.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Mode</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>While on, the game keeps its last few minutes whenever it runs. Standard mode costs almost nothing.</value></data>
   <data name="RollingSetting.Header" xml:space="preserve"><value>Keep the last minutes</value></data>
@@ -551,7 +551,8 @@ Waited for memory: how many times a thread stopped until memory was freed, becau
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Recording {0} · stops automatically after {1} minutes</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Connecting to the game…</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Start the game, then start recording. Reproduce the lag and stop recording to see the result.</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: takes a reading every 0.01 seconds with almost no effect on the game.&#xA;Detailed: takes a reading about every 0.002 seconds and also records waits and pauses. The game may run slightly slower.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: takes a reading every 0.01 seconds with almost no effect on the game.
+Detailed: takes a reading about every 0.002 seconds and also records waits and pauses. The game runs slower for it (about 20%).</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detailed</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileRecordStop" xml:space="preserve"><value>Stop recording</value></data>
@@ -718,9 +719,14 @@ Waited for memory: how many times a thread stopped until memory was freed, becau
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Memory stop</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>frames {0:P0} slower while GC ran</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Other programs used {0:P0} of the CPU on average</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>While it recorded, programs other than the game used this much of the PC&apos;s CPU. A busy CPU slows the game whatever its mods, and the recording reads slower than usual. For a fair comparison, close them and record again.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Time mods&apos; and the game&apos;s Lua scripts ran, including the Java functions they called.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Time the game&apos;s own code (Java) ran on the game thread.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Time the game thread stopped for garbage collection or waiting for memory. ZGC, the game&apos;s default, hardly ever stops it, so this is usually near zero. For running short of memory, see GC working and Waited for memory on the memory line under the graph.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Time the game thread stopped for garbage collection or waiting for memory. Shown only from 0.5% of the range.
+ZGC, the game&apos;s default, hardly stops the game even when memory runs short; it slows it while it collects instead. See that on the graph&apos;s orange background (while GC ran) and in the warning on the memory line.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Time the game thread waited instead of working: mostly the time left before the next frame; in a stutter, waiting for a file or another thread.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Point at it to show this part of each frame on the graph.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Other scripts</value></data>

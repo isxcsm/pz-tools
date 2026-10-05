@@ -351,7 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>停止錄製</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>標準</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>詳細</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>標準：每 0.01 秒記錄一次，幾乎不影響遊戲。&#xA;詳細：約每 0.002 秒記錄一次，也會記錄等待和停頓。遊戲可能會稍微變慢。</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>標準：每 0.01 秒記錄一次，幾乎不影響遊戲。
+詳細：約每 0.002 秒記錄一次，並記錄等待和停頓原因。遊戲會因此變慢（約 20%）。</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>先啟動遊戲，再開始錄製。重現卡頓後停止錄製，就能查看結果。</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>正在連線到遊戲…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>錄製中 {0} · {1} 分鐘後自動停止</value></data>
@@ -365,7 +366,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要刪除這筆錄製嗎？此動作無法復原。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>還沒有錄製紀錄。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>無法開啟錄製。檔案已損毀，或由較新的版本建立。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 記憶體面板中的灰色長條：記憶體清理（GC），高度為暫停時間 · ▲：超出刻度的影格（游標停留時顯示時間） · 按一下清單中的項目：在每根長條中加深顯示其部分（再按一下取消；顯示期間指向其他項目可預覽）</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 記憶體面板中的灰色長條：記憶體清理（GC），高度為暫停時間 · ▲：超出刻度的影格（游標停留時顯示時間） · 按一下清單中的項目：在每根長條中加深顯示其部分（再按一下取消；顯示期間指向其他項目可預覽） · 淺橘色背景：GC 執行期間</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>將顯示的內容複製為文字</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>複製文字</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>已複製。</value></data>
@@ -476,7 +477,7 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="RollingSetting.Header" xml:space="preserve"><value>持續保留最近幾分鐘</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>開啟後，遊戲執行時會一直保留最近幾分鐘。標準模式幾乎沒有負擔。</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>模式</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細模式記錄得更多，但開啟期間遊戲會稍微變慢（約 10%）。請在排查卡頓時使用。</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細模式記錄得更多，但開啟期間遊戲會變慢（約 20%）。請在排查卡頓時使用。</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>長度（分鐘）</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分鐘。設得較長對遊戲的負擔相同，只會多用磁碟空間。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>遊戲執行後開始保留最近 1 分鐘。</value></data>
@@ -719,9 +720,14 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>腳本</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>遊戲程式碼</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>記憶體停頓</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 執行時畫格平均慢 {0:P0}</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>其他程式平均佔用了 {0:P0} 的 CPU</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>錄製期間，遊戲以外的程式佔用了這麼多電腦 CPU。CPU 忙碌時，無論模組如何，遊戲都會變慢，錄製結果也會比平時慢。如需公平比較，請關閉這些程式後重新錄製。</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>模組和遊戲的 Lua 指令碼執行的時間，包括指令碼呼叫的 Java 函式。</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>遊戲本身程式碼（Java）在遊戲執行緒上執行的時間。</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>遊戲執行緒因垃圾回收（GC）或等待記憶體而停下的時間。遊戲預設的 ZGC 幾乎不會讓它停下，所以通常接近 0。記憶體是否不足，請看圖表下方記憶體列的「GC 運作」和「等待記憶體」。</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>遊戲執行緒因垃圾回收（GC）或等待記憶體而停下的時間。僅在佔區間 0.5% 以上時顯示。
+遊戲預設的 ZGC 即使記憶體不足也幾乎不會讓遊戲停下，而是在回收期間讓遊戲變慢。其影響請看圖表的橘色背景（GC 執行期間）和記憶體列的警告。</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>遊戲執行緒沒有工作而在等待的時間：大多是到下一個畫格前的餘裕；卡頓時則是在等待檔案或其他執行緒。</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>將指標停在上面，即可在圖表的每個畫格上顯示這部分。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他腳本</value></data>

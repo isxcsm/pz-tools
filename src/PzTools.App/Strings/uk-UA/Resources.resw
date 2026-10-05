@@ -351,7 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>Зупинити запис</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Звичайний</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Докладний</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Звичайний: вимірювання кожні 0,01 секунди, майже не впливає на гру.&#xA;Докладний: вимірювання приблизно кожні 0,002 секунди, додатково записуються очікування та паузи. Гра може працювати трохи повільніше.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Звичайний: запис кожні 0,01 секунди майже без навантаження на гру.
+Докладний: запис приблизно кожні 0,002 секунди, а також очікування й зупинки. Гра від цього сповільнюється (приблизно на 20 %).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Запустіть гру, а потім почніть запис. Відтворіть лаги й зупиніть запис, щоб побачити результат.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Підключення до гри…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Триває запис {0} · зупиниться автоматично через {1} хв</value></data>
@@ -365,7 +366,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Видалити цей запис? Цю дію неможливо скасувати.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Записів поки немає.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не вдається відкрити запис. Його пошкоджено або створено в новішій версії.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все · Сірі стовпці в панелі «Пам’ять»: очищення пам'яті (GC), висота — тривалість паузи · ▲: кадр понад шкалою (час під час наведення) · Клацання пункту списку: його частка в кожному стовпці (ще раз — прибрати; поки показано, наведення на інший — попередній перегляд)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все · Сірі стовпці в панелі «Пам’ять»: очищення пам'яті (GC), висота — тривалість паузи · ▲: кадр понад шкалою (час під час наведення) · Клацання пункту списку: його частка в кожному стовпці (ще раз — прибрати; поки показано, наведення на інший — попередній перегляд) · Світло-помаранчеве тло: поки працював GC</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Скопіювати показане як текст</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Копіювати текст</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Скопійовано.</value></data>
@@ -476,7 +477,7 @@ GC працює: частка відрізка, коли працював зби
   <data name="RollingSetting.Header" xml:space="preserve"><value>Зберігати останні хвилини</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Коли ввімкнено, гра зберігає кілька останніх хвилин увесь час, поки запущена. Звичайний режим майже нічого не коштує.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Режим</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Докладний показує більше, але, поки ввімкнений, трохи сповільнює гру (приблизно на 10%). Вмикайте його, коли шукаєте підвисання.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Докладний показує більше, але, поки ввімкнений, сповільнює гру (приблизно на 20 %). Вмикайте його, коли шукаєте підвисання.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Тривалість (хвилини)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>Від 1 до 10 хвилин. Більша тривалість навантажує гру так само, лише займає більше місця на диску.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Почне зберігати останню хвилину, коли гру буде запущено.</value></data>
@@ -719,9 +720,14 @@ GC працює: частка відрізка, коли працював зби
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипти</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код гри</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Очікування</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Зупинка через пам’ять</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>кадри на {0:P0} повільніші, поки працював GC</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Інші програми використовували в середньому {0:P0} процесора</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Під час запису інші програми, крім гри, використовували стільки процесора ПК. Завантажений процесор сповільнює гру незалежно від модів, і запис виходить повільнішим, ніж зазвичай. Для чесного порівняння закрийте їх і запишіть знову.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Час роботи Lua-скриптів модів і гри, разом із викликаними ними функціями Java.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Час роботи власного коду гри (Java) в ігровому потоці.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Час, коли ігровий потік стояв через збирання сміття (GC) або очікування пам’яті. ZGC, типовий для гри, майже ніколи його не зупиняє, тож зазвичай тут близько нуля. Брак пам’яті покажуть «GC працює» та «Очікування пам’яті» в рядку пам’яті під графіком.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Час, коли ігровий потік стояв через збирання сміття (GC) або очікування пам’яті. Показується лише від 0,5 % відрізка.
+ZGC, типовий для гри, майже не зупиняє гру навіть за браку пам’яті, а натомість сповільнює її, поки збирає сміття. Це видно на помаранчевому тлі графіка (поки працював GC) і в попередженні в рядку пам’яті.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Час, коли ігровий потік чекав замість роботи: здебільшого запас до наступного кадру; під час підгальмовування — очікування файлу чи іншого потоку.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Наведіть вказівник, щоб побачити цю частку кожного кадру на графіку.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Інші скрипти</value></data>

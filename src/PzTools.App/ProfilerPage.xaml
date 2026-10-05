@@ -238,6 +238,9 @@
                 PointerCaptureLost="Chart_PointerCanceled" PointerExited="Chart_PointerExited"
                 PointerWheelChanged="Chart_PointerWheelChanged" DoubleTapped="Chart_DoubleTapped">
             <Canvas x:Name="GridCanvas" IsHitTestVisible="False" />
+            <!-- While the collector was at work, behind the bars: frames that ran with it read against those that did not. -->
+            <Path x:Name="CollectorPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="0.14" />
             <Path x:Name="BarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                   Fill="{ThemeResource ProfileFrameBrush}" />
             <Path x:Name="SlowBarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -296,6 +299,12 @@
                   <FontIcon Glyph="&#xE72A;" FontSize="10" VerticalAlignment="Center" />
                 </StackPanel>
               </HyperlinkButton>
+            </StackPanel>
+            <!-- Other programs kept the machine busy while it recorded: the game ran slower for it, whatever the mods did. -->
+            <StackPanel x:Name="OtherCpuPanel" Orientation="Horizontal" Spacing="4" Visibility="Collapsed" VerticalAlignment="Center"
+                        Background="Transparent">
+              <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+              <TextBlock x:Name="OtherCpuText" FontSize="12" VerticalAlignment="Center" />
             </StackPanel>
           </StackPanel>
           <TextBlock x:Name="CollectionValue" Tapped="MemoryFigure_Tapped" Grid.Column="2" FontSize="12" VerticalAlignment="Center"

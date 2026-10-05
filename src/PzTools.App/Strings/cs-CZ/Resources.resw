@@ -395,7 +395,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileThreadGame" xml:space="preserve"><value>Herní vlákno</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Přiblížit výběr</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší) · Kliknutí na položku seznamu: její část v každém sloupci (znovu zruší; během zobrazení najetím na jinou položku náhled)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší) · Kliknutí na položku seznamu: její část v každém sloupci (znovu zruší; během zobrazení najetím na jinou položku náhled) · Světle oranžové pozadí: kdy běželo GC</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Zkopírovat zobrazený obsah jako text</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat text</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Zkopírováno.</value></data>
@@ -494,7 +494,7 @@ GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a děl�
   <data name="ProfileKindRecordingFormat" xml:space="preserve"><value>Záznam {0}</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 až 10 minut. Delší délka hru zatěžuje stejně, jen zabere víc místa na disku.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Délka (minuty)</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Podrobný ukáže víc, ale po celou dobu zapnutí hru mírně zpomalí (asi o 10 %). Používejte ho při hledání zaseknutí.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Podrobný ukáže víc, ale po celou dobu zapnutí hru zpomaluje (asi o 20 %). Používejte ho při hledání zaseknutí.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Režim</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Když je zapnuto, hra si pokaždé, když běží, uchovává posledních několik minut. Běžný režim hru téměř nezatěžuje.</value></data>
   <data name="RollingSetting.Header" xml:space="preserve"><value>Uchovávat poslední minuty</value></data>
@@ -552,7 +552,8 @@ GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a děl�
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Nahrávání {0} · automaticky skončí po {1} min</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Připojování ke hře…</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Spusťte hru a pak začněte nahrávat. Vyvolejte sekání a zastavte záznam, zobrazí se výsledek.</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Běžný: měří každých 0,01 sekundy a hru téměř nezatěžuje.&#xA;Podrobný: měří přibližně každých 0,002 sekundy a zaznamenává i čekání a pauzy. Hra může běžet o něco pomaleji.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standardní: zaznamenává každých 0,01 s a hru téměř nezatěžuje.
+Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastavení. Hra je kvůli tomu pomalejší (asi o 20 %).</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Podrobný</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Běžný</value></data>
   <data name="ProfileRecordStop" xml:space="preserve"><value>Zastavit záznam</value></data>
@@ -719,9 +720,14 @@ GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a děl�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kód hry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Čekání</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Zastavení kvůli paměti</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>snímky o {0:P0} pomalejší, když běželo GC</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Jiné programy využívaly v průměru {0:P0} procesoru</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Během nahrávání jiné programy než hra využívaly tolik procesoru počítače. Vytížený procesor zpomaluje hru bez ohledu na módy a záznam vychází pomalejší než obvykle. Pro férové srovnání je zavřete a nahrajte znovu.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Čas, kdy běžely skripty Lua módů a hry, včetně funkcí Javy, které volaly.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Čas, kdy na herním vlákně běžel vlastní kód hry (Java).</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Čas, kdy herní vlákno stálo kvůli úklidu paměti (GC) nebo čekání na paměť. ZGC, výchozí v této hře, ho téměř nezastavuje, takže je to obvykle blízko nuly. Nedostatek paměti ukáže řádek paměti pod grafem: GC pracuje a čekání na paměť.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Doba, kdy herní vlákno stálo kvůli úklidu paměti (GC) nebo čekání na paměť. Zobrazí se jen od 0,5 % úseku.
+ZGC, výchozí v této hře, hru téměř nezastavuje ani při nedostatku paměti; místo toho ji během úklidu zpomaluje. To uvidíte na oranžovém pozadí grafu (kdy běželo GC) a ve varování na řádku paměti.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Čas, kdy herní vlákno čekalo místo práce: většinou zbytek času do dalšího snímku; při zaseknutí čekání na soubor nebo jiné vlákno.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Najeďte na něj myší a graf u každého snímku ukáže tuto část.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Ostatní skripty</value></data>

@@ -351,7 +351,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileRecordStop" xml:space="preserve"><value>Aufzeichnung beenden</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detailliert</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misst alle 0,01 Sekunden und belastet das Spiel kaum.&#xA;Detailliert: misst etwa alle 0,002 Sekunden und erfasst auch Wartezeiten und Pausen. Das Spiel kann etwas langsamer laufen.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misst alle 0,01 Sekunden und belastet das Spiel kaum.
+Detailliert: misst etwa alle 0,002 Sekunden und zeichnet auch Wartezeiten und Pausen auf. Das Spiel läuft dadurch langsamer (etwa 20 %).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Starte das Spiel und dann die Aufzeichnung. Stelle den Lag nach und beende die Aufzeichnung, um das Ergebnis zu sehen.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Verbindung zum Spiel wird hergestellt…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Aufzeichnung läuft {0} · endet automatisch nach {1} Minuten</value></data>
@@ -365,7 +366,7 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Diese Aufzeichnung löschen? Das kann nicht rückgängig gemacht werden.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Noch keine Aufzeichnungen.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Aufzeichnung kann nicht geöffnet werden. Sie ist beschädigt oder aus einer neueren Version.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Mausrad: Zoomen · Ziehen: Bereich auswählen · Klick: einen Frame auswählen · Ziehen mit rechter Taste: Verschieben · Doppelklick: alles anzeigen · Graue Balken unter „Speicher“: Speicherbereinigung (GC), so hoch wie ihre Pause · ▲: Frame über der Skala (Zeit beim Daraufzeigen) · Eintrag in der Liste anklicken: sein Anteil an jedem Balken (erneut zum Beenden; währenddessen auf einen anderen zeigen für eine Vorschau)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Mausrad: Zoomen · Ziehen: Bereich auswählen · Klick: einen Frame auswählen · Ziehen mit rechter Taste: Verschieben · Doppelklick: alles anzeigen · Graue Balken unter „Speicher“: Speicherbereinigung (GC), so hoch wie ihre Pause · ▲: Frame über der Skala (Zeit beim Daraufzeigen) · Eintrag in der Liste anklicken: sein Anteil an jedem Balken (erneut zum Beenden; währenddessen auf einen anderen zeigen für eine Vorschau) · Hellorange Hintergrund: während GC lief</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Angezeigten Inhalt als Text kopieren</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Text kopieren</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Kopiert.</value></data>
@@ -476,7 +477,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RollingSetting.Header" xml:space="preserve"><value>Letzte Minuten behalten</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Wenn aktiviert, behält das Spiel immer seine letzten Minuten, solange es läuft. Der Modus „Standard“ kostet fast nichts.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Modus</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>„Detailliert“ zeigt mehr, verlangsamt das Spiel aber leicht (etwa 10 %), solange er aktiv ist. Nutzen Sie ihn bei der Suche nach einem Ruckler.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>„Detailliert“ zeigt mehr, verlangsamt das Spiel aber, solange er aktiv ist (etwa 20 %). Nutzen Sie ihn bei der Suche nach einem Ruckler.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Länge (Minuten)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 bis 10 Minuten. Eine längere Dauer belastet das Spiel genauso, braucht nur mehr Speicherplatz.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten, sobald das Spiel läuft.</value></data>
@@ -719,9 +720,14 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripte</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Spielcode</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Warten</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Speicherstopp</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>Frames {0:P0} langsamer, während GC lief</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Andere Programme nutzten im Schnitt {0:P0} der CPU</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Während der Aufnahme nutzten andere Programme als das Spiel so viel der CPU. Eine ausgelastete CPU bremst das Spiel unabhängig von den Mods, und die Aufnahme fällt langsamer aus als sonst. Für einen fairen Vergleich schließen Sie sie und nehmen erneut auf.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Zeit, in der Lua-Skripte von Mods und Spiel liefen, samt der Java-Funktionen, die sie aufriefen.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Zeit, in der der eigene Code des Spiels (Java) im Spiel-Thread lief.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread für die Speicherbereinigung (GC) oder das Warten auf Speicher anhielt. ZGC, die Voreinstellung des Spiels, hält ihn kaum je an, daher meist nahe null. Ob der Speicher knapp war, zeigen „GC aktiv“ und „Auf Speicher gewartet“ in der Speicherzeile unter dem Diagramm.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread für die Speicherbereinigung (GC) oder das Warten auf Speicher anhielt. Erst ab 0,5 % des Abschnitts angezeigt.
+ZGC, die Voreinstellung des Spiels, hält das Spiel auch bei knappem Speicher kaum an, sondern bremst es während der Bereinigung. Das zeigen der orange Hintergrund im Diagramm (während GC lief) und die Warnung in der Speicherzeile.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread wartete statt zu arbeiten: meist die Zeit bis zum nächsten Frame; bei einem Ruckler das Warten auf eine Datei oder einen anderen Thread.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Zeigen Sie darauf, um diesen Teil jedes Frames im Diagramm zu sehen.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Andere Skripte</value></data>

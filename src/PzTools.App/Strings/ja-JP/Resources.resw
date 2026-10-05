@@ -351,7 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>記録を停止</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>標準</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>詳細</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>標準: 0.01 秒ごとに計測し、ゲームにはほとんど影響しません。&#xA;詳細: 約 0.002 秒ごとに計測し、待機や一時停止も記録します。ゲームが少し遅くなることがあります。</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>標準: 0.01 秒ごとに記録し、ゲームへの負荷はほとんどありません。
+詳細: 約 0.002 秒ごとに記録し、待ちや停止の原因も残します。そのぶんゲームが遅くなります（約 20%）。</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>ゲームを起動してから記録を開始してください。ラグを再現して記録を停止すると、結果が表示されます。</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>ゲームに接続しています…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>記録中 {0} · {1} 分後に自動で停止</value></data>
@@ -365,7 +366,7 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>この記録を削除しますか？ 元に戻すことはできません。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>記録はまだありません。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>記録を開けません。破損しているか、新しいバージョンで作成されたファイルです。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示) · 一覧の項目をクリック: 各バーにその項目の分を濃く表示 (もう一度クリックで解除、表示中はほかの項目にポインターを置くとプレビュー)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示) · 一覧の項目をクリック: 各バーにその項目の分を濃く表示 (もう一度クリックで解除、表示中はほかの項目にポインターを置くとプレビュー) · 薄いオレンジの背景: GC 稼働中</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>表示中の内容をテキストでコピー</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>テキストをコピー</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>コピーしました。</value></data>
@@ -476,7 +477,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="RollingSetting.Header" xml:space="preserve"><value>直前の数分を記録し続ける</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>オンにすると、ゲームの実行中は常に直前の数分を記録します。標準モードの負荷はほとんどありません。</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>モード</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細はより多くを記録しますが、オンの間はゲームが少し遅くなります (約 10%)。カクつきの原因を調べるときに使ってください。</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細はより多くを記録しますが、オンの間はゲームが遅くなります（約 20%）。カクつきの原因を調べるときに使ってください。</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>長さ (分)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分。長くしてもゲームへの負荷は同じで、ディスクの使用量だけが増えます。</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の 1 分の記録を始めます。</value></data>
@@ -719,9 +720,14 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>スクリプト</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>メモリ停止</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 中はフレームが平均 {0:P0} 遅い</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>ほかのプログラムが CPU を平均 {0:P0} 使用中でした</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>記録中、ゲーム以外のプログラムが PC の CPU をこれだけ使っていました。CPU が忙しいと MOD に関係なくゲームが遅くなり、記録結果も普段より遅く出ます。正確に比べたいときは、それらを閉じて記録し直してください。</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>MOD とゲームの Lua スクリプトが実行された時間です。スクリプトが呼んだ Java 関数の時間も含みます。</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>ゲーム自体のコード（Java）がゲームスレッドで実行された時間です。</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>メモリ整理（GC）やメモリ待ちのためにゲームスレッドが止まった時間です。ゲームの既定である ZGC はほとんど止めないため、通常は 0 に近くなります。メモリ不足はグラフ下のメモリ行の「GC 稼働」と「メモリ待ち」で確認してください。</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>メモリ整理（GC）やメモリ待ちのためにゲームスレッドが止まった時間です。区間の 0.5% 以上のときだけ表示されます。
+ゲームの既定である ZGC は、メモリが足りなくてもゲームをほとんど止めず、代わりに整理の間ゲームを遅くします。その影響はグラフのオレンジの背景（GC 稼働中）とメモリ行の警告で確認してください。</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>ゲームスレッドが仕事をせずに待っていた時間です。ほとんどは次のフレームまでの余裕で、カクついた区間ではファイルや別のスレッドを待った時間です。</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>マウスを乗せると、グラフの各フレームにこの分を表示します。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>その他のスクリプト</value></data>

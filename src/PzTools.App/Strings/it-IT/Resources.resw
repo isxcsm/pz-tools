@@ -351,7 +351,8 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileRecordStop" xml:space="preserve"><value>Interrompi registrazione</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Dettagliata</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: effettua una misurazione ogni 0,01 secondi, quasi senza effetti sul gioco.&#xA;Dettagliata: effettua una misurazione circa ogni 0,002 secondi e registra anche attese e pause. Il gioco potrebbe andare un po' più lento.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misura ogni 0,01 secondi quasi senza pesare sul gioco.
+Dettagliata: misura circa ogni 0,002 secondi e registra anche attese e pause. Il gioco ne risulta più lento (circa il 20%).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Avvia il gioco, poi avvia la registrazione. Riproduci il lag e interrompi la registrazione per vedere il risultato.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Connessione al gioco…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Registrazione {0} · si interrompe automaticamente dopo {1} minuti</value></data>
@@ -365,7 +366,7 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Eliminare questa registrazione? L'operazione non può essere annullata.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Ancora nessuna registrazione.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossibile aprire la registrazione. È danneggiata o creata con una versione più recente.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Rotellina: zoom · Trascina: seleziona un intervallo · Clic: seleziona un frame · Trascina con il tasto destro: sposta · Doppio clic: mostra tutto · Barre grigie in Memoria: pulizia della memoria (GC), alte quanto la pausa · ▲: frame oltre la scala (il suo tempo al passaggio del puntatore) · Clic su una voce dell'elenco: la sua parte di ogni barra (di nuovo per smettere; intanto, punta un'altra voce per l'anteprima)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Rotellina: zoom · Trascina: seleziona un intervallo · Clic: seleziona un frame · Trascina con il tasto destro: sposta · Doppio clic: mostra tutto · Barre grigie in Memoria: pulizia della memoria (GC), alte quanto la pausa · ▲: frame oltre la scala (il suo tempo al passaggio del puntatore) · Clic su una voce dell'elenco: la sua parte di ogni barra (di nuovo per smettere; intanto, punta un'altra voce per l'anteprima) · Sfondo arancione chiaro: mentre girava il GC</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copia il contenuto mostrato come testo</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copia testo</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Copiato.</value></data>
@@ -476,7 +477,7 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="RollingSetting.Header" xml:space="preserve"><value>Conserva gli ultimi minuti</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Se attivo, il gioco conserva i suoi ultimi minuti ogni volta che è in esecuzione. La modalità Standard non costa quasi nulla.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Modalità</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Dettagliata mostra di più, ma rallenta un po' il gioco (circa il 10%) finché è attiva. Usala mentre cerchi uno scatto.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Dettagliata mostra di più, ma rallenta il gioco finché è attiva (circa il 20%). Usala mentre cerchi uno scatto.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Durata (minuti)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>Da 1 a 10 minuti. Una durata maggiore pesa sul gioco allo stesso modo, occupa solo più spazio su disco.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Inizia a conservare l'ultimo minuto appena il gioco è avviato.</value></data>
@@ -719,9 +720,14 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Script</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Codice del gioco</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attesa</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Arresto per memoria</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>fotogrammi più lenti del {0:P0} mentre girava il GC</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Altri programmi usavano in media il {0:P0} della CPU</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Durante la registrazione, programmi diversi dal gioco usavano questa parte della CPU del PC. Una CPU occupata rallenta il gioco qualunque siano le mod, e la registrazione risulta più lenta del solito. Per un confronto equo, chiudili e registra di nuovo.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tempo in cui sono stati eseguiti gli script Lua delle mod e del gioco, comprese le funzioni Java che hanno chiamato.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tempo in cui il codice proprio del gioco (Java) è stato eseguito nel thread del gioco.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo in cui il thread del gioco si è fermato per la raccolta dei rifiuti (GC) o in attesa di memoria. ZGC, l&apos;impostazione predefinita del gioco, non lo ferma quasi mai, quindi di solito è vicino a zero. Per capire se mancava memoria, guarda GC attivo e Attese di memoria nella riga della memoria sotto il grafico.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo in cui il thread del gioco si è fermato per la raccolta dei rifiuti (GC) o in attesa di memoria. Mostrato solo dallo 0,5% dell&apos;intervallo.
+ZGC, l&apos;impostazione predefinita del gioco, non ferma quasi il gioco nemmeno con poca memoria; lo rallenta invece mentre lavora. Lo vedi nello sfondo arancione del grafico (mentre girava il GC) e nell&apos;avviso della riga della memoria.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tempo in cui il thread del gioco ha atteso invece di lavorare: per lo più il margine prima del fotogramma successivo; in uno scatto, l&apos;attesa di un file o di un altro thread.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Passaci sopra con il puntatore per vedere questa parte di ogni fotogramma nel grafico.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Altri script</value></data>

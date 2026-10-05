@@ -351,7 +351,8 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileRecordStop" xml:space="preserve"><value>Parar gravação</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Padrão</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detalhado</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Padrão: faz uma leitura a cada 0,01 segundo, quase sem afetar o jogo.&#xA;Detalhado: faz uma leitura a cada 0,002 segundo, aproximadamente, e também registra esperas e pausas. O jogo pode ficar um pouco mais lento.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Padrão: registra a cada 0,01 segundo quase sem afetar o jogo.
+Detalhado: registra a cada 0,002 segundo aprox. e também guarda esperas e pausas. O jogo fica mais lento por isso (cerca de 20%).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Abra o jogo e depois inicie a gravação. Reproduza o lag e pare a gravação para ver o resultado.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Conectando ao jogo…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Gravando {0} · para automaticamente após {1} minutos</value></data>
@@ -365,7 +366,7 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Excluir esta gravação? Essa ação não pode ser desfeita.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Ainda não há gravações.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Não é possível abrir a gravação. Ela está danificada ou é de uma versão mais nova.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo · Barras cinza em Memória: limpeza de memória (GC), da altura da pausa · ▲: quadro acima da escala (seu tempo ao passar o ponteiro) · Clique em um item da lista: a parte dele em cada barra (de novo para parar; enquanto isso, aponte para outro para pré-visualizar)</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo · Barras cinza em Memória: limpeza de memória (GC), da altura da pausa · ▲: quadro acima da escala (seu tempo ao passar o ponteiro) · Clique em um item da lista: a parte dele em cada barra (de novo para parar; enquanto isso, aponte para outro para pré-visualizar) · Fundo laranja-claro: enquanto o GC rodava</value></data>
   <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar o conteúdo exibido como texto</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copiar texto</value></data>
   <data name="ProfileResultsCopied" xml:space="preserve"><value>Copiado.</value></data>
@@ -476,7 +477,7 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="RollingSetting.Header" xml:space="preserve"><value>Manter os últimos minutos</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Quando ligado, o jogo mantém seus últimos minutos sempre que está rodando. O modo Padrão quase não pesa.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Modo</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detalhado mostra mais, mas deixa o jogo um pouco mais lento (cerca de 10%) enquanto estiver ligado. Use-o enquanto procura um travamento.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detalhado mostra mais, mas deixa o jogo mais lento enquanto estiver ligado (cerca de 20%). Use-o enquanto procura um travamento.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Duração (minutos)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>De 1 a 10 minutos. Uma duração maior pesa o mesmo no jogo, só usa mais disco.</value></data>
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Começa a manter o último minuto quando o jogo estiver em execução.</value></data>
@@ -719,9 +720,14 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código do jogo</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Parada por memória</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>quadros {0:P0} mais lentos enquanto o GC rodava</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Outros programas usaram em média {0:P0} da CPU</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Durante a gravação, programas além do jogo usaram esta parte da CPU do PC. Uma CPU ocupada deixa o jogo lento independentemente dos mods, e a gravação sai mais lenta que o normal. Para comparar com justiça, feche-os e grave de novo.</value></data>
   <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tempo em que os scripts Lua dos mods e do jogo rodaram, incluindo as funções Java que chamaram.</value></data>
   <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tempo em que o código do próprio jogo (Java) rodou na thread do jogo.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo em que a thread do jogo parou para a coleta de lixo (GC) ou esperando memória. O ZGC, padrão do jogo, quase nunca a para, então costuma ficar perto de zero. Para ver se faltou memória, confira GC ativo e Esperas por memória na linha de memória abaixo do gráfico.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo em que a thread do jogo parou para a coleta de lixo (GC) ou esperando memória. Só aparece a partir de 0,5% do trecho.
+O ZGC, padrão do jogo, quase não para o jogo mesmo com pouca memória; em vez disso o deixa lento enquanto coleta. Veja isso no fundo laranja do gráfico (enquanto o GC rodava) e no aviso da linha de memória.</value></data>
   <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tempo em que a thread do jogo esperou em vez de trabalhar: em geral a folga até o próximo quadro; num travamento, a espera por um arquivo ou outra thread.</value></data>
   <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Passe o ponteiro por cima para ver esta parte de cada quadro no gráfico.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Outros scripts</value></data>
