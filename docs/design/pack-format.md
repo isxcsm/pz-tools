@@ -41,7 +41,7 @@ The backup worker's `[storage]` settings choose them; defaults and accepted valu
 [`PackWriter`](../../src/PzTools.Backup.Storage/Packs/PackWriter.cs):
 
 1. `CreateAsync` creates `staging/run-<run>-<pack id>.tmp`, writes the header, and opens a delete-on-close sidecar `...idx.tmp` that collects index entries.
-2. `AddObjectAsync` reserves the 80-byte header, streams the content through the checksum (over the original bytes) and, for Brotli, the compressor, then writes the header back. `DiscardLastObject` truncates the last record again; compaction uses it when a copied object does not match.
+2. `AddObjectAsync` reserves the 80-byte header, streams the content through the checksum (over the original bytes) and, for Brotli, the compressor, then writes the header back. Compaction uses `CopyStoredObjectAsync` instead, which copies an object's stored bytes without encoding them again and then decodes the copy to recompute its length and checksum. `DiscardLastObject` truncates the last record again; compaction uses it when a copied object does not match.
 3. A failed or cancelled capture calls `Invalidate`. An invalidated writer refuses to seal.
 4. `SealAndPromoteAsync` copies the sidecar into the index with its SHA-256, writes the trailer, flushes to disk and closes the file.
 5. It then validates the closed file completely, decompressing and checksumming every payload, and checks that pack UUID and run index match the writer.
@@ -57,7 +57,7 @@ A backup run writes at most one pack. It is opened when the first file needs cop
 | --- | --- | --- |
 | `OpenForLocatedReadsAsync` | Restore, export, single-file reads, compaction | Header, version, trailer, index checksum, index entries in order and inside the data area, pack UUID equal to the one `packs` records. Records are not walked. |
 | `OpenPinnedForLocatedReadsAsync` | Byte comparisons during a backup, through `ValidatedPackReaderCache` | The same, opened with `FileShare.Read`, so Windows denies writers and replacement while the handle lives |
-| `ValidateAsync(verifyPayloads)` | Sealing, `RepositoryVerifier` | Every record header, contiguity, and optionally every payload |
+| `ValidateAsync(verifyPayloads)` | Sealing, `RepositoryVerifier` | Every record header, contiguity, each object UUID at most once, and optionally every payload |
 | `OpenAsync` | Tests and tools | Loads every object descriptor |
 
 Reads go to the record offset stored in `stored_objects.pack_offset`; the repository is authoritative and the index is not consulted per read. Every located read checks that the offset lies in the data area, the magic, that the object UUID is the one asked for, known algorithm codes, the checksum length for the algorithm, that the payload ends before the index, the decoded length and the checksum. Any failure is a `PackFormatException`.
