@@ -74,6 +74,16 @@ internal static class OrphanBackupLane
                                             removedRevisions = item.Revisions,
                                         }), configurationPath);
                                 }, collectPaths: false);
+                            // The count for every save, not only the one just backed up: otherwise a lowered count
+                            // waits for that save's next automatic backup, which a save no longer played, or played
+                            // with automatic backups off, never gets. The housekeeping pass below reclaims the space.
+                            var retained = 0;
+                            foreach (var source in await repository.ReadMaintenanceSourcesAsync(token))
+                            {
+                                token.ThrowIfCancellationRequested();
+                                retained += (await repository.MarkRevisionsForRetentionAsync(
+                                    lease, source.SourceId, options.RetainLatestRevisions, token)).MarkedDeleted;
+                            }
                             var housekeeping = await new RepositoryHousekeepingService().RunAsync(
                                 repository, lease, null, run, options, token);
                             // Last: the steps above free objects, and only data still needed should be copied.
@@ -131,7 +141,7 @@ internal static class OrphanBackupLane
                                 }), configurationPath);
                             return (status == WorkflowStatus.Succeeded ? ProcessOutcome.Succeeded : ProcessOutcome.Degraded,
                                 (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, status.ToString(),
-                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions)
+                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions) + retained
                                         + housekeeping.AffectedItems + reclaimed.RewrittenPacks,
                                     housekeeping.ToDetail()), run);
                         }

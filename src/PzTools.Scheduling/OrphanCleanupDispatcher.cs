@@ -9,12 +9,13 @@ namespace PzTools.Scheduling;
 public sealed class OrphanCleanupDispatcher(
     string repositoryPath, string savesRoot, string workerDirectory, string? controlDatabasePath = null,
     int intervalSeconds = 60, Func<bool>? shouldDefer = null,
-    Action<string, IReadOnlyList<string>, string>? startDetached = null)
+    Action<string, IReadOnlyList<string>, string>? startDetached = null, string? appSettingsPath = null)
 {
-    // A pass only has work when a save folder or the backup catalog changed: backups, deletions and
-    // maintenance all move the catalog's change counter. Unchanged since the last pass, the next one
-    // is skipped (it would start a process, reserve a workflow and scan the repository for nothing),
-    // except once an hour so that time-based housekeeping still runs.
+    // A pass only has work when a save folder, the backup catalog or the app's settings changed: backups,
+    // deletions and maintenance all move the catalog's change counter, and the settings hold the number of
+    // automatic backups to keep, which the pass applies to every save. Unchanged since the last pass, the
+    // next one is skipped (it would start a process, reserve a workflow and scan the repository for
+    // nothing), except once an hour so that time-based housekeeping still runs.
     private static readonly TimeSpan UnchangedRecheck = TimeSpan.FromHours(1);
     private DateTimeOffset nextDue = DateTimeOffset.MinValue;
     private string? lastStamp;
@@ -61,7 +62,10 @@ public sealed class OrphanCleanupDispatcher(
         }
     }
 
-    /// <summary>The saves present and the catalog's change counter; null when either cannot be read (then the pass runs).</summary>
+    /// <summary>
+    /// The saves present, the catalog's change counter and when the app's settings were last written; null when
+    /// the saves or the catalog cannot be read (then the pass runs).
+    /// </summary>
     private async Task<string?> ReadStampAsync(CancellationToken cancellationToken)
     {
         try
@@ -75,7 +79,11 @@ public sealed class OrphanCleanupDispatcher(
                     .SelectMany(mode => Directory.EnumerateDirectories(mode))
                     .Select(save => save.ToUpperInvariant()).Order(StringComparer.Ordinal)
                 : [];
-            return revision.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + string.Join("|", saves);
+            // The same file the maintenance worker reads its count from. A missing file reads as a fixed time.
+            var settings = File.GetLastWriteTimeUtc(appSettingsPath
+                ?? Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "settings.toml"));
+            return revision.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|"
+                + settings.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + string.Join("|", saves);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

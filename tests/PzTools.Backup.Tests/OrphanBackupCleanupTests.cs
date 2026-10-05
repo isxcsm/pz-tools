@@ -163,6 +163,36 @@ public sealed class OrphanBackupCleanupTests
     }
 
     [PublishedToolsOnlyFact]
+    public async Task PublishedLane_AppliesTheBackupCountToSavesWithoutANewAutomaticBackup()
+    {
+        // A save no longer played, or played with automatic backups off, gets no automatic backup that would
+        // apply a lowered count. The pass that runs once the game is closed applies it to every save.
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("Saves");
+        var save = Path.Combine(root, "Sandbox", "Save");
+        var repository = await SeedAsync(temp, save);
+        var source = await repository.GetSourceAsync("Sandbox/Save");
+        for (var backup = 1; backup <= 3; backup++)
+        {
+            var workflow = await repository.ReserveWorkflowAsync("backup-maintenance", source.SourceId, "backup-scheduler");
+            await File.WriteAllTextAsync(Path.Combine(save, "players.db"), $"automatic {backup}");
+            await new OneShotBackupService(new NoJournal()).RunAsync(Options(temp, save), "Sandbox/Save",
+                new BackupExecutionOptions(workflow.RunIndex));
+            await repository.CompleteWorkflowAsync(workflow.RunIndex, "backup-scheduler", WorkflowStatus.Succeeded);
+        }
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
+        await new PzTools.Control.RunIndexAllocator(temp.GetPath("control.db")).AllocateAsync();
+        var result = await new ChildProcessHost().RunAsync(Path.Combine(tools, "PzTools.Maintenance.Cli.exe"),
+            ["--repository", repository.RepositoryPath, "--saves-root", root, "--lane", "OrphanBackups",
+                "--retain-latest", "1", "--control-db", temp.GetPath("control.db")]);
+        Assert.True(result.ExitCode == 0, result.StandardError + result.StandardOutput);
+        var revisions = Assert.Single((await repository.ReadCatalogIfChangedAsync(-1)).Sources).Revisions;
+        // The manual backup is not counted; of the automatic ones only the newest is kept.
+        Assert.Single(revisions, item => item.Kind == PzTools.Backup.Core.BackupKind.Manual);
+        Assert.Equal(4, Assert.Single(revisions, item => item.Kind == PzTools.Backup.Core.BackupKind.Automatic).Revision);
+    }
+
+    [PublishedToolsOnlyFact]
     public async Task PublishedStateScheduler_DispatchesOrphanLaneWithoutBackupTarget()
     {
         using var temp = new TempDirectory();

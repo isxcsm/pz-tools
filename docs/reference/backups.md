@@ -207,15 +207,16 @@ game, and older ones, show none.
 
 | Backups | Removed |
 | --- | --- |
-| Automatic and death backups beyond **Automatic backups to keep** (default 20, range 1–100) | Right after the save's next automatic backup, oldest first, per save |
+| Automatic and death backups beyond **Automatic backups to keep** (default 20, range 1–100) | Right after the save's next automatic backup, and by background cleanup once the game is closed; oldest first, per save |
 | Manual backups | Not by the count |
 | Every backup of a save you delete with **Delete save** | With the save |
 | Every backup, manual included, of a save whose folder is gone | By background cleanup, once the folder is confirmed missing |
 
-The count is checked for each save separately, after each of its automatic backups. Lowering
-the number therefore removes the extra backups of a save only at that save's next automatic
-backup; a save you no longer play keeps the ones it has. Raising it does not bring back
-backups already removed.
+The count is checked for each save separately, after each of its automatic backups, and for
+every save by the background cleanup that runs while the game is closed. Lowering the number
+therefore also reaches a save you no longer play, and works with automatic backups off: the
+extra backups go once the game is closed and PZ Tools is running. Raising it does not bring
+back backups already removed.
 
 A save folder deleted or moved outside PZ Tools, for example from the game's menu or in
 File Explorer, looks the same to PZ Tools. So does a save folder you rename. Cleanup checks

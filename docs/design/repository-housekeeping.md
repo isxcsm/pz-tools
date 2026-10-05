@@ -10,7 +10,7 @@ Deleting never removes rows at once. It sets `state = 'Deleted'`, `deleted_utc` 
 
 | `delete_reason` | Set by | Applies to |
 | --- | --- | --- |
-| `retention` | `MarkRevisionsForRetentionAsync`, after each automatic backup that succeeds or finds nothing to store | `Active` `Automatic` revisions beyond the newest `retain_latest_revisions`. `Manual` and `Unknown` ones are not counted. A changed count therefore applies at the save's next automatic backup. |
+| `retention` | `MarkRevisionsForRetentionAsync`, after each automatic backup that succeeds or finds nothing to store, and for every source in each `OrphanBackups` pass | `Active` `Automatic` revisions beyond the newest `retain_latest_revisions`. `Manual` and `Unknown` ones are not counted. A changed count therefore applies at the save's next automatic backup, or at the next `OrphanBackups` pass, whichever comes first; saves no longer played and automatic backups turned off do not hold it back. |
 | `user` | Deleting one backup, or all backups of a save | Those revisions |
 | `save-deleted` | Deleting a save in the app | Every `Active` revision of that source. The transaction stays open while the save folder is deleted and commits only after that succeeds; otherwise it rolls back (`PendingSaveRevisionDeletion`). |
 | `orphan-save` | [Orphan cleanup](#orphan-cleanup) | The source's hidden baseline |
@@ -21,10 +21,10 @@ Deleting never removes rows at once. It sets `state = 'Deleted'`, `deleted_utc` 
 
 | Trigger | Process | Work |
 | --- | --- | --- |
-| The maintenance runner that the backup scheduler starts after an automatic backup that succeeded or found nothing to store (`--dispatch-lanes`) | `PzTools.Maintenance.Cli` | Retention marking for that source, then starts the lanes below as detached processes: `RevisionReclamation` if due, `ArtifactCleanup` always. If the writer lock is taken, retention is skipped until the next automatic backup; the lanes still start. |
+| The maintenance runner that the backup scheduler starts after an automatic backup that succeeded or found nothing to store (`--dispatch-lanes`) | `PzTools.Maintenance.Cli` | Retention marking for that source, then starts the lanes below as detached processes: `RevisionReclamation` if due, `ArtifactCleanup` always. If the writer lock is taken, retention is skipped until the next automatic backup or `OrphanBackups` pass; the lanes still start. |
 | `RevisionReclamation` lane | Per source | One batch of [revision reclamation](#revision-reclamation); if it removed anything, garbage collection with a 1,000-row path sweep |
 | `ArtifactCleanup` lane | Per source | Delete leftover `staging/*.tmp` and `staging/quarantine/*.tmp`, then the [housekeeping pass](#the-housekeeping-pass) for that source |
-| `OrphanBackups` lane, started by the state scheduler every `cleanup_interval_seconds` (60) | Whole repository | Interrupted-operation recovery, [orphan cleanup](#orphan-cleanup), the housekeeping pass for all sources, then [pack space reclamation](#pack-space-reclamation) |
+| `OrphanBackups` lane, started by the state scheduler every `cleanup_interval_seconds` (60) | Whole repository | Interrupted-operation recovery, [orphan cleanup](#orphan-cleanup), retention marking for every source, the housekeeping pass for all sources, then [pack space reclamation](#pack-space-reclamation) |
 | Direct CLI run without `--lane` | `MaintenanceService`, in process | Retention, reclamation, garbage collection, artifact cleanup and housekeeping for one source |
 
 Rules every lane follows:
@@ -33,7 +33,7 @@ Rules every lane follows:
 - One process per lane and repository (named mutex). Another operation can ask a lane to yield, which cancels it.
 - It writes only under the [writer lock](repository-format.md#writer-lock). Per-source lanes retry the lock every `writer_retry_delay_ms`; the orphan lane holds the `RepositoryAccess` mutex for its whole run and ends `Busy` if the lock is taken.
 
-The state scheduler skips an `OrphanBackups` pass when neither the list of save folders nor `repository_change_revision` changed since the last one, except once an hour so that time-based work still happens. When the game exits it dispatches one at once instead of waiting for the interval, and the app dispatches one more as it closes. The pass is a detached process, so it finishes after the app has gone, and defers by itself if the game starts.
+The state scheduler skips an `OrphanBackups` pass when neither the list of save folders, `repository_change_revision` nor the write time of the app's `settings.toml` (which holds the count) changed since the last one, except once an hour so that time-based work still happens. When the game exits it dispatches one at once instead of waiting for the interval, and the app dispatches one more as it closes. The pass is a detached process, so it finishes after the app has gone, and defers by itself if the game starts.
 
 <a id="when-disk-space-comes-back"></a>
 ## Revision reclamation
