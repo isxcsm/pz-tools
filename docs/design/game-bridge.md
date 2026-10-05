@@ -292,6 +292,10 @@ use the updated bridge".
 | App (`GameLinkMonitor`) | Shows the link card at once, without the grace period, since the link cannot come back without a restart: **PZ Tools was updated**, **Restart the game.** |
 | Periodic backups (`BackupScheduler.WaitsForGameRestart`) | Held until the game is gone or answers again. The schedule line says **Automatic backups after a game restart**. A save the game was not asked to write is not copied, as such backups would push good ones out of the kept number. |
 | Save request | The helper's failure is classified as `attach-failed`, so manual backups go ahead with the files on disk |
+| Extension control (`GameExtensionClient`) | Mapped to `restart-required`, as for the state stream |
+
+An app update that changes only the extension ABI (`ExtensionApi.HOST_ABI`) leaves the bootstrap API as it was;
+extension control then reports `RestartRequired` itself ([component updates](module-reload.md#compatibility-checks)).
 
 A game that refuses because it was started with `-XX:+DisableAttachMechanism` is treated the same way by the
 coordinator (not asked again until it restarts) but periodic backups are not held.
