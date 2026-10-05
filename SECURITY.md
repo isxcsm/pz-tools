@@ -8,8 +8,8 @@ download, and where its limits are.
 
 ## Reporting a problem
 
-Report a security problem privately through GitHub: the repository's **Security** tab →
-**Report a vulnerability**. Please do not put the details in a public issue. Anything
+Report a security problem privately through GitHub: the repository's **Security and quality**
+tab → **Report a vulnerability**. Please do not put the details in a public issue. Anything
 else goes in [issues](https://github.com/isxcsm/pz-tools/issues).
 
 ## What PZ Tools does to the game
