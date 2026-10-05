@@ -128,18 +128,15 @@ public sealed partial class ProfilerPage : UserControl
         AppToolTip.SetTip(ChartHelp, string.Join("\n", hints));
         AppToolTip.SetTip(SelectionChip, Localizer.Get("ProfileClearSelection"));
         AutomationProperties.SetName(ChartHelp, Localizer.Get("ProfileChartHelp"));
-        AppToolTip.SetTip(ReportButton, Localizer.Get("ProfileCopyReportTip"));
-        ReportText.Text = Localizer.Get("ProfileCopyText");
-        AutomationProperties.SetName(ReportButton, Localizer.Get("ProfileCopyText"));
-        AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyOwnerTip"));
-        CopyResultsText.Text = Localizer.Get("ProfileCopyOwnerText");
+        AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyReportTip"));
+        CopyResultsText.Text = Localizer.Get("ProfileCopyText");
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
         // One name, on or off, like the recording mode's switch.
         CallTreeToggle.OnContent = CallTreeToggle.OffContent = Localizer.Get("ProfileCallTree");
         AutomationProperties.SetName(CallTreeToggle, Localizer.Get("ProfileCallTree"));
-        AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyOwnerText"));
+        AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyText"));
         // Set here too, not only when a recording opens: a language changed with a recording open kept the old word.
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
@@ -575,7 +572,7 @@ public sealed partial class ProfilerPage : UserControl
         if (loaded is null || loaded.Duration <= 0) { loadedPath = null; failedPath = path; Clear(Localizer.Get("ProfileLoadFailed")); return; }
         failedPath = null;
         recording = loaded;
-        CompareButton.IsEnabled = ReportButton.IsEnabled = true;
+        CompareButton.IsEnabled = true;
         // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
         openPaths.Clear();
         luaHighlight = javaHighlight = allocationHighlight = null;
@@ -605,7 +602,7 @@ public sealed partial class ProfilerPage : UserControl
     {
         loadVersion++;
         recording = null;
-        CompareButton.IsEnabled = ReportButton.IsEnabled = false;
+        CompareButton.IsEnabled = false;
         loadedPath = null;
         shown = null;
         HideResults();
@@ -1972,7 +1969,7 @@ public sealed partial class ProfilerPage : UserControl
         CaptureBar.Margin = new Thickness(0, narrowHeader ? 4 : 9, 0, 0);
         // Labels give way to their icons as the window narrows; each keeps its name as a tip.
         var compact = width < 900;
-        SaveLastText.Visibility = CompareText.Visibility = ReportText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        SaveLastText.Visibility = CompareText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         var stacked = width < 720;
         // The owner list is as wide as the tabs over it need, at least 300: a third tab, or a language with long
         // names, would otherwise be cut off.
@@ -2696,9 +2693,6 @@ public sealed partial class ProfilerPage : UserControl
         SetStats(DetailSamples, samples is not null ? [(Localizer.Get("ProfileColumnSamples"), samples)] : []);
         hasSamples = samples is not null;
         shownGroup = group;
-        // A mod or a Java area is a report of its own; the threads and the pauses are already the whole report's.
-        CopyResultsButton.Visibility = group.Kind is DetailKind.Lua or DetailKind.Allocation or DetailKind.Java
-            ? Visibility.Visible : Visibility.Collapsed;
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
         CallTreeToggle.IsOn = callTree;
@@ -3484,34 +3478,39 @@ public sealed partial class ProfilerPage : UserControl
     // ---- Copy ----
 
     /// <summary>
-    /// The range as a report for an AI model (<see cref="ProfileReport"/>): every tab's heaviest, whatever is open here.
+    /// The copies, each named by what it holds: the range as a report for an AI model (<see cref="ProfileReport"/>), every
+    /// tab's heaviest whatever is open here; and the owner shown in the table alone in full, by its name, for its author
+    /// or a model asked about it (a mod's functions, lines, call tree and allocations; a Java area's methods and callers).
     /// </summary>
-    private void ReportButton_Click(object sender, RoutedEventArgs e) => CopyReport(ReportButton, null);
-
-    /// <summary>
-    /// The owner shown in the table alone in full, for its author or a model asked about it: its functions, their lines,
-    /// the call tree that reached them, its allocations; or a Java area's methods and their callers.
-    /// </summary>
-    private void CopyResultsButton_Click(object sender, RoutedEventArgs e)
+    private void CopyMenu_Opening(object sender, object e)
     {
+        CopyMenu.Items.Clear();
+        var whole = new MenuFlyoutItem { Text = Localizer.Get("ProfileReportWhole"), Icon = new FontIcon { Glyph = "" } };
+        AppToolTip.SetTip(whole, Localizer.Get("ProfileReportWholeTip"));
+        whole.Click += (_, _) => CopyReport(null);
+        CopyMenu.Items.Add(whole);
         var focus = shownGroup?.Kind switch
         {
             DetailKind.Lua or DetailKind.Allocation => new ProfileReportFocus(false, shownGroup.Key),
             DetailKind.Java => new ProfileReportFocus(true, shownGroup.Key),
             _ => null,
         };
-        if (focus is not null) CopyReport(CopyResultsButton, focus);
+        // The threads and the pauses are the whole report's already: no report of their own.
+        if (focus is null || shownGroup is null) return;
+        var owner = new MenuFlyoutItem { Text = Localizer.Format("ProfileReportOwnerFormat", shownGroup.Name), Icon = new FontIcon { Glyph = "" } };
+        AppToolTip.SetTip(owner, Localizer.Get(focus.Java ? "ProfileReportAreaTip" : "ProfileReportOwnerTip"));
+        owner.Click += (_, _) => CopyReport(focus);
+        CopyMenu.Items.Add(owner);
     }
-
     // Worked out on a worker, as the page does when a row opens: a report's callers walk the range's samples.
-    private async void CopyReport(Button button, ProfileReportFocus? focus)
+    private async void CopyReport(ProfileReportFocus? focus)
     {
         if (recording is not { } current || shown is not { } range) return;
         var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
         var name = (RecordingList.SelectedItem as RecordingItem)?.Text;
         // Compared, with what the page compares with: the baseline analysed whole for the same kind of thread.
         var compared = baseline is { } other && baselineRange is { } otherRange ? new ProfileReportBaseline(other, otherRange, baselineName) : null;
-        button.IsEnabled = false;
+        CopyResultsButton.IsEnabled = false;
         try
         {
             var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name, compared, focus));
@@ -3524,7 +3523,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
-        finally { button.IsEnabled = true; }
+        finally { CopyResultsButton.IsEnabled = true; }
     }
 
     /// <summary>Grows an element to its full size from <paramref name="from"/> (scale about its CenterPoint).</summary>

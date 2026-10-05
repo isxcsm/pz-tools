@@ -396,10 +396,13 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileZoomAll" xml:space="preserve"><value>Show all</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover) · Click an owner in the list: its part of each bar (again to stop; while one is drawn, point at another to preview it) · Light orange background: while GC ran</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copy for AI</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copies this range as a report to paste into an AI chat: every tab&apos;s heaviest figures in the same format, whatever is open here (in English).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copies a report to paste into an AI chat: the whole report, or a detailed one on the mod in the table below only (in English).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Report copied. Paste it into an AI chat.</value></data>
-  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>Copy this one</value></data>
-  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>Copies only the chosen mod (or Java area) in full: its functions, heaviest lines, call tree and allocations. For the mod&apos;s author, or an AI asked about this mod (in English).</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>Whole report</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>Frames, memory, every mod and a Java summary for this range; the same whatever is open here. For asking why the game is slow.</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Detailed report: {0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>This mod alone in full: its functions, heaviest lines, call tree and allocations. For the mod&apos;s author, or for asking about this mod.</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>This Java area alone in full: its methods and where they were called from.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Start the game to record.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} did not start because the game is not running.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} did not start because more than one game is running.</value></data>

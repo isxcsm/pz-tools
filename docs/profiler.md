@@ -180,7 +180,7 @@ The tools stand on two lines, each saying only what differs from the usual. The 
 line holds making a recording, at its right: **Save last 2 min** and **Start recording**,
 whose arrow chooses Standard or Detailed (the button names Detailed while it is chosen;
 a key set for a button is in its tip). The next line is the recording shown: its name,
-a pencil to rename it, a bin to delete it (after asking), *Compare with*, **Copy for AI**, and a **…**
+a pencil to rename it, a bin to delete it (after asking), *Compare with*, and a **…**
 menu with *Open recording*, *Save as*, *Save selection* (while a range is selected) and
 *Open folder*. In a narrow window the
 recording tools move below the title and the buttons keep their icons alone, their names
@@ -192,7 +192,7 @@ and the slowest frame are one hover away and in the copied text.
 Beside them, which thread the results count, the game's or all of them: a choice for the
 whole analysis, both tabs. The chosen owner's table is a card of its own, level with the
 owner list's card; its line above sits level with the tabs: the owner's name, the search
-button, the **Call tree** switch, **Copy this one**, and last its samples out of the tab's. In
+button, the **Call tree** switch, **Copy for AI**, and last its samples out of the tab's. In
 a narrow window the line and the card come under the owner list, and the samples and the
 copy's label give way first.
 
@@ -264,14 +264,15 @@ same two facts stand under each tab's list, on the page and not only one hover a
 the other way, a mod that called heavy game functions seemed lighter than one that only
 counted, as players found. *Long
 waits and pauses* shows a count with its unit instead of a share. Above the table, on the line of the tabs, stand the owner's
-name and its samples out of the tab's, such as *Samples 9/70*. Two buttons copy a Markdown report for a chat
-with an AI model, the way most players ask what a recording means, or for a mod's author. **Copy for AI**, on
-the recording's line, is the whole range, the same whatever the page has open: the recording and the range,
+name and its samples out of the tab's, such as *Samples 9/70*. **Copy for AI** beside the name copies a Markdown report for a
+chat with an AI model, the way most players ask what a recording means, or for a mod's author. Its menu names
+what each holds, so nothing has to be chosen first (an owner is always shown in the table, and the graph's
+highlight is often off). *Whole report* is the range, the same whatever the page has open: the recording and the range,
 the frames, where the thread's time went, memory and CPU, the twelve heaviest mods and the functions of the
 five heaviest with each one's file and heaviest line, the Java areas and heaviest methods with who called them
 up to the game's code, Lua allocations, threads (all threads only) and the longest pauses; a few lines on how
-to read the figures come first. **Copy this one**, beside the owner's name above its table, is that mod or Java
-area alone in full, after the same few lines on the recording, frames and memory: a mod's functions (25), the
+to read the figures come first. *Detailed report: <name>* is the owner shown in the table, by its name, alone in
+full, after the same few lines on the recording, frames and memory: a mod's functions (25), the
 heaviest lines of its heaviest ten, the call tree that reached them (outermost first, each with the line of
 its caller, branches under a hundredth of the mod summed up) and what its functions allocated; an area's
 methods and who called the heaviest. An owner is always chosen in the list, so the two are two buttons rather

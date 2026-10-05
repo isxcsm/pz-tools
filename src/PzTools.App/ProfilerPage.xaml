@@ -103,7 +103,6 @@
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <ComboBox x:Name="RecordingList" MinWidth="200" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                   SelectionChanged="RecordingList_SelectionChanged"
@@ -143,16 +142,7 @@
                 AutomationProperties.AutomationId="ProfileCompareClearButton">
           <FontIcon Glyph="&#xE711;" FontSize="12" />
         </Button>
-        <!-- The range as a report for an AI model: every tab's heaviest, whatever is open; the chosen owner alone in full is
-             its own button, beside its name. -->
-        <Button x:Name="ReportButton" Grid.Column="6" Height="32" Padding="8,0" VerticalAlignment="Center" IsEnabled="False"
-                Style="{StaticResource SubtleButtonStyle}" Click="ReportButton_Click" AutomationProperties.AutomationId="ProfileReportButton">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <FontIcon Glyph="&#xE8C8;" FontSize="16" />
-            <TextBlock x:Name="ReportText" VerticalAlignment="Center" />
-          </StackPanel>
-        </Button>
-        <Button x:Name="MoreButton" Grid.Column="7" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
+        <Button x:Name="MoreButton" Grid.Column="6" AutomationProperties.AutomationId="ProfileMoreButton" Width="36" Height="32" Padding="0" VerticalAlignment="Center"
                 Style="{StaticResource SubtleButtonStyle}">
           <!-- A ring in place of the dots while a selection is being saved. -->
           <Grid>
@@ -526,14 +516,18 @@
           <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" VerticalAlignment="Center" Visibility="Collapsed"
                         Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
           <!-- With its name, not a bare icon in the corner: copying is how results get shared, most often into a chat with
-               an AI model or to a mod's author: this owner alone in full, its functions, lines, call tree and allocations. -->
-          <Button x:Name="CopyResultsButton" Grid.Column="3" Height="32" Padding="8,0" VerticalAlignment="Center"
-                  Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
+               an AI model or to a mod's author. Its menu names what each copy holds, the whole range or the owner shown
+               below by its name, so nothing has to be chosen first. Without a fill, as the page's other buttons. -->
+          <DropDownButton x:Name="CopyResultsButton" Grid.Column="3" Height="32" Padding="8,0" VerticalAlignment="Center"
+                          Background="Transparent" BorderBrush="Transparent" AutomationProperties.AutomationId="ProfileCopyButton">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <FontIcon Glyph="&#xE8C8;" FontSize="16" />
               <TextBlock x:Name="CopyResultsText" VerticalAlignment="Center" />
             </StackPanel>
-          </Button>
+            <DropDownButton.Flyout>
+              <MenuFlyout x:Name="CopyMenu" Placement="BottomEdgeAlignedRight" Opening="CopyMenu_Opening" />
+            </DropDownButton.Flyout>
+          </DropDownButton>
           <Rectangle x:Name="SamplesDivider" Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center"
                      Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
           <!-- The owner's samples out of the tab's, last on the line as before, in the line's text size. The divider has

@@ -368,10 +368,13 @@ Detallado: registra cada 0.002 segundos aprox. y guarda también esperas y pausa
   <data name="ProfileLoadFailed" xml:space="preserve"><value>No se puede abrir la grabación. Está dañada o es de una versión más reciente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un rango · Clic: seleccionar un cuadro · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Barras grises en Memoria: limpieza de memoria (GC), tan altas como su pausa · ▲: cuadro por encima de la escala (su tiempo al pasar el puntero) · Clic en un elemento de la lista: su parte de cada barra (otra vez para quitarlo; mientras se dibuja, apunta a otro para previsualizarlo) · Fondo naranja claro: mientras corría el GC</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copiar para IA</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia este tramo como un informe para pegar en un chat con IA: las cifras principales de todas las pestañas con el mismo formato, sin importar lo que esté desplegado aquí (en inglés).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia un informe para pegar en un chat con IA: el informe completo o uno detallado solo del mod de la tabla de abajo (en inglés).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Informe copiado. Pégalo en un chat con IA.</value></data>
-  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>Copiar solo esto</value></data>
-  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>Copia solo el mod elegido (o el área de Java) en detalle: sus funciones, las líneas más pesadas, el árbol de llamadas y las asignaciones. Para el autor del mod o una IA a la que le preguntes por él (en inglés).</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>Informe completo</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>Fotogramas, memoria, todos los mods y un resumen de Java de este tramo; igual sin importar lo que esté desplegado. Para preguntar por qué va lento el juego.</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Informe detallado: {0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>Solo este mod en detalle: funciones, líneas más pesadas, árbol de llamadas y asignaciones. Para el autor del mod o para preguntar por él.</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>Solo esta área de Java en detalle: sus métodos y desde dónde se llamaron.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Inicia el juego para grabar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} no se inició porque el juego no se está ejecutando.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} no se inició porque hay más de un juego ejecutándose.</value></data>
