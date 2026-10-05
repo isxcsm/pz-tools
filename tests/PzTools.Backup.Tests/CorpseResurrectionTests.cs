@@ -85,6 +85,20 @@ public sealed class CorpseResurrectionTests
         Assert.Empty(Directory.GetDirectories(Path.GetDirectoryName(f.Save)!,".*"));
     }
 
+    [Fact]
+    public async Task Heal_OfABittenLivingCharacter_TakesTheWoundModelOffInTheSave()
+    {
+        using var f=new Fixture();await f.CreateAsync([]);
+        var (bitten,_)=DressedPlayer([(2,21),(3,22),(4,25)],[("Torso",0),("Wound",1),("Back",2)],primary:2,secondary:-1);
+        await f.SetPlayerAsync(bitten,dead:false);
+        var result=await new CharacterRecoveryService().RecoverAsync(f.Root,"Sandbox/Test");
+        Assert.False(result.Resurrected);Assert.Equal(0,result.RecoveredItems);
+        var after=await f.ReadPlayerAsync();
+        Assert.Equal(["Base.Shirt","Base.Bag"],FindGroups(after.Bytes).Select(g=>g.Type));
+        PlayerHealthEditor.Heal(after.Bytes,249,out var layout);
+        Assert.Equal(1,BinaryPrimitives.ReadInt32BigEndian(after.Bytes.AsSpan(layout.Hands)));
+    }
+
     [Theory]
     [InlineData("duplicate")]
     [InlineData("wrong-person")]
@@ -239,6 +253,12 @@ public sealed class CorpseResurrectionTests
             await using var c=new SqliteConnection($"Data Source={Database};Pooling=False");await c.OpenAsync();await using var q=c.CreateCommand();
             q.CommandText="CREATE TABLE localPlayers(id INTEGER PRIMARY KEY,name TEXT,worldversion INTEGER,data BLOB,isDead BOOLEAN); INSERT INTO localPlayers VALUES(1,'Test Person',249,$data,1);";
             q.Parameters.AddWithValue("$data",Player);await q.ExecuteNonQueryAsync();
+        }
+        public async Task SetPlayerAsync(byte[] data,bool dead)
+        {
+            await using var c=new SqliteConnection($"Data Source={Database};Pooling=False");await c.OpenAsync();await using var q=c.CreateCommand();
+            q.CommandText="UPDATE localPlayers SET data=$data,isDead=$dead;";q.Parameters.AddWithValue("$data",data);q.Parameters.AddWithValue("$dead",dead);
+            Assert.Equal(1,await q.ExecuteNonQueryAsync());
         }
         public async Task<(byte[] Bytes,bool Dead)> ReadPlayerAsync()
         {

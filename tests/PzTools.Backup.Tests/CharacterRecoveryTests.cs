@@ -41,6 +41,62 @@ public sealed class CharacterRecoveryTests
         Assert.Equal(ZombieFile(Zombie("Someone")), result.Zombies);
     }
 
+    // Reported by a player: a bite healed outside the game kept its wound on the character, because the game takes a
+    // wound or bandage model off only when it sees the body part change during play.
+    [Fact]
+    public void Heal_TakesOffWoundAndBandageModelsAndRenumbersWornAndHeldItems()
+    {
+        var registry = new Dictionary<int, string>(Registry) { [5] = "Base.Bandage_Neck_Blood", [6] = "Base.Bandage" };
+        var (player, layout) = DressedPlayer([(2, 21), (3, 22), (5, 23), (6, 24), (4, 25)],
+            [("Torso", 0), ("Wound", 1), ("Wound", 2), ("Back", 4)], primary: 4, secondary: 3);
+
+        var result = RemainsFormat.RemoveBodyModels(player, layout, registry);
+
+        Assert.Equal(result, PlayerHealthEditor.Heal(result, 249, out var after));
+        Assert.Equal(["Base.Shirt", "Base.Bandage", "Base.Bag"],
+            RemainsFormat.Inventory(new RemainsReader(result, after.Start), registry).Groups.Select(g => g.Type));
+        var worn = new RemainsReader(result, after.WornStart);
+        Assert.Equal([new WornReference("Torso", 0), new WornReference("Back", 2)], RemainsFormat.Worn(worn, 3));
+        Assert.Equal((2, 1), (worn.Short(), worn.Short()));
+        Assert.Equal(2, BinaryPrimitives.ReadInt32BigEndian(result.AsSpan(after.Hands)));
+        Assert.Equal(1, BinaryPrimitives.ReadInt32BigEndian(result.AsSpan(after.Hands + 4)));
+        // Nothing to take off: the same player, untouched.
+        Assert.Same(result, RemainsFormat.RemoveBodyModels(result, after, registry));
+    }
+
+    [Fact]
+    public void BodyModels_AreTheWoundAndBandageModelsOnly()
+    {
+        Assert.True(RemainsFormat.IsBodyModel("Base.Wound_LHand_Bite_Male"));
+        Assert.True(RemainsFormat.IsBodyModel("Base.Bandage_LeftHand_Blood"));
+        Assert.False(RemainsFormat.IsBodyModel("Base.Bandage"));
+        Assert.False(RemainsFormat.IsBodyModel("Base.BandageDirty"));
+        Assert.False(RemainsFormat.IsBodyModel("Base.AlcoholBandage"));
+    }
+
+    // A player carrying the given items (registry id, item id), wearing some of them, holding two by index.
+    internal static (byte[] Player, InventoryLayout Layout) DressedPlayer((int Registry, int Id)[] items,
+        (string Where, int Index)[] wearing, int primary, int secondary)
+    {
+        var (player, layout) = EmptyPlayer();
+        var worn = new BigEndianWriter(); worn.Byte((byte)wearing.Length);
+        foreach (var (where, index) in wearing) { worn.String(where); worn.Short(index); }
+        worn.Short(primary); worn.Short(secondary);
+        player = [.. player.AsSpan(0, layout.WornStart), .. worn.ToArray(), .. player.AsSpan(layout.WornEnd + 4)];
+        BinaryPrimitives.WriteInt32BigEndian(player.AsSpan(layout.Hands), primary);
+        BinaryPrimitives.WriteInt32BigEndian(player.AsSpan(layout.Hands + 4), secondary);
+        var inventory = new BigEndianWriter(); inventory.String("none"); inventory.Byte(0); inventory.Short(items.Length);
+        foreach (var (registry, id) in items)
+        {
+            var item = new BigEndianWriter(); item.Short(registry); item.Byte(255); item.Int(id); item.Byte(0);
+            inventory.Int(1); inventory.Int(item.ToArray().Length); inventory.Bytes(item.ToArray());
+        }
+        inventory.Zeros(5);
+        player = [.. player.AsSpan(0, layout.Start), .. inventory.ToArray(), .. player.AsSpan(layout.End)];
+        player = PlayerHealthEditor.Heal(player, 249, out layout);
+        return (player, layout);
+    }
+
     internal static readonly IReadOnlyDictionary<int, string> Registry = new Dictionary<int, string>
     { [1] = "Base.IDcard", [2] = "Base.Shirt", [3] = "Base.Wound_Neck_Bite_Female", [4] = "Base.Bag" };
     internal static readonly byte[] BagPayload = [0, 4, 255, 0, 0, 0, 44, 0, 99, 98, 97, 96, 95];

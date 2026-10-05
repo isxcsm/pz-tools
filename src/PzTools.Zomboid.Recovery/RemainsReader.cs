@@ -155,18 +155,57 @@ internal static class RemainsFormat
         for (var i = 0; i < n; i++) { var where = r.Text(); var index = r.Short(); if (index < -1 || index >= itemCount) throw RemainsReader.Invalid(); result.Add(new(where, index)); }
         return result;
     }
-    public static byte[] RestoreInventory(byte[] player, InventoryLayout layout, RemainsRecord source)
+    /// <summary>
+    /// The game draws wounds and bandages as clothing worn under everything else: these items, put on and taken
+    /// off as a body part changes state during play (IsoGameCharacter.Bandages). Nothing in the game takes them
+    /// off for a body part healed outside it, so recovery removes them itself. No real item uses these names.
+    /// </summary>
+    public static bool IsBodyModel(string type) =>
+        type.StartsWith("Base.Wound_", StringComparison.Ordinal) || type.StartsWith("Base.Bandage_", StringComparison.Ordinal);
+
+    /// <summary>The player without the wound and bandage models of their healed body, worn and held items renumbered.</summary>
+    public static byte[] RemoveBodyModels(byte[] player, InventoryLayout layout, IReadOnlyDictionary<int, string> registry)
+    {
+        var r = new RemainsReader(player, layout.Start);
+        var inventory = Inventory(r, registry);
+        if (r.Position != layout.End) throw RemainsReader.Invalid();
+        if (!inventory.Groups.Any(g => IsBodyModel(g.Type))) return player;
+        var w = new RemainsReader(player, layout.WornStart);
+        var worn = Worn(w, inventory.Count);
+        if (w.Position != layout.WornEnd) throw RemainsReader.Invalid();
+        var (wornPrimary, wornSecondary) = (w.Short(), w.Short());
+        var (kept, indexMap) = KeepClothes(inventory);
+        int Map(int index) => indexMap.TryGetValue(index, out var mapped) ? mapped : -1;
+        using var wear = new MemoryStream();
+        var still = worn.Where(x => indexMap.ContainsKey(x.Index)).ToArray();
+        wear.WriteByte(checked((byte)still.Length));
+        foreach (var x in still) { var b = Encoding.UTF8.GetBytes(x.Location); Short(wear, b.Length); wear.Write(b); Short(wear, Map(x.Index)); }
+        Short(wear, Map(wornPrimary)); Short(wear, Map(wornSecondary));
+        var result = Replace(player, layout.WornStart, layout.WornEnd + 4, wear.ToArray());
+        foreach (var hand in new[] { layout.Hands, layout.Hands + 4 })
+            BinaryPrimitives.WriteInt32BigEndian(result.AsSpan(hand), Map(BinaryPrimitives.ReadInt32BigEndian(result.AsSpan(hand))));
+        return Replace(result, layout.Start, layout.End, kept);
+    }
+
+    // The inventory without body models, and each kept item's old index mapped to its new one.
+    private static (byte[] Inventory, Dictionary<int, int> IndexMap) KeepClothes(RemainsInventory source)
     {
         var indexMap = new Dictionary<int, int>(); var old = 0; var next = 0;
-        using var inventory = new MemoryStream(); inventory.Write(source.Inventory.Header);
-        var groups = source.Inventory.Groups.Where(g => !g.Type.StartsWith("Base.Wound_", StringComparison.Ordinal)).ToArray();
-        Short(inventory, groups.Length);
-        foreach (var group in source.Inventory.Groups)
+        using var inventory = new MemoryStream(); inventory.Write(source.Header);
+        Short(inventory, source.Groups.Count(g => !IsBodyModel(g.Type)));
+        foreach (var group in source.Groups)
         {
-            if (!group.Type.StartsWith("Base.Wound_", StringComparison.Ordinal)) { inventory.Write(group.Encoded); for (var i = 0; i < group.Count; i++) indexMap.Add(old + i, next++); }
+            if (!IsBodyModel(group.Type)) { inventory.Write(group.Encoded); for (var i = 0; i < group.Count; i++) indexMap.Add(old + i, next++); }
             old += group.Count;
         }
-        inventory.Write(source.Inventory.Trailer);
+        inventory.Write(source.Trailer);
+        return (inventory.ToArray(), indexMap);
+    }
+
+    public static byte[] RestoreInventory(byte[] player, InventoryLayout layout, RemainsRecord source)
+    {
+        var (kept, indexMap) = KeepClothes(source.Inventory);
+        var groups = source.Inventory.Groups.Where(g => !IsBodyModel(g.Type)).ToArray();
         using var worn = new MemoryStream(); var wear = source.Worn.Where(w => indexMap.ContainsKey(w.Index)).ToArray();
         worn.WriteByte(checked((byte)wear.Length)); foreach (var w in wear) { var b = Encoding.UTF8.GetBytes(w.Location); Short(worn, b.Length); worn.Write(b); Short(worn, indexMap[w.Index]); }
         // Prefer stable saved item IDs, never guess a weapon from item type or ordinal.
@@ -178,7 +217,7 @@ internal static class RemainsFormat
         var result = Replace(player, layout.WornStart, layout.WornEnd + 4, worn.ToArray());
         BinaryPrimitives.WriteInt32BigEndian(result.AsSpan(layout.Hands), primary);
         BinaryPrimitives.WriteInt32BigEndian(result.AsSpan(layout.Hands + 4), secondary);
-        return Replace(result, layout.Start, layout.End, inventory.ToArray());
+        return Replace(result, layout.Start, layout.End, kept);
     }
     public static void Short(Stream stream, int value) { Span<byte> b = stackalloc byte[2]; BinaryPrimitives.WriteInt16BigEndian(b, checked((short)value)); stream.Write(b); }
     public static byte[] Replace(byte[] bytes, int start, int end, byte[] replacement) => [.. bytes.AsSpan(0, start), .. replacement, .. bytes.AsSpan(end)];

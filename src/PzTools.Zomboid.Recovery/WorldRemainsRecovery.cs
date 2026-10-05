@@ -172,7 +172,7 @@ internal static class WorldRemainsRecovery
         chunk ? new CorpseChunkReader(bytes, registry).Read() : ZombieInventoryRecovery.ReadAll(bytes, registry);
 
     private static int Items(RemainsRecord record) =>
-        record.Inventory.Groups.Where(g => !g.Type.StartsWith("Base.Wound_", StringComparison.Ordinal)).Sum(g => g.Count);
+        record.Inventory.Groups.Where(g => !RemainsFormat.IsBodyModel(g.Type)).Sum(g => g.Count);
 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
 
@@ -200,7 +200,7 @@ internal static class WorldRemainsRecovery
             && y.ToString(CultureInfo.InvariantCulture) == parts[2][..^4];
     }
 
-    private static async Task<IReadOnlyDictionary<int, string>?> ReadRegistryAsync(string save, CancellationToken token)
+    internal static async Task<IReadOnlyDictionary<int, string>?> ReadRegistryAsync(string save, CancellationToken token)
     {
         var registryPath = Path.Combine(save, "WorldDictionary.bin");
         if (!File.Exists(registryPath)) return null;
