@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
@@ -69,6 +70,28 @@ public sealed class BackupGameVersionTests
         Assert.Null(Observe(WorldPhase.Ready, save, null).GameVersionFor(save));
         Assert.Null(Observe(WorldPhase.Ready, save, "42.21", RuntimeQuality.Stale).GameVersionFor(save));
         Assert.Null(RuntimeObservation.Unknown().GameVersionFor(save));
+    }
+
+    [Theory]
+    [InlineData(" 42.21\r\n", "42.21")]
+    [InlineData("42.21\nbuild 7", null)]
+    [InlineData("42.\t21", null)]
+    [InlineData("42\u0000", null)]
+    [InlineData("   ", null)]
+    [InlineData("4444444444444444444444444444444444444444444444444444444444444444444444444444444444", null)]
+    public void AVersionABackupCannotRecord_IsDroppedAtIngress_NotPassedToEveryBackup(string reported, string? expected)
+    {
+        using var temp = new TempDirectory();
+        var save = temp.GetPath("Sandbox", "Save");
+        var observation = new RuntimeObservation(Id, RuntimeQuality.Fresh, new RuntimeSnapshot(Id, Id, Id, 1, 1, 1,
+            WorldPhase.Ready, GamePause.Running, RuntimeMode.LocalSinglePlayer, 1, 0, 0, save, reported)).Validate();
+
+        // The snapshot stays usable for scheduling; only a version the worker would refuse is unknown.
+        Assert.True(observation.Snapshot!.IsWorldReady);
+        Assert.Equal(expected, observation.Snapshot.GameVersion);
+        var version = observation.GameVersionFor(save);
+        Assert.Equal(expected, version);
+        new BackupExecutionOptions(GameVersion: version).Validate();
     }
 
     [Fact]

@@ -42,7 +42,6 @@ public sealed record RuntimeSnapshot(
             || !Enum.IsDefined(Sleep) || !Enum.IsDefined(CharacterLife) || CharacterSession is not null && !Id(CharacterSession)
             || DeathId is not null && (!Id(DeathId) || CharacterLife != RuntimeCharacterLife.Dead)
             || CharacterLife != RuntimeCharacterLife.Unknown && (!IsWorldReady || CharacterSession is null)
-            || GameVersion is { Length: > 80 } || GameVersion?.IndexOf('\0') >= 0
             || SavePath is { Length: > 4096 } || SavePath?.IndexOf('\0') >= 0
             || SavePath is not null && !Path.IsPathFullyQualified(SavePath)
             || HeapMaximumMegabytes is < 0 or > 1L << 30
@@ -52,7 +51,21 @@ public sealed record RuntimeSnapshot(
         // Java may report Windows paths with forward slashes. Normalize once at ingress,
         // before semantic keys or target comparisons, without probing the filesystem.
         var normalized = SavePath is null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(SavePath));
-        return StringComparer.Ordinal.Equals(normalized, SavePath) ? this : this with { SavePath = normalized };
+        var version = RecordableVersion(GameVersion);
+        return StringComparer.Ordinal.Equals(normalized, SavePath) && StringComparer.Ordinal.Equals(version, GameVersion)
+            ? this : this with { SavePath = normalized, GameVersion = version };
+    }
+
+    /// <summary>
+    /// The version is shown and recorded with each backup, which takes at most 80 printable characters
+    /// (the backup worker refuses anything else). A version that does not fit is dropped here, at
+    /// ingress, so it neither refuses the snapshot, whose state still drives scheduling, nor fails
+    /// every backup that would record it.
+    /// </summary>
+    public static string? RecordableVersion(string? version)
+    {
+        var trimmed = version?.Trim();
+        return trimmed is null || trimmed.Length is 0 or > 80 || trimmed.Any(char.IsControl) ? null : trimmed;
     }
     internal static bool Id(string? value) => value is { Length: 32 } && Guid.TryParseExact(value, "N", out _);
     public static RuntimeSnapshot ParseWire(string line)
@@ -130,9 +143,9 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
         || Quality == RuntimeQuality.Fresh && Snapshot is { Phase: WorldPhase.Unknown };
     /// <summary>The running game's version, only while it has this save loaded; a save records no version itself.</summary>
     public string? GameVersionFor(string savePath) =>
-        IsFresh && Snapshot is { IsWorldReady: true, GameVersion: { } version } && !string.IsNullOrWhiteSpace(version)
+        IsFresh && Snapshot is { IsWorldReady: true, GameVersion: { } version }
         && StringComparer.OrdinalIgnoreCase.Equals(Snapshot.SavePath, Path.TrimEndingDirectorySeparator(Path.GetFullPath(savePath)))
-            ? version.Trim() : null;
+            ? RuntimeSnapshot.RecordableVersion(version) : null;
     public RuntimeObservation Validate()
     {
         if (!Enum.IsDefined(Quality) || StateRevision < 0 || AgeMilliseconds < 0
