@@ -158,7 +158,8 @@ internal static class RemainsFormat
     /// <summary>
     /// The game draws wounds and bandages as clothing worn under everything else: these items, put on and taken
     /// off as a body part changes state during play (IsoGameCharacter.Bandages). Nothing in the game takes them
-    /// off for a body part healed outside it, so recovery removes them itself. No real item uses these names.
+    /// off for a body part healed outside it, so recovery removes them itself. A bandage that healing keeps gets its
+    /// model back from the game, which puts one on any bandaged part without it. No real item uses these names.
     /// </summary>
     public static bool IsBodyModel(string type) =>
         type.StartsWith("Base.Wound_", StringComparison.Ordinal) || type.StartsWith("Base.Bandage_", StringComparison.Ordinal);

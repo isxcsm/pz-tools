@@ -85,7 +85,7 @@ method, since some of them also erase traits or exercise regularity.
 | --- | --- |
 | Forced sleep | Woken, wake-up timer cleared |
 | 24 stats | Set to their rested values (three to 1, one to 37, the rest to 0); fitness is kept |
-| 17 body parts | Rewritten as clean: health 100, no wounds, infection, bandage, splint or embedded objects; the bandage, stitch and splint XP bytes are kept |
+| 17 body parts | Rewritten as clean: health 100, no wounds, infection, stitches, fracture or embedded objects. A bandage (its life and type) and a splint (its factor and item) stay as they were, to be taken off in the game like any other. The bandage, stitch and splint XP bytes are kept |
 | Body damage | Infection cleared (`infectionTime` and mortality duration -1) |
 | Thermoregulator | Core 37, skin and node values reset; clothing insulation and wind resistance kept |
 | Other | On fire, medicine and sleeping-pill effects, infection-reducing medicine timer, time since last smoke, death drag-down, scheduled exercise stiffness, pending soreness cleared |
@@ -98,6 +98,16 @@ wound would stay on the character until the same wound came and went again. Reco
 those items from the inventory and the worn list, and renumbers the worn and held item indices
 ([`RemainsFormat.RemoveBodyModels`](../../src/PzTools.Zomboid.Recovery/RemainsReader.cs)). The item types
 come from the save's `WorldDictionary.bin`. A save without it keeps the models.
+
+Bandage models go too, also for a bandage that healing keeps. The game puts the right one back by itself:
+each update, a bandaged part without its model gets the clean or the bloody one, as the bandage is
+(`Bandages.update`). Rebuilding them from the kept state leaves no model of a bandage that is gone.
+
+Last, after the [belongings](#getting-a-dead-characters-belongings-back) are found,
+`PlayerHealthEditor.Wash` washes the character as the game's **Wash yourself** does (`ISWashYourself`): the
+blood and dirt on the skin go to 0. Holes in the skin and everything worn stay; clothes keep their blood and
+dirt, as washing yourself in the game leaves them. It comes last because matching the zombie or corpse
+compares the skin as it was at death.
 
 Kept: traits, XP and levels, recipes, read books and media, nutrition and weight, position, hours survived,
 kills, exercise regularity and timestamps, cheat flags, crafting history. The edit is checked by reading hours

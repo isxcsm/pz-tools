@@ -46,7 +46,11 @@ skills.
 
 ## What it does and doesn't do
 
-- Health comes back in full. Wounds, infection, bandages and splints are gone.
+- Health comes back in full. Wounds, infection, stitches and fractures are gone.
+- Bandages and splints stay on as they were. Take them off in the game, and you get back what the game
+  gives back.
+- The character is washed: no blood or dirt on the skin. Clothes stay as they are, as when you wash
+  yourself in the game.
 - Traits, skills, XP, recipes, weight and position stay as they were.
 - Items come back only from the character's own zombie or corpse. Anything already looted or
   destroyed is gone.

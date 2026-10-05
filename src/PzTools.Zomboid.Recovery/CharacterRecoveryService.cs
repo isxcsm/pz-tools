@@ -119,6 +119,8 @@ public sealed class CharacterRecoveryService
                     await File.WriteAllBytesAsync(stagedWorld, plan.UpdatedWorldFile, cancellationToken);
                     files.Add(new(plan.RelativePath, stagedWorld, plan.OriginalHash));
                 }
+                // Washed only now: matching the zombie or corpse compares the skin as it was at death.
+                healed = PlayerHealthEditor.Wash(healed, version);
                 // Idempotence also re-parses every edited boundary after optional fields shrink.
                 if (!PlayerHealthEditor.Heal(healed, version).AsSpan().SequenceEqual(healed))
                     throw new InvalidDataException("recovery-validation-failed");
