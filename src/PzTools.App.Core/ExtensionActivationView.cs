@@ -14,6 +14,12 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
     string? FailureReason = null, VehicleDrivetrainPreference? AppliedVehicleOptions = null, bool IsPerSave = false)
 {
     private const long MaximumRuntimeStatusAgeMilliseconds = 3000;
+
+    /// <summary>
+    /// The game runs the bootstrap from before an update of the app, and the extension waits for its restart
+    /// (GameExtensionActivationState.BootstrapUpdateReason). Nothing failed: restarting the game is the whole answer.
+    /// </summary>
+    public bool AwaitsGameRestart => FailureReason == "bootstrap-update";
     private static bool IsFresh([NotNullWhen(true)] RuntimeExtensionStatus? status) =>
         status is { AgeMilliseconds: >= 0 and <= MaximumRuntimeStatusAgeMilliseconds };
 

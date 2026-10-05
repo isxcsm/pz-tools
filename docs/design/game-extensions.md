@@ -239,6 +239,7 @@ match in this order (`ExtensionSettingsSection.ActivationHint`), or hidden:
 | Condition | Hint |
 | --- | --- |
 | Fresh failed status with reason `version-mismatch` | **Outside supported range · Extension inactive** |
+| Fresh `RestartRequired` with reason `bootstrap-update` (`ExtensionActivationView.AwaitsGameRestart`) | **Restart the game.** (the game-link card's text) |
 | Any other fresh `Unsupported`, `FaultedPassThrough` or `RestartRequired` status | **The extension could not be applied. Check the logs for details.** |
 | A change is in progress and the game said `safe-boundary` | **To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.** |
 | A change is in progress for another reason | **Applying changes in the game.** |

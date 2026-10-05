@@ -99,6 +99,8 @@ internal sealed class ExtensionSettingsSection
         // The game's own version check (an ON saved while no game ran, then a game outside the range started)
         // has a hint of its own that says what to do; the generic failure would only send the player to the logs.
         if (activation.FailureReason == "version-mismatch") return Localizer.Get("GameExtensions.VersionMismatch");
+        // An update of the app that waits for the game's restart: the sidebar's game-link card asks the same.
+        if (activation.AwaitsGameRestart) return Localizer.Get("GameLinkCardRestartMessage");
         if (activation.FailureReason is not null) return Localizer.Get("GameExtensions.InitializationFailed");
         if (activation.IsBusy) return Localizer.Get(view.StatusOf(card.Definition.Id)?.Reason == "safe-boundary"
             ? "GameExtensions.ApplyWhenSafe" : "GameExtensions.Applying");

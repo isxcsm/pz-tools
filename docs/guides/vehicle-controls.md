@@ -41,6 +41,8 @@ The light needs working headlights and a charged battery. It isn't written to yo
 - **Compatibility and status** shows which game versions it supports. If it says **Outside
   supported range · Extension inactive**, the game version is newer than PZ Tools knows. Wait
   for a PZ Tools update, or turn on **Ignore supported version range** to try it anyway.
+- **Restart the game.** means PZ Tools was updated while the game was running. The extension
+  stays switched on and starts with the game's next run.
 - **The extension could not be applied. Check the logs for details.** means it failed to
   start in the game. The **Logs** page has the reason.
 

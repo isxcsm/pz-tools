@@ -105,6 +105,24 @@ public sealed class ExtensionActivationViewTests
         Assert.True(on.IsOn);
         Assert.True(on.CanToggle); // A saved ON can still be switched OFF.
         Assert.True(Project(Card(), restart with { AgeMilliseconds = 3001 }).CanToggle);
+        Assert.False(off.AwaitsGameRestart); // A restart forced by a failure is still reported as one.
+    }
+
+    [Fact]
+    public void AnUpdateWaitingForTheGamesRestartIsARestartHintNotAFailure()
+    {
+        // Both the state stream (no process yet) and the coordinator (the bound game) report it.
+        foreach (var update in new RuntimeExtensionStatus[] { new(RuntimeExtensionState.RestartRequired, "bootstrap-update"),
+            new(RuntimeExtensionState.RestartRequired, "bootstrap-update", Process, World, RequestedRevision: 8) })
+        {
+            var on = Project(Card(enabled: true), update);
+            Assert.True(on.AwaitsGameRestart);
+            Assert.True(on.IsOn);        // The preference is kept for the next game ...
+            Assert.True(on.CanToggle);   // ... and can still be switched off.
+            Assert.False(on.IsBusy);
+            Assert.True(Project(Card(), update).AwaitsGameRestart);
+        }
+        Assert.False(Project(Card(enabled: true), Active()).AwaitsGameRestart);
     }
 
     [Fact]
