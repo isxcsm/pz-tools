@@ -3,28 +3,34 @@ using System.Text;
 
 namespace PzTools.Profiling;
 
+/// <summary>The recording a report's range is compared with, analysed whole on the same kind of thread.</summary>
+public sealed record ProfileReportBaseline(ProfileRecording Recording, ProfileRange Range, string? Name);
+
 /// <summary>
 /// A range's analysis as one Markdown report, to be pasted into a chat with an AI model: the same sections and limits
 /// whatever the page has open, every figure said with what it is of, and a few lines on how to read them first. In
 /// English with invariant numbers, as a format rather than a page: models read it as well whatever language the
-/// player then asks in, and two reports read alike.
+/// player then asks in, and two reports read alike. Compared with another recording, each comparable figure carries
+/// the other's beside it and the change.
 /// </summary>
 public static class ProfileReport
 {
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     // Enough to see where the time went, short enough to paste: the heaviest of each, the rest summed.
     private const int Mods = 12, ModsOpened = 5, FunctionsPerMod = 8, JavaMethods = 15, CallerMethods = 5, CallersPerMethod = 3,
-        Allocators = 8, Pauses = 5, Threads = 8;
+        Allocators = 8, Pauses = 5, Threads = 8, Changes = 8;
     // Below this a share is noise in a sampled profile; such rows are left out of the per-mod and caller sections.
     private const double Noticeable = 0.005;
 
     /// <param name="thread">The thread the range was analysed for, as <see cref="ProfileAnalysis.Analyze"/>'s; -1 all.</param>
     /// <param name="name">The recording's name as the list shows it.</param>
-    public static string Build(ProfileRecording recording, ProfileRange range, int thread, string? name = null)
+    /// <param name="baseline">The recording compared with, if any.</param>
+    public static string Build(ProfileRecording recording, ProfileRange range, int thread, string? name = null,
+        ProfileReportBaseline? baseline = null)
     {
         var text = new StringBuilder();
         void Line(string line = "") => text.Append(line).Append('\n');
-        var length = Math.Max(1, range.End - range.Start);
+        var other = baseline?.Range;
 
         Line("# Project Zomboid performance recording (PZ Tools)");
         Line();
@@ -32,16 +38,15 @@ public static class ProfileReport
             + "base game's own). Percentages are shares of the analysed range's wall-clock time on the analysed thread. "
             + "Self = time in the function itself; Total = including what it called. Figures are statistical: shares "
             + "under about 0.5% or from fewer than about 20 samples are noise.");
+        if (baseline is not null)
+            Line("This recording is compared with a baseline recording (below). Shares are parts of each recording's own range, "
+                + "so recordings of different lengths compare; Change is this minus the baseline, in percentage points (pp) "
+                + "for shares. A positive change is more time spent: worse.");
         Line();
 
         Line("## Recording");
         if (!string.IsNullOrWhiteSpace(name)) Line($"- Name: {name}");
-        var kind = recording.Information.GetValueOrDefault("endedBy") == "rolling" ? ", the game's last minutes saved after the fact" : "";
-        Line(recording.Detailed
-            ? $"- Mode: detailed (Lua lines and allocations measured; the measuring itself slows the game by about 20%){kind}"
-            : $"- Mode: standard (low overhead){kind}");
-        var started = recording.StartedUtc is { } utc ? $", started {utc.ToLocalTime():yyyy-MM-dd HH:mm}" : "";
-        Line($"- Length: {Seconds(recording.Duration)}{started}");
+        Describe(recording, Line);
         Line(range.Start <= 0 && range.End >= recording.Duration
             ? "- Range analysed: the whole recording"
             : $"- Range analysed: {Seconds(range.Start)} to {Seconds(range.End)} ({Seconds(range.End - range.Start)})");
@@ -53,31 +58,27 @@ public static class ProfileReport
         if (recording.Processors > 0) Line($"- Machine: {recording.Processors} logical processors");
         Line();
 
-        if (range.Frames.Count > 0)
+        if (baseline is not null)
         {
-            var frames = range.Frames;
-            Line("## Frames");
-            Line($"- {Count(frames.Count)} frames, average {Ms(frames.AverageMilliseconds)} ({Fps(frames.AverageMilliseconds)}), "
-                + $"median {Ms(frames.MedianMilliseconds)}, worst 1% {Ms(frames.OnePercentWorstMilliseconds)}, slowest {Ms(frames.SlowestMilliseconds)}");
+            Line("## Baseline (compared with)");
+            if (!string.IsNullOrWhiteSpace(baseline.Name)) Line($"- Name: {baseline.Name}");
+            Describe(baseline.Recording, Line);
+            Line("- Range analysed: the whole recording, on the same kind of thread");
+            Line($"- Samples: {Count(baseline.Range.Samples)} Java, {Count(baseline.Range.LuaSamples)} Lua");
+            if (baseline.Recording.Detailed != recording.Detailed)
+                Line("- Caution: the two were recorded in different modes; detailed mode itself slows the game by about 20%, "
+                    + "so frame times and shares differ by that much for no other reason.");
             Line();
         }
 
-        if (ProfileAnalysis.TimeBreakdown(range) is { } breakdown && range.Samples >= 20)
-        {
-            Line("## Where the analysed thread's time went");
-            Line($"- Lua scripts {Pct(breakdown.Scripts)} (mods and base-game scripts, with the game code they called)");
-            Line($"- Game code {Pct(breakdown.GameCode)} (the Java engine itself)");
-            Line($"- Stopped for memory {Pct(breakdown.Collections)} (garbage-collector pauses and waits for free memory)");
-            Line($"- Not running {Pct(breakdown.Waiting)} (waiting: for the next frame, for the GPU, for other threads)");
-            Line();
-        }
+        Frames(range.Frames, other?.Frames, Line);
+        Breakdown(range, other, Line);
+        Memory(recording, range, baseline, Line);
 
-        Memory(recording, range, Line);
-
-        if (range.LuaGroups.Count > 0) Lua(recording, range, Line);
+        if (range.LuaGroups.Count > 0) Lua(recording, range, other, Line);
         else if (recording.LuaPeriod > 0) { Line("## Lua scripts"); Line("- No Lua ran in this range."); Line(); }
 
-        if (range.MethodGroups.Count > 0) Java(recording, range, thread, Line);
+        if (range.MethodGroups.Count > 0) Java(recording, range, other, thread, Line);
 
         if (range.LuaAllocationGroups.Count > 0)
         {
@@ -85,10 +86,19 @@ public static class ProfileReport
             Line("What each mod's scripts allocated while they ran: allocation drives the garbage collector.");
             if (range.GameThreadAllocated is { } all)
                 Line($"Game thread allocated {Bytes(all)} in the range, {Bytes(range.LuaAllocated)} of it while running Lua.");
+            // Bytes grow with a recording's length; per minute they compare.
+            var minutes = Math.Max(1, range.End - range.Start) / 60_000_000.0;
+            var otherMinutes = other is null ? 0 : Math.Max(1, other.End - other.Start) / 60_000_000.0;
             Line();
-            Line("| Mod | Allocated |");
-            Line("|---|---:|");
-            foreach (var group in range.LuaAllocationGroups.Take(Allocators)) Line($"| {Cell(OwnerName(group.Key))} | {Bytes(group.Self)} |");
+            Line(other is null ? "| Mod | Allocated |" : "| Mod | Allocated | Per minute | Baseline per minute |");
+            Line(other is null ? "|---|---:|" : "|---|---:|---:|---:|");
+            foreach (var group in range.LuaAllocationGroups.Take(Allocators))
+            {
+                if (other is null) { Line($"| {Cell(OwnerName(group.Key))} | {Bytes(group.Self)} |"); continue; }
+                var before = other.LuaAllocationGroups.FirstOrDefault(item => item.Key.Equals(group.Key, StringComparison.OrdinalIgnoreCase));
+                Line($"| {Cell(OwnerName(group.Key))} | {Bytes(group.Self)} | {Bytes((long)(group.Self / minutes))} | "
+                    + (before is null ? (other.LuaAllocationGroups.Count == 0 ? "not measured" : "none") : Bytes((long)(before.Self / otherMinutes))) + " |");
+            }
             Line();
         }
 
@@ -120,7 +130,75 @@ public static class ProfileReport
         return text.ToString().TrimEnd() + "\n";
     }
 
-    private static void Memory(ProfileRecording recording, ProfileRange range, Action<string> line)
+    private static void Describe(ProfileRecording recording, Action<string> line)
+    {
+        var kind = recording.Information.GetValueOrDefault("endedBy") == "rolling" ? ", the game's last minutes saved after the fact" : "";
+        line(recording.Detailed
+            ? $"- Mode: detailed (Lua lines and allocations measured; the measuring itself slows the game by about 20%){kind}"
+            : $"- Mode: standard (low overhead){kind}");
+        var started = recording.StartedUtc is { } utc ? $", started {utc.ToLocalTime():yyyy-MM-dd HH:mm}" : "";
+        line($"- Length: {Seconds(recording.Duration)}{started}");
+    }
+
+    private static void Frames(ProfileFrameStatistics frames, ProfileFrameStatistics? before, Action<string> line)
+    {
+        if (frames.Count == 0) return;
+        line("## Frames");
+        if (before is not { Count: > 0 })
+        {
+            line($"- {Count(frames.Count)} frames, average {Ms(frames.AverageMilliseconds)} ({Fps(frames.AverageMilliseconds)}), "
+                + $"median {Ms(frames.MedianMilliseconds)}, worst 1% {Ms(frames.OnePercentWorstMilliseconds)}, slowest {Ms(frames.SlowestMilliseconds)}");
+            line("");
+            return;
+        }
+        line("| Frame time | This | Baseline | Change |");
+        line("|---|---:|---:|---:|");
+        line($"| Average | {Ms(frames.AverageMilliseconds)} ({Fps(frames.AverageMilliseconds)}) | "
+            + $"{Ms(before.AverageMilliseconds)} ({Fps(before.AverageMilliseconds)}) | {MsChange(frames.AverageMilliseconds - before.AverageMilliseconds)} |");
+        line($"| Median | {Ms(frames.MedianMilliseconds)} | {Ms(before.MedianMilliseconds)} | {MsChange(frames.MedianMilliseconds - before.MedianMilliseconds)} |");
+        line($"| Worst 1% | {Ms(frames.OnePercentWorstMilliseconds)} | {Ms(before.OnePercentWorstMilliseconds)} | "
+            + $"{MsChange(frames.OnePercentWorstMilliseconds - before.OnePercentWorstMilliseconds)} |");
+        line($"| Slowest | {Ms(frames.SlowestMilliseconds)} | {Ms(before.SlowestMilliseconds)} | {MsChange(frames.SlowestMilliseconds - before.SlowestMilliseconds)} |");
+        line($"| Frames | {Count(frames.Count)} | {Count(before.Count)} | |");
+        line("");
+    }
+
+    private static void Breakdown(ProfileRange range, ProfileRange? other, Action<string> line)
+    {
+        if (ProfileAnalysis.TimeBreakdown(range) is not { } breakdown || range.Samples < 20) return;
+        line("## Where the analysed thread's time went");
+        (string Name, string Meaning, Func<ProfileTimeBreakdown, double> Of)[] parts =
+        [
+            ("Lua scripts", "mods and base-game scripts, with the game code they called", part => part.Scripts),
+            ("Game code", "the Java engine itself", part => part.GameCode),
+            ("Stopped for memory", "garbage-collector pauses and waits for free memory", part => part.Collections),
+            ("Not running", "waiting: for the next frame, for the GPU, for other threads", part => part.Waiting),
+        ];
+        if (other is not null && ProfileAnalysis.TimeBreakdown(other) is { } before && other.Samples >= 20)
+        {
+            line("| Part | This | Baseline | Change |");
+            line("|---|---:|---:|---:|");
+            foreach (var (part, meaning, of) in parts)
+                line($"| {part} ({meaning}) | {Pct(of(breakdown))} | {Pct(of(before))} | {Pp(of(breakdown) - of(before))} |");
+        }
+        else
+            foreach (var (part, meaning, of) in parts) line($"- {part} {Pct(of(breakdown))} ({meaning})");
+        line("");
+    }
+
+    private static void Memory(ProfileRecording recording, ProfileRange range, ProfileReportBaseline? baseline, Action<string> line)
+    {
+        var lines = MemoryLines(recording, range);
+        if (lines.Count == 0) return;
+        line("## Memory and CPU");
+        foreach (var item in lines) line(item);
+        // The baseline's in a few words: the same measures, each for its whole recording.
+        if (baseline is not null && MemoryFacts(baseline.Recording, baseline.Range) is { Count: > 0 } facts)
+            line($"- Baseline: {string.Join("; ", facts)}");
+        line("");
+    }
+
+    private static List<string> MemoryLines(ProfileRecording recording, ProfileRange range)
     {
         var lines = new List<string>();
         var pressure = ProfileAnalysis.MemoryPressure(recording);
@@ -146,28 +224,66 @@ public static class ProfileReport
         if (pressure.Short) lines.Add("- Verdict: the game ran short of memory in this recording; giving it more memory is likely to help.");
         if (ProfileAnalysis.OtherProgramsCpu(recording) is { } other)
             lines.Add($"- Other programs used {Pct(other)} of all processors on average while it recorded");
-        if (lines.Count == 0) return;
-        line("## Memory and CPU");
-        foreach (var item in lines) line(item);
-        line("");
+        return lines;
     }
 
-    private static void Lua(ProfileRecording recording, ProfileRange range, Action<string> line)
+    private static List<string> MemoryFacts(ProfileRecording recording, ProfileRange range)
     {
+        var facts = new List<string>();
+        var pressure = ProfileAnalysis.MemoryPressure(recording);
+        if (ProfileAnalysis.MemoryPeaksIn(recording, range.Start, range.End).Heap is { } heap)
+            facts.Add(pressure.MaximumBytes > 0 ? $"heap peak {Bytes(heap)} of {Bytes(pressure.MaximumBytes)} maximum" : $"heap peak {Bytes(heap)}");
+        if (ProfileAnalysis.CollectorBusyIn(recording, range.Start, range.End) is { } busy) facts.Add($"collector at work {Pct(busy)}");
+        var (stalls, _) = ProfileAnalysis.StallsIn(recording, range.Start, range.End);
+        if (stalls > 0) facts.Add($"{Count(stalls)} allocation stalls");
+        if (ProfileAnalysis.FramesWithCollector(recording)?.Slower is { } slower) facts.Add($"frames {Pct(slower)} slower while it worked");
+        if (recording.Heap.Count > 0) facts.Add(pressure.Short ? "short of memory" : "not short of memory");
+        if (ProfileAnalysis.OtherProgramsCpu(recording) is { } other) facts.Add($"other programs {Pct(other)} of the processors");
+        return facts;
+    }
+
+    private static void Lua(ProfileRecording recording, ProfileRange range, ProfileRange? other, Action<string> line)
+    {
+        ProfileGroup? Before(string key) => other?.LuaGroups.FirstOrDefault(group => group.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
         line("## Lua scripts by mod");
-        line($"All Lua together: {Pct(range.LuaShare)} of the range. Each mod's share is its functions' own time.");
+        line($"All Lua together: {Pct(range.LuaShare)} of the range"
+            + (other is null ? "" : $" (baseline {Pct(other.LuaShare)}, {Pp(range.LuaShare - other.LuaShare)})")
+            + ". Each mod's share is its functions' own time.");
         line("");
-        line("| # | Mod | Share | Samples |");
-        line("|---:|---|---:|---:|");
+        line(other is null ? "| # | Mod | Share | Samples |" : "| # | Mod | Share | Samples | Baseline | Change |");
+        line(other is null ? "|---:|---|---:|---:|" : "|---:|---|---:|---:|---:|---:|");
         var shown = range.LuaGroups.Take(Mods).ToArray();
         for (var index = 0; index < shown.Length; index++)
-            line($"| {index + 1} | {Cell(OwnerName(shown[index].Key))} | {Pct(shown[index].Self)} | {Count(shown[index].Samples)} |");
+        {
+            var group = shown[index];
+            var compared = other is null ? "" : Before(group.Key) is { } before ? $" {Pct(before.Self)} | {Pp(group.Self - before.Self)} |" : " none | new |";
+            line($"| {index + 1} | {Cell(OwnerName(group.Key))} | {Pct(group.Self)} | {Count(group.Samples)} |{compared}");
+        }
         if (range.LuaGroups.Count > Mods)
         {
             var rest = range.LuaGroups.Skip(Mods).ToArray();
-            line($"| | {rest.Length} more | {Pct(rest.Sum(group => group.Self))} | {Count(rest.Sum(group => group.Samples))} |");
+            line($"| | {rest.Length} more | {Pct(rest.Sum(group => group.Self))} | {Count(rest.Sum(group => group.Samples))} |{(other is null ? "" : " | |")}");
         }
         line("");
+
+        // What moved the most either way, mods the baseline ran and this one did not among them.
+        if (other is not null)
+        {
+            var changes = range.LuaGroups.Select(group => (group.Key, Delta: group.Self - (Before(group.Key)?.Self ?? 0)))
+                .Concat(other.LuaGroups.Where(group => !range.LuaGroups.Any(item => item.Key.Equals(group.Key, StringComparison.OrdinalIgnoreCase)))
+                    .Select(group => (group.Key, Delta: -group.Self)))
+                .Where(change => Math.Abs(change.Delta) >= Noticeable / 2)
+                .OrderByDescending(change => Math.Abs(change.Delta)).Take(Changes).ToArray();
+            if (changes.Length > 0)
+            {
+                line("Biggest changes against the baseline:");
+                foreach (var (key, delta) in changes)
+                    line($"- {OwnerName(key)}: {Pp(delta)}"
+                        + (range.LuaGroups.Any(group => group.Key.Equals(key, StringComparison.OrdinalIgnoreCase)) ? "" : " (did not run in this recording)")
+                        + (Before(key) is null ? " (did not run in the baseline)" : ""));
+                line("");
+            }
+        }
 
         // The function's heaviest line of its own: where to look in the file.
         var functions = new Dictionary<(string, string), int>();
@@ -176,8 +292,11 @@ public static class ProfileReport
         foreach (var group in range.LuaGroups.Take(ModsOpened).Where(group => group.Self >= Noticeable))
         {
             line($"### {OwnerName(group.Key)}: {Pct(group.Self)} of the range");
-            line("| Function | File:line | Self | Total |");
-            line("|---|---|---:|---:|");
+            // The same function in the baseline by its name and its file from media/lua on, as a mod moved stays itself.
+            var before = Before(group.Key)?.Rows.GroupBy(row => ProfileAnalysis.ScriptKey(row.Name, row.Detail))
+                .ToDictionary(rows => rows.Key, rows => rows.Sum(row => row.Self));
+            line(other is null ? "| Function | File:line | Self | Total |" : "| Function | File:line | Self | Total | Self change |");
+            line(other is null ? "|---|---|---:|---:|" : "|---|---|---:|---:|---:|");
             var lines = range.LuaLines.GetValueOrDefault(group.Key);
             foreach (var row in group.Rows.Take(FunctionsPerMod))
             {
@@ -185,25 +304,36 @@ public static class ProfileReport
                     && lines?.GetValueOrDefault(function) is { Count: > 0 } own
                     && own.MaxBy(item => item.SelfSamples) is { Line: > 0, SelfSamples: > 0 } heaviest
                         ? ":" + heaviest.Line.ToString(Invariant) : "";
-                line($"| {Cell(row.Name is "" or "?" ? "(anonymous)" : row.Name)} | {Cell(row.Detail + at)} | {Pct(row.Self)} | {Pct(row.Total)} |");
+                var change = other is null ? ""
+                    : before?.TryGetValue(ProfileAnalysis.ScriptKey(row.Name, row.Detail), out var was) == true ? $" {Pp(row.Self - was)} |" : " new |";
+                line($"| {Cell(row.Name is "" or "?" ? "(anonymous)" : row.Name)} | {Cell(row.Detail + at)} | {Pct(row.Self)} | {Pct(row.Total)} |{change}");
             }
             if (group.Rows.Count > FunctionsPerMod)
-                line($"| {group.Rows.Count - FunctionsPerMod} more | | {Pct(group.Rows.Skip(FunctionsPerMod).Sum(row => row.Self))} | |");
+                line($"| {group.Rows.Count - FunctionsPerMod} more | | {Pct(group.Rows.Skip(FunctionsPerMod).Sum(row => row.Self))} | |{(other is null ? "" : " |")}");
             line("");
         }
     }
 
-    private static void Java(ProfileRecording recording, ProfileRange range, int thread, Action<string> line)
+    private static void Java(ProfileRecording recording, ProfileRange range, ProfileRange? other, int thread, Action<string> line)
     {
         line("## Java (engine) by area");
-        line("| Area | Self |");
-        line("|---|---:|");
-        foreach (var group in range.MethodGroups) line($"| {Cell(AreaName(group.Key))} | {Pct(group.Self)} |");
+        line(other is null ? "| Area | Self |" : "| Area | Self | Baseline | Change |");
+        line(other is null ? "|---|---:|" : "|---|---:|---:|---:|");
+        foreach (var group in range.MethodGroups)
+        {
+            var before = other?.MethodGroups.FirstOrDefault(item => item.Key == group.Key)?.Self ?? 0;
+            line($"| {Cell(AreaName(group.Key))} | {Pct(group.Self)} |{(other is null ? "" : $" {Pct(before)} | {Pp(group.Self - before)} |")}");
+        }
         line("");
         line("## Heaviest Java methods");
-        line("| Method | Self | Total |");
-        line("|---|---:|---:|");
-        foreach (var method in range.Methods.Take(JavaMethods)) line($"| {Cell(method.Name)} | {Pct(method.Self)} | {Pct(method.Total)} |");
+        line(other is null ? "| Method | Self | Total |" : "| Method | Self | Total | Self change |");
+        line(other is null ? "|---|---:|---:|" : "|---|---:|---:|---:|");
+        var methods = other?.Methods.GroupBy(method => method.Name, StringComparer.Ordinal).ToDictionary(rows => rows.Key, rows => rows.First().Self, StringComparer.Ordinal);
+        foreach (var method in range.Methods.Take(JavaMethods))
+        {
+            var change = methods is null ? "" : methods.TryGetValue(method.Name, out var was) ? $" {Pp(method.Self - was)} |" : " new |";
+            line($"| {Cell(method.Name)} | {Pct(method.Self)} | {Pct(method.Total)} |{change}");
+        }
         line("");
 
         // A JDK or library method's time read in the game's terms: who called it, up to the game's own code.
@@ -253,7 +383,9 @@ public static class ProfileReport
 
     private static string Cell(string text) => text.Replace("|", "\\|").Replace('\n', ' ');
     private static string Pct(double share) => (share * 100).ToString("0.00", Invariant) + "%";
+    private static string Pp(double change) => (change * 100).ToString("+0.00;-0.00;0.00", Invariant) + " pp";
     private static string Ms(double milliseconds) => milliseconds.ToString("0.0", Invariant) + " ms";
+    private static string MsChange(double milliseconds) => milliseconds.ToString("+0.0;-0.0;0.0", Invariant) + " ms";
     private static string Fps(double milliseconds) => milliseconds > 0 ? (1000 / milliseconds).ToString("0", Invariant) + " FPS" : "-";
     private static string Seconds(long microseconds) => (microseconds / 1_000_000.0).ToString("0.00", Invariant) + " s";
     private static string Count(long count) => count.ToString("N0", Invariant);

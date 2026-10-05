@@ -270,7 +270,10 @@ ask what a recording means. It is the same whatever the page has open: the recor
 frames, where the thread's time went, memory and CPU, the twelve heaviest mods and the functions of the five
 heaviest with each one's file and heaviest line, the Java areas and heaviest methods with who called them up
 to the game's code, Lua allocations, threads (all threads only) and the longest pauses; a few lines on how to
-read the figures come first. It is in English with invariant numbers, a format rather than a page: a model
+read the figures come first. Compared with another recording, the report says what with and puts the baseline's
+figure and the change beside each comparable one (frames, the time's parts, mods, functions, Java areas and
+methods, in percentage points of each range; allocations per minute; the baseline's memory in a line), with
+the mods that moved the most and a caution when the two were recorded in different modes. It is in English with invariant numbers, a format rather than a page: a model
 reads it as well in whatever language it is then asked, and two reports read alike. Its menu has the page as
 it reads, *Copy what is shown as text* (the tab's owner list with its headings and the chosen owner's table as
 opened, columns lined up), for a message to a mod's author. The

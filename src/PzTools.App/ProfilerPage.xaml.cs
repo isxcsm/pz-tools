@@ -3494,10 +3494,12 @@ public sealed partial class ProfilerPage : UserControl
         if (recording is not { } current || shown is not { } range) return;
         var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
         var name = (RecordingList.SelectedItem as RecordingItem)?.Text;
+        // Compared, with what the page compares with: the baseline analysed whole for the same kind of thread.
+        var compared = baseline is { } other && baselineRange is { } otherRange ? new ProfileReportBaseline(other, otherRange, baselineName) : null;
         CopyResultsButton.IsEnabled = false;
         try
         {
-            var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name));
+            var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name, compared));
             var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
             package.SetText(report);
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);

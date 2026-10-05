@@ -151,6 +151,24 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Report_Compared_PutsTheBaselinesFigureAndTheChangeBesideEach()
+    {
+        var recording = Load(Sample);
+        var slow = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        // The quick frame stands in for another recording: the game's own update, no scripts.
+        var quick = ProfileAnalysis.Analyze(recording, 0, 10_000, recording.GameThread);
+        var report = ProfileReport.Build(recording, slow, recording.GameThread, "Slow", new ProfileReportBaseline(recording, quick, "Quick"));
+
+        Assert.Contains("## Baseline (compared with)\n- Name: Quick", report);
+        Assert.Contains("| Average | 40.0 ms (25 FPS) | 10.0 ms (100 FPS) | +30.0 ms |", report);
+        Assert.Contains("| 1 | SlowMod | 50.00% | 2 | none | new |", report);
+        Assert.Contains("- SlowMod: +50.00 pp (did not run in the baseline)", report);
+        Assert.Contains("| slow | workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua:12 | 50.00% | 75.00% | new |", report);
+        Assert.Contains("| Java built-ins (java.*, jdk.*) | 25.00% | 0.00% | +25.00 pp |", report);
+        Assert.DoesNotContain("different modes", report);
+    }
+
+    [Fact]
     public void TimeBreakdown_SplitsTheGameThreadsRangeIntoScriptsGameCodeCollectionsAndWaiting()
     {
         var recording = Load(Sample);
