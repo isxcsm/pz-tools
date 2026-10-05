@@ -14,6 +14,8 @@ public sealed class GameMemoryTests
     [InlineData(@"C:\PZ\ProjectZomboid64.json:hidden", false)]
     [InlineData(@"ProjectZomboid64.json", false)]
     [InlineData(@"..\ProjectZomboid64.json", false)]
+    [InlineData(@"\\server\share\ProjectZomboid64.json", false)]
+    [InlineData(@"\\?\C:\PZ\ProjectZomboid64.json", false)]
     public void IsLaunchFile_TakesOnlyTheGamesLaunchFileByAFullPath(string path, bool expected) =>
         Assert.Equal(expected, GameMemory.IsLaunchFile(path));
 

@@ -25,6 +25,8 @@ public sealed class ScriptFileLocatorTests
             [temp.GetPath("other-library"), temp.GetPath("library", "steamapps", "workshop", "content", "108600")], temp.GetPath("ProjectZomboid"));
 
         Assert.Equal(workshop, ScriptFileLocator.Locate("workshop/3778868211/mods/Fridges/42/media/lua/client/Core.lua", roots));
+        // Folder names in any case, as Windows reads them.
+        Assert.Equal(workshop, ScriptFileLocator.Locate("Workshop/3778868211/Mods/Fridges/42/media/lua/client/Core.lua", roots));
         Assert.Equal(own, ScriptFileLocator.Locate("mods/Mine/media/lua/shared/Mine.lua", roots));
         Assert.Equal(game, ScriptFileLocator.Locate("media/lua/client/ISUI/ISPanel.lua", roots));
         // Not on this PC: a mod removed, or a recording made elsewhere.
@@ -33,6 +35,8 @@ public sealed class ScriptFileLocatorTests
         // A recording handed on by someone else names nothing outside those folders, and nothing but a script.
         Assert.Null(ScriptFileLocator.Locate("mods/../secret.lua", roots));
         Assert.Null(ScriptFileLocator.Locate("mods/Mine/run.exe", roots));
+        // A file's stream named as if it were a script.
+        Assert.Null(ScriptFileLocator.Locate("mods/Mine/notes.txt:hidden.lua", roots));
         Assert.Null(ScriptFileLocator.Locate("workshop/../../Zomboid/mods/Mine/media/lua/shared/Mine.lua", roots));
     }
 }

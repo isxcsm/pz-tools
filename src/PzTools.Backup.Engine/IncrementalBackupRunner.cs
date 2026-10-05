@@ -516,7 +516,9 @@ public sealed class IncrementalBackupRunner(
         // A journal that fails while it is read (deleted, wrapped past the checkpoint, a volume that stops
         // answering) is as good as none: nothing is published yet, and a full scan finds the same changes.
         // Only the journal's own calls are inside the try: opening the range queries the journal again.
+        // The journal is let go of before that scan, which can take minutes on a large save.
         IEnumerator<UsnRecord>? reading = null;
+        string? failed = null;
         try
         {
             while (true)
@@ -529,12 +531,12 @@ public sealed class IncrementalBackupRunner(
                     if (!reading.MoveNext()) break;
                     record = reading.Current;
                 }
+                // InvalidOperationException is the reader's own verdict on the journal (UsnJournalReader).
                 catch (Exception exception) when (exception is Win32Exception or InvalidDataException
-                    or InvalidOperationException)
+                    or InvalidOperationException and not ObjectDisposedException)
                 {
-                    return new JournalChangePlan(
-                        await PlanFullScanChangesAsync(repository, source, cancellationToken, progress),
-                        $"USN read failed ({(exception as Win32Exception)?.NativeErrorCode.ToString() ?? exception.Message})");
+                    failed = $"USN read failed ({(exception as Win32Exception)?.NativeErrorCode.ToString() ?? exception.Message})";
+                    break;
                 }
                 records.Add(record);
                 if (records.Count < journalBatchSize) continue;
@@ -543,6 +545,8 @@ public sealed class IncrementalBackupRunner(
             }
         }
         finally { reading?.Dispose(); }
+        if (failed is not null)
+            return new JournalChangePlan(await PlanFullScanChangesAsync(repository, source, cancellationToken, progress), failed);
         if (records.Count > 0) await AddJournalBatchAsync(records);
         var plan = accumulator.Build();
         var candidates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

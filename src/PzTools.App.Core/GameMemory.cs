@@ -59,9 +59,13 @@ public sealed partial class GameMemory
 {
     public const string ConfigFileName = "ProjectZomboid64.json";
 
-    /// <summary>Whether a path names the game's launch file: a full path ending in its name (a stream of it would not).</summary>
+    /// <summary>
+    /// Whether a path names the game's launch file: on a local drive (C:\…, no share or device path), ending in its
+    /// name (a stream of it would not).
+    /// </summary>
     internal static bool IsLaunchFile(string path) =>
-        Path.IsPathFullyQualified(path) && string.Equals(Path.GetFileName(path), ConfigFileName, StringComparison.OrdinalIgnoreCase);
+        path.Length > 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '\\' or '/'
+        && string.Equals(Path.GetFileName(path), ConfigFileName, StringComparison.OrdinalIgnoreCase);
     private const string SteamAppId = "108600";
     private static readonly int[] Steps = [4096, 6144, 8192, 12288, 16384, 24576, 32768];
 
@@ -388,8 +392,11 @@ public sealed partial class GameMemory
                     // The launcher sits in the game folder; a game started by its Java runtime directly (the game's
                     // own ProjectZomboid64.bat) runs jre64\bin\java.exe, two folders down.
                     var folder = game.MainModule?.FileName is { } executable ? Path.GetDirectoryName(executable) : null;
+                    // A java process anyone can start by that name: its file counts only where the game's own
+                    // executable stands beside it, as the file this app then edits with administrator rights.
                     for (int up = 0; folder is not null && up <= 2; up++, folder = Path.GetDirectoryName(folder))
-                        if (Path.Combine(folder, ConfigFileName) is var file && File.Exists(file)) return file;
+                        if (Path.Combine(folder, ConfigFileName) is var file && IsLaunchFile(file) && File.Exists(file)
+                            && File.Exists(Path.Combine(folder, "ProjectZomboid64.exe"))) return file;
                 }
                 // A game run with other rights does not say where it is.
                 catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException

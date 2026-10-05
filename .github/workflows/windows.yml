@@ -167,7 +167,7 @@ jobs:
         run: |
           [xml] $props = Get-Content -LiteralPath Directory.Build.props -Raw
           $version = @($props.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ })[0]
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and "v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME, but Directory.Build.props says $version." }
+          if ($env:GITHUB_EVENT_NAME -eq 'push' -and "v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME, but Directory.Build.props says $version." }
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
       - name: The release's JDK
         run: |
@@ -182,24 +182,28 @@ jobs:
       - name: Build, test the published folder, package
         run: ./scripts/build-release.ps1 -JdkPath $env:RELEASE_JDK
       - name: Keep the package of a trial run
-        if: github.ref_type != 'tag'
+        if: github.event_name != 'push'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-check-${{ github.sha }}
           path: artifacts/release/v${{ env.RELEASE_VERSION }}/PzTools-v*
           retention-days: 7
       - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
-        if: github.ref_type == 'tag'
+        # A pushed tag only: a run by hand from a tag is still a trial.
+        if: github.event_name == 'push'
         with:
           subject-path: artifacts/release/v${{ env.RELEASE_VERSION }}/PzTools-v${{ env.RELEASE_VERSION }}-win-x64.zip
       - name: Draft release
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $zip = "artifacts/release/v$env:RELEASE_VERSION/PzTools-v$env:RELEASE_VERSION-win-x64.zip"
           $files = @($zip, "$zip.sha256")
-          $existing = gh release view $env:GITHUB_REF_NAME --json isDraft 2>$null | ConvertFrom-Json
+          # No release yet is the one failure that is expected; any other (a token, the network) stops here.
+          $view = gh release view $env:GITHUB_REF_NAME --json isDraft 2>&1
+          if ($LASTEXITCODE -ne 0 -and "$view" -notmatch 'release not found') { throw "gh release view failed: $view" }
+          $existing = if ($LASTEXITCODE -eq 0) { $view | ConvertFrom-Json }
           if ($existing -and -not $existing.isDraft) { throw "$env:GITHUB_REF_NAME is already published; its files are not replaced." }
           if ($existing) { gh release upload $env:GITHUB_REF_NAME @files --clobber; exit $LASTEXITCODE }
           $notes = @"

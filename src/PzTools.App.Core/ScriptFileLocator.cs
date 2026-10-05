@@ -19,13 +19,14 @@ public static class ScriptFileLocator
         if (string.IsNullOrWhiteSpace(relative)) return null;
         var path = relative.Replace('\\', '/');
         // Only scripts are opened: a recording handed on by someone else must not name anything else to run.
-        if (!path.EndsWith(".lua", StringComparison.OrdinalIgnoreCase)) return null;
+        // A colon past the start is a drive or a file's stream ("a.txt:b.lua"), never part of a script's own path.
+        if (!path.EndsWith(".lua", StringComparison.OrdinalIgnoreCase) || path.Contains(':')) return null;
         IEnumerable<(string Root, string Under)> candidates = path switch
         {
             // Each kind only under its own folder (a mod's under mods, the game's under media): a path that climbs
-            // out with ".." finds nothing, even another script beside it.
-            _ when path.StartsWith("workshop/", StringComparison.OrdinalIgnoreCase) && path.Split('/') is [_, var item, "mods", .. var rest]
-                && item.Length > 0 && item.All(char.IsAsciiDigit)
+            // out with ".." finds nothing, even another script beside it. Folder names in any case, as Windows reads them.
+            _ when path.StartsWith("workshop/", StringComparison.OrdinalIgnoreCase) && path.Split('/') is [_, var item, var mods, .. var rest]
+                && mods.Equals("mods", StringComparison.OrdinalIgnoreCase) && item.Length > 0 && item.All(char.IsAsciiDigit)
                 => roots.WorkshopFolders.Select(folder => (Path.Combine(folder, item, "mods"), string.Join('/', rest))),
             _ when path.StartsWith("mods/", StringComparison.OrdinalIgnoreCase)
                 => roots.UserFolder is { } user ? [(Path.Combine(user, "mods"), path["mods/".Length..])] : [],

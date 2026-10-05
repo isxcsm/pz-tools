@@ -9,7 +9,10 @@ public sealed record ZomboidArchiveManifest(
     DateTimeOffset? LastPlayedUtc,
     long SourceId,
     long Revision,
-    DateTimeOffset ExportedUtc);
+    DateTimeOffset ExportedUtc,
+    // The exporting PC's time zone (a Windows ID): its entries' times are that PC's clock time, which a zip keeps
+    // without an offset. Absent from archives made before entries carried the save's own times.
+    string? EntryTimeZone = null);
 
 public sealed record ArchiveInspection(
     ZomboidArchiveManifest Manifest,

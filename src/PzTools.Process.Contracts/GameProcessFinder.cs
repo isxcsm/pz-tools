@@ -21,8 +21,10 @@ public static class GameProcessFinder
     public static IReadOnlyList<string> JavaNames { get; } = ["java", "javaw"];
 
     private const string ClientMainClass = "zombie.gameStates.MainScreenState";
+    // The class as a whole name: not part of a longer one, nor a file or package path that only ends in it.
     private static readonly System.Text.RegularExpressions.Regex ClientCommand = new(
-        @"(?<![\w.$/\\])zombie\.gameStates\.MainScreenState(?![\w.$])", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        @"(?<![\w.$/\\])" + System.Text.RegularExpressions.Regex.Escape(ClientMainClass) + @"(?![\w.$])",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     // A Java process's verdict, read once from its command line: by process instance (identifier and start time).
     private static readonly Dictionary<(int Id, DateTime Started), bool> javaVerdicts = [];
@@ -117,7 +119,9 @@ public static class GameProcessFinder
         var key = (process.Id, process.StartTime);
         seen.Add(key);
         lock (Gate) if (javaVerdicts.TryGetValue(key, out var known)) return known;
-        // A command line that cannot be read (a process of another user) is not the player's game.
+        // A command line that cannot be read (a protected process, or another user's where this runs without
+        // administrator rights) is not taken for the game. As administrator another user's game is read and counts,
+        // as one found by its launcher's name always has.
         var verdict = IsGameCommandLine(CommandLine(process.Id));
         lock (Gate) javaVerdicts[key] = verdict;
         return verdict;

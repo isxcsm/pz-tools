@@ -388,7 +388,9 @@ public sealed partial class SchedulerDatabase
                 }
                 // The game is still settling the death (the body, the death screen) in the moment it is seen; a save
                 // a little after it holds the world as it then stands. The next one-second tick takes it.
-                if (now < pending.EnqueuedUtc + RuntimeDeathPolicy.Settle) return null;
+                // A clock set back since it was queued waits no longer than that second either: it is the first
+                // pending run, and every other run waits behind it.
+                if (now >= pending.EnqueuedUtc && now < pending.EnqueuedUtc + RuntimeDeathPolicy.Settle) return null;
             }
             return new BackupTickAdmission(
                 $"backup-scheduler:pending:{pending.PendingId}:{pending.AttemptSequence}",

@@ -159,7 +159,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
             },
             () => new ZomboidArchiveManifest(
                 FormatMarker, CurrentVersion, source.SourceKey, mode, saveName,
-                playersModified, sourceId, revision, DateTimeOffset.UtcNow),
+                playersModified, sourceId, revision, DateTimeOffset.UtcNow, TimeZoneInfo.Local.Id),
             progress, cancellationToken);
     }
 
@@ -175,7 +175,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
             throw new ArgumentException("Archive output must be outside the current save directory.");
         var (mode, name) = SplitSaveId(saveId);
         var manifest = new ZomboidArchiveManifest(FormatMarker, CurrentVersion, saveId, mode, name,
-            File.GetLastWriteTimeUtc(Path.Combine(source, "players.db")), 0, 0, DateTimeOffset.UtcNow);
+            File.GetLastWriteTimeUtc(Path.Combine(source, "players.db")), 0, 0, DateTimeOffset.UtcNow, TimeZoneInfo.Local.Id);
         ValidateManifest(manifest);
         var original = ReadSnapshot(source);
         if (!original.Any(item => item.RelativePath.Equals("players.db", StringComparison.OrdinalIgnoreCase)))
@@ -243,11 +243,30 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
 
     // A save's file times say when it was last played; kept through export and import, they are not the
     // time it was unpacked. A zip holds local dates from 1980 to 2107 only, and stores the clock time it is
-    // given whatever its offset: given local time. A date outside keeps the time of writing.
+    // given whatever its offset: given local time, whose zone the manifest names for an import on another PC.
+    // A date outside keeps the time of writing.
     private static void Stamp(ZipArchiveEntry entry, DateTime modifiedUtc)
     {
         if (modifiedUtc.Year is >= 1981 and <= 2106)
             entry.LastWriteTime = new DateTimeOffset(modifiedUtc, TimeSpan.Zero).ToLocalTime();
+    }
+
+    // The zone an archive's entry times were written in: the exporting PC's, which another PC may not share. An
+    // archive without one, or with a zone this PC does not know, is read in this PC's own.
+    private static TimeZoneInfo ExportZone(string? id)
+    {
+        if (string.IsNullOrEmpty(id)) return TimeZoneInfo.Local;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+        catch (Exception error) when (error is TimeZoneNotFoundException or InvalidTimeZoneException) { return TimeZoneInfo.Local; }
+    }
+
+    /// <summary>An entry's clock time, as written in <paramref name="zone"/>, as UTC; each date with its own daylight saving.</summary>
+    internal static DateTime EntryTimeUtc(DateTime clock, TimeZoneInfo zone)
+    {
+        var local = DateTime.SpecifyKind(clock, DateTimeKind.Unspecified);
+        // A time the clocks skipped never came from a file; it is read an hour on, as the clock then showed.
+        if (zone.IsInvalidTime(local)) local = local.AddHours(1);
+        return TimeZoneInfo.ConvertTimeToUtc(local, zone);
     }
 
     private sealed record SnapshotEntry(string RelativePath, bool IsDirectory, long Length, DateTime LastWriteUtc);
@@ -361,6 +380,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                     && !StringComparer.OrdinalIgnoreCase.Equals(item.FullName, manifestPath))
                 .ToArray();
             var totalBytes = fileEntries.Sum(item => item.Length);
+            var exportZone = ExportZone(inspection.Manifest.EntryTimeZone);
             EnsureImportSpace(root, totalBytes, safety);
             if (progress is not null)
                 await progress(new ArchiveProgress(
@@ -389,7 +409,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                             totalBytes, entry.FullName), token), expectedCrc32: entry.Crc32);
                 }
                 // The time the file was last written in the save, not the time it was unpacked.
-                File.SetLastWriteTimeUtc(output, entry.LastWriteTime.UtcDateTime);
+                File.SetLastWriteTimeUtc(output, EntryTimeUtc(entry.LastWriteTime.DateTime, exportZone));
                 files++;
                 completedBytes += entry.Length;
                 if (progress is not null)

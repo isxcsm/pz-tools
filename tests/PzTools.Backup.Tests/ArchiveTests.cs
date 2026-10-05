@@ -12,6 +12,23 @@ namespace PzTools.Backup.Tests;
 public sealed class ArchiveTests
 {
     [Fact]
+    public void EntryTimes_AreReadInTheExportingPcsZone_EachDateWithItsOwnDaylightSaving()
+    {
+        // Exported in Seoul, imported anywhere: 13:00 there is 04:00 UTC, not 13:00 in the importing PC's zone.
+        var seoul = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
+        Assert.Equal(new DateTime(2026, 10, 5, 4, 0, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 10, 5, 13, 0, 0), seoul));
+        // In a zone with daylight saving, summer and winter files are each an hour apart as their clocks were.
+        var berlin = TimeZoneInfo.FindSystemTimeZoneById("W. Europe Standard Time");
+        Assert.Equal(new DateTime(2026, 7, 1, 10, 0, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 7, 1, 12, 0, 0), berlin));
+        Assert.Equal(new DateTime(2026, 1, 1, 11, 0, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 1, 1, 12, 0, 0), berlin));
+        // A clock time the spring change skipped is read as the hour after it.
+        Assert.Equal(new DateTime(2026, 3, 29, 1, 30, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 3, 29, 2, 30, 0), berlin));
+    }
+    [Fact]
     public async Task LiveExportAndImport_ReportBytesWithinOneLargeFile()
     {
         using var temp = new TempDirectory();
