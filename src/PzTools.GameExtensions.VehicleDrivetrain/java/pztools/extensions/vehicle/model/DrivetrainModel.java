@@ -12,7 +12,13 @@ public final class DrivetrainModel {
         public double speedMps;
         public double enginePower;
         public double engineRpm;
+        /** The pedal the model ramps towards; force and RPM follow the ramped value. */
         public double throttle;
+        /**
+         * How far the driver asks for propulsion, 0..1: in the game, its own pedal for this update, which the
+         * accelerator key ramps up to 1 and cruise control holds at 0.5. Only the kick-down reads it.
+         */
+        public double demand = 1.0;
         /** Actual km/h limit after the original controller's script-speed conversion. */
         public double reverseMaxSpeedKph;
         public double offroadEfficiency = 1.0;
@@ -205,8 +211,10 @@ public final class DrivetrainModel {
         // Low mode retains first where safe, but never orders a downshift into an over-rev.
         if (gear > 1) {
             double lowerRpm = profile.coupledRpm(couplingSpeed, gear - 1);
+            // Kick-down: a driver asking for (nearly) full power gets the lower gear at a higher RPM. Cruise
+            // control holding a speed asks for less, so it shifts down only at the ordinary threshold.
             boolean demandDown = wheelRpm < profile.redlineRpm * config.downshiftRpmFraction
-                || low || (in.throttle > 0.8 && wheelRpm < profile.redlineRpm * config.demandDownshiftFraction);
+                || low || (in.demand > 0.8 && wheelRpm < profile.redlineRpm * config.demandDownshiftFraction);
             // Compare at the lower gear too: wide-spaced three-speed boxes must not immediately
             // undo an upshift merely because their resulting RPM falls in the kick-down band.
             double lowerLimit = Math.min(0.90, upFraction - config.shiftHysteresisFraction);
@@ -235,7 +243,7 @@ public final class DrivetrainModel {
             && finiteBetween(in.speedMps, -200.0, 200.0)
             && finiteBetween(in.enginePower, Double.MIN_VALUE, 1.0e7)
             && finiteBetween(in.engineRpm, 0.0, 20000.0)
-            && finiteBetween(in.throttle, 0.0, 1.0)
+            && finiteBetween(in.throttle, 0.0, 1.0) && finiteBetween(in.demand, 0.0, 1.0)
             && (in.direction > 0 || config.reverseMaxSpeedKph > 0
                 || finiteBetween(in.reverseMaxSpeedKph, Double.MIN_VALUE, 300.0))
             && (!in.offroad || finiteBetween(in.offroadEfficiency, 0.05, 2.0));

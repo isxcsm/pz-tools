@@ -17,7 +17,7 @@ final class VehicleControl implements VehicleHooks.Controller {
     private volatile boolean invalidated;
     private volatile long sampleVersion;
     private int sampleMode,sampleGear,sampleOutcome;
-    private double sampleDt,sampleRpm,sampleForce,sampleSpeed,sampleMass,sampleThrottle,sampleRadiusMin,sampleRadiusMax;
+    private double sampleDt,sampleRpm,sampleForce,sampleSpeed,sampleMass,sampleThrottle,sampleDemand,sampleRadiusMin,sampleRadiusMax;
     private boolean sampleOffroad,sampleNativeValid;
     private float sampleNativeForce,sampleNativeBrake,sampleNativeSteering;
     private WeakReference<Object> sampledController=new WeakReference<>(null);
@@ -133,7 +133,9 @@ final class VehicleControl implements VehicleHooks.Controller {
             var in=slot.input;
             in.dtSeconds=frame.dt; in.speedMps=frame.speed/3.6; in.enginePower=frame.power; in.engineRpm=frame.rpm;
             in.reverseMaxSpeedKph=frame.reverseMaxSpeed;
-            in.throttle=1; // The resolved mode already includes cruise and input safety decisions.
+            // The resolved mode already includes cruise and input safety decisions: propulsion is asked for in full.
+            // How hard the driver asks is the game's own pedal; it decides only the kick-down.
+            in.throttle=1; in.demand=Math.max(0,Math.min(1,frame.pedal));
             in.direction=mode==VehicleHooks.FORWARD?1:-1; in.currentGear=frame.gear; in.profile=slot.profile;
             in.offroad=frame.offroad; in.offroadEfficiency=frame.efficiency; in.towing=frame.towing;
             in.sundayDriver=frame.slow; in.speedDemon=frame.fast;
@@ -278,7 +280,7 @@ final class VehicleControl implements VehicleHooks.Controller {
         sampleVersion++; sampleMode=mode; sampleOutcome=outcome; sampleReason=reason;
         sampleDt=frame.dt; sampleSpeed=frame.speed; sampleMass=frame.mass;
         sampleOffroad=frame.offroad; sampleRadiusMin=frame.radiusMin; sampleRadiusMax=frame.radiusMax;
-        sampleThrottle=output==null?0:output.throttle; sampleNativeValid=false;
+        sampleThrottle=output==null?0:output.throttle; sampleDemand=frame.pedal; sampleNativeValid=false;
         sampleNativeForce=sampleNativeBrake=sampleNativeSteering=0;
         sampleGear=output==null?frame.gear:output.gear; sampleRpm=output==null?frame.rpm:output.engineRpm;
         sampleForce=output==null?0:output.engineForce; sampleCount++; lastSampleNanos=System.nanoTime(); sampleVersion++;
@@ -308,7 +310,7 @@ final class VehicleControl implements VehicleHooks.Controller {
             long before=sampleVersion; if((before&1)!=0) continue;
             int mode=sampleMode,gear=sampleGear,outcome=sampleOutcome;
             double dt=sampleDt,rpm=sampleRpm,force=sampleForce,speed=sampleSpeed,mass=sampleMass;
-            double throttle=sampleThrottle,radiusMin=sampleRadiusMin,radiusMax=sampleRadiusMax;
+            double throttle=sampleThrottle,demand=sampleDemand,radiusMin=sampleRadiusMin,radiusMax=sampleRadiusMax;
             boolean road=sampleOffroad,nativeValid=sampleNativeValid;
             float nativeForce=sampleNativeForce,nativeBrake=sampleNativeBrake,nativeSteering=sampleNativeSteering;
             String reason=sampleReason; long count=sampleCount,last=lastSampleNanos;
@@ -320,7 +322,7 @@ final class VehicleControl implements VehicleHooks.Controller {
             if(before!=sampleVersion) continue;
             return "mode="+mode+";outcome="+outcome+";reason="+reason+";samples="+count+";dt_seconds="+dt
                 +";gear="+gear+";rpm="+rpm+";requested_force="+force+";speed_kph="+speed+";mass="+mass
-                +";throttle="+throttle+";offroad="+road+";wheel_radius_min="+radiusMin+";wheel_radius_max="+radiusMax
+                +";throttle="+throttle+";demand="+demand+";offroad="+road+";wheel_radius_min="+radiusMin+";wheel_radius_max="+radiusMax
                 +";native_args_observed="+nativeValid+";native_force="+nativeForce+";native_brake="+nativeBrake+";native_steering="+nativeSteering
                 +";window_ms="+window/1_000_000+";window_calls="+calls+";window_native_calls="+nativeCalls
                 +";callback_mean_us="+(calls==0?0:nanos/calls/1000)+";callback_max_us="+maximum/1000
@@ -338,7 +340,7 @@ final class VehicleControl implements VehicleHooks.Controller {
         sampleVersion++;
         sampleNativeValid=false; sampleNativeForce=sampleNativeBrake=sampleNativeSteering=0;
         sampleCount=0; sampleMode=sampleGear=sampleOutcome=0; sampleReason="awaiting-controller";
-        sampleDt=sampleRpm=sampleForce=sampleSpeed=sampleMass=sampleThrottle=sampleRadiusMin=sampleRadiusMax=0;
+        sampleDt=sampleRpm=sampleForce=sampleSpeed=sampleMass=sampleThrottle=sampleDemand=sampleRadiusMin=sampleRadiusMax=0;
         sampleOffroad=false;
         steeringSamples=steeringCostNanos=0; steeringSampleFrame=0;
         steeringSampleInput=steeringSampleAngle=steeringSampleMaximum=0;

@@ -148,8 +148,10 @@ example a change to another module) is acknowledged without waiting.
 ## The driving model
 
 `DrivetrainModel.step` runs once per propulsion call. Its throttle input is always 1: the game
-has already resolved the mode, including cruise control and input gates. Force is in the game's
-own units, not newtons or horsepower.
+has already resolved the mode, including cruise control and input gates. Its demand input is the
+game's own pedal (`BaseVehicle.throttle`) as the game sets it for this update, before the control
+branch: rising while the accelerator is held, 0.5 while cruise control alone keeps the speed. Demand
+decides only the kick-down below. Force is in the game's own units, not newtons or horsepower.
 
 ### Forward force
 
@@ -218,7 +220,7 @@ After a shift no other shift happens for `shift_hold_seconds`.
 - **Up** when moving faster than 0.5 m/s, RPM above redline × `upshift_rpm_fraction`, and the
   next gear stays at or above `launch_rpm`.
 - **Down** when RPM is below redline × `downshift_rpm_fraction` or below redline ×
-  `demand_downshift_fraction` (the throttle input is always 1, so this applies), and only if the
+  `demand_downshift_fraction` while demand is above 0.8 (the accelerator held, not cruise control), and only if the
   lower gear stays below redline × min(0.90, upshift − `shift_hysteresis_fraction`).
 - `low_mode` (developer) uses 0.96 as the upshift fraction and prefers lower gears, but cannot
   over-rev.
@@ -395,8 +397,12 @@ Fixed constants:
 
 With `diagnostics_enabled`, `STATUS` carries the latest sample and one-second summaries
 (`VehicleControl.diagnostics`): mode, outcome, reason, gear, RPM, `requested_force`, speed,
-native arguments, callback timings, steering fields (`steering_precise`, `steering_timing`,
-`steering_held_share`, `steering_keys`) and `area_light`. `native_*` are the arguments just
+`throttle` (the model's pedal), `demand` (the game's), native arguments, callback timings, steering
+fields (`steering_precise`, `steering_timing`, `steering_held_share`, `steering_keys`) and
+`area_light`. The app writes the sample to the **Logs** page only with an `extension.runtime.changed`
+entry, that is when the extension's state changes (`ExtensionRuntimeDiagnostics` records transitions,
+not samples), so steady driving adds nothing; the sample in such an entry is the one current at that
+change, and `sample_age_ms` says how old it was. `native_*` are the arguments just
 before the native call, not proof that it succeeded. Callback timings leave out the game's own
 code and are not a frame cost.
 
