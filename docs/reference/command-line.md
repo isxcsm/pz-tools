@@ -1,182 +1,197 @@
 # Command line
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
+[Documentation index](../README.md)
 
-Every background program in PZ Tools is also a command-line program. This page lists
-their commands and options, the exit codes they return, and how a restore protects the
-save it replaces. It is for scripting, testing and troubleshooting without the app;
-everyday backups and restores go through the app.
+The app does its work through 12 programs in the app folder. You can run some of them yourself, to script backups or to check a backup folder without the app. Everyday backups and restores are easier in the app.
 
-Programs come in two roles
-([scheduler, runner, worker](../design/glossary.md#scheduler-runner-worker)):
+## Before you start
 
-- **Workers and runners** carry out one operation and exit.
-- **Schedulers** keep the state of recurring work.
+- Run the programs where they are, in the app folder. Each one finds `game-bridge\` and the other programs beside itself, not in the current folder.
+- Use an administrator terminal. The app runs them as administrator.
+- A save is named `<mode>/<save name>`, as in `Sandbox/2026-10-02_02-31-22`. That is its folder under the saves folder.
+- Every run gets a run number from `control.db` in `%LOCALAPPDATA%\PzTools`. `--control-db <path>` uses another file. `--run-index <n>` gives the number yourself. You don't need either.
+- `Ctrl+C` stops `PzTools.Backup.Cli.exe`, the ZIP program, the profiler and the schedulers at the next safe point, with exit code 2. The revive program has no safe point to stop at; let it finish.
 
-Each operation gets a [run index](../design/glossary.md#run-index). A direct call allocates a new
-global `run_index`; a `--run-index` you supply is reused throughout the pipeline.
+## The programs
 
-Settings, defaults and which setting wins are on the [configuration](settings.md)
-page.
+| Program | For you to run | What it does |
+| --- | --- | --- |
+| `PzTools.Backup.Cli.exe` | Yes | Back up, restore, verify and clean up a backup folder. See [below](#pztoolsbackupcliexe). |
+| `PzTools.Zomboid.Archive.Cli.exe` | Yes | Export a save or backup to a ZIP, inspect a ZIP, import a ZIP. See [below](#pztoolszomboidarchivecliexe). |
+| `PzTools.Zomboid.Recovery.Cli.exe` | Yes, with care | Revive a character in a save that is not being played. See [below](#pztoolszomboidrecoverycliexe). |
+| `PzTools.Profiler.Cli.exe` | Yes, `record` only | Record the running game's performance to a `.pzprof` file. See [below](#pztoolsprofilercliexe). |
+| `PzTools.Backup.Runner.exe` | Rarely | Runs `PzTools.Backup.Cli.exe backup` with the same options, holding the backup folder's lock while it runs. The scheduler uses it. |
+| `PzTools.Maintenance.Runner.exe` | No | Cleans up one save's backups after a backup. |
+| `PzTools.Maintenance.Cli.exe` | No | The cleanup worker the maintenance runner and the state scheduler start. |
+| `PzTools.Backup.Scheduler.exe` | No | Runs automatic backups. The app keeps one running. |
+| `PzTools.State.Scheduler.exe` | No | Watches saves and the game. The app keeps one running. |
+| `PzTools.State.Runner.exe` | No | One check of the saves folder. |
+| `PzTools.State.Collector.Cli.exe`, `PzTools.State.Reactor.Cli.exe` | No | The two halves of that check. |
 
-## Backup diagnostics
+Each program also accepts `--probe` alone, which exits with 0 and does nothing. The app uses it to see whether Windows lets the program start.
 
-```text
-backup --repository <path> --source-id <id> [--source <id>=<path>]
-    [--run-index <n>] [--control-db <path>] [--revision <n>]
-    [--always-include <relative-path>]...
-    [--full-scan-hash-comparison <true|false>]
-    [--save-game] [--save-game-before-backup <true|false>]
-    [--require-active-game] [--scheduled-utc <ISO 8601>]
-    [--game-version <text>]
-restore --repository <path> --source-id <id> --revision <n> --target <save-path>
-verify --repository <path>
-maintenance prune --repository <path> --source-id <id> --keep <n>
-maintenance gc --repository <path>
-config validate [configuration options]
-config show [configuration options]
-scan <source> <catalog.json>
-diff <source> <catalog.json>
-```
+## With the app running
 
-| Option of `backup` | Effect |
+| What you run | Is it safe? |
 | --- | --- |
-| `--save-game` | Asks the matching running single-player world to save first ([game bridge](../design/game-bridge.md)) |
-| `--require-active-game` | Skips automatic work if that world stops before files are captured |
-| `--scheduled-utc` | Allows preparation in advance, but no saving or capture before the scheduled time |
-| `--game-version` | Records the running game's version with the new backup. The app and the scheduler pass it while the game has that save loaded. |
-| `--revision` | Command-line-only override of the revision number; it must be higher than the current revision |
+| `backup`, `restore`, `maintenance prune`, `maintenance gc`, the ZIP commands, revive | Yes. They take the same locks as the app. If the app is using that save or backup folder, they exit with 75 and change nothing. |
+| `verify` | Close the app first. `verify` takes no lock, so cleanup the app runs at the same time can make it report damage that isn't there. |
+| `PzTools.Profiler.Cli.exe record` | Not while the app is recording. The game holds one recording, and starting one ends the one running. |
+| `PzTools.Profiler.Cli.exe roll-start`, `roll-save`, `roll-stop` | No. They control the recording behind **Keep the last minutes**, which the app manages. |
+| `PzTools.Backup.Scheduler.exe configure` on the app's `scheduler.db` | No. It changes the schedule behind the app: **Settings** then shows values that are not in effect, until you next change the backup settings there. |
+| Either scheduler's run on the app's databases | Pointless. It exits with 75, as the app's copy holds them. |
+| `PzTools.State.Collector.Cli.exe` or `PzTools.State.Reactor.Cli.exe` on the app's `state.db` | No. They take no lock. |
 
-`restore`, `verify` and all `maintenance` commands need an existing repository, so a
-mistyped path does not create a new one.
+The app's **Logs** page shows a command-line restore or ZIP operation after the app's next start.
 
-The configuration options and overrides accepted by `backup` and `config` are listed
-under [configuration](settings.md#checking-and-overriding-from-the-command-line).
-
-## Runners, schedulers, and archives
+## PzTools.Backup.Cli.exe
 
 ```text
-PzTools.Backup.Runner --repository <path> --source-id <key> [--run-index <n>]
-    [--config <runner.toml>] [--worker-config <backup-worker.toml>]
-    [--control-db <path>] [--worker-directory <path>]
-PzTools.Maintenance.Runner --repository <path> --source-id <numeric-id> [--run-index <n>]
-    [--config <runner.toml>] [--worker-config <maintenance-worker.toml>]
-    [--control-db <path>] [--worker-directory <path>]
-PzTools.State.Runner --state-db <path> --saves-root <path> [--run-index <n>]
-    [--config <state-runner.toml>]
-PzTools.State.Collector.Cli --state-db <path> --saves-root <path> [--run-index <n>]
-    [--control-db <path>] [--config <state-collector.toml>]
-PzTools.State.Reactor.Cli --state-db <path> [--run-index <n>]
-    [--control-db <path>] [--config <state-reactor.toml>]
-
-PzTools.Backup.Scheduler configure --scheduler-db <path> --repository <path>
-    [--interval-minutes <0..60>] [--config <backup-scheduler.toml>]
-PzTools.Backup.Scheduler run --scheduler-db <path>
-    [--control-db <path>] [--worker-directory <path>] [--once]
-PzTools.State.Scheduler --scheduler-db <path> --state-db <path>
-    --saves-root <path> [--repository <path>]
-    [--control-db <path>] [--interval-seconds <n>]
-    [--worker-directory <path>] [--once]
-
-PzTools.Zomboid.Archive.Cli inspect --archive <file>
-PzTools.Zomboid.Archive.Cli export --repository <path> --source-id <numeric-id>
-    --revision <n> --output <file> [--run-index <n>] [--control-db <path>]
-PzTools.Zomboid.Archive.Cli export-live --source <save-path> --save-id <mode/name>
-    --output <file> [--run-index <n>] [--control-db <path>]
-PzTools.Zomboid.Archive.Cli import --archive <file> --saves-root <path>
-    [--run-index <n>] [--control-db <path>]
-
-PzTools.Zomboid.Recovery.Cli --repository <path> --saves-root <path> --save-id <mode/name>
-    --run-index <n> --telemetry-identity <path>
-PzTools.Profiler.Cli record --output <file.pzprof> --stop-file <file> --mode general|detailed
-    --run-index <n> --telemetry-identity <path>
-    [--max-seconds <5..>] [--process-id <pid>] [--bridge <game-bridge-dir>] [--owner <app-run>]
-PzTools.Profiler.Cli roll-start --mode general|detailed --seconds <n> [--max-megabytes <n>] [--owner <app-run>]
-PzTools.Profiler.Cli roll-save --output <file.pzprof> --seconds <n>
-PzTools.Profiler.Cli roll-stop
-    (each: --run-index <n> --telemetry-identity <path> [--process-id <pid>] [--bridge <game-bridge-dir>])
+PzTools.Backup.Cli.exe backup --repository <backup folder> --source-id <mode/name>
+    --source <mode/name>=<save folder> [--save-game] [--require-active-game]
+    [--scheduled-utc <time>] [--game-version <text>] [--revision <n>] [settings options]
+PzTools.Backup.Cli.exe restore --repository <backup folder> --source-id <mode/name>
+    --revision <n> --target <save folder> [--telemetry-identity <folder>]
+PzTools.Backup.Cli.exe verify --repository <backup folder>
+PzTools.Backup.Cli.exe maintenance prune --repository <backup folder> --source-id <mode/name> --keep <n>
+PzTools.Backup.Cli.exe maintenance gc --repository <backup folder>
+PzTools.Backup.Cli.exe config validate [settings options]
+PzTools.Backup.Cli.exe config show [settings options]
+PzTools.Backup.Cli.exe scan <folder> <list.json>
+PzTools.Backup.Cli.exe diff <folder> <list.json>
+PzTools.Backup.Cli.exe help
 ```
 
-- `PzTools.Zomboid.Recovery.Cli` performs [character recovery](../design/character-recovery.md)
-  on a save that is not being played.
-- `PzTools.Profiler.Cli` makes one [performance recording](../design/profiler.md): it records until
-  the stop file appears or `--max-seconds` (default 600) runs out, then converts the
-  result. Without `--process-id` it looks for the single running game. With `--owner`, an
-  app run's identifier, the game ends the recording once that run's lease lapses (see
-  [leases](../design/game-bridge.md#leases)). `roll-start`, `roll-save` and `roll-stop` start, save
-  and stop [the last minutes](../design/profiler.md#the-last-minutes); they are internal, started by
-  the app.
-- `PzTools.Maintenance.Cli` is the maintenance worker. It is internal: MaintenanceRunner
-  and StateScheduler start it with the options they need (`--lane`,
-  `--dispatch-lanes`, `--saves-root` and others).
+`backup` and `restore` also take `--run-index` and `--control-db`. `restore` also takes `--config <file>` for its diagnostic settings.
 
-- `PzTools.Backup.Scheduler configure` accepts an interval of zero to turn automatic
-  backups off. The app's settings store the on/off switch separately from the 1–60
-  minute interval.
-- Publish development executables together with `scripts/publish-tools.ps1`. Runners
-  start workers with fixed names from that same directory.
-- Each `--config` selects the settings of its own process only. BackupRunner and
-  MaintenanceRunner use `--worker-config` to override their child worker's settings.
-  See [configuration](settings.md#which-setting-wins) for defaults and precedence.
+| Command | What it does |
+| --- | --- |
+| `backup` | Takes one backup of one save. Creates the backup folder if it doesn't exist. Prints the result as JSON. |
+| `restore` | Replaces the save folder `--target` with backup number `--revision`. See [restore safety](#restore-safety). |
+| `verify` | Reads every stored pack and checks it. Prints a JSON report. |
+| `maintenance prune` | Deletes all but the newest `--keep` automatic backups of one save (`--keep` at least 1). Other backups stay. This can't be undone. |
+| `maintenance gc` | Removes stored data that no backup uses any more. |
+| `config validate` | Checks the backup settings and says how many saves they name. |
+| `config show` | Prints the backup settings in effect, as TOML. |
+| `scan`, `diff` | Diagnostics that don't touch a backup folder: `scan` writes a folder's file list to JSON, `diff` compares the folder with that list and prints what changed. |
+
+`restore`, `verify` and `maintenance` refuse a folder that isn't a backup folder, so a mistyped path doesn't create one. `backup` creates one.
+
+### Options of `backup`
+
+| Option | Effect |
+| --- | --- |
+| `--repository <folder>` | The backup folder. Without it, the current folder is used, so always give it. |
+| `--source-id <mode/name>` | Which save to back up. It must match a `--source`. |
+| `--source <mode/name>=<folder>` | The save's folder. Repeat it for more saves. The app's settings file names no saves, so you need this. |
+| `--save-game` | Asks the game to save first, if it is running with this save loaded and **Save game before backup** is on. |
+| `--require-active-game` | Skips the backup (exit 0) if the game stops playing this save before the files are read. |
+| `--scheduled-utc <time>` | Prepares early, but saves and reads no files before this time. ISO 8601 with offset, such as `2026-10-05T12:00:00.0000000+00:00`. |
+| `--game-version <text>` | Records this game version with the backup, up to 80 characters. |
+| `--revision <n>` | For testing: the number to give the new backup. |
+
+The app also passes options of its own (`--runtime-ticket`, `--runtime-authority`, `--runtime-generation`). They are not for use by hand.
+
+### Settings options
+
+`backup`, `config validate` and `config show` read the backup settings from `%LOCALAPPDATA%\PzTools\config\backup-worker\default.toml`, which the app creates (see [advanced settings](advanced-settings.md)), then **Save game before backup** and the language from `settings.toml`. These options override them for one run:
+
+| Option | Values |
+| --- | --- |
+| `--repository <folder>` | The backup folder. Default: the current folder. |
+| `--config <file>` | Another backup settings file, read instead of the one above. |
+| `--source <mode/name>=<folder>` | A save to back up. Replaces the saves named in the file. |
+| `--always-include <path>` | A file, relative to the save, to check in every backup even if its timestamps look unchanged. Repeatable. Replaces the list in the file. |
+| `--full-scan-hash-comparison` | `true` or `false` |
+| `--save-game-before-backup` | `true` or `false` |
+| `--verify-staged-copies` | `true` or `false` |
+| `--content-deduplication` | `true` or `false` |
+| `--checksum` | `auto`, `none`, `xxhash64`, `sha256` |
+| `--compression` | `auto`, `none`, `brotli` |
+| `--name-language` | A language code the app supports, for backup names |
+| `--telemetry-enabled` | `true` or `false` |
+| `--telemetry-mode` | `off`, `run`, `phase`, `raw` |
+| `--telemetry-batch-size`, `--telemetry-flush-ms`, `--telemetry-retain-runs`, `--telemetry-max-database-mib` | A whole number |
+
+### Example
+
+In Command Prompt:
+
+```text
+cd "C:\Games\PzTools-v0.2.3"
+.\PzTools.Backup.Cli.exe backup --repository "%USERPROFILE%\Zomboid\Backups" ^
+    --source-id Sandbox/MySave --source "Sandbox/MySave=%USERPROFILE%\Zomboid\Saves\Sandbox\MySave"
+```
+
+## PzTools.Zomboid.Archive.Cli.exe
+
+```text
+PzTools.Zomboid.Archive.Cli.exe inspect --archive <file.zip>
+PzTools.Zomboid.Archive.Cli.exe export --repository <backup folder> --source-id <number>
+    --revision <n> --output <file.zip>
+PzTools.Zomboid.Archive.Cli.exe export-live --source <save folder> --save-id <mode/name> --output <file.zip>
+PzTools.Zomboid.Archive.Cli.exe import --archive <file.zip> --saves-root <saves folder>
+PzTools.Zomboid.Archive.Cli.exe help
+```
+
+All four also take `--run-index`, `--control-db`, `--config <file>` (an archive settings file read last, over the others) and `--telemetry-identity <folder>`.
+
+| Command | What it does |
+| --- | --- |
+| `inspect` | Checks a ZIP and prints its save name, mode, size, character and survival time. |
+| `export` | Writes one backup to a ZIP. `--source-id` here is the save's number in the backup folder, not its name. |
+| `export-live` | Writes the save as it is now to a ZIP. It fails if the game writes the save meanwhile. |
+| `import` | Unpacks a ZIP made by PZ Tools into `<saves folder>\<mode>\<name>`. See [importing ZIP archives](files-and-folders.md#importing-zip-archives) for the limits. |
+
+## PzTools.Zomboid.Recovery.Cli.exe
+
+```text
+PzTools.Zomboid.Recovery.Cli.exe --repository <backup folder> --saves-root <saves folder>
+    --save-id <mode/name> --run-index <n> --telemetry-identity <folder>
+    [--player-id <n>] [--remains none]
+```
+
+Revives the character in a save, as [revive a character](../guides/revive-a-character.md) does in the app. The game must not have the save open. It keeps no copy of the files it changes, so take a backup first.
+
+| Option | Effect |
+| --- | --- |
+| `--repository` | The backup folder. It is locked while the revive runs. |
+| `--run-index`, `--telemetry-identity` | Required here: a number of your choice and a folder for the diagnostic records. |
+| `--player-id <n>` | Which character, when the save has more than one (split screen). |
+| `--remains none` | Revive without the dead character's belongings. Without it, the belongings come back if exactly one body or zombie matches; several matches are refused. |
+
+## PzTools.Profiler.Cli.exe
+
+```text
+PzTools.Profiler.Cli.exe record --output <file.pzprof> --stop-file <file> --mode general|detailed
+    --run-index <n> --telemetry-identity <folder>
+    [--max-seconds <5..1800>] [--process-id <pid>] [--keep-raw]
+```
+
+Records until the stop file appears, `--max-seconds` (default 600) runs out, or the game exits, then converts the recording to `--output`. Without `--process-id` it looks for the one running game and fails if there are none or several. `--keep-raw` keeps the raw `.pzprof.jfr` recording beside the output; it holds full file paths, so don't share it. See [find a laggy mod](../guides/find-a-laggy-mod.md).
+
+`roll-start`, `roll-save` and `roll-stop`, and the options `--bridge` and `--owner`, are for the app.
 
 ## Results and exit codes
 
+Each run prints one JSON line to standard output: `version`, `component`, `runIndex`, `outcome`, `startedUtc`, `completedUtc`, and `result` or `error` (`code` and `message`). `verify`, `maintenance prune`, `maintenance gc`, `config`, `scan` and `diff` print their own output instead, and `PzTools.Backup.Cli.exe` writes errors from those to standard error as JSON with `success`, `code` and `message`. The schedulers print one JSON line per job they start.
+
 | Code | Meaning |
-|---:|---|
-| 0 | Completed successfully |
-| 1 | Backup, restore, repository, or I/O failure |
-| 2 | Cancelled at a safe boundary |
-| 3 | Verification found missing or damaged data (`verify`), or a runner or maintenance run finished degraded |
-| 4 | Maintenance committed, but some physical files could not be removed |
-| 64 | Invalid command, configuration, or arguments |
-| 75 | Runner mutex or repository writer lease is busy |
+| ---: | --- |
+| 0 | Done. For `backup`, also when nothing had changed or the game stopped with `--require-active-game`. |
+| 1 | Failed. |
+| 2 | Stopped with `Ctrl+C`, at a safe point. |
+| 3 | `verify` found missing or damaged data, or a runner finished with part of the cleanup failed. |
+| 4 | `maintenance gc` finished, but some files could not be deleted. |
+| 64 | Unknown command or option, or a bad value. |
+| 75 | Busy: another program is using that save or backup folder. Nothing was changed. Try again later. |
 
-**Busy (75).** A runner that cannot take its mutex records a `Busy`
-[workflow](../design/glossary.md#workflow) and does not start a worker. The run index it was given
-stays used. The scheduler tries again later; missed ticks do not pile up, and a pending
-attempt that never started is not used up.
+Some programs return 1 for a bad option instead of 64: `restore`, `PzTools.Zomboid.Recovery.Cli.exe` and `PzTools.Maintenance.Cli.exe`.
 
-**Result output.** Runners and one-shot workers write a common JSON envelope to stdout
-with the version, component, `runIndex`, outcome, timestamps, and result or error. The
-parent process checks the run index it supplied, the component and the exit code. A
-mismatch becomes `invalid-runner-result` or `runner-contract-mismatch`. Diagnostic
-errors may instead be written to stderr as JSON with `success`, `code` and `message`.
-
-**Warnings.** A telemetry failure does not change the exit code of a successful backup.
-The result's `warnings` can report telemetry errors, quarantined staging files and
-orphan packs. See [telemetry](../design/telemetry.md) for details.
+A backup's `result` can carry `warnings`, such as diagnostic records that could not be written or leftover files found in the backup folder. They don't change the exit code.
 
 ## Restore safety
 
-A restore replaces a save folder with the contents of a backup. It works in three
-steps:
+A restore builds the backup in a hidden folder beside the save, `.<save>.pztools-staging-<id>`, checking each stored file as it reads it and flushing every file to disk. Only then does it move the old save aside to `.<save>.pztools-rollback-<id>`, rename the new copy into place and delete the old one. Until that rename the save is untouched, and a failed restore removes its own folder.
 
-1. Build the restored save in a staging folder beside the target. Each stored object is
-   verified as it is read, files are written under their final names, and every file is
-   flushed to disk (by a few background workers, while later files are written) before
-   the next step.
-2. Move the existing save aside to a rollback name.
-3. Put the staging folder in place with an atomic directory rename.
-
-An existing target is accepted. A save that is running is refused: if `players.db`
-cannot be opened exclusively, the restore does not start.
-
-The save is not touched until the rename step. A restore that fails before then
-discards its own staging folder and [journal](../design/glossary.md#restore-journal), even if
-the save has been opened in the meantime, and reports the original error. After the
-new save is installed, a rollback folder that cannot be removed yet stays in the
-journal for later cleanup; the restore still counts as successful.
-
-### After an interruption
-
-Interrupted operations, restores included, are sorted out when the app starts. This
-recovery never writes
-into an existing save, so it does not wait for that save to be closed.
-
-- Version 2 journals record directory identities. Recovery uses them to prove that the
-  installed target came from staging before it removes the rollback folder, and uses
-  the original directory's identity when it resumes an interrupted rollback.
-- A phase label of `installed` alone is not enough proof.
-- If there is a conflicting folder, a version 1 journal that cannot be verified, or an
-  access error, the original save, the staging folder and the journal are all kept so
-  the situation can be resolved.
+A restore refuses a save the game has open. It also finishes or undoes an earlier interrupted restore of the same save first. A record of each restore in progress, `.<save>.pztools-restore.json`, sits beside the save so the app can finish or undo it after a crash. If an old save can't be deleted yet, the restore still counts as done and the app removes it later.

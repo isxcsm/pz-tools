@@ -1,260 +1,257 @@
 # Character recovery
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-Character recovery heals the character in a single-player save while the game is
-closed. If the character has died, it also brings them back to life and, when their
-belongings were left on their body or on the zombie they turned into, puts those
-belongings back in their inventory. It is for players who want to carry on with a
-character. This page explains what it changes, what it keeps, and when it cannot help.
+Character recovery heals the character of a single-player save by editing its record in `players.db`. A dead
+character is also marked alive, and when their saved inventory is empty, their belongings are moved back from
+their zombie or corpse in the world. This page covers how the edit is made, how the remains are identified,
+how the files are replaced safely, and what each refusal means. The player's steps are in
+[revive a character](../guides/revive-a-character.md).
 
-## Before you start
-
-1. Stop playing the save. Recovery needs an up-to-date
-   [observation](glossary.md#observation-fresh-stale) that the save is not in use.
-2. Make a backup first. Recovery edits the current save once you confirm. It does not
-   edit existing backups and does not create an extra backup for you.
-
-## What healing does
-
-| Effect | What |
+| Code | Responsibility |
 | --- | --- |
-| **Restored** | Health, food, thirst, fatigue, endurance, mental condition, and all 17 body parts, including injuries, infection and embedded glass or bullets. Core temperature and metabolic values go back to their defaults. |
-| **Cleared** | Temporary illness, poisoning, withdrawal, pending exercise soreness, burning, forced sleep and the death drag-down flag |
-| **Kept** | All positive and negative traits, XP, skills, recipes, nutrition and weight, position, survival time and exercise history. Unrelated mod data is copied unchanged. |
+| [`CharacterRecoveryService`](../../src/PzTools.Zomboid.Recovery/CharacterRecoveryService.cs) | Preview, the edit, staging and publishing |
+| [`PlayerHealthEditor`](../../src/PzTools.Zomboid.Recovery/PlayerHealthEditor.cs) | Byte-level healing of the player record |
+| [`WorldRemainsRecovery`](../../src/PzTools.Zomboid.Recovery/WorldRemainsRecovery.cs), `RemainsReader`, `CorpseChunkReader`, `ZombieInventoryRecovery`, `WorldItemRegistry` | Finding remains, matching identity, moving items |
+| [`SaveFileEditTransaction`](../../src/PzTools.Process.Hosting/SaveFileEditTransaction.cs) | Durable multi-file replacement and roll-forward |
+| `PzTools.Zomboid.Recovery.Cli` | The worker process |
+| `RecoveryStamp`, `LiveCharacter` (bridge) | Writing the identity stamp in the running game |
 
-A character who has died is marked alive again. A living character is simply healed,
-also when their inventory is empty.
+## When it can run
 
-Symptoms can come back afterwards because of traits, the environment or illnesses
-added by mods.
+The save must be inactive. The game does not have to be closed: the main menu, or another save loaded, is
+fine.
+
+- **App.** **Heal character** is enabled only for the current version of the selected save, when its activity
+  is fresh and `Inactive`, no other operation runs, and the state and backup projectors are healthy
+  (`MainWindowShell.UpdateRevisionActions`). With the game running, activity comes from the live
+  observation (`GameActivityLane`): the main menu, unloading, or another world loaded is `Inactive`; this save
+  loaded is `Active` and the button's tooltip asks the player to quit. A stale observation is `Unknown`, which
+  also disables the button. The app checks again after the confirmation.
+- **Locks.** The app admits the operation with the save-write lock on the save and the repository write lock.
+  The worker takes the save-write and repository-access mutexes.
+- **Worker.** A restore journal beside the save (`.<save>.pztools-restore.json`) refuses with
+  `recovery-save-busy`. A pending file edit is rolled forward first (below). Then the worker opens
+  `players.db` for read and write, sharing only delete. A game that has the save loaded holds the file, so the
+  open fails with a sharing violation, reported as `recovery-save-busy`. That handle stays open until the edit
+  is published, so the game cannot load the old database meanwhile. A non-empty `-wal`, `-journal` or `-shm`
+  file refuses with `recovery-pending-journal`.
+
+Recovery makes no backup of its own and does not touch existing backups.
+
+## Flow
+
+1. **Preview.** When the confirmation opens, `AppHost.PreviewCharacterRecoveryAsync` opens `players.db`
+   read-only, without a lock, heals the chosen character in memory, and, for a dead character with an empty
+   inventory, lists candidate remains. Nothing is changed.
+2. **Confirmation.** With more than one character the dialog lists them and preselects a dead one; the remains
+   are looked up again whenever the choice changes. Remains are offered most items first, then nearest,
+   followed by **Revive without belongings**. The confirm button waits for the search.
+3. **Worker.** `PzTools.Zomboid.Recovery.Cli --saves-root --save-id --repository [--player-id] [--remains]`.
+   `--remains` is a candidate key, `none` (revive without belongings, also used when nothing was found), or
+   absent (alive, carrying items, or the preview failed).
+4. **Staging.** The worker copies `players.db` through its exclusive handle into
+   `.<save>.pztools-staging-<guid>\` beside the save and works on the copy: `PRAGMA integrity_check`, a
+   non-empty `networkPlayers` table refuses (`recovery-singleplayer-only`), the character is read and healed,
+   remains are applied, and the healed blob must heal to the same bytes again (`recovery-validation-failed`).
+   Then `UPDATE localPlayers SET data=…, isDead=0` with `journal_mode=DELETE` and `synchronous=FULL`, and a
+   second integrity check.
+5. **Publishing.** See [writing the changes](#writing-the-changes). The staging folder is deleted afterwards.
 
 ## Which character
 
-A single-player save normally holds one character, and that one is recovered whatever
-its number in `players.db`. The game numbers characters from 1, but a save whose
-character is not number 1 is just as valid (v0.1.0 refused such saves).
+`localPlayers` rows are read in id order.
 
-Several characters appear only with local split screen. The confirmation then lists
-them, with name, whether they are dead and how long they survived, and recovers only
-the one you choose; the others are left exactly as they are. If the chosen character is
-no longer there when recovery starts (the save changed in between), nothing is edited.
+| Rows | `--player-id` | Result |
+| --- | --- | --- |
+| None | Any | `recovery-no-character` |
+| One | None | That row, whatever its id |
+| Several (local split screen) | None | `recovery-ambiguous-character` |
+| Any | Given, not present | `recovery-character-missing` (the save changed since the list) |
 
-An earlier character cannot be chosen. When a character dies and you start a new one in
-the same world, the game writes the new character over the dead one's record, so the
-earlier character is no longer in the save to bring back.
+Only the chosen row is updated. An earlier character cannot be chosen: when a character dies and the player
+starts a new one in the same world, the game gives the new one the lowest free id and writes over the dead
+character's row.
+
+## Healing
+
+`PlayerHealthEditor.Heal` accepts only world version 249 and a blob it can walk to the last byte; anything
+else is `recovery-unsupported-format`. It parses every field it passes, records edits as byte ranges, and
+copies everything else verbatim, including inventory, mod data and unknown flags. It calls no game reset
+method, since some of them also erase traits or exercise regularity.
+
+| Region | Edit |
+| --- | --- |
+| Forced sleep | Woken, wake-up timer cleared |
+| 24 stats | Set to their rested values (three to 1, one to 37, the rest to 0); fitness is kept |
+| 17 body parts | Rewritten as clean: health 100, no wounds, infection, bandage, splint or embedded objects; the bandage, stitch and splint XP bytes are kept |
+| Body damage | Infection cleared (`infectionTime` and mortality duration -1) |
+| Thermoregulator | Core 37, skin and node values reset; clothing insulation and wind resistance kept |
+| Other | On fire, medicine and sleeping-pill effects, infection-reducing medicine timer, time since last smoke, death drag-down, scheduled exercise stiffness, pending soreness cleared |
+
+Kept: traits, XP and levels, recipes, read books and media, nutrition and weight, position, hours survived,
+kills, exercise regularity and timestamps, cheat flags, crafting history. The edit is checked by reading hours
+survived back from the result.
+
+A living character is only healed, also with an empty inventory. A dead one is marked alive (`isDead=0`) and
+healed. Traits, the environment or mod illnesses can bring symptoms back after loading.
 
 ## Getting a dead character's belongings back
 
-This happens only when the dead character's saved inventory is empty. A populated
-inventory is never merged with or overwritten by recovered items.
+Only a dead character whose saved inventory is empty gets belongings back. A populated inventory is never
+merged or overwritten.
 
-Recovery looks for the character's remains in two places: zombies in `reanimated.bin`,
-and the corpse lists in the world's `map/<chunk-x>/<chunk-y>.bin` files. Item types are
-resolved through `WorldDictionary.bin`. An ID card is treated as an ordinary item; it
-is not needed to identify the character.
+### Finding candidates
 
-### Choosing in the confirmation
+`WorldRemainsRecovery.FindAllAsync` reads, with shared access:
 
-The search runs when the confirmation opens, before anything is changed, and the
-confirm button waits for it (well under a second on a warm disk; a freshly copied save
-of 930 map files took 1.1 s). What it finds is shown in the confirmation:
+- `reanimated.bin`: the save's player zombies;
+- every `map/<x>/<y>.bin` chunk whose bytes contain the character's name, exact death position or recovery
+  id. This byte filter only skips chunks that cannot match; every hit is then parsed in full. Chunks are read
+  eight at a time (930 chunks of a real save, freshly copied: 1.1 s; 5.3 s one at a time);
+- `WorldDictionary.bin`, to resolve item types.
 
-- **Remains found:** each option says what it does, then what it leaves in the world:
-  *Take 7 items back from the zombie*, above *The zombie disappears from the world* and
-  how far it is from where the character died. The one carrying most is chosen; you
-  can pick another, or **Revive without belongings**, which says that the zombie (or
-  corpse) stays with them. Remains not chosen are left as they are.
-- **Nothing found:** the confirmation says so, and the character is revived without
-  belongings rather than not at all.
-- **The search failed:** the confirmation says so, and recovery looks again on its own.
+`CorpseChunkReader` parses a chunk by structure: header, length and CRC32 (`recovery-invalid-chunk` on a
+mismatch), squares, objects, corpse lists, erosion data and tail. A byte sequence that looks like a corpse
+inside a bag or a ground item is never taken for one. A corpse record carrying multiplayer data refuses
+with `recovery-singleplayer-only`; animal corpses are skipped.
 
-Recovery then edits only the remains you chose. It reads only that file again, and
-refuses with `recovery-remains-changed` if the file is no longer exactly as it was
-when the list was made. Without a choice (the worker run directly), the only candidate
-is used; several are refused as ambiguous and none as `recovery-inventory-unavailable`.
+### Matching
 
-### How the remains are identified
+`CharacterIdentity.Matches` compares the dead player's record with each record, strongest evidence first:
 
-Four kinds of evidence are used, strongest first:
+| Rule | Applies to | Match |
+| --- | --- | --- |
+| Recovery id | Either side has `pztools.recovery.id` | Both have it and it is equal. If only one side has it, nothing weaker is tried. |
+| Name | A corpse that was not a zombie, both named | Same sex, same name, same stable appearance. Position is not compared, so a moved corpse matches. |
+| Death position | Otherwise (zombies, nameless records) | Same sex, distinctive appearance on both sides, the exact saved death position, and the full visual data except the rot stage and skin texture number |
+| Lookalike | Zombies in `reanimated.bin`, only when no record matched above and neither side has a recovery id | Same sex and the same lasting appearance (hair and skin colour, hair and beard style, body hair), wherever the zombie walked |
 
-1. **Recovery ID.** A saved `pztools.recovery.id` UUID matches the player to the
-   remains, even if the zombie has wandered off or the body's appearance has changed.
-   If one side has a conflicting or missing UUID, weaker matching is not tried
-   instead. If several remains match, recovery stops.
-2. **Named corpse.** Older player corpses that still carry a name can match on the
-   saved name, sex and persistent appearance fields. Such a corpse can be matched even
-   if it was moved from where the character died.
-3. **Nameless zombie.** Older reanimated records lose their name. They need
-   distinctive full visual data inherited from the character, the same sex, and the
-   exact saved death position. Two visual fields are ignored because the game rewrites
-   them when the character rises: the rot stage, and the skin texture number, which
-   the game fits to the shorter list of zombie skins (a woman's human skin 4 becomes
-   zombie skin 3).
-4. **Lookalike player zombie.** Only when rules 1–3 find nothing, and neither side has a
-   recovery ID: a zombie in `reanimated.bin` with the same sex and the same lasting
-   appearance (hair and skin colour, hair and beard style, body hair), wherever it has
-   walked. The game keeps only the save's player zombies in that file, so the
-   candidates are the world's earlier characters. The dead player's record keeps no
-   clothing, so two characters made from the same preset both match; that is why the
-   user chooses. Corpses in map chunks are never matched this way: every killed zombie
-   leaves one there, and random zombies share the game's few hair and skin colours.
+The game rewrites the rot stage and the skin texture number when the character rises; the skin number is
+fitted to the shorter zombie skin list (a woman's human skin 4 becomes zombie skin 3). The player record keeps
+no clothing, so two characters made from the same preset both match as lookalikes; the player chooses.
+Corpses in map chunks are never matched by look, because every killed zombie leaves one and random zombies
+share the game's few hair and skin colours. A zombie is never chosen for being near. An ID card is an ordinary
+item and plays no part.
 
-A character who died while PZ Tools was not connected to the game (before it was
-installed, or with versions up to v0.1.0, which stamped only at a backup) has no
-recovery ID, so their remains are found by rules 2 to 4.
+A candidate's key is `<relative path>|<record offset>|<SHA-256 of the file>`. Only `reanimated.bin` and
+canonical `map/<x>/<y>.bin` paths are accepted in a key.
 
-A zombie is never chosen just because it is nearby.
+### Applying the choice
 
-### What is copied
+`FindAsync` opens the chosen file for read and write, sharing only delete, re-reads it, and refuses with
+`recovery-remains-changed` if its hash differs, the record is not at that offset, or it no longer matches by
+the rule that listed it. With no key it uses the only candidate, refuses several as
+`recovery-inventory-ambiguous`, and none as `recovery-inventory-unavailable`.
 
-- Opaque item groups, instance IDs, stack counts, condition, the contents of bags
-  inside bags, and modded item fields are copied byte for byte.
-- Vanilla wound-overlay items are left out, and the indices of worn items are remapped.
-- Metadata of items in attached slots and the original hotbar data are kept.
-- Saved hand-item IDs put the exact recovered items back in the character's hands,
-  when they are available.
+- **Removing the remains.** From a chunk: the record, the corpse count, the chunk length and the CRC32 change.
+  From `reanimated.bin`: the record and the zombie count. The result is parsed again before use. Other chunks,
+  objects and zombies are not changed.
+- **Moving the items** (`RemainsFormat.RestoreInventory`). Item groups are copied byte for byte: instance
+  ids, stack counts, condition, nested containers, modded fields. Vanilla wound-overlay items
+  (`Base.Wound_*`) are left out and worn-item indices remapped. Duplicate item ids refuse as
+  `recovery-inventory-ambiguous`.
+- **Hands.** The stamped hand-item ids put the same items back in the character's hands. Without them the hands
+  stay empty; attached-slot data in the items is kept.
+
+<a id="the-identity-stamp"></a>
+## The identity stamp
+
+The [game bridge](game-bridge.md) writes reserved keys into the living player's modData. The game copies
+modData from the player to the corpse and to the zombie in memory, which is what lets the id find the remains
+later.
+
+| Key | Holds | Written |
+| --- | --- | --- |
+| `pztools.recovery.id` | A UUID for the character | By the observer, and before a backup's save |
+| `pztools.recovery.primary` | Instance id of the primary-hand item, or -1 | Before a backup's save |
+| `pztools.recovery.secondary` | Instance id of the secondary-hand item, or -1 | Before a backup's save |
+
+- **Observer** (`LiveCharacter`, `RecoveryStamp.IdentityWriter`). While the state stream is connected and there
+  is exactly one local player, a living player object not yet seen with a valid id is checked at most every
+  2 s, and gets an id if it has none. After that the per-frame cost is one reference comparison. A new
+  character has an id within seconds, without a save.
+- **Before saving** (`RecoveryStamp.record`). Right before `GameWindow.save(true)`, the id is kept or created
+  and the hand items recorded as they are at that save. Probe requests do not stamp.
+
+A dead or missing player is not stamped, and an existing valid id is never replaced; an unreadable value is
+replaced by a new one. A failed observer write only leaves the id missing. A failed stamp before a save is
+reported as `recovery-metadata-unavailable` in the save's detail; the save still runs.
+
+Only player one (`IsoPlayer.getInstance()`) is stamped, and the observer reads the character only with one
+local player. Split-screen characters therefore have no id and are matched by name, position or appearance. A
+character who died before PZ Tools was watching the game has no id either.
+
+<a id="writing-the-changes"></a>
+## Writing the changes
+
+| Edit | Publishing |
+| --- | --- |
+| `players.db` only (healing, or revival without belongings) | One `File.Replace` of the staged database over the original |
+| `players.db` and one world file | `SaveFileEditTransaction.CommitAsync` |
+
+The transaction uses a journal folder `.<save>.pztools-file-edit` beside the save:
+
+1. Each new file is copied into the journal and flushed. A map path is stored under the SHA-256 of its name
+   plus `.data`, so the journal stays flat.
+2. `manifest.json` (version 2) lists each file with its hash before and after, written to `manifest.tmp`,
+   flushed and renamed. The rename is the commit point; cancellation is honoured only before it.
+3. Each file is installed by copying the payload to `install.tmp` and `File.Replace` over the original. The
+   journal is then deleted.
+
+If installing fails after the commit point, the journal stays and the worker reports `save-edit-pending`.
+Roll-forward (`SaveFileEditTransaction.RecoverAsync`) runs at app start (`InterruptedOperationRecoveryService`)
+and before a restore or a recovery of that save. It opens `players.db` exclusively as the game's lock, then
+for each file: the "after" hash means installed, the "before" hash means install it, anything else is
+`save-edit-conflict` and nothing is overwritten, since the game may have changed the file since. A backup of a
+save with a pending journal refuses with `save-edit-pending`, and orphan cleanup leaves it alone.
+
+Journal names are validated: at most 32 files, no duplicates, only plain file names or `map/<x>/<y>.bin`, no
+reparse points anywhere on the path. Version 1 journals, with root-level files only, are still read. Every
+path the worker touches is refused if it or a parent folder is a reparse point (`recovery-linked-path`).
+
+## Error codes
+
+The worker's failure message is the code; `UserFacingErrorCatalog.FromProcessError` picks the message. An
+`InvalidDataException` whose message is not a `recovery-` code becomes `recovery-unsupported-format`, and a
+sharing-violation `IOException` becomes `recovery-save-busy`.
+
+| Code | Cause | Message key |
+| --- | --- | --- |
+| `recovery-save-busy` | The game or another operation holds the save, or a restore journal exists | `RecoveryError.Busy` |
+| `recovery-pending-journal` | A non-empty SQLite journal beside `players.db` | `RecoveryError.Journal` |
+| `recovery-singleplayer-only` | A `Multiplayer` save, network players, a networked corpse | `RecoveryError.Ambiguous` |
+| `recovery-ambiguous-character` | Several characters and none chosen | `RecoveryError.Ambiguous` |
+| `recovery-character-missing` | The chosen character is gone | `RecoveryError.CharacterChanged` |
+| `recovery-remains-changed` | The chosen remains changed since the list | `RecoveryError.RemainsChanged` |
+| `recovery-inventory-unavailable`, `recovery-inventory-ambiguous` | No remains, several without a choice, or duplicate item ids | `RecoveryError.Inventory` |
+| `recovery-unsupported-format`, `recovery-invalid-chunk`, `recovery-unsupported-dictionary`, `recovery-invalid-database`, `recovery-no-character`, `recovery-validation-failed`, `recovery-linked-path` | The save is not in the supported format, is damaged, or is linked | `RecoveryError.Unsupported` |
+| `save-edit-pending`, `save-edit-pending-database-journal` | An earlier edit is unfinished | `RecoveryError.PendingEdit` |
+
+`save-edit-conflict` and `save-edit-invalid-journal` are `InvalidDataException`s, so the worker currently
+reports them as `recovery-unsupported-format`, and the player sees `RecoveryError.Unsupported` rather than
+`RecoveryError.PendingEdit`.
+
+Every refusal before publishing leaves the save unchanged.
 
 ## Limits
 
-- **One game format.** Only Build 42 world version **249** is supported. It is checked
-  against the locally installed 42.20.4 game classes and the MIT-licensed pzdataspec
-  world-249 schemas.
-- **Refused before any edit:** other versions, several local characters with none
-  chosen, a chosen character that is gone, chosen remains that changed since the list,
-  network players, malformed records, linked paths and pending SQLite journals.
-- **Split screen gets no recovery ID.** The runtime observer reads the character only
-  when the game has exactly one player, and the save-time stamp writes only player one.
-  Split-screen characters are therefore matched by name, death position and appearance
-  (rules 2 to 4). Two of them made from the same preset can each see the other's zombie
-  offered as a candidate; the choice in the confirmation still lets the user pick.
-  Recovery itself handles split-screen saves: the confirmation asks which character,
-  then looks for that character's remains, again whenever the choice changes.
-- **Lost items stay lost.** Items that are missing, were dropped elsewhere, looted or
-  destroyed are not recreated.
-- **Old saves.** Saves made without hand-item IDs need the items re-equipped by hand.
-  A zombie from an older save with no recovery ID that has already wandered away may
-  not be identifiable. Updating PZ Tools cannot mark such a zombie after the fact.
-- **No new thumbnail.** Recovery does not regenerate `thumb.png`.
-- **Not tried in the real game.** Automated tests do not load an edited save in the
-  actual game. Visual equipment behaviour, future formats and unsupported mod
-  serialization still need separate acceptance (see [verification](#verification)).
+- **One format.** Only world version 249, checked against the 42.20.4 game classes and the MIT-licensed
+  [pzdataspec world 249](https://github.com/cff29546/pzdataspec/tree/main/data_spec/spec/249) schemas
+  ([third-party notices](../../THIRD_PARTY_NOTICES.md)). No game classes or third-party parser are shipped.
+- **Lost items stay lost.** Items dropped elsewhere, looted or destroyed are not recreated.
+- **Old deaths.** A zombie with no recovery id that has walked away may not be identifiable; updating PZ Tools
+  cannot mark it afterwards. Saves without hand-item ids need items re-equipped by hand.
+- **No new thumbnail.** `thumb.png` is not regenerated.
+- **Not tried in the real game.** Automated tests do not load an edited save in the game. Visual equipment,
+  future formats and unusual mod serialisation need separate acceptance.
 
-## How it works inside
+## Tests
 
-### Keeping other jobs out
-
-The worker takes the save-operation mutex and opens `players.db` exclusively, allowing
-only deletion (so the file can be replaced atomically). Repository and save mutexes
-prevent recovery, backup and restore from changing the same data at the same time.
-
-Parsing checks complete record boundaries. No game classes, private save data or
-third-party runtime parser are distributed with PZ Tools.
-
-### Reading map files
-
-Map files are parsed by their structure, not searched for isolated byte patterns.
-
-- A first filter on name, position and UUID may skip a chunk that cannot contain a
-  match. Every hit must then pass the structural chunk parser and the length and CRC32
-  checks.
-- The parser walks through tiles, erosion data, length-delimited object data, corpse
-  lists and the chunk tail. A byte sequence that looks like a corpse inside a bag or a
-  ground item is therefore not taken for a corpse.
-- Removing the remains changes only the selected record, the list's count and the
-  chunk's length and checksum. Other chunks, objects and zombies are left unchanged.
-
-### The identity stamp on future saves
-
-To make later recoveries reliable, the [game bridge](game-bridge.md) writes three
-reserved keys into the player's modData on the game thread:
-
-| Key | Holds |
-| --- | --- |
-| `pztools.recovery.id` | A stable ID for the character |
-| `pztools.recovery.primary` | The instance ID of the item in the primary hand |
-| `pztools.recovery.secondary` | The instance ID of the item in the secondary hand |
-
-They are written at two moments:
-
-- **While the game is being watched.** The runtime observer, which already reads the
-  character each frame for the game-link status, looks at a living player it has not
-  yet seen with an ID, at most every two seconds, and writes one if there is none. Once
-  that player has an ID it is not looked at again. A new character therefore has an ID
-  within seconds, long before a death is likely, and no save is needed: the game
-  copies the player's modData to the corpse and the zombie in memory. Hand items are
-  not written here.
-- **Immediately before a backup's `GameWindow.save(true)`.** The ID is kept (or created)
-  and the hand items are recorded, as they are at that save.
-
-The hand keys store item instance IDs, not item types or ordinals. The game carries
-modData over when a player becomes a corpse or a zombie, which is what lets the ID
-find the remains later. When there is no player, or the player is dead, nothing is
-written, so no new identity is created; an existing ID is never replaced.
-
-The stamp is optional metadata. If the observer's write fails, only the ID is missing.
-If stamping before a save fails, the bridge result reports
-`recovery-metadata-unavailable`, but `save(true)` still runs and backup capture still
-waits for it to finish. Probe-only requests do not stamp. The stamp adds no timer,
-thread or JVM retransformation of its own; once the player has an ID, the observer's
-check is one reference comparison per frame, and the game methods it needs are looked
-up once. Characters that were never stamped keep using the stricter rules for older
-remains described above.
-
-### Writing the changes
-
-All preparation, and the SQL integrity and idempotence checks, run on a staging copy.
-
-- **Healing only** (including revival without inventory recovery) replaces
-  `players.db` alone, in one atomic file replacement.
-- **Inventory recovery** also replaces one reanimated file or one map chunk. All
-  replacement bytes and before/after hashes are written durably first; then a commit
-  manifest is published.
-
-Cancellation is honoured until that commit decision. If publishing is interrupted
-after it, a roll-forward journal is left for recovery at startup. That recovery checks
-every current file against the journal's hashes and refuses to overwrite changes the
-game has made since. Do not load the save while such a journal is pending.
-
-Journal version 2 adds canonical nested map paths while keeping the payload files in a
-flat folder. Pending version 1 journals, which have root-level files only, can still be
-read. Path traversal, alternate data streams, non-canonical chunk paths, reparse-point
-parent folders and colliding payload names are rejected. The guards on the original
-files stay held through publication.
-
-When recovery completes, its staging and journal files are removed. No extra permanent
-backup is kept, and existing backup history is not touched.
-
-## Verification
-
-Focused Windows tests cover:
-
-- health and traits
-- a lone character that is not number 1, choosing one of two characters, and a chosen
-  character that is gone
-- inventory recovery without an ID card
-- stamped zombies that have moved
-- a nameless zombie whose skin texture number the game changed
-- a lookalike player zombie that walked away, a choice between two lookalikes, proven
-  remains hiding lookalikes, killed-zombie corpses never matched by look, chosen
-  remains that changed since, and reviving without belongings
-- hand-item IDs
-- named corpses
-- byte-exact bags and items
-- duplicate identities
-- corpse-like decoy data embedded in opaque data
-- CRC errors and truncation
-- repeated recovery
-- path confinement
-- interrupted publication of a chunk together with the player
-
-The tests check behaviour and bytes, not how the source code is spelled. The synthetic
-Java game checks that a stable stamp is written by two required saves. The existing
-save, backup, restore, cancellation and failure tests remain.
-
-Copy-only checks also used real-save samples and an adapted corpse fixture. None of
-this loaded an edited save in the actual game. Visual equipment behaviour, future
-formats and unsupported mod serialization still need separate acceptance.
-
-Reference schemas: [pzdataspec world 249](https://github.com/cff29546/pzdataspec/tree/main/data_spec/spec/249).
-See [third-party notices](../../THIRD_PARTY_NOTICES.md) for attribution.
+[`CharacterRecoveryTests`](../../tests/PzTools.Backup.Tests/CharacterRecoveryTests.cs),
+[`CorpseResurrectionTests`](../../tests/PzTools.Backup.Tests/CorpseResurrectionTests.cs) and
+[`SaveFileEditTransactionTests`](../../tests/PzTools.Backup.Tests/SaveFileEditTransactionTests.cs) cover
+healing that keeps traits and unknown mod data, character choice, remains matching (moved and renumbered
+zombies, lookalikes, decoy bytes), byte-exact item moves, malformed and truncated data, failure leaving the
+original unchanged, and interrupted publication. They check behaviour and bytes on temporary copies, never
+the user's saves.

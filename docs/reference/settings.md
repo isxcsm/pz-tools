@@ -1,275 +1,164 @@
-# Configuration
+# Settings
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
+[Documentation index](../README.md)
 
-This page lists PZ Tools' settings: where they are stored, their defaults and allowed
-values, and which one wins when the same choice is made in more than one place. For
-everyday use the app's Settings screen is enough. The files described here are for
-fine-tuning, and for running the [command-line tools](command-line.md) without the app.
+Every setting on the app's **Settings** page, in the order the page shows them. There is
+no Save button: a change is saved about half a second after your last edit, and a folder
+typed into a box is saved when you leave the box. The TOML files behind **Advanced** are
+described in [advanced settings](advanced-settings.md).
 
-Tuning values for each background program (timeouts, buffers, polling) are on a
-separate page: [advanced component settings](advanced-settings.md).
+Some switches need the running game. While the game cannot be reached, those switches are
+locked and their description ends with "Not applied right now because the game cannot be
+reached." Your choice is kept and applies again once the game can be reached.
 
-## Where settings live
+## Version
+
+The section header shows the installed version (for example `v1.2.3`) and one of: **Up to
+date**, **New version out: …**, **Not checked yet**, **Checking…** or **Could not check.
+Check the internet connection.**
+
+| Setting | Default | What it does | Takes effect |
+| --- | --- | --- | --- |
+| **Check for updates** | | **Check now** asks GitHub for the latest release. When a newer one is known, **Get it** opens its release page in your browser. Nothing is downloaded or installed by the app. | At once |
+| **Download page** | | **Open** opens the releases page in your browser. | At once |
+| **New version notice** | On | While on, the app checks about 20 seconds after it starts and then every hour, and shows a newer version in the sidebar. Off stops the automatic checks; **Check now** still works. | At once |
+
+## Appearance and behavior
+
+| Setting | Default | Choices | What it does | Takes effect |
+| --- | --- | --- | --- | --- |
+| **Language** | Your Windows display language if the app has it (or its nearest variant), English otherwise | The 18 app languages, listed by their own names | Language of the app, of new backup names and of the in-game save notices. Untranslated text appears in English. | At once |
+| **Theme** | **System** | **System**, **Light**, **Dark** | **System** follows the Windows light or dark mode. | At once |
+| **System tray** | Off | On, Off | On: closing the window hides PZ Tools next to the taskbar clock and it keeps running. To quit, right-click its icon and choose **Exit**. Off: closing the window asks whether to exit. | At once |
+
+## Folders
+
+Each folder has a text box, **Browse** to pick a folder and **Open folder** to show it in
+File Explorer. **Open folder** opens what the box shows; a folder that does not exist is
+reported, not created.
+
+| Setting | Default | What it is |
+| --- | --- | --- |
+| **Save folder** | `%USERPROFILE%\Zomboid\Saves` | Where Project Zomboid keeps its saves. |
+| **Backup folder** | `%USERPROFILE%\Zomboid\Backups` | Where PZ Tools keeps its backups. |
+
+A new folder is used as soon as it is saved. PZ Tools does not move backups that are
+already in the old folder. While a backup, restore or other operation is running, the
+change is refused with "Try again when the current work is done." If the new folder
+cannot be used, the previous folders are restored and the app says "This folder cannot be
+used, so the previous settings are back."
+
+## Backup
+
+| Setting | Default | Range | What it does | Takes effect |
+| --- | --- | --- | --- | --- |
+| **Automatic backups** | On | On, Off | Backs up the save you are playing at the set interval. When your character dies, automatic backups stop until you start a new character. Manual backups work either way, and turning this off keeps the interval. | At once (saved without the half-second wait). Turning it on starts a new interval. |
+| **Backup interval** | 5 minutes | 1–60 minutes | Time between automatic backups. | At once. Changing it restarts the count. |
+| **Delay scheduled backups while paused or asleep** | On | On, Off | While the game is paused or your character is asleep, the remaining time stops and resumes when you play again. Off: backups run at every interval regardless. If the game cannot report sleep, only pausing applies. Needs the game. | At once |
+| **Automatic backups to keep** | 20 | 1–100 | Keeps this many of the newest automatic backups of each save and deletes older ones. Manual backups are not counted and are not deleted by this setting. | At the next background cleanup, not instantly. Disk space comes back in batches; see [repository housekeeping](../design/repository-housekeeping.md#when-disk-space-comes-back). |
+| **Back up when the character dies** | Off | On, Off | Makes one backup right after your character dies. Available only while **Automatic backups** is on. Needs the game. | At once |
+| **Save game before backup** | On | On, Off | Saves the game right before each backup so it holds your latest progress. The game may hitch for about half a second. Off: progress since the game last saved is left out of backups, and the card turns to a warning colour. Needs the game. | From the next backup |
+| **In-game save countdown** | On | On, Off | Before an automatic backup saves the game, shows a countdown above your character from 5 seconds before, then the result. Off: the game is still saved, without the notices. A backup started from the app saves at once and never shows them. Available only while **Save game before backup** is on. Needs the game. | From the next backup |
+
+## Game
+
+The game's own launch settings. They are written into the game's
+`ProjectZomboid64.json` in the game folder, not into PZ Tools' settings.
+
+| Setting | Default | Choices | What it does | Takes effect |
+| --- | --- | --- | --- | --- |
+| **Game memory** | **Game default (…)**, the game's own value | 4, 6, 8, 12, 16, 24 or 32 GB, up to half of this PC's memory. 6 GB is marked **(recommended)** on a PC with 16 GB or more, 8 GB on one with 32 GB or more. | The most memory the game may use. Give it more if it stutters often with many mods. | From the game's next start. A game started from a `.bat` launch script sets its own memory and ignores this. |
+
+While the list is open, the size the running game was started with is marked
+**· running**. The card says when the game folder was not found (start the game once),
+when the game's file is not as expected (it is left alone), or when a game update undid
+your choice (choose it again). See [more game memory](../guides/more-game-memory.md).
+
+## Performance
+
+The game can keep its last few minutes of performance data, so a stutter can be saved
+after it happened. See [find a laggy mod](../guides/find-a-laggy-mod.md).
+
+| Setting | Default | Range | What it does | Takes effect |
+| --- | --- | --- | --- | --- |
+| **Keep the last minutes** | Off | On, Off | While on, the game keeps its last few minutes whenever it runs. Standard mode costs the game almost nothing. | At once |
+| **Mode** | **Standard** | **Standard**, **Detailed** | **Detailed** shows more but slows the game by about 20% for as long as it is on. | At once |
+| **Length (minutes)** | 2 | 1–10 | How many minutes are kept. A longer window costs the game the same, only more disk. | At once |
+
+## Hotkeys
+
+Key combinations for app actions that also work while the game has focus. While PZ Tools
+runs, a combination set here is taken from every other program. Each press answers with a
+Windows sound and a short note over your character's head; both can be turned off in
+[advanced settings](advanced-settings.md#app).
+
+| Action | Default key | What it does |
+| --- | --- | --- |
+| **Save last minutes** | `Ctrl+Shift+F9` | Saves the minutes the game has kept as a recording. Its key is taken only while **Keep the last minutes** is on. |
+| **Start/stop performance recording** | None | Starts a recording in the mode set on the Performance page; press again to stop it. |
+| **Switch recording mode (Standard/Detailed)** | None | Switches the next recording between Standard and Detailed. A recording under way keeps its mode. |
+| **Keep last minutes on/off** | None | Turns **Keep the last minutes** on or off. |
+| **Manual backup** | None | Backs up the save you are playing, right away. |
+| **Automatic backups on/off** | None | Turns **Automatic backups** on or off. It stays that way until you change it again. |
+| **Show status** | None | Shows the time to the next backup, the last backup and what is being recorded, over your character. |
+
+To set a key, click the action's key button and press the combination; **Esc** cancels.
+The button beside it clears the key. A combination is refused when:
+
+| Message | Why |
+| --- | --- |
+| "Press it with Ctrl or Alt." | Letters, digits and other typing keys need Ctrl, Alt or Win. F1–F24, Pause and Scroll Lock may be used alone. |
+| "This key cannot be used." | Only letters, digits, F1–F24, the number pad, arrows, Insert, Delete, Home, End, Page Up, Page Down, Pause and Scroll Lock can be used. |
+| "Already used by another action." | Each combination can belong to one action. |
+| "Used by another program." | Another program holds it. A key set earlier that another program has since taken shows this in its description. |
+
+Hotkeys take effect at once.
+
+## Advanced
+
+| Setting | Button | What it does |
+| --- | --- | --- |
+| **Open configuration files** | **Open folder** | Opens `%LOCALAPPDATA%\PzTools\config`, which holds the advanced settings files. |
+| **Apply changes** | **Apply settings and restart** | Checks the edited files and restarts the app. Any running operation must finish first. |
+| **Reset advanced settings** | **Restore default settings** | Keeps a copy of the current files, restores the advanced defaults and restarts the app. The settings on this page, your saves and your backups are not changed. |
+
+What the files contain and how applying works is in
+[advanced settings](advanced-settings.md).
+
+## Where settings are stored
+
+The choices on this page are kept in `%LOCALAPPDATA%\PzTools\settings.toml`. PZ Tools
+rewrites the whole file each time a setting changes, so edit it by hand only while the
+app is closed.
+
+| Section | Keys | Setting |
+| --- | --- | --- |
+| `[ui]` | `language`, `theme`, `system_tray`, `check_updates` | **Language**, **Theme**, **System tray**, **New version notice** |
+| `[paths]` | `saves_root`, `backup_root` | **Save folder**, **Backup folder** |
+| `[backup]` | `automatic_enabled`, `interval_minutes`, `pause_periodic_during_game`, `retained_revisions`, `backup_on_death`, `save_game_before_backup`, `game_save_countdown` | The **Backup** section, in page order |
+| `[logs]` | `minimum_level`, `display_limit` | Not used by the current Logs page, whose filters last only while it is open |
+| `[profiler]` | `rolling_enabled`, `rolling_detailed`, `rolling_minutes` | The **Performance** section |
+| `[hotkeys]` | `save_last`, `record`, `record_mode`, `rolling_toggle`, `manual_backup`, `backup_toggle`, `status` | The **Hotkeys** section; `""` means none |
+
+`language` holds a locale code such as `en-US`, `ko-KR` or `ja-JP`. A hotkey that is not a
+valid combination is read as none. If two actions have the same combination, the action
+listed later in the table above loses it.
+
+Other files beside `settings.toml`:
 
 | File | What it holds |
 | --- | --- |
-| `%LOCALAPPDATA%/PzTools/settings.toml` | The choices you make in the app (UI preferences) |
-| `%LOCALAPPDATA%/PzTools/config/<component>/default.toml` | Advanced settings, one file per [component](../design/glossary.md#component) |
-| `defaults/<component>/default.toml` in the app folder | Packaged defaults, read-only |
-| `%LOCALAPPDATA%/PzTools/extensions/` | Game-extension choices (`settings.json`) and an optional tuning override per extension; packaged defaults are in `game-bridge/extensions/` in the app folder. See [game extensions](../design/game-extensions.md) |
-
-Workflows, schedules and recorded logs are stored in databases, not in these files.
-
-The app creates 14 component TOML files, with English keys and comments. Changing the
-UI language does not rewrite them, update their comments or insert missing keys.
-
-To edit a component file:
-
-1. In Settings, use **Open folder** to find the files.
-2. Edit the file and save it.
-3. Use **Apply settings and restart**.
-
-**Restore default settings** (under *Reset advanced settings*) moves the current `config` directory into `config-backups` and
-recreates the templates. Your UI choices are kept.
-
-## Which setting wins
-
-The backup worker reads `config/backup-worker/default.toml`, unless `--config` selects
-another file. From lowest to highest priority:
-
-1. Code defaults
-2. The TOML file
-3. The same choice made in the app, where the app offers it
-4. Options given explicitly on the command line
-
-Relative source paths in that TOML file are resolved against the file's own folder.
-
-Other components merge, in this order: the packaged `defaults/<component>/default.toml`,
-the central `config/<component>/default.toml`, overlapping app settings, and an explicit
-`--config`. The central file is shared by every run of that component in one
-installation.
-
-A parent process does not pass its settings on to the processes it starts. BackupRunner
-and MaintenanceRunner take `--worker-config` to override their child worker's settings
-explicitly; see [the command line](command-line.md#runners-schedulers-and-archives).
-
-## App settings
-
-These live in `settings.toml` and are normally changed from the Settings screen.
-
-| Setting | Default | Behaviour |
-|---|---|---|
-| `[ui].system_tray` | `false` | When enabled, closing the window hides it in the tray. Restore or exit through the tray menu. Exit asks for confirmation and stops the scheduler. |
-| `[ui].check_updates` | `true` | About once an hour while the app runs, asks GitHub for the latest release; a newer one shows as one line in the sidebar (a dot on the settings icon while the menu is folded) until the app is updated. What the last check found is kept in `update.json` beside `settings.toml`; deleting that file only makes the next check ask again. |
-| `[backup].automatic_enabled` | `true` | Turns automatic backups on or off, independently of the interval, death-backup and save-before-backup preferences. |
-| `[backup].interval_minutes` | `5` | Integer from 1 through 60. Editing it does not turn automatic backups on. |
-| `[backup].pause_periodic_during_game` | `true` | Keeps the remaining interval while the game is paused, the player is asleep, or the game's state is unknown, and resumes counting afterwards. See [game-aware timing](../design/runtime-pause-backups.md). |
-| `[profiler].rolling_enabled` | `false` | *Keep the last minutes*: the game holds its last few minutes, for *Save last minutes* to turn into a recording. See [the last minutes](../design/profiler.md#the-last-minutes). |
-| `[profiler].rolling_detailed` | `false` | Keeps them in Detailed mode instead of Standard. |
-| `[profiler].rolling_minutes` | `2` | How many minutes are kept, 1 through 10. |
-| `[hotkeys].save_last` | `"Ctrl+Shift+F9"` | Key combinations that work inside the game, empty for none: `save_last`, `record`, `record_mode`, `rolling_toggle`, `manual_backup`, `backup_toggle` (automatic backups on or off) and `status`. Only `save_last` has one at first; one combination for two actions is dropped. See [hotkeys](../design/profiler.md#hotkeys). |
-
-The game's memory is not kept here: it is in the game's own launcher file, and the choice
-in `game-memory.json` beside `settings.toml`. See [game memory](../design/game-memory.md).
-
-Turning automatic backups off keeps the chosen interval. It does not stop manual
-backups or backups that have already started. Turning them back on checks the current
-play state and starts a new interval.
-
-Settings files from older versions have no `automatic_enabled` key. In those files
-`interval_minutes = 0` means automatic backups are off, and five minutes is kept as the
-interval. Reading such a file does not rewrite it; the next time settings are saved,
-both fields are written. Once `automatic_enabled` is present, an interval of zero or of
-the wrong type is an error.
-
-### Stored logs
-
-Two keys in `config/app/default.toml` decide which log entries are stored:
-
-| Key | Default | Allowed values |
-|---|---|---|
-| `[logs].record_minimum_level` | `"Information"` | `Trace`, `Information`, `Warning`, `Error`, `Critical` |
-| `[logs].max_entries` | `100000` | 10000 to 500000 |
-
-The level and count filters on the Logs screen change only what is displayed. Entries
-discarded by `record_minimum_level` cannot be brought back by changing a filter.
-
-## Backup worker settings
-
-The generated `config/backup-worker/default.toml` template includes:
-
-```toml
-format_version = 1
-
-[capture]
-save_game_before_backup = true
-game_save_countdown = true
-always_include = ["players.db", "vehicles.db", "thumb.png"]
-full_scan_hash_comparison = true
-
-[storage]
-checksum = "auto"
-compression = "auto"
-compression_level = 3
-content_deduplication = false
-verify_staged_copies = true
-
-[telemetry]
-enabled = true
-mode = "phase"
-batch_size = 256
-flush_interval_ms = 250
-retain_runs = 100
-max_database_mib = 64
-```
-
-These are the template's values. A custom TOML file that leaves out telemetry fields
-gets the engine's fallback values instead: `raw` mode, 1,000 runs and 256 MiB. Run
-`config show` to see the settings actually in effect.
-
-### Saving the game first
-
-`save_game_before_backup` asks the game to save before files are captured, when the
-game integration is used. Turned off, only data already on disk is backed up.
-
-`game_save_countdown` controls the in-game notices before an automatic backup saves the
-game: a countdown, then the result. Automatic backups keep their scheduled deadline
-either way. A backup started from the app shows no notices and saves at once: whoever
-started it is looking at the app, not the game. Turned off, the game is still asked
-to save.
-
-Changes apply from the next backup. The app's own switches for both settings take
-priority; see [game bridge](../design/game-bridge.md#settings).
-
-### Which files are captured
-
-`always_include` recaptures the listed paths (relative to the save folder) in every
-backup, even when the [USN journal](../design/glossary.md#usn-journal) or a full comparison
-reports no change. A file on the list that was stored before and is now missing is
-recorded as deleted (a tombstone) once its absence is confirmed. Leaving the key out
-uses the same default list; an explicit `[]` turns the extra capture off.
-
-`full_scan_hash_comparison` applies when the USN journal is unavailable. It reads file
-contents and compares their SHA-256 with the previous backup, including files whose
-size and times match. A file with no comparison fingerprint yet is captured once to
-establish a baseline. The repository stores these fingerprints as the first 16 bytes of
-SHA-256 ([repository format](../design/repository-format.md)); a full SHA-256 integrity checksum
-can also serve as the baseline.
-
-On a local NTFS drive, a file whose size, times, attributes and identity match the
-previous backup is not read again if it was last written more than two seconds before
-the run that made the save's newest backup began. There, a file's last-write and change
-times move with every write, also while the game keeps the file open. A write in the
-same instant as the previous backup's look at the file can keep the old time, so files
-written around or after that run are still compared. On other drives (FAT, exFAT,
-network shares) every such file is compared. See
-[USN journal](../design/usn-journal.md#when-it-is-used) for when this fallback happens.
-
-Turning `full_scan_hash_comparison` off does not affect `always_include`, existing
-fingerprints or integrity checksums.
-
-### Checking copies
-
-`verify_staged_copies` checks each private copy with SHA-256 and retries reads of files
-that keep changing ([stable capture](../design/glossary.md#stable-capture)). With it off, staging
-and metadata checks remain but content consistency checks are reduced. Keep it on for
-saves that are being played.
-
-Capture defaults, set in the `[runtime]` section:
-
-| Limit | Default |
-|---|---|
-| Parallel file readers | 4 |
-| Files in flight | 8 |
-| Staging memory pool | 4 MiB |
-| Staging slot size | 256 KiB (so 8 files × 256 KiB = 2 MiB of staging is actually used) |
-| Full-scan hash batch | 16 files, at most 4 readers |
-
-See [stable capture](../design/stable-capture.md) and
-[advanced component settings](advanced-settings.md) for the allowed ranges.
-
-### Checksums and compression
-
-| Key | Values | `auto` means |
-|---|---|---|
-| `checksum` | `auto`, `none`, `xxhash64`, `sha256` | XxHash64 |
-| `compression` | `auto`, `none`, `brotli` | Brotli |
-
-`compression_level` (1 to 11, default 3) sets how hard Brotli compresses new data. On a
-save's 10,733 files (78 MB), level 1 stored 14.4 MB in 0.4 s, level 3 12.6 MB in 0.9 s
-and level 4 12.2 MB in 1.6 s, on one core; from level 5 the size hardly changed while
-the time kept growing. An ordinary backup compresses only the files that changed. Pack
-compaction recompresses the objects it moves at the default level.
-
-`content_deduplication = true` requires `checksum = "sha256"`. Without it, a changed file
-whose bytes equal what its path already stores still reuses that copy; see
-[repository format](../design/repository-format.md#paths-and-objects).
-
-### Backup names
-
-New backups are named in the selected app language; in English, `Manual backup N` and
-`Automatic backup N`. Existing names do not change when the language changes.
-
-App `[ui].language`, worker `[naming].language` and CLI `--name-language` accept the
-[supported locale codes](../contributing/localization.md), including `en-US`, `ko-KR` and `ja-JP`. The
-values `Korean` and `English` from older files are still read.
-
-## Retention and cleanup
-
-The app decides how many automatic backups to keep ([retention](../design/glossary.md#retention)).
-Manual backups and backups of unknown origin do not count towards it. They can still
-be deleted explicitly, and they are covered by the separate cleanup for save folders
-confirmed missing ([orphan backups](../design/glossary.md#orphan-backups)).
-
-Maintenance rewrites mostly unused pack files while the game is closed. The maintenance
-TOML holds diagnostics and bounded maintenance controls; see
-[repository housekeeping](../design/repository-housekeeping.md).
-
-[Telemetry](../design/glossary.md#telemetry) retention is separate from backup retention:
-
-- `enabled = false` turns recording off.
-- A `retain_runs` or `max_database_mib` of zero turns that limit off.
-- The size limit measures used database pages, not the size of the file on disk.
-
-See [telemetry](../design/telemetry.md) for the modes and what happens on failure.
-
-The app owns the backup schedule. The state scheduler's `[scheduler].interval_seconds`
-is used only when `--interval-seconds` is not given. Archive resource limits are listed
-under [deployment layout](files-and-folders.md).
-
-## Checking and overriding from the command line
-
-```powershell
-dotnet run --project src/PzTools.Backup.Cli -- config validate --repository C:\Backups\pz
-dotnet run --project src/PzTools.Backup.Cli -- config show --repository C:\Backups\pz
-```
-
-When the CLI is used directly, define sources in TOML or pass repeated
-`--source <id>=<path>` options. Source options on the command line replace the whole
-TOML source list. Repeated `--always-include <relative-path>` options likewise replace
-the whole `always_include` list.
-
-Other overrides:
-
-- `--checksum`, `--compression`
-- `--content-deduplication`, `--verify-staged-copies`
-- `--full-scan-hash-comparison`, `--save-game-before-backup`
-- `--name-language`
-- `--telemetry-{enabled,mode,batch-size,flush-ms,retain-runs,max-database-mib}`
-
-Boolean options take `true` or `false`. Telemetry modes are `off`, `run`, `phase` and
-`raw`. See the [command line](command-line.md) page for all commands.
-
-## Limits and errors
-
-- Unknown keys and unknown options are errors.
-- Source IDs must be unique, ignoring case.
-- Source roots cannot overlap each other or the repository.
-- `always_include` paths must be relative and cannot contain `..`.
-- `always_include` does not ask the game to write unsaved changes to disk. Only
-  `save_game_before_backup` does that.
-- With `full_scan_hash_comparison` off, a change that keeps a file's size and times
-  can be missed.
-- With `automatic_enabled` present, `interval_minutes = 0` or a non-integer interval
-  is an error.
+| `update.json` | What the last update check found. Deleting it only makes the next check ask again. |
+| `game-memory.json` | Your **Game memory** choice and the game's own value from before it. |
+| `config\` | The [advanced settings](advanced-settings.md) files. |
+
+The full layout is in [files and folders](files-and-folders.md).
+
+## Backup names
+
+A new backup is named after its kind and number: **Manual backup 12**, **Automatic backup
+13**, or **Backup 14** when its kind is unknown. The name is written in the app language of
+the day the backup was made. As long as nobody has edited it, the backup list shows it in
+the current app language, so changing **Language** renames unedited backups on screen. A
+name you edit is kept exactly as typed. Clearing an edited name gives the backup its
+default name back.

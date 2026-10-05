@@ -1,99 +1,69 @@
 # Normalized path identities
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-Every file in a backup is recorded with its path inside the save. The backup
-[repository](glossary.md#repository) stores each path once, in two dictionaries, and
-backups refer to it by number. Letter case is ignored when deciding whether two paths are
-the same file, but the exact spelling each backup saw is kept, so a file renamed only by
-changing its case is restored with the spelling it had at the time. This page is for
-people reading or changing the storage code.
+Every file version in the repository refers to its path by number. Paths live once, in two dictionaries shared by all sources: a **key** that decides which file a path is (letter case ignored) and one or more **spellings** that record exactly how backups saw it. A file renamed only by changing case keeps its history and is restored with the spelling it had in each backup. The tables belong to the current schema; see [repository format](repository-format.md).
 
-The dictionaries were introduced in schema 3 and are part of the current format; see
-[repository format](repository-format.md) for the version numbers and compatibility.
+## Normalizing a path
 
-## In short
+[`BackupPath.NormalizeRelative`](../../src/PzTools.Backup.Core/BackupPath.cs) turns a path relative to the save folder into the stored spelling:
 
-- A path has one **key** (its normalized, upper-cased form) and one or more
-  **spellings** (the exact forms seen in backups).
-- A case-only rename keeps the same key and adds a spelling. Changing it back reuses the
-  old spelling.
-- Different saves can share dictionary rows without sharing their file histories.
-- Keys and spellings are never rewritten. Unused ones are removed later, in bounded
-  batches.
+- `\` becomes `/`; trailing `/` is removed.
+- Rooted paths, a leading `/`, empty segments, `.` and `..` are rejected.
+- Case and every other character are kept as they are.
 
-## Layout and historical spelling
+The key is that spelling passed through .NET `ToUpperInvariant()`. SQLite's `upper()` and `NOCASE` are not used in its place: they fold only ASCII and would split or merge non-ASCII names differently from the rest of the code.
+
+## Tables
 
 | Table | Columns | Holds |
 | --- | --- | --- |
-| `paths` | `path_id`, `path_key` | Normalized relative keys, upper-cased with the invariant culture |
-| `path_spellings` | `path_id`, `spelling_id`, `display_path` | Exact spellings; immutable |
-| `entry_versions` | `path_id`, `spelling_id` | Only the two integer references, neither path string |
+| `paths` | `path_id`, `path_key` (unique, binary collation) | Keys |
+| `path_spellings` | `path_id`, `spelling_id`, `display_path` | Exact spellings, numbered from 0 per path |
+| `entry_versions` | `path_id`, `spelling_id` | Only the two numbers, never a path string |
 
-The key is derived by `BackupPath.NormalizeRelative(...).ToUpperInvariant()`. SQLite
-`upper()` and the ASCII-only `NOCASE` are not used in its place.
+Readers use the `entry_catalog` and `current_entry_catalog` views, which join the strings back. They are views of the current schema, not a compatibility layer for older data.
 
-Case-only changes share a path ID but get distinct spelling IDs; reverting the spelling
-reuses its old ID. Different [sources](glossary.md#source) can share dictionary rows
-without sharing their entry histories:
+Rules the database enforces:
 
-- current-entry uniqueness stays `(source_id, path_id)`
-- the revision key stays `(source_id, path_id, valid_from_revision)`
+- A composite foreign key requires each version's `(path_id, spelling_id)` to exist.
+- Update triggers forbid changing a key or a spelling; rows are only inserted and, once unused, deleted.
+- An insert trigger rejects a second identical spelling for the same path. It scans that path's spellings, normally one, instead of keeping an index that would store every display string a second time.
 
-Integrity rules:
+## Writing paths
 
-- A composite foreign key requires every version's `(path_id, spelling_id)` pair to
-  exist.
-- Update triggers forbid rewriting identities or historical spellings.
-- A spelling-uniqueness trigger checks the small primary-key range of one path.
+Paths are interned inside the commit transaction that uses them:
 
-The `entry_catalog` view joins the current normalized tables for readers. It is not a
-reader for older data and not a writable compatibility schema.
+- Incremental commits use `RepositoryPathWriter`: insert the key if new, read its ID, then insert the spelling if new with the next free `spelling_id` for that path, and read it back.
+- The first backup keeps path strings only in its connection-local `TEMP` scan table and fills the dictionaries with set-based statements in the commit.
+- No dictionary ID is cached across transactions. A rollback or a garbage-collection pass could otherwise leave a cached number pointing at a row that no longer exists, or at a different one later.
+
+A commit with two entries whose normalized paths are equal ignoring case is refused rather than merged. The scan table has the key as its primary key, so a save folder in which a case-sensitive directory holds two names differing only in case cannot be scanned.
+
+## Case-only renames
+
+The key does not change, so the file keeps its `path_id`, its current-version slot and its history. The new spelling gets a new `spelling_id`; changing back reuses the old one. Both the full scan and the USN planner compare the exact spelling, so the rename produces a new version, which usually reuses the existing object (see [reusing stored objects](pack-format.md#reusing-stored-objects)).
+
+Different sources share dictionary rows but never histories: the open version is unique per `(source_id, path_id)`, and a version's key is `(source_id, path_id, valid_from_revision)`.
+
+## Reading paths
+
+Restore, export, metadata reads, USN path lookups, full-scan comparisons and revision compaction all go through the dictionaries. A single-path query first resolves the key to its `path_id`, then uses the version indexes. Subtree queries compare keys as a range on segment boundaries, so `map` does not match `map_old`, and `%` and `_` in names are ordinary characters.
+
+## Removing unused paths
+
+A spelling is unused when no version of any source refers to it; hidden baselines and tombstones count as references. A key is unused once all its spellings are gone. [`SweepUnreferencedPathsAsync`](../../src/PzTools.Backup.Storage/Repository/RepositoryDatabase.PathCollection.cs) removes them in bounded passes:
+
+- One budget of inspected rows (not deleted rows) covers both tables: `database_cleanup_batch_size`, default 1,000, per housekeeping pass; 1,000 when run inside a garbage-collection pass.
+- With a budget above one row, spellings are swept first so a small set of orphans can go in one pass; with a budget of one, the order alternates so neither table starves.
+- The positions reached are saved in `path_gc_cursor` in the same transaction as the deletions, so the next maintenance process continues where this one stopped. A window that comes back short wraps to the start on the next pass.
+- No `VACUUM` runs per insertion or deletion; see [database file-space recovery](repository-housekeeping.md#database-file-space-recovery).
 
 ## Limits
 
-- **Spelling uniqueness is checked by a scan.** The trigger avoids a secondary index that
-  would store every display string a second time. In exchange it scans the spellings of
-  one canonical path linearly; there is normally one.
-- **Small repositories can grow slightly.** Normalization pays off for repeated file
-  versions, not for the mere number of backups: unchanged files create no new versions.
-  A repository where most files have a single version can become slightly larger (see the
-  measurements below).
-
-## How it works inside
-
-### Commit
-
-- An initial scan keeps path strings only in connection-local `TEMP` staging. The
-  persistent dictionaries are filled in the initial catalog commit, not during scanning,
-  and that insertion is set-based.
-- An incremental backup inserts with reusable commands, in the same transaction as the
-  versions, summaries and checkpoint.
-- No dictionary ID is cached across transactions, so a rollback or GC cannot leave a
-  stale cached ID.
-
-### Reads
-
-Restore, archive and metadata reads, USN path lookup, full-scan comparisons and revision
-compaction all use the normalized tables. A point metadata query first resolves the
-numeric path ID and then uses the source/path/revision index; the cached catalog totals
-remain. Prefix lookups keep segment-boundary matching and treat wildcard characters
-literally.
-
-### Reclamation
-
-- GC removes a spelling only when no version in any source refers to it, counting hidden
-  baselines and tombstones. It removes a key only after all its spellings have gone.
-- The composite child index supports both the foreign-key checks and these reference
-  tests.
-- Each dictionary sweep limits the number of rows it inspects across both tables
-  together, not only the rows it deletes. Its progress is saved, so the next maintenance
-  process continues the scan.
-- Object GC includes a sweep of at most 1,000 rows. Periodic housekeeping also works
-  through its configured batch even when there are no new backups or deletions.
-- No `VACUUM` runs for each path insertion or deletion.
+- **Spelling uniqueness costs a scan of one path's spellings** on each insert. There is normally one.
+- **A repository can grow slightly.** The dictionaries pay off for repeated versions of the same files. A repository where most files have a single version can end up a little larger.
 
 ## Measurements
 
-The size experiment and the verification runs from when normalized paths were introduced
-are kept in [path normalization measurements](../history/path-normalization-measurements.md).
+The size experiment and verification runs from when the dictionaries were introduced are in [path normalization measurements](../history/path-normalization-measurements.md).

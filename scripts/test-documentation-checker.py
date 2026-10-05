@@ -227,7 +227,7 @@ class RepositoryContractTests(unittest.TestCase):
             C.check(self.root)
 
     def test_missing_direct_reference_is_rejected(self):
-        self.remove_link('README.md', 'docs/repository-housekeeping.md')
+        self.remove_link('README.md', 'docs/reference/backups.md')
         with self.assertRaisesRegex(C.DocumentationError, 'missing direct reference'):
             C.check(self.root)
 
@@ -240,15 +240,26 @@ class RepositoryContractTests(unittest.TestCase):
         with self.assertRaisesRegex(C.DocumentationError, 'has no explanation'):
             C.check(self.root)
 
-    def test_reference_missing_from_index_is_rejected(self):
-        (self.root/'docs/new-reference.md').write_text('# New\n\n[Index](README.md)\n', encoding='utf-8')
-        with self.assertRaisesRegex(C.DocumentationError, 'Documents missing from index'):
-            C.check(self.root)
+    def test_page_missing_from_index_is_rejected(self):
+        for folder in ('reference', 'guides'):
+            with self.subTest(folder=folder):
+                page = self.root/f'docs/{folder}/new-page.md'
+                page.write_text('# New\n\n[Index](../README.md)\n', encoding='utf-8')
+                with self.assertRaisesRegex(C.DocumentationError, 'Documents missing from index'):
+                    C.check(self.root)
+                page.unlink()
 
     def test_reference_without_backlink_is_rejected(self):
-        self.remove_link('docs/cli.md', 'README.md')
+        self.remove_link('docs/reference/command-line.md', '../README.md')
         with self.assertRaisesRegex(C.DocumentationError, 'missing index backlink'):
             C.check(self.root)
+
+    def test_guide_needs_no_backlink(self):
+        guides = sorted((self.root/'docs/guides').glob('*.md'))
+        self.assertTrue(guides)
+        for guide in guides:
+            self.assertNotIn('](../README.md)', guide.read_text(encoding='utf-8'))
+        self.assertEqual(1, C.check(self.root)['guides'])
 
     def test_added_guide_section_is_accepted(self):
         text = (self.root/'README.md').read_text(encoding='utf-8')
@@ -263,7 +274,7 @@ class RepositoryContractTests(unittest.TestCase):
             C.check(self.root)
 
     def test_unclosed_document_code_block_is_rejected(self):
-        path = self.root/'docs/cli.md'
+        path = self.root/'docs/reference/command-line.md'
         path.write_text(path.read_text(encoding='utf-8')+'\n~~~md\n', encoding='utf-8')
         with self.assertRaisesRegex(C.DocumentationError, 'Unclosed fenced'):
             C.check(self.root)
@@ -274,10 +285,10 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertEqual(1, C.check(self.root)['guides'])
 
     def test_localized_readme_guides_are_rejected(self):
-        for tag in ('ko-KR', 'en-US', 'xx-XX'):
+        for tag in ('ko-KR', 'en-US', 'xx-XX', 'design', 'guides/ko-KR'):
             with self.subTest(tag=tag):
                 page = self.root/f'docs/{tag}/README.md'
-                page.parent.mkdir(exist_ok=True)
+                page.parent.mkdir(parents=True, exist_ok=True)
                 page.write_text('# Parallel user guide\n', encoding='utf-8')
                 with self.assertRaisesRegex(C.DocumentationError, 'Localized README guides are not supported'):
                     C.check(self.root)
@@ -291,10 +302,11 @@ class IndependentEnglishDocumentationTests(unittest.TestCase):
             (root/'docs').mkdir()
             reference_paths = [path for path in C.GUIDE_REFERENCES if path.startswith('docs/') and path != 'docs/README.md']
             for path in reference_paths:
-                (root/path).write_text('# Reference\n\n[Documentation index](README.md)\n', encoding='utf-8')
+                (root/path).parent.mkdir(parents=True, exist_ok=True)
+                (root/path).write_text('# Reference\n\n[Documentation index](../README.md)\n', encoding='utf-8')
             (root/'THIRD_PARTY_NOTICES.md').write_text('# Third-party notices\n', encoding='utf-8')
             index_links = ['[User guide](../README.md)', '[Notices](../THIRD_PARTY_NOTICES.md)']
-            index_links.extend(f'[Reference]({Path(path).name})' for path in reference_paths)
+            index_links.extend(f'[Reference]({Path(path).relative_to("docs").as_posix()})' for path in reference_paths)
             (root/'docs/README.md').write_text('# Documentation\n\n'+'\n'.join(index_links)+'\n', encoding='utf-8')
             sections = [f'<a id="{anchor}"></a>\n## Topic {number}\n\nEnglish operating instructions.\n'
                         for number, anchor in enumerate(C.GUIDE_SECTIONS, start=1)]

@@ -1,152 +1,278 @@
 # Game extensions
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-Game extensions are optional features that run inside Project Zomboid while you play.
-PZ Tools loads them through the same [game bridge](glossary.md#game-bridge) it uses for
-saving; no game file is changed. This page is for players who want to know what the
-extensions do, where to switch them on and when a change takes effect. The
-[overview](overview.md) shows how they fit into the rest of PZ Tools.
+A game extension is an optional module that runs inside the Project Zomboid process. PZ Tools
+loads it through the [game bridge](game-bridge.md) and changes game classes in memory only.
+One extension ships: **Vehicle driving improvements** (`pztools.vehicle-drivetrain`), off by
+default. Its driving model is in [Vehicle model](vehicle-drivetrain.md). The player's steps
+are in [Better vehicle controls](../guides/vehicle-controls.md).
 
-One extension is shipped. It is a [module](glossary.md#extension-module) of its own,
-with its own archive, [catalogue](glossary.md#catalogue) row, switch,
-supported-version rule, options and tuning file, and it is off by default. You find it
-on the **Game extensions** page of the app. The runtime can run several modules side by
-side (see [below](#several-modules-on-one-connection)).
+## Parts and where they live
 
-Earlier builds also shipped a *screen look* colour grade. It was removed: a filter over
-the finished picture could not give a clear improvement. A setting saved for it is
-ignored.
+| Part | Code | Job |
+| --- | --- | --- |
+| Catalogue | [config/game-extensions/catalog.tsv](../../config/game-extensions/catalog.tsv) | One row per module: identity, archive, supported game versions, capability |
+| Catalogue and version rules | `ExtensionCatalog`, `GameVersionSupport`, `ExtensionCapabilities` in [PzTools.GameExtensions](../../src/PzTools.GameExtensions/) | Parse and validate rows, classify capabilities, match game versions |
+| Saved preferences | `ExtensionSettingsStore` (same project) | `settings.json` with a revision counter |
+| UI controller | [GameExtensionController](../../src/PzTools.App.Core/GameExtensionController.cs), [ExtensionActivationView](../../src/PzTools.App.Core/ExtensionActivationView.cs) | Write preferences, project cards and per-module runtime status |
+| Card | [ExtensionSettingsSection](../../src/PzTools.App/ExtensionSettingsSection.cs) | The expandable section on the **Game extensions** page |
+| Scheduler | [RuntimeExtensionCoordinator](../../src/PzTools.State.Scheduler/RuntimeExtensionCoordinator.cs) with `GameExtensionReconciler`, `GameExtensionActivationState`, `GameExtensionClient` in [PzTools.GameBridge](../../src/PzTools.GameBridge/) | Deliver preferences to the game, track what is applied, turn failed modules off |
+| Control channel in the game | `ExtensionControl` in [PzTools.GameBridge.Agent](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ExtensionControl.java) | Control lease, per-frame tick on the game thread |
+| Host in the game | `ModuleHost`, `ContinuousRuntime` in [PzTools.GameExtensions.Java](../../src/PzTools.GameExtensions.Java/java/pztools/extensions/runtime/) | One slot per module: load, apply, update, fault, retire |
+| Module | [PzTools.GameExtensions.VehicleDrivetrain](../../src/PzTools.GameExtensions.VehicleDrivetrain/) | `pztools-vehicle-drivetrain.jar` |
 
-## The extensions
+The backup engine has no module-specific code.
 
-### Vehicle driving improvements
+## The catalogue
 
-Experimental. Its main switch turns the extension on; expanding the card shows four
-independent controls:
+`catalog.tsv` is tab-separated, one module per row, `#` starts a comment.
+[build/GameBridgePayload.targets](../../build/GameBridgePayload.targets) copies it, the
+module archives and the tuning file to `game-bridge/extensions/` in the app folder. The
+`PzTools.GameExtensions` assembly also embeds a copy (`ExtensionCatalog.BuiltIn`).
 
-- Natural acceleration and shifting
-- Smooth reversing
-- Precise keyboard steering: steers exactly as much as a key is held, even when the frame rate is unstable
-- Light around the vehicle
+| Column | Example | Rule |
+| --- | --- | --- |
+| id | `pztools.vehicle-drivetrain` | `^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$`, at most 80 characters, unique |
+| module version | `0.2.0` | A parsable version |
+| namespace | `pztools.extensions.vehicle` | Must start with `pztools.extensions.` |
+| entry class | `pztools.extensions.vehicle.VehicleDrivetrainProvider` | Inside the namespace |
+| jar | `pztools-vehicle-drivetrain.jar` | `[a-z0-9-]+.jar` in the same folder |
+| support scope | `Major` | `All`, `Major` or `Minor` |
+| minimum, maximum inclusive | `42`, `42` | `-` for none; see below |
+| title, description resource | `Extension.VehicleDrivetrain.Title` | Keys in `Resources.resw`, must start with `Extension.` |
+| capability | `vehicle.drivetrain.v1` | Optional; a 10-column row means `save.prepare.v1` |
 
-A control that is off keeps the game's original behaviour. The extension adjusts
-driving response and leaves the game's own tyres, suspension and collisions as they
-are.
+The capability, not the id, decides how a module is activated (`ExtensionCapabilities.Classify`):
 
-The light is an addition rather than a correction. While the headlights of the vehicle
-you are in are lit, it brightens the ground around that vehicle, the way a lightbar's
-glow does. It is never written to the save.
+| Capability | Activation | Meaning |
+| --- | --- | --- |
+| `save.prepare.v1` | Per save | A save provider asked for during a backup. None ships. |
+| `vehicle.drivetrain.v1` | Continuous | Runs every frame for as long as it is on |
+| anything else | rejected | The whole catalogue fails to parse |
 
-Observation (probe), diagnostics and low-gear tuning are developer-only options in the
-TOML settings file. See the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md) for
-comparisons and status checks, or the [design](vehicle-drivetrain.md) for the
-driving model and how it attaches to the game.
+Other limits: at most 64 rows, 64 KiB, 200 characters per field. The row with the vehicle id
+must carry the vehicle capability.
 
-## When a change takes effect
+Three readers use the deployed file: the UI controller on every card refresh, the scheduler
+when it starts (falling back to the embedded copy if the file cannot be read), and the host in
+the game on every `APPLY`. The Java side repeats the namespace, entry-class and jar-name checks
+and only accepts continuous capabilities listed in `ContinuousRuntime.CAPABILITIES`.
 
-The switches show your saved choices. You can change them while the game is not
-connected, or while earlier changes are still waiting to apply.
+### Version admission
 
-| Extension | Your latest settings apply… |
-| --- | --- |
-| Vehicle driving improvements | once the game is running unpaused, the vehicle has stopped, acceleration is released and cruise control is off (the [safe boundary](glossary.md#safe-boundary)) |
+`GameVersionSupport` (C#) and `VersionSupport` (Java) compare numbers, never strings. A game
+version must look like `major.minor[.patch][-suffix]`.
 
-Changes never wait for a backup.
+| Scope | Bounds | Matches |
+| --- | --- | --- |
+| `All` | both `-` | every version, including an unknown one |
+| `Major` | `42` | every 42.x when the bounds are 42–42 |
+| `Minor` | `42.20` | 42.20 and every 42.20.x |
 
-Running extensions stay as they are through moments when the game briefly stops answering,
-such as a long save or a debug tool opened on top of the game; they are only released when
-the world is really left or the game stays silent for 30 seconds. Leaving the world, loading
-another or closing the game turns them off and on again by themselves, and the logs record that
-as information, not as a warning. The other way round, the extensions do not affect
-backups: saving before a backup and the in-game save notices have their own settings,
-and the vehicle controls do not change them. See
-[saving the game before a backup](game-bridge.md).
+An unknown game version never matches a `Major` or `Minor` range. The check runs in the app
+(to choose the card's hint) and again in the game host (`ContinuousRuntime.apply`, which
+rejects with `version-mismatch`). Matching the range does not mean the module works: the
+vehicle module runs its own runtime and bytecode checks, reviewed against Build 42.20.4
+([details](vehicle-drivetrain.md#how-it-attaches-to-the-game)).
 
-The vehicle card shows what the game is actually doing:
+### Ignoring the supported version range
 
-| Card status | Meaning |
-| --- | --- |
-| Applied in game · Experimental | Your settings are running in the game |
-| Waiting to apply in game | Saved, but not applied yet (see the table above) |
-| Applying updated settings in game | A settings change is being applied |
-| Off · Original driving | The extension is off; the game drives as usual |
-| Turning off · Waiting for confirmation / Still active · Turning off | Switching off is in progress |
-| Unsupported · Original driving | The game build or the settings did not pass the checks |
-| Extension error · Original driving | The extension faulted and the game's own control is back ([pass-through](glossary.md#pass-through)) |
-| Restart the game to use this extension | [Restart required](glossary.md#restart-required): nothing new is loaded until the game restarts |
+**Ignore supported version range** stores `forceVersion: true` in the module's preference. It
+is sent with every `APPLY` and skips only the range check, in the app and in the game. It does
+not turn the module on. The archive's API version (`PzTools-Extension-Api` manifest entry,
+`ExtensionApi.HOST_ABI`), the provider's preflight and initialisation, and its bytecode checks
+still run.
 
-## Compatibility
+## From the switch to the game
 
-The [catalogue](../../config/game-extensions/catalog.tsv) declares major version 42.
-Activation still requires the bytecode and structural checks against the inspected
-42.20 build; declaring the range does not guarantee every 42.x patch.
+### Saved preferences
 
-**Ignore supported version range** skips only the declared version range. Identity,
-structural, [admission](glossary.md#admission) and cleanup checks still apply, and the
-setting does not turn the extension on by itself.
+Preferences live in `%LOCALAPPDATA%/PzTools/extensions/settings.json`:
 
-Use app, worker and JAR files from the same build. The
-[game-bridge compatibility table](game-bridge.md#compatibility-and-lifecycle) defines
-the runtime requirements, and [component updates](module-reload.md) explains compatible
-updates, which never change the repository or save formats.
+```json
+{ "schemaVersion": 1, "revision": 7,
+  "extensions": { "pztools.vehicle-drivetrain": { "enabled": true, "forceVersion": false,
+    "vehicleDrivetrain": { "torqueEnabled": true, "reverseEnabled": true,
+      "steeringEnabled": true, "areaLightEnabled": true } } } }
+```
 
-## How it works inside
+- One `revision` counts edits to the whole file, so an edit to one module is a new
+  [settings revision](glossary.md#settings-revision) for all of them.
+- Every write holds `settings.json.lock`, compares the revision it read
+  (`ExtensionSettingsConflictException` on a mismatch), writes a temporary file and moves it
+  into place. A file that cannot be read is reported, never overwritten with defaults.
+- Properties of removed extensions are ignored on read and dropped on the next write.
+- A missing vehicle option reads as on. An old file with `probeOnly: true` and no option
+  values reads as every option off (`VehicleDrivetrainPreferenceConverter`).
 
-### Who owns what
+`GameExtensionController` serialises the UI's writes. `ApplyEditAsync` reads the latest saved
+preference after it is admitted, so queued toggles merge instead of overwriting each other.
+The runtime refresh runs every second and re-reads cards only when the settings file, the
+catalogue or the game version changed. The scheduler also writes this file (it turns failed
+modules off), so the refresh must not trust its cache beyond those inputs.
 
-| Part | Responsibility |
-| --- | --- |
-| WinUI | Inline expandable settings rows |
-| App.Core | Projects your preferences and the results actually applied in the game |
-| GameExtensions | Configuration and version rules |
-| Game bridge | Authentication and admission |
-| Vehicle module | Driving model, adapter for the inspected build, and code transforms |
+### Delivery
 
-The general backup engine has no module-specific branch.
+`RuntimeExtensionCoordinator` runs in the StateScheduler process for the game selected by the
+[WATCH](glossary.md#watch) stream. Every second (`ExtensionControlOptions.ReconcileIntervalMs`)
+it reads `settings.json` and the latest runtime snapshot.
+
+- **No local world ready.** It closes the lease and publishes `Pending` (module wanted) or
+  `Disabled`, both with reason `waiting-for-local-world`.
+- **World ready.** It opens one [control lease](glossary.md#control-lease) for all continuous
+  modules (20-second connect timeout), then handles each module in turn:
+  - Wanted on: `GameExtensionReconciler` sends `APPLY` with the module id, the revision it
+    believes is applied, the new revision, `forceVersion` and the module's flat configuration
+    (`Configure`). A revision it already sent gets a `PING` instead.
+  - Wanted off: it sends `OFF` for that module until the game reports `Disabled`.
+- **Game briefly silent.** When snapshots go stale but the process and world are unchanged, it
+  keeps the lease and every module and only pings, for up to 30 seconds
+  (`TransientStaleGrace`). A long save or a debugger therefore does not reinstall modules.
+  After that, or when the world changes, the lease is closed and every module is revoked.
 
 ### Several modules on one connection
 
-Continuous modules (see [capability](glossary.md#capability)) share the game process
-and world selected for the [WATCH](glossary.md#watch) stream. The game is reached
-through one [control lease](glossary.md#control-lease), and every continuous module
-runs on it. The lease does not occupy the save-provider slot. What is shared ends
-there:
+- **Wire.** `APPLY` names its module. `STATUS`, `PING` and `OFF` with a module field address one
+  module; without it they address the host, and `OFF` then retires every module.
+- **Lease.** It lasts 5 seconds in the game (`ExtensionControl.LEASE_NANOS`) and every command
+  renews it. When it lapses, or the app's connection ends, the game revokes every module.
+  `APPLY` and `OFF` time out after 15 seconds, other commands after 3.
+- **Slots.** `ModuleHost` keeps one `ContinuousRuntime` slot per module, at most 16. A slot has
+  its own archive, class loader, [generation](glossary.md#generation-module), configuration,
+  applied revision and fault state. Every slot is ticked each frame; one that faults is revoked
+  alone.
+- **Scheduler.** Each module has its own request, acknowledgement and failure record. Only
+  errors that concern the lease (I/O, bridge errors, cancellation) affect every module.
+- **Status.** Published per module id.
 
-- **In the game** the [host](glossary.md#extension-runtime-host) keeps one
-  [slot](glossary.md#slot) per module. A slot has its own module archive and class
-  loader, [generation](glossary.md#generation-module), configuration, applied revision
-  and fault state. Every slot is called each frame; one that faults is
-  [revoked](glossary.md#retire-revoke) by itself.
-- **On the wire** `APPLY` names its module, and `STATUS`, `PING` and `OFF` take the
-  module as a fourth field. With three fields they address the host as a whole: `OFF`
-  then retires every module, which is what ending the lease does.
-- **In the scheduler** each module has its own request, acknowledgement and failure
-  record. A module that is rejected or faults is turned off in the game and in the
-  saved preferences; the lease and the other modules carry on. Only losing the lease
-  itself concerns every module.
-- **Revisions** come from one settings file, so an edit to one extension is a new
-  [settings revision](glossary.md#settings-revision) for all. A module that receives a
-  new revision of the configuration it is already running acknowledges it at once: its
-  provider is not called and it does not wait for a safe moment.
-- **Status** is published per module, and the app shows each card from its own.
+`ModuleControl` (the per-module host calls) is part of the replaceable extension runtime, not
+the resident [bootstrap](glossary.md#bootstrap), so a running game picks up changes to it on a
+[component update](module-reload.md).
 
-Adding a module means a catalogue row with a continuous capability, a provider archive
-in its own namespace, and its configuration in the scheduler
-(`RuntimeExtensionCoordinator.Configure`). Nothing in another module changes.
+### In the game
 
-The per-module host calls (`ModuleControl`) live in the replaceable extension runtime,
-not in the resident [bootstrap](glossary.md#bootstrap) contract, so a running game
-picks them up without a restart.
+`ContinuousRuntime.apply` checks, in order: process id, revision (`revision-conflict` if the
+expected applied revision differs), catalogue row, version range, archive API version. Then:
 
-## Verification
+- **Same generation** (same game class loader, world, catalogue row and archive digest): the
+  configuration is validated. If it equals what is already applied, the new revision is
+  acknowledged at once as `Active`; this is the normal case when another module's settings
+  changed. Otherwise it becomes the pending request and the reply is `Pending` /
+  `safe-boundary`.
+- **New generation:** the module is loaded in its own class loader, validated and preflighted,
+  the old generation is retired, and the new one is initialised. The reply is `Pending` /
+  `safe-boundary`.
 
-Module independence is tested at two levels, each with two synthetic modules (one under
-the vehicle's catalogue name, one that exists only for the test): the host
-(`ModuleSlotsTest`) and the control channel against a synthetic game JVM. The
-scheduler's coordinator is tested driving the vehicle module from saved preferences.
+`ExtensionControl` ticks the host on the game thread once per frame, and only while the game
+phase is `Ready`, the mode is local single-player and the game is not paused. On each tick a
+slot with a pending request asks the provider's `readyToActivate`. When it says yes, the slot
+calls `activate` (first time) or `updateConfig` and reports `Active`. Until then the previous
+configuration keeps running. What "ready" means is the module's choice; the vehicle's rule is
+in [Safe point](vehicle-drivetrain.md#safe-point-for-applying-changes).
 
-Vehicle tests cover the model, configuration, control-session lifecycle and inspected
-bytecode boundaries. Installed-class checks read a local game JAR in an isolated JVM.
-Use the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md) for automated reproduction and
-for the separate driving, performance and lifecycle acceptance steps.
+Turning a module off never waits for that point. `OFF` revokes the generation (no new calls),
+waits up to 5 seconds for calls in flight, then deactivates and closes the provider.
+
+### Failure handling
+
+A failure is definitive when the game reports `Unsupported`, `FaultedPassThrough` or
+`RestartRequired`, or rejects the request (including a configuration the app could not build,
+`configuration-rejected`). The scheduler then, for that module only:
+
+1. sends `OFF` (or drops the lease if `OFF` gets no answer);
+2. writes `enabled: false` at the revision that failed, through the revision check, so a newer
+   choice the player made in the meantime is never overwritten;
+3. blocks that revision and publishes the failure.
+
+The lease and the other modules carry on. `RestartRequired` stays latched for the whole game
+process, across world changes, until the game restarts. If the lease breaks while a module is
+wanted off, that module is reported `Disabled` / `control-offline` and not attached again in
+that world.
+
+### Statuses keyed by extension id
+
+The scheduler publishes a `RuntimeExtensionStatus` per module id. The app reads one through
+`ExtensionActivationView.SelectCurrentStatus(observation, moduleId)`, which discards a status
+older than 3 seconds and replaces one from another process, or from a world that is not ready
+or not current, with `Pending` / `waiting-for-local-world`. `GameExtensionsView.Statuses` is a
+dictionary by id, and each card is projected from its own entry. `ExtensionRuntimeDiagnostics`
+writes each state change to the **Logs** page as `extension.runtime.changed`.
+
+| State | Meaning |
+| --- | --- |
+| `Disabled` | Nothing of the module runs in this game |
+| `Pending` | Accepted and waiting (`safe-boundary`), connecting, or waiting for a local world |
+| `Active` | The reported revision is applied |
+| `Unsupported` | The game or the request failed a check; the game's own code runs |
+| `FaultedPassThrough` | The module faulted while running; the game's own code runs again ([pass-through](glossary.md#pass-through)) |
+| `RestartRequired` | A generation could not be retired cleanly; nothing new loads until the game restarts ([restart required](glossary.md#restart-required)) |
+
+`GameExtensionActivationState` keeps the options requested at each revision. When the game
+reports `Active` at that revision, they become the applied options (`AppliedVehicleOptions`).
+A saved preference alone is never treated as applied.
+
+## What the card shows
+
+The section header has the extension's title, description and main switch. Expanded, it shows
+the vehicle's four option switches, a **Compatibility and status** card and **Ignore supported
+version range**. The switches always show the saved preference, not the applied state, and stay
+editable while no game is connected or a change is waiting. The main switch is disabled only
+while the module is saved off and the current game process needs a restart.
+
+The status card has two lines. The first is always **Supported: Build 42 series · Current game:
+{version}** (**Unknown** when no fresh game version is known). The second, the hint, is the first
+match in this order (`ExtensionSettingsSection.ActivationHint`), or hidden:
+
+| Condition | Hint |
+| --- | --- |
+| Fresh status is `Unsupported`, `FaultedPassThrough` or `RestartRequired` | **The extension could not be applied. Check the logs for details.** |
+| A change is in progress and the game said `safe-boundary` | **To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.** |
+| A change is in progress for another reason | **Applying changes in the game.** |
+| Saved on, no single-player world ready | **Saved settings will be applied when you enter a single-player game.** |
+| Version outside the range, not overridden | **Outside supported range · Extension inactive** |
+| No game version known, not overridden | **Waiting for game version · Extension inactive** |
+
+"In progress" means the world is ready, the status is fresh and not failed, and either the game
+reports `Pending`, the saved revision differs from the one last requested, or the module is
+saved off but still applied. There is no "applied" text: when everything matches, the hint is
+hidden.
+
+The card code also has texts for per-save modules (**Off · Standard saving**, **Compatibility
+checked on next save · Experimental**, **Version override · Essential checks still apply**, the
+**Last request: ...** lines). They appear only for a `save.prepare.v1` module, and none ships.
+
+## Adding an extension
+
+1. **Module.** Put the classes in their own package under `pztools.extensions.`, implement
+   `ContinuousProvider` (or `SaveProvider` for per-save work), and set the archive's
+   `PzTools-Extension-Api` manifest entry to `ExtensionApi.HOST_ABI`. Add the archive to
+   `build/GameBridgePayload.targets` so it lands in `game-bridge/extensions/`.
+2. **Catalogue row** in `config/game-extensions/catalog.tsv`.
+3. **Capability.** An existing one can be reused. A new one must be added to
+   `ExtensionCapabilities.Classify` and, for a continuous module, to
+   `ContinuousRuntime.CAPABILITIES`; otherwise both sides reject the whole catalogue.
+4. **Texts.** `Extension.<Name>.Title` and `.Description` in every `Resources.resw` (see
+   [localisation](../contributing/localization.md)).
+5. **Configuration.** Add a case to `RuntimeExtensionCoordinator.Configure`. Without one every
+   request fails with `configuration-rejected` and the module is turned off.
+6. **Options**, if any: a typed property on `ExtensionPreference`, values in
+   `GameExtensionSetting`, a branch in `GameExtensionController.ApplyEdit`, rows and a header
+   glyph in `ExtensionSettingsSection`.
+7. **Applied evidence.** The applied-options record (`RuntimeVehicleOptions`) is vehicle-specific.
+   A new continuous module needs its own, or the card never treats it as applied.
+
+Nothing in another module changes. `ModuleSlotsTest` runs two synthetic modules side by side,
+and `ContinuousExtensionTests` shows how to add a test row and archive.
+
+## Tests
+
+| Area | Tests |
+| --- | --- |
+| Catalogue, versions, capabilities | `ExtensionVersionTests`, `ExtensionCapabilityClassificationTests`, `GameExtensionCatalogProjectionTests`, `VersionSupportTest` |
+| Preferences and card projection | `GameExtensionTests`, `GameExtensionEditTests`, `GameExtensionProjectionTests`, `ExtensionActivationViewTests`, `ExtensionRuntimeStatusSelectionTests` |
+| Scheduler | `GameExtensionReconciliationTests`, `GameExtensionActivationStateTests`, `ExtensionCoordinatorTests`, `RuntimeExtensionIntegrationTests` |
+| Host and control channel | `ModuleSlotsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
+
+`scripts/test-game-extensions.ps1` runs the Java tests. Checks in a real game are in the
+[vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).

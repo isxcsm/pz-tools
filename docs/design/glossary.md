@@ -1,323 +1,326 @@
 # Glossary
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Overview](overview.md)
+[Documentation index](../README.md)
 
-The words the other pages use without explaining. Some ordinary words have a narrow
-meaning here; a few, such as *revision* and *generation*, have more than one, so check
-which one a page means. For how the pieces connect, read the [overview](overview.md).
+Terms the code and the design pages use without explaining. A few words, such as *revision*, *generation* and
+*lease*, have more than one meaning; each meaning has its own entry. The [overview](overview.md) shows how the
+parts connect.
 
 ## Backups and storage
 
 ### Repository
 
-The backup folder you choose, with everything PZ Tools stores in it: `repository.db`,
-the pack files and temporary staging files. One repository can hold backups of many
-saves. See [repository format](repository-format.md).
+The backup folder (default `%USERPROFILE%\Zomboid\Backups`) and what PZ Tools keeps in it: `repository.db`, pack
+files and temporary files. One repository holds the backups of every save. Code:
+[`RepositoryDatabase`](../../src/PzTools.Backup.Storage/Repository/RepositoryDatabase.cs). See
+[repository format](repository-format.md).
 
 ### Source
 
-One save folder that is backed up, such as `Saves/Sandbox/My world`. The repository
-keeps a record per source.
+One save folder that is backed up, such as `Sandbox/My world`; a row in the `sources` table. Its key is the save's
+path under `Saves`.
 
+<a id="revision-backup"></a>
 ### Revision (backup)
 
-One backup of one source: which files it contains, their contents, and when and why
-it was made (manual or automatic; a death backup is an automatic one). A revision exists only once it is committed;
-an interrupted backup leaves none. Automatic revisions beyond the retention limit are
-marked deleted first and their space is reclaimed later.
-For the other meanings see [settings revision](#settings-revision) and
-[state revision](#state-revision).
+One committed backup of one source: its files, their contents, and when and why it was made (`revisions` table). It
+exists only once committed; an interrupted backup leaves none. Automatic revisions beyond
+[retention](#retention) are marked deleted and their space is reclaimed later. Not to be confused with a
+[settings revision](#settings-revision) or a [state revision](#state-revision).
 
 ### Object
 
-The stored contents of one file version. Identical contents are stored once, even when
-they appear in several revisions or several saves.
+The stored contents of one file version (`stored_objects`), identified by its content hash. Identical contents are
+stored once, across revisions and across saves.
 
 ### Pack
 
-A compressed file in the repository that holds many objects. Packs whose objects are
-mostly no longer needed are rewritten later to give space back. See [pack format](pack-format.md).
+A compressed file in the repository that holds many objects. Packs that are mostly unused are rewritten later. See
+[pack format](pack-format.md).
 
 ### Catalog
 
-The part of `repository.db` that lists which file versions belong to each revision.
+The list of file versions that make up each revision (`paths` and `entry_versions` in `repository.db`).
 
 ### Tombstone
 
-The record, in a revision, that a file which was in earlier backups no longer exists.
-It is written only once the file's absence is confirmed, so restoring that revision
-leaves the file out.
+The record, in a revision, that a file present in earlier backups is gone. It is written only once the file's
+absence is confirmed, so restoring that revision leaves the file out.
 
 ### Staging
 
-A private copy made before anything is committed: the in-memory or temporary copy of a
-file during capture, and the folder a restore fills before it is put in place of the
-save. Nothing in staging is part of a backup or a save until the final step.
+A private copy made before anything is committed: a captured file before it reaches a pack, or the folder a
+restore fills before it replaces the save. Nothing in staging is part of a backup or a save.
 
 ### Garbage collection (GC)
 
-The cleanup step that removes stored objects and packs that no remaining revision
-needs. Objects still used by another save's backups are kept.
+Removing objects and packs that no remaining revision uses. Objects still used by another save's backups stay.
+Code: `RepositoryDatabase.CollectGarbageAsync`.
 
 ### USN journal
 
-A Windows NTFS feature that records which files changed. PZ Tools uses it to find
-changed files without reading every file; where it is not available, files are
-compared instead. Reading it is the reason the app asks for administrator permission.
+The NTFS change journal. PZ Tools reads it to find changed files without reading every file, and compares files
+where it cannot. Code: [`PzTools.Backup.ChangeTracking.Windows`](../../src/PzTools.Backup.ChangeTracking.Windows/).
 See [USN tracking](usn-journal.md).
 
 ### Stable capture
 
-How a file is copied while the game may still be writing it: copy, check the copy
-against the file, and try again if the file changed meanwhile. See [stable capture](stable-capture.md).
+Copying a file that the game may still be writing: copy, check the copy against the file, and try again if the file
+changed meanwhile. Code: [`StableFileCapturer`](../../src/PzTools.Backup.Engine/StableFileCapturer.cs). See
+[stable capture](stable-capture.md).
 
 ### Retention
 
-How many automatic backups are kept per save (20 by default). Manual backups do not
-count towards it.
+How many automatic backups are kept per save: `retained_revisions` in `settings.toml`, 20 by default. Manual
+backups do not count. See [housekeeping](repository-housekeeping.md).
 
 ### Orphan backups
 
-Backups whose save folder no longer exists. They are removed by a cleanup pass, but
-only after the folder is confirmed missing. See [housekeeping](repository-housekeeping.md).
+Backups whose save folder no longer exists. The `OrphanBackups` [maintenance lane](#maintenance-lane) removes them
+once the folder is confirmed missing. Code:
+[`OrphanBackupCleanupService`](../../src/PzTools.Backup.Engine/OrphanBackupCleanupService.cs).
 
 ### Restore journal
 
-A small file written before a restore replaces a save. The old save is moved aside and
-the restored copy is put in its place in one step. If the restore is interrupted, the
-journal lets the next start tell which of the two is in place and clean up the other.
-See [restore safety](../reference/command-line.md#restore-safety).
+The file `.<save>.pztools-restore.json` beside a save, written before a restore swaps the restored copy in. After an
+interruption it tells recovery which copy is in place. Code:
+[`SafeRevisionRestoreService`](../../src/PzTools.Backup.Engine/SafeRevisionRestoreService.cs). See
+[restore safety](../reference/command-line.md#restore-safety).
 
 ## Processes and jobs
 
 ### Component
 
-One named background program with its own settings folder, for example
-`backup-worker` or `state-scheduler`. See [configuration](../reference/settings.md).
+A named producer with its own configuration and telemetry, such as `backup-worker` or `state-scheduler`. Its
+editable settings are in `%LOCALAPPDATA%\PzTools\config\<component>\default.toml`. See
+[advanced settings](../reference/advanced-settings.md).
 
+<a id="scheduler-runner-worker"></a>
 ### Scheduler, runner, worker
 
-Three roles. A **scheduler** runs for as long as the app and decides *when* work is
-due. A **runner** starts one job safely: it takes a run index and the locks, then
-launches the worker. A **worker** does the job and exits. See [process architecture](process-architecture.md).
+The three process roles. A **scheduler** runs as long as the app and decides when work is due. A **runner** takes a
+mutex and starts one worker. A **worker** does one job and exits. See
+[process architecture](process-architecture.md).
 
 ### Run index
 
-A number handed out once per job attempt, increasing across the whole installation.
-It ties together everything that job wrote: its revision, its log entries, its
-diagnostics. Numbers of failed or skipped attempts are not reused.
+The number of one job attempt, unique across the installation and increasing. It ties together a job's workflow,
+revision, telemetry and log entries. Allocated in `control.db` by
+[`RunIndexAllocator`](../../src/PzTools.Control/RunIndexAllocator.cs), never below UTC Unix milliseconds × 65536;
+numbers are never reused, including those of attempts that ended `Busy`. See
+[process architecture](process-architecture.md#databases).
 
 ### Writer lock
 
-`.writer.lock` in the repository. Only the process holding it may change the
-repository, so two jobs never write at the same time. Some pages call it the
-*writer lease*.
+`.writer.lock` in the repository, opened with no sharing by whoever writes to the repository. Code:
+[`RepositoryWriterLease`](../../src/PzTools.Backup.Storage/Repository/RepositoryWriterLease.cs), so the code also
+calls it the *writer lease*.
 
 ### Workflow
 
-The record a job keeps in `repository.db` while it runs, stage by stage. After a crash
-it tells the next start what was left unfinished and what can be cleaned up.
+A job's record in `repository.db` (`workflow_runs`, `workflow_stages`), keyed by run index, with the PID and start
+time of each process working on it. After a crash it tells recovery what was left unfinished.
 
 ### Maintenance lane
 
-One kind of heavy maintenance, run as its own process with its own lock:
-reclaiming deleted revisions, cleaning up leftover files, or removing backups of deleted
-saves. A lane that is running does not stop the others from starting, and every lane
-gives way to a backup. See [housekeeping](repository-housekeeping.md).
+One kind of heavy maintenance that runs as its own detached process with its own mutex: `RevisionReclamation`,
+`ArtifactCleanup` or `OrphanBackups`. Lanes run only while no game process exists and give way to a due backup. See
+[process architecture](process-architecture.md#maintenance-lanes).
 
 ### Progress card
 
-The cards in the app that show running and finished work: backups, restores, exports,
-recordings and so on. They are drawn from telemetry. See the [UI contract](ui-ux-contract.md).
+A card in the app for running or finished work: a backup, restore, export, recording and so on. Built from
+telemetry by [`OperationCardStack`](../../src/PzTools.App.Core/OperationCardStack.cs). See the
+[UI contract](ui-ux-contract.md).
 
 ### Projector
 
-The part of the app that turns stored data (game state, backups, the schedule) into
-the views the screens show. A projector that fails is reported on its own card, and
-actions that depend on it are blocked.
+A loop in the app that turns a database or the game's state into a view for the screens: `StateProjector`,
+`BackupProjector`, `SchedulerProjector` and others, run by
+[`ProjectionHost`](../../src/PzTools.Projections/ProjectionHost.cs). A projector that fails shows as faulted, and
+the actions that depend on its view are unavailable.
 
 ### Telemetry
 
-Diagnostic events each process writes to its own database. The app's progress cards,
-logs and timings are read from them. Telemetry never decides whether a backup
-succeeded. See [telemetry](telemetry.md).
+The record each process keeps of its own work. Progress cards and the Logs page are built from it; nothing that
+decides whether a backup exists reads it. See [telemetry](telemetry.md).
 
 ## Game state
 
+<a id="active-save-target"></a>
 ### Active save, target
 
-The save being played right now, as far as PZ Tools can tell. Automatic backups are
-made for this save; the scheduler calls it the *target*.
+The save being played, as far as PZ Tools can tell. The backup scheduler calls it the *target*; automatic backups
+are made for it.
 
 ### Activity
 
-Whether a save is in use, found by checking whether the game has its files locked:
-*Active*, *Inactive* or *Unknown*. Two matching checks in a row are needed before
-the app acts on a change. Several active saves at once are *ambiguous*, and automatic
-backups wait.
+Whether a save is being played: `Active`, `Inactive` or `Unknown`. With game-aware timing on it comes from the
+game's state stream, otherwise from whether the game has the save's `players.db` locked. Two matching readings in a
+row confirm a change. Several active saves at once are *ambiguous*, and automatic backups wait. Code:
+`GameActivityLane` in [`StateCollector.cs`](../../src/PzTools.Zomboid.State/StateCollector.cs).
 
+<a id="collector-reactor-projection-outbox"></a>
 ### Collector, reactor, projection, outbox
 
-The steps that turn file checks into scheduling decisions. The **collector** records
-what it saw. The **reactor** turns that into the current picture (the **projection**)
-and into commands for the backup scheduler, which it leaves in the **outbox**. A
-command delivered twice is still applied only once.
+The steps of a state check. The **collector** reads the saves and writes a batch of readings to `state.db`. The
+**reactor** turns the batch into the current state (the **projection**) and, in the same transaction, into commands
+for the backup scheduler in the **outbox**. A relay copies each command into `scheduler.db` once. Code:
+[`StateCollector`](../../src/PzTools.Zomboid.State/StateCollector.cs),
+[`StateReactor`](../../src/PzTools.Zomboid.State/StateReactor.cs),
+[`StateOutboxRelay`](../../src/PzTools.Scheduling/StateOutboxRelay.cs).
 
 ### State revision
 
-A counter in `state.db` that goes up whenever the current picture of the game changes
-in a way the app should show. Readers compare it to know whether anything is new.
+`state_revision` in `state.db`: a counter that goes up when the state the app shows changes. Readers compare it to
+see whether anything is new.
 
+<a id="observation-fresh-stale"></a>
 ### Observation, fresh, stale
 
-A reading of the game's state, from files or from the game itself. *Fresh* means
-recent enough to act on. A *stale* or unknown reading never counts as active play.
+A reading of the game's state (`RuntimeObservation`). *Fresh* means the game answered recently and its sample is
+at most 2 seconds old. A stale or unknown reading never counts as active play. Code:
+[`RuntimeSnapshotStore`](../../src/PzTools.Process.Hosting/RuntimeStateFeed.cs).
 
 ### Grace period
 
-How long the game may stay unreadable (about 90 seconds) before periodic backups stop
-waiting for it and follow the wall clock instead. See
-[game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read).
+How long the game may stay unreadable (90 seconds) before periodic backups stop waiting for it and follow the
+wall clock. Code: `RuntimeScheduleController.DefaultLinkGrace`. See
+[game-aware timing](runtime-pause-backups.md).
 
 ## Inside the game
 
 ### Game bridge
 
-The Java component PZ Tools loads into the running game. It saves on request,
-streams the game's state and hosts extensions. See [game bridge](game-bridge.md).
+The Java code PZ Tools loads into the running game. It saves on request, streams the game's state, records
+performance, shows in-game notes and hosts the extensions. See [game bridge](game-bridge.md).
 
 ### Attach
 
-Java's standard way to load code into a running Java program. PZ Tools uses it to
-load the game bridge; no game file is changed.
+Java's mechanism for loading an agent into a running Java program. A helper process (the bundled `java.exe` running
+`AttachMain`) uses it to load the bridge; no game file is changed.
 
 ### Bootstrap
 
-The part of the game bridge that stays loaded until the game exits: it accepts
-connections and hands commands to the other parts. If PZ Tools ships an incompatible
-bootstrap, the game has to be restarted once to use it. Pages also call it the
-*resident* part.
+The part of the bridge that stays loaded until the game exits (`pztools-game-bootstrap.jar`, class `AgentEntry`):
+the control socket, the game-loop hook and the extension API classes. A PZ Tools update with a different bootstrap
+API needs one game restart. Also called the *resident* part. See [module reload](module-reload.md).
 
 ### Payload
 
-The replaceable part of the game bridge: saving, the state stream, performance recording,
-in-game notes and extension control. A newer payload replaces the old one while the game
-runs, at an idle moment. See [component updates](module-reload.md).
+The replaceable part of the bridge (`pztools-game-bridge.jar`): save requests, the state stream, extension
+control, the profiler, notes and leases. A newer payload replaces the old one while the game runs. See
+[module reload](module-reload.md).
 
 ### WATCH
 
-The state stream from the game to the state scheduler: process, world, pause, sleep,
-active play time, and the character's life and death. `WATCH` is the connection
-kind the app asks for when it opens the stream. The current message format is in
-the [compatibility table](game-bridge.md#compatibility-and-lifecycle).
+The connection kind for the game's state stream, held open by the state scheduler. The game sends its process,
+world, pause, sleep, play time and the character's life and death. Code:
+[`GameRuntimeClient`](../../src/PzTools.GameBridge/GameRuntimeClient.cs) and `RuntimeWatch.java`.
 
+<a id="lease-app-run"></a>
 ### Lease (app run)
 
-What the app asks of the game lasts only while the app is there. Each run of the app has
-an identifier (32 hex digits); its WATCH stream, and each recording it starts, renew that
-run's lease in the game. Two minutes after the run was last heard from, the lease lapses
-and the game ends the recordings it held. See [leases](game-bridge.md#leases).
+What one run of the app asks of the game lasts only while that run is heard from. Each app start makes a 32-hex-digit
+id (`AppRun.Id`); the WATCH stream renews its lease. 120 seconds after the last renewal the game ends the recordings
+the run started. See [game bridge](game-bridge.md#leases).
 
 ### Observer epoch
 
-An identifier for one WATCH connection. It changes when the stream is reconnected or
-the payload is replaced, so an old reading can never be mistaken for a new one.
+A random id the game makes for each WATCH subscription (`RuntimeObserver`). Readings and tickets carry it, so one
+from an earlier connection or payload is refused.
 
 ### Admission
 
-The checks that decide whether a request may run in the game at all: the right
-process, world and save, the game in a state that allows it, the request not out of
-date. A request that fails admission changes nothing.
-
-### Save provider
-
-The code in the game that carries out a backup's save request. The standard provider
-calls the game's own save. The design allows an extension to offer another provider,
-but none is shipped; the game keeps one slot for it, separate from the extensions'
-control lease.
+The checks that decide whether work may start. In the backup scheduler, a `BackupTickAdmission` is one due backup
+that is checked again before the worker starts. In the game, a request is admitted only for the right process,
+world and save in a state that allows it. A request that fails admission changes nothing.
 
 ### Ticket
 
-Permission the scheduler gives one periodic backup to save the game. It names the
-process, world and timing it was issued for; the game checks all of them again just
-before saving.
+`RuntimeSaveTicket`: the scheduler's permission for one game-aware backup to save the game. It names the process,
+observer epoch, world and timing it was issued for, and the game checks them again just before saving.
+
+### Save provider
+
+The `SaveProvider` interface through which an extension module could carry out a backup's save in place of the
+game's own save. None is shipped.
 
 ## Game extensions
 
+<a id="extension-module"></a>
 ### Extension, module
 
-An optional feature that runs inside the game; vehicle driving improvements is currently
-the only one. Each ships as its own archive (the **module**) and is off by default. See
-[game extensions](game-extensions.md).
+An optional feature that runs inside the game; vehicle controls (`vehicle-drivetrain`) is the only one shipped.
+Each ships as its own jar (the **module**) and is off by default. See [game extensions](game-extensions.md).
 
 ### Catalogue
 
-`config/game-extensions/catalog.tsv`: one row per extension, with its archive,
-supported game versions and capability.
+`extensions\catalog.tsv` in `game-bridge` (source: `config/game-extensions/catalog.tsv`): one row per module, with
+its version, Java namespace and entry class, jar, supported game versions and capability.
 
 ### Capability
 
-The named contract a module implements, such as `vehicle.drivetrain.v1`. It decides how the module is started. *Continuous* modules run
-for the whole play session; *per-save* modules would act only around a save and none
-is currently shipped.
+The contract a module implements, such as `vehicle.drivetrain.v1`. It decides how the module is run.
 
 ### Provider
 
-The class in a module that the host calls: to apply settings, on each game frame, and
-to shut down.
+The class in a module that the host calls (`ContinuousProvider`): to validate and apply settings, on each game
+frame, and to close.
 
+<a id="extension-runtime-host"></a>
 ### Extension runtime, host
 
-The replaceable Java library inside the game that loads modules, keeps each in its
-own slot and calls them. It can be replaced while the game runs.
+The replaceable library in the game (`pztools-extension-runtime.jar`, class `ModuleHost`) that loads modules, keeps
+each in its own slot and calls them.
 
 ### Slot
 
-The host's place for one module: its loaded archive, current settings and fault state.
-One module faulting clears only its own slot.
+The host's place for one module (`ContinuousRuntime`): its current generation, report and fault state. A fault
+in one slot leaves the others working.
 
+<a id="generation-module"></a>
 ### Generation (module)
 
-One loaded copy of a module. Updating the module's archive or definition loads a new
-generation and retires the old one. The scheduler also has *timing generations*,
-which identify one countdown policy; they are unrelated.
+One loaded instance of a module, with a random id. A changed jar or catalogue entry, a world change or a lost lease
+ends it; the next `APPLY` makes a new one. Not the scheduler's *runtime generation* (`--runtime-generation`), which
+identifies one game-aware timing policy.
 
 ### Control lease
 
-The state scheduler's claim to control the extensions in one game. It lasts a few
-seconds and is renewed while PZ Tools is running. If it is not renewed, for example
-because the app closed, every module turns itself off.
+The state scheduler's claim to control the extensions in one game. Each command renews it; after 5 seconds without
+one, or when the connection ends, every module turns itself off. Code: `ExtensionControl.java`.
 
 ### Settings revision
 
-A counter in `%LOCALAPPDATA%\PzTools\extensions\settings.json` that goes up with every
-change to any extension setting. The *requested* revision is what you saved; the
-*applied* revision is what the game is running. When they match, the change has taken
-effect.
+A counter in `%LOCALAPPDATA%\PzTools\extensions\settings.json` that goes up with every change to an extension
+setting. The *requested* revision is what was saved, the *applied* revision is what the game runs; when they match,
+the change has taken effect.
 
 ### Safe boundary
 
-A moment when a change can be applied without disturbing play. For vehicle controls:
-all vehicles stopped, accelerator released and cruise control off.
+A moment when new settings or a new generation can take over without disturbing play. For vehicle controls: the
+vehicle stopped, the accelerator released and cruise control off.
 
+<a id="retire-revoke"></a>
 ### Retire, revoke
 
-Two ways a module stops. **Retire** is orderly: no new calls, wait for calls in
-progress, release what it holds. **Revoke** is immediate, after a fault or a lost
-lease; the game goes back to its own behaviour straight away.
+Two ways a generation stops. **Revoke** is immediate: no new calls, the game's own behaviour at once. **Retire**
+revokes, waits up to 5 seconds for calls in progress, then deactivates and closes the module. See
+[module reload](module-reload.md).
 
 ### Pass-through
 
-What happens after a module faults: the game's original behaviour is used in its
-place, and the module does nothing until you turn it on again or change its settings.
-The status for this is `FaultedPassThrough`.
+A module's state after a fault (`FaultedPassThrough`): the game's own behaviour applies, and the module does nothing
+until it is turned on again or its settings change.
 
 ### Probe mode
 
-A developer setting of the vehicle extension (`probe_only`): it reads the vehicle and
-computes what it would do, for diagnostics, but changes nothing in the game.
+The vehicle module's `probe_only` setting: it reads the vehicle and computes what it would do, for diagnostics, but
+changes nothing in the game.
 
 ### Restart required
 
-The state reported when a module or payload could not be retired cleanly. Nothing new
-is loaded until the game is restarted, because the old code might still be running.
+The state of a slot or of the whole bridge that cannot go on without a game restart: a module that could not be
+retired cleanly, or an incompatible bootstrap. Nothing new is loaded there until the game restarts. See
+[module reload](module-reload.md#restart-required).

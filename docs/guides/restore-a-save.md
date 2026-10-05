@@ -32,7 +32,7 @@ Load the save in the game, and you're back where that backup was.
 - **Automatic backup** is the tag on the ones PZ Tools makes while you play. PZ Tools keeps
   the 20 newest and deletes older ones. Change the number in **Settings → Backup → Automatic
   backups to keep**.
-- **Back up now** makes a manual backup. Those are never deleted automatically.
+- **Back up now** makes a manual backup. The limit above never deletes those.
 - The pencil button renames a backup. A clear name helps you find it later, like "Before the
   mall".
 - The bin button deletes one backup, and **Delete all backups** deletes every backup of the

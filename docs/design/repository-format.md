@@ -1,202 +1,162 @@
 # Repository format
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-The backup [repository](glossary.md#repository) is the backup folder you choose, with
-everything PZ Tools stores in it. This page describes what that folder contains, when a
-backup counts as saved, and which storage versions this build of PZ Tools can open. It is
-for people reading or changing the storage code, and for anyone whose backup folder was
-refused. For where the repository sits among the other parts, see the
-[overview](overview.md).
+The backup [repository](glossary.md#repository) is the backup folder. `repository.db`, a SQLite database, is the authority on what exists: sources, revisions, file versions and where each stored object lives. The [packs](pack-format.md) hold the file contents. The code is in [`src/PzTools.Backup.Storage/Repository/`](../../src/PzTools.Backup.Storage/Repository/). What the player sees of backups, and which ones are deleted when, is on [Backups](../reference/backups.md).
 
-## Current version
+## Versions
 
-| Version | Current |
+| Version | Value | Defined in |
+| --- | --- | --- |
+| Repository format | 2 | `RepositoryDatabase.CurrentFormatVersion` |
+| Repository schema | 6 (schema 5 is upgraded when opened) | `RepositorySchema.CurrentVersion`, `UpgradableVersion` |
+| Pack format | 1 | `PackFormat.Version`, see [pack format](pack-format.md) |
+
+This page is the one place these numbers are recorded. Every process that opens the repository checks them, so the app and the workers must come from the same build.
+
+## Files in the backup folder
+
+| Item | What it is |
 | --- | --- |
-| Repository format | **2** |
-| Repository schema | **6** (schema 5 is upgraded when opened) |
+| `repository.db` (with `-wal` and `-shm` while open) | The catalog, in WAL mode |
+| `packs/<pack id>.pzpack` | Committed packs; the name is the pack UUID as 32 hex digits |
+| `staging/run-<run>-<pack id>.tmp` | A pack being written |
+| `staging/run-<run>-<pack id>.idx.tmp`, `staging/capture-<guid>.tmp` | Index sidecar and staged file copies; both are delete-on-close, so the OS removes them even when the process is killed |
+| `staging/quarantine/` | Temporary files a later backup found left over |
+| `.writer.lock` | The [writer lock](#writer-lock) |
+| `telemetry.db`, `.pztools/<component>/` | Diagnostics, see [telemetry](telemetry.md). Losing them loses no backup. |
 
-This page is the one place these numbers are recorded; other pages link here. Build and
-publish the app and the workers together, so that they agree on the version.
+Settings are not stored here; they live under `%LOCALAPPDATA%\PzTools\config\` (see [advanced settings](../reference/advanced-settings.md)).
 
-## What is in a backup folder
+## Tables
 
-```text
-repository/
-  repository.db
-  telemetry.db
-  .pztools/<component>/telemetry.db
-  packs/
-  staging/
-  .writer.lock
-```
-
-| Item | What it holds |
+| Table | Holds |
 | --- | --- |
-| `repository.db` | The authoritative record: [sources](glossary.md#source), [revisions](glossary.md#revision-backup), checkpoints, object locations and the [catalog](glossary.md#catalog) || `telemetry.db`, `.pztools/<component>/telemetry.db` | Diagnostics ([telemetry](glossary.md#telemetry)). Losing them does not remove any revision. |
-| `packs/` | The [pack](glossary.md#pack) files holding the stored file contents; see [pack format](pack-format.md) |
-| `staging/` | Temporary files while a pack is being written |
-| `.writer.lock` | The [writer lock](glossary.md#writer-lock) |
+| `repository_info` | One row: repository UUID, format and schema version, `next_run_index`, `repository_change_revision` |
+| `schema_migrations` | The schema versions applied |
+| `sources` | One row per save: `source_key` (`<mode>/<save>`, unique ignoring case) and `root_path` |
+| `source_state` | Per source: `current_revision` and the [USN checkpoint](usn-journal.md#checkpoint), whose three columns are all set or all null |
+| `revisions` | `(source_id, revision)`, the `run_index` that made it, `state` (`Active` or `Deleted`), deletion time and reason, `backup_kind`, display name, character summary, `file_count`, `logical_size`, `game_version` |
+| `packs` | Pack UUID, relative path, byte length, `status` (`Committed` or `Superseded`), `created_run_index` |
+| `stored_objects` | Object UUID, its pack and record offset, lengths, checksum and compression algorithm, checksum, change fingerprint |
+| `paths`, `path_spellings` | The path dictionaries, see [path handling](path-normalization.md) |
+| `entry_versions` | Every version of every path of every source, described below |
+| `workflow_runs`, `workflow_stages` | Run history: one workflow per run index, one stage per producer process |
+| `entry_gc_cursors`, `path_gc_cursor` | Where the bounded cleanup sweeps resume, see [housekeeping](repository-housekeeping.md) |
 
-Editable settings are not kept in the repository. They live centrally in
-`%LOCALAPPDATA%/PzTools/config/<component>/default.toml`; see
-[configuration](../reference/settings.md).
+Views: `worker_runs` (the stage of the backup worker, or of the maintenance worker when no backup shares the run, with its status folded into the five telemetry values), `entry_catalog` (versions joined with their path strings) and `current_entry_catalog` (open, live versions only, forced onto the narrow current index). The column encodings are on [compact storage](compact-repository-format.md).
 
-## Upgrading from schema 5
+### File versions are intervals
 
-Schema 5 kept every worker run twice: in `runs`, and in `workflow_runs` with its
-`workflow_stages`. Each writer kept the two in step by hand. Schema 6 keeps only the
-workflow tables. Revisions and packs refer to `workflow_runs`, and the `worker_runs`
-view gives what `runs` used to: the run of the backup worker's stage, or of the
-maintenance worker's when no backup shares the run, with its status in the five values
-telemetry uses.
+A row of `entry_versions` is visible in revision R when `valid_from_revision <= R` and `valid_to_revision` is null or greater than R. A commit closes the open version of each changed path by setting its `valid_to_revision` to the new revision, then inserts the new version. A deletion is a version with `tombstone = 1`. Unchanged files add no rows, so a revision costs rows only for what changed.
 
-A schema 5 repository is upgraded the first time this build opens it, in one
-transaction:
+Constraints that hold at all times:
 
-1. Any run that only `runs` recorded gets a workflow and a backup-worker stage.
-2. Revisions and packs are rebuilt with the new references, and `runs` is dropped.
-3. Every reference is checked before the commit. If anything fails, or the process
-   stops part way, nothing is changed and the repository stays schema 5.
+- At most one open version per `(source_id, path_id)` (unique partial index `ix_entry_versions_current`).
+- A live `File` version has an `object_id`; directories and tombstones may not.
+- `valid_to_revision > valid_from_revision`.
+- Every version's `(path_id, spelling_id)` exists, and its `valid_from_revision` names an existing revision row.
 
-Processes that open the repository at the same moment wait for the first upgrade and
-then find it done. No copy of the old database is kept: the transaction already makes
-the upgrade all or nothing, and a copy would take as much disk as the catalog, which
-grows with every save file and backup. The previous app version refuses an upgraded
-repository.
+## Opening a repository
 
-## When a backup folder is refused
+`RepositoryDatabase.CreateOrOpenAsync` creates `packs/` and `staging/`, switches the database to WAL, applies the schema 6 baseline in one transaction and writes a new identity (random UUID, `next_run_index = 1`). It does this only when `repository.db` is missing or empty.
 
-Formats and schemas other than the current one and schema 5 have no migration and no
-compatibility reader. When the backup folder already has a non-empty `repository.db`,
-its format and schema are checked before anything is written to it. If either is
-unsupported, or the recorded schema and the migration table disagree, it is refused
-with `repository-reset-required` and left unmodified. The app shows this as an
-incompatible backup folder. PZ Tools does not convert or erase it.
+A non-empty `repository.db` goes through `OpenExistingAsync`. The identity is read before any statement that could write:
 
-A `repository.db` that is not a PZ Tools repository at all (it has no repository
-identity) fails with an ordinary error instead.
+| Found | Result |
+| --- | --- |
+| No `repository_info` row | Ordinary error "Repository identity is missing." |
+| Format other than 2, or schema other than 6 or 5 | `repository-reset-required`, nothing written |
+| `schema_migrations` disagrees with the recorded schema | `repository-reset-required`, nothing written |
+| Schema 5 | [Upgraded](#upgrade-from-schema-5), then opened |
+| `revisions.game_version` missing | Column added in place, schema number unchanged |
 
-To continue, either choose a new empty backup folder, or explicitly reset the backup
-repository after keeping any data you need. The original `Zomboid/Saves` folder is never
-a reset target.
+The app shows `repository-reset-required` as "This version cannot open this backup folder. Choose a new folder in the settings. Do not delete the old one." There is no converter and no reset command; the folder is left as it was.
 
-## How it works inside
+Every connection runs `PRAGMA foreign_keys = ON` and `busy_timeout = 5000`, with a shared cache and no pooling. Opening is retried up to five times (50, 100, 200, 400 ms apart) for exactly one failure: SQLite's `SQLITE_IOERR_TRUNCATE` with Windows error 1224, which happens while Windows still maps the WAL index of a killed process. The retry opens a fresh handle and never deletes `-wal` or `-shm`. Only connection setup and read-only probes are replayed, never a caller's transaction ([`RepositoryConnectionInitialization`](../../src/PzTools.Backup.Storage/Repository/RepositoryConnectionInitialization.cs)).
 
-### Stored representation
+The app checks `repository_change_revision` once a second to decide whether to reload the backup list. That reader keeps one connection open (`HoldReadConnection`). Opening a connection per check made SQLite create and delete `-wal` and `-shm` every second, each time scanned by file-system filters. The check runs in a short read transaction, so writers, checkpoints and `VACUUM` are not held up.
 
-A new database is created at the current schema and records version 6 in
-`schema_migrations`. An existing database must match the supported format and schema,
-or be [upgraded from schema 5](#upgrading-from-schema-5). Repository connections turn
-on foreign keys.
+### Upgrade from schema 5
 
-| Data | Representation |
-|---|---|
-| Object, pack and repository UUIDs | 16-byte BLOB |
-| File and parent identities | 24-byte BLOB: 8-byte volume identity plus 16-byte file reference |
-| File modification and change times | UTC .NET ticks, keeping 100 ns precision |
-| Comparison fingerprint | First 16 bytes of SHA-256; nullable |
-| Checksum and compression algorithms | Validated integer codes; integrity checksums keep their full length |
-| Revision totals | `file_count` and `logical_size`, updated in the catalog transaction |
+Schema 5 kept every worker run twice, in `runs` and in `workflow_runs`/`workflow_stages`, and every writer kept the two in step by hand. Schema 6 keeps only the workflow tables; revisions and packs refer to `workflow_runs`, and the `worker_runs` view answers what `runs` did.
 
-Why these representations were chosen, and what they saved, is on
-[compact storage](compact-repository-format.md).
+`RepositorySchemaUpgrade.UpgradeFrom5Async` does it in one immediate transaction on a private connection:
 
-### Paths and objects
+1. Runs that only `runs` recorded get a workflow and a backup-worker stage.
+2. `revisions` and `packs` are rebuilt with the new references, and `runs` is dropped.
+3. `PRAGMA foreign_key_check` must return nothing, or the transaction rolls back and the repository stays schema 5.
 
-Paths are stored once, in `paths` and `path_spellings`. File versions refer to them by
-`path_id` and `spelling_id`, which keeps the spelling each backup had, including
-case-only renames. If two paths in one commit normalize to the same key, the commit fails
-rather than merging them silently. See [path handling](path-normalization.md).
+A second process opening at the same moment waits on the lock (30 s busy timeout) and then finds schema 6. The private connection matters here: with the shared cache, a second opener in the same process would fail at once on the upgrade's locks instead of waiting. No copy of the old database is kept. The transaction already makes the upgrade all or nothing, and a copy would cost as much disk as the catalog. An older build refuses an upgraded repository.
 
-Object IDs are opaque locators, not content hashes. Deduplication uses full SHA-256 and
-a byte comparison, then reuses the existing object without compressing it again.
+## Writers and runs
 
-Independently of that setting, an incremental backup compares each file it is about to
-store with the object its path already holds. The game rewrites every chunk it has
-loaded on each save, mostly with the bytes they had, and a new time makes each one look
-changed. When the length and the comparison fingerprint match and every byte compares
-equal, the new version reuses that object. The fingerprint only picks the candidate;
-the byte comparison decides. An earlier pack that cannot be read is not an error here:
-the file is stored again. With the game saving each time and the player standing still,
-389 of the 391 files a backup took were reused, and the backup added 150 KB instead of
-1.27 MB.
-[Storage performance](../history/storage-performance.md) records the implementation work.
+<a id="writer-lock"></a>
+### Writer lock
 
-### Commit boundaries
+Every method that writes takes a `RepositoryWriterLease` and checks that it is still held and belongs to this repository path. The lease is `.writer.lock` opened with `FileShare.None`; ownership is the open handle, so a file left behind by a dead process blocks nothing. A second acquirer gets `RepositoryBusyException`. A backup holds the lease from before it reads the source until after its commit, so garbage collection can never run between a pack's promotion and its registration.
 
-Only a process holding an exclusive handle to `.writer.lock` may write to the
-repository. The file may stay behind after the process exits: ownership belongs to the
-open handle, not to the file, so a leftover file does not block later work. A lease that
-has been disposed is rejected.
+Whole operations (backup, restore, export, orphan cleanup) also take the `RepositoryAccess` named mutex; see [process architecture](process-architecture.md).
 
-The installation's `control.db` hands out the `run_index`
-([run index](glossary.md#run-index)), including for failed and cancelled attempts.
-History cleanup never reuses a number.
+### Run index
 
-A revision commits these together, in one step:
+The run index comes from the installation's `control.db` ([`RunIndexAllocator`](../../src/PzTools.Control/RunIndexAllocator.cs)): each allocation returns `MAX(last + 1, now in Unix ms × 65536, requested minimum)`. The time floor keeps numbers rising even if `control.db` is recreated. Reserving a workflow with that index also raises `repository_info.next_run_index` to at least index + 1. A caller that supplies no index (tests, direct engine use) gets the next value of `next_run_index`. Numbers are never reused, including after history cleanup.
 
-- pack and object registration
-- catalog versions
-- totals
-- the checkpoint
-- completion of the run
+Each run has a `workflow_runs` row (pipeline, owner component, optional unique `admission_id` that makes the scheduler's reservation idempotent) and one `workflow_stages` row per producer. Both are stamped with the owner's process ID and start time, which recovery uses to tell a dead owner from a live one.
 
-Until that commit the backup does not exist. An initial backup adds up the captured files
-once; an incremental backup applies its changes to the previous totals.
+### Backup origin
 
-A [USN](glossary.md#usn-journal) checkpoint needs the volume identity, the journal ID and
-the next USN. Planning the changes of an incremental backup queries only the file
-references that the changed records need.
+`backup_kind` is decided inside the commit: `Automatic` when the run's workflow is pipeline `backup-maintenance` owned by `backup-scheduler`, `Manual` for everything else (app, CLI, direct engine). `Unknown` is only the column default for rows that predate the column. Retention counts only `Automatic` revisions.
 
-### Revision metadata
+## What counts as committed
 
-Each revision stores its display name, a character summary and its `backup_kind`. A
-default display name is written in the interface language of the day. The backup list
-recognises an unedited default name in any language and shows it in the current one.
+A backup exists only once one SQLite transaction commits all of this ([`CommitRevisionAsync`](../../src/PzTools.Backup.Storage/Repository/RepositoryDatabase.Revisions.cs)):
 
-`game_version` is an optional, nullable column holding the version the running game
-reported when the backup was made. A save contains no version string, so it is recorded
-only while the game has that save loaded, and older backups have none. Repositories that
-lack the column get it added in place when they are opened. This does not change the
-schema version: builds that predate the column name their columns explicitly and keep
-working with the same repository.
+1. The revision row, with its kind, default name and game version.
+2. The pack row (`Committed`) and the new object rows.
+3. The file versions, closing the ones they replace, and the revision's `file_count` and `logical_size`.
+4. `source_state`: the new `current_revision` and the USN checkpoint.
+5. The backup-worker stage, and the workflow when the backup worker owns it, set to `Succeeded`.
+6. `repository_change_revision` + 1.
 
-### Retention and deletion
+The transaction first checks that the run is `Running` in `worker_runs` and targets this source. It refuses a requested revision number not above the current one, duplicate pack or object IDs, and two entries whose paths are equal ignoring case. The pack file is already sealed, validated and in `packs/` before this transaction starts; see [pack format](pack-format.md#writing).
 
-What gets deleted and when is described for users in
-[housekeeping](repository-housekeeping.md). In storage terms:
+Totals: a first backup adds up the files in its scan; an incremental backup starts from the totals of the current revision and adjusts them for each version it closes or inserts.
 
-- Count-based retention applies only to active `Automatic` revisions. `Manual` and
-  `Unknown` revisions are exempt from the count, but explicit deletion and cleanup after
-  a confirmed missing source still apply.
-- A user deletion first marks a revision `Deleted`. That hides it from browsing, restore
-  and export.
-- The current revision and checkpoint do not roll back. Even a deleted latest revision
-  stays as a hidden incremental baseline, keeping the totals and objects the next backup
-  needs. Orphan-source cleanup empties that baseline and sets its file count and logical
-  size to zero.
+The first backup commits from the scan's `TEMP` table in set-based statements (`CommitInitialRevisionFromStagingAsync`). It is refused if the source already has a revision or if any scanned file has no object.
 
-Space is reclaimed later:
+A run that finds nothing to store calls `AdvanceCheckpointWithoutRevisionAsync`: the checkpoint moves, the stage ends `NoChange`, and no revision is made.
 
-1. Reclamation runs when a source's deleted revisions reach the default batch of 20, or
-   the oldest has waited 60 minutes, at the next maintenance pass that is able to run. It
-   also covers saves that are no longer being played.
-2. Separate bounded batches remove closed file versions that no retained revision and no
-   current baseline needs. Open current versions and current tombstones stay.
-3. Object GC removes only unreferenced objects and packs.
-4. A conditional SQLite `VACUUM` gives database pages back without recompressing packs.
-5. Pack compaction writes and verifies replacement packs, switches object locations in
-   one transaction, and leaves the superseded packs for GC. Maintenance applies it
-   automatically to packs that are mostly unused.
+## Interruptions and recovery
 
-Eligibility, limits and history retention are on
-[repository housekeeping](repository-housekeeping.md#pack-space-reclamation).
+| Process stopped | Left behind | Cleaned up by |
+| --- | --- | --- |
+| While writing the pack | `staging/run-*.tmp` | The next backup moves `staging/*.tmp` into `staging/quarantine/` and warns `temporary_files_quarantined`; maintenance (artifact cleanup, interrupted-operation recovery) deletes `*.tmp` in both folders |
+| After the pack moved into `packs/`, before the commit | An unregistered `.pzpack` | The next backup warns `orphan_pack`; garbage collection deletes every unregistered `packs/*.pzpack` |
+| During the commit | Nothing; SQLite rolls back | |
+| After the commit | Nothing | |
 
-### Bounded maintenance
+A stage left `Running` by a dead process is closed in two ways. The next backup, holding the writer lease, marks every running backup-worker and maintenance-worker stage `Abandoned` with `process-interrupted` (`RecoverAbandonedRunsAsync`): only the lease holder can be writing. Maintenance recovery (`RecoverInterruptedWorkflowsAsync`) abandons running workflows whose stamped processes have all exited or been replaced; when it cannot tell, it leaves the workflow and reports it.
 
-Schema 4 added cleanup indexes, current-entry views and `path_gc_cursor`. Schema 5 adds
-`entry_gc_cursors` for inspecting file versions. Path cleanup and version cleanup both
-limit how much they inspect at a time, and commit the cursor movement together with the
-deletions. Design details are in [storage hot paths](../history/storage-hotpaths.md) and
-[follow-up optimizations](../history/active-backup-followup.md).
+Before a backup builds on the catalog it checks that every `Committed` pack exists. If one is missing, the backup fails with "The repository references one or more missing committed packs." instead of writing a revision on top of lost data.
+
+`InterruptedOperationRecoveryTests` kills a real process at each of these boundaries and checks that the repository holds either the old state or the committed one.
+
+## Revision metadata
+
+| Column | Rule |
+| --- | --- |
+| `display_name` | Default "`<prefix> <revision>`", the prefix depending on kind, in the language set at the time. Renames are 1 to 100 printable characters and only for `Active` revisions. |
+| `game_version` | The version the running game reported, trimmed, at most 80 printable characters; null when the game was not reporting one. Saves carry no version string. |
+| Character columns | Filled after the commit by the character summary reader; a failure there leaves the backup intact and adds a warning. |
+
+## Deletion in storage terms
+
+Deleting marks a revision `Deleted`; reads, restore and export see only `Active` revisions. `current_revision` never moves back: the newest revision stays as the hidden baseline for the next incremental backup even when it is deleted. Rows and pack space are reclaimed later by [housekeeping](repository-housekeeping.md).
+
+## Decisions
+
+- **Refuse, never convert or reset, other versions.** Only schema 5 has an upgrade. Any other format or schema is refused before anything is written, and the player chooses a new folder.
+- **No backup copy for the schema 5 upgrade.** The single transaction already makes it all or nothing.
+- **Optional nullable columns are added in place.** Builds that do not know `game_version` name their columns explicitly, so the repository keeps its schema number and still opens in them.
+- **Object IDs are random UUIDs, not content hashes.** An ID says where an object is. Reuse of identical content is decided by SHA-256 and a byte comparison; see [pack format](pack-format.md#reusing-stored-objects).

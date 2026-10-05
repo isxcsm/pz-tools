@@ -1,201 +1,291 @@
 # Telemetry
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-[Telemetry](glossary.md#telemetry) is the diagnostic record each PZ Tools process keeps
-while it works: when a job started and finished, how far it has got, and what went
-wrong. The app reads it to draw progress cards, fill the Logs screen and show timings.
-This page is for people reading the code or digging into a failure. It explains where
-the records are stored, what is recorded, how the app turns them into progress and
-logs, and what to look at when something failed.
+[Telemetry](glossary.md#telemetry) is what each PZ Tools process records about its own work: when a run started and
+ended, its progress, and why it failed. The app reads it to draw progress cards and to fill the Logs page. It is
+kept apart from backup data. A telemetry failure never changes a revision, a repository transaction or a worker's
+exit code, and nothing that decides whether a backup exists reads it. Run indexes come from `control.db`
+([process architecture](process-architecture.md#databases)); telemetry never allocates an identifier that other data
+depends on.
 
-Telemetry is kept apart from backup data. Processes that do work (producers) write
-events; readers derive progress, logs and metrics from them. A telemetry failure never
-changes a successful revision, a repository transaction or an operation's exit code.
+## Stores
 
-## Where it is stored
+There are two kinds of telemetry database, and every producer owns its own file.
 
-| Store | Format/schema | Event identity |
-| --- | --- | --- |
-| Repository-root `telemetry.db` | Format 1, schema 2 | `(run_index, sequence)` |
-| Per-producer process `telemetry.db` | Schema 3 | `(scope_id, run_index, component, event_sequence)` |
+| Store | Code | Schema | Event identity |
+| --- | --- | --- | --- |
+| Backup engine: `telemetry.db` in the backup folder | [`TelemetryStore`](../../src/PzTools.Backup.Storage/Telemetry/TelemetryStore.cs) | Format 1, schema 2 | `(run_index, sequence)`; runs in `telemetry_runs`, events in `telemetry_events` |
+| Process telemetry: one per component | [`ProcessTelemetryStore`](../../src/PzTools.Process.Telemetry/ProcessTelemetryStore.cs) | Schema 3 (1 and 2 are migrated) | `(scope_id, run_index, component, event_sequence)` |
 
-Each process writes its own database, and producers do not share schema ownership or
-trimming. The database's location depends on what the producer's identity is:
+Both refuse a newer schema. An event has a name, a UTC time, elapsed ticks, a payload version and an optional
+JSON payload. Elapsed ticks mean different things in the two stores: time since the backup session started in
+the engine store, a Stopwatch delta since the store object was created in process telemetry. Neither is a clock to
+compare across processes.
 
-| Identity | Database path |
+A process telemetry database lives beside the identity it belongs to
+([`ComponentRuntimePaths.GetComponentDirectory`](../../src/PzTools.Process.Contracts/ComponentConfiguration.cs)):
+
+| Identity | Database |
 | --- | --- |
-| A directory | `<identity>/.pztools/<component>/telemetry.db` |
-| A database file | `<parent>/.pztools/<database-name>/<component>/telemetry.db` |
+| A folder | `<folder>\.pztools\<component>\telemetry.db` |
+| A file, or any path ending in `.db` | `<parent>\.pztools\<file name>\<component>\telemetry.db` |
 
-Every event has a version, a name, a UTC timestamp, monotonic elapsed ticks and an
-optional JSON payload. The installation's `control.db` hands out the
-[run index](glossary.md#run-index); telemetry never allocates identifiers that other
-data depends on.
+A `telemetry.active` file next to it is held open while the producer runs; the app uses it to tell a running
+worker from a dead one.
 
-## What is recorded
-
-The backup engine's `mode` setting chooses how much it records:
-
-| Mode | Recorded scopes |
+| Producers | Identity |
 | --- | --- |
-| `off` | No detailed engine runs or events |
-| `run` | Run events |
-| `phase` | Run and phase events |
-| `raw` | All emitted events |
+| `backup-scheduler`, `state-scheduler` | `scheduler.db` |
+| `state-runner`, `state-collector`, `state-reactor` | `state.db` |
+| `backup-runner`, `maintenance-runner`, `maintenance-worker`, `maintenance-lane-<lane>` | The backup folder |
+| `restore-worker`, `archive-worker`, `character-recovery`, `profiler` | `%LOCALAPPDATA%\PzTools\operations\<component>\<operation key>`, passed as `--telemetry-identity` |
 
-Retention settings and their usual values:
+The runners' events go to the log only; they never make a card. An operation's database is deleted once its events
+are in `logs.db` and its card has gone. Any left over at start-up are imported into `logs.db` and then deleted
+([`AppHost.RegisterHistoricalOperationTelemetrySourcesAsync`](../../src/PzTools.App.Core/AppHost.cs)).
 
-| Setting | Generated backup-worker template | Process telemetry, normally |
+## What the backup engine records
+
+The `[telemetry]` section of the `backup-worker` component chooses how much
+([`BackupConfiguration`](../../src/PzTools.Backup.Core/Configuration/BackupConfiguration.cs)):
+
+| `mode` | Recorded scopes |
+| --- | --- |
+| `off` | Nothing; the store is not opened |
+| `run` | `Run` events |
+| `phase` | `Run` and `Phase` events |
+| `raw` | Everything |
+
+| Key | Generated template | Code default when the key is missing |
 | --- | --- | --- |
-| Enabled | yes | `enabled = true` |
-| Mode | `phase` | — |
-| Batch size | 256 events | — |
-| Flush interval | 250 ms | — |
-| Retained runs | 100 | 100 |
-| Logical-size threshold | 64 MiB | 64 MiB |
+| `enabled` | `true` | `true` |
+| `mode` | `phase` | `raw` |
+| `batch_size` | 256 (1–4096) | 256 |
+| `flush_interval_ms` | 250 (10–10000) | 250 |
+| `retain_runs` | 100 | 1000 |
+| `max_database_mib` | 64 | 256 |
 
-A limit of zero turns that limit off. These settings are separate from how many
-backups are kept, and they do not cap the physical size of the SQLite file. The
-settings keys are in [configuration](../reference/settings.md).
+The template ([`config/defaults/backup-worker/default.toml`](../../config/defaults/backup-worker/default.toml)) is
+what the app writes, so the code defaults apply only to a file that leaves the keys out. Process telemetry reads
+`enabled` (true), `retain_runs` (100), `max_database_mib` (64), `progress_flush_interval_ms` (100) and
+`heartbeat_interval_ms` (5000) from each component's own `[telemetry]` section
+([`TelemetryRuntimeOptions`](../../src/PzTools.Process.Contracts/ComponentOptions.cs)). The keys are listed in
+[advanced settings](../reference/advanced-settings.md).
+
+### Trimming
+
+A limit of 0 turns that limit off. The size limit is the logical size, `page_size × (page_count − freelist_count)`,
+not the file size; the file does not shrink.
+
+- Backup engine: after each backup, finished runs beyond `retain_runs` are deleted, then the oldest finished runs
+  until the logical size fits. A running run is never deleted.
+- Process telemetry: per component, by run count, then by size, always keeping at least one run. A best-effort write
+  trims at most once a minute per database; a session trims when it ends.
+
+## Writing
+
+**Backup engine** ([`TelemetryRunSession`](../../src/PzTools.Backup.Storage/Telemetry/TelemetryRunSession.cs)).
+Events go through a bounded channel of `max(2 × batch_size, 16)`; a full channel makes the emitter wait. A batch is
+written in one transaction when it is full or when its flush deadline passes. The deadline starts at the batch's
+first event and does not move as more arrive. Batching groups events into transactions; it does not sample or
+aggregate them.
+
+If a write fails with a SQLite, I/O or access error, telemetry stops for the rest of that backup and the result
+carries the warning `telemetry_unavailable`. A failed trim gives `telemetry_trim_failed`. A crash loses the batch not
+yet committed.
+
+After taking the [writer lock](glossary.md#writer-lock), every backup reconciles the engine's runs with the
+repository's `worker_runs` and then marks any run still `Running` as `Abandoned` with `process-interrupted`
+([`RepositoryRecoveryService`](../../src/PzTools.Backup.Engine/RepositoryRecoveryService.cs)). Nothing that only
+reads telemetry does this.
+
+**Process telemetry** ([`ProcessTelemetrySession`](../../src/PzTools.Process.Telemetry/ProcessTelemetrySession.cs)).
+Events are queued and written by a timer every `progress_flush_interval_ms` (100 ms), one transaction per tick. A
+failed write is retried on the next tick; at shutdown the session gives up after three failures. Short-lived
+producers (schedulers, runners, state checks) use
+[`BestEffortProcessTelemetry.TryRecordAsync`](../../src/PzTools.Process.Telemetry/ProcessTelemetryStore.cs), which
+writes one event and swallows any failure. Process databases use `synchronous=NORMAL`, so a power loss can lose the
+last events.
 
 ## Progress and liveness
 
-**Heartbeats.** Long-running backup, restore and archive operations emit
-`operation.heartbeat`, but only while they are working. A backup records it at every
-recording level, as it is the run's liveness rather than a detail. A missed heartbeat marks a
-workflow stale only while it is `Running`. An idle producer or a finished operation is
-not a failure.
+| Signal | Emitted by | Interval |
+| --- | --- | --- |
+| `operation.heartbeat` (scope `Run`) | Backup worker | `heartbeat_interval_ms` in `[runtime]`, 2000 ms |
+| `operation.heartbeat` | Restore, archive, character recovery, profiler | `heartbeat_interval_ms` in `[telemetry]`, 5000 ms |
+| `operation.heartbeat` | Maintenance lanes, once they know they have work | 3 s |
+| `progress.snapshot` | Process workers | At most every `progress_flush_interval_ms` (100 ms), only after new progress |
+| Scan, hash and capture progress (scope `Phase`) | Backup worker | `progress_interval_ms` in `[runtime]`, 250 ms |
 
-**Restore and archive progress.** Each progress callback replaces the latest
-cumulative sample. A background writer normally records `progress.snapshot` about every
-100 ms.
+A heartbeat is emitted only while work runs. A card turns stale when no event has arrived for
+`telemetry_stale_seconds` (10 s) and only while its workflow is `Running`; an idle or finished producer is never
+stale. Backup progress is not recorded in `run` mode, and nothing is in `off` mode.
 
-- At a phase boundary, the previous phase's final sample is queued first.
-- Start, completion, failure, cancellation and busy events keep their order and are
-  flushed before the process exits.
-- Retries merge adjacent progress samples within a phase without losing these
-  boundaries.
-- Readers calculate percentages from the cumulative completed and total values.
+A process worker keeps only the latest progress sample between ticks. When the phase changes, the old phase's
+last sample is queued first. A terminal event (`run.committed`, `run.failed`, `run.busy`, `run.cancelled`,
+`run.unavailable`) queues the latest sample before itself, so the order holds. Retries merge adjacent samples of
+the same phase. Readers compute percentages from the cumulative completed and total counts; a total written as
+JSON `null` means unknown, and scan progress has none.
 
-**Backup progress.** The scan, hash and capture phases also report progress, sampled
-before it is serialised. Scan progress stays indeterminate until the total is known.
-Hash progress counts completed files and bytes. These events go through the same
-bounded queue and batches as other backup events.
+Deleting a save runs inside the app and has no telemetry database. It reports into a latest-value slot
+([`LatestProgress`](../../src/PzTools.App.Core/LatestProgress.cs)) that a UI timer reads every
+`export_progress_interval_ms` (350 ms); the result comes from the awaited task. While files are listed it shows a
+count; a percentage appears once the total is known.
 
-**Deleting a save from the app.** This runs inside the app and uses a latest-value
-slot instead of a worker telemetry database. The UI timer takes the newest sample;
-completion or failure comes from the operation's task. While files are being listed,
-it reports how many were found; percentages appear only once the total is known.
+### Matching events to cards
 
-**Matching events to cards.** Operations started from the UI carry an `operation_id`
-from [admission](glossary.md#admission) onward. The projection matches on that
-identifier rather than guessing from the operation kind and run number. A final state
-wins over a running update that arrives late.
+[`OperationCoordinator`](../../src/PzTools.App.Core/OperationCoordinator.cs) gives every operation started from the
+UI an `OperationId` (`manual-backup:<guid>`, `restore:<guid>` and so on) before it takes its in-app gates, and
+registers the telemetry source with that workflow and its run index. Events carry no operation id; the projection
+binds them to the source's current workflow by run index
+([`TelemetryProjection`](../../src/PzTools.Projections/TelemetryProjection.cs)). A card of the current workflow
+shows the workflow's own status, and a finished card keeps the result the app saw: a late running event cannot
+reopen it ([`OperationCardStack`](../../src/PzTools.App.Core/OperationCardStack.cs)).
 
-## App logs
+## Reading
 
-The app projects producer events into `logs.db` at one of five levels: Trace,
-Information, Warning, Error or Critical. File-completion, progress, heartbeat and
-workload-discovery events feed progress and metrics but are left out of the ordinary
-log list.
+The app's projection loop reads every source each `projection_interval_ms` (1000 ms), at most
+`telemetry_pages_per_refresh` (8) × 512 events per source per pass. It keeps one read-only connection per source
+and skips a source whose `PRAGMA data_version` has not changed.
 
-How levels are chosen:
+- `telemetry_read_timeout_seconds` (1, range 1–5) sets the SQLite provider's `DefaultTimeout`. The provider retries
+  `BUSY` by itself for 30 seconds by default, and one locked database would otherwise stall every card.
+- Before a source's first successful read, missing metadata and SQLite errors 1, 5 and 6 are treated as a database
+  still being created, for `telemetry_read_grace_ms` (2000 ms). The source shows as waiting. A missing file also
+  waits.
+- After that, a wrong schema marks the source `UnsupportedSchema`; SQLite, I/O, access or bad-data errors
+  (including invalid JSON) mark it `Unreadable`. Only that source is affected. The change is logged as
+  `telemetry.source.unreadable`, `.unsupportedschema`, `.stale` or `.recovered`.
+- A changed instance id, or event ids outside the cursor's range, reset that source's cursor.
 
-- Cancellation is a warning and failure is an error.
-- A `.completed` event with a `Failed` or `Degraded` outcome is still shown as an
-  error or a warning. Busy, cancelled, degraded and failed outcomes are never shown as
-  success.
-- Work that did not start is Information, not a problem to acknowledge: `run.busy` (other
-  work was running) and `run.unavailable` (what it needs is absent, such as a recording
-  with no game or with more than one). Its card shows the neutral icon and says why.
-- An automatic backup put off during preparation is Information too: `run.cancelled`
-  with `failureCode` `source-deferred` (the game paused or changed state during the
-  countdown) or `source-skipped` (the world stopped being played). It is tried again on
-  its own; twice in one session the retry succeeded 6 and 20 seconds later.
-- A duplicate state-scheduler check (`Busy`, `Started=false`) is logged at Trace. This
-  does not hide rejected user backups or real failures.
-- A numeric `outcome` is read as `ProcessOutcome`. The numeric backup `status` written
-  by older versions is read as `RunStatus`.
+## The Logs page's data
 
-Storage policy comes from the `[logs]` section of `config/app/default.toml`; the Logs
-screen's display filters are saved in `settings.toml`. Neither changes how long raw
-telemetry is kept.
+The projection copies events into `logs.db` in the data folder
+([`LogInboxStore`](../../src/PzTools.Projections/LogInboxStore.cs)). Each entry has one of five levels: Trace,
+Information, Warning, Error, Critical. Rules, in order
+([`TelemetryProjection.ClassifyLogLevel`](../../src/PzTools.Projections/TelemetryProjection.cs)):
 
-The app also reads the telemetry of the separate maintenance lanes. When file cleanup
-partly fails, the event includes a count and up to eight file names.
+| Event | Level |
+| --- | --- |
+| `operation.heartbeat`, `progress.snapshot`, `workload.discovered`, `file.*.completed` | Not logged |
+| `maintenance.*.started` | Information when `planned`, else Trace |
+| `maintenance.*.cancelled`, `maintenance.recovery.completed` | Information |
+| `run.cancelled` with `failureCode` `source-deferred` or `source-skipped` | Information: an automatic backup put off during preparation, retried by itself |
+| `source.prepare.completed` with outcome `save-unavailable` | Warning: the backup ran without the game's own save |
+| Name contains `critical` | Critical |
+| Name ends `.failed` or contains `error` | Error |
+| Name ends `.busy` or `.unavailable` | Information: the work did not start |
+| Name contains `warning`, or ends `.degraded` or `.cancelled` | Warning |
+| Other `*.started` except `run.started` | Trace |
+| Outcome completions (`tick`, `collector`, `reactor`, `state-runner`, `runner`, `backup`, `maintenance.*`) | `Failed`, `Abandoned` → Error; `Busy`, `Degraded`, `Cancelled`, unknown → Warning; a state-scheduler `tick.completed` that was `Busy` and not started → Trace; maintenance with work done → Information; else Trace |
+| Anything else | Information |
 
-## Failure details
+What these rules give in practice:
 
-A failure payload includes `failureCode`, `exceptionType`, `message` and `hResult`,
-plus, when known, the phase, relative path, save ID, reason and inner exception details.
-A `Win32Exception` also carries `nativeErrorCode`: its `hResult` is only the generic
-`0x80004005`, and the number (5 for access denied) is what says why. When a worker
-cannot be started it records nothing itself, so the app logs that worker's `run.failed`
-entry (`phase` `process-launch`) with the same number.
+| Events | Level |
+| --- | --- |
+| Routine successful checks: `tick.completed`, `collector.completed`, `reactor.completed`, `state-runner.completed`, `runner.completed` | Trace |
+| Background cleanup that found nothing to do | Trace |
+| Background cleanup with work: an announced start (`planned`), its completion, a completion that affected items, a postponement (`.cancelled`) | Information |
+| Backup and operation results: `run.started`, `run.committed` | Information |
+| Work that did not start: `run.busy`, `run.unavailable` (only the profiler sends it, when there is no single game) | Information |
+| An automatic backup put off during preparation: `run.cancelled` with `source-deferred` or `source-skipped` | Information |
+| Busy, degraded, cancelled and unknown outcomes | Warning |
+| Failures (`*.failed`, `Failed` or `Abandoned` outcomes) | Error |
 
-- Short diagnostic strings are flattened onto one line and capped at 512 characters.
-- Absolute source paths are masked.
-- A failure that implements `IFailureDiagnostics` may add a `diagnostics` field of up
-  to 6,144 characters. Truncation is marked, and the same path masking and newline
-  normalisation apply.
+With the default `record_minimum_level` (Information), Trace entries are not stored.
 
-**How the Logs page shows it.** The failure card speaks the app's language only. Its
-explanation comes from the failure code, the exception type and the Windows error number
-(`nativeErrorCode`, or the one inside an `hResult` of the form `0x8007xxxx`), never from the
-wording of `message`: Windows writes some messages in its own
-language, whatever language the app uses. A known worker `reason` is shown translated.
-Anything that cannot be explained this way (an unknown reason, the message itself) is
-shown word for word as *Original message* under the technical details. A notice the app
-logged itself (`app.action.failed`) keeps the title and message it showed; if that text
-is a whole string of any of the app's languages, the page shows it in today's language.
-The table for that lookup (every string of every language, about a second to read) is
-built in the background at launch. The app does not set
-`ApplicationLanguages.PrimaryLanguageOverride`: with it set, every resource lookup answers
-in that one language whatever language it asks for, and the table could not be built.
+A numeric `outcome` is read in `ProcessOutcome` order. A record without `outcome` but with a numeric `status`
+(written by old versions) is read as `RunStatus`. Entries already stored are not reclassified when these rules
+change.
 
-**Where to look.** For a failed game save or a deferred preparation, read the original
-`backup-worker` event. It keeps the detailed diagnostics, including `run.cancelled` with
-`code=source-deferred`. Parent runners and schedulers carry only the child's error code;
-the producer that did the work owns the detailed file information. Events and result
-envelopes are linked by the same run index.
+Every entry at Warning or above belongs to an incident (`run:<run index>`, or `source:<source>:<event>` without one)
+that the player acknowledges on the Logs page.
 
-## Limits
+`[logs]` in the app's `default.toml` sets storage: `record_minimum_level` (Information) and `max_entries` (100000,
+range 10000–500000). The level is applied both when projecting and when appending, and the oldest entries go first.
+These settings do not change how long raw telemetry is kept. The Logs page's own filters live in the page and are
+not saved.
 
-- **The last batch can be lost.** A crash can lose the last batch that was not yet
-  committed.
-- **Best effort.** A SQLite error turns off telemetry for that backup session and is
-  reported as a warning in the result. Recording and trimming process telemetry are
-  also best effort.
-- **Batching is not sampling.** Batch size and flush interval decide how events are
-  grouped into transactions. They do not sample or aggregate events.
-- **Retention is not a file-size cap.** The size threshold does not limit the physical
-  SQLite file.
-- **Old logs stay as they are.** Logs already stored are not rewritten when the level
-  rules change.
+The app writes three kinds of entries itself, with no worker telemetry behind them:
 
-## How it works inside
+- `run.failed` from source `app-dispatch` when a worker could not be started (`phase` `process-launch`, with the
+  executable path and `nativeErrorCode`) or returned an invalid result envelope (`phase` `process-result`).
+- `app.action.failed` for a failed action that ran no worker, such as a rename or a refused setting
+  ([`AppHost.RecordActionIssue`](../../src/PzTools.App.Core/AppHost.cs)). It keeps the title and message the card
+  showed.
+- `component.launch.blocked` when Windows refuses to start a component.
 
-### Writing backup events
+Maintenance lanes that fail to delete files record `failureCode` `file-delete-failed`, the count and up to eight
+file names.
 
-The backup event writer uses a bounded channel with backpressure. A batch is written
-when it is full or when its flush deadline passes. The deadline starts at the first
-event in the batch and does not move as more events arrive.
+## Failure payloads
 
-After taking the repository [writer lease](glossary.md#writer-lock), a one-shot backup
-may mark running telemetry rows left by earlier runs as abandoned. Read-only consumers
-never do this recovery.
+[`FailureTelemetry.FromException`](../../src/PzTools.Process.Contracts/FailureTelemetry.cs) builds every failure
+event's payload:
 
-### Reading
+- Always: `failureCode`, `exceptionType`, `message`, `hResult` (`0x` + 8 hex digits).
+- `nativeErrorCode` for a `Win32Exception`. Its `hResult` is always `0x80004005`; the native number (5 for access
+  denied) is what says why.
+- When given: `status`, `phase`, `path`, `reason`, `operation`, `saveId`, and one level of inner exception.
+- `diagnostics`, up to 6144 characters, when the exception implements
+  [`IFailureDiagnostics`](../../src/PzTools.Process.Contracts/IFailureDiagnostics.cs) (game-save and backup
+  preparation failures).
 
-`telemetry_read_timeout_seconds` defaults to one second. It bounds both SQLite's busy
-waiting and the provider's retries; setting only `PRAGMA busy_timeout` would leave the
-provider's default retry window unbounded.
+Every text field except the code and type is flattened to one line and capped at 512 characters, with `…` marking a
+cut. A caller may pass a path prefix to replace with `<save>`; only the backup worker does, with the save's root.
+Other producers, and the app's `process-launch` entries, keep full paths.
 
-- A new database without tables or metadata is given the initialisation grace period.
-- Missing metadata after a successful read, or a failure after the grace period, is an
-  error.
-- Invalid JSON, dates or instance IDs affect only the source they came from, so other
-  producers keep updating.
-- A read error keeps the database path, the stage, the exception message and the inner
-  exception, for diagnosis.
+For a failed game save or a deferred preparation, the backup worker's own event has the detail. Schedulers and
+runners above it record only the child's code, linked by the same run index.
+
+### How the Logs page explains a failure
+
+The failure details are explained in the app's language
+([`UserFacingErrorCatalog.FromDiagnostics`](../../src/PzTools.App.Core/UserFacingErrorCatalog.cs)). The first
+match wins:
+
+1. A profiler failure code.
+2. A known failure code.
+3. A known code at the start of `message`, a message logged by 0.1.0, or the English phrases "access is denied",
+   "unauthorized", or "not found"/"does not exist" with a file word.
+4. The exception type.
+5. `nativeErrorCode`, or the Windows error inside an `hResult` of the form `0x8007xxxx`.
+
+A known worker `reason` is shown translated. A reason or message that nothing explains is shown word for word as
+**Original message** in the technical details, because Windows writes some messages in its own language.
+
+An `app.action.failed` entry shows the title and message the card showed. If that text is a whole string of any of
+the app's languages, the page shows it in the current language. The lookup table (every string of every
+language, about a second to build) is built in the background at launch
+([`Localizer.Warm`](../../src/PzTools.App/Localizer.cs)). The app does not set
+`ApplicationLanguages.PrimaryLanguageOverride`: with it set, every resource lookup answers in that one language
+whatever language it asks for, and the table could not be built.
+
+## Crash reports
+
+A crash of the app itself goes to a plain text file, not to telemetry or `logs.db`, because the log database may be
+what failed.
+
+| Hook ([`App.xaml.cs`](../../src/PzTools.App/App.xaml.cs)) | `Origin` in the report |
+| --- | --- |
+| `Application.UnhandledException` | `ui-thread` |
+| `AppDomain.CurrentDomain.UnhandledException` | `background-thread` |
+
+`ReportFatal` runs once per process. It calls
+[`CrashReport.TryWrite`](../../src/PzTools.App.Core/CrashReport.cs), which writes
+`crash-<yyyyMMdd-HHmmss-fff>.txt` (UTC) to `%LOCALAPPDATA%\PzTools\crash`, or `%TEMP%\PzTools\crash` if the data
+folder cannot be found. The file holds the app version, time, origin, Windows version and the full exception. The
+newest 20 reports are kept. `TryWrite` never throws. The app then shows a native message box, which works before
+the window exists and while XAML is failing, with `FatalErrorMessageFormat` and the report path. The handler does
+not mark the exception handled, so the process ends.
+
+WinUI does not raise `Application.UnhandledException` for an exception thrown in a `DispatcherQueue` callback or a
+`DispatcherQueueTimer` tick; the process ends with no report. [`UiQueue`](../../src/PzTools.App/UiQueue.cs) wraps
+both and rethrows a failure through the UI thread's `SynchronizationContext`, where the handler sees it. The app
+queues UI work only through `UiQueue.Enqueue` and `UiQueue.Timer`; a test keeps direct `TryEnqueue` and
+`CreateTimer` calls out of the app.
+
+Crashes of workers and schedulers need no report file: the parent reads their exit code and error output, and the
+app supervises the schedulers ([process architecture](process-architecture.md#starting-supervising-and-stopping)).

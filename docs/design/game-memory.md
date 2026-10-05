@@ -1,107 +1,144 @@
 # Game memory
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-*Settings > Game > Game memory* sets how much memory the game's Java may use. The game
-ships with 3 GB. A game with many mods fills that, and then spends its time freeing memory:
-with the collector it uses (ZGC, on Windows 10 1803 and later), threads that need memory
-wait for it (*allocation stalls*), and collections run back to back, taking processor time
-from the game. Giving it more is the usual cure, and the change most players get wrong by
-hand.
+The game's Java heap defaults to 3 GB. A game with many mods fills it; with ZGC, the game's collector, threads then
+stall until memory is freed and the collector runs back to back on CPU the game needs. The **Game memory** setting
+raises the heap by editing the launcher's own file. The player steps are in
+[Give the game more memory](../guides/more-game-memory.md). The code is
+[`GameMemory`](../../src/PzTools.App.Core/GameMemory.cs).
 
-## What the setting does
+## What changes in the game's file
 
-The game's launcher (`ProjectZomboid64.exe`) reads its Java options from
-`ProjectZomboid64.json` in the game folder. Choosing a size rewrites two options in that
-file's `vmArgs` list, and nothing else:
+`ProjectZomboid64.exe` reads its Java options from the `vmArgs` list in `ProjectZomboid64.json` in the game folder.
+Choosing a size changes two entries there and no other character of the file:
 
-- `-Xmx` (the most the heap may grow to) becomes the chosen size;
-- `-Xms` (the heap held from the start) is set to the same size, on the line after it.
+- `-Xmx` becomes the chosen size, written as `-Xmx<n>m`.
+- `-Xms` is set to the same size. When the file has no `-Xms`, one is inserted right after `-Xmx`, on its own line with
+  the same indentation.
 
-Holding it from the start means the game never waits to get memory from Windows, or gives
-it back and asks again, while it plays. To keep that safe, the sizes offered stop at half of
-the PC's memory, so Windows and other programs always keep the rest:
+Setting `-Xms` equal to `-Xmx` makes the game hold its heap from the start instead of growing and shrinking it with
+Windows. That is safe only because the offered sizes stop at half of the PC's memory.
 
-| PC memory | Sizes offered | Marked as recommended |
+`ReadHeap` accepts the file only when `vmArgs` is an array with exactly one `-Xmx`, at most one `-Xms`, and no heap
+option anywhere else in the file (such as a per-Windows-version list that could override it). Otherwise the state is
+`Unsupported` and the file is left alone. `Rewrite` checks that its result reads back as asked before anything is
+written. Line endings and a UTF-8 byte order mark are kept as found.
+
+**Game default** writes back the `-Xmx` and `-Xms` the file had before the first change (removing `-Xms` if there was
+none). If the file no longer holds the chosen size (see [after a game update](#after-a-game-update)), it already has the
+game's own and nothing is written; the choice is only dropped.
+
+### Writing
+
+1. The choice and the game's original heap go to `game-memory.json` in the app data folder (`chosen_mb`,
+   `default_max_mb`, `default_initial_mb`, `config_path`). If that cannot be written, the game's file is not touched
+   and the change fails as `unwritable`: an original heap kept nowhere could not be given back.
+2. The first time a choice replaces the game's own heap, the file's text is copied once to
+   `game-memory-original.json` beside it, as a manual way back. The app never reads it.
+3. The new text goes to a temporary file beside `ProjectZomboid64.json` and is moved over it, so a game starting at
+   that moment never reads half a file.
+4. A running game holds the file open with read and write sharing but not delete, so the move fails. The app then
+   writes in place: new bytes over old, then truncates, so the file is never empty. If that write fails, the old text is
+   written back. If the game's file cannot be written at all, `game-memory.json` is restored.
+
+See [files and folders](../reference/files-and-folders.md) for where the app data folder is.
+
+## Sizes offered
+
+`ChoicesFor` offers 4, 6, 8, 12, 16, 24 and 32 GB, up to half of the installed memory
+(`GetPhysicallyInstalledSystemMemory`, rounded to whole gigabytes because Windows reports slightly less). One is marked
+recommended: 8 GB from 32 GB of memory, 6 GB from 16 GB, none below 16 GB.
+
+| PC memory | Offered | Recommended |
 | --- | --- | --- |
-| 8 GB | 4 GB | none |
+| 8 GB | 4 GB | None |
 | 16 GB | 4, 6, 8 GB | 6 GB |
 | 32 GB | 4 to 16 GB | 8 GB |
 | 64 GB or more | 4 to 32 GB | 8 GB |
 
-With ZGC a larger heap does not make the game's pauses longer; an unused part only stays
-reserved. *Game default* gives the file back its own options as they were before the first
-change.
+A size chosen earlier can still be applied again after it stops being offered (memory removed from the PC).
 
-The change applies from the game's next start; a running game keeps what it started with.
-While the game runs, the list, when opened, marks the size it was started with, read from
-the game itself (*8 GB (recommended) · running*); closed, it shows the choice alone. When
-the choice differs from what the running game started with, the setting says it applies
-from the game's next start.
-The file is written beside itself and moved over, so a game starting meanwhile never reads
-half of it. A running game holds the file open and lets others read and write it, but not
-replace it; then it is written in place, which that game no longer reads: the new text over
-the old and the end cut only after, so the file is never left empty, and put back to the
-old text if writing fails partway. The file as the game shipped it is kept once, as `game-memory-original.json` in
-the app's data folder (see [files and folders](../reference/files-and-folders.md)). The choice and the
-game's own heap are kept in `game-memory.json` before the game's file is changed; when that
-cannot be written, the game's file is left alone and the setting says it cannot be changed,
-as a heap kept nowhere could not be given back.
+## Finding the file
 
-The file is left alone when it is not as expected: no `vmArgs` list, no `-Xmx` in it, an
-option twice, or a heap option anywhere else in the file (such as the per-Windows-version
-lists), which could override the one changed. A file held for a moment (Steam writing it, a
-scanner) changes nothing shown; it is read again at the next look.
+`Find` tries, in order:
 
-## Finding the game
+1. The running game. For each game process (`GameProcessFinder`), the folder of its executable and up to two parents,
+   so a game started as `jre64\bin\java.exe` is covered. The folder must hold both `ProjectZomboid64.json` and
+   `ProjectZomboid64.exe`.
+2. The path remembered in `game-memory.json`, if it still exists.
+3. Steam: `SteamPath` under `HKCU\Software\Valve\Steam`, then Steam's own folder and every library in
+   `steamapps\libraryfolders.vdf`; the first with `appmanifest_108600.acf` gives `steamapps\common\<installdir>`.
 
-The running game's folder; else the file found before, while it is there; else the Steam
-library that holds Project Zomboid (app 108600), read from Steam's own list of libraries. A
-game folder that cannot be written to is reported under the setting; nothing asks for
-administrator rights.
+A path found is remembered. The app runs as administrator and `game-memory.json` is writable by any of the player's
+programs, so a path is used only if it is on a local drive letter and its file name is `ProjectZomboid64.json`
+(`IsLaunchFile`). A registry key or library list that cannot be read counts as not found. Nothing asks for elevation;
+an unwritable game folder is reported under the setting.
 
-## Started from a launch script
+## States
 
-The game can also be started by its Java runtime directly, without the launcher: the
-game's own `ProjectZomboid64.bat` does, and so do scripts players set in Steam's launch
-options. The app finds and connects to such a game as to any other, but the launcher's
-file plays no part in it: the script gives the memory on its own command line
-(`-Xmx3072m` in the game's bat). While such a game runs, the setting says so, and the
-choice applies to the next start through the launcher. A Java heap's maximum is fixed when
-the game starts, so nothing the app does to a running game changes it.
+| `GameMemoryStatus` | Meaning | Setting shows |
+| --- | --- | --- |
+| `Unknown` | Not read yet, or the file was briefly locked on the first read | — |
+| `NotFound` | No running game and no Steam install | **The game's folder was not found. Start the game once and it will be.** |
+| `Unsupported` | The heap options are not as described above | **The game's settings file is not as expected, so it was left alone.** |
+| `Default` | No choice made | **Game default (3 GB)** selected |
+| `Applied` | Both `-Xmx` and `-Xms` equal the choice | The choice selected |
+| `Reverted` | A choice exists and the file no longer has it | Nothing selected; the game's size as placeholder |
+
+A read that fails with an I/O or access error (Steam writing the file, a scanner) keeps the previous state until the
+next read. The file is read 3 seconds after the app starts, every 2 minutes after that (`App.WatchGameMemoryAsync`),
+and each time Settings opens.
+
+### The running game
+
+The bridge reports the running game's `Runtime.maxMemory()` in megabytes. With the list open, the entry within 128 MB
+of it is marked **· running**. When the file's size differs from it by 128 MB or more, the setting adds **Applies from
+the game's next start.** A heap's maximum is fixed when the JVM starts, so nothing changes a running game.
+
+### Started from a launch script
+
+The game can be started by its Java runtime directly: the game's own `ProjectZomboid64.bat` does, and so do scripts
+set in Steam's launch options. `GameProcessFinder` counts a `java` or `javaw` process as the game when its command line
+names `zombie.gameStates.MainScreenState` as a whole class name. Such a game read nothing from the launcher's file; its
+script passes its own `-Xmx` (`-Xmx3072m` in the game's `.bat`). `GameProcessFinder.IsStartedWithoutLauncher` (the
+process name is `java` or `javaw`) makes the setting say the game is running from a launch script and that the size
+applies only when the game is started normally.
+
+### Steam launch options
+
+This is the game launcher's behaviour, not PZ Tools code. Java options in Steam's launch options before `--`
+(`-Xmx8192m --`) come after the file's, so they win over the setting. A second `--` there stops the game from
+starting. The app does not read or edit Steam's launch options; the guide tells the player to remove `-Xmx` from
+them.
 
 ## After a game update
 
-A game update or Steam's file check writes the launcher file back with the game's own
-options. The choice is kept by the app, which reads the file soon after it starts and every
-two minutes. When the file no longer holds the chosen size, a card in the sidebar says
-*Game memory back to 3 GB* with *Apply 8 GB again*, and the setting shows the game's own
-size, unselected, with a note: choosing either the game's own (letting the choice go) or a
-size is a change. The card leaves when the choice is in the file again, when the choice is
-let go, or through ✕. A size no longer offered (memory taken out of the PC) can still be
-applied again.
+A game update or Steam's file check rewrites `ProjectZomboid64.json` with the game's own options, and the state
+becomes `Reverted`. Then:
 
-Two other ways were tried and not used:
-
-| Way | Why not |
-| --- | --- |
-| `ProjectZomboid64.site.json` beside it | The launcher reads it *instead of* the shipped file, not on top of it: it would have to copy every option, and after an update that changes other options the game would start with the old ones |
-| Steam launch options (`-Xmx8192m --`) | The launcher does take Java options before a `--` on its command line, after the file's, so they win. But they live in Steam's settings, which the app does not edit; and a second `--` there stops the game from starting |
-| A Java options variable, for scripts | `JAVA_TOOL_OPTIONS` comes before a script's own `-Xmx`, which then wins; `_JAVA_OPTIONS` would come after, but the game's bat clears it; and either would reach every Java program on the PC |
-| Rewriting the script | A script is the player's own, or a mod's, in any form; the game's bat is put back by every update, as the launcher file is |
+- A sidebar card shows **Game memory back to 3 GB** with **Apply 8 GB again** (the file's size and the choice). Its
+  button applies the choice; ✕ hides it until the choice or the file's size changes. It leaves by itself when the state
+  is no longer `Reverted`.
+- The setting shows nothing selected, the game's own size as placeholder, and **A game update undid the 8 GB setting.
+  Choose it again to apply it.** Picking any entry, the game default included, is a change.
 
 ## On the Performance page
 
-A recording in which the game ran short of memory says so on the line above the memory
-graphs, with **Memory setting →** leading to the setting:
+`ProfileAnalysis.MemoryPressure` judges the whole recording short of memory when it has any allocation stall, or when
+at least a quarter of its heap readings (8 or more readings) stand at 90% of the maximum or above. The page then shows
+**Stopped N times for lack of memory** or **Memory nearly full** above the memory graphs, with **Memory setting**
+opening Settings at this setting. From 5% it adds what the collector cost (**frames 17% slower while GC ran**).
 
-- *Stopped N times for lack of memory*: the recording has allocation stalls, threads that
-  waited for memory to be freed. Both recording modes record them.
-- *Memory nearly full*: no stalls, but the heap stood at 90% of its maximum or more for a
-  quarter of its readings or more, so collections ran almost without a break.
+When the game's file now gives more than the recording's maximum heap plus 256 MB (the collector reports a little under
+what was set), the line becomes muted history: **Memory nearly full when recorded · now set to 8 GB**, with an
+information icon and no button. See [the Performance page](../reference/performance-page.md).
 
-It is judged on the whole recording, as the setting is not about any one moment. What a
-recording shows stays true of it after the setting changes: once the game's file gives it
-more than the recording had, the line says what was and what is set now (*Memory nearly
-full when recorded · now set to 8 GB*), in muted text with an information icon and no
-link, as there is nothing left to do. New recordings are judged on their own heap.
+## Alternatives rejected
+
+| Way | Why not |
+| --- | --- |
+| `ProjectZomboid64.site.json` beside the file | The launcher reads it instead of the shipped file, not on top of it. It would have to copy every option, and after an update that changes other options the game would start with the old ones. |
+| Steam launch options | They win over the file, but they live in Steam's settings, which the app does not edit, and a second `--` breaks the start. |
+| A Java options variable, for scripts | `JAVA_TOOL_OPTIONS` comes before a script's own `-Xmx`, which then wins. `_JAVA_OPTIONS` would come after, but the game's `.bat` clears it. Either reaches every Java program on the PC. |
+| Rewriting the script | A script is the player's or a mod's, in any form; the game's `.bat` is restored by every update, as the launcher file is. |

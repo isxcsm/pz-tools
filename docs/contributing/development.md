@@ -1,196 +1,123 @@
 # Development and validation
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
+[Documentation index](../README.md)
 
-This page is for contributors who build PZ Tools from source: how to set up a machine,
-build and test, publish a runnable folder, package a release, and what the CI checks.
-It is not about installing a release. The [user guide](../../README.md) has the quick-start
-commands; this page covers the full development workflow. All of it assumes a Windows
-x64 development machine.
+Building, testing, publishing and releasing PZ Tools from source on a Windows x64 machine.
+To install a release instead, see [getting started](../guides/getting-started.md).
 
 ## Prerequisites
 
-To build, install:
+| Tool | Why |
+| --- | --- |
+| The .NET SDK named in [`global.json`](../../global.json) (10.0.401, later patches accepted) | Every C# project |
+| A Windows x64 JDK 25 | Compiles the Java bridge and extension, and builds the reduced Java runtime the app uses to attach. The game's own trimmed runtime cannot be used. |
+| Visual Studio or Visual Studio Build Tools with the x64 C++ tools (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`) | Compiles the native attach bootstrap ([`build-game-bridge-native.ps1`](../../scripts/build-game-bridge-native.ps1) finds them with `vswhere`) |
+| PowerShell 7.2 or later | The scripts under `scripts/` |
+| Python 3.10 or later | The documentation, localization and CI-plan checks (standard library only) |
 
-- the .NET SDK selected by [`global.json`](../../global.json)
-- PowerShell 7
-- a Windows x64 Java 25 JDK
-- the Visual Studio C++ and Windows/WinUI build tools
+The WinUI app builds from the Windows App SDK NuGet packages that the project restores. To
+edit and debug it in Visual Studio, also install the WinUI application development
+workload.
 
-The projects restore the Windows App SDK and the managed dependencies themselves. The
-game's trimmed Java runtime cannot be used as a build JDK. For the native build
-requirements, and how `JdkPath`, `JAVA_HOME` and bundled toolchains are chosen, see
-[bridge build prerequisites](../design/game-bridge.md#building-and-publishing).
+The build looks for the JDK in this order: `-p:JdkPath=...`, then `JAVA_HOME`, then a single
+`artifacts/toolchains/jdk-25*` folder. With none of them it stops with
+"A Java 25 JDK is required". See [building the bridge](../design/game-bridge.md#building-and-publishing)
+for where the bridge output goes.
 
-To run the published app, end users need the
-[.NET 10 runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0),
-because the app is framework-dependent. The [app manifest](../../src/PzTools.App/app.manifest)
-requires administrator permission, for [USN tracking](../design/glossary.md#usn-journal).
+## Repository layout
 
-## Build and test
+| Folder | Contents |
+| --- | --- |
+| `src/` | The app (`PzTools.App`, `PzTools.App.Core`), the schedulers, runners and workers (`*.Scheduler`, `*.Runner`, `*.Cli`), the Java bridge (`PzTools.GameBridge.Agent`, `PzTools.GameBridge.Native`) and the extensions (`PzTools.GameExtensions*`) |
+| `tests/` | `PzTools.Backup.Tests` (the xUnit suite), the five WinUI smoke programs, and Java fixtures for the bridge and extension tests |
+| `config/defaults/` | Each component's `default.toml`, copied into the app folder |
+| `config/game-extensions/` | The extension catalogue and the vehicle extension's tuning defaults |
+| `build/` | MSBuild files that build the Java payload and stage the workers next to the app |
+| `scripts/` | Build, publish, release, test and check scripts |
 
-Run from the repository root. Replace the example path with your installed JDK:
+How the processes fit together is in the [overview](../design/overview.md#the-pieces) and
+[process architecture](../design/process-architecture.md).
+
+## Build
+
+Run from the repository root:
 
 ```powershell
 $jdk = 'C:\path\to\jdk-25'
 dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath="$jdk"
-dotnet test tests/PzTools.Backup.Tests -c Release -p:JdkPath="$jdk"
 ```
 
-The Java and native payload is part of the normal worker build. Do not copy old bridge
-or worker binaries into a new app build.
+Warnings are errors ([`Directory.Build.props`](../../Directory.Build.props)). The worker
+projects build the Java and native bridge as part of the normal build, into
+`artifacts/game-bridge/<Configuration>`. Do not copy bridge or worker binaries from an older
+build into a new one.
 
-**From Visual Studio**, F5 and Ctrl+F5 also build and stage the worker dependencies,
-through [AppWorkers.targets](../../build/AppWorkers.targets).
+The app lands in `src/PzTools.App/bin/x64/<Configuration>/net10.0-windows10.0.19041.0/win-x64/`.
+[`AppWorkers.targets`](../../build/AppWorkers.targets) copies the workers and
+`config/defaults` into its `workers` subfolder, also on F5 and Ctrl+F5 in Visual Studio.
 
-- `PZTOOLS_TOOLS_DIR` is an explicit development override, read by Debug builds of the app only
-  (a release build always starts the workers in its own folder: the app runs as
-  administrator, and any program could set the variable). The tests read it themselves.
-  Remove it to use the normal bundled workers.
-- Development runs use the same documented user data paths as an installed app. They
-  are not kept apart from your local app configuration automatically.
+### Running a development build
 
-**Previewing the sidebar's cards.** Cards for states that are hard to bring about (a
-component blocked by Windows Security, a lost or outdated game connection, part of the
-saves page that keeps failing to load, a new release, the results of an action) can be
-shown without them: *Settings → Advanced → Card preview* picks one and shows it, and
-*Clear all* puts the real state back. For a scripted run, `PZTOOLS_PREVIEW_CARDS=blocked,update` (or
-`all`) shows those cards from the start; the keys are listed in
+- A development build uses the same data folder as an installed app,
+  `%LOCALAPPDATA%\PzTools`: the same settings, logs and backup folder. Point **Settings → Backup folder** at a
+  test folder before you try anything destructive.
+- Only one app runs per data folder. Starting a second one brings the running one
+  (possibly hidden in the tray) to the front and exits. Close the installed app first.
+- In a Debug build only, `PZTOOLS_TOOLS_DIR` names a different worker folder. A Release
+  build always uses the workers in its own folder: it runs as administrator, and any
+  program could set the variable.
+
+### Previewing the sidebar's cards
+
+Some cards need a state that is hard to bring about: a component blocked by Windows
+Security, a lost or outdated game connection, a saves list that keeps failing to load, a
+new release, the result cards. In a development build, **Settings → Advanced → Card preview
+(developer build)** shows any of them; **Clear all** puts back the real state. For a
+scripted run, set `PZTOOLS_PREVIEW_CARDS` to a comma-separated list of keys (or `all`)
+before starting the app. The keys are in
 [`MainWindowShell.CardPreview.cs`](../../src/PzTools.App/MainWindowShell.CardPreview.cs).
-The cards go through the same code as the real state, so the preview shows what users
-see, but not whether the state is detected. Previewed warnings and errors write nothing
-to the log. This exists in every build except a published app:
-[`publish-app.ps1`](../../scripts/publish-app.ps1) passes `PzToolsDistribution=true`,
-which compiles none of it, and the published-folder tests check that.
 
-## Publish a runnable folder
+The preview goes through the same code as the real state, so it shows what users see, but
+not whether the state is detected. Previewed warnings and errors write nothing to the log.
+A published app has none of this: [`publish-app.ps1`](../../scripts/publish-app.ps1) passes
+`PzToolsDistribution=true`, which drops the `PZTOOLS_DEV_TOOLS` symbol, and
+`PublishedDistributionTests` checks that.
 
-```powershell
-pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
-```
-
-[`publish-app.ps1`](../../scripts/publish-app.ps1) calls
-[`publish-tools.ps1`](../../scripts/publish-tools.ps1) itself. It ends by writing
-`pztools-files.txt`, the list of the published files with their sizes and SHA-256, which
-the app checks its folder against (see [checking the folder](../reference/files-and-folders.md#the-app-folder));
-anything added to the folder after it is not listed. Do not publish the tools to
-that folder first and then run `publish-app.ps1` on the same, now nonempty, folder.
-
-- **The output folder must be new or empty.** Use another `-Output` for the next
-  publication. The scripts do not erase an existing installation or user settings.
-- **Use a fresh `-GameBridgeOutput` folder for a release** as well, so the Java payload
-  does not reuse files from earlier development builds.
-
-## Build a release
-
-Releases are built by GitHub Actions, not on a developer's PC. Raise `<Version>` in
-[`Directory.Build.props`](../../Directory.Build.props) (every assembly and executable carries
-it, and the Home page shows it), commit, run the tests that need the game locally (the
-CI's JVM is synthetic), then push a tag named for the version:
+## Unit tests
 
 ```powershell
-git tag v0.2.4
-git push origin v0.2.4
+dotnet test tests/PzTools.Backup.Tests -c Release
 ```
 
-The [workflow](../../.github/workflows/windows.yml)'s `release` job runs once the checks and
-the Windows build and tests have passed for that commit. It:
+The test project does not build the Java payload, so it needs no JDK. Tests that need
+something outside the repository skip themselves, with the reason, unless their variable
+is set. A skipped test is not a passed test.
 
-1. fails unless the tag is `v` followed by `<Version>`
-2. downloads the release JDK (Temurin 25.0.4.1+1) from Adoptium and checks its SHA-256
-3. runs `build-release.ps1` (below)
-4. attests the ZIP's build provenance, so anyone can run
-   `gh attestation verify PzTools-v<version>-win-x64.zip --repo isxcsm/pz-tools` to check
-   that it was built by this workflow from this repository's commit
-5. uploads the ZIP and its `.sha256` to a **draft** release; publishing it is yours
+| Variable | Enables |
+| --- | --- |
+| `PZTOOLS_DISTRIBUTION_DIR` | `PublishedDistributionTests` against a fresh `publish-app.ps1` folder ([below](#test-a-published-folder)) |
+| `PZTOOLS_TOOLS_DIR` | Tests that start the published workers as separate processes |
+| `PZTOOLS_GAME_BRIDGE_DIR`, `PZTOOLS_BRIDGE_TEST_JAVA`, `PZTOOLS_BRIDGE_TEST_CLASSES`, `PZTOOLS_EXTENSION_FIXTURE_JAR`, `PZTOOLS_CONTINUOUS_FIXTURE_JAR` | Bridge and extension tests against the synthetic JVM. [`test-game-bridge.ps1`](#game-bridge-tests) sets them. |
+| `PZTOOLS_REAL_SAVES_ROOT` | Read-only tests on a real `Zomboid\Saves` folder; with `PZTOOLS_TOOLS_DIR`, the process end-to-end tests |
+| `PZTOOLS_RECOVERY_SAMPLES` | Character recovery on real saves (`;`-separated), edited only in temporary copies |
+| `PZTOOLS_TEST_USN=1` | USN journal tests; needs an elevated shell |
+| `PZTOOLS_TEST_FAT_DIR` | A full-scan backup from a FAT32 or exFAT folder |
+| `PZTOOLS_LIVE_PROBE_PID`, `PZTOOLS_LIVE_PROBE_SAVE` | Connects to a running game and checks the save path without saving (with `PZTOOLS_GAME_BRIDGE_DIR`) |
 
-A tag whose release is already published fails rather than replacing its files; a draft's
-files are replaced. To try the job before a tag depends on it, run the workflow by hand
-(**Actions → CI → Run workflow**) with *release_check*: it builds the package the same way
-and keeps it as an artifact for a week, with no attestation and no release. To build one locally (to try the script, or without CI), run:
+Before pointing any of these at real data, read the test that uses it. Use a throwaway
+world, never your live save.
 
-```powershell
-pwsh scripts/build-release.ps1 -JdkPath $jdk
-```
+### Running as administrator
 
-[`build-release.ps1`](../../scripts/build-release.ps1) does the steps below in one go and
-writes to `artifacts/release/v<version>/`, which must not exist yet:
-
-1. refuses uncommitted changes, so the package matches a commit
-2. publishes the app into `PzTools/`, with a fresh Java build folder beside it, and
-   checks that the published app carries the version
-3. runs the tests that need a published folder (`PublishedDistributionTests` and the
-   published-worker checks)
-4. packages it as `PzTools-v<version>-win-x64.zip` with its `.sha256`, as below
-
-A local build has no attestation; attach its two files to a GitHub release by hand only
-when CI cannot build it.
-
-## Package a release
-
-`build-release.ps1` runs this step itself. On its own, after testing a published folder:
-
-```powershell
-pwsh scripts/package-release.ps1 -PublishDirectory artifacts/app-local -OutputArchive artifacts/PzTools-preview-win-x64.zip
-```
-
-The archive's parent folder must already exist. The packager:
-
-1. refuses output files that already exist
-2. adds the short [release guide](../../build/START-HERE.txt)
-3. puts everything under one top-level folder, with a fixed entry order and fixed
-   timestamps. `-RootFolder` names it (`PzTools` by default); a release built by
-   `build-release.ps1` names it `PzTools-v<version>`, so a new release extracts beside
-   the old one rather than over it
-4. checks every file against its streamed SHA-256 before completing the ZIP and its
-   `.sha256` sidecar
-5. rejects links, and input files that change while it runs
-
-It does not publish anything and does not modify the input folder. Packaging the same
-published files twice gives the same archive; see [limits](#limits) for what that does
-not cover.
-
-## What to distribute
-
-Distribute the **whole output folder**: workers, defaults, WinUI components and the
-reduced Java [Attach](../design/glossary.md#attach) runtime. Users run `PzTools.App.exe`
-from it, not a source-code archive or an EXE copied on its own. Game JAR files are not
-redistributed.
-
-Keep saves and backup [repositories](../design/glossary.md#repository) outside the application
-output. Do not use an installed app folder as a native build-output directory.
-
-The [deployment layout](../reference/files-and-folders.md) describes app files, user settings and
-backup data separately.
-
-**Existing data and development builds.** Read the [repository format](../design/repository-format.md)
-before opening existing data with a development build. If the schema is incompatible:
-
-- keep the old data you need
-- choose a new empty backup folder
-- never delete the game's `Zomboid/Saves`, and never remove just the metadata database
-  from a repository
-
-## Test the published folder
-
-A normal unit-test run does not show that the published workers are present, or that the
-app and the workers come from the same build. To check that, test a fresh publication:
-
-```powershell
-$env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/app-local).Path
-$env:PZTOOLS_TOOLS_DIR = $env:PZTOOLS_DISTRIBUTION_DIR
-try {
-    dotnet test tests/PzTools.Backup.Tests -c Release -p:JdkPath="$jdk"
-    if ($LASTEXITCODE -ne 0) { throw 'Distribution tests failed.' }
-}
-finally {
-    Remove-Item Env:PZTOOLS_DISTRIBUTION_DIR -ErrorAction SilentlyContinue
-    Remove-Item Env:PZTOOLS_TOOLS_DIR -ErrorAction SilentlyContinue
-}
-```
-
-The example clears its test-only environment overrides afterwards. If you already rely
-on different values for them, use a separate PowerShell session.
+The app's [manifest](../../src/PzTools.App/app.manifest) requires administrator rights, and
+the workers it starts inherit them. `dotnet test` runs with your own rights. So anything
+that depends on elevation is not proven by the test suite: USN journal access, the attach
+helper handing files to the game's account, files the elevated workers create that the
+player's account must read. Check such a change in the running app.
+[`verify-a15.ps1`](../../scripts/verify-a15.ps1) does this in an administrator PowerShell:
+it publishes the app, runs the suite with the real saves, published workers and USN tests
+enabled, then starts the app for a manual checklist and checks that no PZ Tools process is
+left after it closes.
 
 ## UI smoke tests
 
@@ -204,133 +131,230 @@ host, game or user data. `dotnet test` does not run them, so run this script aft
 change. A building solution only shows that they compile. The renders are saved in
 `artifacts/ui-smoke`.
 
-## Synthetic game integration and opt-in tests
+`-Configuration` (`Debug` by default), `-Output` and `-TimeoutSeconds` (180 per program)
+change where and how they run. The script fails if any program fails to build, times out,
+exits with an error or does not write a result starting with `PASS`.
+
+## Game bridge tests
 
 ```powershell
 pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 ```
 
-This script runs against an isolated synthetic JVM, not a real running game.
+[`test-game-bridge.ps1`](../../scripts/test-game-bridge.ps1) builds the bridge (Debug by
+default), compiles the Java fixtures, runs the Java tests of the extension runtime,
+control protocol and profiler, runs
+[`test-game-extensions.ps1`](../../scripts/test-game-extensions.ps1), and finally runs
+`GameSaveClientTests` against a synthetic JVM that imitates the game. None of it touches a
+real game.
 
-Real-game tests, tests on external save samples and elevated USN tests need explicit
-setup. Before opting in, read the [verification report](../history/verification-report.md)
-and the script concerned. Do not run a command against your live save just to reproduce
-a benchmark.
+| Option | Effect |
+| --- | --- |
+| `-Configuration Release` | Uses `artifacts/game-bridge/Release` |
+| `-ReuseBuild` | Uses the bridge from the last solution build instead of building it, and runs `dotnet test --no-build` |
+| `-PrepareOnly` | Stops before `dotnet test`, leaving the test variables set in the session |
+| `-GameBridgeOutput` | Another bridge folder, for example while a running game holds the DLL in the default one |
+| `-CheckIncrementalBuild` | Rebuilds once more and fails if an unchanged build rewrote any output |
 
-## Documentation and localization checks
-
-The documentation checks need Python 3.10 or later and nothing else: they use only the
-standard library and do not access saves or the network.
+The variables persist only when the script runs in your own session (`./scripts/...`), not
+under `pwsh scripts/...`. To run the whole suite with the bridge tests included:
 
 ```powershell
-python scripts/test-documentation-checker.py
-python scripts/check-documentation.py
-pwsh scripts/test-readme-links.ps1
-python scripts/check-localization.py
+dotnet build PzTools.sln -c Release -p:Platform=x64 -p:JdkPath="$jdk"
+./scripts/test-game-bridge.ps1 -JdkPath $jdk -Configuration Release -ReuseBuild -PrepareOnly
+dotnet test tests/PzTools.Backup.Tests -c Release --no-build
 ```
 
-The PowerShell entry point runs the same documentation checker. It checks the root
-guide, the third-party notices and the Markdown under `docs/`, including section targets,
-required guide topics and index coverage. [Documentation maintenance](documentation-maintenance.md)
-explains what these tests do and do not establish.
+Checks in a real game are manual; for the vehicle extension see
+[testing the vehicle extension](e2e-vehicle-drivetrain.md).
 
-## CLI and advanced settings
+## Publish a runnable folder
 
-- [CLI commands](../reference/command-line.md) lists the backup, restore, ZIP, verification and maintenance
-  operations, and [configuration](../reference/settings.md) their parameters. CLI examples with
-  placeholder paths are not commands to run against a live save.
-- The backup worker's defaults are in
-  [`config/defaults/backup-worker/default.toml`](../../config/defaults/backup-worker/default.toml).
-  The default uses Brotli compression and xxHash64 pack checksums. Content deduplication
-  uses full SHA-256 and is optional.
-- Change-detection fingerprints, copy verification and pack checksums have different
-  purposes; they are not interchangeable safety switches. See
-  [stable capture](../design/stable-capture.md) and the [repository format](../design/repository-format.md).
-- For tuning individual components, see
-  [advanced runtime configuration](../reference/advanced-settings.md).
+```powershell
+pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
+```
 
-Old performance and verification results stay tied to the data, machines and commits
-they state. The [documentation index](../README.md#measurements-and-history) keeps those
-records apart from the current user instructions.
+[`publish-app.ps1`](../../scripts/publish-app.ps1) first runs
+[`publish-tools.ps1`](../../scripts/publish-tools.ps1), which publishes the twelve worker
+executables and copies `config/defaults` to `defaults/`. Then it publishes the app into the
+same folder (framework-dependent, `win-x64`, without symbols, `PzToolsDistribution=true`)
+and writes `pztools-files.txt`: every published file with its size and SHA-256. The app
+checks its folder against that list when it starts (see
+[the app folder](../reference/files-and-folders.md#the-app-folder)).
 
-## Limits
+| Option | Default |
+| --- | --- |
+| `-Output` | `artifacts/app`. Must be new or empty; the scripts never clear a folder. |
+| `-Configuration` | `Release` |
+| `-JdkPath` | `JAVA_HOME`, then `artifacts/toolchains` |
+| `-GameBridgeOutput` | `artifacts/game-bridge/<Configuration>`. Use a fresh folder for a release, so the payload reuses nothing from development builds. |
+| `-DotNetPath` | `C:\Program Files\dotnet\dotnet.exe`, else `dotnet` on `PATH` |
 
-- **Publishing is not installing.** The publish workflow produces a runnable folder.
-  Installation, code signing and a mode that runs without administrator permission are
-  outside it. A release's attestation says where and from what it was built, not that it
-  is safe.
-- **Packaging is reproducible, builds are not claimed to be.** The same published files
-  give the same archive. Separate builds with different toolchains are not claimed to
-  produce identical binaries.
-- **No automatic migration.** Incompatible repository schemas are not migrated.
-- **Synthetic is not real.** The synthetic JVM tests do not exercise a real game.
-- **A skipped test is not a passed test.**
-- **Some checks need people.** Screenshot and layout checks, and native-speaker review,
-  are separate from the automated resource checks.
-- **Links are not fetched.** External URLs are counted but not fetched by the offline
-  documentation check.
+Distribute the whole folder. It holds the workers, defaults, Windows App SDK components
+and the reduced Java runtime; `PzTools.App.exe` alone does not run. End users need the
+[.NET 10 runtime for x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
+Game JARs are never part of it.
+
+Read the [repository format](../design/repository-format.md) before opening existing
+backups with a development build. Repository schemas are not migrated automatically. If a
+schema is incompatible, keep the data you need and choose a new, empty backup folder.
+
+### Test a published folder
+
+A normal test run does not show that the published workers are present or come from the
+same build as the app. To check a fresh publication:
+
+```powershell
+$env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/app-local).Path
+$env:PZTOOLS_TOOLS_DIR = $env:PZTOOLS_DISTRIBUTION_DIR
+try {
+    dotnet test tests/PzTools.Backup.Tests -c Release
+    if ($LASTEXITCODE -ne 0) { throw 'Distribution tests failed.' }
+}
+finally {
+    Remove-Item Env:PZTOOLS_DISTRIBUTION_DIR, Env:PZTOOLS_TOOLS_DIR -ErrorAction SilentlyContinue
+}
+```
+
+`--filter "FullyQualifiedName~PublishedDistributionTests|FullyQualifiedName~PublishedWorker"`
+limits the run to the checks `build-release.ps1` uses.
+
+## Releases
+
+Releases are built by GitHub Actions from a tag, not on a developer's PC.
+
+1. Raise `<Version>` in [`Directory.Build.props`](../../Directory.Build.props). Every
+   assembly carries it and the Home page shows it.
+2. Run the checks that need a real game locally; CI only has the synthetic JVM.
+3. Commit, then push a tag named `v` and the version:
+
+   ```powershell
+   git tag v0.2.4
+   git push origin v0.2.4
+   ```
+
+The tag runs the full CI ([below](#ci)), and then the `release` job:
+
+1. fails unless the tag is `v<Version>`
+2. downloads the release JDK (Temurin 25.0.4.1+1) from Adoptium and checks its SHA-256
+3. runs `build-release.ps1`
+4. attests the ZIP's build provenance, so anyone can check it with
+   `gh attestation verify PzTools-v<version>-win-x64.zip --repo isxcsm/pz-tools`
+5. uploads the ZIP and its `.sha256` to a **draft** release, which you publish by hand
+
+If the tag's release is already published, the job fails instead of replacing its files.
+A draft's files are replaced.
+
+To try the job without a tag, run the workflow by hand (**Actions → CI → Run workflow**)
+with **release_check**. It builds the package the same way and keeps it as an artifact for
+seven days, with no attestation and no release. A manual run needs the workflow file on the
+default branch.
+
+### build-release.ps1
+
+```powershell
+pwsh scripts/build-release.ps1 -JdkPath $jdk
+```
+
+[`build-release.ps1`](../../scripts/build-release.ps1) writes to
+`artifacts/release/v<version>/`, which must not exist yet (`-OutputRoot` changes
+`artifacts/release`). It:
+
+1. refuses uncommitted changes to tracked files, so the package matches a commit
+   (`-AllowUncommitted` is for trying the script)
+2. publishes the app into `PzTools/` with a fresh `game-bridge-build/` folder, and checks
+   that `PzTools.App.exe` carries the version
+3. runs `PublishedDistributionTests` and the published-worker tests against that folder
+4. packages `PzTools-v<version>-win-x64.zip` and its `.sha256`
+
+A local build has no attestation. Attach its files to a release by hand only when CI
+cannot build it.
+
+### package-release.ps1
+
+`build-release.ps1` calls it. On its own:
+
+```powershell
+pwsh scripts/package-release.ps1 -PublishDirectory artifacts/app-local -OutputArchive artifacts/PzTools-preview-win-x64.zip
+```
+
+[`package-release.ps1`](../../scripts/package-release.ps1):
+
+- needs the archive's parent folder to exist and the archive to be outside the published
+  folder, and refuses to replace an existing ZIP or `.sha256`
+- adds [`START-HERE.txt`](../../build/START-HERE.txt) and puts everything under one folder,
+  `-RootFolder` (`PzTools` by default; `build-release.ps1` uses `PzTools-v<version>`, so a
+  new release extracts beside the old one)
+- writes entries in a fixed order with fixed timestamps, so the same files give the same
+  archive
+- rejects links, and files that change while it runs
+- reads every entry back and compares its SHA-256 before it writes the `.sha256`
+
+It does not modify the input folder. Separate builds are not claimed to produce identical
+binaries.
 
 ## CI
 
-The [CI workflow](../../.github/workflows/windows.yml) builds once, optionally publishes,
-and then runs the applicable tests once with that fresh distribution. Check its result
-for the exact commit.
+The [workflow](../../.github/workflows/windows.yml) has three jobs.
+
+| Job | Runner | Runs |
+| --- | --- | --- |
+| `checks` | Linux | Always. Chooses what else runs ([`ci-plan.py`](../../scripts/ci-plan.py)), then `test-ci-plan.py`, `test-documentation-checker.py`, `check-documentation.py`, `check-localization.py`. Benchmarks when asked. |
+| `windows` | Windows | One Release build with `-warnaserror`, an optional publication, an optional bridge fixture, then one `dotnet test --no-build` of `PzTools.Backup.Tests` |
+| `release` | Windows | Tag pushes and **release_check** runs only, after `checks` and `windows` passed |
+
+The UI smoke tests and the opt-in tests (real saves, USN, live game) never run in CI.
 
 ### When it runs
 
 | Trigger | What runs |
 | --- | --- |
-| A PR targeting `dev` or `main` | Validation chosen by the changed paths (below) |
-| A push to `dev` or `main` | Nothing: branch pushes do not trigger CI, so the PR validation is not repeated |
-| A release tag `v*` | Full validation |
-| **CI / Run workflow / full=true** | Publication and synthetic JVM validation, whatever paths changed |
-| A manual run with `benchmarks=true` | Benchmarks; a benchmark-only run uses Linux |
+| Pull request to `dev` or `main` | `checks`, and `windows` as the changed files require (below) |
+| Push to a branch | Nothing. A change pushed without a pull request needs a manual run. |
+| Tag `v*` | Everything: publication, bridge tests, then `release` |
+| Manual run | `checks` and `windows`. **full** adds publication and bridge tests; **release_check** implies **full** and adds `release`; **benchmarks** alone runs only the Linux job with benchmarks. |
 
-Benchmarks run only with `benchmarks=true`. A direct push to a branch without a PR
-therefore needs a manual run before a release.
+### What a pull request runs
 
-### What a PR runs
+[`ci-plan.py`](../../scripts/ci-plan.py) compares the pull request's merge commit with its
+base.
 
-| Change | Jobs |
+| Changed files | Adds |
 | --- | --- |
-| Documentation only | One Linux job: documentation, localization and CI path selection |
-| Code | The Linux job, plus one Windows job: one Release build, then one `dotnet test --no-build --no-restore` |
-| Packaging, worker entry points, build or workflow | Also publishes a fresh distribution before that test run |
-| Bridge or backup engine | Also prepares the synthetic JVM fixture from the existing Release bridge and runs those tests in the same test run |
+| Only `docs/`, `*.md`, `.gitignore`, `.gitattributes` | Nothing; the `windows` job is skipped |
+| Anything else | The `windows` job, with `GameSaveClientTests` filtered out |
+| `.github/`, `build/`, project and solution files, `global.json`, `config/defaults/`, `config/game-extensions/`, `scripts/publish-*`, `*.Cli`, `*.Runner`, `*.Scheduler` projects, tests named `*IntegrationTests*`, `*Distribution*`, `*StateStartup*` | Publication to `artifacts/ci-app`, with `PZTOOLS_DISTRIBUTION_DIR` and `PZTOOLS_TOOLS_DIR` set for the tests, plus everything in the next row |
+| The bridge and extension projects, their tests and scripts, `Backup.Engine`, `Zomboid.Backup`, `Scheduling`, `Process.Hosting`, `Process.Contracts`, and a list of bridge test files | `test-game-bridge.ps1 -ReuseBuild -PrepareOnly`, and the bridge tests in the same test run |
 
-There is no extra Debug build and no repeated full suite.
+Unknown paths count as code. NuGet packages are cached; build output is not. A newer push
+to a pull request cancels the running one. TRX files are kept for seven days when a run
+fails or published a distribution.
 
-### Other CI rules
+The job names `checks` and `windows` are what branch protection's required checks must
+name.
 
-- Dependencies are cached; compiled outputs and user data are not.
-- A superseded PR run is cancelled.
-- TRX artifacts are kept for seven days for failed runs and publication runs. For a
-  normal success, the counts are in the job log.
-- CI enables no live-game, real-save or elevated-USN opt-in tests.
-- A missing external prerequisite is reported as skipped, never as passed. A fixture
-  that is explicitly configured but broken still fails.
-- The workflow's check names are `checks` and `windows`. Required-check rules must match
-  them; branch protection is not changed automatically.
-- A skipped Windows job on a documentation-only PR is intentional.
-- Running the workflow manually needs the workflow on the default branch. Until it is
-  there, packaging PRs already exercise publication.
+### Tests that belong in the suite
 
-### Tests that belong in this suite
+Assert outcomes a user or the data can observe: restored bytes, retained revisions,
+transactions and locks, configuration round trips, error classification, the game's
+`save(true)` before capture. Do not pin private method text, XAML structure, grid rows,
+translated prose or the number of supported languages. A UI layout or hover behaviour needs
+a UI check, not a search for a substring in the source.
 
-Assert observable outcomes:
+Use generous bounded waits so that a hang fails the test. On a shared runner, a process
+finishing within two seconds is a diagnostic, not a correctness assertion.
 
-- restored bytes and retained revisions
-- transactions and locks
-- configuration persistence
-- error classification
-- a game-thread `save(true)` before capture
+## Documentation and localization checks
 
-Do not freeze private method text, handler spelling, XAML parent types, Grid row numbers,
-translation prose, line-break counts or the current number of supported languages.
-Resource keys, formatting arguments, .NET formatting and configuration round trips stay
-covered. UI hover and layout behaviour needs a real UI check, not a check for a
-substring in the source.
+```powershell
+python scripts/check-documentation.py
+python scripts/test-documentation-checker.py
+python scripts/check-localization.py
+python scripts/test-ci-plan.py
+```
 
-Keep generous bounded waits so that hangs are detected. A process finishing in under two
-seconds is a diagnostic, not a reliable correctness assertion on a shared runner. The
-product's own deadlines are unaffected.
+`check-documentation.py` checks the Markdown under `docs/`, `README.md` and
+`THIRD_PARTY_NOTICES.md` offline; it does not fetch external links.
+`pwsh scripts/test-readme-links.ps1` runs the same checker. What it enforces is in
+[documentation maintenance](documentation-maintenance.md). The localization check is
+described in [localization](localization.md#checks).

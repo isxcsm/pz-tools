@@ -1,262 +1,387 @@
-# Saving the game before a backup
+# Game bridge
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-Project Zomboid keeps recent changes in memory and writes them to disk only when it
-saves. A backup made from the files alone can therefore miss the last few minutes of
-play. To avoid that, PZ Tools can ask the running game to save just before a backup
-starts copying files.
+The game bridge is the Java code PZ Tools loads into the running Project Zomboid process. It saves the game
+on request before a backup, streams the game's state to the scheduler, hosts the
+[game extensions](game-extensions.md) and records [performance profiles](profiler.md). This page covers how
+it gets into the game, what it changes there, the save request and what each outcome means for a backup.
 
-The save is the game's own: the same one it makes when you save from the menu. The
-game may pause briefly while it saves, as it always does. Nothing has to be installed
-for this: no Workshop mod, no launch option, and no change to game files.
+What the player sees is described in [backups](../reference/backups.md#saving-the-game-before-a-backup) and
+[troubleshooting](../guides/troubleshooting.md). Timing of automatic backups is in
+[game-aware timing](runtime-pause-backups.md).
 
-The part of PZ Tools that talks to the game is the **game bridge**. Besides saving,
-it streams the game's state (pause, sleep, character death), hosts the optional
-[game extensions](game-extensions.md) and records [performance profiles](profiler.md).
-The [overview](overview.md) shows where it sits.
+## Components
 
-## Settings
+The build puts these files in `game-bridge\` next to the workers:
 
-| Setting | Default | What it does |
+| File | Runs in | Role |
 | --- | --- | --- |
-| **Save game before backup** | On | Asks the game to save before each backup. Off: only what is already on disk is backed up, and its card in Settings turns to the caution colour with a warning icon, saying so in place of its description. |
-| **In-game save countdown** | On | Before an automatic backup saves the game, shows notices above your character: a countdown, then *saving*, then done or failed. A backup started from the app saves at once, without notices. |
+| `runtime\` | Attach helper | A `jlink` image of the build JDK with `jdk.attach` and `jdk.jfr`. It runs the attach helper and is never loaded into the game. |
+| `pztools-game-bridge.jar` | Helper and game | `pztools.bridge.AttachMain` (the helper's main class) and the payload (`pztools.bridge.runtime.*`) |
+| `pztools-game-bootstrap.jar` | Game | `AgentEntry` and the extension API classes. Loaded once per game process; built with fixed timestamps so its bytes do not change between builds. |
+| `pztools-attach-bootstrap.dll` | Game | A JVMTI agent that loads the game's own `jli.dll` |
+| `extensions\` | Game | Extension runtime, modules and catalogue ([game extensions](game-extensions.md)) |
 
-Both apply from the next backup; one already running keeps the settings it started
-with. Neither affects game-state monitoring or the game extensions. The same choices
-exist as `save_game_before_backup` and `game_save_countdown` in the
-[backup worker settings](../reference/settings.md); where both are set, the app's choice wins,
-and a command-line option wins over both. On the command line, game backups use
-`--save-game`.
+On the app side:
 
-**A finished game save is not a finished backup.** Copying and compressing the files
-comes afterwards, and the app's progress card shows when the backup itself is done.
-
-## What happens during a backup
-
-1. The backup worker takes the repository's [writer lock](glossary.md#writer-lock), so
-   no other job can change the backup folder meanwhile.
-2. It connects to the game bridge in the game, loading it first if this is the first
-   request since the game started.
-3. The bridge checks that the request fits the game: the right game process, a loaded
-   world, the save that is to be backed up, and, for a periodic backup, that the game
-   is not paused and that the backup is really due (see [admission](glossary.md#admission)).
-4. If notices are on, the countdown is shown. A periodic backup starts preparing
-   about eight seconds before it is due and shows only the last five seconds; a
-   manual backup counts down five seconds first.
-5. The game saves on its own thread. The *saving* notice appears when the request is
-   accepted and is followed by *done* or *failed*.
-6. Only after the game's save call has returned does the worker start looking for
-   changed files and copying them.
-
-<a id="admission-and-failures"></a>
-## When the game is not saved
-
-Whether a backup still goes ahead depends on why the save did not happen, and on
-whether the backup is manual or automatic.
-
-| Situation | Manual backup | Automatic backup |
-| --- | --- | --- |
-| The save is confirmed not in use | Backs up the files; the game is not contacted | Not made: automatic backups need active play |
-| No game running, no world loaded, or a different save loaded | Backs up the files on disk | Skipped |
-| The bridge cannot be reached (helper cannot start or attach, connection times out, bridge missing or too old) | Backs up the files on disk and records a warning | Same: backs up the files on disk with a warning |
-| The game is busy with another short request (a hotkey's note, a recording starting) | Asked again for up to 10 seconds; still busy, no backup | The same |
-| Game-aware timing says not now (paused, asleep, not yet due) | — | Postponed; it keeps its place in the schedule and no backup is recorded |
-| The game refuses, reports failure, or never answers after the request was sent | No backup | No backup, and it is not retried automatically |
-| The game build is not supported, or it is unclear which save is meant | No backup | No backup |
-
-The difference between the third row and the last two: when the bridge cannot be
-reached, nothing was asked of the game, so the files on disk are what there is. Once
-the game has been asked, an unclear answer is not treated as permission to copy.
-Death backups follow the same rules; see [game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read).
-
-With **Save game before backup** off, a game-aware periodic backup still asks the
-game whether it is due and not paused; it just does not save.
-
-A few more rules:
-
-- A request waiting in the game's queue gives up after 15 seconds by default.
-- Cancelling, or losing the connection, can stop a request that is still queued or
-  counting down. It cannot stop a save the game has already started; PZ Tools waits
-  for that save to return before letting anything else use the game.
-- A notice that fails to show, or a failed [character recovery stamp](character-recovery.md),
-  is reported on its own and does not cancel an otherwise good save.
-
-## Limits
-
-- **Single player, Build 42, Java 25 only.** Multiplayer, game modes without saving,
-  and worlds other than the one being backed up are refused.
-- **Game updates can break it.** The bridge relies on how the inspected Build 42 game
-  is built. An update, a modified game file or another Java agent can make it refuse
-  to save until PZ Tools is updated. It refuses rather than guessing.
-- **Not an instant snapshot.** The game's save and PZ Tools' per-file checks do not
-  add up to a single frozen moment of the whole world, and they do not force data out
-  of disk caches onto the hardware.
-- **Not to the second.** Paused frames, the time to attach and a busy disk can delay a
-  save beyond its deadline. Turning notices off does not make periodic backups run
-  earlier.
-
-See [game-aware timing](runtime-pause-backups.md) for how periodic timing works and
-[character recovery](character-recovery.md) for the identity stamp, written while the
-game is watched and again before saving.
-
-## How it works inside
-
-### Getting into the game
-
-A small native helper uses the game's own Java launcher library (`jli.dll`) and Java's
-standard attach mechanism to load the bridge into the running game. PZ Tools' own
-bundled Java runtime is never loaded into the game. There is no remote-thread
-injection, and no fallback that edits game files.
-
-The game's Java misreads a path with letters outside ASCII for the two files handed to it
-by path at attach, the native helper and the bootstrap. With the app in such a folder
-(a folder named in another alphabet was reported), those two are copied once, by their content, and
-handed over from there; everything else is read from the app folder as it is. The game
-runs them as code, so the copy goes where only you can change it: your temporary folder
-(`%TEMP%\PzTools\attach\`) if its path is ASCII, else a folder of your own under
-`%ProgramData%\PzTools\attach\` that is made writable by you alone. A folder or copy there
-that someone else could change is not used. "You" is two principals here: the app runs as
-administrator, so what it creates belongs to the Administrators group, while the game,
-not elevated, reads as your own account. The app reads that account from the game's
-process and passes it on (so it is right even when the app was started with another
-administrator's password); if Windows does not say, the account the app was started for
-is taken. Both may read and change the copies, no one else may change them, and a copy the
-game's account cannot read is not used: a copy only the Administrators group could read
-would not load in the game.
-
-The bridge then calls the game's original `GameWindow.save(true)` on the game thread.
-
-### When attaching fails
-
-The helper's first line of error output names the step it stopped at (`arguments`,
-`lock`, `attach`, `native-bootstrap`, `bootstrap`, `bootstrap-version`, `handshake`)
-and the error. PZ Tools logs that, with what most often breaks an attach on a player's
-machine, as the failure's `diagnostics`:
-
-- whether the app and the game run as administrator, and why the game's rights could not
-  be read if they could not;
-- the game's Java executable, by file name;
-- for each file handed to the game, whether it came from its own path or from a copy in a
-  folder of plain letters (`handed=`), as a folder named in another alphabet needs;
-- whether the app folder, the temporary folder and the user folder hold letters outside
-  ASCII (yes or no, never the path);
-- the Windows version and the end of the helper's output, with paths cut to what does not
-  name anyone: the user's own, local application data and temporary folders by name
-  (`%USERPROFILE%`, `%LOCALAPPDATA%`, `%TEMP%`), any other path by its last part.
-
-One cause the player can change gets its own code and words:
-
-| Cause | How it is told | Code | The app says |
-| --- | --- | --- | --- |
-| The game was started with `-XX:+DisableAttachMechanism` | Java says the game does not support attaching | `attach-disabled` | A launch option is blocking the connection |
-
-Like a game that needs a restart after an update, such a game is not asked again until it
-restarts. The app always runs as administrator (its manifest asks for it), so a game
-with more rights than the app is not a cause. Anything else stays `attach-failed`; a game
-busy for a moment with another request is tried again, and not logged. Where to find the
-entry, for a user's report:
-
-| Link | Log entry |
+| Code | Responsibility |
 | --- | --- |
-| The always-on link (game state, pause-aware timing) | `game.link.failed` from `state-scheduler`, once per game process and cause rather than every retry |
-| A recording | The recorder's `run.failed` |
-| A backup's save request | The `source.prepare.completed` warning, whose detail holds the same text |
+| [`PzTools.GameBridge`](../../src/PzTools.GameBridge) | Starting the helper, authenticated connections, deadlines, parsing results. `GameSaveClient` (save requests), `GameRuntimeClient` (state stream), `GameProfileClient`, `GameExtensionClient`, `AttachDiagnostics` |
+| [`PzTools.Zomboid.Backup`](../../src/PzTools.Zomboid.Backup) | Deciding what a save result means for a backup: `BackupGameSave`, `BackupTimingPreparation`, `GuardedGamePreparation` |
+| [`PzTools.State.Scheduler`](../../src/PzTools.State.Scheduler) | `RuntimeObservationCoordinator` keeps the state stream connected and publishes observations |
+| [`PzTools.GameBridge.Agent`](../../src/PzTools.GameBridge.Agent) | Java sources of the helper, bootstrap and payload |
+| [`PzTools.GameBridge.Native`](../../src/PzTools.GameBridge.Native) | The native bootstrap |
 
-**Copy details** on the Logs page includes it.
+The backup engine knows nothing about the game. It receives a preparation step to run before capture, and
+runs it while holding the repository's [writer lock](glossary.md#writer-lock).
 
-### Leases
+<a id="getting-into-the-game"></a>
+## Attaching
 
-What the app asks of the game must end once the app has gone, however it went, and must
-not end each time a connection does: the app's scheduler restarts, a game load drops the
-link for a moment. So what the app asked for follows a lease, not a connection.
+Every connection, whether a save request, the state stream (`WATCH`) or extension control (`EXTENSIONS`),
+starts the same way:
 
-- Each run of the app makes an identifier when it starts (32 hex digits), which tells it
-  from an earlier or later run. The game knows nothing of the app's process, which it could
-  not even open: the app runs as administrator, the game does not.
-- The run's state stream (WATCH) names the run once when it connects, and renews its lease
-  for as long as it is open. A request that names the run (starting a recording) renews it
-  too, so the request holds even before the stream connects.
-- The lease lapses two minutes after the run was last heard from; what it holds then ends.
-  The state scheduler ends with the app, as the app's workers do, so the stream closes when
-  the app goes.
-- The app, still there, sees its state stream away for longer than that (the scheduler
-  failing again and again) and starts the last minutes' recording again once the stream is
-  back, as the game has ended it.
+1. The client finds exactly one game process (`GameProcessFinder`): `ProjectZomboid64`, `ProjectZomboid32`
+   or `ProjectZomboid`, or a `java`/`javaw` process whose command line starts
+   `zombie.gameStates.MainScreenState`. None gives `game-not-running`, several give `multiple-games`.
+2. It opens a TCP listener on 127.0.0.1 with a random port, makes a 64-hex-digit token and starts
+   `runtime\bin\java.exe --add-modules jdk.attach -jar pztools-game-bridge.jar <pid> <jar> <port> <token> [WATCH|EXTENSIONS]`.
+   The environment variable `PZTOOLS_GAME_ACCOUNT` names the account the game runs as (see below).
+3. The helper takes `%USERPROFILE%\.pztools-bridge\bootstrap.lock`, which serialises first-time attaches
+   across worker processes, and attaches with the standard Java Attach API.
+4. If the game has no system property `pztools.bridge.control.v1`, this is the first attach since the game
+   started. The helper loads `pztools-attach-bootstrap.dll` (`loadAgentPath`), then the bootstrap jar
+   (`loadAgent`, option `BOOTSTRAP1:<base64 payload path>`). The bootstrap binds its own listener on
+   127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=11` and then
+   `pztools.bridge.control.v1=2:<pid>:<port>:<secret>`.
+5. The helper requires `pztools.bridge.bootstrap.api` to be `11`. Any other value means the game still runs a
+   bootstrap from another version; the helper stops without sending anything
+   (see [restart required](#restart-required-after-an-app-update)).
+6. The helper detaches, connects to the bootstrap's port and sends the secret, the app's port and token, the
+   payload path and the kind. The bootstrap answers `ACCEPTED`, `BUSY`, `PAYLOAD_UNAVAILABLE`, `REJECTED` or
+   `RESTART_REQUIRED`. Anything but `ACCEPTED` makes the helper exit with an error; no command was sent.
+7. On `ACCEPTED` the bootstrap runs the payload's entry point on a new daemon thread. It connects back to the
+   app's listener and identifies itself with the process id and token: `HELLO\t6\t<pid>\t<token>` for a
+   request, `RUNTIME\t1\t<pid>\t<token>` for the state stream. The client rejects any other greeting
+   (`authentication-failed`).
 
-| Holder | Lease | Ends |
-| --- | --- | --- |
-| The last minutes' recording | The app run's | Two minutes after the run was last heard from |
-| A recording asked for | The app run's | The same; else at its stop or its maximum length |
-| Extension control | Its own connection's, renewed by each command | Five seconds without a command, or at once when its connection ends: a vehicle must not keep forces nobody controls |
+The native bootstrap exists because the `instrument` agent library needs `jli.dll`, and some embedded Java
+launchers neither load it nor put the runtime's `bin` folder on the DLL search path. The DLL finds the
+game's own `jvm.dll` (`bin\server\jvm.dll`) and loads `jli.dll` from the `bin` folder beside it. It does not
+change the process's DLL search path and loads nothing from PZ Tools' runtime. This is a standard JVMTI
+agent load: there is no remote-thread injection and no fallback that edits game files.
 
-All are kept by the same lease type in the bridge; a new holder chooses which lease it
-follows and its term. Leases live in the replaceable payload, not in the bootstrap.
+Anyone who can attach to the game can read the secret, and attaching already lets a program run code in the
+game, so the secret adds nothing an attacher lacks. It keeps other local programs that cannot attach off the
+listener. The listener accepts a fixed set of commands; it never runs Lua or Java code sent to it. The
+payload it loads is a jar named by path, the one in PZ Tools' own folder.
+
+### Folders with letters outside ASCII
+
+The game's Java misreads a non-ASCII path for the two files handed to it by path: the native bootstrap and the
+bootstrap jar. When the app's folder has such a path, the helper (`AttachMain.attachable`) copies each of the
+two, named by the first 16 hex digits of its SHA-256, to a folder whose path is ASCII, and hands that copy
+over. Everything after the bootstrap is read by Java from its own path and needs no copy.
+
+The game loads the copy as code, so only the user may change it:
+
+- The first choice is `%TEMP%\PzTools\attach\s-<account hash>\<digest>\` if `%TEMP%` is ASCII, else the same
+  under `%ProgramData%`. A new folder gets an ACL that allows only the two principals below.
+- An existing folder or copy is used only if it is owned by one of them, nobody else may write it, and the
+  game's account may read it. A matching copy a running game holds open is reused as it is.
+- With no usable folder the helper falls back to the file's own path.
+
+The two principals are the game's account and the account the helper creates files as. The app runs as
+administrator, so its files belong to the Administrators group, while the game runs unelevated as the player.
+The app reads the game's account from the game's process token (`AttachDiagnostics.AccountOf`), which is
+right even when the app was started with another administrator's password. Without it the helper uses
+`USERDOMAIN\USERNAME`, and without that the creator alone.
+
+## Inside the game
+
+### The game-loop hook
+
+The first request that needs the game thread calls `AgentEntry.ensureGameHook`. It requires Java feature
+version 25 with class retransformation, exactly one loaded `zombie.GameWindow`, exactly one `logic()V`, a
+static `void save(boolean)`, a `gameThread` field, and the bootstrap class visible from the game's class
+loader. It then retransforms `GameWindow` to insert one static call, `AgentEntry.poll()`, at the start of
+`logic()`. Any failed check refuses the request.
+
+The transformer stays registered. When another agent retransforms `GameWindow` later, the JVM runs it again
+on the original bytes, so both changes survive. A failure at that point leaves the class without the call and
+is counted in the `hookFailures` diagnostic.
+
+`poll()` runs up to three callbacks each frame: the state observer (with the optional profiler), the extension
+lifecycle, and the pending request. An observer or lifecycle callback that throws is dropped.
 
 ### Layers
 
-The bridge is loaded once per game session and reused for every request. It has
-three layers, so that most of it can be updated without restarting the game (see
-[component updates](module-reload.md)):
-
-| Layer | What it holds | Replaced while the game runs? |
+| Layer | Holds | Replaced while the game runs? |
 | --- | --- | --- |
-| [Bootstrap](glossary.md#bootstrap) | An authenticated listener on the local machine only, and a minimal hook in the game loop | No |
-| [Payload](glossary.md#payload) | Saving, the state stream, extension control, profiling | Yes, at an idle moment |
+| [Bootstrap](glossary.md#bootstrap) (`AgentEntry`) | Control listener, game-loop hook, payload loading | No |
+| [Payload](glossary.md#payload) | Save requests, state stream, extension control, profiling, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) and modules | Game extensions | Yes, each on its own |
 
-State streaming, saving, extension control and profiling share the listener, but each
-has its own connection and its own rules for who may do what. The listener accepts a
-fixed set of commands from PZ Tools; it does not run Lua or Java code sent to it. Loading
-the payload names a jar on disk, the one in PZ Tools' own folder: the secret that allows
-it is read by attaching to the game's JVM, which already lets the attaching program run
-its own code in the game, so it gives nothing that attaching does not.
+The payload jar must declare `PzTools-Bootstrap-Api: 11` in its manifest, or the bootstrap answers
+`PAYLOAD_UNAVAILABLE`. A jar with the same digest as the loaded one is reused, also from a new folder after the
+app has moved. A new digest is linked first; then the bootstrap asks the state stream to end, pauses
+dispatch and waits up to 3 seconds for every session and callback to finish before switching. If they do not,
+it answers `BUSY` and keeps the old payload. See [component updates](module-reload.md).
+
+On its first save request the payload also disarms any `pztools.bridge.SaveBridge` classes left in the game by
+versions older than the bootstrap design (`LegacyBridgeRetirement`). If that old code still has a request
+pending, the new request is refused as `busy`.
+
+### What changes in the game, and what does not
+
+Changed, in memory only, until the game exits:
+
+- one static call at the start of `GameWindow.logic()`;
+- the system properties `pztools.bridge.control.v1` and `pztools.bridge.bootstrap.api`;
+- daemon threads: the control listener and one per open session;
+- the per-frame state read and, for a living character, the `pztools.recovery.*` keys in the player's
+  modData ([character recovery](character-recovery.md#the-identity-stamp));
+- a halo note above the player during a save, when notices are on;
+- whatever an enabled extension does ([game extensions](game-extensions.md)).
+
+Not changed: game files, launch options, Workshop mods and Lua code. The game is saved only through its own
+`GameWindow.save(true)`, and only when a request asks for it. The bridge stays loaded after PZ Tools exits;
+what PZ Tools asked for ends with its [lease](#leases).
+
+## The save request
+
+### Commands
+
+`GameSaveClient` sends one command line per request:
+
+| Command | Used for |
+| --- | --- |
+| `SAVE`, `PROBE` | A manual backup. `PROBE` runs the same checks without saving (tests use it). |
+| `SAVE_COUNTDOWN` | An automatic backup with notices and no due time: a 5-second countdown |
+| `SAVE_AT` | A wall-clock automatic backup with its due time, at most one minute ahead |
+| `SAVE_ACTIVE`, `PROBE_ACTIVE` | A guarded backup carrying a [ticket](glossary.md#ticket): game-aware periodic and death backups. `PROBE_ACTIVE` when **Save game before backup** is off. |
+| `PREPARE_SAVE`, `PREPARE_SAVE_ACTIVE` | A save provider from an extension. No shipped extension provides one; only test fixtures use this path. |
+
+Each carries the save path (base64), the queue timeout and the completion timeout. The game rejects a queue
+timeout outside 1–60 s, a completion timeout outside 30–600 s, or a completion timeout less than the queue
+timeout plus 20 s. Defaults are 15 s and 150 s, and 30 s to connect; they are the `[runtime]` keys in
+[advanced settings](../reference/advanced-settings.md).
+
+### In the game
+
+`BridgeSession` handles a request:
+
+1. It takes request ownership (`AgentEntry.acquire`). One request runs at a time; a second gets `busy`.
+2. It installs the hook and, for a ticket, reserves it: the ticket's ordinal (the run index) must be higher
+   than any seen by this observer, or the request is deferred as `runtime-request-replayed`.
+3. It waits for the game thread to pick the request up. If the queue timeout passes first, the request is
+   cancelled with `queue-timeout` and nothing is saved. Otherwise the client receives `RUNNING`.
+4. On the game thread, every frame until it saves:
+   - it refuses to run on any other thread (`wrong-thread`);
+   - it checks the ticket (see [admission](runtime-pause-backups.md#admission)), which also gives the time
+     left until the backup is due;
+   - it validates the world when the request starts and then every second;
+   - it shows the countdown notice, if any, and waits until the due time;
+   - it checks the ticket once more, then moves the request from *countdown* to *saving* with one
+     compare-and-set. The client is sent `SAVING`.
+5. For a save, it writes the [recovery stamp](character-recovery.md#the-identity-stamp), then calls
+   `GameWindow.save(true)` on the game thread.
+6. When the call returns, the client receives `OK` with a detail string: the thread, elapsed milliseconds and
+   save path, plus `recovery-metadata-unavailable=` or `notice-unavailable=` if either failed. Neither
+   failure stops the save.
+
+The world validation refuses:
+
+| Check | Code |
+| --- | --- |
+| `GameClient.client`, `GameClient.clientSave` or `GameServer.server` is set | `multiplayer` |
+| The current state is not `IngameState`, or there is no world or cell | `not-in-world` |
+| `Core.isNoSave()`, or the mode is `LastStand` or `Tutorial` | `saving-disabled` |
+| `ZomboidFileSystem.getCurrentSaveDir()` is not the same folder as the requested save | `save-mismatch` |
+
+The session's own deadline is the completion timeout minus the queue timeout minus 15 s, plus any wait for
+the due time. If it passes before saving started, the request is cancelled as `queue-timeout`. If the save call
+is still running, the answer is `completion-unknown`.
+
+### Cancellation
+
+For a guarded request the client checks `RuntimePreparationPermit` before sending and then every 100 ms
+until it sees `SAVING`. The permit is withdrawn when automatic backups are switched off, the generation or
+target changes, game-aware timing is switched off, or (for a death backup) the death option is off or the
+death is no longer the current one. The client then sends `CANCEL\t<request id>`. The game's compare-and-set
+decides the race: a cancel before *saving* defers the request as `runtime-reservation-cancelled`; after it,
+the cancel loses and the save completes.
+
+A closed connection cannot release ownership while `save(true)` runs. The session waits for the call to
+return before the next request can use the game thread.
+
+### Notices
+
+`SaveNotice` replaces the player's halo note (`IsoPlayer.setHaloNote`); it adds no chat line and no timer
+thread. The countdown shows only during the last 5 seconds before the due time, then *saving*, then done or
+failed. The saving note is refreshed while the save runs, since the game fades halo notes by game time. A
+notice stops for good if the player, world, cell or game state changes.
+
+| Backup | Notices |
+| --- | --- |
+| Manual | None: the worker passes no notice language, and the save runs at once |
+| Game-aware periodic | Countdown from 5 s, since the request is sent 8 s before the due time (`preparation_lead_seconds`) |
+| Death | No countdown (the ticket's due time is now); *saving* and the result |
+| Wall-clock periodic | Countdown from 5 s to the due time, also sent 8 s early |
+
+With **In-game save countdown** off, no notices are shown at all.
+
+### Busy
+
+When the bootstrap answers `BUSY` (another short request, such as a hotkey's note or a recording starting, or
+a payload reload), the helper reports "still active" and nothing was sent. `GameSaveClient` starts the helper
+again every 0.5 s for up to 10 s, then fails with `busy`.
+
+<a id="admission-and-failures"></a>
+## What each outcome means for a backup
+
+How a result is handled depends on whether the backup is manual, wall-clock automatic or guarded:
+
+| Result | Manual | Wall-clock automatic | Guarded (game-aware periodic, death) |
+| --- | --- | --- | --- |
+| The save is inactive by its file lock (`players.db` opens exclusively) | No contact; files on disk are backed up | Skipped before contacting the game | Not checked; the game's guard decides |
+| `game-not-running`, `not-in-world`, `save-mismatch` | Files on disk are backed up | Skipped | Failed, slot used |
+| Game unreachable: `attach-failed`, `attach-disabled`, `connection-timeout`, `bridge-not-built`, `unsupported-protocol` | Files on disk are backed up, with a `save-unavailable` warning | The same | The same |
+| `runtime-deferred` (any reason), `queue-timeout` | Failed | Failed | Skipped; the slot is kept |
+| `busy`, `multiple-games`, `multiplayer`, `saving-disabled`, `unsupported-runtime`, `unsupported-loader`, `unsupported-game`, `wrong-thread`, `save-failed`, `bridge-failed`, `protocol`, `authentication-failed` | Failed | Failed | Failed, slot used |
+| `completion-unknown`, `invalid-response` | Failed | Failed | Failed; the scheduler waits one interval ([why](runtime-pause-backups.md#when-a-backup-attempt-fails)) |
+
+A failed save fails the backup with `game-save-<code>`. Wall-clock automatic backups also check that the save
+is still in use (its file lock, `AutomaticBackupActivity`) after the save returns, and are skipped if it is
+not.
+
+The split between "unreachable" and the rest is deliberate. When the helper could not reach the game, nothing
+was asked of it, so the files on disk are all there is and a backup of them beats none. Once the game has been
+asked, an error or an unclear answer is not taken as permission to copy files it may still be writing.
+
+Known limit: the unreachable list covers only failures before the payload answers. A game update that the
+helper can still attach to but whose classes no longer match (`unsupported-game`, `bridge-failed` from the
+hook checks) fails every backup that asks for a save, including wall-clock fallback backups.
+
+The `save-unavailable` warning is the `source.prepare.completed` log entry; its detail holds the attach
+diagnostics below.
+
+## Restart required after an app update
+
+The bootstrap cannot be replaced in a running game. When an update changes something the bootstrap must know,
+the bootstrap API number goes up rather than old names being kept alive in the payload. The helper reads the
+API of the bootstrap already in the game before sending anything, and on a mismatch prints "Restart the game to
+use the updated bridge".
+
+| Path | What happens |
+| --- | --- |
+| State stream (`GameRuntimeClient`) | Mapped to `restart-required`. `RuntimeObservationCoordinator` publishes `runtime-restart-required`, marks extensions `RestartRequired`, and does not attach to that process again (same id and start time) until it exits. |
+| App (`GameLinkMonitor`) | Shows the link card at once, without the grace period, since the link cannot come back without a restart: **PZ Tools was updated**, **Restart the game.** |
+| Periodic backups (`BackupScheduler.WaitsForGameRestart`) | Held until the game is gone or answers again. The schedule line says **Automatic backups after a game restart**. A save the game was not asked to write is not copied, as such backups would push good ones out of the kept number. |
+| Save request | The helper's failure is classified as `attach-failed`, so manual backups go ahead with the files on disk |
+
+A game that refuses because it was started with `-XX:+DisableAttachMechanism` is treated the same way by the
+coordinator (not asked again until it restarts) but periodic backups are not held.
+
+<a id="when-attaching-fails"></a>
+## When attaching fails
+
+The helper's first line on failure is `PZTOOLS-ATTACH-FAILED\t<stage>\t<exception>`, where the stage is
+`arguments`, `lock`, `attach`, `native-bootstrap`, `bootstrap`, `bootstrap-version` or `handshake`. A line
+`PZTOOLS-ATTACH-HANDED` before it says where each handed file came from (`own`, `own-non-ascii`, `temp-copy`,
+`programdata-copy`).
+
+`AttachDiagnostics.Failure` turns that into the failure's `diagnostics` string:
+
+- `stage`, `error` and the exit code;
+- whether the app and the game run elevated, and why the game's token could not be read if it could not;
+- the game's executable file name;
+- `handed=` from the helper;
+- whether the app folder, `%TEMP%` and the user profile contain non-ASCII characters (yes or no, never the
+  path);
+- the Windows version and the last 3000 characters of the helper's output.
+
+Paths are scrubbed: `%TEMP%`, `%LOCALAPPDATA%` and `%USERPROFILE%` replace those folders, and any other
+absolute path is cut to its last part.
+
+`AttachDiagnostics.Classify` recognises one cause the player can change: Java reports that the target "does
+not support the attach mechanism", which is what `-XX:+DisableAttachMechanism` does. Its code is
+`attach-disabled`, and the app says **A game launch option is blocking the connection.** Everything else is
+`attach-failed` (on the state stream, `runtime-unavailable`). The app always runs as administrator by its
+manifest, so a game with more rights than the app is not a cause.
+
+| Link | Log entry |
+| --- | --- |
+| State stream | `game.link.failed` from `state-scheduler`, once per game process and code |
+| A recording | The recorder's `run.failed` |
+| A backup's save request | The `source.prepare.completed` warning |
+
+A busy bootstrap on the state stream is retried and not logged. **Copy details** on the Logs page includes the
+diagnostics.
+
+<a id="leases"></a>
+## Leases
+
+What the app asks of the game must end once the app has gone, however it went, but must not end each time a
+connection drops (the scheduler restarting, a world loading). So it follows a lease, not a connection
+(`Leases.java`):
+
+- Each run of the app makes a 32-hex-digit identifier at start (`AppRun`). The game cannot see the app's
+  process: the app is elevated and the game is not.
+- The state stream sends `LEASE\t<run>` once after connecting, and renews the run's lease every 250 ms while
+  it is open. A recording request naming the run renews it too.
+- The lease lapses 120 s after the run was last heard from (`pztools.bridge.lease.seconds` overrides it for
+  tests).
+
+| Holder | Lease | Ends |
+| --- | --- | --- |
+| The rolling recording | The app run's | When the lease lapses |
+| A recording asked for | The app run's | When the lease lapses, at its stop, or at its maximum length |
+| Extension control | Its own connection's, renewed by each command | 5 s without a command, or when the connection closes |
+
+Leases live in the payload. See [profiler](profiler.md) for how the app restarts the rolling recording after
+the stream was away long enough for the game to end it.
 
 <a id="compatibility-and-lifecycle"></a>
-### Compatibility between PZ Tools and the bridge in the game
+## Version checks
 
-The bridge stays in the game after PZ Tools closes, so a newer PZ Tools may meet a
-bridge from an older version. These version numbers decide what happens. This table
-is the one place they are recorded; other pages link here.
+The bridge stays in the game after PZ Tools closes, so a newer PZ Tools can meet a bridge from an older one.
+These numbers decide what happens. This table is the one place they are recorded.
 
 | Contract | Current | Checked between | On a mismatch |
 | --- | --- | --- | --- |
-| Bootstrap API | 11 | The bootstrap in the game and the payload | The app says to restart the game, once. Bootstraps of API 10 or earlier (PZ Tools 0.2.1 and before) need this. |
-| Save protocol | 6 | The backup worker and the payload (`HELLO` line) | `unsupported-protocol`: nothing is asked of the game and the backup uses the files on disk, as in the table above |
-| Extension host ABI | 3 | The extension runtime and each module archive | The module is not loaded |
-| Extension control wire | 1 | Not checked on connection; the number labels the command format | Both sides come from the same build, and the payload in the game is replaced to match |
-| State stream (WATCH) | `STATE5` | The state scheduler and the state stream | The frame is rejected; older `STATE1`–`STATE4` are still read. `STATE5` adds the game's heap maximum |
+| Java runtime | 25, with retransformation | The game's JVM and the bootstrap/payload | `unsupported-runtime` or a refused hook |
+| Bootstrap API | 11 | The helper and the bootstrap in the game (system property); the bootstrap and the payload jar (manifest) | Helper: restart required. Payload: `PAYLOAD_UNAVAILABLE`. |
+| Save protocol | `HELLO` 6 | `GameSaveClient` and the payload | Payloads speaking 1–4 still serve plain saves with fewer features. A guarded request, non-default timeouts or a due time on an older payload give `unsupported-protocol`. |
+| State stream | `STATE5` | `RuntimeSnapshot.ParseWire` and the payload | `STATE1`–`STATE5` are read. A frame missing the required capabilities `runtime.snapshot.v1`, `runtime.active-clock.v1`, `save.guarded.v1` is rejected. `STATE5` adds the game's maximum heap. |
+| Extension host ABI | 3 | The extension runtime and each module | The module is not loaded |
+| Extension control wire | 1 | Not checked; it labels the command format | Both sides come from the same build |
 
-A compatible update of the payload or a module is picked up at an idle moment,
-including after the app has been moved to another folder. Use app and worker files
-from the same build.
+The bridge never checks the game's version number. It reads `Core.getVersionNumber()` and reports it on the
+state stream; the app records it with each backup and remembers it per save (`SaveGameVersionMemory`).
+Extensions declare their own supported game versions ([game extensions](game-extensions.md)). What stops the
+bridge on a changed game is the structural checks above: the hook's method signatures and the classes and
+fields the save and observer read by reflection.
 
-A change the bootstrap must know about raises the bootstrap API rather than keeping old
-names alive in the payload: the attach helper reads the API of the bootstrap already in
-the game before sending anything, and on a mismatch the app asks for one restart of the
-game. API 11 came with the bridge's rename from the save bridge: the bootstrap now loads
-each request's entry as `BridgeSession`.
+Use app, worker and bridge files from the same build.
 
-### Code
+<a id="settings"></a>
+## Settings that change the request
 
-| Component | Responsibility |
+| Setting | Effect on the request |
 | --- | --- |
-| `PzTools.GameBridge` | Finding the game, authenticated requests, deadlines, reading results |
-| `PzTools.Zomboid.Backup` | Deciding whether and how to prepare a backup (the table above) |
-| `PzTools.GameBridge.Agent` | Attach entry point, game adapter, code that runs in the game |
-| `PzTools.GameBridge.Native` | Windows native bootstrap (JVMTI) |
-| `build/GameBridgePayload.targets` | Build and deployment integration |
+| **Save game before backup** off | Manual and wall-clock backups send nothing. Guarded backups send `PROBE_ACTIVE`, so the game still checks the ticket (due, not paused, same world) without saving. |
+| **In-game save countdown** off | The notice language is `off`; the game shows no notices |
 
-The general backup engine knows nothing about the game: it receives a preparation
-step to run before capture. The game extensions use a separate control connection
-and never replace the save call.
+Both are read by the backup worker when it starts, so a backup already running keeps the values it started
+with. Where they are stored and which source wins is in [advanced settings](../reference/advanced-settings.md#which-setting-wins).
 
 <a id="building-and-publishing"></a>
 ## Building and testing
 
-Building needs a Windows x64 Java 25 JDK and the Visual Studio x64 C++ tools. The
-game's own trimmed Java runtime cannot be used to build.
+Building needs a Windows x64 Java 25 JDK and the Visual Studio x64 C++ tools. The game's own trimmed Java
+runtime cannot be used to build.
 
 ```powershell
 $jdk = 'C:\path\to\jdk-25'
@@ -265,17 +390,16 @@ pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
-- `JdkPath` wins over `JAVA_HOME`. Without either, the build uses the single Java 25
-  JDK under `artifacts/toolchains`.
-- The normal worker build also produces the Java and native parts of the bridge and a
-  reduced Java runtime for attaching. Game JARs are not needed to build and are never
-  distributed.
-- Bridge output goes to `artifacts/game-bridge/<Configuration>`. If a running game
-  still holds an older native DLL there, choose another folder with
-  `GameBridgeDirectory` (MSBuild) or `GameBridgeOutput` (publishing scripts). Keep
-  build output apart from an installed app.
+- `JdkPath` wins over `JAVA_HOME`. Without either, the build uses the single `jdk-25*` under
+  `artifacts/toolchains`.
+- The worker build also builds the Java and native parts of the bridge and the `jlink` runtime
+  ([`PzTools.GameBridge.Agent.proj`](../../src/PzTools.GameBridge.Agent/PzTools.GameBridge.Agent.proj),
+  [`build/GameBridgePayload.targets`](../../build/GameBridgePayload.targets)). Game jars are not needed to
+  build and are never distributed.
+- Bridge output goes to `artifacts/game-bridge/<Configuration>`. If a running game still holds an older native
+  DLL there, choose another folder with `GameBridgeDirectory` (MSBuild) or `GameBridgeOutput` (publishing
+  scripts). Keep build output apart from an installed app.
 
 The bridge tests run against a synthetic Java program that imitates the game.
-`GameSaveClient.RequestAsync(pid, savePath, save: false)` performs the connection and
-world checks without saving. Tests against the real game need a throwaway world and
-are kept apart from the automated tests.
+`GameSaveClient.RequestAsync(pid, savePath, save: false)` runs the connection and world checks without
+saving. Tests against the real game need a throwaway world and are kept apart from the automated tests.

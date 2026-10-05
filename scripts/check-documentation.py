@@ -25,8 +25,8 @@ GUIDE_SECTIONS = (
     'license',
 )
 GUIDE_REFERENCES = (
-    'docs/README.md', 'docs/development.md', 'docs/configuration.md',
-    'docs/repository-housekeeping.md', 'docs/game-bridge.md', 'docs/character-recovery.md',
+    'docs/README.md', 'docs/guides/getting-started.md', 'docs/guides/troubleshooting.md',
+    'docs/reference/backups.md', 'docs/contributing/development.md',
 )
 GUIDE_FACT_TOKENS = (
     'PzTools.App.exe', '.NET 10', 'Windows x64', 'Java 25', 'global.json',
@@ -310,7 +310,7 @@ def check_guide(root: Path, documents: dict[Path, Document],
 
 def check(root: Path) -> dict[str, int]:
     root = root.resolve()
-    parallel_guides = sorted(root.glob('docs/*/README.md'))
+    parallel_guides = sorted(path for path in root.glob('docs/**/README.md') if path != root/'docs/README.md')
     if parallel_guides:
         raise DocumentationError('Localized README guides are not supported; use the English root README: '
                                  + ', '.join(str(p.relative_to(root)) for p in parallel_guides))
@@ -339,11 +339,12 @@ def check(root: Path) -> dict[str, int]:
     index = root/'docs/README.md'
     if index not in docs:
         raise DocumentationError('Missing documentation index')
-    references = set(root.glob('docs/*.md')) - {index}
+    references = set(root.glob('docs/**/*.md')) - {index}
     missing = (references | {root/'README.md', root/'THIRD_PARTY_NOTICES.md'}) - targets[index]
     if missing:
         raise DocumentationError('Documents missing from index: ' + ', '.join(str(p.relative_to(root)) for p in sorted(missing)))
-    for path in references:
+    # Guides walk a player through a task and link each other; every other page leads back to the index.
+    for path in references - set(root.glob('docs/guides/*.md')):
         if index not in targets[path]:
             raise DocumentationError(f'{path.relative_to(root)}: missing index backlink')
     return {'documents': len(paths), 'guides': 1, 'topics_per_guide': len(GUIDE_SECTIONS),

@@ -1,119 +1,102 @@
-# Documentation maintenance
+# Documentation
 
-[Documentation index](../README.md) · [User guide](../../README.md)
+[Documentation index](../README.md)
 
-## Writing and scope
-
-Keep one English user guide in the root `README.md` and write its linked documentation
-in English. Do not add translated guides or parallel language sections. The app's
-multilingual interface, backup names and game-save notices remain independent; preserve
-their catalog and resources.
-
-Lead with what the user needs to do. Keep the README concise, with installation,
-everyday operations and essential warnings. Put implementation details and precise
-compatibility limits in their reference pages. Link to those pages where needed and
-use the documentation index for the full reference list. Avoid repeated warnings,
-promotional slogans and claims that the tool guarantees a safe return.
-
-Preserve these operating distinctions in the guide and its references:
-
-- A game save finishing is not a backup finishing. Per-file verification is not a
-  single-instant snapshot of the whole world.
-- Manual backups are exempt from automatic-count trimming, not from explicit deletion
-  or cleanup after the original save disappears.
-- Restoration replaces current files and loses later progress. After interruption,
-  check PZ Tools before loading the save; do not promise automatic rollback.
-- Character recovery edits the current inactive save and creates no extra user backup.
-  Preserve the supported build/world/player limits and inventory-recovery restrictions.
-- Incompatible backup data is not automatically converted or erased. A new empty backup
-  folder is different from deleting the game save or deleting only `repository.db`.
-- Source archives, SDK/build requirements, runtime requirements and runnable packages
-  are different. Do not invent a release asset, installer, signature or download URL.
+The documentation is English only. The app's interface, backup names and in-game notices have
+their own languages; see [Localization](localization.md). Don't add translated pages.
 
 ## Where a page goes
 
-Decide first who the page is for. There are three kinds, and one page should be one kind.
+Decide first who reads the page. One page serves one reader.
 
-| Kind | Reader and question | Where |
+| Folder | Reader | What goes in |
 | --- | --- | --- |
-| Use | Someone running the app: what does this do, how do I use it, what should I watch out for? | `docs/`, listed under *Using PZ Tools* in the [index](../README.md) |
-| Design | Someone reading or changing the code: how does this part work and why is it built this way? | `docs/`, listed under *How it works* |
-| History | Someone looking back: what was measured, reviewed or planned at the time? | `docs/history/`, listed under *History and measurements* |
+| `README.md` (root) | Anyone landing on the repository | What PZ Tools does, how to install and update it, its limits, building, license. Short; each topic links on. |
+| `docs/guides/` | A player doing one task | Steps from start to finish, what they'll see, what to do when it fails |
+| `docs/reference/` | A player who wants the detail | What each setting, screen, state, file or command is. Tables first. |
+| `docs/design/` | Someone changing the code, person or AI agent | How a part works and why: data, invariants, failure handling, decisions and the alternatives rejected |
+| `docs/contributing/` | A contributor | Building, testing, publishing, documentation and translation |
+| `docs/history/` | Someone looking back | Measurements, reviews and plans of their time. Never updated. |
 
-A topic with both a use side and a design side gets the use side first, and the design
-side under a later heading or on its own page. A result that is only true of one build
-or one measurement run is history, even when it is recent. History pages are not
-updated when the code changes; they carry the banner that says so. The folder has no
-`README.md` of its own: the checker below rejects `docs/*/README.md` as a parallel guide.
+A fact lives in one place. A guide links to the reference page for the detail, and a reference
+page links to the design page for how it works. A result true of one build or one measurement
+run is history, even when it's recent. How something used to be belongs in the release notes
+or in history, not in a current page.
 
-New terms go into the [glossary](../design/glossary.md) when they are first used on a second page.
-A new part of the system gets a line in the [overview](../design/overview.md).
+New terms go into the [glossary](../design/glossary.md) when a second page uses them. A new part
+of the system gets a line in the [overview](../design/overview.md).
 
-## Writing for the reader
+## Writing
 
-- **Start with what it is.** The first paragraph says what the feature or part does and
-  for whom, in words a newcomer knows. Contract numbers, class names and protocol fields
-  come later, if at all.
-- **Say what happens before what does not.** Collect limits, non-goals and "does not"
-  statements in one section per page instead of spreading them through every paragraph.
-- **Define or link every project term** on its first use on a page: link the
-  [glossary](../design/glossary.md) entry or explain it in a clause. Do not coin a new name for
-  something that already has one.
-- **Keep paragraphs short.** One idea per paragraph, a few sentences each. Use a table
-  or a numbered list for steps, states and options. Wrap source lines at about 90
-  characters so diffs stay readable.
-- **Keep volatile numbers in one place.** Protocol and schema versions, counts of files
-  or settings, and defaults belong on the page that owns them. Other pages link there
-  instead of repeating the number.
-- **Write about the software, not about the change.** "Backups skip paused time" rather
-  than "the change removed…" or "this now…". How it used to be belongs in history.
-- **Use a common page order**: what it is, everyday behaviour, when it does not work
-  or is limited, how it works inside, how it is verified. Leave out sections that would
-  be empty.
+These hold for every page.
 
-## Writing a guide
+- **Say what happens, plainly.** Write the way you'd explain it to a colleague. One fact per
+  sentence. Don't join unrelated facts with "and".
+- **No padding.** No openers that repeat the headings, no "this document describes", no
+  colon-chopped fragments ("Mode: on."), no reason tacked onto every sentence. Words like
+  robust, seamless, comprehensive, leverage and ensure usually stand in for saying what
+  happens; say it instead.
+- **Give the reasons a reader would ask for**, and leave out the ones nobody would.
+- **Name UI elements exactly as the English interface shows them**, in bold. The strings are
+  in [Resources.resw](../../src/PzTools.App/Strings/en-US/Resources.resw).
+- **Keep volatile numbers on the page that owns them**: defaults, limits, versions, counts.
+  Other pages link there.
+- **Use tables** for settings, states, messages, files and commands, and numbered lists for
+  steps. Wrap lines at about 95 characters so diffs stay readable.
+- **Check every fact against the code** before writing it, and again when the code changes.
 
-Guides in `docs/guides/` walk a player through one task. Write them the way you would
-explain the task to a friend sitting next to you, and test every sentence:
+### Guides
 
-1. **Would the reader wonder about this here?** If not, cut it. Answering a question
-   nobody asked raises a new worry ("Java is included" makes people wonder whether they
-   need Java).
+Write a guide the way you'd walk a friend through the task, and test every sentence:
+
+1. **Would the reader wonder about this here?** If not, cut it. Answering a question nobody
+   asked raises a new worry ("Java is included" makes people wonder whether they need Java).
 2. **Does it change what the reader does or expects?** If not, cut it.
-3. **Is it something the reader can't see?** Internals (the change journal, the garbage
-   collector) go in only when the screen shows them or the reader must decide something,
-   and then in plain words.
-4. **One fact per sentence.** Don't join unrelated facts with "and".
-5. **Would you say it out loud like that?** No summary openers that repeat the headings,
-   no colon-chopped lines ("Mode: on."), no reason tacked onto every sentence.
+3. **Is it something the reader can't see?** Internals go in only when the screen shows them
+   or the reader must decide something, and then in plain words.
+4. **One fact per sentence.**
+5. **Would you say it out loud like that?**
 
-Give the reasons a reader would ask for (why administrator rights, why backups stopped),
-and leave out the ones nobody would. Name UI elements exactly as the English interface
-shows them, in bold. Mark a needed picture as `[Screenshot: what it must show]` until one
-is taken.
+Open with the situation the reader is in, not with the feature. Players resent being told they
+made a mistake; open on what the game did to them (a crash, a bug, a broken mod) rather than on
+undoing their own choices.
 
-## Links and recorded facts
+Mark a picture that is still to be taken as `[Screenshot: what it must show]`. Pictures and
+clips live in `docs/media/`.
 
-Use relative links to files inside this repository so forks, branches and local clones
-keep working. The [index](../README.md) lists the root guide, every technical document and
-third-party notices; technical pages link back to it. Keep explicit section IDs stable
-and update heading links when renaming sections. Pages under `docs/history/` are also
-listed in the index and link back to it. Historical plans, verification reports
-and benchmarks retain their original values and scope. Edit their explanatory prose
-without changing measurements, identifiers, commands or source paths, and label dated
-results rather than presenting them as current claims.
+### Reference pages
 
-Current facts should be checked against their source, not copied from an old README:
+Start each section with what the thing is, then a table. Name what the player sees, not
+classes or files in the code. Link the guide for step-by-step instructions and the design page
+for how it works.
+
+### Design pages
+
+Write for someone about to change that part of the code. Cover what it does, the data it
+keeps, the invariants that must hold, how failures and interruptions are handled, and the
+decisions with the alternatives that were rejected. Link source files where they help find the
+code; don't paste code. Collect limits and non-goals in one section.
+
+## Links
+
+Use relative links inside the repository so forks, branches and clones keep working. Every page
+outside `docs/guides/` starts with a link back to the [index](../README.md), and the index lists
+every page. Keep explicit `<a id="...">` anchors stable, and fix the links into a heading when you
+rename it.
+
+History pages keep their original values. Edit their prose if needed, but not their
+measurements, identifiers, commands or source paths.
+
+Where to check a fact:
 
 | Claim | Source |
 | --- | --- |
-| UI languages and default name prefixes | [Language catalog](../../src/PzTools.Process.Contracts/Localization/languages.tsv) |
-| Runtime requirement and publishing behavior | [Publish script](../../scripts/publish-app.ps1) |
-| Administrator request | [App manifest](../../src/PzTools.App/app.manifest) |
-| Backup interval and retention defaults | [App settings](../../src/PzTools.App.Core/AppSettings.cs) |
+| UI text | [Resources.resw](../../src/PzTools.App/Strings/en-US/Resources.resw) |
+| UI languages and default backup names | [Language catalog](../../src/PzTools.Process.Contracts/Localization/languages.tsv) |
+| Settings and their defaults | [App settings](../../src/PzTools.App.Core/AppSettings.cs) |
 | Backup worker defaults | [Backup worker template](../../config/defaults/backup-worker/default.toml) |
-| Version shown in the app | [Home page](../../src/PzTools.App/HomePage.xaml) footer |
-| Game and recovery limits | [Game bridge](../design/game-bridge.md), [character recovery](../design/character-recovery.md) |
+| Runtime requirement and what is published | [Publish script](../../scripts/publish-app.ps1) |
+| Administrator request | [App manifest](../../src/PzTools.App/app.manifest) |
 | Storage compatibility | [Repository format](../design/repository-format.md) and [schema](../../src/PzTools.Backup.Storage/Repository/RepositorySchema.cs) |
 
 ## Automated checks
@@ -125,23 +108,21 @@ python scripts/test-documentation-checker.py
 python scripts/check-documentation.py
 ```
 
-The [CI workflow](../../.github/workflows/windows.yml) runs these checks once on Linux.
-`pwsh scripts/test-readme-links.ps1` calls the same checker. It validates that the single
-root guide keeps its required topic sections (more may be added; every section must explain
-something), its essential references and its runtime requirements and download links;
-checks local links, index coverage and backlinks; and rejects parallel
-`docs/*/README.md` guides. It does not read or interpret the UI language catalog.
-Regression tests cover invalid input and a valid English documentation tree with no UI
-catalog or resources. Authored links to UI source files still require valid targets.
+The [CI workflow](../../.github/workflows/windows.yml) runs both on Linux, and
+`pwsh scripts/test-readme-links.ps1` calls the same checker. The checker:
 
-The checker uses the standard library, reads repository files only, and does not make
-network requests. It covers the Markdown used here: inline and reference links, HTML
-`href`/`src`, explicit anchors and ATX/Setext heading anchors, including duplicate headings
-and escaped/nested parentheses in link destinations. Fenced and inline code examples are
-not treated as live links. External URLs are counted but not fetched. The parser is not
-a complete implementation of every GitHub-Flavored Markdown extension.
+- checks every local link and anchor in `README.md`, `THIRD_PARTY_NOTICES.md` and `docs/`,
+  including the case of file names;
+- requires the root README to keep its topic sections (each with some explanation, not only a
+  link), its links to the main guides and reference pages, its runtime requirement and its
+  download and issue links;
+- requires the index to list every page under `docs/`, and every page outside `docs/guides/`
+  to link back to the index;
+- rejects a `README.md` inside a `docs/` subfolder, so no second guide grows beside the root
+  one.
 
-Review English explanations and warnings manually: structural checks cannot establish
-clarity or accuracy. Unicode identifiers, file paths and quoted UI values can be valid,
-so keep Unicode parser tests and do not use ASCII-only or word-count thresholds to
-enforce the documentation policy.
+It uses the standard library only, reads repository files only and fetches no URLs. It covers
+the Markdown used here: inline and reference links, HTML `href` and `src`, explicit anchors,
+and ATX and Setext heading anchors. Code blocks and inline code are not treated as links.
+
+Structure is all it checks. Read your page again for accuracy and clarity; no script can.

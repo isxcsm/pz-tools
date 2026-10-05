@@ -1,523 +1,408 @@
-# Vehicle driving extension: design
+# Vehicle model
 
-[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md)
 
-**Vehicle driving improvements** (`pztools.vehicle-drivetrain`, version 0.2.0) is an
-experimental [game extension](game-extensions.md), off by default. It has four options,
-each with its own switch:
+**Vehicle driving improvements** is the continuous [game extension](game-extensions.md)
+`pztools.vehicle-drivetrain`, version 0.2.0, capability `vehicle.drivetrain.v1`, shipped as
+`pztools-vehicle-drivetrain.jar`. The source is in
+[PzTools.GameExtensions.VehicleDrivetrain](../../src/PzTools.GameExtensions.VehicleDrivetrain/java/pztools/extensions/vehicle/).
+The player's steps are in [Better vehicle controls](../guides/vehicle-controls.md).
 
-- **Natural acceleration and shifting**: smoother pull-away, re-acceleration and gear
-  changes going forward
-- **Smooth reversing**: a gentler reverse launch and a cleaner change of direction
-- **Precise keyboard steering**: steering that follows how long a key is actually held
-- **Light around the vehicle**: a glow on the ground around the vehicle while its
-  headlights are on
+The model, the adapter and the bytecode checks are tested against synthetic game classes.
+Real driving has not been accepted yet: what the game's force and time values mean physically,
+fuel use and engine noise, and module updates in a running game still need live testing
+([vehicle test guide](../contributing/e2e-vehicle-drivetrain.md)). Multiplayer is not supported
+by any part of it.
 
-This page explains how each works and how the extension attaches to the game. To try
-it in a real game, use the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).
+## The four options
 
-**Status.** The driving model, the adapter against a synthetic game and checks in a
-separate Java process are tested automatically. Real driving has not been accepted
-yet: what the game's force and time values mean physically, the effect on fuel and
-noise, and updating the module inside a running game still need live testing.
+| Switch | Key | Takes over | Writes |
+| --- | --- | --- | --- |
+| **Natural acceleration and shifting** | `torque_enabled` | `CarController.control_ForwardNew` | engine force, braking force 0, throttle, gear, engine RPM; clears the parking-brake release flag |
+| **Smooth reversing** | `reverse_enabled` | `CarController.control_Reverse` | the same fields, gear R |
+| **Precise keyboard steering** | `steering_enabled` | the steering interpolation block in `CarController.update` | `vehicleSteering` |
+| **Light around the vehicle** | `area_light_enabled` | nothing; runs once per frame | one `IsoLightSource` in the cell's lamppost list |
 
-## What it changes and what it leaves alone
+A switch that is off leaves that part to the game. The extension never touches mass, cargo,
+tyre grip, suspension, collisions, braking (`control_Braking`), coasting (`control_NoControl`
+always runs the game's code), gamepad steering or `ClientControls`.
 
-The aim is smoother acceleration, shifting, reversing and keyboard steering, while
-vehicles still feel different from one another.
-
-It does **not** change mass, cargo, tyre grip, suspension, collisions, ordinary
-braking, coasting, character traits or gamepad steering. It adds no extra engine
-braking: the game's own coasting stays until its deceleration is measured.
-
-**When forward and reverse control apply.** The driver is the local single-player
-player, the engine is running, the vehicle has four wheels and valid script values,
-and its engine family is `generic`, `van`, `jeep` or `firebird` with 3–5 gears. In
-every other case the game's own propulsion is used: an unknown engine profile, a
-vehicle being towed, a burnt vehicle, or towing a burnt one. Ordinary towing is
-allowed and is one of the things to test.
-
-**When keyboard steering applies.** Steering is checked separately. It also works
-with the engine off or with an unsupported engine profile. Gamepad steering,
-multiplayer, and towed or burnt vehicles keep the game's steering.
-
-**Turning it off** hands control straight back to the game. It does not undo
-movement, collisions or fuel already used.
-
-## Limits
-
-- **No physical units.** Inputs are seconds, signed forward speed in m/s, RPM and
-  throttle from 0 to 1. The output is in the game's own force units. The wheel radius
-  from the vehicle script is checked but not assumed to be in metres. Nothing here is a
-  measured wheel torque, a force in newtons or real horsepower.
-- **Other vehicle mods.** It is not guaranteed to work together with other mods that
-  change vehicle physics.
-- **Game updates.** Passing the compatibility checks below means the game code looks
-  as expected. It does not prove that driving feels the same, and changes elsewhere in
-  physics stepping, input or friction still need testing in the game.
-- **Ignoring the version limit** only skips the declared game-version range. Every
-  other check still applies.
-- **Multiplayer** is not supported by any part of the extension.
+Writing gear, throttle and RPM is shared state: the game also uses those values for fuel use
+and engine sound, so those effects need live testing.
 
 ## How it attaches to the game
 
-The extension changes a few Java call sites in memory while the game runs. No file of
-the game installation is modified.
+`VehicleDrivetrainProvider` registers a `ClassFileTransformer` for
+`zombie.core.physics.CarController` and retransforms the loaded class. No file of the game
+installation is changed. `VehicleBytecode.transform` changes `update()` as follows:
 
-### Why these call sites
+1. Once the game has resolved the control mode, it calls `VehicleHooks.tryControl(controller,
+   mode, speed)` with mode Forward, Reverse, Braking or other.
+2. The calls to `control_NoControl`, `control_ForwardNew` and `control_Reverse` are skipped only
+   when the outcome has the `APPLIED` bit.
+3. `DIRECTION_HOLD` switches the mode to Braking, sets `isBreak`, clears `isGas` and `isGasR`
+   and sets the throttle to 0, so the game's braking and signal code runs.
+4. `OWN_OFFROAD` makes the `isDoingOffroad()` read before the game's gear-dependent offroad
+   penalty return false for that update.
+5. At the start of the steering block, a second `tryControl` with mode `STEERING`; `APPLIED`
+   skips the block. Angle limits, tyre processing, wheel display and native calls after it
+   still run.
+6. Each `Bullet.controlVehicle` call passes its arguments to `observeNative` first, for
+   diagnostics only.
 
-In the inspected build, `CarController.update` calls `control_ForwardNew` (not the
-older `control_Forward`). Forward, reverse, coasting and braking each handle RPM and
-gear in their own way. Tyre-loss and offroad adjustments come afterwards, followed by
-the game's `Bullet.controlVehicle`, engine start and the handling of a stopped engine.
+`VehicleHooks` ignores a re-entrant call on the same thread. An exception or an invalid outcome marks
+the registration failed; every later call returns `VANILLA`, and the host's next tick reports
+`FaultedPassThrough`.
 
-So the extension guards the chosen control calls inside `update`. It does not replace
-the whole class, intercept every caller of a private control method, or add a second
-native force call. Cruise control, the drunk-driving delay, braking in unloaded
-chunks, signals and engine start keep their original order.
+### Compatibility checks
 
-The game also uses gear and RPM for fuel and sound. The extension writes one shared
-gear/RPM state, used for both control and display; there is no separate display-only
-RPM. Fuel use, engine sound, and how zombies and animals react to it therefore belong
-in live testing.
+Before it installs anything (`preflight`, then `initialize`):
 
-### What happens on each game update
+- The Java runtime must be feature version 25 with class retransformation.
+- `VehicleAccess` resolves every field and method it uses with its exact type and static or
+  instance access. Three groups are optional: key bindings and the input gate (without them
+  steering keys are not timed) and lighting (without it only the light is unavailable).
+- `VehicleBytecode` requires each `control_*` call and `control_Braking` exactly once in
+  `update()`, `Bullet.controlVehicle` twice, and the expected steering and offroad layouts.
+- The code that can be skipped is pinned: a normalised SHA-256 of `control_NoControl`,
+  `control_ForwardNew`, `control_Reverse` and the steering and offroad blocks must equal
+  `CONTROL_CONTRACTS`, reviewed against Build 42.20.4. Debug information, constant-pool layout,
+  method order and no-ops are ignored. A game update that changes those methods needs a review
+  and new hashes, because skipping changed code could silently drop new game or mod behaviour.
+- `VehiclePatchContract` checks the call order and that every path from the dispatch to the
+  braking decision passes the game's mode checks and back-signal update, with no early exits,
+  handlers, loops or re-entry in that stretch. `control_Braking` is required even though it is
+  never skipped, because `DIRECTION_HOLD` relies on it.
+- The transformed class must pass the class-file verifier.
 
-`VehicleHooks.tryControl` runs once for propulsion and once, separately, for steering.
-Each call takes the current module [generation](glossary.md#generation-module) and
-settings, reads the inputs, computes and checks the result, writes it, and releases the
-generation. It ends in one of these outcomes:
+Every later retransformation runs the same checks on the bytes it receives. If they fail, the
+transformer returns the input unchanged and the provider reports `controller-contract-changed`.
+It never replaces another transformer's output with bytes read from disk. Preflight for a
+module update observes the existing transformer chain, but cannot see transformers registered
+later or changes made through JVMTI or JNI.
+[VerifyInstalledVehicleBytecode](../../tests/game-extensions/VerifyInstalledVehicleBytecode.java)
+runs the checks against a local game JAR in a separate JVM.
 
-| Outcome | What happens |
+### Rules for code in the hooks
+
+- **All or nothing.** Every handle, type, gear object and output value is checked before the
+  first field is written. Model output must be finite, |force| ≤ 1,000,000, RPM 0–7000,
+  throttle 0–1, force in the direction of travel, gear in range; anything else throws and
+  faults the module.
+- **Nothing slow.** Prepared field and method handles only: no file access, Lua, reflection
+  lookups or settings parsing per update. Per-vehicle state is cached in weak maps.
+- **Fresh state.** A frame gap, a different driver, a declined step or a fallback resets the
+  model. When it takes over again it picks a gear from the current speed.
+- **Time.** The step is `GameTime.getPhysicsSecondsSinceLastUpdate()`. Zero, negative or more
+  than `max_dt_seconds` (0.1 s by default) falls back to the game, so pausing cannot cause a
+  catch-up burst.
+- **Duplicates.** A second propulsion call in the same frame, or a call off the game thread,
+  falls back. A second steering call in the same frame for the same driver rewrites the angle
+  it applied before the tyre step, so the tyre correction is not applied twice.
+
+## When each part applies
+
+Propulsion (`VehicleAccess.read`, `VehicleProfile.resolve`) needs all of these; otherwise the
+game's code runs and the diagnostics reason names the first failed check:
+
+| Rule | Reason |
 | --- | --- |
-| `VANILLA` | The extension's state for this case is cleared and the game's own code runs |
-| `APPLIED` | The checked values are written and that piece of the game's calculation is skipped |
-| `DIRECTION_HOLD` | No propulsion is written; the game's braking path runs with adjusted flags (see [direction changes](#rpm-shifting-and-direction-changes)) |
-| `OWN_OFFROAD` | An extra flag, valid only on the same successful propulsion step (see [offroad](#offroad)) |
+| Single-player, the activation's world | `multiplayer-unsupported`, `world-or-controller-changed` |
+| The driver is the local player | `not-local-driver` |
+| Not towed, not burnt, not towing a burnt vehicle | `towed-or-burnt`, `burnt-tow-unsupported` |
+| Engine running | `engine-not-running` |
+| Four wheels, each radius 0.05–5 | `unsupported-wheels`, `invalid-wheel-radius` |
+| Mode Forward or Reverse, and that option on | `original-coast-or-brake`, `forward-disabled`, `reverse-disabled` |
+| Valid time step, first call this frame | `invalid-or-long-dt`, `duplicate-frame` |
+| Engine family `generic`, `van`, `jeep` or `firebird`, 3–5 gears, script top speed 20–300 km/h | `unsupported-profile` |
 
-Rules for this code, which runs every frame:
+Ordinary towing is allowed.
 
-- **All or nothing.** Every handle, type, gear object and output value is checked
-  before the first field is written. Writing part of the result and then falling back
-  is not allowed.
-- **Nothing slow.** Writing uses prepared field access: no file access, Lua calls,
-  reflection lookups or memory allocation. In steady driving the target is no
-  allocation, settings parsing, reflection, inter-process calls or waiting per update.
-  Vehicle profiles and scratch state are cached, with weak references to the vehicle
-  and driver. Only the local driver's vehicle is processed; the world is not scanned.
-- **A fault stops it.** An exception or invalid output closes the module to further
-  calls, rather than failing again every frame.
-- **Nothing carries over by accident.** Per-update flags are local, so success on an
-  earlier update or another vehicle cannot allow a skip now. Retiring the module cannot
-  undo values already written into an update in progress, and the next generation
-  cannot overwrite that update.
-- **Time.** The time step comes from the game's physics time and is checked in
-  seconds. A missing, zero or too large step (over 0.1 seconds by default) falls back
-  to the game. Pausing and resuming does not cause a catch-up burst.
-- **Duplicates.** A second propulsion call in the same update, or a call on the wrong
-  thread, is declined. A second steering call in the same frame reuses the value
-  already applied for the same driver (see [repeated calls](#repeated-calls-in-one-frame));
-  any other duplicate steering call falls back.
+Steering (`VehicleAccess.readSteering`) is checked separately and does not need a running
+engine or a known engine family. It needs: single-player, the local player driving, keyboard
+control (`getJoypad() == -1`), not towed or burnt, four wheels, and a game step that does not
+overshoot (`0.06 × m × f < 1`, see [keyboard steering](#keyboard-steering)).
 
-How the controller's calls relate to the game's native 0.01-second physics substeps
-still has to be measured in the game.
+## Safe point for applying changes
 
-### Compatibility checks against the game build
+Turning the extension on, and every later configuration change, waits until
+`VehicleDrivetrainProvider.readyToActivate` (`VehicleAccess.ready`) returns true on the game
+thread. That requires:
 
-The [catalogue](../../config/game-extensions/catalog.tsv) declares game version 42. Before
-the extension starts, it checks the exact field types, method signatures and
-static/instance access it uses. Then it checks the actual bytes the Java runtime hands
-to its transformer. Whole-class hashes of `WorldSimulation`, `GameTime`, `BaseVehicle`
-and the other surrounding classes do not have to match.
+- single-player and the activation's world;
+- for every local player who is in a vehicle (driver or passenger): speed at most 0.5 km/h,
+  throttle at most 0.01 and cruise control (`isRegulator`) off.
 
-The code the extension can skip is checked more strictly: the three control methods,
-and the steering and offroad blocks. Their instructions, constants, calls and branch
-targets must match. A change there needs review, because skipping it could silently
-drop new game or mod behaviour. Constant-pool layout, method order, debug information
-and no-op instructions do not matter. In the surrounding `update` method only the call
-sites, control-flow boundaries and required fields are checked; unrelated members may
-change.
+Players on foot do not block it, and vehicles nobody local is in are not checked. The host only
+ticks while the game is unpaused, which is why the card asks the player to resume the game.
+While a change waits, the previous configuration keeps running, light included.
 
-From dispatch up to the braking decision, every path must pass the game's own mode
-checks and the back-signal update, in order. Early exits, skipped checkpoints,
-exception handlers, loops and re-entry within that stretch are rejected. The braking
-check is required even though braking itself is not replaced, because holding on a
-change of direction relies on that original call. Conditional branches of the game,
-and code outside this stretch, may differ.
-
-Each later retransformation is checked again. If another transformer conflicts, the
-extension gives up control; it never replaces the other transformer's output with a
-copy read from disk.
-
-The research baseline was a game JAR with this SHA-256:
-
-```text
-80E405A4BFC42F6072E75B3735F458A6514143DA011D3226007DED305A442F44
-```
-
-It is a reference point, not a check that a game is an unmodified Steam copy and not a
-promise that every Build 42 patch works. Research files stay local in the ignored
-`artifacts/vehicle-physics-research/` folder. Game classes and decompiled sources are
-never distributed.
+The scheduler builds the configuration from the tuning files only when the settings revision
+changes, or when it attaches to a new world or lease. Editing the override file alone does
+nothing until then. A new revision whose configuration equals the applied one (for
+example a change to another module) is acknowledged without waiting.
 
 ## The driving model
 
+`DrivetrainModel.step` runs once per propulsion call. Its throttle input is always 1: the game
+has already resolved the mode, including cruise control and input gates. Force is in the game's
+own units, not newtons or horsepower.
+
 ### Forward force
 
-Forward force starts from the game's own base curve:
+The base is the game's `control_ForwardNew` envelope:
 
 ```text
-enginePower × firstGearFactor × (0.3 + RPM / 30000)
-            × clamp(1 - speedKph / 200, 0, 1)
+cap = enginePower × firstGear × (0.30 + rpm / 30000) × clamp(1 − speedKph / 200, 0, 1)
+      × force_scale × trait × offroad
+firstGear = 1.5 × low_gear_boost   while in gear 1 or below maxSpeed / gearCount, else 1
+requested = cap × (1 + forward_torque_boost_fraction × torqueShape(rpm)) × throttle × governor
 ```
 
-`firstGearFactor` is `1.5 × low_gear_boost` in first gear or below
-`maxSpeed / gearCount`, and 1 otherwise. This keeps the game's low-speed force even
-when the extension's RPM estimate shifts up early. `low_gear_boost` defaults to 1.
-
-On top of that the force is multiplied by `1 + forward_torque_boost_fraction ×
-torqueShape(RPM)`. The setting accepts 0–0.10 and defaults to 0.10, the same 1.0–1.1
-range as before. Zero removes only this RPM-dependent boost; shifting and pedal
-response still work.
-
-This does **not** limit the overall change in performance to 10%: the RPM and gear
-path differs from the game's, and the game's extra fade above 6,000 RPM is not
-reproduced. The candidate gear ratios steer RPM and shifting only; they do not apply a
-further `ratio(current)/ratio(first)` force penalty.
+`torqueShape` rises from `idle_torque_fraction` at 0 RPM to 1 at the family's peak, falls to 0.8
+at 90% of redline and to 0 at 105%. The boost is at most 10% of the base envelope, but the whole
+behaviour can differ by more, because RPM and gears follow this model and the game's extra fade
+above 6,000 RPM is not reproduced. Gear ratios steer RPM and shifting only; they do not scale
+force.
 
 ### Reverse force
 
-Reverse uses the game's reverse curve:
-
 ```text
-enginePower × (0.75 + RPM / 24000) × clamp((7000 - RPM) / 1000, 0, 1)
+cap = enginePower × (0.75 + rpm / 24000) × clamp((7000 − rpm) / 1000, 0, 1)
+      × force_scale × reverse_force_ratio × trait × offroad
 ```
 
-The default `reverse_force_ratio = 1` reduces it no further. Throttle and force both
-rise over a ramp: 0.8 seconds for reverse by default, 0.3 seconds for forward. A change
-of direction restarts the ramp, so RPM left over from before cannot cause a spike on
-the first update.
+### Ramps
 
-### Applied to both directions
-
-`force_scale`, throttle, trait effects and one offroad factor are each applied exactly
-once. The stored `enginePower` already includes the vehicle's quality from when it was
-generated, so quality is not applied again. Force does not grow with current cargo, and
-mass is not added again.
+Throttle rises to 1 over `forward_ramp_seconds` (0.3 s) or `reverse_ramp_seconds` (0.8 s).
+Delivered force moves towards `requested` at a bounded rate (forward: `enginePower × 0.65 ×
+force_scale × low_gear_boost × trait` per ramp; reverse: `cap` per ramp), so leftover RPM cannot
+cause a spike. A lower cap from speed, trait or surface applies at once.
 
 ### Speed limits and traits
 
-- **Forward.** Force fades out between `M` and `M + 20` km/h, where `M` is `maxSpeed`,
-  or `maxSpeed × 1.15` with the Speed Demon trait (not `(maxSpeed + 20) × 1.15`).
-- **Sunday Driver, forward.** The game's output factors and extra speed fade are kept,
-  including a factor that can briefly go above one just past the game's threshold.
-  Propulsion never turns negative.
-- **Reverse.** The default `reverse_max_speed_kph = 0` means the game's own limit,
-  `Script.maxSpeedReverse / 1.5`: a script value of 40 is about 26.667 km/h. An
-  explicit value must be 4–35 km/h; anything between 0 and 4 is rejected. The default
-  `reverse_governor_start_fraction = 1` means no fade before the limit and zero
-  propulsion at it; lower developer values give a soft fade.
-- **Sunday Driver, reverse.** Output ×0.70 plus the game's extra speed factor,
-  reaching zero propulsion at 10 km/h.
+| Case | Rule |
+| --- | --- |
+| Forward | Full force up to `maxSpeed` (× 1.15 with Speed Demon), fading to 0 at that + 20 km/h. `forward_governor_start_fraction` < 1 starts the fade earlier. |
+| Forward, Sunday Driver | Force × 0.75; above 60% of `maxSpeed` also × max(0, (0.75 × maxSpeed + 20 − speed) / 20), the game's factor, which can briefly exceed 1 |
+| Forward, Speed Demon | RPM is computed from speed / 1.15, so gears do not cap the trait's extra speed |
+| Reverse | Limit `reverse_max_speed_kph`, or with 0 the game's `Script.maxSpeedReverse / 1.5` (script 40 ≈ 26.7 km/h). Full force below it, none at or above. `reverse_governor_start_fraction` < 1 gives a smooth fade. |
+| Reverse, Sunday Driver | Force × 0.70, and × max(0, (15 − 1.5 × speed) / 10) once 1.5 × speed exceeds 5 km/h, so zero at 10 km/h |
 
-These limit propulsion; they do not clamp speed. A slope or an outside force can still
-make the vehicle go faster.
+These limit propulsion only. A slope or a push can still make the vehicle faster.
 
-### RPM, shifting and direction changes
+### RPM and gears
 
-RPM is estimated from speed, using candidate gear ratios per profile that are
-geometrically spaced (each a fixed factor from the next); wheel speed is not measured. An upshift needs enough speed and RPM and an
-acceptable RPM after the shift. A downshift happens on lower speed or high demand and
-is refused if it would over-rev. Separate thresholds, hysteresis and a minimum time in
-gear stop the gearbox hunting. The developer low-gear mode cannot override over-rev
-protection.
+RPM is estimated from speed; wheel speed is not measured:
 
-The game's own `NoControl` and `Braking` still handle coasting and braking, including
-their gear and RPM changes. Whenever control goes back to the game, a step is
-declined, the driver changes or a frame is missed, the model forgets its dynamic
-state. When it takes over again, it picks a safe gear from the current speed and
-starts force and throttle afresh, instead of reviving a stale high gear or adding up
-elapsed time.
+```text
+rpm in gear g = speedKph / maxSpeed × redline × ratio(g)
+ratio(g) = gear_ratio_span ^ ((gearCount − g) / (gearCount − 1))   (first = span, top = 1)
+reverse rpm = min(1, speedKph / reverseLimit) × redline × 0.90
+```
 
-The game decides forward, reverse or braking before the extension runs. If the
-vehicle is still rolling the other way, the outcome is `DIRECTION_HOLD`: the extension
-sets the game's braking mode and the matching gas and brake flags, then lets the
-game's braking and signal code run exactly once. Changing direction requires staying
-near a stop for 0.15 seconds by default, and the update that completes the wait still
-applies no force. The raw key state is not changed.
+The model aims at the larger of that and `idle + throttle × (launch − idle)`, clamped to
+redline × 1.05 forward or × 0.90 reverse, with a first-order lag of `rpm_response_seconds`.
 
-When propulsion succeeds, the game's one-off boost on releasing the parking brake is
-used up, so a later fallback to the game cannot apply its ×8 boost again.
+| Family | Redline key (default) | Torque peak key (default) |
+| --- | --- | --- |
+| `generic` | `generic_redline_rpm` (5500) | `generic_torque_peak_fraction` (0.50) |
+| `van`, `jeep` | `utility_redline_rpm` (4500) | `utility_torque_peak_fraction` (0.40) |
+| `firebird` | `sport_redline_rpm` (6500) | `sport_torque_peak_fraction` (0.65) |
+
+After a shift no other shift happens for `shift_hold_seconds`.
+
+- **Up** when moving faster than 0.5 m/s, RPM above redline × `upshift_rpm_fraction`, and the
+  next gear stays at or above `launch_rpm`.
+- **Down** when RPM is below redline × `downshift_rpm_fraction` or below redline ×
+  `demand_downshift_fraction` (the throttle input is always 1, so this applies), and only if the
+  lower gear stays below redline × min(0.90, upshift − `shift_hysteresis_fraction`).
+- `low_mode` (developer) uses 0.96 as the upshift fraction and prefers lower gears, but cannot
+  over-rev.
+
+### Direction changes
+
+The game decides forward, reverse or braking before the hook runs. When the requested direction
+differs from the model's, the model drops throttle and force, sets idle RPM and gear 1, and
+returns `DIRECTION_HOLD` until the vehicle has stayed slower than `direction_speed_mps`
+(0.15 m/s) against the new direction for `direction_hold_seconds` (0.15 s). The update that
+completes the wait still applies no force. Raw key state is not changed.
+
+Each applied step clears `wasUsingParkingBrakes`, so a later fallback cannot apply the game's
+×8 boost for releasing the parking brake a second time.
 
 ### Offroad
 
-On a successful offroad propulsion step, the extension replaces only the game's
-penalty that depends on the gear number. Its single factor uses the script's checked
-offroad efficiency and the game's 0.6 baseline (0.8 when towing). The `OWN_OFFROAD`
-flag skips the game's penalty for that step only; a declined step keeps it. Tyre and
-rain friction, suspension and collisions stay the game's. Shared `VehicleScript`
-objects are only read.
+On an applied offroad step the factor is `offroadEfficiency × 0.6` (× 0.8 instead of 0.6 when
+towing), and `OWN_OFFROAD` skips the game's gear-dependent penalty for that step only. A
+declined step keeps the game's penalty. Tyre and rain friction stay the game's.
 
 ## Keyboard steering
 
-### What the game does, and what changes
+The steering response stays the game's (`SteeringModel`). Per update, with
+`m = GameTime.getMultiplier() / 0.8` and `f = max(0.1, 1 − speed / maxSpeed)`:
 
-Keyboard steering replaces the game's interpolation block, running just before it. It
-uses input the game has already processed, and keeps everything after that block: the
-angle limits, tyre processing, wheel display and native calls.
+```text
+key held:     steering −= (input + steering) × 0.06 × m × f
+key released: steering moves towards 0 by 0.04 × m (to 0 within 0.04)
+```
 
-The steering response itself stays the game's. Each update the game moves the steering
-value by `(input + steering) × 0.06 × m × f` while a key is held, where
-`m = GameTime.getMultiplier() / 0.8` and `f = max(0.1, 1 − speed / maxSpeed)`, and
-returns it towards the centre by `0.04 × m` when released. The curve, the speed scaling
-(down to a tenth at top speed) and the angle limit are not tunable here. Older rate,
-ramp, return and countersteer settings are retired and ignored if an old override file
-still names them.
-
-What changes is **how key presses are timed**. The game reads the keyboard once per
-frame, so a tap counts as a whole number of frames and the same tap gives different
-results each time: at 60 Hz a 40 ms tap is two or three frames, and that error falls
-on the steepest part of the curve.
+What changes is how key time is counted. The game reads the keyboard once per frame, so a tap
+counts as a whole number of frames. With `steering_precise_input` on (default), a key timeline
+measures how much of each update the bound Left and Right keys were really down, and the model
+applies the game's step for that share: share 1 is the game's step, 0 is its return, and two
+half updates equal one whole.
 
 ### Measured key time
 
-With `steering_precise_input` (on by default), a separate thread polls the bound Left
-and Right keys about once a millisecond and keeps running totals. On each update the
-extension takes the difference from its previous reading and applies the game's step
-for that share of the update. A share of 1 is exactly the game's step, 0 is its
-return, and parts add up: two half updates equal one whole one.
+- `KeyTimeline` (in the extension runtime, `pztools.extensions.runtime.input`) polls on its own
+  daemon thread every 0.5 ms requested, about 1 ms in practice, and keeps running totals.
+  `WindowsKeys` reads `GetAsyncKeyState` through the JDK's foreign-function interface with a
+  private high-resolution waitable timer. Keys count only while the game window is in front.
+  It installs no hook, injects no input and loads no native library of its own. The game's JVM
+  already runs with `--enable-native-access=ALL-UNNAMED`, so no warning appears.
+- `SteeringKeys` matches the timeline to the game's current bindings and replaces it when they
+  change. A timeline nobody read for 2 seconds is stopped and restarted on demand.
+- When the game accepts steering keys right now (`steeringInputOpen`: keyboard control, working
+  vehicle, movement not blocked, no text entry, not drunk), the measured time is the input
+  (`steering_timing=direct`).
+- Otherwise measured time is spent only once the game's own `ClientControls` reports that
+  direction (`HeldInput`, `confirmed`). Time waits up to 3 updates for confirmation; 6 updates
+  of disagreement drop the measurement. Drunk input goes this way because the game delays it by
+  a random time.
+- **After a release**, the unheld rest of that update is not returned in it. The steering stays
+  where it is and the return is carried into the next update. Physics sees only the value an
+  update ends with, so returning at once would make a short tap vanish depending on where in
+  the frame it ended. Unheld time before a press is returned first, in the same update.
 
-So the measured key time is the input, and nothing waits for the game's own look at
-the keyboard. However long a frame takes, the next update steers for exactly the time
-the keys were held since the previous one. A tap that starts and ends between two
-frames still counts, and a press takes effect in the update it happens in, not one
-later. Left and right held together cancel, as in the game; within one update,
-opposite keys count by their difference.
+Measured time is dropped for an update, and the game's whole-update step used
+(`steering_timing=frame`), when the bindings cannot be read, carry a modifier or name a mouse
+button, the platform part cannot be opened, the polling thread had a gap over 5 ms, or it is the
+first update after such a gap.
 
-**Releasing a key.** Physics only sees the value an update ends with, and the game
-returns the wheels quickly. If the return started the moment a key was released, a tap
-that ended early in an update would be back at centre before anything turned, and how
-far would depend on where in the frame it ended. So the unheld time after a release is
-not spent in that update. The steering is left where it is, and the return it is owed
-is carried into the next update, which spends it first. No return is lost, only
-delayed by less than one update, and what a tap leaves behind depends only on how long
-it was held. Unheld time *before* a press (the key is down when the update ends) is
-returned in the same update, before steering.
+### A late key release
 
-**A late key release.** The game runs physics before it refreshes `ClientControls`,
-so the previous direction can linger for one update. For keyboard-controlled vehicles
-only, the extension checks the game's mapped `GameKeyboard.isKeyDown("Left"/"Right")`
-and treats an already released direction as neutral. It never creates a new press or
-a reversal, never changes `ClientControls`, and never restores input the game has
-blocked (drunk delay, aiming, loading or typing). New input still goes through the
-game's own path.
-
-### When the game's own input is followed instead
-
-Whether the game accepts steering keys at all is read from the game on every update,
-using the same conditions it applies when it reads the keyboard: a keyboard-controlled,
-working vehicle, a local driver whose movement is not blocked, and no text being
-typed.
-
-While any of these is not met, or cannot be read, measured time is only spent once the
-game's own `ClientControls` reports that direction. Time from up to three updates
-earlier is carried over, older time is dropped, and a key already released steers
-nothing. The same applies while the driver is drunk, because the game then delays
-commands by a random time that only its own input reproduces. A condition added in a
-later game build would not be known here; the offline verifier checks these optional
-accessors against the installed game.
-
-Measured time is dropped for an update, and the game's whole-update step used, whenever
-it cannot be trusted:
-
-- key bindings cannot be read, include a modifier, or are mouse buttons
-- the platform part cannot be opened
-- the measuring thread stopped or was starved (a gap over 5 ms)
-- it is the first update after such a gap
-
-Rebinding a key replaces the timeline; turning the option off stops its thread.
-Diagnostics report `steering_precise`, `steering_timing` (`direct`, `confirmed` or
-`frame`), `steering_held_share` and `steering_keys`.
-
-### Repeated calls in one frame
-
-A second steering call in the same frame reuses the value already applied before
-the tyre step, without running the model or the game's interpolation again. This
-prevents the downstream tyre correction from being applied twice. Predictions made
-only for observation and declined steps never create such a value; invalid input, a
-change of driver and new settings clear it.
-
-### The key timeline
-
-The key timeline (`pztools.extensions.runtime.input`) is a separate part of the
-extension runtime with no game dependencies, usable by any extension:
-
-- `KeyTimeline` does the measuring.
-- `KeyStateSource` supplies key state and the wait between polls.
-- `WindowsKeys` implements it through the JDK's foreign-function interface
-  (`GetAsyncKeyState` and a private high-resolution waitable timer).
-
-It only reads key state: no hook, no injected input, no native library of its own.
-Keys count only while the game window is in front. The game is launched with
-`--enable-native-access=ALL-UNNAMED`, so no warning appears.
-
-### Measurements
-
-On the development machine, with the game's bundled Java 25 runtime:
-
-- polls every 1.0 ms (99th percentile 1.5 ms)
-- synthetic taps of 15–180 ms were timed with a mean error of 0.8 ms and a maximum
-  of 2.3 ms, against 8 ms and up to 16 ms when read once per 60 Hz frame
-- Java's own short waits could not be used: they fell back to the 15 ms system tick
-
-This measures timing, not driving. With a fixed angle limit, the model's default
-timings work out to about 171–260 ms from centre to full lock, 125 ms from full lock
-back to centre, and 250 ms from one full lock to the other. These are calculations,
-not measured game latency.
+The game runs physics before it refreshes `ClientControls`, so a released direction can linger
+for one update. For keyboard vehicles the extension reads `GameKeyboard.isKeyDown("Left")` and
+`("Right")` and treats a direction whose key is no longer down as neutral. It never creates a
+press or a reversal and never writes `ClientControls`.
 
 ## Light around the vehicle
 
-The game lights the surroundings of a vehicle in one case: a lightbar.
-`BaseVehicle.updateWorldLights` creates an `IsoLightSource` with a radius of 8 tiles and
-registers it with `IsoCell.addLamppost`. When the vehicle reaches another tile, it
-withdraws that light with `removeLamppost` and registers one on the new tile. The
-extension does the same with its own light object and touches nothing else: no
-headlight part, no vehicle script, no lighting native.
+The game lights a vehicle's surroundings in one case, a lightbar: `BaseVehicle.updateWorldLights`
+registers an `IsoLightSource` with `IsoCell.addLamppost` and moves it tile by tile. The
+extension does the same with its own light (`VehicleControl.gameFrame`), from the per-frame
+tick, because the physics hook stops for a parked vehicle.
 
-This adds something the game does not otherwise do, so it has its own switch, separate
-from the three driving options. Like them it starts on.
+- **When.** The first local player who is in a vehicle (any seat) decides. The light exists
+  while that vehicle's `getHeadlightsOn()` and `getHeadlightCanEmmitLight()` are both true, so a
+  flat battery or broken bulbs mean no light.
+- **Where.** On the vehicle's tile. It moves when the tile changes, at most every 50 ms,
+  because each move makes the game relight the area.
+- **What.** One steady light (`life = -1`; other values make the game fade it), colour
+  brightness × (1, 0.95, 0.85), radius `area_light_radius` (3–20 tiles, rounded, default 8),
+  brightness `area_light_brightness` (0.1–1.0, default 0.6).
+- **Removal.** On the game thread through `removeLamppost`. Turning off, disconnecting and
+  faults happen on other threads, which must not call into the game, so they set `life = 0`
+  and the game drops the light on its next lighting pass.
+- **Isolation.** If the lighting accessors are missing or placing a light throws, only the light
+  stops for that activation (`area_light=unavailable` or `failed:…`). Driving carries on.
 
-- **When.** Once per game frame, the module looks at the vehicle the local player is
-  in. It does this from the frame callback, not the physics hook, which stops firing
-  for a parked vehicle. The light exists while `getHeadlightsOn()` and
-  `getHeadlightCanEmmitLight()` are both true, so a flat battery or broken bulbs mean
-  no light, as for the headlights themselves. Leaving the vehicle, switching the
-  headlights off or turning the option off removes it.
-- **Where.** On the vehicle's tile. It moves when the tile changes, at most 20 times a
-  second, because every move makes the game relight the surroundings. At speed the lit
-  area follows in small steps, as a lightbar's glow does.
-- **What.** One steady light (`life = -1`; any other value makes the game treat it as a
-  fading flash), slightly warm. `area_light_radius` (3–20 tiles, default 8) and
-  `area_light_brightness` (0.1–1.0, default 0.6) can be tuned in the settings file only.
-- **Saved?** No. The light is an in-memory entry in the cell's lamppost list, not part
-  of any saved object, and it ends with the world.
-- **Removal.** On the game thread the light is withdrawn through `removeLamppost`.
-  Turning off, disconnecting and faults happen on other threads, which must not call
-  into the game, so they only mark the module's own light as ended (`life = 0`); the
-  game drops it on its next lighting pass.
-- **Isolation.** The light's game accessors are checked separately from the driving
-  ones. If a game update changes them, or placing a light throws, only the light is
-  unavailable for that activation (`area_light=unavailable` or `failed:…` in
-  diagnostics). Acceleration, reversing and steering carry on.
+`probe_only` places no light.
 
-Observation-only mode (`probe_only`) places no light.
+## Turning off
 
-## Settings
+Switching the extension off sends `OFF`, which does not wait for the safe point. The slot
+revokes the generation at once: the hooks are unregistered, so the next call runs the game's
+code; the key thread stops; the light is expired. Calls in flight get up to 5 seconds, then
+the transformer is removed and the class retransformed back. Values already written into an
+update in progress stay, and movement, collisions and fuel already used are not undone.
 
-Defaults and allowed ranges are in [vehicle-drivetrain.toml](../../config/game-extensions/vehicle-drivetrain.toml).
-Your overrides go in `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`. Both
-the app and the extension check a fixed copy of the settings before applying it; the
-code running in the game never reads the file.
+Turning a single option off is a configuration change and waits for the safe point.
 
-The four switches in the app override the file's defaults, even before they are first
-saved. The extension itself starts off; all four options start on. A saved preference
-without the light's switch (written before the light existed) reads it as on, like any
-other unwritten switch. An older saved preference `probeOnly=true` is read as every
-option off, and the file is not rewritten just because it was read. Low-gear mode,
-observation, diagnostics and numeric tuning are developer options in the file only.
+The same release happens when the lease lapses (5 seconds without a command, for example when
+PZ Tools closes), when the world changes and after a fault. After a fault the scheduler also
+saves the extension as off, so the game's own control stays until the player turns it on again.
 
-What you saved and what the game is running are tracked separately (see
-[settings revision](glossary.md#settings-revision)). The switches stay editable while
-the game is not connected or a change is still waiting for a safe moment. Revisions,
-hashes and the reasons for each transition go to the logs. If a change fails, only
-that request is turned off, and a newer choice you made in the meantime is never
-overwritten.
+## What is never written
 
-## Connection and lifecycle
+- **Game files.** Classes are changed in memory only.
+- **Saves.** The extension calls no save routine. The light is an in-memory lamppost entry, not
+  part of any saved object, and ends with the world. Driving writes only the live fields listed
+  under [the four options](#the-four-options), which the game itself rewrites every frame.
+- **Shared data.** `VehicleScript` objects are only read. `ClientControls` and key state are
+  never written; no input is injected.
+- **Settings.** They stay in PZ Tools' own folders ([tuning](#tuning)); the game side receives
+  them as a map with `APPLY` and never reads or writes a file.
 
-[RuntimeExtensionCoordinator](../../src/PzTools.State.Scheduler/RuntimeExtensionCoordinator.cs)
-in the state scheduler owns the connection to the game: authentication, heartbeat,
-delivering settings and reconnecting. It uses the same choice of game process as the
-rest of the state scheduler; with no suitable game, or more than one, nothing is
-started. Saving, the [WATCH](glossary.md#watch) stream and extension control are
-separate; each continuous module has its own slot on the shared
-[control lease](glossary.md#control-lease). See
-[several modules on one connection](game-extensions.md#several-modules-on-one-connection).
+## Tuning
 
-The module ships as `pztools-vehicle-drivetrain.jar` with capability
-`vehicle.drivetrain.v1`. The version numbers it depends on are listed in the
-[compatibility table](game-bridge.md#compatibility-and-lifecycle). The optional save
-extension is not distributed; a backup's game save always goes through
-`GameWindow.save(true)`.
+| File | Role |
+| --- | --- |
+| [config/game-extensions/vehicle-drivetrain.toml](../../config/game-extensions/vehicle-drivetrain.toml), deployed to `game-bridge/extensions/` | Defaults and the allowed range of every key, in comments |
+| `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml` | Optional overrides, same flat keys |
+| `settings.json` | The four switches; they override both TOML files, including before the first save |
 
-**Requests.** Each control request carries its own identity, the controller's epoch,
-the game process and world, and the settings revision it expects. Retries are safe to
-repeat, queues and caches are bounded, and a new controller cannot take over while the
-current owner is alive. The lease lasts five seconds.
+`VehicleDrivetrainConfiguration.Load` (C#) layers the files, rejects unknown keys, wrong types,
+duplicates and out-of-range values, and accepts and ignores six retired `steering_*` rate keys.
+It also checks: upshift − downshift ≥ 0.15; `idle_rpm` < `launch_rpm` < every redline;
+`launch_rpm` ≤ lowest redline × upshift / √`gear_ratio_span`; `reverse_max_speed_kph` 0 or
+4–35. The flat result is sent with `APPLY`; the game side validates it again
+(`DrivetrainConfig`, `VehicleControl.Settings`) and never reads a file. A file that fails is
+`configuration-rejected`, and the scheduler turns the extension off.
 
-**Safe moment.** Turning the extension on or changing its settings waits for a safe
-moment on the game thread: all vehicles stopped, accelerator released and cruise
-control off. Turning off, disconnecting, a fault or an expired lease close the module
-to new calls at once, without waiting for a game update.
+The ranges exist twice: `Numbers` in `VehicleDrivetrainConfiguration.cs` and
+`DrivetrainConfig.java`. Change both.
 
-**Disconnecting.** The session stops letting calls in immediately, but stays
-responsible for the module until its calls in progress and its retirement have
-finished. Late callbacks and repeated close requests do nothing. The game thread
-checks the session without blocking, so commands and retirement never make the game
-wait.
+Developer keys, not on the card: `low_mode`, `probe_only` (observe without writing anything;
+diagnostics show one-step predictions), `diagnostics_enabled`, `steering_precise_input`.
 
-**Scope.** State belongs to one game process, world, module generation, vehicle and
-driver, so a vehicle ID reused later cannot bring old state back. Leaving the game,
-changing worlds, retirement and faults release everything. After a fault the game's
-own control is used until you turn the option on again, change the settings, or a new
-module version arrives.
+Fixed constants:
+
+| Constant | Value | Where |
+| --- | --- | --- |
+| Nominal force for the forward ramp rate | 0.65 × enginePower | `DrivetrainModel.NOMINAL_GAME_FORCE` |
+| Traits, offroad, governor margin | 0.75 / 0.70, 0.6 / 0.8, +20 km/h, × 1.15 | `DrivetrainModel` |
+| RPM ceiling | redline × 1.05 forward, × 0.90 reverse | `DrivetrainModel.step` |
+| Output bounds | force ≤ 1,000,000, RPM ≤ 7000 | `VehicleControl.tryControl` |
+| Steering | 0.06, 0.04, minimum speed factor 0.1, held share ≤ 4 | `SteeringModel` |
+| Confirmation | 3 updates, 6 for mismatch | `HeldInput` |
+| Key polling | 0.5 ms requested, 5 ms gap tolerance, 2 s idle stop | `KeyTimeline`, `SteeringKeys` |
+| Light | 50 ms between moves, colour ratios | `VehicleControl` |
+| Safe point | 0.5 km/h, throttle 0.01 | `VehicleAccess.ready` |
+| Profiles | 3–5 gears, top speed 20–300 km/h | `VehicleProfile.resolve` |
 
 ## Replacement and failure handling
 
-Replacing the module is described in general in [component updates](module-reload.md).
-For this module:
+[Component updates](module-reload.md) describes replacement in general. For this module:
 
-- **Checks first.** The archive, its interface version, the settings and the bytecode
-  are checked before a healthy generation is retired. If any check fails, the current
-  generation stays installed and reports `update-rejected`; the app can then safely
-  turn off the request that failed.
-- **Failure while installing.** If installation itself fails, the game's own control
-  may be left in place rather than the old generation restored.
-- **Unclear retirement.** If retirement is uncertain or does not finish in time, the
-  state becomes `RestartRequired`. Reconnecting or changing worlds does not clear it.
-- **Order.** New calls are refused before the module waits for calls in progress.
-  Cleanup never waits for a game update that is already paused, and never holds a lock
-  a call in progress needs.
-- **Other transformers.** Only this module's own transformer is removed.
-  Retransformation never overwrites other agents' changes with bytes read again from
-  disk. Before replacing, the checks tell the game's input apart from this module's
-  own earlier output and look at later Java transformers in the same pass; installation
-  checks again. These checks cannot stop transformers registered later, or changes made
-  through native agents (JVMTI) or JNI. Repeated reload tests must tell the module's
-  own earlier hooks apart from real outside conflicts.
+- **Checks first.** A new archive is loaded, its configuration validated and its preflight run
+  against the current class before the healthy generation is retired. A failure leaves the
+  current generation running and reports `update-rejected:…`; the scheduler then turns that
+  request off.
+- **Failure while installing.** If `initialize` fails after the old generation was retired, the
+  slot reports `Unsupported` with no generation, and the game's own control runs.
+- **Unclear retirement.** If calls in flight do not drain within 5 seconds or cleanup throws,
+  the state becomes `RestartRequired` for the rest of the game process.
+- **Order.** New calls are refused before waiting for calls in flight. Cleanup never waits for
+  a game update and never holds a lock a call in flight needs.
+- **Other transformers.** Only this module's transformer is removed.
 
-## Verification and what is still open
+## Diagnostics
 
-**Automated.** Model outputs are finite and bounded; direction changes, varying time
-steps, shift hysteresis and steering reversals are covered; the adapter's field and
-native-argument results, equivalence on fallback, lifecycle drain, settings revisions
-and repeated replacement are tested. Installed-JAR checks read your game JAR in a
-separate Java process that does nothing else; game code is never copied into test
-fixtures or distributed.
+With `diagnostics_enabled`, `STATUS` carries the latest sample and one-second summaries
+(`VehicleControl.diagnostics`): mode, outcome, reason, gear, RPM, `requested_force`, speed,
+native arguments, callback timings, steering fields (`steering_precise`, `steering_timing`,
+`steering_held_share`, `steering_keys`) and `area_light`. `native_*` are the arguments just
+before the native call, not proof that it succeeded. Callback timings leave out the game's own
+code and are not a frame cost.
 
-**Diagnostics** are opt-in: the latest sample plus one-second summaries.
+## Tests
 
-- `requested_force` in observation mode is a one-step prediction from a reset state.
-- `native_force`, `native_brake` and `native_steering` are the arguments just before
-  the game's native call, not proof that the call succeeded.
-- Callback timings leave out the game's own and native code, so they must not be shown
-  as the total cost per frame.
-
-**Still open in a real game:** what native force, radius and time values mean; road
-and offroad behaviour; loaded and towing vehicles; reverse launch; steering feel;
-fuel and noise; varying frame rates; and running together with saving, WATCH and
-module updates. Any performance target needs a measurement of the unmodified game
-first. Synthetic tests show neither higher FPS nor that every mod works with it.
+`DrivetrainModelTest`, `SteeringModelTest`, `KeyTimelineTest`, `VehicleHooksTest`,
+`VehicleAdapterBehaviorTest`, `VehicleCompatibilityTest` (Java, against fixtures in
+`tests/vehicle-drivetrain-fixture/`), and `VehicleDrivetrainConfigurationTests` (C#). Game code
+is never copied into fixtures.
 
 ## References
 
