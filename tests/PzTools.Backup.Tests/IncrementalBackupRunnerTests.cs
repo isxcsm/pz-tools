@@ -619,6 +619,44 @@ public sealed class IncrementalBackupRunnerTests
         Assert.Equal("replacement file", await File.ReadAllTextAsync(Path.Combine(target, "folder")));
     }
 
+    [Theory]
+    // A RAM disk without a volume name (ERROR_NOT_A_REPARSE_POINT), when the journal is queried.
+    [InlineData(4390, false)]
+    // A journal deleted or wrapped past the checkpoint while it is read (ERROR_JOURNAL_ENTRY_DELETED).
+    [InlineData(1181, true)]
+    public async Task Run_AJournalThatFails_FallsBackToAFullScan(int errorCode, bool whileReading)
+    {
+        using var temp = new TempDirectory();
+        var root = temp.GetPath("source");
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "file.bin");
+        await File.WriteAllTextAsync(path, "original");
+        await using var setup = await CreateInitialAsync(temp, root);
+        await File.WriteAllTextAsync(path, "changed");
+
+        var result = await CreateIncrementalRunner(new WindowsFileMetadataReader(), new FailingJournal(errorCode, whileReading))
+            .RunAsync(setup.Repository, setup.Telemetry, setup.Lease, setup.Source, Storage, Telemetry,
+                executionOptions: null, alwaysIncludePaths: []);
+
+        Assert.Equal(2, result.Revision);
+        Assert.Equal(BackupScanMode.FullScan, result.ScanMode);
+        Assert.Equal(SHA256.HashData("changed"u8)[..16], await ReadCurrentHashAsync(setup));
+        // Nor does taking the next checkpoint fail the backup.
+        Assert.Null(new WindowsCheckpointBoundaryProvider(new FailingJournal(errorCode, false)).Capture(root).Checkpoint);
+    }
+
+    private sealed class FailingJournal(int errorCode, bool whileReading) : IUsnJournalSource
+    {
+        public UsnJournalState Query(string sourcePath) =>
+            whileReading ? new(1, 2, 0, 200, 0) : throw new System.ComponentModel.Win32Exception(errorCode);
+        public IEnumerable<UsnRecord> ReadRange(string sourcePath, UsnCheckpoint checkpoint,
+            long upperUsnExclusive, CancellationToken cancellationToken = default)
+        {
+            yield return Record(1, 2, 110, UsnReason.DataOverwrite, "file.bin");
+            throw new System.ComponentModel.Win32Exception(errorCode);
+        }
+    }
+
     private sealed class FailingPathMetadataReader(string failingPath, int errorCode) : IFileMetadataReader
     {
         private readonly WindowsFileMetadataReader inner = new();

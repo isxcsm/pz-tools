@@ -513,18 +513,36 @@ public sealed class IncrementalBackupRunner(
         var accumulator = planner.CreateAccumulator(rootReference);
         var hydratedReferences = new HashSet<UInt128>();
         var records = new List<UsnRecord>(journalBatchSize);
-        foreach (var record in journal.ReadRange(
-                     source.RootPath,
-                     checkpoint,
-                     upperUsn,
-                     cancellationToken))
+        // A journal that fails while it is read (deleted, wrapped past the checkpoint, a volume that stops
+        // answering) is as good as none: nothing is published yet, and a full scan finds the same changes.
+        // Only the journal's own calls are inside the try: opening the range queries the journal again.
+        IEnumerator<UsnRecord>? reading = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            records.Add(record);
-            if (records.Count < journalBatchSize) continue;
-            await AddJournalBatchAsync(records);
-            records.Clear();
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                UsnRecord record;
+                try
+                {
+                    reading ??= journal.ReadRange(source.RootPath, checkpoint, upperUsn, cancellationToken).GetEnumerator();
+                    if (!reading.MoveNext()) break;
+                    record = reading.Current;
+                }
+                catch (Exception exception) when (exception is Win32Exception or InvalidDataException
+                    or InvalidOperationException)
+                {
+                    return new JournalChangePlan(
+                        await PlanFullScanChangesAsync(repository, source, cancellationToken, progress),
+                        $"USN read failed ({(exception as Win32Exception)?.NativeErrorCode.ToString() ?? exception.Message})");
+                }
+                records.Add(record);
+                if (records.Count < journalBatchSize) continue;
+                await AddJournalBatchAsync(records);
+                records.Clear();
+            }
         }
+        finally { reading?.Dispose(); }
         if (records.Count > 0) await AddJournalBatchAsync(records);
         var plan = accumulator.Build();
         var candidates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -745,9 +763,15 @@ public sealed class IncrementalBackupRunner(
         {
             return (journal.Query(sourcePath), null);
         }
-        catch (Win32Exception exception) when (exception.NativeErrorCode is 1 or 5 or 50 or 1179)
+        // The journal only makes a backup faster; a full scan finds the same changes. Whatever the volume answers
+        // (a RAM disk without a volume name, 4390), it is a reason to scan, never to fail.
+        catch (Win32Exception exception)
         {
             return (null, $"USN unavailable ({exception.NativeErrorCode}: {exception.Message})");
+        }
+        catch (InvalidDataException exception)
+        {
+            return (null, $"USN unavailable ({exception.Message})");
         }
         catch (PlatformNotSupportedException exception)
         {

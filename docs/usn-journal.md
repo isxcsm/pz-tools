@@ -34,6 +34,11 @@ backup of a save there is a full scan with content comparison. FAT32 also refuse
 index in the same identity format. FAT32 keeps no change time, steps last-write times
 in two seconds, and does not move them for a write that is still being buffered.
 
+Any error the volume gives, querying the journal or reading it, falls back the same way:
+the journal only makes a backup faster. RAM disks are one case: some have no volume
+name, and Windows answers the query with error 4390. An earlier version fell back only
+for a few known errors and failed the backup for any other.
+
 The checkpoint is the triple `(volume serial, journal ID, next USN)`. All three are
 checked against the volume before reading.
 

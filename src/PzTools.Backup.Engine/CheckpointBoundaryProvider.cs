@@ -28,11 +28,16 @@ public sealed class WindowsCheckpointBoundaryProvider(IUsnJournalSource reader)
                     state.NextUsn),
                 FallbackReason: null);
         }
-        catch (Win32Exception exception) when (exception.NativeErrorCode is 1 or 5 or 50 or 1179)
+        // No checkpoint only means the next backup scans in full; any answer of the volume is no reason to fail.
+        catch (Win32Exception exception)
         {
             return new CheckpointBoundaryResult(
                 Checkpoint: null,
                 $"USN unavailable ({exception.NativeErrorCode}: {exception.Message})");
+        }
+        catch (InvalidDataException exception)
+        {
+            return new CheckpointBoundaryResult(Checkpoint: null, $"USN unavailable ({exception.Message})");
         }
     }
 }
