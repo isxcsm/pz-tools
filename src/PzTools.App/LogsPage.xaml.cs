@@ -937,7 +937,7 @@ public sealed class LogEntryUiItem
             Localizer.Format("LogEvent.ExtensionRestartFormat", ExtensionTitle),
         "extension.runtime.changed" when model.Level >= LogLevel.Warning =>
             Localizer.Format("LogEvent.RunFailed", ExtensionTitle),
-        "extension.runtime.changed" =>
+        "extension.runtime.changed" or "extension.runtime.sample" =>
             Localizer.Format("LogEvent.Other", ExtensionTitle),
         "component.launch.blocked" => Localizer.Get("OperationError.BlockedByPolicy"),
         // An action that ran no worker; its title is the one its card had, stored with the entry.

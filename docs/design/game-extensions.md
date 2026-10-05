@@ -206,7 +206,8 @@ The scheduler publishes a `RuntimeExtensionStatus` per module id. The app reads 
 older than 3 seconds and replaces one from another process, or from a world that is not ready
 or not current, with `Pending` / `waiting-for-local-world`. `GameExtensionsView.Statuses` is a
 dictionary by id, and each card is projected from its own entry. `ExtensionRuntimeDiagnostics`
-writes each state change to the **Logs** page as `extension.runtime.changed`.
+writes each state change to the **Logs** page as `extension.runtime.changed`, and a newer
+diagnostics sample in an unchanged state as `extension.runtime.sample`, at most once every 10 seconds.
 
 | State | Meaning |
 | --- | --- |

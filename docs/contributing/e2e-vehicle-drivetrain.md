@@ -121,7 +121,7 @@ whole file, and the request is turned off.
 
 | Key | Use |
 | --- | --- |
-| `diagnostics_enabled = true` | Adds the latest driving sample and one-second totals to the extension's log entries, which are written only when its state changes |
+| `diagnostics_enabled = true` | Adds the latest driving sample and one-second totals to the extension's log entries: one when its state changes, and one at most every 10 seconds while it drives |
 | `probe_only = true` | Leaves the game in control and only predicts one step from a reset state. Not for driving comparisons; turn it off again. |
 | `steering_precise_input = false` | Uses the game's once-per-frame key reading, to compare against |
 | `forward_torque_boost_fraction` | 0 to 0.10 (default 0.10). 0 removes only the RPM-dependent forward boost, leaving shifting and pedal response. |
@@ -139,10 +139,12 @@ limit must be 4–35 km/h. Old steering rate keys are ignored.
 
 ### Reading the diagnostics
 
-The sample is attached to the `extension.runtime.changed` entry on the **Logs** page,
-which is written when the extension's state changes, not continuously: steady driving adds no
-entry. To take a sample at a moment you choose, change one of the vehicle switches there and then:
-the request it starts is a state change, and its entry carries the sample of that moment.
+The sample is attached to the extension's entries on the **Logs** page: the
+`extension.runtime.changed` entry written when its state changes, and, while the state stays the
+same, an `extension.runtime.sample` entry whenever the sample is newer, at most once every 10
+seconds. Steady driving therefore leaves one entry about every 10 seconds. To take a sample at a
+moment you choose, change one of the vehicle switches there and then: the request it starts is a
+state change, and its entry carries the sample of that moment.
 
 - `native_force`, `native_brake`, `native_steering` are the arguments just before the
   game's native call, not proof that the call succeeded.

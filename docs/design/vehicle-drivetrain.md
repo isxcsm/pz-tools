@@ -399,10 +399,11 @@ With `diagnostics_enabled`, `STATUS` carries the latest sample and one-second su
 (`VehicleControl.diagnostics`): mode, outcome, reason, gear, RPM, `requested_force`, speed,
 `throttle` (the model's pedal), `demand` (the game's), native arguments, callback timings, steering
 fields (`steering_precise`, `steering_timing`, `steering_held_share`, `steering_keys`) and
-`area_light`. The app writes the sample to the **Logs** page only with an `extension.runtime.changed`
-entry, that is when the extension's state changes (`ExtensionRuntimeDiagnostics` records transitions,
-not samples), so steady driving adds nothing; the sample in such an entry is the one current at that
-change, and `sample_age_ms` says how old it was. `native_*` are the arguments just
+`area_light`. The app writes the sample to the **Logs** page with each `extension.runtime.changed`
+entry (a change of the extension's state) and, while the state stays the same, as an
+`extension.runtime.sample` entry when the sample is newer, at most once every 10 seconds
+(`ExtensionRuntimeDiagnostics.SampleInterval`). Sample entries are always information, whatever the
+state's own level. `sample_age_ms` says how old a sample was. `native_*` are the arguments just
 before the native call, not proof that it succeeded. Callback timings leave out the game's own
 code and are not a frame cost.
 

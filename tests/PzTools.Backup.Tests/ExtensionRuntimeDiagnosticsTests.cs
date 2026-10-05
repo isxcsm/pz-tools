@@ -38,6 +38,47 @@ public sealed class ExtensionRuntimeDiagnosticsTests
     }
 
     [Fact]
+    public async Task SteadyDrivingWithDiagnosticsWritesASampleAtMostEveryTenSeconds()
+    {
+        using var temp = new TempDirectory();
+        var sink = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
+        var clock = new ManualTime(new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero));
+        var logger = new ExtensionRuntimeDiagnostics(temp.Path, () => sink, clock);
+        var status = Active();
+        void At(double seconds, RuntimeExtensionStatus value)
+        {
+            clock.Now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero).AddSeconds(seconds);
+            logger.Observe(value);
+        }
+        At(0, status);                                                  // The state: one entry.
+        At(5, status with { Diagnostics = "rpm=900" });                 // Too soon after it.
+        At(10, status with { Diagnostics = "rpm=1000" });               // A sample.
+        At(15, status with { Diagnostics = "rpm=1100" });               // Too soon.
+        At(25, status with { Diagnostics = "rpm=1000" });               // The sample already written.
+        At(26, status with { Diagnostics = "rpm=1200" });               // A sample.
+        At(40, status with { Diagnostics = "" });                       // Diagnostics off: nothing to show.
+        At(41, status with { Reason = "revision-conflict", Diagnostics = "rpm=1300" }); // A change, at once.
+        At(45, status with { Reason = "revision-conflict", Diagnostics = "rpm=1400" }); // Too soon after the change.
+        At(51, status with { Reason = "revision-conflict", Diagnostics = "rpm=1500" }); // A sample, at its own level.
+        await logger.FlushAsync();
+
+        var entries = (await ReadAsync(sink)).Entries.OrderBy(entry => entry.EventId).ToArray();
+        Assert.Equal([ExtensionRuntimeDiagnostics.ChangedEvent, ExtensionRuntimeDiagnostics.SampleEvent,
+            ExtensionRuntimeDiagnostics.SampleEvent, ExtensionRuntimeDiagnostics.ChangedEvent, ExtensionRuntimeDiagnostics.SampleEvent],
+            entries.Select(entry => entry.EventName));
+        string? Sample(LogEntryView entry)
+        {
+            using var payload = JsonDocument.Parse(entry.PayloadJson!);
+            return payload.RootElement.GetProperty("diagnostics").GetString();
+        }
+        Assert.Equal(["rpm=800", "rpm=1000", "rpm=1200", "rpm=1300", "rpm=1500"], entries.Select(Sample));
+        Assert.Equal(LogLevel.Warning, entries[3].Level);
+        // A sample repeats a recorded state; it is not another warning.
+        Assert.Equal(LogLevel.Information, entries[4].Level);
+        Assert.Null(LogDiagnostics.Parse(entries[4].PayloadJson)?.FailureCode);
+    }
+
+    [Fact]
     public async Task EveryIdentityDimensionAndReturnTransitionIsRecordedInOrder()
     {
         using var temp = new TempDirectory();
@@ -151,6 +192,12 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         var logger = new ExtensionRuntimeDiagnostics(temp.Path);
         logger.Observe(Active());
         await logger.FlushAsync();
+    }
+
+    private sealed class ManualTime(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 
     private static Task<LogsView> ReadAsync(LogInboxStore sink) =>
