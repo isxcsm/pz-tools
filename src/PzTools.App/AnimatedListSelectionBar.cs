@@ -92,7 +92,8 @@ internal sealed class AnimatedListSelectionBar
             && Math.Abs(height - lastHeight) < 0.5)
             return;
 
-        var animate = bar.Visibility == Visibility.Visible
+        var animate = SystemMotion.Enabled
+            && bar.Visibility == Visibility.Visible
             && lastSelection is not null
             && !ReferenceEquals(selection, lastSelection)
             && !double.IsNaN(lastTop)

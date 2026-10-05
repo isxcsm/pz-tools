@@ -559,6 +559,7 @@ public sealed partial class ProfilerPage : UserControl
         analysisCancel = null;
         loadedPath = path;
         recording = null;
+        facts = null;
         shown = null;
         HideResults();
         EmptyPanel.Visibility = Visibility.Visible;
@@ -566,14 +567,27 @@ public sealed partial class ProfilerPage : UserControl
         LoadingRing.Visibility = Visibility.Visible;
         LoadingRing.IsActive = true;
         ProfileRecording? loaded = null;
-        try { loaded = await Task.Run(() => ProfileRecording.Load(path)); }
+        RecordingFacts? loadedFacts = null;
+        try
+        {
+            (loaded, loadedFacts) = await Task.Run(() =>
+            {
+                var read = ProfileRecording.Load(path);
+                // With the reading, on the worker: the facts walk every frame and pause of the recording. An empty
+                // recording has none, and is refused below.
+                return (read, read.Duration > 0 ? RecordingFacts.Of(read) : null);
+            });
+        }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) { }
         if (version != loadVersion) return;
         LoadingRing.IsActive = false;
         LoadingRing.Visibility = Visibility.Collapsed;
-        if (loaded is null || loaded.Duration <= 0) { loadedPath = null; failedPath = path; Clear(Localizer.Get("ProfileLoadFailed")); return; }
+        if (loaded is null || loadedFacts is null) { loadedPath = null; failedPath = path; Clear(Localizer.Get("ProfileLoadFailed")); return; }
         failedPath = null;
         recording = loaded;
+        facts = loadedFacts;
+        // A recording newly shown sets whether the memory panel opens, until the player has chosen.
+        if (!memoryChosen) memoryOpen = loadedFacts.Pressure.Short;
         CompareButton.IsEnabled = true;
         // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
         openPaths.Clear();
@@ -604,6 +618,7 @@ public sealed partial class ProfilerPage : UserControl
     {
         loadVersion++;
         recording = null;
+        facts = null;
         CompareButton.IsEnabled = false;
         loadedPath = null;
         shown = null;
@@ -1252,7 +1267,6 @@ public sealed partial class ProfilerPage : UserControl
     // The line under the frames and its button: shown when the recording has collections or memory.
     private void ApplyMemoryPanel()
     {
-        RecordingFacts();
         var rows = MemoryRows;
         MemoryHeader.Visibility = MemoryAvailable ? Visibility.Visible : Visibility.Collapsed;
         // The collections' figure stands faint while their marks are put away.
@@ -1276,7 +1290,7 @@ public sealed partial class ProfilerPage : UserControl
     // out once per recording, as it reads every pause; the line is shown again on each tab, click and toggle.
     private void ApplyMemoryShort()
     {
-        var pressure = RecordingFacts();
+        var pressure = facts?.Pressure;
         MemoryShortPanel.Visibility = pressure is { Short: true } ? Visibility.Visible : Visibility.Collapsed;
         if (pressure is not { Short: true }) return;
         var stalls = pressure.Stalls.ToString("N0", Localizer.Culture);
@@ -1288,7 +1302,7 @@ public sealed partial class ProfilerPage : UserControl
         MemoryRaisedIcon.Visibility = raised is null ? Visibility.Collapsed : Visibility.Visible;
         MemoryShortButton.Visibility = raised is null ? Visibility.Visible : Visibility.Collapsed;
         // What it cost, as this recording measured it: frames with the collector at work against those without.
-        var cost = collectorFramesOfRecording?.Slower is { } slower and >= 0.05
+        var cost = facts?.CollectorFrames?.Slower is { } slower and >= 0.05
             ? " · " + Localizer.Format("ProfileMemoryGcSlowerFormat", slower) : "";
         if (raised is { } megabytes)
         {
@@ -1309,10 +1323,18 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetHelpText(MemoryShortButton, MemoryShortText.Text + "\n" + tip);
     }
 
-    private ProfileRecording? pressureOf;
-    private ProfileMemoryPressure? pressureOfRecording;
-    private ProfileCollectorFrames? collectorFramesOfRecording;
-    private double? otherCpuOfRecording;
+    /// <summary>
+    /// What the shown recording says about memory and the machine: its pressure, its frames with the collector, other
+    /// programs' CPU. Worked out once per recording, on a worker as it is read (<see cref="LoadAsync"/>).
+    /// </summary>
+    private sealed record RecordingFacts(ProfileMemoryPressure Pressure, ProfileCollectorFrames? CollectorFrames, double? OtherCpu)
+    {
+        public static RecordingFacts Of(ProfileRecording recording) => new(ProfileAnalysis.MemoryPressure(recording),
+            ProfileAnalysis.FramesWithCollector(recording), ProfileAnalysis.OtherProgramsCpu(recording));
+    }
+
+    // The facts of the recording shown; null while none is.
+    private RecordingFacts? facts;
 
     // The share of the machine other programs used above which the line says so: a backfill on the same machine took
     // half of it and more than doubled the frames; the game's own share alone stayed near a quarter.
@@ -1322,30 +1344,14 @@ public sealed partial class ProfilerPage : UserControl
 
     // Other programs kept the machine busy while it recorded: said beside the memory, as the other cause of a slow game
     // that is not the mods.
-    // Called by ApplyMemoryPanel, after the recording's facts are read.
+    // Called by ApplyMemoryPanel.
     private void ApplyOtherCpu()
     {
-        var busy = otherCpuOfRecording is >= OtherCpuShown;
+        var busy = facts?.OtherCpu is >= OtherCpuShown;
         OtherCpuPanel.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         if (!busy) return;
-        OtherCpuText.Text = Localizer.Format("ProfileOtherCpuFormat", otherCpuOfRecording!.Value);
+        OtherCpuText.Text = Localizer.Format("ProfileOtherCpuFormat", facts!.OtherCpu!.Value);
         AppToolTip.SetTip(OtherCpuPanel, Localizer.Get("ProfileOtherCpuTip"));
-    }
-
-    // What the shown recording says about memory and the machine (its pressure, its frames with the collector, other
-    // programs' CPU), worked out once per recording; a recording newly shown also sets whether the panel opens, until
-    // the player has chosen. Returns the pressure.
-    private ProfileMemoryPressure? RecordingFacts()
-    {
-        if (recording is not { } current) return null;
-        if (!ReferenceEquals(pressureOf, current))
-        {
-            (pressureOf, pressureOfRecording) = (current, ProfileAnalysis.MemoryPressure(current));
-            collectorFramesOfRecording = ProfileAnalysis.FramesWithCollector(current);
-            otherCpuOfRecording = ProfileAnalysis.OtherProgramsCpu(current);
-            if (!memoryChosen) memoryOpen = pressureOfRecording.Short;
-        }
-        return pressureOfRecording;
     }
 
     private void MemoryShortButton_Click(object sender, RoutedEventArgs e) => App.ShowGameMemorySetting();

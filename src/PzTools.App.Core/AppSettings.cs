@@ -18,7 +18,8 @@ public sealed record AppSettings(
     int BackupIntervalMinutes,
     int RetainedRevisions,
     bool BackupOnDeath,
-    LogLevel LogMinimumLevel,
+    // How many of the newest entries the log view the app watches holds ([logs] display_limit). The Logs page's own
+    // filters last only while it is open; an earlier [logs] minimum_level is no longer read and the next save drops it.
     int LogDisplayLimit,
     bool UseSystemTray = false,
     bool VerifyStagedCopies = true,
@@ -53,7 +54,6 @@ public sealed record AppSettings(
             5,
             20,
             false,
-            LogLevel.Warning,
             1000);
     }
 
@@ -66,9 +66,8 @@ public sealed record AppSettings(
             throw new ArgumentOutOfRangeException(nameof(RetainedRevisions));
         if (LogDisplayLimit is < 100 or > 10000)
             throw new ArgumentOutOfRangeException(nameof(LogDisplayLimit));
-        if (!Enum.IsDefined(LogRecordMinimumLevel) || !Enum.IsDefined(LogMinimumLevel)
-            || LogMinimumLevel < LogRecordMinimumLevel)
-            throw new ArgumentOutOfRangeException(nameof(LogMinimumLevel));
+        if (!Enum.IsDefined(LogRecordMinimumLevel))
+            throw new ArgumentOutOfRangeException(nameof(LogRecordMinimumLevel));
         if (LogMaxEntries is < 10000 or > 500000)
             throw new ArgumentOutOfRangeException(nameof(LogMaxEntries));
         ArgumentException.ThrowIfNullOrWhiteSpace(SavesRoot);
@@ -102,7 +101,6 @@ public sealed class SettingsProjector(RevisionedViewStore views)
                 value.BackupIntervalMinutes,
                 value.RetainedRevisions,
                 value.BackupOnDeath,
-                value.LogMinimumLevel.ToString(),
                 value.LogDisplayLimit,
                 value.UseSystemTray,
                 value.VerifyStagedCopies,
@@ -262,8 +260,6 @@ public sealed class AppSettingsService
             intervalMinutes,
             checked((int)GetInt64(model, "backup", "retained_revisions", defaults.RetainedRevisions)),
             GetBoolean(model, "backup", "backup_on_death", false),
-            ParseEnum(GetString(model, "logs", "minimum_level", defaults.LogMinimumLevel.ToString()),
-                defaults.LogMinimumLevel),
             checked((int)GetInt64(model, "logs", "display_limit", defaults.LogDisplayLimit)),
             GetBoolean(model, "ui", "system_tray", false),
             File.Exists(backupConfigPath)
@@ -282,19 +278,7 @@ public sealed class AppSettingsService
             Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)), 1, 10),
             ReadHotKeys(model),
             GetBoolean(model, "ui", "check_updates", true));
-        // An older file can show a level below what is now recorded.
-        return (loaded with { LogMinimumLevel =
-            (LogLevel)Math.Max((int)loaded.LogMinimumLevel, (int)loaded.LogRecordMinimumLevel) }).Validate();
-    }
-
-    public async Task<AppSettings> SaveLogOptionsAsync(
-        LogLevel minimumLevel, int displayLimit, CancellationToken cancellationToken = default)
-    {
-        if (!Enum.IsDefined(minimumLevel)) throw new ArgumentOutOfRangeException(nameof(minimumLevel));
-        var settings = (Load() with { LogMinimumLevel = minimumLevel, LogDisplayLimit = displayLimit }).Validate();
-        // A change to what is shown leaves the backup settings and the scheduler alone.
-        await AtomicTextFile.WriteAsync(SettingsPath, Serialize(settings), cancellationToken);
-        return settings;
+        return loaded.Validate();
     }
 
     public async Task SaveAndApplyAsync(
@@ -306,7 +290,6 @@ public sealed class AppSettingsService
         var current = Load();
         if (appliedBackupRoot is not null && settings == current with
             {
-                LogMinimumLevel = settings.LogMinimumLevel,
                 LogDisplayLimit = settings.LogDisplayLimit,
                 LogRecordMinimumLevel = settings.LogRecordMinimumLevel,
                 LogMaxEntries = settings.LogMaxEntries,
@@ -396,7 +379,6 @@ public sealed class AppSettingsService
         + $"game_save_countdown = {value.GameSaveCountdown.ToString().ToLowerInvariant()}{Environment.NewLine}"
         + Environment.NewLine
         + $"[logs]{Environment.NewLine}"
-        + $"minimum_level = \"{value.LogMinimumLevel}\"{Environment.NewLine}"
         + $"display_limit = {value.LogDisplayLimit}{Environment.NewLine}{Environment.NewLine}"
         + $"[profiler]{Environment.NewLine}"
         + $"rolling_enabled = {value.RollingEnabled.ToString().ToLowerInvariant()}{Environment.NewLine}"

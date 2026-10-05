@@ -205,4 +205,5 @@ The entries are kept in `logs.db` in the [data folder](files-and-folders.md#the-
 | `[logs] record_minimum_level` | [Advanced app settings](advanced-settings.md#app) | `Information` | The lowest level stored. Lower entries never reach this page, so the **Level** filter cannot bring them back. |
 | `[logs] max_entries` | Advanced app settings | 100000 (10000–500000) | Entries kept. When full, the oldest are deleted first, unread ones included. |
 | `[logs] display_limit` | `settings.toml` | 1000 (100–10000) | How many of the newest entries the app watches for changes. The list itself pages through every stored entry. The Settings page has no control for it. |
-| `[logs] minimum_level` | `settings.toml` | `Warning` | Not read by this page, which first opens at **Warning** or higher |
+
+The page's filters are not saved in any file: after each start of the app it shows **Warning** or higher.

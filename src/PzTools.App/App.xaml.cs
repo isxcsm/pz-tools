@@ -271,29 +271,7 @@ public partial class App : Application
     public async Task ApplySettingsAsync(AppSettings settings)
     {
         await settingsGate.WaitAsync();
-        try
-        {
-            // Log options changed on another page are not overwritten with the settings page's stale values.
-            var current = Host?.Settings.Load()
-                ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
-            await ApplySettingsCoreAsync(settings with
-            {
-                LogMinimumLevel = settings.LogRecordMinimumLevel != current.LogRecordMinimumLevel
-                    ? settings.LogRecordMinimumLevel : current.LogMinimumLevel,
-                LogDisplayLimit = current.LogDisplayLimit,
-            });
-        }
-        finally { settingsGate.Release(); }
-    }
-
-    public async Task ApplyLogOptionsAsync(PzTools.Projections.LogLevel minimumLevel, int displayLimit)
-    {
-        await settingsGate.WaitAsync();
-        try
-        {
-            var host = Host ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
-            await host.ApplyLogOptionsAsync(minimumLevel, displayLimit);
-        }
+        try { await ApplySettingsCoreAsync(settings); }
         finally { settingsGate.Release(); }
     }
 

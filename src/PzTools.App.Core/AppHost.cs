@@ -540,21 +540,6 @@ public sealed class AppHost : IAsyncDisposable
         finally { settingsGate.Release(); }
     }
 
-    public async Task ApplyLogOptionsAsync(
-        LogLevel minimumLevel, int displayLimit, CancellationToken cancellationToken = default)
-    {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellationToken);
-        await settingsGate.WaitAsync(linked.Token).ConfigureAwait(false);
-        try
-        {
-            var settings = await Settings.SaveLogOptionsAsync(minimumLevel, displayLimit, linked.Token)
-                .ConfigureAwait(false);
-            Telemetry?.ConfigureLogs(new LogProjectionOptions(minimumLevel, displayLimit));
-            PublishSettings(settings);
-        }
-        finally { settingsGate.Release(); }
-    }
-
     public async Task<LogsView> AcknowledgeLogIssueAsync(
         string incidentKey, CancellationToken cancellationToken = default)
     {

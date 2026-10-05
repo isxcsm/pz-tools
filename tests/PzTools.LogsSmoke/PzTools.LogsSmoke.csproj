@@ -21,6 +21,7 @@
     <Compile Include="../../src/PzTools.App/LogColumns.cs" Link="LogColumns.cs" />
     <Compile Include="../../src/PzTools.App/LogsPage*.cs" Link="%(Filename)%(Extension)" />
     <Compile Include="../../src/PzTools.App/AnimatedListSelectionBar.cs" Link="AnimatedListSelectionBar.cs" />
+    <Compile Include="../../src/PzTools.App/SystemMotion.cs" Link="SystemMotion.cs" />
     <Compile Include="../../src/PzTools.App/AppToolTip.cs" Link="AppToolTip.cs" />
     <Compile Include="../../src/PzTools.App/Localizer.cs" Link="Localizer.cs" />
     <Compile Include="../../src/PzTools.App/LogTimeFormatter.cs" Link="LogTimeFormatter.cs" />

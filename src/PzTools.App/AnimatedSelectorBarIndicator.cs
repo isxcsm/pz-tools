@@ -62,7 +62,7 @@ internal sealed class AnimatedSelectorBarIndicator
         if (ReferenceEquals(item, lastItem) && Math.Abs(left - lastLeft) < 0.5 && Math.Abs(top - lastTop) < 0.5
             && indicator.Visibility == Visibility.Visible)
             return;
-        var animate = indicator.Visibility == Visibility.Visible && lastItem is not null
+        var animate = SystemMotion.Enabled && indicator.Visibility == Visibility.Visible && lastItem is not null
             && !ReferenceEquals(item, lastItem) && Math.Abs(lastLeft - left) >= 0.5;
         var previousLeft = lastLeft;
         lastItem = item;

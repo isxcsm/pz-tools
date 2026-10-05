@@ -126,7 +126,6 @@ public sealed class AutomaticBackupToggleTests
         var views = new RevisionedViewStore();
         await new SchedulerProjector(scheduler, views).ProjectOnceAsync();
         Assert.Null(views.ReadIfChanged<ScheduleStatusView>(ViewKey.ScheduleStatus, 0).Snapshot!.NextDueUtc);
-        await service.SaveLogOptionsAsync(LogLevel.Warning, 1200);
         Assert.False(service.Load().AutomaticBackupEnabled);
         Assert.Equal(17, service.Load().BackupIntervalMinutes);
         Assert.True(service.Load().BackupOnDeath);

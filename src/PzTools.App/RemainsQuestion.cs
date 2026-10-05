@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using PzTools.Zomboid.Recovery;
 
 namespace PzTools.App;
@@ -94,9 +93,10 @@ internal sealed class RemainsQuestion(PzTools.App.Core.AppHost host, string save
 
     private static TextBlock Text(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap };
 
+    // The style, not the brush: a brush taken from the application's resources is the Windows theme's, while the
+    // style's theme resource follows the theme the text is shown in (the app's own choice).
     private static TextBlock Secondary(string text) => new()
     {
-        Text = text, FontSize = 12, TextWrapping = TextWrapping.Wrap,
-        Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+        Text = text, FontSize = 12, Style = (Style)Application.Current.Resources["SecondaryTextStyle"],
     };
 }

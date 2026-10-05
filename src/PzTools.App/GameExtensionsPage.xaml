@@ -16,8 +16,6 @@
     </Grid>
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="8">
-        <InfoBar x:Name="ErrorInfo" IsClosable="True" Severity="Error"
-                 Visibility="{x:Bind ErrorInfo.IsOpen, Mode=OneWay}" />
         <ProgressRing x:Name="LoadingIndicator" IsActive="False" Visibility="Collapsed"
                       HorizontalAlignment="Center" />
         <ItemsControl ItemsSource="{x:Bind Sections}">
