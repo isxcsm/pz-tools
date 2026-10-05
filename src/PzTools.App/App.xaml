@@ -25,7 +25,8 @@
       <!-- A save's picture as a small card: rounded, a hairline edge; its shadow is set where it is used, as the
            elevation it casts from (Translation) is no dependency property a style can set. -->
       <Style x:Key="ThumbnailCardStyle" TargetType="Border">
-        <Setter Property="CornerRadius" Value="6" />
+        <!-- The cards' own rounding, so a picture sits in its card as the card sits on the page. -->
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
         <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorSecondaryBrush}" />
