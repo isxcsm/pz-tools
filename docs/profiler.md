@@ -216,7 +216,14 @@ size of the drag reads as it grows. The **?** beside it lists the graph's mouse 
 Under the graph, a line carries the range's other figures, the memory ones in their lines'
 colours: heap peak, video memory peak, and garbage collections (*GC 3 times, paused
 120 ms*). A collection stops the game without leaving samples, so the tables cannot show
-it; this is where it shows. Over either graph the figures follow the pointer: the
+it; this is where it shows. With ZGC, the game's default, those pauses are well under a
+millisecond however short memory is: the collector works beside the game instead, on the
+CPU the game would use. So the line also gives how much of the range the collector was at
+work (*GC working 85%*, from each collection's whole run, overlaps counted once; absent in
+recordings made before 0.2.4) and how many times any thread stopped until memory was freed
+for it (*Waited for memory 12 times, longest 0.42 s*). A collector at work nearly all the
+time, or threads waiting for memory, say the game is short of memory, which its pauses
+never would. Over either graph the figures follow the pointer: the
 collections that overlapped the frame there, and memory at that moment. The copied text
 starts with the range line followed by these figures.
 

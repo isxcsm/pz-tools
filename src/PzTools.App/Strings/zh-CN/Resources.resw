@@ -424,6 +424,11 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身执行的行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0}（调用）</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 暂停</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 运行 {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>等待内存 {0:N0} 次，最长 {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 暂停：因垃圾回收整个游戏停下的时间。游戏默认的 ZGC 几乎不会让它停下。
+GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同时运行并分享 CPU，内存不足时会接近 100%，游戏随之变慢。
+等待内存：因内存已满，线程停下等待释放内存的次数。</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>单击以隐藏或显示此行</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>快捷键：{0}</value></data>

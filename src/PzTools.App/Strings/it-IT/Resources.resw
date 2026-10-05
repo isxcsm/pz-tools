@@ -424,6 +424,11 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Righe eseguite da sé · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (chiamata)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC attivo {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Attese di memoria: {0:N0}, la più lunga {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pausa GC: tempo in cui l&apos;intero gioco si è fermato per la raccolta dei rifiuti. ZGC, l&apos;impostazione predefinita del gioco, non lo ferma quasi mai.
+GC attivo: parte dell&apos;intervallo in cui il raccoglitore era al lavoro. Gira accanto al gioco e ne condivide la CPU, quindi con poca memoria si avvicina al 100% e il gioco rallenta.
+Attese di memoria: quante volte un thread si è fermato finché non è stata liberata memoria, perché era piena.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Fai clic per nascondere o mostrare questa riga</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Scorciatoia: {0}</value></data>

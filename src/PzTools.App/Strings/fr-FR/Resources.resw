@@ -424,6 +424,11 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Lignes exécutées elle-même · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (appel)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pause GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC actif {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Attentes de mémoire : {0:N0}, la plus longue {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pause GC : temps pendant lequel tout le jeu s&apos;est arrêté pour le ramasse-miettes. ZGC, le réglage par défaut du jeu, ne l&apos;arrête presque jamais.
+GC actif : part de la plage pendant laquelle le ramasse-miettes travaillait. Il tourne à côté du jeu et partage son processeur : quand la mémoire manque, il approche 100 % et le jeu ralentit.
+Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;à ce que de la mémoire soit libérée, parce qu&apos;elle était pleine.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Cliquer pour masquer ou afficher cette ligne</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Raccourci : {0}</value></data>

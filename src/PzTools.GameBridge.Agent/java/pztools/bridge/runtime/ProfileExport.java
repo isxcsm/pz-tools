@@ -192,9 +192,14 @@ public final class ProfileExport {
                     }
                     case "jdk.GCHeapMemoryUsage" -> body.append("H\t").append(time).append('\t').append(event.getLong("used"))
                         .append('\t').append(event.getLong("committed")).append('\t').append(event.getLong("max")).append('\n');
-                    case "jdk.GarbageCollection" -> body.append("G\t").append(time).append('\t')
-                        .append(event.getDuration("sumOfPauses").toNanos() / 1000).append('\t')
-                        .append(clean(event.getString("name"))).append('\t').append(clean(event.getString("cause"))).append('\n');
+                    case "jdk.GarbageCollection" -> {
+                        body.append("G\t").append(time).append('\t')
+                            .append(event.getDuration("sumOfPauses").toNanos() / 1000).append('\t')
+                            .append(clean(event.getString("name"))).append('\t').append(clean(event.getString("cause"))).append('\n');
+                        // How long the collection ran, mostly beside the game (ZGC stops it for well under a millisecond):
+                        // its own record, so readers that know G's five fields keep reading them.
+                        body.append("GR\t").append(time).append('\t').append(event.getDuration().toNanos() / 1000).append('\n');
+                    }
                     case "jdk.GCPhasePause", "jdk.ZAllocationStall", "jdk.JavaMonitorEnter", "jdk.ThreadPark", "jdk.FileRead", "jdk.FileWrite",
                          "jdk.ExecuteVMOperation" -> {
                         if (modeKnown && !detailedMode && !type.equals("jdk.GCPhasePause") && !type.equals("jdk.ZAllocationStall")) break;

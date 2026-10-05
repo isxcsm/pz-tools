@@ -424,6 +424,11 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Baris yang dijalankan sendiri · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (panggilan)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Jeda GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC bekerja {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Menunggu memori {0:N0} kali, terlama {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Jeda GC: waktu seluruh gim berhenti untuk pembersihan memori. ZGC, bawaan gim ini, hampir tidak pernah menghentikannya.
+GC bekerja: bagian rentang saat pembersih memori berjalan. Ia berjalan di samping gim dan berbagi CPU, jadi saat memori kurang angkanya mendekati 100% dan gim melambat.
+Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, karena memori penuh.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klik untuk menyembunyikan atau menampilkan baris ini</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Pintasan: {0}</value></data>

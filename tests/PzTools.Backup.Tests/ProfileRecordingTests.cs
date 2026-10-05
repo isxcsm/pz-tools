@@ -732,6 +732,30 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Collector_WorkBesideTheGame_AndWaitsForMemory_AreToldApartFromItsPauses()
+    {
+        using var temp = new TempDirectory();
+        // Two overlapping collections running 10–40 ms, each stopping the game for no time at all (as ZGC does), and two
+        // threads that stopped waiting for memory, neither of them the game thread.
+        var source = temp.GetPath("whole.pzprof");
+        File.WriteAllBytes(source, Compress(Sample
+            + "\nGR|1010000|20000\nGR|1020000|20000\nP|1012000|3000|ZAllocationStall|7|x\nP|1040000|9000|ZAllocationStall|8|x"));
+        var recording = ProfileRecording.Load(source);
+
+        Assert.Equal(0.6, ProfileAnalysis.CollectorBusyIn(recording, 0, 50_000)!.Value, 6);
+        Assert.Equal(0.5, ProfileAnalysis.CollectorBusyIn(recording, 0, 20_000)!.Value, 6);
+        Assert.Equal((2, 9_000L), ProfileAnalysis.StallsIn(recording, 0, 50_000));
+        Assert.Equal((1, 3_000L), ProfileAnalysis.StallsIn(recording, 0, 20_000));
+        // Recordings from before the collector's runs were kept say nothing rather than "not at work".
+        Assert.Null(ProfileAnalysis.CollectorBusyIn(Load(Sample), 0, 50_000));
+
+        // A range saved from it keeps the runs that reach into it.
+        ProfileTrim.Save(recording, source, temp.GetPath("part.pzprof"), 30_000, 50_000);
+        var part = ProfileRecording.Load(temp.GetPath("part.pzprof"));
+        Assert.Equal(0.5, ProfileAnalysis.CollectorBusyIn(part, 0, part.Duration)!.Value, 6);
+    }
+
+    [Fact]
     public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
     {
         var recording = Load(Sample);

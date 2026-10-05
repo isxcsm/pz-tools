@@ -472,6 +472,11 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat poslední minutu.</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Čekání na paměť {0:N0}×, nejdéle {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pauza GC: doba, kdy se kvůli úklidu paměti zastavila celá hra. ZGC, výchozí v této hře, ji téměř nezastavuje.
+GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a dělí se s ní o procesor, takže při nedostatku paměti se blíží 100 % a hra se zpomalí.
+Čekání na paměť: kolikrát se vlákno zastavilo, dokud se neuvolnila paměť, protože byla plná.</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (volání)</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Voláno z řádku {1} funkce {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Řádky provedené samotnou funkcí · {0}</value></data>

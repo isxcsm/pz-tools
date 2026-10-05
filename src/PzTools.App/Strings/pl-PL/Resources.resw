@@ -424,6 +424,11 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Wiersze wykonane przez nią samą · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (wywołanie)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Czekanie na pamięć: {0:N0} razy, najdłużej {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pauza GC: czas, w którym cała gra stanęła z powodu odśmiecania. ZGC, domyślny w grze, prawie nigdy jej nie zatrzymuje.
+GC pracuje: część zakresu, w której działało odśmiecanie. Działa obok gry i dzieli z nią procesor, więc przy braku pamięci zbliża się do 100% i gra zwalnia.
+Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była pełna.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Kliknij, aby ukryć lub pokazać ten wiersz</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Skrót: {0}</value></data>

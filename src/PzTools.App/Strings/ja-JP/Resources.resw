@@ -424,6 +424,11 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身で実行した行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (呼び出し)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 停止</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 稼働 {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>メモリ待ち {0:N0} 回、最長 {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 停止: メモリ整理のためにゲーム全体が止まった時間です。ゲームの既定である ZGC はほとんど止めません。
+GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です。ゲームと並行して動き CPU を分け合うため、メモリが足りないと 100% に近づき、ゲームが遅くなります。
+メモリ待ち: メモリがいっぱいで、スレッドが整理を待って止まった回数です。</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>クリックでこの行を隠す/表示する</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ショートカット: {0}</value></data>

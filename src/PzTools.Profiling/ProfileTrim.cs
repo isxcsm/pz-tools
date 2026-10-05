@@ -183,7 +183,7 @@ public static class ProfileTrim
         // Points in time: those in the range, as the analysis counts them.
         "S" or "F" or "L" or "LA" or "LH" or "H" or "V" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
         // Spans: those that reach into it, as the analysis counts collections and pauses.
-        "G" or "P" => Number(FieldSpan(line, 1)) is { } time && Number(FieldSpan(line, 2)) is { } duration
+        "G" or "GR" or "P" => Number(FieldSpan(line, 1)) is { } time && Number(FieldSpan(line, 2)) is { } duration
             && time < to && time + Math.Max(0, duration) >= from,
         // Tables, renumbered as they are written; threads are kept whole, being few. A kind this version does not
         // know is kept as it is; the reader skips it.
@@ -239,7 +239,7 @@ public static class ProfileTrim
         return (tab < 0 ? line.AsSpan() : line.AsSpan(0, tab)) switch
         {
             "S" => "S", "F" => "F", "L" => "L", "LA" => "LA", "LH" => "LH", "GA" => "GA", "H" => "H", "V" => "V",
-            "G" => "G", "P" => "P", "I" => "I", "T" => "T", "M" => "M", "K" => "K", "LM" => "LM", "LK" => "LK",
+            "G" => "G", "GR" => "GR", "P" => "P", "I" => "I", "T" => "T", "M" => "M", "K" => "K", "LM" => "LM", "LK" => "LK",
             _ => "",
         };
     }

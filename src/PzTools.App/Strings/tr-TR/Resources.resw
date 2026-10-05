@@ -424,6 +424,11 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Kendi çalıştırdığı satırlar · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (çağrı)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC duraklaması</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC çalışıyor {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Bellek bekleme: {0:N0} kez, en uzun {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC duraklaması: çöp toplama için tüm oyunun durduğu süre. Oyunun varsayılanı olan ZGC onu neredeyse hiç durdurmaz.
+GC çalışıyor: aralığın, çöp toplayıcının çalıştığı kısmı. Oyunla yan yana çalışır ve işlemciyi paylaşır; bellek azken %100&apos;e yaklaşır ve oyun yavaşlar.
+Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşalana kadar durduğu sayı.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Bu satırı gizlemek veya göstermek için tıklayın</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Kısayol: {0}</value></data>

@@ -424,6 +424,11 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Рядки, виконані нею самою · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (виклик)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Пауза GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC працює {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Очікування пам&apos;яті: {0:N0} раз, найдовше {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Пауза GC: час, коли вся гра стояла через збирання сміття. ZGC, типовий для гри, майже ніколи її не зупиняє.
+GC працює: частка відрізка, коли працював збирач сміття. Він працює поруч із грою й ділить із нею процесор, тож за браку пам&apos;яті частка наближається до 100 % і гра сповільнюється.
+Очікування пам&apos;яті: скільки разів потік зупинявся, доки не звільниться пам&apos;ять, бо вона була заповнена.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Натисніть, щоб приховати або показати цей рядок</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сполучення клавіш: {0}</value></data>

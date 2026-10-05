@@ -647,6 +647,43 @@ public static class ProfileAnalysis
     }
 
     /// <summary>
+    /// The part of the range the collector was at work, 0 to 1; null in recordings made before its runs were kept.
+    /// ZGC stops the game for well under a millisecond but works beside it, on the CPU the game would use: with memory
+    /// short it runs nearly all the time, which its pauses never show.
+    /// </summary>
+    public static double? CollectorBusyIn(ProfileRecording recording, long start, long end)
+    {
+        var runs = recording.CollectorRuns;
+        if (runs.Count == 0 || end <= start) return runs.Count == 0 ? null : 0;
+        // Young and old collections can overlap: the time any of them ran.
+        long busy = 0, coveredTo = start;
+        foreach (var run in runs)
+        {
+            if (run.Time >= end) break;
+            long from = Math.Max(Math.Max(run.Time, coveredTo), start), to = Math.Min(run.Time + run.Duration, end);
+            if (to > from) { busy += to - from; coveredTo = to; }
+        }
+        return Math.Clamp(busy / (double)(end - start), 0, 1);
+    }
+
+    /// <summary>
+    /// How many times a thread, any thread, stopped in the range until the collector freed memory for it, and the
+    /// longest of those waits.
+    /// </summary>
+    public static (int Count, long Longest) StallsIn(ProfileRecording recording, long start, long end)
+    {
+        int count = 0;
+        long longest = 0;
+        foreach (var pause in recording.Pauses)
+        {
+            if (pause.Kind != AllocationStall || pause.Time >= end || pause.Time + pause.Duration < start) continue;
+            count++;
+            longest = Math.Max(longest, pause.Duration);
+        }
+        return (count, longest);
+    }
+
+    /// <summary>
     /// Whether the game ran short of memory in the recording: threads stopped until memory was freed (the collector's
     /// allocation stalls), or the heap stood near its maximum for a quarter of its readings or more. Either says the
     /// game's memory, not its code, is what to change. Judged on the whole recording, not a range: the setting is.

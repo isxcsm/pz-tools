@@ -453,6 +453,11 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Lines it ran itself · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (call)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC pause</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC working {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Waited for memory {0:N0} times, longest {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC pause: time the whole game stopped for garbage collection. ZGC, the game&apos;s default, hardly ever stops it.
+GC working: the share of the range the collector was running. It runs beside the game and shares its CPU, so with memory short it nears 100% and the game slows down.
+Waited for memory: how many times a thread stopped until memory was freed, because memory was full.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Click to hide or show this row</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Hotkey: {0}</value></data>

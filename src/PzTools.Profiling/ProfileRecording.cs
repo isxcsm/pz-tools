@@ -21,6 +21,8 @@ public readonly record struct ProfileLuaFrame(int Function, int Line);
 public sealed record ProfileLuaFunction(string Name, string File);
 public sealed record ProfileCollection(long Time, long Duration, string Name, string Cause);
 public sealed record ProfilePause(long Time, long Duration, string Kind, int Thread, string Detail);
+/// <summary>A collection from its start to its end, most of it beside the game: how long the collector was at work.</summary>
+public readonly record struct ProfileCollectorRun(long Time, long Duration);
 /// <summary>The Java heap at one moment, in bytes.</summary>
 public readonly record struct ProfileHeapSample(long Time, long Used, long Committed, long Maximum);
 /// <summary>The game's video memory at one moment, in bytes: on the graphics card, and borrowed from system memory.</summary>
@@ -51,6 +53,8 @@ public sealed class ProfileRecording
     public required ProfileLuaSample[] LuaSamples { get; init; }
     public required IReadOnlyList<ProfileCollection> Collections { get; init; }
     public required IReadOnlyList<ProfilePause> Pauses { get; init; }
+    /// <summary>Each collection's whole run; empty in recordings made before it was kept.</summary>
+    public IReadOnlyList<ProfileCollectorRun> CollectorRuns { get; init; } = [];
     /// <summary>Whether <see cref="Pauses"/> holds the collector's own pauses, as recordings since they were kept do.</summary>
     public bool HasCollectorPauses { get; init; }
     /// <summary>Empty in recordings made before heap use was recorded.</summary>
@@ -120,6 +124,7 @@ public sealed class ProfileRecording
         var luaStacks = new List<ProfileLuaFrame[]>();
         var luaSamples = new List<ProfileLuaSample>();
         var collections = new List<ProfileCollection>();
+        var collectorRuns = new List<ProfileCollectorRun>();
         var pauses = new List<(long Time, long Duration, string Kind, long Thread, string Detail)>();
         var heap = new List<ProfileHeapSample>();
         var videoMemory = new List<ProfileVideoMemorySample>();
@@ -165,6 +170,7 @@ public sealed class ProfileRecording
                 case "G" when fields.Length == 5:
                     collections.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], fields[4]));
                     break;
+                case "GR" when fields.Length == 3: collectorRuns.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
                 case "P" when fields.Length == 6:
                     pauses.Add((Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], Number(fields[4]), fields[5]));
                     break;
@@ -254,6 +260,7 @@ public sealed class ProfileRecording
             LuaStacks = luaStacks,
             LuaSamples = orderedLua,
             Collections = collections.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
+            CollectorRuns = collectorRuns.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Pauses = pauses.Select(item => new ProfilePause(item.Time - origin, item.Duration, item.Kind,
                 threadIndex.GetValueOrDefault(item.Thread, -1), item.Detail)).OrderBy(item => item.Time).ToArray(),
             // A saved range says so for its source, which may have had none inside the range.

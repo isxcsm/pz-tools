@@ -159,6 +159,7 @@ public sealed partial class ProfilerPage : UserControl
         ScriptsLabel.Text = Localizer.Get("ProfileBreakdownScripts");
         GameLabel.Text = Localizer.Get("ProfileBreakdownGame");
         CollectionsLabel.Text = Localizer.Get("ProfileStatGcPause");
+        AppToolTip.SetTip(CollectionValue, Localizer.Get("ProfileCollectorBusyTip"));
         SpareLabel.Text = Localizer.Get("ProfileBreakdownWaiting");
         var thread = ThreadBox.SelectedIndex;
         // The same choice in new words: not a change of thread to analyse again for.
@@ -1667,7 +1668,15 @@ public sealed partial class ProfilerPage : UserControl
     {
         var (collections, paused) = ProfileAnalysis.CollectionsIn(recording!, start, end);
         var (heapPeak, videoPeak) = ProfileAnalysis.MemoryPeaksIn(recording!, start, end);
-        return SetLaneInfo(collections > 0 ? CollectionText(collections, paused) : null,
+        // The pauses alone say little with ZGC, which hardly stops the game: how much of the range the collector was at
+        // work beside it, and the threads that stopped waiting for memory, say what running short of memory cost.
+        var gc = new List<string>();
+        if (collections > 0) gc.Add(CollectionText(collections, paused));
+        if (ProfileAnalysis.CollectorBusyIn(recording!, start, end) is { } busy && busy >= 0.01)
+            gc.Add(Localizer.Format("ProfileCollectorBusyFormat", busy));
+        if (ProfileAnalysis.StallsIn(recording!, start, end) is { Count: > 0 } stalls)
+            gc.Add(Localizer.Format("ProfileRangeStallsFormat", stalls.Count, Milliseconds(stalls.Longest / 1000.0)));
+        return SetLaneInfo(gc.Count > 0 ? string.Join(" · ", gc) : null,
             heapPeak is { } heap ? $"{Localizer.Get("ProfileStatHeapPeak")} {Bytes(heap)}" : null,
             videoPeak is { } video ? $"{Localizer.Get("ProfileStatVideoPeak")} {Bytes(video)}" : null);
     }

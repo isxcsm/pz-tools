@@ -424,6 +424,11 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Linhas executadas por ela mesma · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (chamada)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa de GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC ativo {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Esperas por memória: {0:N0}, a mais longa {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pausa de GC: tempo em que o jogo inteiro parou para a coleta de lixo. O ZGC, padrão do jogo, quase nunca o para.
+GC ativo: parte do trecho em que o coletor estava trabalhando. Ele roda junto com o jogo e divide a CPU, então com pouca memória se aproxima de 100% e o jogo fica lento.
+Esperas por memória: quantas vezes uma thread parou até a memória ser liberada, porque estava cheia.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Clique para ocultar ou mostrar esta linha</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Atalho: {0}</value></data>

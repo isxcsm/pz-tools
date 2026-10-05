@@ -424,6 +424,11 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Selbst ausgeführte Zeilen · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (Aufruf)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC-Pause</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC aktiv {0:P0}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Auf Speicher gewartet: {0:N0}-mal, am längsten {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC-Pause: Zeit, in der das ganze Spiel für die Speicherbereinigung anhielt. ZGC, die Voreinstellung des Spiels, hält es kaum je an.
+GC aktiv: Anteil des Abschnitts, in dem die Speicherbereinigung lief. Sie läuft neben dem Spiel und teilt sich die CPU, daher geht sie bei knappem Speicher gegen 100 % und das Spiel wird langsamer.
+Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil er voll war.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klicken, um diese Zeile aus- oder einzublenden</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Tastenkürzel: {0}</value></data>
