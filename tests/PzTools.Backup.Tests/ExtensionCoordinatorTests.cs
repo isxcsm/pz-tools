@@ -69,8 +69,9 @@ public sealed partial class GameSaveClientTests
 
             // Its tuning file becomes invalid. The next request is rejected before it reaches the game:
             // the module is turned off, in the game and in the saved preferences, which keep its options.
-            Directory.CreateDirectory(Path.Combine(runtimeRoot, "extensions"));
-            await File.WriteAllTextAsync(Path.Combine(runtimeRoot, "extensions", "vehicle-drivetrain.toml"), "area_light_radius = 999\n");
+            var tuning = VehicleDrivetrainConfiguration.OverridePath(runtimeRoot);
+            Directory.CreateDirectory(Path.GetDirectoryName(tuning)!);
+            await File.WriteAllTextAsync(tuning, "area_light_radius = 999\n");
             Assert.Equal(3, settings.SetPreference(vehicle, new(true, false, new VehicleDrivetrainPreference(ReverseEnabled: false)), 2).Revision);
             var rejected = await Until(vehicle, s => s.State == RuntimeExtensionState.Unsupported && s.Reason == "configuration-rejected", "vehicle rejected");
             Assert.False(rejected.ControlReady);

@@ -26,8 +26,9 @@ does.
 | [`backup-scheduler`](../../config/defaults/backup-scheduler/default.toml) | How often it checks whether a backup is due (not your backup interval) and how early it prepares one | No |
 | [`backup-runner`](../../config/defaults/backup-runner/default.toml), [`maintenance-runner`](../../config/defaults/maintenance-runner/default.toml), [`state-runner`](../../config/defaults/state-runner/default.toml), [`state-collector`](../../config/defaults/state-collector/default.toml), [`state-reactor`](../../config/defaults/state-reactor/default.toml) | Diagnostic records only | No |
 | [`restore-worker`](../../config/defaults/restore-worker/default.toml), [`character-recovery`](../../config/defaults/character-recovery/default.toml), [`profiler`](../../config/defaults/profiler/default.toml) | Diagnostic records, progress and activity-signal frequency | No |
+| `vehicle-drivetrain` | Optional, and never created by the app: your own values for the vehicle extension's tuning, over the [packaged ones](../../config/game-extensions/vehicle-drivetrain.toml). Only the keys you change, without sections. A value out of range or an unknown key is refused when you apply | For testing; see [vehicle extension testing](../contributing/e2e-vehicle-drivetrain.md#tuning-file) |
 
-Game-extension choices are not in this folder; see [files and folders](files-and-folders.md).
+Which game extensions are on, and their switches, are not in this folder; see [files and folders](files-and-folders.md).
 
 ## Applying changes
 

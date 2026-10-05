@@ -115,7 +115,7 @@ backup to get back to the earlier state.
 
 Defaults and allowed ranges are in
 [`vehicle-drivetrain.toml`](../../config/game-extensions/vehicle-drivetrain.toml). To
-override them, create `%LOCALAPPDATA%\PzTools\extensions\vehicle-drivetrain.toml` with only
+override them, create `%LOCALAPPDATA%\PzTools\config\vehicle-drivetrain\default.toml` with only
 the keys you change. A value out of range, an unknown key or a duplicate key rejects the
 whole file, and the request is turned off.
 

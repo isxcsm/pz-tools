@@ -201,6 +201,23 @@ public sealed class RuntimeConfigurationTests
             ComponentConfiguration.Parse("runtime = 1")));
     }
 
+    // The vehicle extension's tuning sits with the other editable files, and Apply settings checks it by its own rules.
+    [Fact]
+    public async Task ApplyingSettings_ChecksTheVehicleTuningByItsOwnRules_AndNamesTheFile()
+    {
+        using var temp = new TempDirectory();
+        var service = new AppSettingsService(temp.GetPath("runtime"));
+        var tuning = PzTools.GameExtensions.VehicleDrivetrainConfiguration.OverridePath(service.RuntimeRoot);
+        Directory.CreateDirectory(Path.GetDirectoryName(tuning)!);
+        await File.WriteAllTextAsync(tuning, "diagnostics_enabled = true\n");
+        service.ValidateEditableConfiguration();
+
+        await File.WriteAllTextAsync(tuning, "area_light_radius = 999\n");
+        var failure = Assert.Throws<InvalidDataException>(service.ValidateEditableConfiguration);
+        Assert.Equal(Path.Combine("vehicle-drivetrain", "default.toml"),
+            UserFacingErrorCatalog.InvalidSettingsFile(failure, service.ConfigurationRoot));
+    }
+
     [Fact]
     public async Task InvalidAppRuntime_DoesNotPreventSettingsRepair_ButBlocksWorkerStartup()
     {

@@ -185,6 +185,13 @@ public sealed class AppSettingsService
         {
             var path = Path.Combine(directory, "default.toml");
             if (!File.Exists(path)) continue;
+            // The vehicle extension's tuning is not a component's settings: it has its own keys and ranges.
+            if (StringComparer.OrdinalIgnoreCase.Equals(Path.GetFileName(directory),
+                    PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder))
+            {
+                Check(path, () => _ = PzTools.GameExtensions.VehicleDrivetrainConfiguration.Parse(File.ReadAllText(path)));
+                continue;
+            }
             Check(path, () =>
             {
                 _ = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(path))

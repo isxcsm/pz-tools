@@ -244,6 +244,8 @@ public sealed class AppHost : IAsyncDisposable
         var composer = new SaveDetailComposer(Views);
         RegisterTelemetrySources(settings, state, scheduler, repository);
         RemoveRetiredBackupWorkerTelemetry(settings.BackupRoot);
+        // Before the schedulers start: the state scheduler reads it for the vehicle extension.
+        PzTools.GameExtensions.VehicleDrivetrainConfiguration.MoveLegacyOverride(paths.RuntimeRoot);
         var projectionInterval = TimeSpan.FromMilliseconds(runtime.ProjectionIntervalMs);
         Projections.AddLoop("state", stateProjector.ProjectOnceAsync, projectionInterval);
         Projections.AddLoop("backup", backupProjector.ProjectOnceAsync, projectionInterval);
