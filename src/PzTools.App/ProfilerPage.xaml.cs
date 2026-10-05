@@ -3221,7 +3221,8 @@ public sealed partial class ProfilerPage : UserControl
                     var isOpen = caller.Callers.Count > 0 && automatic != opened.Contains(callerPath);
                     rows.Add(new TableLine(
                     [
-                        (string.Join(" ← ", caller.Methods.Select(ShortMethod)), string.Join("\n", caller.Methods), false),
+                        (string.Join(" ← ", caller.Methods.Select(method => CallerName(method, ShortMethod(method)))),
+                            string.Join("\n", caller.Methods.Select(method => CallerName(method, method))), false),
                         (PackageOf(caller.Methods[0]), PackageOf(caller.Methods[0]), false), ("", null, true),
                         (FinePercent(whole > 0 ? caller.Share / whole : 0),
                             Localizer.Format("ProfileCallerShareFormat", FinePercent(own > 0 ? caller.Share / own : 0), FinePercent(caller.Share)), true),
@@ -3269,6 +3270,10 @@ public sealed partial class ProfilerPage : UserControl
                 (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
         return (columns, header, rows);
     }
+
+    // The Lua interpreter's frames between a script's Java call and the game code that ran it, as one step.
+    private static string CallerName(string method, string shown) =>
+        method == ProfileAnalysis.LuaRun ? Localizer.Get("ProfileLuaRun") : shown;
 
     // A caller lighter than this share of the range is gathered with the others like it.
     private const double CallerShown = 0.005;

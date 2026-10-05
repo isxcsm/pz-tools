@@ -774,6 +774,7 @@ public static class ProfileAnalysis
         if (targets.Count == 0 || end <= start) return root;
         var span = (double)(end - start);
         var waits = new bool?[recording.Stacks.Count];
+        var interpreter = new bool?[recording.Methods.Count];
         var samples = recording.Samples;
         for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
         {
@@ -785,10 +786,17 @@ public static class ProfileAnalysis
             var weight = (sample.Native ? recording.NativePeriod : recording.JavaPeriod) / span;
             var node = root;
             node.Share += weight; node.Samples++;
-            // Up the stack, nearest caller first; a recursive call counts each frame it passes.
+            // Up the stack, nearest caller first; a recursive call counts each frame it passes. The Lua interpreter's
+            // frames between a script's Java call and the game code that ran the script are one step: Lua running.
             for (var depth = 1; depth < stack.Length; depth++)
             {
-                if (!node.ByMethod.TryGetValue(stack[depth], out var caller)) node.ByMethod[stack[depth]] = caller = new ProfileCallerNode(stack[depth]);
+                var frame = stack[depth];
+                if (interpreter[frame] ??= IsInterpreter(recording.Methods[frame]))
+                {
+                    if (node.MethodIndexes[0] == LuaRunIndex) continue;
+                    frame = LuaRunIndex;
+                }
+                if (!node.ByMethod.TryGetValue(frame, out var caller)) node.ByMethod[frame] = caller = new ProfileCallerNode(frame);
                 node = caller;
                 node.Share += weight; node.Samples++;
             }
@@ -802,11 +810,11 @@ public static class ProfileAnalysis
     private static void Finish(ProfileCallerNode node, ProfileRecording recording, bool isRoot)
     {
         const int longestChain = 6;
+        bool IsGameIndex(int index) => index != LuaRunIndex && IsGameMethod(recording.Methods[index]);
         if (!isRoot)
             // A library chain ends at the first game method it reaches; a chain of the game's own methods folds on.
             while (node.ByMethod.Count == 1 && node.MethodIndexes.Count < longestChain
-                && !(IsGameMethod(recording.Methods[node.MethodIndexes[^1]])
-                    && node.MethodIndexes.Any(index => !IsGameMethod(recording.Methods[index]))))
+                && !(IsGameIndex(node.MethodIndexes[^1]) && node.MethodIndexes.Any(index => !IsGameIndex(index))))
             {
                 var only = node.ByMethod.Values.First();
                 if (only.Samples != node.Samples) break;
@@ -816,7 +824,7 @@ public static class ProfileAnalysis
             }
         if (!isRoot)
         {
-            node.Methods = node.MethodIndexes.Select(index => recording.Methods[index]).ToArray();
+            node.Methods = node.MethodIndexes.Select(index => index == LuaRunIndex ? LuaRun : recording.Methods[index]).ToArray();
             node.ReachesGame = node.Methods.Any(IsGameMethod);
         }
         var callers = node.ByMethod.Values.OrderByDescending(caller => caller.Samples).ToArray();
@@ -825,7 +833,18 @@ public static class ProfileAnalysis
     }
 
     // The game's own code, where reading up from a library method has found what in the game asked for it.
-    private static bool IsGameMethod(string method) => method.StartsWith("zombie.", StringComparison.Ordinal);
+    private static bool IsGameMethod(string method) => method.StartsWith("zombie.", StringComparison.Ordinal) && !IsInterpreter(method);
+
+    /// <summary>
+    /// The caller row standing for the Lua interpreter's frames between a script's call into Java and the game code
+    /// that ran the script: which script it was is not in the Java stack, and a dozen interpreter frames say nothing more.
+    /// </summary>
+    public const string LuaRun = "(lua)";
+    private const int LuaRunIndex = -2;
+
+    // The Lua engine, and the game's own glue that calls into it.
+    private static bool IsInterpreter(string method) => method.StartsWith("se.krka.kahlua.", StringComparison.Ordinal)
+        || method.StartsWith("zombie.Lua.LuaCaller.", StringComparison.Ordinal);
 
     /// <summary>
     /// How long frames took while the collector was at work against while it was not, in milliseconds on average: what

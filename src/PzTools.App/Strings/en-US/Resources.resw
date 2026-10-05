@@ -719,6 +719,7 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua running)</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} of this method&apos;s own time · {1} of the range</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Time the chosen mod&apos;s scripts ran (Java functions they called included)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Time the other scripts ran, the chosen mod&apos;s left out</value></data>

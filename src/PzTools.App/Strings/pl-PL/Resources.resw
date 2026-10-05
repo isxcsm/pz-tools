@@ -720,6 +720,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrypty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kod gry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Oczekiwanie</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(działanie Lua)</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} własnego czasu tej metody · {1} zakresu</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Czas skryptów wybranego modu (z wywołanymi funkcjami Javy)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Czas pozostałych skryptów, bez wybranego modu</value></data>

@@ -720,6 +720,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>スクリプト</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua 実行)</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>このメソッド自体の時間の {0} · 区間の {1}</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>選んだ MOD のスクリプトの実行時間（呼んだ Java 関数を含む）</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>選んだ MOD を除いた残りのスクリプトの実行時間</value></data>

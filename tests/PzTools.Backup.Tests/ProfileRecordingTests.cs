@@ -859,6 +859,32 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Callers_TakeTheLuaInterpretersFramesAsOneStep()
+    {
+        // A script's table lookup: HashMap.get under a dozen interpreter frames, run by an event the game fired.
+        var recording = Load("""
+            PZPROF|1
+            I|mode|general
+            T|7|main
+            I|gameThread|7
+            M|0|java.util.HashMap.get
+            M|1|se.krka.kahlua.j2se.KahluaTableImpl.rawget
+            M|2|se.krka.kahlua.vm.KahluaThread.luaMainloop
+            M|3|zombie.Lua.LuaCaller.pcallvoid
+            M|4|zombie.Lua.Event.trigger
+            M|5|zombie.GameWindow.logic
+            K|0|0 1 2 3 4 5
+            S|1000000|7|0|J
+            S|1010000|7|0|J
+            """);
+        var caller = Assert.Single(ProfileAnalysis.CallersOf(recording, 0, recording.Duration + 1, recording.GameThread, "java.util.HashMap.get").Callers);
+
+        // The engine and the game's glue to it are one step, up to the game code that ran the script.
+        Assert.Equal([ProfileAnalysis.LuaRun, "zombie.Lua.Event.trigger"], caller.Methods);
+        Assert.True(caller.ReachesGame);
+    }
+
+    [Fact]
     public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
     {
         var recording = Load(Sample);

@@ -727,6 +727,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>สคริปต์</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>รอ</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua กำลังทำงาน)</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} ของเวลาของเมธอดนี้เอง · {1} ของช่วง</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>เวลาที่สคริปต์ของม็อดที่เลือกทำงาน (รวมฟังก์ชัน Java ที่เรียก)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์อื่นทำงาน ไม่รวมม็อดที่เลือก</value></data>

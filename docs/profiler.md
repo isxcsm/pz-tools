@@ -457,8 +457,11 @@ heading says what its column means when the pointer rests on it.
   method's time open by themselves, and the game method's own callers are a click away.
   Callers under 0.5% of the range are gathered in one line. Each caller's figure is a share
   of the group, as the method's is; its tip says what it is of the method's own time. A
-  method called from Lua shows the Lua engine (`KahluaThread`) as its caller: which Lua
-  function asked is not in the Java stack.
+  method called from Lua shows Lua as its caller: which Lua
+  function asked is not in the Java stack. The interpreter's frames between such a call and
+  the game code that ran the script (the Lua engine's own, and the game's `LuaCaller` glue)
+  are one step, *(Lua running)*: `HashMap.getNode ← LinkedHashMap.get ← (Lua running) ←
+  Event.trigger`.
 - **Threads.** The default view is the game thread. *All threads* includes rendering,
   loading and background threads, each sample weighted by its own sampling period.
   A thread inside a native call is sampled whether it works there or only waits, so

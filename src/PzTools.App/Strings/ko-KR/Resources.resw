@@ -719,6 +719,7 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>스크립트</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>대기</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua 실행)</value></data>
   <data name="ProfileCallerShareFormat" xml:space="preserve"><value>이 메서드 자체 시간의 {0} · 구간의 {1}</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>선택한 모드의 스크립트 실행 시간 (호출한 Java 함수 포함)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>선택한 모드를 뺀 나머지 스크립트 실행 시간</value></data>
