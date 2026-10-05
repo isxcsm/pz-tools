@@ -276,8 +276,10 @@
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Grid Width="96" Height="96">
-                      <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                              CornerRadius="4">
+                      <!-- Raised off the row like a card, with a soft shadow and a hairline edge, so the picture reads
+                           as the save's own and not as part of the list. -->
+                      <Border Style="{StaticResource ThumbnailCardStyle}" Translation="0,0,12">
+                        <Border.Shadow><ThemeShadow /></Border.Shadow>
                         <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
                       </Border>
                       <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}"
@@ -395,8 +397,8 @@
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
                       <Grid Width="90" Height="90">
-                        <Border CornerRadius="4"
-                                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                        <Border Style="{StaticResource ThumbnailCardStyle}" Translation="0,0,12">
+                          <Border.Shadow><ThemeShadow /></Border.Shadow>
                           <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
                         </Border>
                         <Image Visibility="{x:Bind DeadVisibility, Mode=OneWay}" Width="30" Height="30"

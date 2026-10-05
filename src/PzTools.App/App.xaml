@@ -22,6 +22,14 @@
         <Setter Property="Margin" Value="0,2" />
         <Setter Property="CornerRadius" Value="4" />
       </Style>
+      <!-- A save's picture as a small card: rounded, a hairline edge; its shadow is set where it is used, as the
+           elevation it casts from (Translation) is no dependency property a style can set. -->
+      <Style x:Key="ThumbnailCardStyle" TargetType="Border">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorSecondaryBrush}" />
+      </Style>
       <Style x:Key="RowDeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
         <Setter Property="Width" Value="40" />
         <Setter Property="Height" Value="40" />
