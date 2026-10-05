@@ -233,6 +233,9 @@ public final class ProfileExport {
             for (var thread : threads.entrySet())
                 writer.write("T\t" + thread.getKey() + "\t" + clean(thread.getValue()) + "\n");
             writer.write("I\tgameThread\t" + gameThread + "\n");
+            // The collector's runs are kept from this version on: a recording without one had no collection, not an
+            // older recorder.
+            writer.write("I\tcollectorRuns\t1\n");
             // With a mode, its own periods: the settings in the file may be the other recording's.
             writer.write("I\tjavaPeriodMicros\t" + (modeKnown ? javaTarget : periods.getOrDefault("jdk.ExecutionSample", 0L)) + "\n");
             writer.write("I\tnativePeriodMicros\t" + (modeKnown ? nativeTarget : periods.getOrDefault("jdk.NativeMethodSample", 0L)) + "\n");

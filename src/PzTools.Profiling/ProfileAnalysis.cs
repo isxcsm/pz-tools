@@ -140,7 +140,8 @@ public sealed record ProfileLineTotal(int Line, int SelfSamples, int Samples, lo
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
 
-/// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one.</summary>
+/// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one (milliseconds per
+/// slice from <see cref="ProfileAnalysis.BreakdownPerBucket"/>).</summary>
 public sealed record ProfileTimeBreakdown(double Scripts, double GameCode, double Collections, double Waiting);
 /// <summary>
 /// Who called a method, bottom up: one row per caller, the heaviest first, each opening onto its own callers. A chain of
@@ -639,6 +640,7 @@ public static class ProfileAnalysis
     /// <summary>
     /// For each slice the frame graph draws, the milliseconds of its bar (the slice's slowest frame) that went to each
     /// part of <see cref="BreakdownIn"/>; null where no frame began. Counted from samples, so in steps of a period.
+    /// The record's fields are milliseconds here, not the shares its own description gives.
     /// </summary>
     public static ProfileTimeBreakdown?[] BreakdownPerBucket(ProfileRecording recording, long start, long end, int buckets)
     {
@@ -745,23 +747,43 @@ public static class ProfileAnalysis
     /// </summary>
     public static double? CollectorBusyIn(ProfileRecording recording, long start, long end)
     {
-        var runs = recording.CollectorRuns;
-        if (runs.Count == 0 || end <= start) return runs.Count == 0 ? null : 0;
-        // Young and old collections can overlap: the time any of them ran.
-        long busy = 0, coveredTo = start;
-        foreach (var run in runs)
+        if (!recording.HasCollectorRuns) return null;
+        if (end <= start || recording.CollectorRuns.Count == 0) return 0;
+        var spans = CollectorSpans(recording);
+        long busy = 0;
+        // The first span that ends after the range starts, found by halving: this is asked once per frame.
+        int low = 0, high = spans.Length;
+        while (low < high)
         {
-            if (run.Time >= end) break;
-            long from = Math.Max(Math.Max(run.Time, coveredTo), start), to = Math.Min(run.Time + run.Duration, end);
-            if (to > from) { busy += to - from; coveredTo = to; }
+            var middle = (low + high) >>> 1;
+            if (spans[middle].End <= start) low = middle + 1; else high = middle;
         }
+        for (var index = low; index < spans.Length && spans[index].Start < end; index++)
+            busy += Math.Min(spans[index].End, end) - Math.Max(spans[index].Start, start);
         return Math.Clamp(busy / (double)(end - start), 0, 1);
     }
 
+    // Young and old collections can overlap: the time any of them ran, as spans apart from one another, in order.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, (long Start, long End)[]>
+        collectorSpans = new();
+
+    private static (long Start, long End)[] CollectorSpans(ProfileRecording recording) =>
+        collectorSpans.GetValue(recording, static current =>
+        {
+            var spans = new List<(long Start, long End)>();
+            foreach (var run in current.CollectorRuns.OrderBy(run => run.Time))
+            {
+                var end = run.Time + Math.Max(0, run.Duration);
+                if (spans.Count > 0 && run.Time <= spans[^1].End) spans[^1] = (spans[^1].Start, Math.Max(spans[^1].End, end));
+                else spans.Add((run.Time, end));
+            }
+            return [.. spans];
+        });
+
     /// <summary>
     /// The callers of a method's own time in the range, bottom up (see <see cref="ProfileCallerNode"/>): where the samples
-    /// that ended in it came from. Counted as the range's figures are (the thread's samples, waits left out), so the
-    /// root's share is the method's own share. Worked out for one method at a time, when its row is opened.
+    /// that ended in it came from. Counted as the range's method figures are (shares of the thread's samples, waits
+    /// left out), so the root's share is the method's own share. Worked out for one method at a time, when its row is opened.
     /// </summary>
     /// <param name="thread">The thread whose samples count; -1 all.</param>
     public static ProfileCallerNode CallersOf(ProfileRecording recording, long start, long end, int thread, string method)
@@ -772,18 +794,20 @@ public static class ProfileAnalysis
             if (recording.Methods[index] == method) targets.Add(index);
         var root = new ProfileCallerNode(targets.Count > 0 ? targets.First() : -1) { Methods = [method] };
         if (targets.Count == 0 || end <= start) return root;
-        var span = (double)(end - start);
         var waits = new bool?[recording.Stacks.Count];
         var interpreter = new bool?[recording.Methods.Count];
         var samples = recording.Samples;
+        // The whole the method's own share is of in the lists: every sample of the thread(s) that ran, waits left out.
+        double whole = 0;
         for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
         {
             var sample = samples[index];
             if (thread >= 0 && sample.Thread != thread) continue;
             var stack = recording.Stacks[sample.Stack];
-            if (stack.Length == 0 || !targets.Contains(stack[0])) continue;
             if (sample.Native && (waits[sample.Stack] ??= Waits(recording, stack))) continue;
-            var weight = (sample.Native ? recording.NativePeriod : recording.JavaPeriod) / span;
+            var weight = (double)(sample.Native ? recording.NativePeriod : recording.JavaPeriod);
+            whole += weight;
+            if (stack.Length == 0 || !targets.Contains(stack[0])) continue;
             var node = root;
             node.Share += weight; node.Samples++;
             // Up the stack, nearest caller first; a recursive call counts each frame it passes. The Lua interpreter's
@@ -801,14 +825,15 @@ public static class ProfileAnalysis
                 node.Share += weight; node.Samples++;
             }
         }
-        Finish(root, recording, isRoot: true);
+        Finish(root, recording, isRoot: true, whole > 0 ? 1 / whole : 0);
         return root;
     }
 
     // Callers heaviest first; a caller with one caller of its own taking all its samples joins it in one row, up to the
-    // game's own code (or a few methods, so a row stays readable).
-    private static void Finish(ProfileCallerNode node, ProfileRecording recording, bool isRoot)
+    // game's own code (or a few methods, so a row stays readable). Shares, counted as weights, become parts of the whole.
+    private static void Finish(ProfileCallerNode node, ProfileRecording recording, bool isRoot, double scale)
     {
+        node.Share *= scale;
         const int longestChain = 6;
         bool IsGameIndex(int index) => index != LuaRunIndex && IsGameMethod(recording.Methods[index]);
         if (!isRoot)
@@ -828,7 +853,7 @@ public static class ProfileAnalysis
             node.ReachesGame = node.Methods.Any(IsGameMethod);
         }
         var callers = node.ByMethod.Values.OrderByDescending(caller => caller.Samples).ToArray();
-        foreach (var caller in callers) Finish(caller, recording, isRoot: false);
+        foreach (var caller in callers) Finish(caller, recording, isRoot: false, scale);
         node.Callers = callers;
     }
 
@@ -854,7 +879,7 @@ public static class ProfileAnalysis
     /// </summary>
     public static ProfileCollectorFrames? FramesWithCollector(ProfileRecording recording)
     {
-        if (recording.CollectorRuns.Count == 0) return null;
+        if (!recording.HasCollectorRuns) return null;
         double during = 0, outside = 0;
         int duringCount = 0, outsideCount = 0;
         foreach (var frame in recording.Frames)
@@ -882,9 +907,12 @@ public static class ProfileAnalysis
     {
         int count = 0;
         long longest = 0;
-        foreach (var pause in recording.Pauses)
+        // Asked again as a range is dragged: from the first pause that could reach into it, not the recording's start.
+        var pauses = recording.Pauses;
+        for (var index = LowerBound(pauses, start - LongestCollection, item => item.Time); index < pauses.Count && pauses[index].Time < end; index++)
         {
-            if (pause.Kind != AllocationStall || pause.Time >= end || pause.Time + pause.Duration < start) continue;
+            var pause = pauses[index];
+            if (pause.Kind != AllocationStall || pause.Time + pause.Duration < start) continue;
             count++;
             longest = Math.Max(longest, pause.Duration);
         }

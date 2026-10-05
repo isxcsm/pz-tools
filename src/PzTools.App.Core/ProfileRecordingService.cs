@@ -413,11 +413,11 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
     // The game's video memory is read while anything records: the rolling window, and a recording under way.
     private void UpdateVideoMemory()
     {
-        bool on, rollingOn;
-        int minutes;
-        DateTimeOffset? from;
-        lock (gate) (on, rollingOn, minutes, from) = (rolling.On || session.State != ProfileSessionState.Idle, rolling.On, rolling.OnMinutes, recordingFrom);
-        videoMemory.Configure(on, rollingOn ? TimeSpan.FromMinutes(minutes) : TimeSpan.Zero, from);
+        // Inside the lock: two threads changing what records must not hand the log their states in the other order and
+        // leave it with the older. The log takes only its own lock and calls nothing back.
+        lock (gate)
+            videoMemory.Configure(rolling.On || session.State != ProfileSessionState.Idle,
+                rolling.On ? TimeSpan.FromMinutes(rolling.OnMinutes) : TimeSpan.Zero, recordingFrom);
     }
 
     /// <summary>

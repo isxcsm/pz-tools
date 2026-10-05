@@ -70,6 +70,11 @@ public sealed class ProfileRecording
     public int Processors { get; init; }
     /// <summary>Whether <see cref="Pauses"/> holds the collector's own pauses, as recordings since they were kept do.</summary>
     public bool HasCollectorPauses { get; init; }
+    /// <summary>
+    /// Whether the recorder kept the collector's runs: <see cref="CollectorRuns"/> empty then means none ran (a part
+    /// saved from a recording, a quiet stretch), not a recording made before they were kept.
+    /// </summary>
+    public bool HasCollectorRuns { get; init; }
     /// <summary>Empty in recordings made before heap use was recorded.</summary>
     public IReadOnlyList<ProfileHeapSample> Heap { get; init; } = [];
     /// <summary>Empty when the system could not report it, and in older recordings.</summary>
@@ -292,6 +297,7 @@ public sealed class ProfileRecording
             // A saved range says so for its source, which may have had none inside the range.
             HasCollectorPauses = pauses.Any(item => item.Kind == ProfileAnalysis.CollectorPause)
                 || information.GetValueOrDefault(ProfileTrim.CollectorPausesKey) == "1",
+            HasCollectorRuns = collectorRuns.Count > 0 || information.GetValueOrDefault(ProfileTrim.CollectorRunsKey) == "1",
             // Memory readings carry on the same time scale but do not stretch the recording: they may start before
             // the first sample or run on after the last.
             Heap = heap.Select(item => item with { Time = item.Time - origin }).Where(item => item.Time >= 0 && item.Time <= end)
@@ -379,8 +385,10 @@ public sealed class ProfileRecording
         int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
             ? value : throw new InvalidDataException("The recording has an invalid index.");
 
-    // A share of the machine's CPU as Java writes a float ("0.0625", "1.0E-4"), kept between 0 and 1.
+    // A share of the machine's CPU as Java writes a float ("0.0625", "1.0E-4"), kept between 0 and 1. A reading the
+    // system could not take ("NaN") counts as none: one missing second must not make the recording unreadable.
     private static double Share(string text) =>
-        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && double.IsFinite(value)
-            ? Math.Clamp(value, 0, 1) : throw new InvalidDataException("The recording has an invalid share.");
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? double.IsFinite(value) ? Math.Clamp(value, 0, 1) : 0
+            : throw new InvalidDataException("The recording has an invalid share.");
 }

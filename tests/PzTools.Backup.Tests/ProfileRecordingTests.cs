@@ -164,7 +164,8 @@ public sealed class ProfileRecordingTests
         Assert.Contains("| 1 | SlowMod | 50.00% | 2 | none | new |", report);
         Assert.Contains("- SlowMod: +50.00 pp (did not run in the baseline)", report);
         Assert.Contains("| slow | workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua:12 | 50.00% | 75.00% | new |", report);
-        Assert.Contains("| Java built-ins (java.*, jdk.*) | 25.00% | 0.00% | +25.00 pp |", report);
+        // An area the baseline never ran is new, as a mod is.
+        Assert.Contains("| Java built-ins (java.*, jdk.*) | 25.00% | none | new |", report);
         Assert.DoesNotContain("different modes", report);
     }
 

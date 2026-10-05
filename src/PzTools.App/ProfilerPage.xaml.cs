@@ -1230,7 +1230,7 @@ public sealed partial class ProfilerPage : UserControl
         VideoValue.Opacity = videoRow ? 1 : 0.45;
         CollectionFigure.Opacity = collectionMarks ? 1 : 0.45;
         // The key to the frame graph's background, where the recording has the collector's runs to draw.
-        CollectorSwatch.Visibility = recording?.CollectorRuns.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        CollectorSwatch.Visibility = recording?.HasCollectorRuns == true ? Visibility.Visible : Visibility.Collapsed;
         AppToolTip.SetTip(CollectorSwatch, Localizer.Get("ProfileChartCollectorTip"));
         // What a press does now: closed, the panel opens onto the row; open, the row goes or comes back.
         foreach (var figure in new[] { HeapValue, VideoValue })

@@ -11,7 +11,7 @@ namespace PzTools.App.Core;
 public sealed class VideoMemoryLog(Func<int?>? game = null, Func<int, IVideoMemoryReader?>? open = null,
     TimeProvider? timeProvider = null)
 {
-    /// <summary>As often as a recording's own readings of the heap: a graph of the run, not of single frames.</summary>
+    /// <summary>About as often as a recording reads the heap (every 250 ms): a graph of the run, not of single frames.</summary>
     public static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(200);
     // Windows without the counters (or a driver that does not report them) is asked again only now and then.
     private static readonly TimeSpan ReopenAfter = TimeSpan.FromSeconds(5);
@@ -22,6 +22,7 @@ public sealed class VideoMemoryLog(Func<int?>? game = null, Func<int, IVideoMemo
     private readonly Func<int, IVideoMemoryReader?> openReader = open ?? (id => GpuProcessMemory.TryOpen(id));
     private readonly TimeProvider time = timeProvider ?? TimeProvider.System;
     private readonly object gate = new();
+    private readonly object sampling = new();
     private readonly List<VideoMemoryReading> readings = [];
     private IVideoMemoryReader? reader;
     private int? process;
@@ -76,33 +77,41 @@ public sealed class VideoMemoryLog(Func<int?>? game = null, Func<int, IVideoMemo
         catch (OperationCanceledException) { }
         finally
         {
-            lock (gate)
-            {
-                // Nothing records any more: what was read belonged to recordings that are written.
+            // Nothing records any more: what was read belonged to recordings that are written. Turned on again since,
+            // a newer loop has the reader.
+            lock (sampling) lock (gate)
                 if (!active) { readings.Clear(); reader?.Dispose(); reader = null; process = null; }
-            }
         }
     }
 
+    // One reading at a time (a loop stopped and started again may overlap the next for a tick). The counters are opened
+    // and read outside the lock that Between and Configure take, so neither waits on Windows' counters.
     internal void SampleOnce()
+    {
+        lock (sampling) Sample();
+    }
+
+    private void Sample()
     {
         var id = findGame();
         var now = time.GetUtcNow();
+        if (id is { } game && game != process)
+        {
+            // Another game: what was read belongs to the one before. No game found this once (a snapshot between two
+            // processes, a lookup that failed) is no reason to drop what was read.
+            reader?.Dispose();
+            (reader, process, openedAt) = (null, game, DateTimeOffset.MinValue);
+            lock (gate) readings.Clear();
+        }
+        if (reader is null && id is { } open && now - openedAt >= ReopenAfter)
+        {
+            openedAt = now;
+            reader = openReader(open);
+        }
+        var reading = id is null ? null : reader?.Read();
         lock (gate)
         {
-            if (id != process)
-            {
-                // Another game, or none: what was read belongs to the one before.
-                reader?.Dispose();
-                (reader, process, openedAt) = (null, id, DateTimeOffset.MinValue);
-                readings.Clear();
-            }
-            if (reader is null && id is { } game && now - openedAt >= ReopenAfter)
-            {
-                openedAt = now;
-                reader = openReader(game);
-            }
-            if (reader?.Read() is { } reading) readings.Add(new(now, reading.Dedicated, reading.Shared));
+            if (reading is { } read) readings.Add(new(now, read.Dedicated, read.Shared));
             var before = now - keep - Slack;
             if (holdFrom is { } held && held - Slack < before) before = held - Slack;
             var old = readings.FindIndex(item => item.At >= before);

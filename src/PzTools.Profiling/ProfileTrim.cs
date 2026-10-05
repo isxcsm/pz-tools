@@ -20,11 +20,13 @@ public static class ProfileTrim
         LuaPeriodKey = "luaPeriodEffectiveMicros";
     /// <summary>The source recorded the collector's pauses, whether or not one fell inside the range.</summary>
     internal const string CollectorPausesKey = "collectorPauses";
+    /// <summary>The source recorded the collector's runs, whether or not one fell inside the range.</summary>
+    internal const string CollectorRunsKey = "collectorRuns";
 
     // Said again at the end, for the range; the source's are left out.
     private static readonly HashSet<string> Replaced = new(StringComparer.Ordinal)
     {
-        FromKey, ToKey, JavaPeriodKey, NativePeriodKey, LuaPeriodKey, CollectorPausesKey, "durationMicros", "samples", "frames",
+        FromKey, ToKey, JavaPeriodKey, NativePeriodKey, LuaPeriodKey, CollectorPausesKey, CollectorRunsKey, "durationMicros", "samples", "frames",
         "luaSamples", "endedBy",
     };
 
@@ -108,6 +110,7 @@ public static class ProfileTrim
                 Information(NativePeriodKey, recording.NativePeriod);
                 if (recording.LuaPeriod > 0) Information(LuaPeriodKey, recording.LuaPeriod);
                 if (recording.HasCollectorPauses) Information(CollectorPausesKey, 1);
+                if (recording.HasCollectorRuns) Information(CollectorRunsKey, 1);
                 Information("durationMicros", end - start);
                 Information("samples", samples);
                 Information("frames", frames);
