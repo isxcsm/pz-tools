@@ -12,7 +12,35 @@ public sealed partial class RepositoryDatabase
     {
         EnsureLease(lease);
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        var completedUtc = DateTimeOffset.UtcNow.ToString("O");
+        await using (var workflows = connection.CreateCommand())
+        {
+            // A worker that owns its workflow closes it together with its stage, so an interrupted
+            // stage leaves that workflow Running for good. A Running workflow blocks VACUUM and the
+            // source's orphan cleanup, so close it here as well. Workflows owned by someone else
+            // (the scheduler, a maintenance lane) are left to their owner, and a reserved workflow
+            // whose worker has not started yet has no Running stage, so neither is touched.
+            workflows.Transaction = transaction;
+            workflows.CommandText =
+                """
+                UPDATE workflow_runs
+                SET status = 'Abandoned', completed_utc = $completedUtc,
+                    failure_code = 'process-interrupted'
+                WHERE status = 'Running'
+                  AND owner_component IN ('backup-worker', 'maintenance-worker')
+                  AND EXISTS (
+                      SELECT 1 FROM workflow_stages AS stage
+                      WHERE stage.run_index = workflow_runs.run_index
+                        AND stage.producer = workflow_runs.owner_component
+                        AND stage.status = 'Running');
+                """;
+            workflows.Parameters.AddWithValue("$completedUtc", completedUtc);
+            await workflows.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText =
             """
             UPDATE workflow_stages
@@ -20,8 +48,10 @@ public sealed partial class RepositoryDatabase
                 failure_code = 'process-interrupted'
             WHERE producer IN ('backup-worker', 'maintenance-worker') AND status = 'Running';
             """;
-        command.Parameters.AddWithValue("$completedUtc", DateTimeOffset.UtcNow.ToString("O"));
-        return await command.ExecuteNonQueryAsync(cancellationToken);
+        command.Parameters.AddWithValue("$completedUtc", completedUtc);
+        var abandoned = await command.ExecuteNonQueryAsync(cancellationToken);
+        transaction.Commit();
+        return abandoned;
     }
 
     public async Task<IReadOnlyList<RepositoryRun>> ReadRunsAsync(
