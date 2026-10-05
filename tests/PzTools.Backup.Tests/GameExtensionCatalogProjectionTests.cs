@@ -99,6 +99,29 @@ public sealed class GameExtensionCatalogProjectionTests
         AssertUnchanged(views, versionChanged.ViewRevision);
     }
 
+    [Fact]
+    public async Task BeforeThePageOpens_RuntimeStatesAreLoggedForTheDeployedCatalogueModules()
+    {
+        using var temp = new TempDirectory();
+        var catalogue = temp.GetPath("catalog.tsv");
+        var fields = Fields();
+        fields[0] = "pztools.deployed-continuous"; fields[10] = ExtensionCapabilities.VehicleDrivetrain;
+        File.WriteAllText(catalogue, string.Join('\t', fields));
+        var asked = new List<string>();
+        var controller = new GameExtensionController(temp.GetPath("runtime"), new RevisionedViewStore(),
+            cataloguePath: catalogue, extensionStatus: id => { asked.Add(id); return null; },
+            diagnostics: new ExtensionRuntimeDiagnostics(temp.GetPath("runtime")));
+        await controller.RefreshRuntimeAsync(default);
+        // The module the game runs from the deployed catalogue, not the list built into this app.
+        Assert.Equal(["pztools.deployed-continuous"], asked);
+        // A replaced catalogue is read again; an unchanged one is not.
+        fields[0] = "pztools.replaced-continuous";
+        File.WriteAllText(catalogue, string.Join('\t', fields) + "\n");
+        asked.Clear();
+        await controller.RefreshRuntimeAsync(default);
+        Assert.Equal(["pztools.replaced-continuous"], asked);
+    }
+
     private static string[] Fields() => ["pztools.test-save", "0.2.0", "pztools.extensions.test",
         "pztools.extensions.test.Provider", "test.jar", "Minor", "42.20", "42.21",
         "Extension.Test.Title", "Extension.Test.Description", ExtensionCapabilities.SavePreparation];

@@ -26,6 +26,20 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
     // while the settings file, the catalogue and the game version are as they were, the cards are too.
     private (DateTime, long, DateTime, long, string?)? cardInputs;
     private readonly SemaphoreSlim gate = new(1, 1);
+    // The deployed catalogue as last read, with the file's time and length then; reread only when they change.
+    private (DateTime Written, long Length, IReadOnlyList<ExtensionDefinition> Definitions)? catalogue;
+
+    /// <summary>The deployed catalogue (the one the cards and the game read), or the built-in one without a file.</summary>
+    private IReadOnlyList<ExtensionDefinition> Catalogue()
+    {
+        if (cataloguePath is null) return ExtensionCatalog.BuiltIn;
+        var file = new FileInfo(cataloguePath);
+        var stamp = (file.Exists ? file.LastWriteTimeUtc : default, file.Exists ? file.Length : -1);
+        if (catalogue is { } known && (known.Written, known.Length) == stamp) return known.Definitions;
+        var definitions = ExtensionCatalog.ReadFile(cataloguePath);
+        catalogue = (stamp.Item1, stamp.Item2, definitions);
+        return definitions;
+    }
 
     private (DateTime, long, DateTime, long, string?)? CardInputs()
     {
@@ -119,8 +133,9 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
         {
             if (cachedCards is null)
             {
-                // Runtime failures still belong in logs when this settings page was never opened.
-                foreach (var definition in ExtensionCatalog.BuiltIn)
+                // Runtime failures still belong in logs when this settings page was never opened. The modules are the
+                // deployed catalogue's, as the cards and the game read them, not the list this build was made with.
+                foreach (var definition in Catalogue())
                     if (definition.ActivationKind == ExtensionActivationKind.Continuous)
                         diagnostics?.Observe(definition.Id, extensionStatus?.Invoke(definition.Id));
                 return;
