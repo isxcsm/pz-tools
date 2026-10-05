@@ -129,7 +129,8 @@ whole file, and the request is turned off.
 
 The app's four switches override `torque_enabled`, `reverse_enabled`, `steering_enabled`
 and `area_light_enabled` in the file. The file is read only when a new settings revision
-is sent: after editing it, turn any switch off and on again, or load another world.
+is sent: after editing it, turn any switch off and on again, load another world, or restart
+PZ Tools (**Apply settings and restart**).
 
 An override file from an earlier build may still hold old reverse values (`22`, `0.85`,
 `0.75`) that hide today's defaults: `reverse_max_speed_kph = 0` (the vehicle's own limit),
