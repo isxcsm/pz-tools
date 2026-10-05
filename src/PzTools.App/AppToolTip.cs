@@ -29,7 +29,14 @@ public static class AppToolTip
             Presenters.GetValue(element, static element => new Presenter(element)).UpdateText((string?)args.NewValue);
     }
 
-    public static void CloseCurrent() => current?.Dismiss();
+    // The one waiting out its rest before showing, so closing everything also stops a tip about to appear.
+    private static Presenter? pending;
+
+    public static void CloseCurrent()
+    {
+        current?.Dismiss();
+        pending?.Dismiss();
+    }
 
     /// <summary>
     /// Whether the pointer is still over the element. Pointer enter and exit bubble from its children, so moving between
@@ -55,6 +62,8 @@ public static class AppToolTip
         private readonly FrameworkElement owner;
         private readonly ToolTip tooltip = new() { IsHitTestVisible = false };
         private bool hovered;
+        // Pressed: closed, as Windows' own tips close on a click, and not shown again until the pointer has left.
+        private bool pressed;
         private string? text;
         private Microsoft.UI.Dispatching.DispatcherQueueTimer? opening, closing;
 
@@ -64,6 +73,14 @@ public static class AppToolTip
             owner.PointerEntered += OnEntered;
             owner.PointerExited += OnExited;
             owner.PointerCanceled += (_, _) => Dismiss();
+            // A button handles its own press, so the press is heard even when handled. What it opens (a flyout, a menu)
+            // is not covered by its tip.
+            owner.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) =>
+            {
+                pressed = true;
+                opening?.Stop();
+                Hide();
+            }), true);
             owner.Unloaded += (_, _) => Dismiss();
             owner.GotFocus += (_, _) =>
             {
@@ -109,10 +126,16 @@ public static class AppToolTip
             // Already over it, coming from one of its children: the tip showing stays as it is.
             if (hovered) return;
             hovered = true;
+            pressed = false;
             // Back within the grace: still open, nothing to show again.
             if (tooltip.IsOpen) { current = this; return; }
             if (System.Diagnostics.Stopwatch.GetElapsedTime(lastClosed) < BetweenDelay || current is not null) { Show(); return; }
-            (opening ??= Timer(InitialDelay, () => { if (hovered) Show(); })).Start();
+            pending = this;
+            (opening ??= Timer(InitialDelay, () =>
+            {
+                if (pending == this) pending = null;
+                if (hovered) Show();
+            })).Start();
         }
 
         private void OnExited(object sender, PointerRoutedEventArgs args)
@@ -120,7 +143,8 @@ public static class AppToolTip
             // Onto one of its own children: still over it.
             if (StillOver(owner, args)) return;
             hovered = false;
-            opening?.Stop();
+            pressed = false;
+            StopOpening();
             if (current != this) return;
             (closing ??= Timer(CloseGrace, Closed)).Start();
         }
@@ -141,7 +165,7 @@ public static class AppToolTip
 
         private void Show()
         {
-            if (string.IsNullOrEmpty(text) || !owner.IsLoaded || owner.XamlRoot is null) return;
+            if (pressed || string.IsNullOrEmpty(text) || !owner.IsLoaded || owner.XamlRoot is null || UnderOpenPopup()) return;
             // Nested tooltip owners prefer the innermost hovered element.
             if (current is not null && current != this)
                 for (var parent = VisualTreeHelper.GetParent(current.owner); parent is not null; parent = VisualTreeHelper.GetParent(parent))
@@ -149,23 +173,52 @@ public static class AppToolTip
             if (current != this) current?.Hide();
             current = this;
             if (tooltip.IsOpen) return;
-            tooltip.XamlRoot = owner.XamlRoot;
-            tooltip.PlacementTarget = owner;
-            tooltip.IsOpen = true;
+            try
+            {
+                tooltip.XamlRoot = owner.XamlRoot;
+                tooltip.PlacementTarget = owner;
+                tooltip.IsOpen = true;
+            }
+            // An element leaving the tree as its tip opens: no tip, rather than the app.
+            catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException or ArgumentException)
+            {
+                current = null;
+            }
+        }
+
+        // A flyout or menu open over the page, the element not in it: a tip there would cover what was just opened.
+        private bool UnderOpenPopup()
+        {
+            foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(owner.XamlRoot))
+            {
+                if (popup.Child is null or ToolTip) continue;
+                var inside = false;
+                for (DependencyObject? parent = owner; parent is not null; parent = VisualTreeHelper.GetParent(parent))
+                    if (ReferenceEquals(parent, popup.Child) || ReferenceEquals(parent, popup)) { inside = true; break; }
+                if (!inside) return true;
+            }
+            return false;
+        }
+
+        private void StopOpening()
+        {
+            opening?.Stop();
+            if (pending == this) pending = null;
         }
 
         private void Hide()
         {
             closing?.Stop();
             if (tooltip.IsOpen) lastClosed = System.Diagnostics.Stopwatch.GetTimestamp();
-            tooltip.IsOpen = false;
+            try { tooltip.IsOpen = false; }
+            catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException or ArgumentException) { }
             if (current == this) current = null;
         }
 
         public void Dismiss()
         {
             hovered = false;
-            opening?.Stop();
+            StopOpening();
             Hide();
         }
     }

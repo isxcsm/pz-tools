@@ -821,6 +821,8 @@ public sealed partial class ProfilerPage : UserControl
         Add(Localizer.Get("ProfileScriptShowInFolder"), "", full is not null,
             () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { Arguments = $"/select,\"{full}\"" })?.Dispose());
         flyout.Content = panel;
+        // Opened from the keyboard too, where no press closed the link's tip: the menu is not opened under it.
+        AppToolTip.CloseCurrent();
         flyout.ShowAt(anchor);
     }
 
@@ -3403,7 +3405,10 @@ public sealed partial class ProfilerPage : UserControl
             // A script table's number headings stand over their numbers, which sit inset in their gauges.
             if (header && cells.Count >= 5 && index is SelfColumn or TotalColumn) cell.Padding = new Thickness(0, 0, 6, 0);
             if (!header && index == DeltaColumn && delta is { } change) cell.Foreground = DeltaBrush(change);
-            if (tip is { Length: > 0 } && (header || tip != text)) AppToolTip.SetTip(cell, tip);
+            var linked = !header && index == FileColumn && script is not null && text.Length > 0;
+            // A file's tip is its link's: the same tip on the text inside it too opened one, then the other, as the
+            // pointer crossed the text's edge within the link, the same words drawn again each time.
+            if (tip is { Length: > 0 } && (header || tip != text) && !linked) AppToolTip.SetTip(cell, tip);
             Grid.SetColumn(cell, index);
             // Gauges behind the numbers: a faint track the width of the column, so the number always sits in it, and a
             // fill in exact proportion (a fill never shorter than its number made a thousandth look like the whole).
@@ -3443,12 +3448,15 @@ public sealed partial class ProfilerPage : UserControl
                 row.Children.Add(track);
             }
             // A script's file reads as a link: pressed, it says where the file is on this PC and opens it.
-            if (!header && index == FileColumn && script is not null && text.Length > 0)
+            if (linked && script is not null)
             {
+                // The column's whole width and the row's height, its text where the column's others sit: the
+                // padding is taken back by the margin, out into the space between columns and the row's own padding.
                 var link = new HyperlinkButton
                 {
-                    Content = cell, Padding = new Thickness(0), MinHeight = 0, HorizontalAlignment = HorizontalAlignment.Left,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Content = cell, Padding = new Thickness(6, 3, 6, 3), Margin = new Thickness(-6, -3, -6, -3), MinHeight = 0,
+                    HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Center,
                 };
                 // In the table's own colour: the pointer's hover shows it is a button, and a column of links read loud.
                 foreach (var key in new[] { "HyperlinkButtonForeground", "HyperlinkButtonForegroundPointerOver", "HyperlinkButtonForegroundPressed" })
