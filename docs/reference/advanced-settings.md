@@ -164,7 +164,3 @@ backups and not the Logs page.
 | `enabled` | `true` | `false` stops recording. The work itself still runs, but failures are harder to investigate. |
 | `retain_runs` | 100 | Runs whose records are kept. 0 means no limit. |
 | `max_database_mib` | 64 | Approximate size limit of the records. 0 means no limit. The database file may stay larger on disk. |
-
-In `backup-worker`, a deleted `[telemetry]` key falls back to a different value than its
-template: `mode` becomes `raw`, `retain_runs` 1000 and `max_database_mib` 256. Keep these
-keys in that file.

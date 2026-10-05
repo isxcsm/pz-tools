@@ -60,17 +60,17 @@ The `[telemetry]` section of the `backup-worker` component chooses how much
 | `phase` | `Run` and `Phase` events |
 | `raw` | Everything |
 
-| Key | Generated template | Code default when the key is missing |
+| Key | Default | Range |
 | --- | --- | --- |
-| `enabled` | `true` | `true` |
-| `mode` | `phase` | `raw` |
-| `batch_size` | 256 (1–4096) | 256 |
-| `flush_interval_ms` | 250 (10–10000) | 250 |
-| `retain_runs` | 100 | 1000 |
-| `max_database_mib` | 64 | 256 |
+| `enabled` | `true` | |
+| `mode` | `phase` | `off`, `run`, `phase`, `raw` |
+| `batch_size` | 256 | 1–4096 |
+| `flush_interval_ms` | 250 | 10–10000 |
+| `retain_runs` | 100 | 0 or more; 0 means no limit |
+| `max_database_mib` | 64 | 0 or more; 0 means no limit |
 
 The template ([`config/defaults/backup-worker/default.toml`](../../config/defaults/backup-worker/default.toml)) is
-what the app writes, so the code defaults apply only to a file that leaves the keys out. Process telemetry reads
+what the app writes; a key left out of the file takes the same value as the template. Process telemetry reads
 `enabled` (true), `retain_runs` (100), `max_database_mib` (64), `progress_flush_interval_ms` (100) and
 `heartbeat_interval_ms` (5000) from each component's own `[telemetry]` section
 ([`TelemetryRuntimeOptions`](../../src/PzTools.Process.Contracts/ComponentOptions.cs)). The keys are listed in
