@@ -364,7 +364,7 @@ public sealed partial class LogsPage : UserControl
             var selected = displayedItems.FirstOrDefault(item => item.EntryId == selectedId);
             if (!ReferenceEquals(LogList.SelectedItem, selected)) LogList.SelectedItem = selected;
         }
-        if (animateNewRows && newRows.Count > 0) AnimateNewLogRows(newRows);
+        if (animateNewRows && newRows.Count > 0 && SystemMotion.Enabled) AnimateNewLogRows(newRows);
     }
 
     private void UpdateEmptyState()
@@ -523,7 +523,8 @@ public sealed partial class LogsPage : UserControl
         var text = new StringBuilder();
         text.AppendLine(DetailLogIndex.Text);
         text.AppendLine($"{LogMessageHeader.Text}: {DetailMessage.Text}");
-        text.AppendLine($"{LogLevelHeader.Text}: {item.LevelText}");
+        // The column's name, not its header: the header shows the level filter chosen ("Warning").
+        text.AppendLine($"{Localizer.Get("LogLevelHeader")}: {item.LevelText}");
         text.AppendLine($"{DetailTimeLabel.Text}: {DetailTime.Text}");
         text.AppendLine($"{DetailComponentLabel.Text}: {DetailComponent.Text}");
         if (item.RunIndex > 0)

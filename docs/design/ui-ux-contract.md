@@ -104,7 +104,7 @@ after it moves away.
 **Content.**
 
 - Title on the left in normal weight, percentage on the right while running. Below the bar, a step on the left and the
-  amount (*4.5 / 16.0 MB* or *3 / 12*) on the right, each one line, trimmed with an ellipsis, so the card keeps its
+  amount (*4.5 MB / 1.2 GB*, from megabytes up in the language's units, or *3 / 12*) on the right, each one line, trimmed with an ellipsis, so the card keeps its
   height. Only two steps are named, because they explain a wait: **Saving the game** before a backup, and a
   recording being converted after it stopped. While a total is unknown, the step line counts the files found so far.
   When progress cannot be read, the bar runs without numbers.
@@ -161,8 +161,7 @@ How an attention card behaves:
 To add one: put an `AttentionCard` in `InteractiveCards` at its priority, write an `Apply*` method that sets
 `Title`, `Message` and `ActionLabel` from the resources and its `Visibility`, then calls `UpdateInteractiveCards`.
 Call that method again from `ApplyLocalizedText` and call the card's `Localize()` there, so a language change
-redraws it. `InstallCard` and `GameMemoryCard` are not handled there yet: after a language change they keep the old
-language until their state changes. Add a preview key to [MainWindowShell.CardPreview.cs](../../src/PzTools.App/MainWindowShell.CardPreview.cs):
+redraws it. Add a preview key to [MainWindowShell.CardPreview.cs](../../src/PzTools.App/MainWindowShell.CardPreview.cs):
 developer builds list it under Settings > Advanced, and `PZTOOLS_PREVIEW_CARDS=blocked,update` (or `all`) shows cards
 from startup. Published builds compile none of the preview code.
 
@@ -269,7 +268,10 @@ save and no repository.
 | **Heal character** | Current save row; fresh and not being played; state and backup views loaded; not busy | **Cannot heal while playing.** … |
 
 Each click handler checks these conditions again, because the button state can lag, and again after its dialog
-closes, because the world may change while the dialog is open. The page sets its busy flag before it shows a
+closes, because the world may change while the dialog is open. After the confirmation of **Restore** or **Heal
+character**, a different selection ends the action without a word, and any other condition that changed (the game
+started, other work began) is reported on a card: the stop-playing message, or **Skipped: other work was running.**
+The deletions report any change on a card, the selection included. The page sets its busy flag before it shows a
 dialog: WinUI allows one `ContentDialog` at a time and throws on a second.
 
 A tooltip cannot be shown on a disabled button, so **Restore** and **Export ZIP** sit in transparent `Border` hosts
@@ -306,8 +308,8 @@ These locks are a convenience. Named mutexes in the workers and the CLI stop con
   [Performance page reference](../reference/performance-page.md) and [performance recording](profiler.md).
 - **Game extensions.** One expander per extension, expanded at first when it is the only one. Refreshes update the
   existing controls in place, so expansion, scroll and focus stay. A settings file that cannot be read or written is
-  reported in an `InfoBar` on this page, an exception to the card rule. (The Performance page's few-samples
-  `InfoBar` is not one: it describes the recording on screen.) See [game extensions](game-extensions.md).
+  reported on a card, **Extension settings unavailable**, like any other result. (The Performance page's few-samples
+  `InfoBar` is not a result: it describes the recording on screen.) See [game extensions](game-extensions.md).
 - **Logs.** Filters combine and apply after a short pause in typing (`LogFilterDebounceMs`), or at once on Enter or a
   calendar choice; opening the date picker applies nothing. Active filters show as chips with **Clear all**. Column
   widths are measured from the current language's level names and time formats (`LogColumns.Fit`). What the page
@@ -352,9 +354,9 @@ colour on a dark page. Instead:
   [SettingsPage.xaml](../../src/PzTools.App/SettingsPage.xaml) and [ProfilerPage.xaml](../../src/PzTools.App/ProfilerPage.xaml)
   do. After `ActualThemeChanged`, read them in a queued callback, when the probes have the new theme, and redraw
   whatever code drew with the old brushes.
-- Do not read a brush from `Application.Current.Resources` in code. Two places still do, for the secondary text
-  colour of the heal dialog's survival line (`CreateCharacterChoice`) and of [RemainsQuestion](../../src/PzTools.App/RemainsQuestion.cs),
-  and show Windows' colour when the app's theme differs.
+- Do not read a brush from `Application.Current.Resources` in code. A style from there is fine: the heal dialog's
+  secondary lines (`CreateCharacterChoice`, [RemainsQuestion](../../src/PzTools.App/RemainsQuestion.cs)) take
+  `SecondaryTextStyle`, whose brush the text resolves in its own theme.
 - The title bar's caption buttons get their foreground on `ActualThemeChanged`.
 
 ## Text and languages
@@ -368,8 +370,7 @@ colour on a dark page. Instead:
   view cursors so every row is formatted again. Text set in code must be set again there, and a property formatted when
   read must raise its change notification on a language change (see `SaveVersionUiItem.SetGameVersion`).
 - Format with `Localizer.Culture` and `Localizer.Format`: dates with `"G"` or `"g"`, numbers with `N0`/`N1`, sizes
-  with `Units`. The thread's culture can still be the one the app started with. The operation card's amount
-  (`ApplyProgress`) still writes `MB` itself instead of the language's unit.
+  with `Units`. The thread's culture can still be the one the app started with.
 - Assume nothing about length or script. Text wraps or trims instead of relying on a width; widths that must fit are
   measured in the current language. Whole sentences come from one resource with placeholders, never from joined
   fragments, because word order differs. Stored text that was written in another language (default backup names, log
@@ -406,7 +407,8 @@ colour on a dark page. Instead:
   named *name, Dead, survival time*.
 - Everything works from the keyboard: the cards' ✕ through Tab, tooltips on keyboard focus, Enter and Escape in the
   rename box.
-- Motion follows the Windows animation setting for page changes, the countdown blink, the support button and some
-  Performance page motion. The animated selection bars (`AnimatedListSelectionBar`, on the Save manager, Logs and
-  Performance lists and the Performance tabs) and the Save manager's row insertion and entrance animations do not
-  check it yet.
+- All motion the app adds follows the Windows animation setting: page changes, the countdown blink, the support
+  button, the Performance page's graphs and tables, the selection bars (`AnimatedListSelectionBar` on the Save manager,
+  Logs and Performance lists, `AnimatedSelectorBarIndicator` on the Performance tabs), the Save manager's row insertion
+  and backup-list entrance and exit, and new rows on the Logs page. With animations off they take their place at once
+  (`SystemMotion.Enabled`, read each time so a change applies without a restart).

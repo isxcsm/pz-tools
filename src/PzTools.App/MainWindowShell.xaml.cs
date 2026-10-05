@@ -208,8 +208,11 @@ public sealed partial class MainWindowShell : UserControl
         if (blockedComponents is not null) ApplyBlockedComponents(blockedComponents);
         if (gameLink is not null) ApplyGameLink(gameLink);
         NextBackupText.Text = Localizer.Get("NextBackupWaiting.Text");
-        foreach (var card in new[] { LoadFailureCard, ComponentBlockedCard, GameLinkCard }) card.Localize();
+        foreach (var card in new[] { InstallCard, LoadFailureCard, ComponentBlockedCard, GameLinkCard, GameMemoryCard })
+            card.Localize();
         UpdateLoadFailure();
+        // Their words are set when they show; OnLoaded shows them the first time.
+        if (IsLoaded) { ApplyInstallProblem(); ApplyGameMemory(); }
         SetIconContent(ImportButton, "\uE8B5", Localizer.Get("ImportArchive.Content"));
         SetIconContent(DeleteAllBackupsButton, "\uE74D", Localizer.Get("DeleteAllBackupsButton"));
         NoSavesText.Text = Localizer.Get("NoSaves.Text");
@@ -649,7 +652,9 @@ public sealed partial class MainWindowShell : UserControl
             || !StringComparer.OrdinalIgnoreCase.Equals(saveId, selectedSaveId)) return;
 
         var changedSave = !StringComparer.OrdinalIgnoreCase.Equals(displayedDetailSaveId, saveId);
-        if (changedSave && hasPresentedDetail && RevisionList.Visibility == Visibility.Visible)
+        // The old list fades out, and the new one's rows rise in, only with Windows' animation effects on.
+        var motion = SystemMotion.Enabled;
+        if (changedSave && motion && hasPresentedDetail && RevisionList.Visibility == Visibility.Visible)
         {
             await FadeOutRevisionListAsync();
             if (generation != detailApplyGeneration || viewRevision != selectedDetailRevision
@@ -681,7 +686,7 @@ public sealed partial class MainWindowShell : UserControl
             || RevisionItems.Where((item, index) => !ReferenceEquals(item, items[index])).Any()))
             revisionInsertionAnimator.Reset();
         ResetRevisionEntrance();
-        revisionEntranceInProgress = changedSave;
+        revisionEntranceInProgress = changedSave && motion;
         IncrementalListReconciler.Reconcile(RevisionItems, items);
         if (previous is null || !RevisionItems.Contains(previous))
             RevisionList.SelectedItem = items.FirstOrDefault(item => item.IsCurrent)
@@ -698,8 +703,11 @@ public sealed partial class MainWindowShell : UserControl
             ResetRevisionScroll();
             RevisionList.UpdateLayout();
             QueueRealizedRevisionThumbnails();
-            AnimateVisibleRevisionRows();
-            revisionEntranceTimer.Start();
+            if (revisionEntranceInProgress)
+            {
+                AnimateVisibleRevisionRows();
+                revisionEntranceTimer.Start();
+            }
         }
         // ListView can realize its containers on the next layout pass.
         DispatcherQueue.Enqueue(() =>
@@ -1243,8 +1251,8 @@ public sealed partial class MainWindowShell : UserControl
             else if (byteBased)
             {
                 phase = ProgressPhaseText(operation.Phase);
-                amount = string.Format(culture, "{0:N1} / {1:N1} MB",
-                    operation.CompletedBytes / 1048576.0, operation.TotalBytes!.Value / 1048576.0);
+                // In the language's own unit symbols, from megabytes up, as sizes are written everywhere else.
+                amount = $"{Units.Bytes(operation.CompletedBytes, "N1", smallest: 2)} / {Units.Bytes(operation.TotalBytes!.Value, "N1", smallest: 2)}";
                 percent = string.Format(culture, "{0:N0}%",
                     Math.Floor(Math.Clamp(100.0 * operation.CompletedBytes / operation.TotalBytes.Value, 0, 100)));
             }
@@ -1627,12 +1635,10 @@ public sealed partial class MainWindowShell : UserControl
 
     private bool HasConflictingOperation() => archiveInteraction || OtherOperationRunning();
 
-    // Work started elsewhere (a scheduled backup, another window's action), apart from this page's own lock.
-    private bool OtherOperationRunning() =>
-        projectorHealth?.IsFaulted("telemetry") != true
-        && App.Host?.Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
-            // A recording only watches the game; it holds no save and no repository.
-            .Any(operation => operation.Status == OperationStatus.Running && !operation.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
+    // Work started elsewhere (a scheduled backup, a hotkey's action), apart from this page's own lock. The same test
+    // a settings restart and the hotkeys use. While the telemetry projection is faulted it reads the last operations
+    // the app saw, which the cards still show as running: a fault must not unlock the buttons under work in progress.
+    private bool OtherOperationRunning() => App.Host?.HasRunningOperation() == true;
 
     private void ShowLoadingBackups(bool visible)
     {
@@ -2434,10 +2440,12 @@ public sealed partial class MainWindowShell : UserControl
             ? Localizer.Format("VersionSurvivalFormat", SaveVersionUiItem.FormatSurvivalHours(hours))
             : null;
         if (survival is not null)
+            // The style, not the brush: a brush taken from the application's resources is the Windows theme's,
+            // while the style's theme resource follows the theme the text is shown in (the app's own choice).
             content.Children.Add(new TextBlock
             {
-                Text = survival, FontSize = 12, TextWrapping = TextWrapping.Wrap,
-                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                Text = survival, FontSize = 12,
+                Style = (Style)Application.Current.Resources["SecondaryTextStyle"],
             });
         var choice = new RadioButton { Content = content };
         // Read aloud as one item; the skull alone says nothing to a screen reader.
@@ -2477,6 +2485,7 @@ public sealed partial class MainWindowShell : UserControl
             || RevisionList.SelectedItem is not SaveVersionUiItem { IsCurrent: false } revision
             || revision.SourceId is null
             || !StringComparer.OrdinalIgnoreCase.Equals(revision.SaveId, save.SaveId)
+            || save.Activity == ActivityState.Active || RestoreViewsFaulted()
             || App.Host?.Operations is null)
             return;
         var host = App.Host;
@@ -2495,9 +2504,13 @@ public sealed partial class MainWindowShell : UserControl
         try
         {
             if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
-            if (detailLoading || App.Host != host || OtherOperationRunning()
-                || !ReferenceEquals(SaveList.SelectedItem, save)
+            // As for healing: what the user confirmed is gone from view, nothing to say; anything else that changed
+            // while the question was open is a refusal, reported rather than doing nothing.
+            if (App.Host != host || !ReferenceEquals(SaveList.SelectedItem, save)
                 || !ReferenceEquals(RevisionList.SelectedItem, revision)) return;
+            if (detailLoading || OtherOperationRunning() || save.Activity == ActivityState.Active || RestoreViewsFaulted())
+                throw new InvalidOperationException(Localizer.Get(save.Activity == ActivityState.Active
+                    ? "StopPlayingToRestore" : "OperationBusy"));
             var result = await RunWithProgressAsync("restore", id => host.Operations!.RestoreAsync(
                 revision.SourceId.Value, revision.Revision, save.SourcePath, operationId: id));
             ShowOperationResult(result);
@@ -2512,6 +2525,11 @@ public sealed partial class MainWindowShell : UserControl
             UpdateOperationActions();
         }
     }
+
+    // A restore needs both views it is enabled from: whether the save is played, and the backup it restores.
+    private bool RestoreViewsFaulted() =>
+        projectorHealth?.IsFaulted("state") == true || projectorHealth?.IsFaulted("backup") == true;
+
     private async void ExportButton_Click(object sender, RoutedEventArgs e)
     {
         if (detailLoading || RevisionList.SelectedItem is not SaveVersionUiItem revision

@@ -38,7 +38,8 @@ as busy. The mutex names and the writer lock are described in [process architect
   page runs one action at a time (below).
 - Above the gates, the Save manager page refuses every action while any operation other than a performance recording
   is running, or while one of its own actions is in progress, from its dialog to its refresh
-  (`HasConflictingOperation`). While the telemetry projection is faulted, work running elsewhere is not seen. The gates and mutexes are what stop
+  (`HasConflictingOperation`). While the telemetry projection is faulted, the page goes by the last operations it
+  saw, so work it saw running keeps the actions locked, but work started after the fault is not seen. The gates and mutexes are what stop
   work started from the command line or a second process.
 - Busy outcomes: the worker returns `Busy` and records `run.busy` when a mutex or the writer lock is taken. The
   in-process deletions throw `operation-busy`, shown as **The game or other work is using the file. Try again in a
