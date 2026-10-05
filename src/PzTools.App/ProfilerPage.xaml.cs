@@ -3485,7 +3485,7 @@ public sealed partial class ProfilerPage : UserControl
     private void CopyMenu_Opening(object sender, object e)
     {
         CopyMenu.Items.Clear();
-        var whole = new MenuFlyoutItem { Text = Localizer.Get("ProfileReportWhole"), Icon = new FontIcon { Glyph = "" } };
+        var whole = new MenuFlyoutItem { Text = Localizer.Get("ProfileReportWhole"), Icon = new FontIcon { Glyph = "" } };
         AppToolTip.SetTip(whole, Localizer.Get("ProfileReportWholeTip"));
         whole.Click += (_, _) => CopyReport(null);
         CopyMenu.Items.Add(whole);
@@ -3497,11 +3497,12 @@ public sealed partial class ProfilerPage : UserControl
         };
         // The threads and the pauses are the whole report's already: no report of their own.
         if (focus is null || shownGroup is null) return;
-        var owner = new MenuFlyoutItem { Text = Localizer.Format("ProfileReportOwnerFormat", shownGroup.Name), Icon = new FontIcon { Glyph = "" } };
+        var owner = new MenuFlyoutItem { Text = Localizer.Format("ProfileReportOwnerFormat", shownGroup.Name), Icon = new FontIcon { Glyph = focus.Java ? "" : "" } };
         AppToolTip.SetTip(owner, Localizer.Get(focus.Java ? "ProfileReportAreaTip" : "ProfileReportOwnerTip"));
         owner.Click += (_, _) => CopyReport(focus);
         CopyMenu.Items.Add(owner);
     }
+
     // Worked out on a worker, as the page does when a row opens: a report's callers walk the range's samples.
     private async void CopyReport(ProfileReportFocus? focus)
     {
@@ -3510,7 +3511,8 @@ public sealed partial class ProfilerPage : UserControl
         var name = (RecordingList.SelectedItem as RecordingItem)?.Text;
         // Compared, with what the page compares with: the baseline analysed whole for the same kind of thread.
         var compared = baseline is { } other && baselineRange is { } otherRange ? new ProfileReportBaseline(other, otherRange, baselineName) : null;
-        CopyResultsButton.IsEnabled = false;
+        // Off, with a ring in the icon's place, until the report is on the clipboard: a long recording takes a moment.
+        SetCopying(true);
         try
         {
             var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name, compared, focus));
@@ -3523,7 +3525,15 @@ public sealed partial class ProfilerPage : UserControl
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
-        finally { CopyResultsButton.IsEnabled = true; }
+        finally { SetCopying(false); }
+    }
+
+    private void SetCopying(bool copying)
+    {
+        CopyResultsButton.IsEnabled = !copying;
+        CopyIcon.Visibility = copying ? Visibility.Collapsed : Visibility.Visible;
+        CopyProgress.Visibility = copying ? Visibility.Visible : Visibility.Collapsed;
+        CopyProgress.IsActive = copying;
     }
 
     /// <summary>Grows an element to its full size from <paramref name="from"/> (scale about its CenterPoint).</summary>
