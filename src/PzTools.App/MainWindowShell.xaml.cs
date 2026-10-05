@@ -1994,11 +1994,12 @@ public sealed partial class MainWindowShell : UserControl
                 DefaultButton = ContentDialogButton.Close,
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            if (detailLoading || App.Host != host
-                || !StringComparer.OrdinalIgnoreCase.Equals(revision.SaveId, selectedSaveId)
-                || !ReferenceEquals(RevisionList.SelectedItem, revision)
-                || projectorHealth?.IsFaulted("backup") == true)
-                throw new InvalidOperationException(Localizer.Get("HostNotReady"));
+            // As for restoring: what the user confirmed is gone from view, nothing to say; anything else that
+            // changed while the question was open is a refusal, reported rather than doing nothing.
+            if (App.Host != host || !StringComparer.OrdinalIgnoreCase.Equals(revision.SaveId, selectedSaveId)
+                || !ReferenceEquals(RevisionList.SelectedItem, revision)) return;
+            if (detailLoading || projectorHealth?.IsFaulted("backup") == true)
+                throw new InvalidOperationException(Localizer.Get("OperationBusy"));
             await host.Operations!.DeleteRevisionAsync(revision.SourceId.Value, revision.Revision);
             await RefreshAfterMutationAsync(host, Localizer.Get("DeleteRevisionTitle"),
                 Localizer.Get("RevisionDeleted"), collectState: false);
@@ -2029,12 +2030,13 @@ public sealed partial class MainWindowShell : UserControl
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             var currentSource = FindBackupSource(save.SaveId);
-            if (detailLoading || App.Host != host || SaveList.SelectedItem is not SaveListUiItem selected
+            // As for deleting one backup: a save no longer in view, or with no backups left, ends quietly.
+            if (App.Host != host || SaveList.SelectedItem is not SaveListUiItem selected
                 || !StringComparer.OrdinalIgnoreCase.Equals(selected.SaveId, save.SaveId)
                 || currentSource is null || currentSource.SourceId != source.SourceId
-                || currentSource.Revisions.Count == 0
-                || projectorHealth?.IsFaulted("backup") == true)
-                throw new InvalidOperationException(Localizer.Get("HostNotReady"));
+                || currentSource.Revisions.Count == 0) return;
+            if (detailLoading || projectorHealth?.IsFaulted("backup") == true)
+                throw new InvalidOperationException(Localizer.Get("OperationBusy"));
             await host.Operations!.DeleteAllRevisionsAsync(source.SourceId, save.SaveId);
             await RefreshAfterMutationAsync(host, Localizer.Get("DeleteAllBackupsTitle"),
                 Localizer.Get("AllBackupsDeleted"), collectState: false);

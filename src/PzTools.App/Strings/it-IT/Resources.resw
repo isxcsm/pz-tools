@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Annulla</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importa archivio</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Impossibile importare questo file. Verifica che sia stato esportato da PZ Tools.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Non importato: l’archivio non è sicuro.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Backup manuale</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Ripristinare il backup selezionato?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Sostituire i file attuali di «{0}» con il backup «{1}». I progressi successivi a quel backup andranno persi. Se il ripristino viene interrotto, riapri PZ Tools prima di caricare questo salvataggio nel gioco.</value></data>

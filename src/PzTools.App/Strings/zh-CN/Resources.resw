@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>取消</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>导入备份文件</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>无法导入此文件。请确认它是由 PZ Tools 导出的。</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>压缩包不安全，未导入。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手动备份</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>恢复所选备份？</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>将“{0}”的当前文件替换为备份“{1}”。该备份之后的游戏进度将丢失。如果恢复中断，请先重新打开 PZ Tools，再在游戏中加载此存档。</value></data>

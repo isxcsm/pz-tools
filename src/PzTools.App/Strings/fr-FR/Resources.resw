@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Annuler</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importer une archive</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Impossible d’importer ce fichier. Vérifiez qu’il a été exporté par PZ Tools.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Non importé : l’archive n’est pas sûre.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Sauvegarde manuelle</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restaurer la sauvegarde sélectionnée ?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Remplacer les fichiers actuels de « {0} » par la sauvegarde « {1} ». La progression depuis cette sauvegarde sera perdue. Si la restauration est interrompue, rouvrez PZ Tools avant de charger cette partie dans le jeu.</value></data>

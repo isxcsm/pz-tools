@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Zrušit</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importovat archiv</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Tento soubor nelze importovat. Ověřte, že ho exportoval PZ Tools.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Neimportováno: archiv není bezpečný.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ruční záloha</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Obnovit vybranou zálohu?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Nahradit aktuální soubory „{0}“ zálohou „{1}“. Postup od vytvoření této zálohy bude ztracen. Pokud se obnovení přeruší, znovu otevřete PZ Tools před načtením této uložené hry.</value></data>

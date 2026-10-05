@@ -1022,7 +1022,7 @@ public sealed class TelemetryProjectionHost(
 
     private static bool IsOutcomeCompletion(string name) =>
         name is "tick.completed" or "collector.completed" or "reactor.completed"
-            or "state-runner.completed" or "runner.completed" or "backup.completed"
+            or "state-runner.completed" or "runner.completed"
         || name.StartsWith("maintenance.", StringComparison.Ordinal)
             && name.EndsWith(".completed", StringComparison.Ordinal);
 

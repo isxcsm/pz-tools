@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Cancelar</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importar archivo comprimido</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>No se puede importar este archivo. Verifica que lo haya exportado PZ Tools.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>No importado: el archivo comprimido no es seguro.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Copia manual</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>¿Restaurar la copia seleccionada?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Reemplazar los archivos actuales de «{0}» por la copia «{1}». Se perderá el progreso posterior a esa copia. Si la restauración se interrumpe, vuelve a abrir PZ Tools antes de cargar esta partida en el juego.</value></data>

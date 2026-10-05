@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Batal</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Impor arsip</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Berkas ini tidak dapat diimpor. Pastikan berkas diekspor oleh PZ Tools.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Tidak diimpor: arsip ini tidak aman.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Cadangan manual</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Pulihkan cadangan yang dipilih?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Ganti berkas saat ini untuk “{0}” dengan cadangan “{1}”. Kemajuan setelah cadangan tersebut akan hilang. Jika pemulihan terhenti, buka kembali PZ Tools sebelum memuat simpanan ini di gim.</value></data>

@@ -13,6 +13,24 @@ namespace PzTools.Backup.Tests;
 [Collection("AppHost integration")]
 public sealed class AppCoreTests
 {
+    // The backup worker's own process-telemetry database is no longer written; old copies are removed, nothing else.
+    [Fact]
+    public void RetiredBackupWorkerTelemetry_IsRemoved_AndOnlyIt()
+    {
+        using var temp = new TempDirectory();
+        var directory = ComponentRuntimePaths.GetComponentDirectory(temp.Path, "backup-worker");
+        Directory.CreateDirectory(directory);
+        foreach (var name in new[] { "telemetry.db", "telemetry.db-wal", "keep.txt" })
+            File.WriteAllText(Path.Combine(directory, name), "x");
+        AppHost.RemoveRetiredBackupWorkerTelemetry(temp.Path);
+        Assert.Equal(["keep.txt"], Directory.EnumerateFiles(directory).Select(Path.GetFileName));
+        File.Delete(Path.Combine(directory, "keep.txt"));
+        File.WriteAllText(Path.Combine(directory, "telemetry.db"), "x");
+        AppHost.RemoveRetiredBackupWorkerTelemetry(temp.Path);
+        Assert.False(Directory.Exists(directory));
+        AppHost.RemoveRetiredBackupWorkerTelemetry(temp.Path); // Nothing there: nothing to do.
+    }
+
     [Fact]
     public void BackupDefaults_UseFiveMinutesAndTwentyRevisions()
     {

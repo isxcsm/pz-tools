@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>キャンセル</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>アーカイブをインポート</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>このファイルはインポートできません。PZ Tools でエクスポートしたファイルか確認してください。</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>安全でない圧縮ファイルのため、インポートしませんでした。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手動バックアップ</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>選択したバックアップを復元しますか？</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>「{0}」の現在のファイルをバックアップ「{1}」に置き換えます。そのバックアップ以降の進行状況は失われます。復元が中断した場合は、ゲームでこのセーブを読み込む前にPZ Toolsを起動し直してください。</value></data>

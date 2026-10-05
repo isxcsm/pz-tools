@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Import archive</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>This file cannot be imported. Check that PZ Tools exported it.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Not imported: the archive is unsafe.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manual backup</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restore the selected backup?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Replace the current files for ‘{0}’ with backup ‘{1}’. Progress made after that backup will be lost. If restoring is interrupted, reopen PZ Tools before loading this save in the game.</value></data>

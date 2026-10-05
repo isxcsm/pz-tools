@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>ยกเลิก</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>นำเข้าไฟล์สำรอง</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>นำเข้าไฟล์นี้ไม่ได้ ตรวจสอบว่าเป็นไฟล์ที่ส่งออกจาก PZ Tools</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>ไม่ได้นำเข้า เพราะไฟล์บีบอัดไม่ปลอดภัย</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>กู้คืนข้อมูลสำรองที่เลือกหรือไม่?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>แทนที่ไฟล์ปัจจุบันของ “{0}” ด้วยข้อมูลสำรอง “{1}” ความคืบหน้าหลังจากสำรองครั้งนั้นจะหายไป หากการกู้คืนถูกขัดจังหวะ ให้เปิด PZ Tools อีกครั้งก่อนโหลดเซฟนี้ในเกม</value></data>

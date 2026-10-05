@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Abbrechen</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Archiv importieren</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Diese Datei kann nicht importiert werden. Prüfen Sie, ob sie aus PZ Tools exportiert wurde.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Nicht importiert: Das Archiv ist unsicher.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuelle Sicherung</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Ausgewählte Sicherung wiederherstellen?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Die aktuellen Dateien von „{0}“ durch die Sicherung „{1}“ ersetzen. Fortschritte seit dieser Sicherung gehen verloren. Falls die Wiederherstellung unterbrochen wird, öffnen Sie PZ Tools erneut, bevor Sie diesen Spielstand im Spiel laden.</value></data>

@@ -241,6 +241,7 @@ public sealed class AppHost : IAsyncDisposable
         var schedulerProjector = new SchedulerProjector(scheduler, Views, repository, requireActiveState: true, runtimeSnapshot: runtimeSnapshot);
         var composer = new SaveDetailComposer(Views);
         RegisterTelemetrySources(settings, state, scheduler, repository);
+        RemoveRetiredBackupWorkerTelemetry(settings.BackupRoot);
         var projectionInterval = TimeSpan.FromMilliseconds(runtime.ProjectionIntervalMs);
         Projections.AddLoop("state", stateProjector.ProjectOnceAsync, projectionInterval);
         Projections.AddLoop("backup", backupProjector.ProjectOnceAsync, projectionInterval);
@@ -696,6 +697,25 @@ public sealed class AppHost : IAsyncDisposable
     public bool HasRunningOperation() =>
         Operations?.IsDeletionRunning == true || Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
             .Any(item => item.Status == OperationStatus.Running && !item.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
+
+    // The backup worker used to write a process-telemetry database of its own beside the backup folder's, which
+    // nothing read; it no longer does. Only those files go, and the folder only when nothing else is in it.
+    internal static void RemoveRetiredBackupWorkerTelemetry(string backupRoot)
+    {
+        var directory = ComponentRuntimePaths.GetComponentDirectory(backupRoot, "backup-worker");
+        try
+        {
+            if (!Directory.Exists(directory) || (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) return;
+            var database = Path.Combine(directory, "telemetry.db");
+            foreach (var file in new[] { database, database + "-wal", database + "-shm", database + "-journal" })
+                if (File.Exists(file)) File.Delete(file);
+            if (!Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Open elsewhere or not ours to delete: harmless, and tried again at the next start.
+        }
+    }
 
     private void RegisterTelemetrySources(
         AppSettings settings,

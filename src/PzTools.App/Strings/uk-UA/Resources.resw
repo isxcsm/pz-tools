@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Скасувати</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Імпорт архіву</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Цей файл не можна імпортувати. Переконайтеся, що його експортував PZ Tools.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Не імпортовано: архів небезпечний.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ручна копія</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Відновити вибрану копію?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Замінити поточні файли «{0}» резервною копією «{1}». Прогрес після створення цієї копії буде втрачено. Якщо відновлення перерветься, знову відкрийте PZ Tools, перш ніж завантажувати це збереження в грі.</value></data>

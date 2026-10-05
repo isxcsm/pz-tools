@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>İptal</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Arşiv içe aktar</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Bu dosya içe aktarılamıyor. PZ Tools ile dışa aktarıldığını kontrol edin.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>İçe aktarılmadı: arşiv güvenli değil.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuel yedek</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Seçili yedek geri yüklensin mi?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>“{0}” kaydının geçerli dosyalarını “{1}” yedeğiyle değiştirir. Bu yedekten sonraki ilerleme kaybolur. Geri yükleme kesilirse bu kaydı oyunda açmadan önce PZ Tools'u yeniden açın.</value></data>
