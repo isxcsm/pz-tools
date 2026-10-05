@@ -121,6 +121,8 @@ public sealed class AppUiBehaviourSourceTests
         Assert.Contains("Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping", page);
         Assert.Contains("JsonSerializer.Serialize(document.RootElement, ReadablePayload)", Method(page, "private static string FormatPayload("));
         Assert.Contains("}), ReadablePayload);", Method(page, "private static string FormatRelatedPayloads("));
+        // A failure from a card is filed under the card's title, not "other work".
+        Assert.Contains("model.EventName == \"app.action.failed\" && PayloadText(\"title\")", page[page.IndexOf("public string Component =>", StringComparison.Ordinal)..]);
         // Every card made from a failure keeps that failure in the log's details.
         foreach (var file in AppSources())
             Assert.DoesNotMatch(@"ShowSidebarNotification\((?:(?!;)[\s\S])*?UserFacingError\.\w+\(\w+\)\);", File.ReadAllText(file));

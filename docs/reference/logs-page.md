@@ -149,7 +149,7 @@ Collapsed until you open it.
 | Field | Shows |
 | --- | --- |
 | **Time** | The full local time |
-| **Activity** | The kind of work, such as **Backup** or **Archive import** |
+| **Activity** | The kind of work, such as **Backup** or **Archive import**. For a warning or error from a card, the card's title, such as **Settings files** |
 | **Operation number** | The operation number, `0` when there is none |
 | **Event code** | The internal event name, such as `run.failed` |
 | **Record source** | Which component's record the entry came from |

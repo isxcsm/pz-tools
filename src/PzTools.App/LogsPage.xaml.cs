@@ -836,7 +836,10 @@ public sealed class LogEntryUiItem
     });
     public string Component => activity.Kind is LogActivityKind.ArchiveExport
         or LogActivityKind.ArchiveImport or LogActivityKind.ArchiveInspect or LogActivityKind.CharacterRecovery or LogActivityKind.Profile
-        ? ActivityName : Localizer.Get($"LogComponent.{ComponentCategory(model.Component)}");
+        ? ActivityName
+        // A failure from a card belongs to what the card was titled after (Settings files, Hotkeys), not "other work".
+        : model.EventName == "app.action.failed" && PayloadText("title") is { Length: > 0 } title ? Localizer.Translate(title)
+        : Localizer.Get($"LogComponent.{ComponentCategory(model.Component)}");
     public static string ComponentCategory(string component) => component switch
     {
         "backup-worker" or "backup-runner" => "Backup",
