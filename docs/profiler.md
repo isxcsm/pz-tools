@@ -434,7 +434,7 @@ heading says what its column means when the pointer rests on it.
   can be dragged on either. Until the player opens or shuts it, it opens by itself for a
   recording that ran short of memory (the line says so) and stays shut for the others;
   after that it stays as chosen while the app runs. Closed, it takes no room. The button
-  has a filled background, like the manual backup button, so it reads as one.
+  is in the accent colour, as the memory setting's link on the same line, so it reads as one.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
   the whole recording is analysed, in the background; choosing another range stops the
   analysis of the previous one.
@@ -551,7 +551,8 @@ nearly full) says so above the memory graphs, with a link to the game's memory s
 recording measured it: how much longer frames were while the collector was at work than
 while it was not (*frames 17% slower while GC ran*), from 5% and with at least 20 frames of
 each. On the frame graph, a light orange background marks the collector's runs, behind the
-bars, so its frames read against those beside it; it goes away with the collections' marks.
+bars, so its frames read against those beside it; a legend above the graph (*GC running*)
+names it and, pressed, puts it away with the collections' marks, as their figure does.
 
 A recording during which other programs kept the machine busy (on average 35% or more of
 all its processors, beside what the game used) says so on the same line (*Other programs

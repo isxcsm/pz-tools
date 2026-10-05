@@ -720,6 +720,10 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Code du jeu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attente</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Temps des scripts du mod choisi (fonctions Java appelées comprises)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Temps des autres scripts, sans le mod choisi</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC en cours</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Périodes où le ramasse-miettes tournait à côté du jeu. Des images plus longues ici signalent un manque de mémoire. Cliquez pour masquer.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Ce fichier n&apos;est pas sur ce PC. L&apos;enregistrement vient peut-être d&apos;un autre PC, ou le mod a été supprimé ou déplacé.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Modifié depuis l&apos;enregistrement : les numéros de ligne peuvent différer</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Ouvrir</value></data>
@@ -732,12 +736,10 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>images {0:P0} plus lentes pendant le GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>D&apos;autres programmes utilisaient en moyenne {0:P0} du processeur</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Pendant l&apos;enregistrement, d&apos;autres programmes que le jeu utilisaient cette part du processeur du PC. Un processeur occupé ralentit le jeu quels que soient ses mods, et l&apos;enregistrement paraît plus lent que d&apos;habitude. Pour une comparaison juste, fermez-les et enregistrez de nouveau.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Temps d&apos;exécution des scripts Lua des mods et du jeu, y compris les fonctions Java qu&apos;ils ont appelées.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Temps d&apos;exécution du code propre au jeu (Java) sur le fil du jeu.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Temps pendant lequel le fil du jeu s&apos;est arrêté pour le ramasse-miettes (GC) ou en attendant de la mémoire. Affiché seulement à partir de 0,5 % de la plage.
-ZGC, le réglage par défaut du jeu, n&apos;arrête presque pas le jeu même quand la mémoire manque ; il le ralentit plutôt pendant qu&apos;il travaille. Voyez-le sur le fond orange du graphique (pendant le GC) et dans l&apos;avertissement de la ligne mémoire.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Temps pendant lequel le fil du jeu a attendu au lieu de travailler : surtout la marge avant l&apos;image suivante ; lors d&apos;un à-coup, l&apos;attente d&apos;un fichier ou d&apos;un autre fil.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Survolez-le pour voir cette part de chaque image sur le graphique.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Temps des scripts Lua des mods et du jeu (fonctions Java appelées comprises)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Temps du code propre au jeu (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Temps où le fil du jeu s&apos;est arrêté pour le GC ou la mémoire. Presque nul avec ZGC ; pour un manque de mémoire, voyez le fond orange du graphique.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Temps où le fil du jeu s&apos;est reposé, surtout la marge avant l&apos;image suivante.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Autres scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Une option de lancement du jeu bloque la connexion.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Connexion impossible : une option de lancement du jeu la bloque. Vérifiez les options de lancement du jeu.</value></data>

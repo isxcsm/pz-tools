@@ -727,6 +727,10 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>สคริปต์</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>รอ</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>เวลาที่สคริปต์ของม็อดที่เลือกทำงาน (รวมฟังก์ชัน Java ที่เรียก)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์อื่นทำงาน ไม่รวมม็อดที่เลือก</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC กำลังทำงาน</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>ช่วงที่ตัวเก็บกวาดหน่วยความจำ (GC) ทำงานคู่กับเกม ถ้าเฟรมในช่วงนี้ยาวกว่า แปลว่าหน่วยความจำไม่พอ คลิกเพื่อซ่อน</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>ไม่มีไฟล์นี้ในพีซีเครื่องนี้ อาจบันทึกจากพีซีเครื่องอื่น หรือม็อดถูกลบหรือย้ายไปแล้ว</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>ไฟล์เปลี่ยนหลังการบันทึก หมายเลขบรรทัดอาจไม่ตรง</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>เปิด</value></data>
@@ -739,12 +743,10 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>เฟรมช้าลง {0:P0} ขณะ GC ทำงาน</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>โปรแกรมอื่นใช้ CPU เฉลี่ย {0:P0}</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>ระหว่างบันทึก โปรแกรมอื่นนอกจากเกมใช้ CPU ของพีซีมากเท่านี้ CPU ที่ยุ่งทำให้เกมช้าลงไม่ว่าจะมีม็อดอะไร และผลบันทึกจะช้ากว่าปกติ หากต้องการเปรียบเทียบอย่างยุติธรรม ให้ปิดโปรแกรมนั้นแล้วบันทึกใหม่</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์ Lua ของม็อดและของเกมทำงาน รวมถึงฟังก์ชัน Java ที่สคริปต์เรียก</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>เวลาที่โค้ดของเกมเอง (Java) ทำงานบนเธรดเกม</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>เวลาที่เธรดเกมหยุดเพื่อเก็บกวาดหน่วยความจำ (GC) หรือรอหน่วยความจำ แสดงเฉพาะเมื่อมีตั้งแต่ 0.5% ของช่วง
-ZGC ซึ่งเป็นค่าเริ่มต้นของเกมแทบไม่หยุดเกมแม้หน่วยความจำไม่พอ แต่จะทำให้เกมช้าลงระหว่างเก็บกวาดแทน ดูได้จากพื้นหลังสีส้มในกราฟ (ขณะ GC ทำงาน) และคำเตือนในแถวหน่วยความจำ</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>เวลาที่เธรดเกมรอแทนที่จะทำงาน ส่วนใหญ่คือเวลาว่างก่อนเฟรมถัดไป ในช่วงที่กระตุกคือการรอไฟล์หรือเธรดอื่น</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>วางเมาส์ไว้เพื่อแสดงส่วนนี้ของแต่ละเฟรมบนกราฟ</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์ Lua ของม็อดและเกมทำงาน (รวมฟังก์ชัน Java ที่เรียก)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>เวลาที่โค้ดของเกมเอง (Java) ทำงาน</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>เวลาที่เธรดเกมหยุดเพราะ GC หรือหน่วยความจำ แทบเป็นศูนย์กับ ZGC ดูผลของหน่วยความจำไม่พอได้จากพื้นหลังสีส้มในกราฟ</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>เวลาที่เธรดเกมพัก ส่วนใหญ่คือเวลาว่างก่อนเฟรมถัดไป</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>สคริปต์อื่น</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ตัวเลือกการเปิดเกมกำลังบล็อกการเชื่อมต่อ</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>เชื่อมต่อไม่ได้เพราะตัวเลือกการเปิดเกมบล็อกไว้ กรุณาตรวจสอบตัวเลือกการเปิดเกม</value></data>

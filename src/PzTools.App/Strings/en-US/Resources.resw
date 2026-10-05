@@ -719,6 +719,10 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Time the chosen mod&apos;s scripts ran (Java functions they called included)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Time the other scripts ran, the chosen mod&apos;s left out</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC running</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Where the garbage collector ran beside the game. Longer frames here mean memory is running short. Press to hide.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>This file is not on this PC. The recording may come from another PC, or the mod was removed or moved.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Changed since the recording: its line numbers may differ</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Open</value></data>
@@ -731,12 +735,10 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>frames {0:P0} slower while GC ran</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Other programs used {0:P0} of the CPU on average</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>While it recorded, programs other than the game used this much of the PC&apos;s CPU. A busy CPU slows the game whatever its mods, and the recording reads slower than usual. For a fair comparison, close them and record again.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Time mods&apos; and the game&apos;s Lua scripts ran, including the Java functions they called.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Time the game&apos;s own code (Java) ran on the game thread.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Time the game thread stopped for garbage collection or waiting for memory. Shown only from 0.5% of the range.
-ZGC, the game&apos;s default, hardly stops the game even when memory runs short; it slows it while it collects instead. See that on the graph&apos;s orange background (while GC ran) and in the warning on the memory line.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Time the game thread waited instead of working: mostly the time left before the next frame; in a stutter, waiting for a file or another thread.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Point at it to show this part of each frame on the graph.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Time Lua scripts of mods and the game ran (Java functions they called included)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Time the game&apos;s own code (Java) ran</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Time the game thread stopped for GC or memory. Near zero with ZGC; for running short of memory, see the graph&apos;s orange background.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Time the game thread rested, mostly the time left before the next frame.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Other scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>A game launch option is blocking the connection.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Could not connect because a game launch option blocks it. Check the game&apos;s launch options.</value></data>

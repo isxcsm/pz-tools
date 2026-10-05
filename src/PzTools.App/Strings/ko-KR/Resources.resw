@@ -719,6 +719,10 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>스크립트</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>대기</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>선택한 모드의 스크립트 실행 시간 (호출한 Java 함수 포함)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>선택한 모드를 뺀 나머지 스크립트 실행 시간</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC 작동 중</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>메모리 정리(GC)가 게임과 동시에 돌던 구간입니다. 이 구간의 프레임이 더 길면 메모리 부족 탓입니다. 누르면 숨깁니다.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>이 PC에 이 파일이 없습니다. 다른 PC에서 녹화했거나 모드가 삭제·이동됐을 수 있습니다.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>녹화 이후 바뀐 파일이라 줄 번호가 다를 수 있습니다</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>열기</value></data>
@@ -731,12 +735,10 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC가 도는 동안 프레임 평균 {0:P0} 느림</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>다른 프로그램이 CPU를 평균 {0:P0} 사용 중이었음</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>녹화하는 동안 게임 밖의 프로그램이 PC의 CPU를 이만큼 쓰고 있었습니다. CPU가 바쁘면 모드와 상관없이 게임이 느려지고, 녹화 결과도 평소보다 느리게 나옵니다. 정확한 비교가 필요하면 그 프로그램을 끄고 다시 녹화하세요.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>모드와 게임의 Lua 스크립트가 실행된 시간입니다. 스크립트가 호출한 Java 함수의 시간도 포함됩니다.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>게임 자체 코드(Java)가 게임 스레드에서 실행된 시간입니다.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>게임 스레드가 메모리 정리(GC)나 메모리 대기 때문에 멈춘 시간입니다. 구간의 0.5% 이상일 때만 표시됩니다.
-게임 기본값인 ZGC는 메모리가 부족해도 게임을 거의 멈추지 않고, 대신 정리하는 동안 게임을 느리게 만듭니다. 그 영향은 그래프의 주황 배경(GC가 돌던 구간)과 메모리 줄의 경고에서 확인하세요.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>게임 스레드가 일하지 않고 기다린 시간입니다. 대부분 다음 프레임까지 남은 여유이고, 끊긴 구간에서는 파일이나 다른 스레드를 기다린 시간입니다.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>마우스를 올려 두면 그래프의 프레임마다 이 몫을 표시합니다.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>모드와 게임의 Lua 스크립트 실행 시간 (호출한 Java 함수 포함)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>게임 자체 코드(Java) 실행 시간</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>GC·메모리 대기로 게임 스레드가 멈춘 시간. ZGC에서는 거의 0이며, 메모리 부족 영향은 그래프의 주황 배경을 보세요.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>게임 스레드가 쉰 시간. 대부분 다음 프레임까지의 여유입니다.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>다른 스크립트</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>게임 실행 옵션이 연결을 막고 있습니다.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>게임 실행 옵션이 연결을 막고 있어 연결하지 못했습니다. 실행 옵션을 확인해 주세요.</value></data>

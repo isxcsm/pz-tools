@@ -202,6 +202,7 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Button x:Name="SelectionChip" Visibility="Collapsed" Padding="10,3,8,4" MinHeight="0" CornerRadius="12"
                     VerticalAlignment="Center" Click="SelectionChip_Click" AutomationProperties.AutomationId="ProfileSelectionChip"
@@ -214,6 +215,15 @@
               </StackPanel>
             </Button>
             <TextBlock x:Name="ChartInfo" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+            <!-- What the graph's orange background is: the collector at work. Pressed, it puts that away with the
+                 collections' marks, as their figure under the graph does. -->
+            <StackPanel x:Name="CollectorLegend" Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                        Visibility="Collapsed" Background="Transparent" Tapped="CollectorLegend_Tapped">
+              <Rectangle Width="12" Height="10" RadiusX="2" RadiusY="2" VerticalAlignment="Center"
+                         Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="0.35" />
+              <TextBlock x:Name="CollectorLegendText" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
           </Grid>
           <!-- Whose samples the results count, the game's thread or all of them: a choice for the whole analysis,
                both tabs, so it stands with the range the analysis is of. -->
@@ -270,19 +280,14 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <!-- Filled like the manual backup button: a bare chevron and word read as a label, and the graphs went unfound. -->
-          <Button x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="8,3"
-                  Style="{StaticResource ManualBackupButtonStyle}">
-            <Button.Resources>
-              <SolidColorBrush x:Key="SubtleButtonBackgroundPointerOver" Color="{ThemeResource TextFillColorPrimary}" Opacity="0.12" />
-              <SolidColorBrush x:Key="SubtleButtonBackgroundPressed" Color="{ThemeResource TextFillColorPrimary}" Opacity="0.16" />
-              <SolidColorBrush x:Key="SubtleButtonBackgroundDisabled" Color="{ThemeResource TextFillColorPrimary}" Opacity="0.05" />
-            </Button.Resources>
+<!-- In the accent colour, as the memory setting's link on the same line: a bare chevron and word read as a label,
+               and a filled block stood out more than the figures it opens onto. -->
+          <HyperlinkButton x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="6,2" MinHeight="0">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" />
               <TextBlock x:Name="MemoryToggleText" />
             </StackPanel>
-          </Button>
+          </HyperlinkButton>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
             <TextBlock x:Name="HeapValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
             <TextBlock x:Name="VideoValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -361,7 +366,7 @@
               <ColumnDefinition x:Name="SpareColumn" Width="*" />
             </Grid.ColumnDefinitions>
             <!-- The chosen mod's part of the scripts, solid; the other scripts beside it, lighter. -->
-            <Rectangle Tag="Scripts" Fill="{ThemeResource AccentFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle Tag="Selected" Fill="{ThemeResource AccentFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
             <Rectangle x:Name="OtherScriptsBar" Grid.Column="1" Tag="Scripts" Fill="{ThemeResource AccentFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
             <Rectangle Grid.Column="2" Tag="GameCode" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
             <Rectangle Grid.Column="3" Tag="Collections" Fill="{ThemeResource SystemFillColorCautionBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
@@ -370,7 +375,8 @@
           <!-- Up to six items, a mod's name among them: in a narrow window they go on to a second line. -->
           <local:WrapPanel Grid.Row="1" HorizontalSpacing="16" VerticalSpacing="4">
             <TextBlock x:Name="TimeBreakdownTitle" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <StackPanel x:Name="SelectedLegend" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+            <StackPanel x:Name="SelectedLegend" Tag="Selected" Orientation="Horizontal" Spacing="6" Visibility="Collapsed" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
               <TextBlock x:Name="SelectedLabel" FontSize="12" MaxWidth="240" TextTrimming="CharacterEllipsis"
                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

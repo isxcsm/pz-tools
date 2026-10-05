@@ -720,6 +720,10 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripte</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Spielcode</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Warten</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Laufzeit der Skripte der gewählten Mod (samt aufgerufener Java-Funktionen)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Laufzeit der übrigen Skripte ohne die gewählte Mod</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC läuft</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Wo die Speicherbereinigung neben dem Spiel lief. Längere Frames hier bedeuten knappen Speicher. Zum Ausblenden klicken.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Diese Datei ist nicht auf diesem PC. Die Aufnahme stammt vielleicht von einem anderen PC, oder die Mod wurde entfernt oder verschoben.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Seit der Aufnahme geändert: die Zeilennummern können abweichen</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Öffnen</value></data>
@@ -732,12 +736,10 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>Frames {0:P0} langsamer, während GC lief</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Andere Programme nutzten im Schnitt {0:P0} der CPU</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Während der Aufnahme nutzten andere Programme als das Spiel so viel der CPU. Eine ausgelastete CPU bremst das Spiel unabhängig von den Mods, und die Aufnahme fällt langsamer aus als sonst. Für einen fairen Vergleich schließen Sie sie und nehmen erneut auf.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Zeit, in der Lua-Skripte von Mods und Spiel liefen, samt der Java-Funktionen, die sie aufriefen.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Zeit, in der der eigene Code des Spiels (Java) im Spiel-Thread lief.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread für die Speicherbereinigung (GC) oder das Warten auf Speicher anhielt. Erst ab 0,5 % des Abschnitts angezeigt.
-ZGC, die Voreinstellung des Spiels, hält das Spiel auch bei knappem Speicher kaum an, sondern bremst es während der Bereinigung. Das zeigen der orange Hintergrund im Diagramm (während GC lief) und die Warnung in der Speicherzeile.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread wartete statt zu arbeiten: meist die Zeit bis zum nächsten Frame; bei einem Ruckler das Warten auf eine Datei oder einen anderen Thread.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Zeigen Sie darauf, um diesen Teil jedes Frames im Diagramm zu sehen.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Laufzeit der Lua-Skripte von Mods und Spiel (samt aufgerufener Java-Funktionen)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Laufzeit des eigenen Spielcodes (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread für GC oder Speicher anhielt. Mit ZGC fast null; knappen Speicher zeigt der orange Hintergrund im Diagramm.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread ruhte, meist die Zeit bis zum nächsten Frame.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Andere Skripte</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Eine Startoption des Spiels blockiert die Verbindung.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Keine Verbindung möglich, da eine Startoption des Spiels sie blockiert. Prüfen Sie die Startoptionen des Spiels.</value></data>

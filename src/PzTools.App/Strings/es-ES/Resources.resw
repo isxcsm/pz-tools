@@ -720,6 +720,10 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código del juego</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tiempo de los scripts del mod elegido (con las funciones Java que llamaron)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tiempo del resto de scripts, sin el mod elegido</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC en marcha</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Tramos en que el recolector de basura corrió junto al juego. Fotogramas más largos aquí indican falta de memoria. Pulsa para ocultar.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Este archivo no está en este PC. La grabación puede venir de otro PC, o el mod se quitó o se movió.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Cambiado desde la grabación: los números de línea pueden variar</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Abrir</value></data>
@@ -732,12 +736,10 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>fotogramas un {0:P0} más lentos mientras corría el GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Otros programas usaron de media el {0:P0} de la CPU</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Mientras grababa, programas distintos del juego usaron esta parte de la CPU del PC. Una CPU ocupada ralentiza el juego sean cuales sean sus mods, y la grabación sale más lenta de lo normal. Para comparar con justicia, ciérralos y vuelve a grabar.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tiempo en que se ejecutaron los scripts Lua de los mods y del juego, incluidas las funciones Java que llamaron.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tiempo en que el código propio del juego (Java) se ejecutó en el hilo del juego.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tiempo en que el hilo del juego se detuvo por la recolección de basura (GC) o esperando memoria. Solo se muestra a partir del 0,5 % del tramo.
-ZGC, la opción por defecto del juego, casi no detiene el juego ni con poca memoria; en su lugar lo ralentiza mientras recolecta. Míralo en el fondo naranja del gráfico (mientras corría el GC) y en el aviso de la línea de memoria.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tiempo en que el hilo del juego esperó en lugar de trabajar: sobre todo el margen hasta el siguiente fotograma; en un tirón, la espera por un archivo u otro hilo.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Pasa el puntero por encima para ver esta parte de cada fotograma en el gráfico.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tiempo de los scripts Lua de los mods y del juego (con las funciones Java que llamaron)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tiempo del código propio del juego (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tiempo en que el hilo del juego se detuvo por GC o memoria. Casi cero con ZGC; si falta memoria, mira el fondo naranja del gráfico.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tiempo en que el hilo del juego descansó, sobre todo el margen hasta el siguiente fotograma.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Otros scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Una opción de inicio del juego bloquea la conexión.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>No se ha podido conectar porque una opción de inicio del juego lo impide. Revisa las opciones de inicio del juego.</value></data>

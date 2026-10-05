@@ -159,6 +159,8 @@ public sealed partial class ProfilerPage : UserControl
         ScriptsLabel.Text = Localizer.Get("ProfileBreakdownScripts");
         GameLabel.Text = Localizer.Get("ProfileBreakdownGame");
         CollectionsLabel.Text = Localizer.Get("ProfileBreakdownMemory");
+        CollectorLegendText.Text = Localizer.Get("ProfileChartCollectorLegend");
+        AppToolTip.SetTip(CollectorLegend, Localizer.Get("ProfileChartCollectorTip"));
         SpareLabel.Text = Localizer.Get("ProfileBreakdownWaiting");
         var thread = ThreadBox.SelectedIndex;
         // The same choice in new words: not a change of thread to analyse again for.
@@ -856,19 +858,22 @@ public sealed partial class ProfilerPage : UserControl
         }
         // A part of the time bar pointed at stands in for the highlighted owner while it is: that part of each bar, on
         // the same terms, so a stutter's frames show which part they were.
-        var pointed = hoveredPart is not null && recording.GameThread >= 0 ? hoveredPart : null;
+        // The chosen mod's own part is the highlighted owner, drawn already: pointing at it changes nothing.
+        var pointed = hoveredPart is not (null or "Selected") && recording.GameThread >= 0 ? hoveredPart : null;
         if (pointed is not null)
         {
             var split = ProfileAnalysis.BreakdownPerBucket(recording, viewStart, viewEnd, buckets);
+            // With a mod chosen, "the other scripts": its part taken out of each frame's scripts.
+            var chosenParts = pointed == "Scripts" && SelectedLegend.Visibility == Visibility.Visible ? parts : null;
             parts = new double[buckets];
             for (var index = 0; index < buckets; index++)
-                parts[index] = split[index] is { } frame ? Math.Min(values[index], pointed switch
+                parts[index] = split[index] is { } frame ? Math.Clamp(pointed switch
                 {
-                    "Scripts" => frame.Scripts,
+                    "Scripts" => frame.Scripts - (chosenParts?[index] ?? 0),
                     "GameCode" => frame.GameCode,
                     "Collections" => frame.Collections,
                     _ => frame.Waiting,
-                }) : 0;
+                }, 0, values[index]) : 0;
         }
         var scaled = parts ?? values;
         var top = parts is null ? NiceCeiling(Math.Max(20, Math.Min(values.Max(), SpikeCeiling(values, SlowFrameMilliseconds))))
@@ -925,6 +930,8 @@ public sealed partial class ProfilerPage : UserControl
                 collector.Children.Add(new RectangleGeometry { Rect = new Rect(left, 0, Math.Max(1, right - left), height) });
             }
         CollectorPath.Data = collector;
+        CollectorLegend.Visibility = recording.CollectorRuns.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        CollectorLegend.Opacity = collectionMarks ? 1 : 0.45;
         // Faint: on the owner's scale most frames reach the top, and a wall of them would compete with its part.
         BarsPath.Opacity = SlowBarsPath.Opacity = parts is null ? 1 : 0.15;
         HighlightPath.Data = parts is null || pointed is not null ? null : part;
@@ -1313,6 +1320,14 @@ public sealed partial class ProfilerPage : UserControl
     }
 
     private void MemorySurface_SizeChanged(object sender, SizeChangedEventArgs e) => RenderMemoryPanel();
+
+    // The orange background's legend puts it away, and brings it back, as the collections' figure does.
+    private void CollectorLegend_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        collectionMarks = !collectionMarks;
+        ApplyMemoryPanel();
+        QueueRender();
+    }
 
     /// <summary>
     /// Heap on top, collections in the middle, video memory at the bottom, each on its own scale: the memory lines
@@ -2060,7 +2075,7 @@ public sealed partial class ProfilerPage : UserControl
         GameValue.Text = BreakdownPercent(breakdown.GameCode);
         CollectionsValue.Text = BreakdownPercent(breakdown.Collections);
         SpareValue.Text = BreakdownPercent(breakdown.Waiting);
-        SetBreakdownTips(range, breakdown);
+        SetBreakdownTips(range, breakdown, chosen?.Share);
         AutomationProperties.SetName(TimeBreakdownPanel, TimeBreakdownText());
     }
 
@@ -2094,24 +2109,30 @@ public sealed partial class ProfilerPage : UserControl
 
     // What a part of the time bar counts, with its share and time in the range, and the collector at work beside the
     // game for the memory part, whose pauses ZGC keeps near nothing.
-    private void SetBreakdownTips(ProfileRange range, ProfileTimeBreakdown breakdown)
+    private void SetBreakdownTips(ProfileRange range, ProfileTimeBreakdown breakdown, double? chosen)
     {
         var length = Math.Max(1, range.End - range.Start);
         string Tip(string part)
         {
             var share = part switch
             {
-                "Scripts" => breakdown.Scripts, "GameCode" => breakdown.GameCode,
+                "Selected" => chosen ?? 0,
+                "Scripts" => breakdown.Scripts - (chosen ?? 0), "GameCode" => breakdown.GameCode,
                 "Collections" => breakdown.Collections, _ => breakdown.Waiting,
             };
-            var lines = new List<string> { $"{BreakdownPercent(share)} · {Milliseconds(share * length / 1000.0)}",
-                Localizer.Get($"ProfileBreakdown{part}Tip") };
+            // With a mod chosen, its own part and the other scripts beside it, each said as such.
+            var meaning = part switch
+            {
+                "Selected" => "ProfileBreakdownSelectedTip",
+                "Scripts" when chosen is not null => "ProfileBreakdownOtherScriptsTip",
+                _ => $"ProfileBreakdown{part}Tip",
+            };
+            var lines = new List<string> { $"{BreakdownPercent(share)} · {Milliseconds(share * length / 1000.0)}", Localizer.Get(meaning) };
             if (part == "Collections" && recording is { } loaded && ProfileAnalysis.CollectorBusyIn(loaded, range.Start, range.End) is { } busy)
                 lines.Add(Localizer.Format("ProfileCollectorBusyFormat", busy));
-            lines.Add(Localizer.Get("ProfileBreakdownHoverHint"));
             return string.Join("\n", lines);
         }
-        foreach (var element in new FrameworkElement[] { ScriptsLegend, GameCodeLegend, CollectionsLegend, WaitingLegend }
+        foreach (var element in new FrameworkElement[] { SelectedLegend, ScriptsLegend, GameCodeLegend, CollectionsLegend, WaitingLegend }
                      .Concat(TimeBreakdownBar.Children.OfType<FrameworkElement>()))
             if (element.Tag is string part) AppToolTip.SetTip(element, Tip(part));
     }

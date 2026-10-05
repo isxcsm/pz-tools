@@ -720,6 +720,10 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kód hry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Čekání</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Čas běhu skriptů vybraného módu (včetně volaných funkcí Javy)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Čas běhu ostatních skriptů bez vybraného módu</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC běží</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Úseky, kdy vedle hry běžel úklid paměti (GC). Delší snímky v nich znamenají nedostatek paměti. Kliknutím skryjete.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Tento soubor v tomto počítači není. Záznam mohl vzniknout na jiném počítači, nebo byl mód odebrán či přesunut.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Od záznamu změněn: čísla řádků se mohou lišit</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Otevřít</value></data>
@@ -732,12 +736,10 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>snímky o {0:P0} pomalejší, když běželo GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Jiné programy využívaly v průměru {0:P0} procesoru</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Během nahrávání jiné programy než hra využívaly tolik procesoru počítače. Vytížený procesor zpomaluje hru bez ohledu na módy a záznam vychází pomalejší než obvykle. Pro férové srovnání je zavřete a nahrajte znovu.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Čas, kdy běžely skripty Lua módů a hry, včetně funkcí Javy, které volaly.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Čas, kdy na herním vlákně běžel vlastní kód hry (Java).</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Doba, kdy herní vlákno stálo kvůli úklidu paměti (GC) nebo čekání na paměť. Zobrazí se jen od 0,5 % úseku.
-ZGC, výchozí v této hře, hru téměř nezastavuje ani při nedostatku paměti; místo toho ji během úklidu zpomaluje. To uvidíte na oranžovém pozadí grafu (kdy běželo GC) a ve varování na řádku paměti.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Čas, kdy herní vlákno čekalo místo práce: většinou zbytek času do dalšího snímku; při zaseknutí čekání na soubor nebo jiné vlákno.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Najeďte na něj myší a graf u každého snímku ukáže tuto část.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Čas běhu skriptů Lua módů a hry (včetně volaných funkcí Javy)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Čas běhu vlastního kódu hry (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Čas, kdy herní vlákno stálo kvůli GC nebo paměti. Se ZGC téměř nula; nedostatek paměti ukáže oranžové pozadí grafu.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Čas, kdy herní vlákno odpočívalo, většinou zbytek do dalšího snímku.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Ostatní skripty</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Možnost spuštění hry blokuje připojení.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nepodařilo se připojit, protože to blokuje možnost spuštění hry. Zkontrolujte možnosti spuštění hry.</value></data>

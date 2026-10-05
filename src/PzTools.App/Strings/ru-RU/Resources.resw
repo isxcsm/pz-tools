@@ -720,6 +720,10 @@ GC работает: доля отрезка, когда работал сбор
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипты</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код игры</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Ожидание</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Время скриптов выбранного мода (с вызванными функциями Java)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Время остальных скриптов, без выбранного мода</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>Идёт GC</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Отрезки, когда рядом с игрой работала сборка мусора. Более длинные кадры здесь означают нехватку памяти. Нажмите, чтобы скрыть.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Этого файла нет на этом ПК. Запись могла быть сделана на другом ПК, или мод удалён либо перемещён.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Изменён после записи: номера строк могут отличаться</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Открыть</value></data>
@@ -732,12 +736,10 @@ GC работает: доля отрезка, когда работал сбор
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>кадры на {0:P0} медленнее, пока работал GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Другие программы использовали в среднем {0:P0} процессора</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Во время записи другие программы, кроме игры, использовали столько процессора ПК. Загруженный процессор замедляет игру независимо от модов, и запись выходит медленнее обычного. Для честного сравнения закройте их и запишите снова.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Время работы Lua-скриптов модов и игры, включая вызванные ими функции Java.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Время работы собственного кода игры (Java) в игровом потоке.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Время, когда игровой поток стоял из-за сборки мусора (GC) или ожидания памяти. Показывается только от 0,5 % отрезка.
-ZGC, стандартный для игры, почти не останавливает игру даже при нехватке памяти, а вместо этого замедляет её, пока собирает мусор. Это видно по оранжевому фону графика (пока работал GC) и предупреждению в строке памяти.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Время, когда игровой поток ждал вместо работы: в основном запас до следующего кадра; при подтормаживании — ожидание файла или другого потока.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Наведите указатель, чтобы увидеть эту часть каждого кадра на графике.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Время Lua-скриптов модов и игры (с вызванными функциями Java)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Время собственного кода игры (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Время, когда игровой поток стоял из-за GC или памяти. С ZGC почти ноль; нехватку памяти покажет оранжевый фон графика.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Время, когда игровой поток отдыхал, в основном запас до следующего кадра.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Другие скрипты</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Параметр запуска игры блокирует подключение.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Не удалось подключиться: его блокирует параметр запуска игры. Проверьте параметры запуска игры.</value></data>

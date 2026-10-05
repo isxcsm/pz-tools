@@ -720,6 +720,10 @@ GC працює: частка відрізка, коли працював зби
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипти</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код гри</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Очікування</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Час скриптів вибраного мода (з викликаними функціями Java)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Час решти скриптів, без вибраного мода</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>Триває GC</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Відрізки, коли поруч із грою працювало збирання сміття. Довші кадри тут означають брак пам&apos;яті. Натисніть, щоб приховати.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Цього файлу немає на цьому ПК. Запис могли зробити на іншому ПК, або мод видалено чи переміщено.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Змінено після запису: номери рядків можуть відрізнятися</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Відкрити</value></data>
@@ -732,12 +736,10 @@ GC працює: частка відрізка, коли працював зби
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>кадри на {0:P0} повільніші, поки працював GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Інші програми використовували в середньому {0:P0} процесора</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Під час запису інші програми, крім гри, використовували стільки процесора ПК. Завантажений процесор сповільнює гру незалежно від модів, і запис виходить повільнішим, ніж зазвичай. Для чесного порівняння закрийте їх і запишіть знову.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Час роботи Lua-скриптів модів і гри, разом із викликаними ними функціями Java.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Час роботи власного коду гри (Java) в ігровому потоці.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Час, коли ігровий потік стояв через збирання сміття (GC) або очікування пам’яті. Показується лише від 0,5 % відрізка.
-ZGC, типовий для гри, майже не зупиняє гру навіть за браку пам’яті, а натомість сповільнює її, поки збирає сміття. Це видно на помаранчевому тлі графіка (поки працював GC) і в попередженні в рядку пам’яті.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Час, коли ігровий потік чекав замість роботи: здебільшого запас до наступного кадру; під час підгальмовування — очікування файлу чи іншого потоку.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Наведіть вказівник, щоб побачити цю частку кожного кадру на графіку.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Час Lua-скриптів модів і гри (з викликаними функціями Java)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Час власного коду гри (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Час, коли ігровий потік стояв через GC чи пам&apos;ять. Із ZGC майже нуль; брак пам&apos;яті покаже помаранчеве тло графіка.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Час, коли ігровий потік відпочивав, здебільшого запас до наступного кадру.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Інші скрипти</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Параметр запуску гри блокує підключення.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Не вдалося підключитися: його блокує параметр запуску гри. Перевірте параметри запуску гри.</value></data>

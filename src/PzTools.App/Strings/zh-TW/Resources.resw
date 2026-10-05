@@ -720,6 +720,10 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>腳本</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>遊戲程式碼</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>所選模組的指令碼執行時間（含其呼叫的 Java 函式）</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>除所選模組外其餘指令碼的執行時間</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC 執行中</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>垃圾回收與遊戲同時執行的區間。此處畫格較長表示記憶體不足。按一下可隱藏。</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>這台電腦上沒有這個檔案。錄製可能來自另一台電腦，或模組已被刪除或移動。</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>錄製後檔案已變更，行號可能不同</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>開啟</value></data>
@@ -732,12 +736,10 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 執行時畫格平均慢 {0:P0}</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>其他程式平均佔用了 {0:P0} 的 CPU</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>錄製期間，遊戲以外的程式佔用了這麼多電腦 CPU。CPU 忙碌時，無論模組如何，遊戲都會變慢，錄製結果也會比平時慢。如需公平比較，請關閉這些程式後重新錄製。</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>模組和遊戲的 Lua 指令碼執行的時間，包括指令碼呼叫的 Java 函式。</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>遊戲本身程式碼（Java）在遊戲執行緒上執行的時間。</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>遊戲執行緒因垃圾回收（GC）或等待記憶體而停下的時間。僅在佔區間 0.5% 以上時顯示。
-遊戲預設的 ZGC 即使記憶體不足也幾乎不會讓遊戲停下，而是在回收期間讓遊戲變慢。其影響請看圖表的橘色背景（GC 執行期間）和記憶體列的警告。</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>遊戲執行緒沒有工作而在等待的時間：大多是到下一個畫格前的餘裕；卡頓時則是在等待檔案或其他執行緒。</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>將指標停在上面，即可在圖表的每個畫格上顯示這部分。</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>模組和遊戲的 Lua 指令碼執行時間（含其呼叫的 Java 函式）</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>遊戲本身程式碼（Java）的執行時間</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>遊戲執行緒因 GC 或等待記憶體而停下的時間。使用 ZGC 時幾乎為 0；記憶體不足的影響請看圖表的橘色背景。</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>遊戲執行緒閒置的時間，大多是到下一個畫格前的餘裕。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他腳本</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>遊戲的啟動選項封鎖了連線。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>遊戲的啟動選項封鎖了連線，因此無法連線。請檢查遊戲的啟動選項。</value></data>

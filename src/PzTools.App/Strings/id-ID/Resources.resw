@@ -720,6 +720,10 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrip</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kode game</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Menunggu</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Waktu skrip mod terpilih berjalan (termasuk fungsi Java yang dipanggil)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Waktu skrip lain berjalan, tanpa mod terpilih</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC berjalan</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Bagian saat pembersih memori (GC) berjalan di samping gim. Bingkai yang lebih panjang di sini berarti memori kurang. Klik untuk menyembunyikan.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Berkas ini tidak ada di PC ini. Rekaman mungkin dibuat di PC lain, atau mod telah dihapus atau dipindahkan.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Berubah sejak direkam: nomor barisnya bisa berbeda</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Buka</value></data>
@@ -732,12 +736,10 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>bingkai {0:P0} lebih lambat saat GC berjalan</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Program lain memakai rata-rata {0:P0} CPU</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Selama merekam, program selain gim memakai CPU PC sebanyak ini. CPU yang sibuk memperlambat gim apa pun mod-nya, dan rekaman tampak lebih lambat dari biasanya. Untuk perbandingan yang adil, tutup program itu dan rekam ulang.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Waktu skrip Lua mod dan gim berjalan, termasuk fungsi Java yang mereka panggil.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Waktu kode gim sendiri (Java) berjalan di thread gim.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Waktu thread gim berhenti untuk pembersihan memori (GC) atau menunggu memori. Hanya ditampilkan mulai 0,5% rentang.
-ZGC, bawaan gim ini, hampir tidak menghentikan gim meski memori kurang; ia memperlambatnya selama membersihkan. Lihat itu di latar oranye grafik (saat GC berjalan) dan peringatan di baris memori.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Waktu thread gim menunggu alih-alih bekerja: sebagian besar sisa waktu sebelum bingkai berikutnya; saat tersendat, menunggu berkas atau thread lain.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Arahkan penunjuk ke sini untuk menampilkan bagian ini di setiap bingkai pada grafik.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Waktu skrip Lua mod dan gim berjalan (termasuk fungsi Java yang dipanggil)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Waktu kode gim sendiri (Java) berjalan</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Waktu thread gim berhenti karena GC atau memori. Hampir nol dengan ZGC; untuk kekurangan memori, lihat latar oranye grafik.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Waktu thread gim beristirahat, sebagian besar sisa waktu sebelum bingkai berikutnya.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Skrip lain</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Opsi peluncuran gim memblokir koneksi.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Tidak dapat terhubung karena opsi peluncuran gim memblokirnya. Periksa opsi peluncuran gim.</value></data>

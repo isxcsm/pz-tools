@@ -720,6 +720,10 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrypty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kod gry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Oczekiwanie</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Czas skryptów wybranego modu (z wywołanymi funkcjami Javy)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Czas pozostałych skryptów, bez wybranego modu</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC działa</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Odcinki, w których obok gry działało odśmiecanie (GC). Dłuższe klatki tutaj oznaczają brak pamięci. Kliknij, aby ukryć.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Tego pliku nie ma na tym komputerze. Nagranie mogło powstać na innym komputerze albo mod usunięto lub przeniesiono.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Zmieniony od nagrania: numery wierszy mogą się różnić</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Otwórz</value></data>
@@ -732,12 +736,10 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>klatki o {0:P0} wolniejsze, gdy działało GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Inne programy używały średnio {0:P0} procesora</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Podczas nagrywania programy inne niż gra używały tyle procesora komputera. Zajęty procesor spowalnia grę niezależnie od modów, a nagranie wypada wolniej niż zwykle. Do rzetelnego porównania zamknij je i nagraj ponownie.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Czas działania skryptów Lua modów i gry, łącznie z wywołanymi przez nie funkcjami Javy.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Czas działania własnego kodu gry (Java) w wątku gry.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Czas, w którym wątek gry stał z powodu odśmiecania (GC) lub czekania na pamięć. Pokazywany dopiero od 0,5% zakresu.
-ZGC, domyślny w grze, prawie nie zatrzymuje gry nawet przy braku pamięci; zamiast tego spowalnia ją podczas odśmiecania. Zobaczysz to na pomarańczowym tle wykresu (gdy działało GC) i w ostrzeżeniu w wierszu pamięci.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Czas, w którym wątek gry czekał zamiast pracować: głównie zapas do następnej klatki; przy przycięciu czekanie na plik lub inny wątek.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Najedź na to kursorem, aby zobaczyć tę część każdej klatki na wykresie.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Czas skryptów Lua modów i gry (z wywołanymi funkcjami Javy)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Czas własnego kodu gry (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Czas, w którym wątek gry stał przez GC lub pamięć. Przy ZGC prawie zero; brak pamięci pokaże pomarańczowe tło wykresu.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Czas odpoczynku wątku gry, głównie zapas do następnej klatki.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Inne skrypty</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Opcja uruchamiania gry blokuje połączenie.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nie udało się połączyć, ponieważ blokuje to opcja uruchamiania gry. Sprawdź opcje uruchamiania gry.</value></data>

@@ -720,6 +720,10 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Betikler</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Bekleme</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Seçilen modun betiklerinin çalışma süresi (çağırdıkları Java işlevleri dahil)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Seçilen mod hariç diğer betiklerin çalışma süresi</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC çalışıyor</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Çöp toplayıcının oyunla yan yana çalıştığı aralıklar. Buradaki daha uzun kareler bellek yetersizliği demektir. Gizlemek için tıklayın.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Bu dosya bu bilgisayarda yok. Kayıt başka bir bilgisayarda yapılmış olabilir ya da mod kaldırılmış veya taşınmış olabilir.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Kayıttan sonra değişmiş: satır numaraları farklı olabilir</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Aç</value></data>
@@ -732,12 +736,10 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC çalışırken kareler {0:P0} daha yavaş</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Diğer programlar ortalama işlemcinin {0:P0} kadarını kullanıyordu</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Kayıt sırasında oyun dışındaki programlar bilgisayarın işlemcisinin bu kadarını kullanıyordu. Meşgul bir işlemci, modlardan bağımsız olarak oyunu yavaşlatır ve kayıt her zamankinden yavaş çıkar. Adil bir karşılaştırma için onları kapatıp yeniden kaydedin.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Modların ve oyunun Lua betiklerinin, çağırdıkları Java işlevleri dahil çalıştığı süre.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Oyunun kendi kodunun (Java) oyun iş parçacığında çalıştığı süre.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Oyun iş parçacığının çöp toplama (GC) ya da bellek beklemesi yüzünden durduğu süre. Yalnızca aralığın %0,5&apos;inden itibaren gösterilir.
-Oyunun varsayılanı olan ZGC, bellek azken bile oyunu neredeyse hiç durdurmaz; bunun yerine toplama sırasında yavaşlatır. Bunu grafiğin turuncu arka planında (GC çalışırken) ve bellek satırındaki uyarıda görün.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Oyun iş parçacığının çalışmak yerine beklediği süre: çoğunlukla sonraki kareye kalan pay; takılmada bir dosyayı ya da başka bir iş parçacığını bekleme.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Grafikte her karenin bu payını görmek için üzerine gelin.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Mod ve oyun Lua betiklerinin çalışma süresi (çağırdıkları Java işlevleri dahil)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Oyunun kendi kodunun (Java) çalışma süresi</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Oyun iş parçacığının GC ya da bellek yüzünden durduğu süre. ZGC ile neredeyse sıfır; bellek yetersizliği için grafiğin turuncu arka planına bakın.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Oyun iş parçacığının dinlendiği süre, çoğunlukla sonraki kareye kalan pay.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Diğer betikler</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Bir oyun başlatma seçeneği bağlantıyı engelliyor.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Bir oyun başlatma seçeneği engellediği için bağlanılamadı. Oyunun başlatma seçeneklerini kontrol edin.</value></data>

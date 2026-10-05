@@ -720,6 +720,10 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código do jogo</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tempo dos scripts do mod escolhido (com as funções Java que chamaram)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tempo dos outros scripts, sem o mod escolhido</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC rodando</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Trechos em que o coletor de lixo rodou junto ao jogo. Quadros mais longos aqui indicam falta de memória. Clique para ocultar.</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>Este arquivo não está neste PC. A gravação pode ter vindo de outro PC, ou o mod foi removido ou movido.</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>Alterado desde a gravação: os números de linha podem ser diferentes</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>Abrir</value></data>
@@ -732,12 +736,10 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>quadros {0:P0} mais lentos enquanto o GC rodava</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Outros programas usaram em média {0:P0} da CPU</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Durante a gravação, programas além do jogo usaram esta parte da CPU do PC. Uma CPU ocupada deixa o jogo lento independentemente dos mods, e a gravação sai mais lenta que o normal. Para comparar com justiça, feche-os e grave de novo.</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tempo em que os scripts Lua dos mods e do jogo rodaram, incluindo as funções Java que chamaram.</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tempo em que o código do próprio jogo (Java) rodou na thread do jogo.</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo em que a thread do jogo parou para a coleta de lixo (GC) ou esperando memória. Só aparece a partir de 0,5% do trecho.
-O ZGC, padrão do jogo, quase não para o jogo mesmo com pouca memória; em vez disso o deixa lento enquanto coleta. Veja isso no fundo laranja do gráfico (enquanto o GC rodava) e no aviso da linha de memória.</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tempo em que a thread do jogo esperou em vez de trabalhar: em geral a folga até o próximo quadro; num travamento, a espera por um arquivo ou outra thread.</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Passe o ponteiro por cima para ver esta parte de cada quadro no gráfico.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tempo dos scripts Lua dos mods e do jogo (com as funções Java que chamaram)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tempo do código do próprio jogo (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo em que a thread do jogo parou por GC ou memória. Quase zero com ZGC; para falta de memória, veja o fundo laranja do gráfico.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tempo em que a thread do jogo descansou, em geral a folga até o próximo quadro.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Outros scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Uma opção de inicialização do jogo está bloqueando a conexão.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Não foi possível conectar porque uma opção de inicialização do jogo está bloqueando. Verifique as opções de inicialização do jogo.</value></data>

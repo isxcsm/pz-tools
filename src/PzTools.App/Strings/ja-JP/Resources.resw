@@ -720,6 +720,10 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>スクリプト</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>選んだ MOD のスクリプトの実行時間（呼んだ Java 関数を含む）</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>選んだ MOD を除いた残りのスクリプトの実行時間</value></data>
+  <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC 稼働中</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>メモリ整理（GC）がゲームと並行して動いていた区間です。ここでフレームが長ければメモリ不足が原因です。クリックで非表示。</value></data>
   <data name="ProfileScriptMissing" xml:space="preserve"><value>このファイルはこの PC にありません。別の PC で記録したか、MOD が削除・移動された可能性があります。</value></data>
   <data name="ProfileScriptChanged" xml:space="preserve"><value>記録後に変更されたファイルのため、行番号が異なる場合があります</value></data>
   <data name="ProfileScriptOpen" xml:space="preserve"><value>開く</value></data>
@@ -732,12 +736,10 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 中はフレームが平均 {0:P0} 遅い</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>ほかのプログラムが CPU を平均 {0:P0} 使用中でした</value></data>
   <data name="ProfileOtherCpuTip" xml:space="preserve"><value>記録中、ゲーム以外のプログラムが PC の CPU をこれだけ使っていました。CPU が忙しいと MOD に関係なくゲームが遅くなり、記録結果も普段より遅く出ます。正確に比べたいときは、それらを閉じて記録し直してください。</value></data>
-  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>MOD とゲームの Lua スクリプトが実行された時間です。スクリプトが呼んだ Java 関数の時間も含みます。</value></data>
-  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>ゲーム自体のコード（Java）がゲームスレッドで実行された時間です。</value></data>
-  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>メモリ整理（GC）やメモリ待ちのためにゲームスレッドが止まった時間です。区間の 0.5% 以上のときだけ表示されます。
-ゲームの既定である ZGC は、メモリが足りなくてもゲームをほとんど止めず、代わりに整理の間ゲームを遅くします。その影響はグラフのオレンジの背景（GC 稼働中）とメモリ行の警告で確認してください。</value></data>
-  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>ゲームスレッドが仕事をせずに待っていた時間です。ほとんどは次のフレームまでの余裕で、カクついた区間ではファイルや別のスレッドを待った時間です。</value></data>
-  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>マウスを乗せると、グラフの各フレームにこの分を表示します。</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>MOD とゲームの Lua スクリプトの実行時間（呼んだ Java 関数を含む）</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>ゲーム自体のコード（Java）の実行時間</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>GC やメモリ待ちでゲームスレッドが止まった時間。ZGC ではほぼ 0 です。メモリ不足の影響はグラフのオレンジの背景を見てください。</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>ゲームスレッドが休んでいた時間。ほとんどは次のフレームまでの余裕です。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>その他のスクリプト</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ゲームの起動オプションが接続をブロックしています。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>ゲームの起動オプションがブロックしているため接続できませんでした。起動オプションを確認してください。</value></data>
