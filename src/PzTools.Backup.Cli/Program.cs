@@ -232,17 +232,6 @@ internal static class BackupCli
                 ? ProcessOutcome.NoChange
                 : ProcessOutcome.Succeeded;
             await CompleteOwnedWorkflowAsync(outcome, null);
-            await BestEffortProcessTelemetry.TryRecordAsync(
-                options.RepositoryPath,
-                "backup-worker",
-                runIndex,
-                "backup.completed",
-                JsonSerializer.Serialize(new { outcome, result.Revision }),
-                request.Configuration.ConfigPath,
-                new ProcessTelemetrySettings(
-                    options.Telemetry.Enabled,
-                    options.Telemetry.RetainRuns,
-                    options.Telemetry.MaxDatabaseMib));
             Console.WriteLine(ProcessResultJson.Serialize(
                 ProcessResultEnvelope<OneShotBackupResult>.Success(
                     "backup-worker", runIndex, outcome, started, result)));
@@ -381,12 +370,15 @@ internal static class BackupCli
                 "--config",
                 "--control-db",
                 "--telemetry-identity");
+            // Every option is checked before anything is allocated or opened.
+            if (values.ContainsKey("--run-index"))
+                runIndex = RepositoryCommandArguments.RequiredInt64(values, "--run-index");
             var repositoryPath = RepositoryCommandArguments.Required(values, "--repository");
             targetPath = RepositoryCommandArguments.Required(values, "--target");
             saveId = RepositoryCommandArguments.Required(values, "--source-id");
-            runIndex = values.TryGetValue("--run-index", out var runValue)
-                ? long.Parse(runValue, System.Globalization.CultureInfo.InvariantCulture)
-                : await new RunIndexAllocator(values.GetValueOrDefault("--control-db"))
+            var revision = RepositoryCommandArguments.RequiredInt64(values, "--revision");
+            if (!values.ContainsKey("--run-index"))
+                runIndex = await new RunIndexAllocator(values.GetValueOrDefault("--control-db"))
                     .AllocateAsync(cancellationToken: cancellationToken);
             telemetryIdentity = values.GetValueOrDefault("--telemetry-identity")
                 ?? PzToolsPathLayout.CreateDefault().CreateOperationIdentity(
@@ -402,7 +394,6 @@ internal static class BackupCli
             var source = await repository.GetSourceAsync(
                 saveId,
                 cancellationToken);
-            var revision = RepositoryCommandArguments.RequiredInt64(values, "--revision");
             Task ObserveRestoreAsync(RestoreProgress progress, CancellationToken _)
             {
                 currentRelativePath = progress.RelativePath;
@@ -453,8 +444,8 @@ internal static class BackupCli
                     "restore-worker", runIndex, ProcessOutcome.Busy, started)));
             return ProcessExitCodes.Busy;
         }
-        catch (Exception exception) when (
-            exception is ArgumentException or FormatException or OverflowException)
+        catch (Exception exception) when (exception is BackupConfigurationException
+            or ArgumentException or FormatException or OverflowException)
         {
             RecordRestoreFailure("invalid-arguments", exception);
             _ = WriteFailure(ProcessOutcome.Failed, "invalid-arguments", exception.Message);
@@ -505,12 +496,20 @@ internal static class BackupCli
         CancellationToken cancellationToken)
     {
         var values = RepositoryCommandArguments.Parse(arguments, "--repository");
-        var repository = await RepositoryDatabase.OpenExistingAsync(
-            RepositoryCommandArguments.Required(values, "--repository"),
-            cancellationToken);
-        var result = await new RepositoryVerifier().VerifyAsync(repository, cancellationToken);
-        Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
-        return result.IsValid ? 0 : 3;
+        var repositoryPath = RepositoryCommandArguments.Required(values, "--repository");
+        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath, cancellationToken);
+        // Cleanup rewrites and removes packs under the writer lease. A pack it replaced while verify was
+        // reading would be reported as missing or damaged, so verify holds the lease as an export does.
+        var result = await OperationMutexSet.TryRunAsync(
+            [new(OperationMutexScope.RepositoryAccess, repositoryPath)],
+            async token =>
+            {
+                await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
+                return await new RepositoryVerifier().VerifyAsync(repository, token);
+            }, cancellationToken);
+        if (!result.Acquired) throw new RepositoryBusyException(repositoryPath);
+        Console.WriteLine(JsonSerializer.Serialize(result.Value, JsonOptions));
+        return result.Value!.IsValid ? 0 : 3;
     }
 
     private static async Task<int> PruneAsync(
@@ -523,9 +522,11 @@ internal static class BackupCli
             "--source-id",
             "--keep");
         var repositoryPath = RepositoryCommandArguments.Required(values, "--repository");
-        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath, cancellationToken);
         var sourceKey = RepositoryCommandArguments.Required(values, "--source-id");
-        var keepLatest = checked((int)RepositoryCommandArguments.RequiredInt64(values, "--keep"));
+        var keep = RepositoryCommandArguments.RequiredInt64(values, "--keep");
+        var keepLatest = keep <= int.MaxValue ? (int)keep
+            : throw new BackupConfigurationException($"Option '--keep' must be at most {int.MaxValue}.");
+        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath, cancellationToken);
         var result = await OperationMutexSet.TryRunAsync(
             [new(OperationMutexScope.RepositoryAccess, repositoryPath)],
             async token =>

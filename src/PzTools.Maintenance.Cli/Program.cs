@@ -2,6 +2,7 @@ using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Control;
 using PzTools.Process.Contracts;
+using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 
 // Launch check only: proves Windows allows this executable to start. No work, no output.
@@ -10,20 +11,46 @@ if (args is ["--probe"]) return 0;
 var started = DateTimeOffset.UtcNow;
 long runIndex = 0;
 RepositoryDatabase? ownedWorkflowRepository = null;
+// Every option is read before any work, so a bad one is reported as such (exit 64), never as a failed cleanup.
+Dictionary<string, string?> values;
+string repository;
+int? retainLatest, revisionBatch;
+string? lane;
+long sourceId, givenRunIndex = 0;
 try
 {
-    var values = Parse(args);
-    var repository = Required(values, "--repository");
+    values = Parse(args);
+    givenRunIndex = OptionalLong(values, "--run-index", 0) ?? 0;
+    repository = Required(values, "--repository");
+    retainLatest = (int?)OptionalLong(values, "--retain-latest", 0, int.MaxValue);
+    revisionBatch = (int?)OptionalLong(values, "--revision-batch", 1, int.MaxValue);
+    lane = values.GetValueOrDefault("--lane");
+    if (lane is not null && !MaintenanceLaneSignal.HeavyLanes.Contains(lane, StringComparer.Ordinal))
+        throw new ArgumentException($"Unknown maintenance lane '{lane}'.");
+    // The orphan lane covers every save; the others work on one.
+    if (lane == "OrphanBackups") { _ = Required(values, "--saves-root"); sourceId = 0; }
+    else sourceId = RequiredLong(values, "--source-id", 1);
+    if (values.ContainsKey("--dispatch-lanes") && givenRunIndex == 0)
+        throw new ArgumentException("--dispatch-lanes requires --run-index.");
+}
+catch (ArgumentException exception)
+{
+    Console.WriteLine(ProcessResultJson.Serialize(
+        ProcessResultEnvelope<object>.Failure(
+            "maintenance-worker", Math.Max(1, givenRunIndex), ProcessOutcome.Failed,
+            started, "invalid-arguments", exception.Message)));
+    return ProcessExitCodes.InvalidArguments;
+}
+try
+{
     var configurationPath = values.GetValueOrDefault("--config");
     var configuration = ComponentConfiguration.Load(
         repository, "maintenance-worker", configurationPath,
         Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "settings.toml"));
     var settings = MaintenanceWorkerOptions.Read(configuration);
     var options = new MaintenanceOptions(
-        checked((int)(OptionalLong(values, "--retain-latest", 0)
-            ?? settings.RetainLatestRevisions)),
-        checked((int)(OptionalLong(values, "--revision-batch", 1)
-            ?? settings.RevisionBatchSize)),
+        retainLatest ?? settings.RetainLatestRevisions,
+        revisionBatch ?? settings.RevisionBatchSize,
         settings.WriterRetryDelayMs)
     {
         RevisionCompactionMaxDelayMinutes = settings.RevisionCompactionMaxDelayMinutes,
@@ -37,19 +64,18 @@ try
             settings.PackReclamationMinimumMib, settings.PackReclamationMaximumCopyMib),
     };
     options.Validate();
-    if (values.GetValueOrDefault("--lane") == "OrphanBackups")
+    if (lane == "OrphanBackups")
     {
         var orphanRun = await OrphanBackupLane.RunAsync(repository,
-            Required(values, "--saves-root"), values.GetValueOrDefault("--control-db"), configurationPath, options);
+            values["--saves-root"]!, values.GetValueOrDefault("--control-db"), configurationPath, options);
         Console.WriteLine(ProcessResultJson.Serialize(
             ProcessResultEnvelope<MaintenanceLaneResult>.Success(
                 "maintenance-lane-worker", Math.Max(1, orphanRun.RunIndex), orphanRun.Outcome,
                 started, orphanRun.Result)));
         return ProcessExitCodes.FromOutcome(orphanRun.Outcome);
     }
-    var sourceId = RequiredLong(values, "--source-id", 1);
-    runIndex = OptionalLong(values, "--run-index", 0) ?? 0;
-    if (values.TryGetValue("--lane", out var lane) && lane is not null)
+    runIndex = givenRunIndex;
+    if (lane is not null)
     {
         var laneRun = await MaintenanceLanePipeline.RunLaneAsync(
             repository, sourceId, lane, options,
@@ -63,8 +89,6 @@ try
     }
     if (values.ContainsKey("--dispatch-lanes"))
     {
-        if (runIndex == 0)
-            throw new ArgumentException("--dispatch-lanes requires --run-index.");
         var dispatched = await MaintenanceLanePipeline.DispatchAsync(
             repository, sourceId, runIndex, options,
             values.GetValueOrDefault("--control-db"), configurationPath);
@@ -159,5 +183,6 @@ static Dictionary<string, string?> Parse(string[] arguments) => CommandLine.Pars
 static string Required(Dictionary<string, string?> values, string name) => CommandLine.Required(values, name);
 static long RequiredLong(Dictionary<string, string?> values, string name, long minimum) =>
     CommandLine.Int64(Required(values, name), name, minimum);
-static long? OptionalLong(Dictionary<string, string?> values, string name, long minimum) =>
-    CommandLine.OptionalInt64(values.GetValueOrDefault(name), name, minimum);
+static long? OptionalLong(Dictionary<string, string?> values, string name, long minimum,
+    long maximum = long.MaxValue) =>
+    CommandLine.OptionalInt64(values.GetValueOrDefault(name), name, minimum, maximum);

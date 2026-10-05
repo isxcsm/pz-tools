@@ -41,13 +41,15 @@ internal static class RepositoryCommandArguments
             ? value
             : throw new BackupConfigurationException($"Option '{name}' is required.");
 
+    // Run numbers, backup numbers and counts kept all start at 1.
     public static long RequiredInt64(
         IReadOnlyDictionary<string, string> values,
         string name)
     {
         var value = Required(values, name);
         return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            && parsed >= 1
             ? parsed
-            : throw new BackupConfigurationException($"Option '{name}' must be an integer.");
+            : throw new BackupConfigurationException($"Option '{name}' must be a whole number of at least 1.");
     }
 }
