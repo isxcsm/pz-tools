@@ -116,9 +116,10 @@ that depends on elevation is not proven by the test suite: USN journal access, t
 helper handing files to the game's account, files the elevated workers create that the
 player's account must read. Check such a change in the running app.
 [`verify-a15.ps1`](../../scripts/verify-a15.ps1) does this in an administrator PowerShell:
-it publishes the app, runs the suite with the real saves, published workers and USN tests
-enabled, then starts the app for a manual checklist and checks that no PZ Tools process is
-left after it closes.
+it publishes the app (to a new folder under `artifacts/verify-a15` each run, with `-JdkPath`
+like the other publishing scripts), runs the suite with the real saves, published workers and
+USN tests enabled, then starts the app for a manual checklist and checks that no PZ Tools
+process is left after it closes.
 
 ## UI smoke tests
 

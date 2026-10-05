@@ -1,6 +1,10 @@
 ﻿param(
     [string] $SavesRoot = (Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid\Saves'),
-    [string] $Output = 'artifacts/app',
+    # Without it, each run publishes to a new folder under artifacts/verify-a15: publish-app.ps1 never
+    # publishes over an existing folder. With -SkipPublish, give the folder of an earlier run.
+    [string] $Output,
+    # Passed to publish-app.ps1; without it the build uses JAVA_HOME, then a single bundled jdk-25*.
+    [string] $JdkPath,
     [string] $DotNetPath = 'C:\Program Files\dotnet\dotnet.exe',
     [switch] $SkipPublish,
     [switch] $SkipApp
@@ -8,6 +12,10 @@
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($Output)) {
+    if ($SkipPublish) { throw '-SkipPublish needs -Output: the folder an earlier run published to.' }
+    $Output = "artifacts/verify-a15/$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+}
 $outputPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Output))
 $testProject = Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'
 
@@ -33,7 +41,7 @@ $resolvedSavesRoot = (Resolve-Path -LiteralPath $SavesRoot).Path
 
 if (-not $SkipPublish) {
     & (Join-Path $PSScriptRoot 'publish-app.ps1') `
-        -Configuration Release -Output $Output -DotNetPath $dotnet
+        -Configuration Release -Output $Output -DotNetPath $dotnet -JdkPath $JdkPath
     if ($LASTEXITCODE -ne 0) {
         throw 'Publishing the Release app failed.'
     }

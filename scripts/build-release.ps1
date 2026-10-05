@@ -46,7 +46,7 @@ Write-Host '== Testing the published folder'
 $env:PZTOOLS_DISTRIBUTION_DIR = $app
 $env:PZTOOLS_TOOLS_DIR = $app
 try {
-    dotnet test (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests') -c Release -p:JdkPath="$JdkPath" `
+    dotnet test (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests') -c Release `
         --filter 'FullyQualifiedName~PublishedDistributionTests|FullyQualifiedName~PublishedWorker' --verbosity minimal
     if ($LASTEXITCODE -ne 0) { throw 'The published folder failed its tests.' }
 }
