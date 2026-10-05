@@ -225,10 +225,15 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                     // A broken or unanswered lease concerns every module. Anything else happened while
                     // handling one module and stays with it.
                     bool shared = handling is null || ConcernsTheLease(error);
-                    var failed = new RuntimeExtensionStatus(error is GameSaveException { Code: "restart-required" }
-                            ? RuntimeExtensionState.RestartRequired : RuntimeExtensionState.FaultedPassThrough,
-                        error is GameSaveException ? "connection-unavailable" : "configuration-or-connection-failed",
-                        process ?? "", world, RequestedRevision: revision);
+                    // A game still running the bootstrap from before an update of the app refuses the link until it
+                    // restarts. That is the update's restart, as the state stream reports it, not a failed extension:
+                    // the preference stays on and the extension comes back with the next game.
+                    var failed = error is GameSaveException { Code: "restart-required" }
+                        ? new RuntimeExtensionStatus(RuntimeExtensionState.RestartRequired,
+                            GameExtensionActivationState.BootstrapUpdateReason, process ?? "", world, RequestedRevision: revision)
+                        : new RuntimeExtensionStatus(RuntimeExtensionState.FaultedPassThrough,
+                            error is GameSaveException ? "connection-unavailable" : "configuration-or-connection-failed",
+                            process ?? "", world, RequestedRevision: revision);
                     var affected = shared ? modules : [handling!];
                     RuntimeExtensionStatus? stopped = null;
                     if (shared) stopped = await CloseLeaseAsync(requestOff: affected.Any(module => wanted[module.Id]));

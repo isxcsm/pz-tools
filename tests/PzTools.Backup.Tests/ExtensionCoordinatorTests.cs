@@ -1,3 +1,4 @@
+using PzTools.GameBridge;
 using PzTools.GameExtensions;
 using PzTools.Process.Contracts;
 using PzTools.Process.Contracts.GameRuntime;
@@ -152,6 +153,67 @@ public sealed partial class GameSaveClientTests
             await Task.Delay(1000);
             var after = await Until(s => s.State == RuntimeExtensionState.Active, "vehicle still active");
             Assert.Equal(driving.Generation, after.Generation);
+        }
+        finally
+        {
+            await stop.CancelAsync();
+            try { await run; } catch (OperationCanceledException) { }
+            await feed;
+        }
+    }
+
+    /// <summary>
+    /// A game still running the bootstrap from before an update of the app refuses the extension link. That is the
+    /// restart the update needs, reported as such, and the player's preference stays on for the next game.
+    /// </summary>
+    [BridgeFact]
+    public async Task Coordinator_ReportsAGameThatNeedsARestartAfterAnUpdate_AndKeepsThePreference()
+    {
+        using var temp = new TempDirectory();
+        var bridge = ContinuousFixtureBridge(temp);
+        var runtimeRoot = temp.GetPath("runtime");
+        // What a bootstrap of API 10 (PZ Tools 0.2.1 and before) leaves in a game it was attached to.
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal", properties:
+            ["pztools.bridge.control.v1=2:1:1:" + new string('0', 64), "pztools.bridge.bootstrap.api=10"]);
+
+        // Such a game cannot be watched either; the scheduler's last word on it is a ready world.
+        var stream = Guid.NewGuid().ToString("N");
+        var observations = new RuntimeSnapshotStore();
+        var published = new RuntimeExtensionStatusStore();
+        string process = Guid.NewGuid().ToString("N"), world = Guid.NewGuid().ToString("N");
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        var feed = Task.Run(async () =>
+        {
+            for (long sequence = 1; !stop.IsCancellationRequested; sequence++)
+            {
+                observations.Publish(new RuntimeObservation(stream, RuntimeQuality.Fresh, new RuntimeSnapshot(process, stream, world,
+                    1, 1, sequence, WorldPhase.Ready, GamePause.Running, RuntimeMode.LocalSinglePlayer, 1, sequence * 100, 0,
+                    temp.GetPath("Saves", "Sandbox", "World"))));
+                try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { }
+            }
+        });
+        var settings = new ExtensionSettingsStore(runtimeRoot);
+        Assert.Equal(1, settings.SetEnabled(ExtensionIds.VehicleDrivetrain, true, 0).Revision);
+        var run = new RuntimeExtensionCoordinator(bridge, runtimeRoot, observations, published,
+            new ExtensionControlOptions(ReconcileIntervalMs: 250, ConnectTimeoutSeconds: 20)).RunAsync(game.Pid, stream, stop.Token);
+        try
+        {
+            var give = DateTime.UtcNow.AddSeconds(30);
+            RuntimeExtensionStatus status;
+            while ((status = published.Read(ExtensionIds.VehicleDrivetrain)).State != RuntimeExtensionState.RestartRequired)
+            {
+                if (run.IsCompleted) await run;
+                if (DateTime.UtcNow > give) throw new TimeoutException($"vehicle restart required: last status was {status}");
+                await Task.Delay(50);
+            }
+            // The reason the Logs page and the sidebar's card read as "restart the game", not as a failure.
+            Assert.Equal(GameExtensionActivationState.BootstrapUpdateReason, status.Reason);
+            // Further rounds keep the answer and leave the preference alone.
+            await Task.Delay(1000);
+            Assert.Equal(GameExtensionActivationState.BootstrapUpdateReason, published.Read(ExtensionIds.VehicleDrivetrain).Reason);
+            var after = settings.Read();
+            Assert.Equal(1, after.Revision);
+            Assert.True(after.Extensions[ExtensionIds.VehicleDrivetrain].Enabled);
         }
         finally
         {
