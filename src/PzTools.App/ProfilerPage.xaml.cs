@@ -2182,8 +2182,9 @@ public sealed partial class ProfilerPage : UserControl
                 lines.Add(Localizer.Format("ProfileCollectorBusyFormat", busy));
             return string.Join("\n", lines);
         }
-        foreach (var element in new FrameworkElement[] { SelectedLegend, ScriptsLegend, GameCodeLegend, CollectionsLegend, WaitingLegend }
-                     .Concat(TimeBreakdownBar.Children.OfType<FrameworkElement>()))
+        // On the legend only: the bar's parts sit a line above it, and the same tip there opened against the legend's
+        // as the pointer went between them. Over the bar, the graph lighting up says enough.
+        foreach (var element in new FrameworkElement[] { SelectedLegend, ScriptsLegend, GameCodeLegend, CollectionsLegend, WaitingLegend })
             if (element.Tag is string part) AppToolTip.SetTip(element, Tip(part));
     }
 

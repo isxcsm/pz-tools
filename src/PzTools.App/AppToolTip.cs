@@ -84,7 +84,7 @@ public static class AppToolTip
             owner.Unloaded += (_, _) => Dismiss();
             owner.GotFocus += (_, _) =>
             {
-                if (owner is Microsoft.UI.Xaml.Controls.Control { FocusState: FocusState.Keyboard }) Show();
+                if (owner is Microsoft.UI.Xaml.Controls.Control { FocusState: FocusState.Keyboard }) Show(keyboard: true);
             };
             owner.LostFocus += (_, _) => { if (!hovered) Hide(); };
         }
@@ -163,7 +163,12 @@ public static class AppToolTip
                 }
         }
 
-        private void Show()
+        // The gap Windows' own tips keep from what they are for: opened by the service, a tip stands this far off its
+        // element (WinUI's DEFAULT_MOUSE_OFFSET and DEFAULT_KEYBOARD_OFFSET); opened by hand it gets none and sat on
+        // the element's edge, against the pointer.
+        private const double PointerGap = 20, KeyboardGap = 12;
+
+        private void Show(bool keyboard = false)
         {
             if (pressed || string.IsNullOrEmpty(text) || !owner.IsLoaded || owner.XamlRoot is null || UnderOpenPopup()) return;
             // Nested tooltip owners prefer the innermost hovered element.
@@ -177,6 +182,7 @@ public static class AppToolTip
             {
                 tooltip.XamlRoot = owner.XamlRoot;
                 tooltip.PlacementTarget = owner;
+                tooltip.VerticalOffset = keyboard ? KeyboardGap : PointerGap;
                 tooltip.IsOpen = true;
             }
             // An element leaving the tree as its tip opens: no tip, rather than the app.

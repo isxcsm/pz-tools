@@ -244,9 +244,9 @@ follows the frame graph: while a mod is drawn over the graph (clicked in *Script
 pointed at while another is drawn), it stands apart within the scripts' part, solid
 beside the lighter *Other scripts*, with its name and its figure from the list: how
 much of this stretch was that mod. With none drawn, the bar is the whole range's. It is shown for the game thread with enough samples, and goes into the
-copied text. Resting the pointer on a part, on the bar or its legend, says what it counts
+copied text. Resting the pointer on a part's legend says what it counts
 and its time in the range (for *Memory stop*, also how much of the range the collector was at
-work beside the game, which ZGC's pauses never show), and draws that part of each frame
+work beside the game, which ZGC's pauses never show); on the legend or the bar, it draws that part of each frame
 on the graph in the part's colour, on the terms the bar uses, in place of a highlighted
 mod while the pointer stays: which frames of a stutter were scripts, game code, memory or
 waiting.
