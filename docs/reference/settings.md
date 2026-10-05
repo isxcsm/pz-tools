@@ -136,7 +136,7 @@ app is closed.
 | `[ui]` | `language`, `theme`, `system_tray`, `check_updates` | **Language**, **Theme**, **System tray**, **New version notice** |
 | `[paths]` | `saves_root`, `backup_root` | **Save folder**, **Backup folder** |
 | `[backup]` | `automatic_enabled`, `interval_minutes`, `pause_periodic_during_game`, `retained_revisions`, `backup_on_death`, `save_game_before_backup`, `game_save_countdown` | The **Backup** section, in page order |
-| `[logs]` | `minimum_level`, `display_limit` | Not used by the current Logs page, whose filters last only while it is open |
+| `[logs]` | `display_limit` | No control on the page: how many of the newest log entries the app watches ([Logs page](logs-page.md#what-is-stored)). A `minimum_level` written by earlier versions is ignored and dropped on the next save. |
 | `[profiler]` | `rolling_enabled`, `rolling_detailed`, `rolling_minutes` | The **Performance** section |
 | `[hotkeys]` | `save_last`, `record`, `record_mode`, `rolling_toggle`, `manual_backup`, `backup_toggle`, `status` | The **Hotkeys** section; `""` means none |
 

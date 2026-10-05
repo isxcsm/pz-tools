@@ -93,7 +93,6 @@ public sealed class AppCoreTests
             new SettingsProjector(views).Project(loaded);
             Assert.Equal(enabled, views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot!.GameSaveCountdown);
         }
-        await service.SaveLogOptionsAsync(LogLevel.Warning, 1200);
         Assert.False(service.Load().GameSaveCountdown);
     }
 
@@ -176,7 +175,6 @@ public sealed class AppCoreTests
             new SettingsProjector(views).Project(changed);
             Assert.Equal(enabled, views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot!.SaveGameBeforeBackup);
         }
-        await service.SaveLogOptionsAsync(LogLevel.Warning, 1200);
         Assert.False(service.Load().SaveGameBeforeBackup);
     }
 
@@ -194,25 +192,44 @@ public sealed class AppCoreTests
     }
 
     [Fact]
-    public void LogOptions_DefaultToWarningDisplayAndOneHundredThousandStoredRows()
+    public void LogOptions_DefaultToOneThousandWatchedAndOneHundredThousandStoredRows()
     {
         using var temp = new TempDirectory();
         var service = new AppSettingsService(temp.GetPath("runtime"));
 
         var defaults = service.Load();
-        Assert.Equal(LogLevel.Warning, defaults.LogMinimumLevel);
         Assert.Equal(LogLevel.Information, defaults.LogRecordMinimumLevel);
         Assert.Equal(100000, defaults.LogMaxEntries);
         Assert.Equal(1000, defaults.LogDisplayLimit);
-        Assert.Equal(LogLevel.Warning, new LogProjectionOptions().MinimumLevel);
         Assert.Equal(1000, new LogProjectionOptions().DisplayLimit);
 
         Directory.CreateDirectory(service.RuntimeRoot);
         File.WriteAllText(service.SettingsPath, "[ui]\nlanguage = \"Korean\"\n");
         var partial = service.Load();
-        Assert.Equal(LogLevel.Warning, partial.LogMinimumLevel);
         Assert.Equal(100000, partial.LogMaxEntries);
         Assert.Equal(1000, partial.LogDisplayLimit);
+    }
+
+    [Fact]
+    public async Task LogOptions_AnEarlierMinimumLevelStillLoadsAndTheNextSaveDropsIt()
+    {
+        using var temp = new TempDirectory();
+        var service = new AppSettingsService(temp.GetPath("runtime"));
+        var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        Directory.CreateDirectory(service.RuntimeRoot);
+        // What earlier versions wrote; the key was never read by the Logs page.
+        File.WriteAllText(service.SettingsPath, "[logs]\nminimum_level = \"Error\"\ndisplay_limit = 1200\n");
+
+        var loaded = service.Load();
+        Assert.Equal(1200, loaded.LogDisplayLimit);
+        await service.SaveAndApplyAsync(loaded with
+        {
+            SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups"),
+        }, scheduler);
+
+        var text = await File.ReadAllTextAsync(service.SettingsPath);
+        Assert.DoesNotContain("minimum_level", text);
+        Assert.Contains("display_limit = 1200", text);
     }
 
     [Fact]
@@ -237,11 +254,10 @@ public sealed class AppCoreTests
     }
 
     [Fact]
-    public async Task LogOptions_PersistWithoutChangingBackupSettingsOrSchedulerWhileBusy()
+    public async Task AdvancedLogOptions_AreReadFromTheAppConfigurationAndKeptWithoutSchedulerChanges()
     {
         using var temp = new TempDirectory();
-        var busy = false;
-        var service = new AppSettingsService(temp.GetPath("runtime"), () => busy);
+        var service = new AppSettingsService(temp.GetPath("runtime"));
         var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
         var original = AppSettings.CreateDefault() with
         {
@@ -256,20 +272,7 @@ public sealed class AppCoreTests
         };
         await service.SaveAndApplyAsync(original, scheduler);
         var before = await scheduler.ReadBackupStateIfChangedAsync(-1);
-        var configFiles = Directory.EnumerateFiles(temp.Path, "*.toml", SearchOption.AllDirectories)
-            .Where(path => path != service.SettingsPath)
-            .ToDictionary(path => path, File.ReadAllText);
-        busy = true;
-
-        await service.SaveLogOptionsAsync(LogLevel.Warning, 1200);
-
-        Assert.Equal(original with { LogMinimumLevel = LogLevel.Warning, LogDisplayLimit = 1200 }, service.Load());
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            service.SaveLogOptionsAsync(LogLevel.Trace, 1200));
-        Assert.Equal(before, await scheduler.ReadBackupStateIfChangedAsync(-1));
-        foreach (var (path, text) in configFiles) Assert.Equal(text, await File.ReadAllTextAsync(path));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.SaveLogOptionsAsync(LogLevel.Error, 99));
-        Assert.Equal(1200, service.Load().LogDisplayLimit);
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { LogDisplayLimit = 99 }).Validate());
 
         var logging = await File.ReadAllTextAsync(service.LoggingConfigurationPath);
         await File.WriteAllTextAsync(service.LoggingConfigurationPath,
@@ -302,7 +305,6 @@ public sealed class AppCoreTests
             AutomaticBackupEnabled = false,
             RetainedRevisions = 42,
             BackupOnDeath = true,
-            LogMinimumLevel = LogLevel.Warning,
             LogDisplayLimit = 1200,
             UseSystemTray = true,
             VerifyStagedCopies = false,
@@ -360,7 +362,6 @@ public sealed class AppCoreTests
         Assert.Empty(Directory.GetFiles(runtime, "*.tmp", SearchOption.TopDirectoryOnly));
         var settingsText = await File.ReadAllTextAsync(service.SettingsPath);
         Assert.Contains("[logs]", settingsText);
-        Assert.Contains("minimum_level = \"Warning\"", settingsText);
         Assert.Contains("display_limit = 1200", settingsText);
         Assert.Contains("system_tray = true", settingsText);
         Assert.DoesNotContain("verify_staged_copies", settingsText);

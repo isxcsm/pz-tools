@@ -626,7 +626,6 @@ public sealed partial class SettingsPage : UserControl
         checked((int)IntervalNumber.Value),
         checked((int)RetentionNumber.Value),
         DeathBackupToggle.IsOn,
-        Enum.Parse<LogLevel>(current.LogMinimumLevel),
         current.LogDisplayLimit,
         SystemTrayToggle.IsOn,
         current.VerifyStagedCopies,

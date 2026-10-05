@@ -38,26 +38,6 @@ public sealed class AppHostSettingsConcurrencyTests
     }
 
     [Fact]
-    public async Task LogPreferencesChangedDuringStartup_AreNotOverwritten()
-    {
-        await using var fixture = await PausedStartup.CreateAsync();
-        await fixture.SnapshotPublished;
-
-        var apply = fixture.Host.ApplyLogOptionsAsync(LogLevel.Error, 2000);
-        Assert.False(apply.IsCompleted);
-        fixture.Release();
-        await Task.WhenAll(fixture.Startup, apply).WaitAsync(TimeSpan.FromSeconds(20));
-
-        var stored = fixture.Host.Settings.Load();
-        var visible = fixture.Host.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot!;
-        Assert.Equal(LogLevel.Error, stored.LogMinimumLevel);
-        Assert.Equal(2000, stored.LogDisplayLimit);
-        Assert.Equal(nameof(LogLevel.Error), visible.LogMinimumLevel);
-        Assert.Equal(2000, visible.LogDisplayLimit);
-        Assert.Equal(fixture.InitialSettings.AutomaticBackupEnabled, stored.AutomaticBackupEnabled);
-    }
-
-    [Fact]
     public async Task CancelledSettingsWait_DoesNotWriteAfterStartup()
     {
         await using var fixture = await PausedStartup.CreateAsync();
