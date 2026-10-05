@@ -134,9 +134,13 @@ public sealed class AppCoreTests
             changed with { HotKeys = new HotKeySettings(SaveLast: "Ctrl+F9", Record: "Ctrl+F9") }, scheduler));
         await File.AppendAllTextAsync(service.SettingsPath, "");
         var text = (await File.ReadAllTextAsync(service.SettingsPath)).Replace("record = \"\"", "record = \"Ctrl+F9\"");
-        await File.WriteAllTextAsync(service.SettingsPath, text.Replace("rolling_minutes = 3", "rolling_minutes = 99"));
+        await File.WriteAllTextAsync(service.SettingsPath, text);
         var edited = service.Load();
-        Assert.Equal(("Ctrl+F9", "", 10), (edited.Keys.SaveLast, edited.Keys.Record, edited.RollingMinutes));
+        Assert.Equal(("Ctrl+F9", ""), (edited.Keys.SaveLast, edited.Keys.Record));
+        // A number out of range fails loading, as every other number in the file does; it is not clamped.
+        await File.WriteAllTextAsync(service.SettingsPath, text.Replace("rolling_minutes = 3", "rolling_minutes = 99"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.Load());
+        await File.WriteAllTextAsync(service.SettingsPath, text);
 
         // The key once set to pause automatic backups for a while is not taken over by the one that turns them off.
         text = (await File.ReadAllTextAsync(service.SettingsPath)).Replace("backup_toggle = \"\"", "backup_pause = \"Ctrl+Alt+P\"");

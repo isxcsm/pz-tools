@@ -261,7 +261,7 @@ public sealed class AppSettingsService
             ReadPausePolicy(model, defaults.PausePeriodicDuringGame),
             GetBoolean(model, "profiler", "rolling_enabled", false),
             GetBoolean(model, "profiler", "rolling_detailed", false),
-            Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)), 1, 10),
+            checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)),
             ReadHotKeys(model),
             GetBoolean(model, "ui", "check_updates", true));
         // An older file can show a level below what is now recorded.
