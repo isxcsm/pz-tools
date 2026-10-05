@@ -158,11 +158,25 @@ public sealed class ExtensionActivationViewTests
     }
 
     [Fact]
+    public void RunningGameOutsideTheSupportedRangeRefusesOnUnlessTheRangeIsIgnored()
+    {
+        // The game would reject the request with version-mismatch and the module would be saved off again.
+        var outside = Card() with { GameVersion = "41.78", VersionMatches = false };
+        Assert.False(Project(outside, null).CanToggle);
+        Assert.True(Project(outside, null).CanEditOptions); // "Ignore supported version range" stays reachable.
+        Assert.True(Project(outside with { ForceVersion = true }, null).CanToggle);
+        // An unknown version (no game running) still lets a desired ON be saved.
+        Assert.True(Project(Card() with { VersionMatches = false }, null, worldReady: false).CanToggle);
+        Assert.True(Project(Card() with { GameVersion = "42.20", VersionMatches = true }, null).CanToggle);
+    }
+
+    [Fact]
     public void ActiveVersionMismatchCanAlwaysBeTurnedOff()
     {
         var value = Project(Card(enabled: true) with { VersionMatches = false }, Active());
         Assert.True(value.IsOn);
         Assert.True(value.CanToggle);
+        Assert.True(Project(Card(enabled: true) with { GameVersion = "41.78", VersionMatches = false }, Active()).CanToggle);
     }
 
     [Fact]

@@ -223,7 +223,10 @@ The section header has the extension's title, description and main switch. Expan
 the vehicle's four option switches, a **Compatibility and status** card and **Ignore supported
 version range**. The switches always show the saved preference, not the applied state, and stay
 editable while no game is connected or a change is waiting. The main switch is disabled only
-while the module is saved off and the current game process needs a restart.
+while the module is saved off and either the current game process needs a restart or the running
+game's version is outside the supported range and the range is not ignored (the game would reject
+the request). A switch that is on can always be turned off. With no game version known, turning
+it on is saved and checked when a game starts.
 
 The status card has two lines. The first is always **Supported: Build 42 series · Current game:
 {version}** (**Unknown** when no fresh game version is known). The second, the hint, is the first
@@ -231,7 +234,8 @@ match in this order (`ExtensionSettingsSection.ActivationHint`), or hidden:
 
 | Condition | Hint |
 | --- | --- |
-| Fresh status is `Unsupported`, `FaultedPassThrough` or `RestartRequired` | **The extension could not be applied. Check the logs for details.** |
+| Fresh failed status with reason `version-mismatch` | **Outside supported range · Extension inactive** |
+| Any other fresh `Unsupported`, `FaultedPassThrough` or `RestartRequired` status | **The extension could not be applied. Check the logs for details.** |
 | A change is in progress and the game said `safe-boundary` | **To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.** |
 | A change is in progress for another reason | **Applying changes in the game.** |
 | Saved on, no single-player world ready | **Saved settings will be applied when you enter a single-player game.** |
