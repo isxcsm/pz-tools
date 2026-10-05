@@ -76,7 +76,7 @@ there makes the game run out of memory sooner.
 If the line under the graph says **Stopped N times for lack of memory** or **Memory nearly
 full**, the problem is memory, not a mod. Press **Memory setting** next to it, or go to
 **Settings → Game → Game memory**, and pick the recommended size. It takes effect the next
-time you start the game.
+time you start the game. See [Give the game more memory](more-game-memory.md).
 
 [Screenshot: The memory line under the graph saying the game ran short, with Memory setting]
 

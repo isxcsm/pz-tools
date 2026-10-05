@@ -66,7 +66,10 @@ and behavior → System tray** if you want it to keep running in the background.
 
 ## Next
 
-- Go back to an earlier backup
-- Move a save to another PC
-- Bring back a dead character
+- [Go back to an earlier backup](restore-a-save.md)
+- [Move a save to another PC](move-a-save.md)
+- [Bring back a dead character](revive-a-character.md)
 - [Find a laggy mod](find-a-laggy-mod.md)
+- [Give the game more memory](more-game-memory.md)
+- [Better vehicle controls](vehicle-controls.md)
+- [Troubleshooting](troubleshooting.md)

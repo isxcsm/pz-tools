@@ -5,6 +5,19 @@
 The [user guide](../README.md) covers installing and everyday use. The pages below go
 further. They are in English; the app's interface languages are managed separately.
 
+## Guides
+
+One task each, step by step.
+
+- [Getting started](guides/getting-started.md)
+- [Go back to an earlier backup](guides/restore-a-save.md)
+- [Move a save to another PC](guides/move-a-save.md)
+- [Bring back a dead character](guides/revive-a-character.md)
+- [Find a laggy mod](guides/find-a-laggy-mod.md)
+- [Give the game more memory](guides/more-game-memory.md)
+- [Better vehicle controls](guides/vehicle-controls.md)
+- [Troubleshooting](guides/troubleshooting.md)
+
 ## Start here
 
 - [How PZ Tools fits together](overview.md): the map. What runs where, what one
