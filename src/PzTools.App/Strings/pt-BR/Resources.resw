@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Salvar o jogo antes do backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Contagem regressiva no jogo</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Antes de um backup automático salvar o jogo, mostra uma contagem regressiva sobre o personagem a partir de 5 segundos antes e depois o resultado. Desligado, salva sem mostrar.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Salva o jogo logo antes de um backup para incluir seu progresso mais recente. O jogo pode travar por cerca de meio segundo ao salvar. Desativado, o progresso ainda não salvo pode ficar fora do backup; por isso, recomenda-se manter ativado.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Salva o jogo logo antes de um backup para incluir seu progresso mais recente. O jogo pode travar por cerca de meio segundo ao salvar.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Desligado: o progresso desde o último salvamento do jogo fica de fora dos backups. Recomenda-se deixar ligado.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próximo backup: começa em breve</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próximo backup: após a operação atual</value></data>

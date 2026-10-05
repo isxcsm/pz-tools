@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Yedeklemeden önce oyunu kaydet</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Oyun içi kayıt geri sayımı</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Otomatik yedek oyunu kaydetmeden 5 saniye önce karakterin üzerinde geri sayım gösterir, ardından sonucu bildirir. Kapalıyken göstermeden kaydeder.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Yedeklemeden hemen önce oyunu kaydederek en son ilerlemenizi de yedeğe alır. Kayıt sırasında oyun yaklaşık yarım saniye takılabilir. Kapalıyken henüz kaydedilmemiş ilerleme yedekte eksik olabilir; bu yüzden açık bırakmanız önerilir.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Yedeklemeden hemen önce oyunu kaydederek en son ilerlemenizi de yedeğe alır. Kayıt sırasında oyun yaklaşık yarım saniye takılabilir.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Kapalı: oyunun son kaydından bu yana ilerleme yedeklere girmez. Açık bırakmanız önerilir.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Sonraki yedek: birazdan başlıyor</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Sonraki yedek: mevcut işlemden sonra</value></data>

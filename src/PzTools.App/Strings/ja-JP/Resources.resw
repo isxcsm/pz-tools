@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>バックアップ前にゲームを保存</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>ゲーム内の保存カウントダウン</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自動バックアップがゲームを保存する 5 秒前からキャラクターの上にカウントダウンを表示し、終わると保存結果を知らせます。オフにすると表示せずに保存します。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>バックアップの直前にゲームを保存し、最新の進行状況まで含めます。保存中にゲームが 0.5 秒ほど止まることがあります。オフにすると未保存の進行状況がバックアップに含まれないことがあるため、オンのままにすることをおすすめします。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>バックアップの直前にゲームを保存し、最新の進行状況まで含めます。保存中にゲームが 0.5 秒ほど止まることがあります。</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>オフ: ゲームが最後に保存された後の進行はバックアップに入りません。オンのままにすることをおすすめします。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>次回のバックアップ：まもなく開始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>次回のバックアップ：作業の完了後</value></data>

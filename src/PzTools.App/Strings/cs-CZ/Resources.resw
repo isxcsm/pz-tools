@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Uložit hru před zálohou</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odpočet uložení ve hře</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Než automatická záloha uloží hru, zobrazí nad postavou odpočet od 5 sekund a potom výsledek. Když je vypnuto, uloží bez něj.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Uloží hru těsně před zálohou, aby obsahovala váš nejnovější postup. Při ukládání se hra může asi na půl sekundy zaseknout. Při vypnutí může v záloze chybět dosud neuložený postup, proto doporučujeme nechat zapnuté.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Uloží hru těsně před zálohou, aby obsahovala váš nejnovější postup. Při ukládání se hra může asi na půl sekundy zaseknout.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Vypnuto: postup od posledního uložení hry se do záloh nedostane. Doporučujeme nechat zapnuté.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Příští záloha: brzy začne</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Příští záloha: po aktuální operaci</value></data>

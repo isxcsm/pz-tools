@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Zapisz grę przed utworzeniem kopii</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Odliczanie zapisu w grze</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Zanim automatyczna kopia zapisze grę, wyświetla nad postacią odliczanie od 5 sekund, a potem wynik. Po wyłączeniu zapisuje bez niego.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje grę tuż przed utworzeniem kopii, aby zawierała najnowsze postępy. Podczas zapisu gra może zaciąć się na około pół sekundy. Po wyłączeniu niezapisane jeszcze postępy mogą nie trafić do kopii, dlatego zalecamy pozostawienie tej opcji włączonej.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Zapisuje grę tuż przed utworzeniem kopii, aby zawierała najnowsze postępy. Podczas zapisu gra może zaciąć się na około pół sekundy.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Wyłączone: postęp od ostatniego zapisu gry nie trafia do kopii. Zalecamy pozostawić włączone.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Następna kopia: wkrótce</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Następna kopia: po bieżącej operacji</value></data>

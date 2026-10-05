@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Spiel vor der Sicherung speichern</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Speicher-Countdown im Spiel</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Bevor eine automatische Sicherung das Spiel speichert, zeigt sie 5 Sekunden vorher einen Countdown über deiner Figur und danach das Ergebnis. Wenn aus, wird ohne ihn gespeichert.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Speichert das Spiel direkt vor einer Sicherung, damit sie den neuesten Fortschritt enthält. Beim Speichern kann das Spiel etwa eine halbe Sekunde stocken. Wenn aus, kann noch nicht gespeicherter Fortschritt in der Sicherung fehlen; daher wird empfohlen, dies eingeschaltet zu lassen.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Speichert das Spiel direkt vor einer Sicherung, damit sie den neuesten Fortschritt enthält. Beim Speichern kann das Spiel etwa eine halbe Sekunde stocken.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Aus: Fortschritt seit dem letzten Speichern des Spiels fehlt in Sicherungen. Wir empfehlen, dies eingeschaltet zu lassen.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Nächste Sicherung: startet gleich</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Nächste Sicherung: nach dem laufenden Vorgang</value></data>

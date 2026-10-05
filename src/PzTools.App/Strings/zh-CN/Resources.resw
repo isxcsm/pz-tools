@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>备份前保存游戏</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>游戏内保存倒计时</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自动备份保存游戏前 5 秒起在角色上方显示倒计时，结束后告知保存结果。关闭后不显示直接保存。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前先保存游戏，把最新进度也包含进去。保存时游戏可能会卡顿约 0.5 秒。关闭后，尚未保存的进度可能不会进入备份，建议保持开启。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前先保存游戏，把最新进度也包含进去。保存时游戏可能会卡顿约 0.5 秒。</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>已关闭：游戏上次保存之后的进度不会进入备份。建议保持开启。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次备份：即将开始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：当前任务结束后</value></data>

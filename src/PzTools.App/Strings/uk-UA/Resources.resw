@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Зберігати гру перед копіюванням</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Зворотний відлік у грі</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Перед тим як автоматична копія збереже гру, показує над персонажем зворотний відлік за 5 секунд, а потім результат. Якщо вимкнено, зберігає без нього.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Зберігає гру безпосередньо перед копіюванням, щоб до копії потрапив останній прогрес. Під час збереження гра може завмерти приблизно на пів секунди. Якщо вимкнути, незбережений прогрес може не потрапити до копії, тому радимо залишити ввімкненим.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Зберігає гру безпосередньо перед копіюванням, щоб до копії потрапив останній прогрес. Під час збереження гра може завмерти приблизно на пів секунди.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Вимкнено: поступ після останнього збереження гри не потрапить до копій. Радимо залишити ввімкненим.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Наступна копія: незабаром</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Наступна копія: після поточної операції</value></data>

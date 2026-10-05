@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Enregistrer dans le jeu avant la sauvegarde</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Compte à rebours dans le jeu</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Avant qu&apos;une sauvegarde automatique enregistre la partie, affiche un compte à rebours au-dessus de votre personnage 5 secondes avant, puis le résultat. Désactivé, elle enregistre sans l&apos;afficher.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Enregistre la partie juste avant une sauvegarde pour y inclure votre dernière progression. Le jeu peut se figer environ une demi-seconde pendant l’enregistrement. Désactivée, la progression non enregistrée peut manquer dans la sauvegarde ; il est recommandé de la laisser activée.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Enregistre la partie juste avant une sauvegarde pour y inclure votre dernière progression. Le jeu peut se figer environ une demi-seconde pendant l’enregistrement.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Désactivé : la progression depuis le dernier enregistrement de la partie manque dans les sauvegardes. Il est recommandé de le laisser activé.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Prochaine sauvegarde : bientôt</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Prochaine sauvegarde : après l’opération en cours</value></data>

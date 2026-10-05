@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Сохранять игру перед копированием</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Обратный отсчёт в игре</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Перед тем как автоматическая копия сохранит игру, показывает над персонажем обратный отсчёт за 5 секунд, а затем результат. Если выключено, сохраняет без него.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Сохраняет игру прямо перед копированием, чтобы в копию попал последний прогресс. Во время сохранения игра может замереть примерно на полсекунды. Если выключить, несохранённый прогресс может не попасть в копию, поэтому рекомендуется оставить включённым.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Сохраняет игру прямо перед копированием, чтобы в копию попал последний прогресс. Во время сохранения игра может замереть примерно на полсекунды.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Выключено: прогресс после последнего сохранения игры не попадёт в копии. Рекомендуем оставить включённым.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Следующая копия: скоро</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Следующая копия: после текущей операции</value></data>

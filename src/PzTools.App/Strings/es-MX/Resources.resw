@@ -325,7 +325,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Guardar el juego antes de la copia</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Cuenta regresiva dentro del juego</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Antes de que un respaldo automático guarde la partida, muestra una cuenta regresiva sobre tu personaje desde 5 segundos antes y luego el resultado. Si está desactivado, guarda sin mostrarla.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Guarda el juego justo antes de una copia para incluir tu progreso más reciente. El juego puede detenerse alrededor de medio segundo mientras guarda. Si está desactivado, el progreso aún no guardado puede faltar en la copia, por lo que se recomienda dejarlo activado.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Guarda el juego justo antes de una copia para incluir tu progreso más reciente. El juego puede detenerse alrededor de medio segundo mientras guarda.</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Desactivado: el progreso desde el último guardado de la partida no entra en los respaldos. Se recomienda dejarlo activado.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Próxima copia: empieza pronto</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Próxima copia: después de la operación actual</value></data>

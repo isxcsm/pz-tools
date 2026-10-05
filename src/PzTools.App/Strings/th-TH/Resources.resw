@@ -332,7 +332,7 @@
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>นับถอยหลังการบันทึกในเกม</value></data>
   <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>ก่อนการสำรองอัตโนมัติจะบันทึกเกม จะแสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อน แล้วแจ้งผล เมื่อปิด จะบันทึกโดยไม่แสดง</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกเกมก่อนสำรองทันทีเพื่อให้รวมความคืบหน้าล่าสุด เกมอาจสะดุดประมาณครึ่งวินาทีขณะบันทึก หากปิด ความคืบหน้าที่ยังไม่ได้บันทึกอาจไม่อยู่ในข้อมูลสำรอง จึงแนะนำให้เปิดไว้</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกเกมก่อนสำรองทันทีเพื่อให้รวมความคืบหน้าล่าสุด เกมอาจสะดุดประมาณครึ่งวินาทีขณะบันทึก</value></data>
   <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>ปิดอยู่: ความคืบหน้าหลังเกมบันทึกครั้งล่าสุดจะไม่อยู่ในข้อมูลสำรอง แนะนำให้เปิดไว้</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: เริ่มเร็ว ๆ นี้</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: หลังงานปัจจุบันเสร็จ</value></data>
