@@ -33,6 +33,9 @@ public final class GameWindow {
     public static void save(boolean flag) throws IOException {
         if (Thread.currentThread() != gameThread || !flag) throw new IOException("Wrong save invocation");
         if (mode.equals("throw")) throw new IOException("Synthetic save failure");
+        while (Files.exists(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "hold-save"))) {
+            try { Thread.sleep(20); } catch (InterruptedException interrupted) { throw new IOException(interrupted); }
+        }
         var stamp = zombie.characters.IsoPlayer.getInstance().getModData();
         Files.writeString(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "recovery-stamp.txt"),
             stamp.rawget("pztools.recovery.id") + "\n" + stamp.rawget("pztools.recovery.primary") + "\n" + stamp.rawget("pztools.recovery.secondary"));
@@ -125,6 +128,10 @@ public final class GameWindow {
                 Files.writeString(staged, endpoint);
                 Files.move(staged, Path.of(args[0], "control-state.txt"), StandardCopyOption.REPLACE_EXISTING);
             }
+            if (consumeSignal(Path.of(args[0], "quit-to-menu")))
+                ((zombie.gameStates.IngameState)states.current).updateInternal(Path.of(args[0]));
+            // A game hung in its world: the game thread stops elsewhere.
+            while (Files.exists(Path.of(args[0], "hold-frame"))) Thread.sleep(20);
             if (Files.exists(Path.of(args[0], "leave-world"))) states.current = new zombie.gameStates.MainScreenState();
             if (!mode.equals("stalled") || Files.exists(Path.of(args[0], "resume"))) logic();
             Thread.sleep(20);

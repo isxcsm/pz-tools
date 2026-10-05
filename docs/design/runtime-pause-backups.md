@@ -33,7 +33,7 @@ The backup scheduler uses an observation only once `runtime_facts` holds the sam
 
 | Value | Source |
 | --- | --- |
-| Phase | `GameWindow.states.current`: `IngameState` with a cell is `Ready`, without one `Loading`; `MainScreenState` is `Menu`; `GameLoadingState` is `Loading`; `Core.exiting` is `Unloading`; anything else `Unknown` |
+| Phase | `GameWindow.states.current`: `IngameState` with a cell is `Ready`, without one `Loading`; `MainScreenState` is `Menu`; `GameLoadingState` is `Loading`; `Core.exiting` is `Unloading`; anything else `Unknown`. See also [leaving a world](#leaving-a-world). |
 | Pause | `GameTime.isGamePaused()`. A state yielded on top of the game (a debug tool such as the chunk viewer) counts as `Ready` and `Paused`. |
 | Mode | `Networked` if `GameClient.client`, `clientSave` or `GameServer.server`; `Unsupported` if `Core.isNoSave()`, `LastStand` or `Tutorial`; else `LocalSinglePlayer` |
 | Save path | `ZomboidFileSystem.getCurrentSaveDir()`, read once per world |
@@ -51,6 +51,24 @@ carry it. The client fails the stream if no line arrives for 2 s, if identities 
 a reconnect, or if active time goes backwards within one clock epoch. An observation is fresh when both its
 receipt and the game's sample are at most 2 s old; a live socket cannot make a stalled game thread look
 current.
+
+<a id="leaving-a-world"></a>
+Leaving a world for the main menu happens in one frame. The quit button sets `Core.exiting` during
+`UIManager.update`. In the same frame, `IngameState.updateInternal` clears the flag and saves the world. The
+state then ends: `IngameState.exit` unloads the world and reloads every mod. All of this comes after that
+frame's sample, which therefore still says `Ready`. On its own, that looks like a game hung in its world.
+
+When the game thread has not sampled for a second and the last sample says `Ready`, the stream thread
+(`RuntimeObserver.Context.noticeLeaving`) looks at the game thread's stack, at most once a second
+(`PzRuntimeAdapter.leavingWorld`). The game is leaving when the stack has either:
+
+- `IngameState.exit`;
+- `IngameState.updateInternal` calling `GameWindow.save` or `PlayerDB.saveLocalPlayersForce`.
+
+In that case the snapshot becomes the `Unloading` sample the game would have given, with a new sequence
+number. A sample the game thread took meanwhile wins. The app then shows **Game is loading**. Once the game
+thread has not sampled for 2 s, the snapshot counts as `game-busy`, not as a link to fall back from. A game
+thread stopped anywhere else in a world stays `Ready`, and then stale.
 
 Transport and SQLite work stay off the game thread. `state.db` is written only on a semantic change; the
 schedule checkpoint on a boundary change and at most every 10 s while the countdown moves.
@@ -136,8 +154,9 @@ unrecognised state. Each game-dependent feature stops only for what it needs.
 `RuntimeObservation.IsLinkUnusable` is true for:
 
 - `Unknown` quality, except before the game's first frame (`game-starting`);
-- `Stale` quality, except `game-busy`: frames still arrive but the game thread has not sampled for 2 s while
-  outside a world, as when returning to the main menu reloads every mod;
+- `Stale` quality, except `game-busy`: frames still arrive, the game thread has not sampled for 2 s, and its
+  last sample is outside a world or [leaving one](#leaving-a-world), as when returning to the main menu
+  reloads every mod;
 - a fresh frame whose phase is `Unknown` (the game answers without a recognisable state).
 
 A game still starting is a known state however long its first load takes: its observer samples on the main

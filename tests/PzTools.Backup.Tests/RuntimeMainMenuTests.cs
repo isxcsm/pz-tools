@@ -116,6 +116,31 @@ public sealed class RuntimeMainMenuTests
             ScheduleCountdownPresentation.Resolve(Read(views), Now).MessageKey);
     }
 
+    // Seen in the game: leaving for the main menu showed "Checking game status" instead of the game loading.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AWorldBeingLeft_IsShownAsTheGameLoading(bool pauseAware)
+    {
+        using var temp = new TempDirectory();
+        var database = await CreateDatabaseAsync(temp, pauseAware);
+        var feed = new RuntimeSnapshotStore();
+        var views = new RevisionedViewStore();
+        var projector = new SchedulerProjector(database, views, runtimeSnapshot: feed);
+        feed.Publish(Sample(WorldPhase.Ready));
+        await projector.ProjectOnceAsync();
+
+        // The bridge says Unloading a second into the frame that leaves; past two seconds the game is busy.
+        var leaving = Sample(WorldPhase.Unloading);
+        foreach (var age in new[] { 1000L, 95_000L })
+        {
+            feed.Publish(leaving with { Snapshot = leaving.Snapshot! with { SampleAgeMilliseconds = age } });
+            Assert.False(feed.Read().IsLinkUnusable);
+            await projector.ProjectOnceAsync();
+            Assert.Equal(new CountdownPresentation("RuntimeBackupLoading"), ScheduleCountdownPresentation.Resolve(Read(views), Now));
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
