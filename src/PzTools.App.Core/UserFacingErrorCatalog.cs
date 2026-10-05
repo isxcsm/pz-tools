@@ -35,8 +35,9 @@ public static class UserFacingErrorCatalog
     }
 
     /// <summary>
-    /// The same explanation for a failure that was logged: from its code, the exception's type and its Windows
-    /// error number, never from the wording of its message, which Windows may have written in another language.
+    /// The same explanation for a failure that was logged: from its code (as the failure code, or as the code a
+    /// message starts with), the exception's type and its Windows error number, never from the rest of the message's
+    /// wording, which Windows may have written in another language.
     /// </summary>
     public static string FromDiagnostics(string? failureCode, string? exceptionType, string? message, string? hResult,
         string? nativeErrorCode = null)
