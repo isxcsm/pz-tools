@@ -200,7 +200,7 @@ The frame graph stays in place; drag the handle under it to make it taller or sh
 line above the graph describes the range the results show, every number with its name:
 *Total 80.37 s* for the whole recording, or *Selection 8.20 s (12.30–20.50 s)* for a
 selected part, its length first and where it lies after. A selection shows as a chip with
-a ✕, like an active filter: pressing it, or Escape anywhere on the page, clears the
+a ✕, like an active filter, which stays while the pointer reads frames off the graph beside it: pressing it, or Escape anywhere on the page, clears the
 selection and the results describe the whole recording again (the zoom stays; *Show all*
 and a double-click only zoom out and keep the selection). Then *Average 23.6 FPS (42.4 ms)*
 and *Worst 1% 4.0 FPS (251.6 ms)*, both as a frame rate first, which is how players read

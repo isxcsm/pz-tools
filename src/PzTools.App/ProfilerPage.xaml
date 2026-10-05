@@ -194,7 +194,8 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <!-- The range the results describe; while the pointer is over the graph, the frame under it.
+          <!-- The range the results describe; while the pointer is over the graph, the frame under it, beside the
+               selection's chip, which stays.
                Names are muted and numbers are not, so the eye finds the numbers first. -->
           <!-- A selection shows as a chip with its ✕, like an active filter: pressing it (or Escape) goes back to the
                whole recording. -->

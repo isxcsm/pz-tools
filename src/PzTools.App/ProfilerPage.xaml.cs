@@ -1778,7 +1778,7 @@ public sealed partial class ProfilerPage : UserControl
             // A pause long enough to be marked on the graph is named beside the frame it stopped.
             if (paused * 1000 >= SignificantPauseMicros) items.Add((Localizer.Get("ProfileStatGcPause"), Milliseconds(paused)));
         }
-        SelectionChip.Visibility = Visibility.Collapsed;
+        // The selection's chip stays beside it: what the results are of, and its ✕, do not go while pointing elsewhere.
         SetStats(ChartInfo, items);
         // The lanes' figures follow the pointer too: this frame's collections, memory at this moment.
         var (heapNow, videoNow) = ProfileAnalysis.MemoryAt(recording, time);
