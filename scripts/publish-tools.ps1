@@ -36,7 +36,7 @@ if ([string]::IsNullOrWhiteSpace($DotNetPath)) {
     }
 }
 if ([string]::IsNullOrWhiteSpace($DotNetPath) -or -not (Test-Path -LiteralPath $DotNetPath -PathType Leaf)) {
-    throw 'dotnet 실행 파일을 찾을 수 없습니다. -DotNetPath로 경로를 지정하십시오.'
+    throw 'Cannot find the dotnet executable. Give its path with -DotNetPath.'
 }
 $dotnet = [System.IO.Path]::GetFullPath($DotNetPath)
 $bridgeProperties = @("-p:GameBridgeDirectory=$bridgePath")
@@ -63,7 +63,7 @@ foreach ($project in $projects) {
         -r win-x64 --self-contained false --force -p:CopyOutputSymbolsToPublishDirectory=false `
         -o $outputPath @bridgeProperties
     if ($LASTEXITCODE -ne 0) {
-        throw "게시 실패: $project"
+        throw "Publishing failed: $project"
     }
 }
 
@@ -74,4 +74,4 @@ if (Test-Path -LiteralPath $defaultsSource -PathType Container) {
     Copy-Item -Path (Join-Path $defaultsSource '*') -Destination $defaultsTarget -Recurse -Force
 }
 
-Write-Host "도구 게시 완료: $outputPath"
+Write-Host "Tools published: $outputPath"

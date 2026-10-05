@@ -6,5 +6,6 @@
     <ProjectReference Include="..\PzTools.Backup.Engine\PzTools.Backup.Engine.csproj" />
     <ProjectReference Include="..\PzTools.Backup.Storage\PzTools.Backup.Storage.csproj" />
     <ProjectReference Include="..\PzTools.Zomboid.State\PzTools.Zomboid.State.csproj" />
+    <ProjectReference Include="..\PzTools.Process.Hosting\PzTools.Process.Hosting.csproj" />
   </ItemGroup>
 </Project>

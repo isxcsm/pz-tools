@@ -29,6 +29,8 @@ public sealed class AppHost : IAsyncDisposable
     // Retry cadence after repeated failures, and the run time after which earlier failures stop counting.
     private readonly TimeSpan schedulerRecovery;
     private readonly bool dispatchCleanupOnExit;
+    // How long the pass left at close waits for a game still exiting: it saves and closes its files first.
+    private static readonly TimeSpan ExitCleanupGameWait = TimeSpan.FromSeconds(30);
     private readonly bool checkComponentLaunch;
     public static ViewKey BlockedComponentsViewKey { get; } = new("blocked-components");
     public static ViewKey GameLinkViewKey { get; } = new("game-link");
@@ -151,6 +153,9 @@ public sealed class AppHost : IAsyncDisposable
         stateDatabase = state;
         Scheduler = scheduler;
         var settings = Settings.Load();
+        // A vehicle tuning file where versions before 0.2.4 read it moves into its config folder before that folder's
+        // file is copied below. Both before the schedulers start: the state scheduler reads it.
+        PzTools.GameExtensions.VehicleDrivetrainConfiguration.MoveLegacyOverride(paths.RuntimeRoot);
         foreach (var (identity, component) in new[]
         {
             (paths.SchedulerDatabasePath, "backup-scheduler"),
@@ -166,6 +171,7 @@ public sealed class AppHost : IAsyncDisposable
             (settings.BackupRoot, "restore-worker"),
             (settings.BackupRoot, "character-recovery"),
             (settings.BackupRoot, "profiler"),
+            (paths.RuntimeRoot, PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder),
         })
         {
             if (component != "backup-worker")
@@ -191,7 +197,7 @@ public sealed class AppHost : IAsyncDisposable
         telemetry.ConfigureLogs(new LogProjectionOptions(
             settings.LogRecordMinimumLevel, settings.LogDisplayLimit));
         Telemetry = telemetry;
-        // 저장소와 예전 이벤트 재생이 끝나기 전에도 보관된 로그를 표시합니다.
+        // Archived logs show before the store opens and past events are replayed.
         await telemetry.RefreshLogViewAsync(cancellationToken);
         await Settings.SaveAndApplyAsync(
             settings, scheduler, cancellationToken);
@@ -241,6 +247,7 @@ public sealed class AppHost : IAsyncDisposable
         var schedulerProjector = new SchedulerProjector(scheduler, Views, repository, requireActiveState: true, runtimeSnapshot: runtimeSnapshot);
         var composer = new SaveDetailComposer(Views);
         RegisterTelemetrySources(settings, state, scheduler, repository);
+        RemoveRetiredBackupWorkerTelemetry(settings.BackupRoot);
         var projectionInterval = TimeSpan.FromMilliseconds(runtime.ProjectionIntervalMs);
         Projections.AddLoop("state", stateProjector.ProjectOnceAsync, projectionInterval);
         Projections.AddLoop("backup", backupProjector.ProjectOnceAsync, projectionInterval);
@@ -258,7 +265,8 @@ public sealed class AppHost : IAsyncDisposable
             // lasts, the game has ended that recording by itself, and the app would learn it only when a save found
             // nothing: started again once the link is back.
             if (observation.Quality == Process.Contracts.GameRuntime.RuntimeQuality.Offline) linkLost = null;
-            else if (observation.IsFresh || observation.Reason == Process.Contracts.GameRuntime.RuntimeObservation.GameStartingReason)
+            else if (observation.IsFresh || observation.Reason is Process.Contracts.GameRuntime.RuntimeObservation.GameStartingReason
+                or Process.Contracts.GameRuntime.RuntimeObservation.GameBusyReason)
             {
                 if (linkLost is { } lost && System.Diagnostics.Stopwatch.GetElapsedTime(lost) >= ProfileRecordingService.LeaseTerm)
                     Profiles.RollingLeaseLapsed();
@@ -312,7 +320,7 @@ public sealed class AppHost : IAsyncDisposable
             stateArguments,
             lifetime.Token));
         if (checkComponentLaunch) supervisors.Add(MonitorComponentLaunchAsync(lifetime.Token));
-        // 과거 작업 로그의 발견은 첫 세이브 목록/상세 투영을 막지 않습니다.
+        // Finding past operation logs does not hold up the first save list and details.
         await RegisterHistoricalOperationTelemetrySourcesAsync(cancellationToken);
     }
 
@@ -396,6 +404,12 @@ public sealed class AppHost : IAsyncDisposable
     {
         // While workers can still run: a recording left alone would keep the game recording until its time limit.
         await Profiles.StopAndWaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        // A backup, restore, export or deletion in progress stops as its own cancellation would, and records that it
+        // was cancelled, before the app's process ends and Windows ends its workers with it. A worker gets the grace
+        // to stop; the rest is the time to record the outcome.
+        if (Operations is { } operations)
+            await operations.StopAsync(TimeSpan.FromMilliseconds(runtime.ShutdownGraceMs) + TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
         lifetime.Cancel();
         Projections.RequestStop();
         try
@@ -417,14 +431,15 @@ public sealed class AppHost : IAsyncDisposable
         }
 
         // Cleanup only runs while the game is closed, and the app is often closed right after the
-        // game. Leave one detached pass behind; it defers by itself if the game is still running.
+        // game, while it is still exiting. Leave one detached pass behind; it waits a little for such a
+        // game, and leaves the work to the next run if the game stays.
         async Task DispatchExitCleanupAsync()
         {
             if (!dispatchCleanupOnExit || Repository is not { } repository || ActiveSavesRoot is not { } savesRoot) return;
             try
             {
                 await new OrphanCleanupDispatcher(repository.RepositoryPath, savesRoot,
-                    paths.WorkerDirectory, paths.ControlDatabasePath).TickAsync(DateTimeOffset.UtcNow).ConfigureAwait(false);
+                    paths.WorkerDirectory, paths.ControlDatabasePath).DispatchOnExitAsync(ExitCleanupGameWait).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -510,7 +525,7 @@ public sealed class AppHost : IAsyncDisposable
             if (collectState)
                 await (Operations ?? throw new InvalidOperationException("The app host is not ready."))
                     .RefreshStateAsync(paths.StateDatabasePath, ActiveSavesRoot!, linked.Token);
-            // 정기 루프와 직렬화하고, 상세 합성 전에 원본 뷰를 갱신합니다.
+            // Runs in turn with the periodic loop, and refreshes the source views before the details are composed.
             foreach (var name in new[] { "state", "backup", "details", "health" })
                 await Projections.ProjectNowAsync(name, linked.Token);
         }
@@ -539,21 +554,6 @@ public sealed class AppHost : IAsyncDisposable
         finally { settingsGate.Release(); }
     }
 
-    public async Task ApplyLogOptionsAsync(
-        LogLevel minimumLevel, int displayLimit, CancellationToken cancellationToken = default)
-    {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, cancellationToken);
-        await settingsGate.WaitAsync(linked.Token).ConfigureAwait(false);
-        try
-        {
-            var settings = await Settings.SaveLogOptionsAsync(minimumLevel, displayLimit, linked.Token)
-                .ConfigureAwait(false);
-            Telemetry?.ConfigureLogs(new LogProjectionOptions(minimumLevel, displayLimit));
-            PublishSettings(settings);
-        }
-        finally { settingsGate.Release(); }
-    }
-
     public async Task<LogsView> AcknowledgeLogIssueAsync(
         string incidentKey, CancellationToken cancellationToken = default)
     {
@@ -569,10 +569,15 @@ public sealed class AppHost : IAsyncDisposable
     /// Never throws: a failed log write must not turn one failure into two.
     /// </summary>
     /// <param name="diagnostics">Technical detail for the log's copied details (file names, codes); not shown as the message.</param>
-    public void RecordActionIssue(string title, string message, bool failed, string? diagnostics = null)
+    /// <param name="cause">The failure behind the message. The card says what to do; the log keeps what went wrong, word for
+    /// word (its innermost error, such as which value of a settings file is wrong and where), and the settings file it
+    /// names.</param>
+    public void RecordActionIssue(string title, string message, bool failed, string? diagnostics = null, Exception? cause = null)
     {
         if (LogInbox is not { } inbox) return;
         var id = Guid.NewGuid();
+        var innermost = cause;
+        while (innermost?.InnerException is { } inner) innermost = inner;
         var entry = new LogEntryView($"app-action:{id:N}", $"app-action:{id:N}", id, 1, DateTimeOffset.UtcNow,
             failed ? LogLevel.Error : LogLevel.Warning, "app", 0, "app.action.failed",
             System.Text.Json.JsonSerializer.Serialize(new
@@ -582,6 +587,9 @@ public sealed class AppHost : IAsyncDisposable
                 title,
                 message,
                 diagnostics,
+                reason = innermost?.Message,
+                exceptionType = innermost?.GetType().Name,
+                path = cause is null ? null : UserFacingErrorCatalog.InvalidSettingsFile(cause, Settings.ConfigurationRoot),
             }));
         _ = Task.Run(async () =>
         {
@@ -710,6 +718,25 @@ public sealed class AppHost : IAsyncDisposable
     public bool HasRunningOperation() =>
         Operations?.IsDeletionRunning == true || Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
             .Any(item => item.Status == OperationStatus.Running && !item.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
+
+    // The backup worker used to write a process-telemetry database of its own beside the backup folder's, which
+    // nothing read; it no longer does. Only those files go, and the folder only when nothing else is in it.
+    internal static void RemoveRetiredBackupWorkerTelemetry(string backupRoot)
+    {
+        var directory = ComponentRuntimePaths.GetComponentDirectory(backupRoot, "backup-worker");
+        try
+        {
+            if (!Directory.Exists(directory) || (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) return;
+            var database = Path.Combine(directory, "telemetry.db");
+            foreach (var file in new[] { database, database + "-wal", database + "-shm", database + "-journal" })
+                if (File.Exists(file)) File.Delete(file);
+            if (!Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Open elsewhere or not ours to delete: harmless, and tried again at the next start.
+        }
+    }
 
     private void RegisterTelemetrySources(
         AppSettings settings,

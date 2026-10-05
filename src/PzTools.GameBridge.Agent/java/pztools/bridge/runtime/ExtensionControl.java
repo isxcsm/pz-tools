@@ -17,6 +17,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 
 /** Authenticated wire 1, independent of the save request and read-only WATCH slots. */
@@ -73,6 +74,7 @@ public final class ExtensionControl {
         private final Field gameThread;
 
         private final Callable<ContinuousModules> moduleHost;
+        private final IntSupplier residentAbi;
         // Serialize this owner's host calls through retirement. The game thread must never wait
         // for a command that can retransform classes or drain provider callbacks.
         private final ReentrantLock operations = new ReentrantLock();
@@ -92,8 +94,12 @@ public final class ExtensionControl {
         }
         Session(Instrumentation instrumentation, Class<?> window, LongSupplier clock,
                 Callable<ContinuousModules> moduleHost) throws Exception {
+            this(instrumentation, window, clock, moduleHost, ExtensionControl::residentHostAbi);
+        }
+        Session(Instrumentation instrumentation, Class<?> window, LongSupplier clock,
+                Callable<ContinuousModules> moduleHost, IntSupplier residentAbi) throws Exception {
             this.instrumentation = instrumentation; loader = window.getClassLoader();
-            this.moduleHost = moduleHost;
+            this.moduleHost = moduleHost; this.residentAbi = residentAbi;
             lease = new Leases.Lease(clock, LEASE_NANOS);
             adapter = new PzRuntimeAdapter(window); gameThread = window.getField("gameThread");
         }
@@ -162,12 +168,15 @@ public final class ExtensionControl {
                     result = next.apply(new ContinuousModules.Apply(p[3], p[4], expected, revision, p[7], p[8].equals("force"), config),
                         instrumentation, loader, PzRuntimeAdapter.readVersion(loader));
                 } catch (Exception | LinkageError unavailable) {
+                    if (hostNeedsRestart()) result = bootstrapUpdate();
+                    else {
                     ContinuousModules.Status previous;
                     try { previous = modules == null ? disabled() : one(modules, "status", p[7]); }
                     catch (IOException unknown) { previous = disabled(); }
                     result = new ContinuousModules.Status(previous.state().equals("Disabled") ? "Unsupported" : previous.state(),
                         "host-update-unavailable", previous.processId(), previous.worldId(), previous.generation(),
                         previous.appliedRevision(), previous.moduleVersion(), previous.moduleSha256(), previous.diagnostics());
+                    }
                 }
             } else if ((p.length == 3 || p.length == 4) && Set.of("STATUS", "PING", "OFF").contains(p[0])) {
                 // Three fields address the host as a whole (OFF retires every module); a fourth names one module.
@@ -176,14 +185,28 @@ public final class ExtensionControl {
                 ContinuousModules target = modules;
                 // A new controller must see the resident host's failure, not manufacture a clean Disabled state.
                 // Commands run only after acquiring the lifecycle slot; a rejected owner never touches that host.
-                if (target == null) modules = target = moduleHost.call();
-                if (p.length == 3) result = p[0].equals("OFF") ? target.deactivate("user-disabled") : target.status();
+                if (target == null) {
+                    try { modules = target = moduleHost.call(); }
+                    catch (Exception | LinkageError unavailable) {
+                        // Any other host failure ends this session, as before; one only a restart fixes is said.
+                        if (!hostNeedsRestart()) throw unavailable;
+                    }
+                }
+                if (target == null) result = bootstrapUpdate();
+                else if (p.length == 3) result = p[0].equals("OFF") ? target.deactivate("user-disabled") : target.status();
                 else result = p[0].equals("OFF") ? one(target, "deactivate", p[3], "user-disabled") : one(target, "status", p[3]);
             } else throw new IOException("Unknown extension command");
             String response = wire(p[1], result);
             if (mutating) completed.put(p[1], new Cached(line, response));
             return response;
         }
+        /**
+         * Whether the extension runtime this app ships needs extension API classes the game does not have. Those
+         * classes load with the game and are never replaced (the bootstrap refuses the runtime jar for it), so only a
+         * restart of the game helps. This payload was compiled with the app's HOST_ABI; the resident value is read
+         * from the loaded class, not the constant javac copied in.
+         */
+        private boolean hostNeedsRestart() { return residentAbi.getAsInt() != ExtensionApi.HOST_ABI; }
         void close() {
             if (!active.compareAndSet(true, false)) return;
             lease.end();
@@ -240,6 +263,16 @@ public final class ExtensionControl {
                     || result.putIfAbsent(pair[0], pair[1]) != null) throw new IOException("Invalid configuration entry");
         }
         return Map.copyOf(result);
+    }
+    /** The extension API classes the game loaded at its start. */
+    static int residentHostAbi() {
+        try { return ExtensionApi.class.getField("HOST_ABI").getInt(null); }
+        // Every resident API declares the field; were it unreadable, nothing would show a mismatch.
+        catch (ReflectiveOperationException unreadable) { return ExtensionApi.HOST_ABI; }
+    }
+    /** The state the app shows for an update that waits for the game's restart, as for an older bootstrap. */
+    private static ContinuousModules.Status bootstrapUpdate() {
+        return new ContinuousModules.Status("RestartRequired", "bootstrap-update", RuntimeIdentity.processId(), null, null, -1, null, null, "");
     }
     private static ContinuousModules.Status disabled() {
         return new ContinuousModules.Status("Disabled", null, RuntimeIdentity.processId(), null, null, -1, null, null, "");

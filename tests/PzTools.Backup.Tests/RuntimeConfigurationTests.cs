@@ -201,6 +201,35 @@ public sealed class RuntimeConfigurationTests
             ComponentConfiguration.Parse("runtime = 1")));
     }
 
+    // The vehicle extension's tuning sits with the other editable files, and Apply settings checks it by its own rules.
+    [Fact]
+    public async Task ApplyingSettings_ChecksTheVehicleTuningByItsOwnRules_AndNamesTheFile()
+    {
+        using var temp = new TempDirectory();
+        var service = new AppSettingsService(temp.GetPath("runtime"));
+        var tuning = PzTools.GameExtensions.VehicleDrivetrainConfiguration.OverridePath(service.RuntimeRoot);
+        // Copied from the packaged file as the others are, and valid as copied.
+        await service.EnsureComponentConfigurationAsync(service.RuntimeRoot,
+            PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder);
+        Assert.Equal(await File.ReadAllTextAsync(PackagedVehicleTuning()), await File.ReadAllTextAsync(tuning));
+        service.ValidateEditableConfiguration();
+        await File.WriteAllTextAsync(tuning, "diagnostics_enabled = true\n");
+        service.ValidateEditableConfiguration();
+
+        await File.WriteAllTextAsync(tuning, "area_light_radius = 999\n");
+        var failure = Assert.Throws<InvalidDataException>(service.ValidateEditableConfiguration);
+        Assert.Equal(Path.Combine("vehicle-drivetrain", "default.toml"),
+            UserFacingErrorCatalog.InvalidSettingsFile(failure, service.ConfigurationRoot));
+    }
+
+    private static string PackagedVehicleTuning()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "PzTools.sln")))
+                return Path.Combine(directory.FullName, "config", "game-extensions", "vehicle-drivetrain.toml");
+        throw new DirectoryNotFoundException("The repository root was not found above the test binaries.");
+    }
+
     [Fact]
     public async Task InvalidAppRuntime_DoesNotPreventSettingsRepair_ButBlocksWorkerStartup()
     {
@@ -212,7 +241,9 @@ public sealed class RuntimeConfigurationTests
         await using var host = new AppHost(new(runtime, temp.Path, temp.GetPath("state.db"), temp.GetPath("scheduler.db")));
         Assert.NotNull(host.Settings);
         await Assert.ThrowsAsync<InvalidDataException>(() => host.StartAsync());
-        Assert.Throws<InvalidDataException>(() => host.Settings.ValidateEditableConfiguration());
+        var failure = Assert.Throws<InvalidDataException>(() => host.Settings.ValidateEditableConfiguration());
+        // The player is told which file to fix, as the configuration folder shows it.
+        Assert.Equal(Path.Combine("app", "default.toml"), UserFacingErrorCatalog.InvalidSettingsFile(failure, host.Settings.ConfigurationRoot));
     }
 
     [Fact]
@@ -221,7 +252,8 @@ public sealed class RuntimeConfigurationTests
         using var temp = new TempDirectory();
         var settings = new AppSettingsService(temp.GetPath("runtime"));
         foreach (var component in new[] { "app", "backup-worker", "backup-scheduler", "state-scheduler",
-                     "maintenance-worker", "archive-worker", "restore-worker", "character-recovery", "profiler" })
+                     "maintenance-worker", "archive-worker", "restore-worker", "character-recovery", "profiler",
+                     PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder })
         {
             await settings.EnsureComponentConfigurationAsync(temp.Path, component);
             var path = ComponentRuntimePaths.GetIdentityDefaultPath(temp.Path, component, settings.ConfigurationRoot);

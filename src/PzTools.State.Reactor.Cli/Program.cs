@@ -1,38 +1,85 @@
 using PzTools.Control;
 using PzTools.Process.Contracts;
+using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Zomboid.State;
 
 // Launch check only: proves Windows allows this executable to start. No work, no output.
 if (args is ["--probe"]) return 0;
 
+// Passed only by the state runner, which starts this program while it holds the collection lock itself.
+const string RunnerHoldsLock = "--runner-holds-lock";
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;
-string? statePath = null;
-string? configurationPath = null;
+using var cancellation = new CancellationTokenSource();
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+// The state runner passes its stop request on. The batches being applied share one transaction, so a stop rolls
+// them back whole and is reported as cancelled, instead of the reactor being ended outright with nothing said.
+using var stopRequest = ProcessStopSignal.Listen(cancellation);
+Dictionary<string, string?> values;
+string statePath;
+long? givenRunIndex;
+try
+{
+    values = CommandLine.Parse(args, ["--state-db", "--run-index", "--config", "--control-db"], [RunnerHoldsLock]);
+    givenRunIndex = CommandLine.OptionalInt64(values.GetValueOrDefault("--run-index"), "--run-index");
+    runIndex = givenRunIndex ?? runIndex;
+    statePath = CommandLine.Required(values, "--state-db");
+}
+catch (ArgumentException exception)
+{
+    Console.WriteLine(ProcessResultJson.Serialize(
+        ProcessResultEnvelope<object>.Failure(
+            "state-reactor", runIndex, ProcessOutcome.Failed, started,
+            "invalid-arguments", exception.Message)));
+    return ProcessExitCodes.InvalidArguments;
+}
+var configurationPath = values.GetValueOrDefault("--config");
 var hasRunIndex = false;
 try
 {
-    var values = CommandLine.Parse(args, ["--state-db", "--run-index", "--config", "--control-db"]);
-    statePath = CommandLine.Required(values, "--state-db");
-    configurationPath = values.GetValueOrDefault("--config");
-    var database = await StateDatabase.CreateOrOpenAsync(statePath);
-    runIndex = values.TryGetValue("--run-index", out var run)
-        ? CommandLine.Int64(run, "--run-index")
-        : await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync();
+    var database = await StateDatabase.CreateOrOpenAsync(statePath, cancellation.Token);
+    runIndex = givenRunIndex
+        ?? await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync(cancellationToken: cancellation.Token);
     if (runIndex <= 0) throw new ArgumentOutOfRangeException("--run-index");
     hasRunIndex = true;
-    var result = await new StateReactor().RunAsync(database);
+    // Run on its own, it takes the lock every other state writer takes, so it never applies batches
+    // while the app's own check is between reading the saves and applying what it saw.
+    var reacted = values.ContainsKey(RunnerHoldsLock)
+        ? new MutexRunResult<ReactorResult>(true, false, await new StateReactor().RunAsync(database, cancellation.Token))
+        : await NamedMutexRunner.TryRunAsync(
+            NamedMutexRunner.CreateName("StateCollection", Path.GetFullPath(statePath)),
+            token => new StateReactor().RunAsync(database, token), cancellation.Token);
+    if (!reacted.Acquired)
+    {
+        Console.WriteLine(ProcessResultJson.Serialize(
+            ProcessResultEnvelope<object>.Success("state-reactor", runIndex, ProcessOutcome.Busy, started)));
+        return ProcessExitCodes.Busy;
+    }
     await TryTelemetryAsync(
         statePath, runIndex, "reactor.completed", configurationPath);
     Console.WriteLine(ProcessResultJson.Serialize(
         ProcessResultEnvelope<ReactorResult>.Success(
-            "state-reactor", runIndex, ProcessOutcome.Succeeded, started, result)));
+            "state-reactor", runIndex, ProcessOutcome.Succeeded, started, reacted.Value)));
     return 0;
+}
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+{
+    if (hasRunIndex)
+        await TryTelemetryAsync(statePath, runIndex, "reactor.cancelled", configurationPath);
+    Console.WriteLine(ProcessResultJson.Serialize(
+        ProcessResultEnvelope<object>.Failure(
+            "state-reactor", runIndex, ProcessOutcome.Cancelled, started,
+            "cancelled", "The state reactor was asked to stop.")));
+    return ProcessExitCodes.Cancelled;
 }
 catch (Exception exception)
 {
-    if (hasRunIndex && statePath is not null)
+    if (hasRunIndex)
         await BestEffortProcessTelemetry.TryRecordAsync(
             statePath, "state-reactor", runIndex, "reactor.failed",
             FailureTelemetry.FromException(

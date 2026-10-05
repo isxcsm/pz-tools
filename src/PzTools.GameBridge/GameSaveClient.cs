@@ -17,10 +17,14 @@ public sealed class GameSaveException(string code, string message, string? diagn
     public bool SaveOutcomeUnknown => Code is "completion-unknown" or "invalid-response";
     /// <summary>
     /// The game could not be reached at all and nothing was asked of it (a blocked helper, a game
-    /// update, a missing bridge). The files on disk can still be backed up as they are.
+    /// update, a missing bridge). The files on disk can still be backed up as they are. The unsupported
+    /// codes come from the bridge setting itself up in a game it does not fit, before any request is queued.
+    /// With several games running none is picked, so none is asked either: the save in use is backed up as an
+    /// unreachable game's is, rather than not at all.
     /// </summary>
     public bool LinkUnavailable => Code is "attach-failed" or AttachDiagnostics.DisabledCode
-        or "connection-timeout" or "bridge-not-built" or "unsupported-protocol";
+        or "connection-timeout" or "bridge-not-built" or "unsupported-protocol"
+        or "unsupported-game" or "unsupported-runtime" or "unsupported-loader" or "multiple-games";
     public string? Diagnostics { get; } = diagnostics;
 
     /// <summary>
@@ -65,6 +69,8 @@ public sealed class GameSaveClient(string bridgeDirectory,
 
     // The attach helper's words when the game is busy with another request and nothing was sent (AttachMain).
     internal const string ChannelBusy = "still active";
+    // The bridge's countdown before a due time (SaveNotice): a save with notices and no due time is given this lead.
+    private static readonly TimeSpan NoticeCountdown = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan BusyPatience = TimeSpan.FromSeconds(10);
 
     // Explicit PID supports a no-save probe and isolated JVM integration tests.
@@ -162,33 +168,35 @@ public sealed class GameSaveClient(string bridgeDirectory,
             if (runtimeTicket is not null && !supportsExtensions)
                 throw new GameSaveException("unsupported-protocol", "Restart the game with the integrated runtime bridge.");
             var supportsSchedule = supportsExtensions || hello == $"HELLO\t4\t{processId}\t{token}";
-            var supportsCountdown = supportsSchedule || hello == $"HELLO\t3\t{processId}\t{token}";
-            var extendedTimeouts = supportsCountdown || hello == $"HELLO\t2\t{processId}\t{token}";
+            var extendedTimeouts = supportsSchedule || hello == $"HELLO\t3\t{processId}\t{token}"
+                || hello == $"HELLO\t2\t{processId}\t{token}";
             if (!extendedTimeouts && hello != $"HELLO\t1\t{processId}\t{token}")
                 throw new GameSaveException("authentication-failed", "Unexpected bridge session or process.");
             if (!extendedTimeouts && (queueTimeoutSeconds != 15 || completionTimeoutSeconds != 150))
                 throw new GameSaveException("unsupported-protocol", "The bridge does not support configured timeouts. No save command was sent.");
             if (save && scheduledSaveUtc is not null && !supportsSchedule)
                 throw new GameSaveException("unsupported-protocol", "The bridge does not support scheduled saves. No save command was sent.");
+            var useProvider = save && providerId is not null && supportsExtensions;
+            // Notices with no due time of their own: the bridge counts down the last seconds before a due time, so the
+            // save is given one that many seconds from now. A bridge without due times saves without notices.
+            DateTimeOffset? saveAt = !save ? null : scheduledSaveUtc
+                ?? (notificationLanguage is not null && runtimeTicket is null && !useProvider && supportsSchedule
+                    ? DateTimeOffset.UtcNow + NoticeCountdown : (DateTimeOffset?)null);
             using var completionDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var scheduledWait = save && scheduledSaveUtc is { } due && due > DateTimeOffset.UtcNow
-                ? due - DateTimeOffset.UtcNow : TimeSpan.Zero;
+            var scheduledWait = saveAt is { } due && due > DateTimeOffset.UtcNow ? due - DateTimeOffset.UtcNow : TimeSpan.Zero;
             // Preparation lead is not time spent waiting for the save call to return.
             completionDeadline.CancelAfter(TimeSpan.FromSeconds(completionTimeoutSeconds) + scheduledWait);
-            var showCountdown = save && notificationLanguage is not null && supportsCountdown;
-            var timedSave = save && scheduledSaveUtc is not null;
-            var useProvider = save && providerId is not null && supportsExtensions;
+            var timedSave = saveAt is not null;
             if (runtimeTicket is not null && preparationAllowed is not null
                 && !await PreparationAllowedAsync(completionDeadline.Token))
                 throw new GameSaveException("runtime-deferred", "Scheduling permission was withdrawn before submission.");
             var encodedPath = Convert.ToBase64String(Encoding.UTF8.GetBytes(expectedSavePath));
             string command = useProvider
                 ? $"{(runtimeTicket is null ? "PREPARE_SAVE" : "PREPARE_SAVE_ACTIVE")}\t{encodedPath}\t{queueTimeoutSeconds}\t{completionTimeoutSeconds}\t{notificationLanguage ?? "off"}\t{(runtimeTicket is null ? (scheduledSaveUtc?.ToUnixTimeMilliseconds() ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture) : runtimeTicket.Encode())}\t{providerId}\t{(forceVersion ? "force" : "normal")}" 
-                : $"{(runtimeTicket is not null ? save ? "SAVE_ACTIVE" : "PROBE_ACTIVE" : timedSave ? "SAVE_AT" : showCountdown ? "SAVE_COUNTDOWN" : save ? "SAVE" : "PROBE")}\t"
+                : $"{(runtimeTicket is not null ? save ? "SAVE_ACTIVE" : "PROBE_ACTIVE" : timedSave ? "SAVE_AT" : save ? "SAVE" : "PROBE")}\t"
                     + encodedPath + (extendedTimeouts ? $"\t{queueTimeoutSeconds}\t{completionTimeoutSeconds}" : "")
                     + (runtimeTicket is not null ? $"\t{(save ? notificationLanguage : null) ?? "off"}\t{runtimeTicket.Encode()}"
-                        : timedSave ? $"\t{notificationLanguage ?? "off"}\t{scheduledSaveUtc!.Value.ToUnixTimeMilliseconds()}"
-                        : showCountdown ? $"\t{notificationLanguage}" : "");
+                        : timedSave ? $"\t{notificationLanguage ?? "off"}\t{saveAt!.Value.ToUnixTimeMilliseconds()}" : "");
             await writer.WriteLineAsync(command.AsMemory(), completionDeadline.Token);
             sent = true;
             using var permissionCancellation = CancellationTokenSource.CreateLinkedTokenSource(completionDeadline.Token);
@@ -206,7 +214,7 @@ public sealed class GameSaveClient(string bridgeDirectory,
                 var response = ParseResponse(result, useProvider ? providerId : null);
                 if (providerId is not null && !supportsExtensions)
                     response = response with { FallbackReason = "unsupported-extension-protocol" };
-                if (save && notificationLanguage is not null && !supportsCountdown)
+                if (save && notificationLanguage is not null && !supportsSchedule)
                     response = response with { Detail = response.Detail + "; notice-unavailable=The connected bridge does not support notifications." };
                 return response;
             }

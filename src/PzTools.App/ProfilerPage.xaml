@@ -43,6 +43,8 @@
       <Border x:Name="SuccessProbe" Background="{ThemeResource SystemFillColorSuccessBrush}" />
       <Border x:Name="CriticalProbe" Background="{ThemeResource SystemFillColorCriticalBrush}" />
       <Border x:Name="AccentTextProbe" Background="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+      <Border x:Name="CautionProbe" Background="{ThemeResource SystemFillColorCautionBrush}" />
+      <Border x:Name="DividerProbe" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
     </StackPanel>
 
     <!-- Two lines. The title's: making a recording, at its right. The next: the recording shown, and what is done to
@@ -194,7 +196,8 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <!-- The range the results describe; while the pointer is over the graph, the frame under it.
+          <!-- The range the results describe; while the pointer is over the graph, the frame under it, beside the
+               selection's chip, which stays.
                Names are muted and numbers are not, so the eye finds the numbers first. -->
           <!-- A selection shows as a chip with its ✕, like an active filter: pressing it (or Escape) goes back to the
                whole recording. -->
@@ -238,6 +241,9 @@
                 PointerCaptureLost="Chart_PointerCanceled" PointerExited="Chart_PointerExited"
                 PointerWheelChanged="Chart_PointerWheelChanged" DoubleTapped="Chart_DoubleTapped">
             <Canvas x:Name="GridCanvas" IsHitTestVisible="False" />
+            <!-- While the collector was at work, behind the bars: frames that ran with it read against those that did not. -->
+            <Path x:Name="CollectorPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="0.14" />
             <Path x:Name="BarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                   Fill="{ThemeResource ProfileFrameBrush}" />
             <Path x:Name="SlowBarsPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -245,6 +251,8 @@
             <!-- The highlighted owner's part of each bar, over the bars faded behind it. -->
             <Path x:Name="HighlightPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                   Fill="{ThemeResource ProfileHighlightBrush}" />
+            <!-- While a part of the time bar is pointed at: that part of each bar, in the part's colour. -->
+            <Path x:Name="PartPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top" />
             <!-- The 60 and 30 FPS lines, over the bars: a slow recording's bars would otherwise hide them. -->
             <Canvas x:Name="ReferenceCanvas" IsHitTestVisible="False" />
             <Canvas IsHitTestVisible="False">
@@ -263,18 +271,27 @@
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <Button x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="6,2"
-                  Style="{StaticResource SubtleButtonStyle}">
+          <!-- In the text's own colour: the page has colours enough in its graphs and figures. The pointer's hover and the
+               chevron show it is a button; a filled block stood out more than the figures it opens onto. -->
+          <HyperlinkButton x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="6,2" MinHeight="0">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" />
-              <TextBlock x:Name="MemoryToggleText" />
+              <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+              <TextBlock x:Name="MemoryToggleText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             </StackPanel>
-          </Button>
+          </HyperlinkButton>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
-            <TextBlock x:Name="HeapValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-            <TextBlock x:Name="VideoValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+            <!-- The collections first, beside the button, with the colour of the frame graph's background while the
+                 collector ran: the key to it where the eye is. Pressed, it puts that background and the pause marks away. -->
+            <StackPanel x:Name="CollectionFigure" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                        Background="Transparent" Tapped="CollectionFigure_Tapped">
+              <Rectangle x:Name="CollectorSwatch" Width="12" Height="10" RadiusX="2" RadiusY="2" VerticalAlignment="Center"
+                         Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="0.4" />
+              <TextBlock x:Name="CollectionValue" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <TextBlock x:Name="HeapValue" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+            <TextBlock x:Name="VideoValue" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <!-- The game ran short of memory in this recording: said here, beside the heap it is about, with the way to
                  give it more; or, once the game has been given more since, said as what was, with what it has now. -->
             <StackPanel x:Name="MemoryShortPanel" Orientation="Horizontal" Spacing="4" Visibility="Collapsed" VerticalAlignment="Center">
@@ -289,9 +306,13 @@
                 </StackPanel>
               </HyperlinkButton>
             </StackPanel>
+            <!-- Other programs kept the machine busy while it recorded: the game ran slower for it, whatever the mods did. -->
+            <StackPanel x:Name="OtherCpuPanel" Orientation="Horizontal" Spacing="4" Visibility="Collapsed" VerticalAlignment="Center"
+                        Background="Transparent">
+              <FontIcon Glyph="&#xE7BA;" FontSize="12" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+              <TextBlock x:Name="OtherCpuText" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
           </StackPanel>
-          <TextBlock x:Name="CollectionValue" Tapped="MemoryFigure_Tapped" Grid.Column="2" FontSize="12" VerticalAlignment="Center"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </Grid>
         <!-- Heap above, video memory below, each on its own scale; the same time axis, zoom, selection and
              pointer line as the frame graph, whose margins it shares so the two line up. -->
@@ -344,37 +365,42 @@
               <ColumnDefinition x:Name="SpareColumn" Width="*" />
             </Grid.ColumnDefinitions>
             <!-- The chosen mod's part of the scripts, solid; the other scripts beside it, lighter. -->
-            <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-            <Rectangle x:Name="OtherScriptsBar" Grid.Column="1" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-            <Rectangle Grid.Column="2" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
-            <Rectangle Grid.Column="3" Fill="{ThemeResource SystemFillColorCautionBrush}" />
-            <Rectangle Grid.Column="4" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
+            <Rectangle Tag="Selected" Fill="{ThemeResource AccentFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle x:Name="OtherScriptsBar" Grid.Column="1" Tag="Scripts" Fill="{ThemeResource AccentFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle Grid.Column="2" Tag="GameCode" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle Grid.Column="3" Tag="Collections" Fill="{ThemeResource SystemFillColorCautionBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle Grid.Column="4" Tag="Waiting" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
           </Grid>
           <!-- Up to six items, a mod's name among them: in a narrow window they go on to a second line. -->
           <local:WrapPanel Grid.Row="1" HorizontalSpacing="16" VerticalSpacing="4">
             <TextBlock x:Name="TimeBreakdownTitle" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <StackPanel x:Name="SelectedLegend" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+            <StackPanel x:Name="SelectedLegend" Tag="Selected" Orientation="Horizontal" Spacing="6" Visibility="Collapsed" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
               <TextBlock x:Name="SelectedLabel" FontSize="12" MaxWidth="240" TextTrimming="CharacterEllipsis"
                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="SelectedValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="ScriptsLegend" Tag="Scripts" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse x:Name="ScriptsDot" Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
               <TextBlock x:Name="ScriptsLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="ScriptsValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="GameCodeLegend" Tag="GameCode" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
               <TextBlock x:Name="GameLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="GameValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="CollectionsLegend" Tag="Collections" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource SystemFillColorCautionBrush}" />
               <TextBlock x:Name="CollectionsLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="CollectionsValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="WaitingLegend" Tag="Waiting" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
               <TextBlock x:Name="SpareLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="SpareValue" FontSize="12" />
@@ -465,7 +491,8 @@
              the two cards start level: the owner's name, its samples, then search, the call tree and the copy. Search
              narrows the rows to names and files holding the text (a tree keeps the paths to them); its box opens where
              its button is (or by Ctrl+F) and the name gives way to it. The call tree shows the paths that led to each
-             function; the copy puts what the page shows on the clipboard. Stacked, the line comes just above its card. -->
+             function; the copy's menu puts a report on the clipboard, of the whole range or of this owner. Stacked, the line comes
+             just above its card. -->
         <Grid x:Name="DetailTitle" Grid.Column="1" Padding="12,0,0,0" ColumnSpacing="8" VerticalAlignment="Center"
               KeyboardAcceleratorPlacementMode="Hidden" SizeChanged="DetailTitle_SizeChanged">
           <Grid.KeyboardAccelerators>
@@ -491,14 +518,23 @@
                           AutomationProperties.AutomationId="ProfileDetailSearch" />
           <ToggleSwitch x:Name="CallTreeToggle" Grid.Column="2" MinWidth="0" VerticalAlignment="Center" Visibility="Collapsed"
                         Toggled="CallTreeToggle_Toggled" AutomationProperties.AutomationId="ProfileCallTreeToggle" />
-          <!-- With its name, not a bare icon in the corner: copying what the page shows is how results get shared. -->
-          <Button x:Name="CopyResultsButton" Grid.Column="3" Height="32" Padding="8,0" VerticalAlignment="Center"
-                  Style="{StaticResource SubtleButtonStyle}" Click="CopyResultsButton_Click">
+          <!-- With its name, not a bare icon in the corner: copying is how results get shared, most often into a chat with
+               an AI model or to a mod's author. Its menu names what each copy holds, the whole range or the owner shown
+               below by its name, so nothing has to be chosen first. Without a fill, as the page's other buttons. -->
+          <DropDownButton x:Name="CopyResultsButton" Grid.Column="3" Height="32" Padding="8,0" VerticalAlignment="Center"
+                          Background="Transparent" BorderBrush="Transparent" AutomationProperties.AutomationId="ProfileCopyButton">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon Glyph="&#xE8C8;" FontSize="16" />
+              <!-- A ring in the icon's place while the report is put together, the button off until it is copied. -->
+              <Grid Width="16" Height="16">
+                <FontIcon x:Name="CopyIcon" Glyph="&#xE8C8;" FontSize="16" />
+                <ProgressRing x:Name="CopyProgress" Width="16" Height="16" MinWidth="0" MinHeight="0" IsActive="False" Visibility="Collapsed" />
+              </Grid>
               <TextBlock x:Name="CopyResultsText" VerticalAlignment="Center" />
             </StackPanel>
-          </Button>
+            <DropDownButton.Flyout>
+              <MenuFlyout x:Name="CopyMenu" Placement="BottomEdgeAlignedRight" Opening="CopyMenu_Opening" />
+            </DropDownButton.Flyout>
+          </DropDownButton>
           <Rectangle x:Name="SamplesDivider" Grid.Column="4" Width="1" Height="20" VerticalAlignment="Center"
                      Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
           <!-- The owner's samples out of the tab's, last on the line as before, in the line's text size. The divider has

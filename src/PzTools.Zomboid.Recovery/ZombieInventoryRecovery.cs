@@ -40,6 +40,6 @@ internal static class ZombieInventoryRecovery
         if (matches.Length == 0) throw new InvalidDataException("recovery-inventory-unavailable");
         if (matches.Length != 1) throw new InvalidDataException("recovery-inventory-ambiguous");
         var match = matches[0]; var restored = RemainsFormat.RestoreInventory(player, layout, match);
-        return new(restored, Remove(zombies, match), match.Inventory.Groups.Where(g => !g.Type.StartsWith("Base.Wound_", StringComparison.Ordinal)).Sum(g => g.Count));
+        return new(restored, Remove(zombies, match), match.Inventory.Groups.Where(g => !RemainsFormat.IsBodyModel(g.Type)).Sum(g => g.Count));
     }
 }

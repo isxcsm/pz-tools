@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Mevcut kayıt</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Kayıt klasörü</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Mevcut kayıt kopyalanıyor</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Oynarken dışa aktarılamaz. Oyundan çıkın.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Oynarken dışa aktarılamaz. Ana menüye dönün.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Oynarken yedek geri yüklenemez. Oynamayı bırakıp tekrar deneyin.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Geri yüklemek için listeden bir yedek seçin</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Oynarken kayıt silinemez. Oynamayı bırakıp tekrar deneyin.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Oynarken iyileştirilemez. Oyundan çıkın.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Oynarken iyileştirilemez. Ana menüye dönün.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Henüz yedek yok</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Şimdi yedekle</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Geri yükle</value></data>
@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Gözat</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Yedekleme</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Otomatik yedekleme</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Oynadığınız kaydı belirlenen aralıkla yedekler. Kapalıyken de elle yedek alabilirsiniz.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Oynadığın kaydı ayarlanan aralıkla yedekler. Karakterin ölünce yeni bir karakterle başlayana kadar durur. Bu kapalıyken de elle yedekleme çalışır.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Yedekleme aralığı</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Otomatik yedekler arasındaki süre (1–60 dakika). Değiştirildiğinde sayım yeniden başlar.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Otomatik yedek sayısı</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>En yeni otomatik yedeklerden bu kadarını saklar, daha eskilerini siler (1–100). Elle alınan yedekler sayılmaz ve silinmez.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>En yeni otomatik yedeklerden bu kadarını saklar, daha eskilerini siler (1–100). Elle alınan yedekler sayılmaz; yalnızca kayıtlarıyla birlikte silinir.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Karakter ölünce yedekle</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Karakteriniz ölünce otomatik yedekler durur; böylece hayattayken alınan yedekler listeden düşmez. Ölüm anının bir yedeğini saklamak için açın.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Açıkken karakterin öldükten hemen sonra bir yedek alır.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Kayıt sürekli değiştiği için yedeklenemedi. Biraz sonra tekrar deneyin.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Sonraki yedek: bekleniyor</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistem</value></data>
@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>İptal</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Arşiv içe aktar</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Bu dosya içe aktarılamıyor. PZ Tools ile dışa aktarıldığını kontrol edin.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>İçe aktarılmadı: arşiv güvenli değil.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuel yedek</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Seçili yedek geri yüklensin mi?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>“{0}” kaydının geçerli dosyalarını “{1}” yedeğiyle değiştirir. Bu yedekten sonraki ilerleme kaybolur. Geri yükleme kesilirse bu kaydı oyunda açmadan önce PZ Tools'u yeniden açın.</value></data>
@@ -279,7 +278,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Kayıt ve yedekleri silindi.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Kayıt silindi ama yedekleri duruyor.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Silindi.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Kayıt değişti. Oyundan çıkıp tekrar deneyin.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Kayıt değişti. Ana menüye dönüp tekrar deneyin.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Tamamlandı ama liste geç güncellenebilir. Tekrar çalıştırmayın.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Yedekleme</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Geri yükleme</value></data>
@@ -325,8 +324,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Oyunun kaydedildiği doğrulanamadığı için yedekleme durduruldu.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Yedeklemeden önce oyunu kaydet</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Oyun içi kayıt geri sayımı</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Otomatik yedek oyunu kaydetmeden 5 saniye önce karakterinizin üzerinde geri sayım, ardından kayıt sonucunu gösterir. Uygulamada başlattığınız yedekler bunlar olmadan hemen kaydeder. Kapalıyken otomatik yedekler de bunlar gösterilmeden kaydeder.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Yedeklemeden hemen önce oyunu kaydederek en son ilerlemenizi de yedeğe alır. Kayıt sırasında oyun yaklaşık yarım saniye takılabilir. Kapalıyken henüz kaydedilmemiş ilerleme yedekte eksik olabilir; bu yüzden açık bırakmanız önerilir.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Otomatik yedek oyunu kaydetmeden 5 saniye önce karakterin üzerinde geri sayım gösterir, ardından sonucu bildirir. Kapalıyken göstermeden kaydeder.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Yedeklemeden hemen önce oyunu kaydederek en son ilerlemenizi de yedeğe alır. Kayıt sırasında oyun yaklaşık yarım saniye takılabilir.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Kapalı: oyunun son kaydından bu yana ilerleme yedeklere girmez. Açık bırakmanız önerilir.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Sonraki yedek: birazdan başlıyor</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Sonraki yedek: mevcut işlemden sonra</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Karakteri iyileştir</value></data>
@@ -351,7 +351,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileRecordStop" xml:space="preserve"><value>Kaydı durdur</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standart</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Ayrıntılı</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standart: 0,01 saniyede bir ölçüm alır, oyunu neredeyse hiç etkilemez.&#xA;Ayrıntılı: yaklaşık 0,002 saniyede bir ölçüm alır, beklemeleri ve duraklamaları da kaydeder. Oyun biraz yavaşlayabilir.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standart: yaklaşık her 0,01 saniyede kayıt alır, oyuna neredeyse hiç yük bindirmez.
+Ayrıntılı: her 0,001–0,0015 saniyede kayıt alır, bekleme ve duraklamaları da kaydeder. Oyun bu yüzden yavaşlar (yaklaşık %20).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Oyunu açın, ardından kaydı başlatın. Takılmayı yeniden oluşturun ve sonucu görmek için kaydı durdurun.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Oyuna bağlanılıyor…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Kaydediliyor {0} · {1} dakika sonra otomatik olarak durur</value></data>
@@ -365,10 +366,18 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Bu kayıt silinsin mi? Bu işlem geri alınamaz.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Henüz kayıt yok.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Kayıt açılamıyor. Bozuk ya da daha yeni bir sürümden.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Bellek panelindeki gri çubuklar: bellek temizliği (GC), yüksekliği duraklama süresi · ▲: ölçeği aşan kare (süresi üzerine gelince) · Listedeki bir öğeye tıklayın: her çubuktaki payı (durdurmak için yeniden; bu sırada önizleme için başka birinin üzerine gelin)</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Gösterilen içeriği metin olarak kopyala</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Metni kopyala</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Kopyalandı.</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Bellek panelindeki gri çubuklar: bellek temizliği (GC), yüksekliği duraklama süresi · ▲: ölçeği aşan kare (süresi üzerine gelince) · Listedeki bir öğeye tıklayın: her çubuktaki payı (durdurmak için yeniden; bu sırada önizleme için başka birinin üzerine gelin) · Açık turuncu arka plan: GC çalışırken</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Yapay zekâ için kopyala</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Bir yapay zekâ sohbetine yapıştırmak için rapor kopyalar ya da dosya olarak kaydeder: tüm rapor ya da yalnızca aşağıdaki tablodaki mod için ayrıntılı rapor. Raporlar İngilizce yazılır.</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Rapor kopyalandı. Bir yapay zekâ sohbetine yapıştırın.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Dosya olarak kaydet</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Rapor kaydedildi: {0}</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>Tüm rapor</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>Bu aralığın kareleri, belleği, tüm modlar ve Java özeti; burada ne açık olursa olsun aynı. Oyunun neden yavaşladığını sormak için.</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Ayrıntılı rapor: {0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>Yalnızca bu mod ayrıntılı: işlevleri, en ağır satırları, çağrı ağacı ve ayırmaları. Mod yazarı için ya da bu modu sormak için.</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>Yalnızca bu Java alanı ayrıntılı: yöntemleri ve nereden çağrıldıkları.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Kayıt için oyunu başlatın.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>Oyun çalışmadığı için {0} başlatılmadı.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>Birden fazla oyun çalıştığı için {0} başlatılmadı.</value></data>
@@ -396,7 +405,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Oyunun ekran kartında tuttuğu bellek. Ölçek, görünen aralıktaki en düşük değerden en yükseğe uzanır.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} ayırdı</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Vurgulanan modun betiklerinin ayırdığı bellek, her an için bir çubuk, en çok olana göre. Yukarıdaki temizliklerden hemen önce biriken çöp bu modu gösterir.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kez, duraklama {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kez</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>İşlev</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Dosya</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Yöntem</value></data>
@@ -419,11 +428,17 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileCompare" xml:space="preserve"><value>Şununla karşılaştır</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Karşılaştırılacak başka kayıt yok</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>İş parçacıkları</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son {1} dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>{0} içindeki {1}. satırdan çağrıldı</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Kendi çalıştırdığı satırlar · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (çağrı)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC duraklaması</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC çalışıyor {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>çalışıyor {0:P2}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Bellek bekleme: {0:N0} kez, en uzun {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC duraklaması: çöp toplama için tüm oyunun durduğu süre. Oyunun varsayılanı olan ZGC onu neredeyse hiç durdurmaz.
+GC çalışıyor: aralığın, çöp toplayıcının çalıştığı kısmı. Oyunla yan yana çalışır ve işlemciyi paylaşır; bellek azken %100&apos;e yaklaşır ve oyun yavaşlar.
+Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşalana kadar durduğu sayı.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Bu satırı gizlemek veya göstermek için tıklayın</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Kısayol: {0}</value></data>
@@ -471,13 +486,13 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="RollingSetting.Header" xml:space="preserve"><value>Son dakikaları tut</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Açıkken oyun her çalıştığında son birkaç dakikasını tutar. Standart mod neredeyse hiç yük getirmez.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Mod</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Ayrıntılı daha fazlasını gösterir ama açık kaldığı sürece oyunu biraz yavaşlatır (yaklaşık %10). Bir takılmanın peşindeyken kullanın.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Ayrıntılı daha fazlasını gösterir ama açık kaldığı sürece oyunu yavaşlatır (yaklaşık %20). Bir takılmanın peşindeyken kullanın.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Süre (dakika)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ile 10 dakika arası. Daha uzun süre oyuna aynı yükü getirir, yalnızca daha fazla disk kullanır.</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Oyun çalışınca son dakikayı tutmaya başlar.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Son dakikayı tutmaya başlanıyor…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Oyun çalışınca son {0} dakikayı tutmaya başlar.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Son {0} dakikayı tutmaya başlanıyor…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Kaydedilecek son dakika yok. Şu andan itibaren yeniden kaydediliyor.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Son dakika alınıyor</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Son dakikalar alınıyor</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Karşılaştırmayı durdur</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} kaydının tamamıyla karşılaştırılıyor</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Karşılaştırma: {0}</value></data>
@@ -556,6 +571,7 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Oyun veya başka bir işlem bu kaydı kullanıyor. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Oyun bu kaydı düzgün kapatmadı. Kaydı oyunda yükleyip normal şekilde çıkın. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Yalnızca tek oyunculu kayıtlarda iyileştirme yapılabilir. Kayıt değiştirilmedi.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Birini seçip tekrar deneyin. Kayıt değiştirilmedi.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Kurtarılacak karakteri seçin; diğerleri değiştirilmez.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Karakterin zombisi veya cesedi aranıyor…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Eşyaların nereden geri alınacağını seçin.</value></data>
@@ -574,13 +590,14 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Bu kayıtta iyileştirme yapılamaz. PZ Tools&apos;u güncellemeyi deneyin. Kayıt değiştirilmedi.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Hayatta kalma süresi alınamıyor · yeniden denetleniyor</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Oyun veya başka bir işlem dosyayı kullanıyor. Biraz sonra tekrar deneyin.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Dışa aktarılırken kayıt değişti. Oyundan çıkıp tekrar deneyin.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Dışa aktarılırken kayıt değişti. Ana menüye dönüp tekrar deneyin.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Bu yedek bozuk. Başka bir yedek seçin. Kayıt değiştirilmedi.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Yeterli disk alanı yok.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>PZ Tools dosyaları eksik. İndirilen paketi yeniden çıkarın.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Bu sürüm bu yedek klasörünü açamıyor. Ayarlar&apos;dan yeni bir klasör seçin. Eskisini silmeyin.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Mevcut işlem bitince tekrar deneyin.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Ayarlar uygulanamadı. Girdiğiniz değerleri kontrol edin.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Ayarlar uygulanamadı. {0} dosyasını kontrol edin.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Yeniden başlatılamadı. Uygulamayı kapatıp yeniden açın.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Bu klasör kullanılamadığı için önceki ayarlara dönüldü.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Klasör değiştirilemedi. Ayarlar&apos;da klasörleri kontrol edin.</value></data>
@@ -646,12 +663,13 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Uygulamak için oyuna devam edin, aracı durdurun, gazı bırakın ve hız sabitleyiciyi kapatın.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Oyun ana menüde</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Oyun yükleniyor</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Oyun ana menüye dönüyor</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Karakter öldü – yedekler bekliyor</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Oyuna bağlanılamadı; oyun kaydedilmeden yedek alınıyor.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Uyku durumu şu anda okunamıyor; yalnızca duraklatma uygulanıyor.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Oyuna ulaşılamadığı için şu anda uygulanmıyor.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Sonraki yedek (oyun kaydedilmeden)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Yedekler oyun kaydedilmeden alınıyor.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Sonraki yedek (oyuna bağlı değil)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Yedekler zamanında alınmaya devam eder. Oyun önce kaydedemezse dosyalar olduğu gibi yedeklenir.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Oyuna bağlı değil</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Oyunu yeniden başlatın.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Uyumluluk ve durum</value></data>
@@ -714,6 +732,28 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Betikler</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Bekleme</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua çalışıyor)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>Çağıranlar aranıyor…</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>Bu yöntemin kendi süresinin {0} kadarı · aralığın {1} kadarı</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Seçilen modun betiklerinin çalışma süresi (çağırdıkları Java işlevleri dahil)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Seçilen mod hariç diğer betiklerin çalışma süresi</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Çöp toplayıcının oyunla yan yana çalıştığı aralıklar. Buradaki daha uzun kareler bellek yetersizliği demektir. Gizlemek için tıklayın.</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Bu dosya bu bilgisayarda yok. Kayıt başka bir bilgisayarda yapılmış olabilir ya da mod kaldırılmış veya taşınmış olabilir.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Kayıttan sonra değişmiş: satır numaraları farklı olabilir</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Aç</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>VS Code&apos;da {0}. satırı aç</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>VS Code&apos;da aç</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>VS Code&apos;da aç (VS Code bulunamadı)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Klasörde göster</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Yolu kopyala</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Bellek duruşu</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC çalışırken kareler {0:P0} daha yavaş</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Diğer programlar ortalama işlemcinin {0:P0} kadarını kullanıyordu</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Kayıt sırasında oyun dışındaki programlar bilgisayarın işlemcisinin bu kadarını kullanıyordu. Meşgul bir işlemci, modlardan bağımsız olarak oyunu yavaşlatır ve kayıt her zamankinden yavaş çıkar. Adil bir karşılaştırma için onları kapatıp yeniden kaydedin.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Mod ve oyun Lua betiklerinin çalışma süresi (çağırdıkları Java işlevleri dahil)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Oyunun kendi kodunun (Java) çalışma süresi</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Oyun iş parçacığının GC ya da bellek yüzünden durduğu süre. ZGC ile neredeyse sıfır; bellek yetersizliği için grafiğin turuncu arka planına bakın.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Oyun iş parçacığının dinlendiği süre, çoğunlukla sonraki kareye kalan pay.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Diğer betikler</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Bir oyun başlatma seçeneği bağlantıyı engelliyor.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Bir oyun başlatma seçeneği engellediği için bağlanılamadı. Oyunun başlatma seçeneklerini kontrol edin.</value></data>
@@ -747,4 +787,9 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Oyun başlatılıyor</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · kullanımda</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Oyunun bir sonraki açılışında geçerli olur.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Oyun, belleği kendisi belirleyen bir başlatma betiğinden (.bat) çalışıyor. Bu ayar yalnızca oyun normal başlatıldığında geçerli olur.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Kart önizlemesi (geliştirici sürümü)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Görünümünü ve düğmelerini denetlemek için bir kenar çubuğu kartını durumu olmadan gösterir. Yayımlanan sürümlerde yoktur.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Göster</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Tümünü temizle</value></data>
 </root>

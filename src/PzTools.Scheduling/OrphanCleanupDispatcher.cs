@@ -9,12 +9,13 @@ namespace PzTools.Scheduling;
 public sealed class OrphanCleanupDispatcher(
     string repositoryPath, string savesRoot, string workerDirectory, string? controlDatabasePath = null,
     int intervalSeconds = 60, Func<bool>? shouldDefer = null,
-    Action<string, IReadOnlyList<string>, string>? startDetached = null)
+    Action<string, IReadOnlyList<string>, string>? startDetached = null, string? appSettingsPath = null)
 {
-    // A pass only has work when a save folder or the backup catalog changed: backups, deletions and
-    // maintenance all move the catalog's change counter. Unchanged since the last pass, the next one
-    // is skipped (it would start a process, reserve a workflow and scan the repository for nothing),
-    // except once an hour so that time-based housekeeping still runs.
+    // A pass only has work when a save folder, the backup catalog or the app's settings changed: backups,
+    // deletions and maintenance all move the catalog's change counter, and the settings hold the number of
+    // automatic backups to keep, which the pass applies to every save. Unchanged since the last pass, the
+    // next one is skipped (it would start a process, reserve a workflow and scan the repository for
+    // nothing), except once an hour so that time-based housekeeping still runs.
     private static readonly TimeSpan UnchangedRecheck = TimeSpan.FromHours(1);
     private DateTimeOffset nextDue = DateTimeOffset.MinValue;
     private string? lastStamp;
@@ -42,26 +43,60 @@ public sealed class OrphanCleanupDispatcher(
             requested = false;
             lastStamp = stamp;
             lastDispatch = now;
-            var arguments = new List<string>
-            {
-                "--repository", repositoryPath, "--saves-root", savesRoot, "--lane", "OrphanBackups",
-            };
-            if (controlDatabasePath is not null) arguments.AddRange(["--control-db", controlDatabasePath]);
-            // Detached: the pass finishes on its own even if the app closes right after dispatching it.
-            (startDetached ?? ((executable, launchArguments, directory) =>
-                DetachedProcessLauncher.Start(executable, launchArguments, directory)))(
-                Path.Combine(workerDirectory, "PzTools.Maintenance.Cli.exe"), arguments, workerDirectory);
+            Launch(null);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            var run = await new RunIndexAllocator(controlDatabasePath).AllocateAsync(cancellationToken: cancellationToken);
-            await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, "maintenance-worker", run,
-                "maintenance.orphanbackups.failed", FailureTelemetry.FromException(
-                    "orphan-cleanup-launch-failed", exception, operation: "maintenance"));
+            await RecordLaunchFailureAsync(exception, cancellationToken);
         }
     }
 
-    /// <summary>The saves present and the catalog's change counter; null when either cannot be read (then the pass runs).</summary>
+    /// <summary>
+    /// The pass left behind when the app closes. Many users close the app right after the game, while the game is
+    /// still exiting: then the pass waits for it, up to <paramref name="waitForGame"/>, before it takes any lock, and
+    /// gives up if the game is still there. A game that keeps running leaves the work to the app's next run.
+    /// </summary>
+    public async Task DispatchOnExitAsync(TimeSpan waitForGame, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (await MaintenanceLaneSignal.IsRunningAsync(repositoryPath, "OrphanBackups", cancellationToken)) return;
+            Launch((shouldDefer ?? GameplayWorkGate.ShouldDeferMaintenance)() ? waitForGame : null);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            await RecordLaunchFailureAsync(exception, cancellationToken);
+        }
+    }
+
+    private void Launch(TimeSpan? waitForGame)
+    {
+        var arguments = new List<string>
+        {
+            "--repository", repositoryPath, "--saves-root", savesRoot, "--lane", "OrphanBackups",
+        };
+        if (controlDatabasePath is not null) arguments.AddRange(["--control-db", controlDatabasePath]);
+        if (waitForGame is { } wait)
+            arguments.AddRange(["--wait-for-game-exit-seconds",
+                ((long)wait.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+        // Detached: the pass finishes on its own even if the app closes right after dispatching it.
+        (startDetached ?? ((executable, launchArguments, directory) =>
+            DetachedProcessLauncher.Start(executable, launchArguments, directory)))(
+            Path.Combine(workerDirectory, "PzTools.Maintenance.Cli.exe"), arguments, workerDirectory);
+    }
+
+    private async Task RecordLaunchFailureAsync(Exception exception, CancellationToken cancellationToken)
+    {
+        var run = await new RunIndexAllocator(controlDatabasePath).AllocateAsync(cancellationToken: cancellationToken);
+        await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, "maintenance-worker", run,
+            "maintenance.orphanbackups.failed", FailureTelemetry.FromException(
+                "orphan-cleanup-launch-failed", exception, operation: "maintenance"));
+    }
+
+    /// <summary>
+    /// The saves present, the catalog's change counter and when the app's settings were last written; null when
+    /// the saves or the catalog cannot be read (then the pass runs).
+    /// </summary>
     private async Task<string?> ReadStampAsync(CancellationToken cancellationToken)
     {
         try
@@ -75,7 +110,11 @@ public sealed class OrphanCleanupDispatcher(
                     .SelectMany(mode => Directory.EnumerateDirectories(mode))
                     .Select(save => save.ToUpperInvariant()).Order(StringComparer.Ordinal)
                 : [];
-            return revision.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + string.Join("|", saves);
+            // The same file the maintenance worker reads its count from. A missing file reads as a fixed time.
+            var settings = File.GetLastWriteTimeUtc(appSettingsPath
+                ?? Path.Combine(PzToolsPathLayout.CreateDefault().DataRoot, "settings.toml"));
+            return revision.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|"
+                + settings.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + string.Join("|", saves);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

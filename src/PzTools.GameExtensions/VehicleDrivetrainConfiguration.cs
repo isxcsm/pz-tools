@@ -46,13 +46,43 @@ public static class VehicleDrivetrainConfiguration
         "steering_countersteer_rate", "steering_high_speed_rate_factor",
     };
 
+    /// <summary>
+    /// The player's own values over the packaged ones, beside every other editable file: Restore default settings
+    /// archives it with them, Open folder shows it, and Apply settings checks it.
+    /// </summary>
+    public static string OverridePath(string runtimeRoot) =>
+        Path.Combine(Path.GetFullPath(runtimeRoot), "config", ConfigurationFolder, "default.toml");
+
+    /// <summary>The folder under the data folder's <c>config</c> that holds the override.</summary>
+    public const string ConfigurationFolder = "vehicle-drivetrain";
+
+    /// <summary>
+    /// Moves an override from where earlier versions read it (<c>extensions\vehicle-drivetrain.toml</c>) to
+    /// <see cref="OverridePath"/>. One already there is the newer and wins; the old file then stays where it is.
+    /// </summary>
+    public static void MoveLegacyOverride(string runtimeRoot)
+    {
+        var legacy = Path.Combine(Path.GetFullPath(runtimeRoot), "extensions", "vehicle-drivetrain.toml");
+        var current = OverridePath(runtimeRoot);
+        try
+        {
+            if (!File.Exists(legacy) || File.Exists(current)) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(current)!);
+            File.Move(legacy, current);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Open elsewhere or not ours to move: tried again at the next start.
+        }
+    }
+
     public static IReadOnlyDictionary<string, string> Load(string bridgeDirectory, string runtimeRoot,
         VehicleDrivetrainPreference? preference = null)
     {
         var values = Defaults();
         Apply(values, Read(Path.Combine(Path.GetFullPath(bridgeDirectory), "extensions", "vehicle-drivetrain.toml")));
         Validate(values);
-        var overridePath = Path.Combine(Path.GetFullPath(runtimeRoot), "extensions", "vehicle-drivetrain.toml");
+        var overridePath = OverridePath(runtimeRoot);
         try { Apply(values, Read(overridePath)); }
         catch (FileNotFoundException) { }
         catch (DirectoryNotFoundException) { }

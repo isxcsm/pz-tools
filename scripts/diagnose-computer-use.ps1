@@ -1,4 +1,4 @@
-# 실행 중인 관련 프로세스의 권한 토큰만 조회합니다. 권한·설정·프로세스를 변경하지 않습니다.
+# Only reads the privilege tokens of the related running processes. Changes no permission, setting or process.
 $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 using System;

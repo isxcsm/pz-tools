@@ -9,7 +9,7 @@ public readonly record struct VideoMemoryReading(DateTimeOffset At, long Dedicat
 
 /// <summary>
 /// Adds video memory readings to a finished recording. The game cannot measure its own video memory, so
-/// the recording worker reads it from Windows and, once the recording is written, places the readings on
+/// the app reads it from Windows (VideoMemoryLog) and, once the recording is written, places the readings on
 /// the recording's time scale (microseconds from its first event, whose wall-clock time it records).
 /// </summary>
 public static class ProfileVideoMemory

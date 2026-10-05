@@ -115,7 +115,7 @@ internal sealed class HyperlinkIconFeedback : IDisposable
         // same turn. Sample them together once; never enqueue obsolete animations.
         try
         {
-            if (!button.DispatcherQueue.TryEnqueue(() =>
+            if (!button.DispatcherQueue.Enqueue(() =>
             {
                 updatePending = false;
                 var useAnimation = !settlePending;

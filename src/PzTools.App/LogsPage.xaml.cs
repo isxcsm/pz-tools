@@ -184,7 +184,7 @@ public sealed partial class LogsPage : UserControl
             if (version != queryVersion) return;
             loadFailed = true;
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
         finally
         {
@@ -364,7 +364,7 @@ public sealed partial class LogsPage : UserControl
             var selected = displayedItems.FirstOrDefault(item => item.EntryId == selectedId);
             if (!ReferenceEquals(LogList.SelectedItem, selected)) LogList.SelectedItem = selected;
         }
-        if (animateNewRows && newRows.Count > 0) AnimateNewLogRows(newRows);
+        if (animateNewRows && newRows.Count > 0 && SystemMotion.Enabled) AnimateNewLogRows(newRows);
     }
 
     private void UpdateEmptyState()
@@ -399,8 +399,8 @@ public sealed partial class LogsPage : UserControl
             return [];
 
         ResetLogArrivalAnimations();
-        // 새 로그는 최신순 목록 앞에 붙습니다. 기존 행을 유지하면 ListView가
-        // ItemsSource 전체를 다시 구성하지 않아 선택 상태와 화면이 깜빡이지 않습니다.
+        // New logs go to the front of the newest-first list. Keeping the existing rows means the ListView
+        // does not rebuild its whole ItemsSource, so the selection and the view do not flicker.
         if (!forceReplace && displayedItems.Count > 0)
         {
             var shift = Array.FindIndex(desired,
@@ -523,7 +523,8 @@ public sealed partial class LogsPage : UserControl
         var text = new StringBuilder();
         text.AppendLine(DetailLogIndex.Text);
         text.AppendLine($"{LogMessageHeader.Text}: {DetailMessage.Text}");
-        text.AppendLine($"{LogLevelHeader.Text}: {item.LevelText}");
+        // The column's name, not its header: the header shows the level filter chosen ("Warning").
+        text.AppendLine($"{Localizer.Get("LogLevelHeader")}: {item.LevelText}");
         text.AppendLine($"{DetailTimeLabel.Text}: {DetailTime.Text}");
         text.AppendLine($"{DetailComponentLabel.Text}: {DetailComponent.Text}");
         if (item.RunIndex > 0)
@@ -569,7 +570,7 @@ public sealed partial class LogsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -586,7 +587,7 @@ public sealed partial class LogsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
         finally { AcknowledgeSelectedButton.IsEnabled = true; }
     }
@@ -603,7 +604,7 @@ public sealed partial class LogsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
         finally { AcknowledgeAllButton.IsEnabled = true; }
     }
@@ -761,13 +762,17 @@ public sealed partial class LogsPage : UserControl
         try
         {
             using var document = JsonDocument.Parse(json);
-            return JsonSerializer.Serialize(document.RootElement, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-            });
+            return JsonSerializer.Serialize(document.RootElement, ReadablePayload);
         }
         catch (JsonException) { return json; }
     }
+
+    // Shown and copied as text, never embedded in a page: Korean and every other script stay as they are, not 설.
+    private static readonly JsonSerializerOptions ReadablePayload = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     private static string FormatRelatedPayloads(IReadOnlyList<LogEntryView> entries) =>
         JsonSerializer.Serialize(entries.OrderBy(item => item.OccurredUtc).Select(item => new
@@ -776,7 +781,7 @@ public sealed partial class LogsPage : UserControl
             timeLocal = item.OccurredUtc.ToLocalTime().ToString("O"),
             eventCode = item.EventName,
             payload = ParsePayload(item.PayloadJson),
-        }), new JsonSerializerOptions { WriteIndented = true });
+        }), ReadablePayload);
 
     private static object? ParsePayload(string? json)
     {
@@ -831,7 +836,10 @@ public sealed class LogEntryUiItem
     });
     public string Component => activity.Kind is LogActivityKind.ArchiveExport
         or LogActivityKind.ArchiveImport or LogActivityKind.ArchiveInspect or LogActivityKind.CharacterRecovery or LogActivityKind.Profile
-        ? ActivityName : Localizer.Get($"LogComponent.{ComponentCategory(model.Component)}");
+        ? ActivityName
+        // A failure from a card belongs to what the card was titled after (Settings files, Hotkeys), not "other work".
+        : model.EventName == "app.action.failed" && PayloadText("title") is { Length: > 0 } title ? Localizer.Translate(title)
+        : Localizer.Get($"LogComponent.{ComponentCategory(model.Component)}");
     public static string ComponentCategory(string component) => component switch
     {
         "backup-worker" or "backup-runner" => "Backup",
@@ -936,7 +944,7 @@ public sealed class LogEntryUiItem
             Localizer.Format("LogEvent.ExtensionRestartFormat", ExtensionTitle),
         "extension.runtime.changed" when model.Level >= LogLevel.Warning =>
             Localizer.Format("LogEvent.RunFailed", ExtensionTitle),
-        "extension.runtime.changed" =>
+        "extension.runtime.changed" or "extension.runtime.sample" =>
             Localizer.Format("LogEvent.Other", ExtensionTitle),
         "component.launch.blocked" => Localizer.Get("OperationError.BlockedByPolicy"),
         // An action that ran no worker; its title is the one its card had, stored with the entry.

@@ -52,7 +52,8 @@ public sealed class StateProjector(
         }
         characters.RetainOnly(mapped.Select(item => Path.Combine(item.SourcePath, "players.db")));
         var observation = runtime?.Invoke();
-        if (observation is not null)
+        // A game that cannot be read leaves the state as the save files' locks tell it (GameActivityLane).
+        if (observation is not null && !observation.IsLinkUnusable)
         {
             var world = observation.Snapshot;
             bool ready = observation.IsFresh && world?.IsWorldReady == true;
@@ -183,7 +184,8 @@ public sealed class SchedulerProjector(
         var observation = runtimeSnapshot?.Read() ?? RuntimeObservation.Unknown("runtime-feed-disconnected");
         if (runtimeSchedule.Enabled)
         {
-            var runtimeView = RuntimeScheduleProjection.Build(snapshot, runtimeSchedule, observation);
+            var lockedSave = observation.IsLinkUnusable ? await database.ReadFileDerivedTargetAsync(cancellationToken) : null;
+            var runtimeView = RuntimeScheduleProjection.Build(snapshot, runtimeSchedule, observation, lockedSave);
             if (repository is not null && runtimeView.RemainingMilliseconds == 0
                 && runtimeSchedule.Checkpoint is { AttemptId: { } attempt } checkpoint)
             {

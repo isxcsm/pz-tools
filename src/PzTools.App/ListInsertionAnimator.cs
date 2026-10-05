@@ -20,7 +20,8 @@ internal sealed class ListInsertionAnimator(ListView list)
     public Snapshot<T>? Capture<T>(IReadOnlyList<T> current, IReadOnlyList<T> desired,
         int insertionIndex) where T : class
     {
-        if (!list.IsLoaded || list.Visibility != Visibility.Visible
+        // Without Windows' animation effects the rows simply appear: nothing to capture.
+        if (!SystemMotion.Enabled || !list.IsLoaded || list.Visibility != Visibility.Visible
             || current.Count <= insertionIndex || desired.Count <= current.Count
             || FindScrollViewer(list)?.VerticalOffset > 2)
             return null;

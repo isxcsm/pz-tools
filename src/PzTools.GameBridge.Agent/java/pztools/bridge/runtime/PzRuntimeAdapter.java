@@ -80,6 +80,26 @@ final class PzRuntimeAdapter {
         pause = yielded ? "Paused" : controls == null ? "Unknown" : (boolean)paused.invoke(null, none) ? "Paused" : "Running";
     }
 
+    /**
+     * Whether the game thread is leaving its world for the main menu: saving it on the way out, from the playing
+     * state's update, or unloading it and reloading the mods as that state ends. Read from another thread.
+     */
+    static boolean leavingWorld(Thread game) {
+        try {
+            StackTraceElement[] frames = game.getStackTrace();
+            for (int i = 0; i < frames.length; i++) {
+                if (!frames[i].getClassName().equals("zombie.gameStates.IngameState")) continue;
+                if (frames[i].getMethodName().equals("exit")) return true;
+                if (i > 0 && frames[i].getMethodName().equals("updateInternal")) {
+                    String called = frames[i - 1].getClassName() + "." + frames[i - 1].getMethodName();
+                    if (called.equals("zombie.GameWindow.save") || called.equals("zombie.savefile.PlayerDB.saveLocalPlayersForce"))
+                        return true;
+                }
+            }
+        } catch (RuntimeException unavailable) { /* Then the stall reads as before. */ }
+        return false;
+    }
+
     private boolean yieldedFromGame(Object machine) throws ReflectiveOperationException {
         if (yieldStack == null || !(yieldStack.get(machine) instanceof java.util.List<?> yielded)) return false;
         for (Object state : yielded) if (ingame.isInstance(state)) return true;

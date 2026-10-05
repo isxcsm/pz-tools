@@ -21,6 +21,10 @@ public readonly record struct ProfileLuaFrame(int Function, int Line);
 public sealed record ProfileLuaFunction(string Name, string File);
 public sealed record ProfileCollection(long Time, long Duration, string Name, string Cause);
 public sealed record ProfilePause(long Time, long Duration, string Kind, int Thread, string Detail);
+/// <summary>A collection from its start to its end, most of it beside the game: how long the collector was at work.</summary>
+public readonly record struct ProfileCollectorRun(long Time, long Duration);
+/// <summary>The CPU the game and the whole machine used over the second before <see cref="Time"/>, as shares of all processors.</summary>
+public readonly record struct ProfileMachineCpu(long Time, double GameUser, double GameSystem, double MachineTotal);
 /// <summary>The Java heap at one moment, in bytes.</summary>
 public readonly record struct ProfileHeapSample(long Time, long Used, long Committed, long Maximum);
 /// <summary>The game's video memory at one moment, in bytes: on the graphics card, and borrowed from system memory.</summary>
@@ -51,8 +55,19 @@ public sealed class ProfileRecording
     public required ProfileLuaSample[] LuaSamples { get; init; }
     public required IReadOnlyList<ProfileCollection> Collections { get; init; }
     public required IReadOnlyList<ProfilePause> Pauses { get; init; }
+    /// <summary>Each collection's whole run; empty in recordings made before it was kept.</summary>
+    public IReadOnlyList<ProfileCollectorRun> CollectorRuns { get; init; } = [];
+    /// <summary>The game's and the machine's CPU use, once a second; empty in recordings made before it was kept.</summary>
+    public IReadOnlyList<ProfileMachineCpu> MachineCpu { get; init; } = [];
+    /// <summary>The machine's hardware threads, which the CPU shares are of; 0 when not known.</summary>
+    public int Processors { get; init; }
     /// <summary>Whether <see cref="Pauses"/> holds the collector's own pauses, as recordings since they were kept do.</summary>
     public bool HasCollectorPauses { get; init; }
+    /// <summary>
+    /// Whether the recorder kept the collector's runs: <see cref="CollectorRuns"/> empty then means none ran (a part
+    /// saved from a recording, a quiet stretch), not a recording made before they were kept.
+    /// </summary>
+    public bool HasCollectorRuns { get; init; }
     /// <summary>Empty in recordings made before heap use was recorded.</summary>
     public IReadOnlyList<ProfileHeapSample> Heap { get; init; } = [];
     /// <summary>Empty when the system could not report it, and in older recordings.</summary>
@@ -120,6 +135,9 @@ public sealed class ProfileRecording
         var luaStacks = new List<ProfileLuaFrame[]>();
         var luaSamples = new List<ProfileLuaSample>();
         var collections = new List<ProfileCollection>();
+        var collectorRuns = new List<ProfileCollectorRun>();
+        var machineCpu = new List<ProfileMachineCpu>();
+        var processors = 0;
         var pauses = new List<(long Time, long Duration, string Kind, long Thread, string Detail)>();
         var heap = new List<ProfileHeapSample>();
         var videoMemory = new List<ProfileVideoMemorySample>();
@@ -165,6 +183,11 @@ public sealed class ProfileRecording
                 case "G" when fields.Length == 5:
                     collections.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], fields[4]));
                     break;
+                case "GR" when fields.Length == 3: collectorRuns.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
+                case "CL" when fields.Length == 5:
+                    machineCpu.Add(new(Number(fields[1]), Share(fields[2]), Share(fields[3]), Share(fields[4])));
+                    break;
+                case "HW" when fields.Length == 2: processors = Math.Max(processors, Index(fields[1])); break;
                 case "P" when fields.Length == 6:
                     pauses.Add((Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], Number(fields[4]), fields[5]));
                     break;
@@ -254,11 +277,15 @@ public sealed class ProfileRecording
             LuaStacks = luaStacks,
             LuaSamples = orderedLua,
             Collections = collections.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
+            CollectorRuns = collectorRuns.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
+            MachineCpu = machineCpu.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
+            Processors = processors,
             Pauses = pauses.Select(item => new ProfilePause(item.Time - origin, item.Duration, item.Kind,
                 threadIndex.GetValueOrDefault(item.Thread, -1), item.Detail)).OrderBy(item => item.Time).ToArray(),
             // A saved range says so for its source, which may have had none inside the range.
             HasCollectorPauses = pauses.Any(item => item.Kind == ProfileAnalysis.CollectorPause)
                 || information.GetValueOrDefault(ProfileTrim.CollectorPausesKey) == "1",
+            HasCollectorRuns = collectorRuns.Count > 0 || information.GetValueOrDefault(ProfileTrim.CollectorRunsKey) == "1",
             // Memory readings carry on the same time scale but do not stretch the recording: they may start before
             // the first sample or run on after the last.
             Heap = heap.Select(item => item with { Time = item.Time - origin }).Where(item => item.Time >= 0 && item.Time <= end)
@@ -277,8 +304,8 @@ public sealed class ProfileRecording
     }
 
     /// <summary>
-    /// The recorder cannot always keep the period it was asked for (a 1 ms request typically yields
-    /// one sample every 1.5-2 ms). The usual gap between a thread's consecutive samples is what one
+    /// The recorder cannot always keep the period it was asked for (in the game a 1 ms request yields
+    /// one sample about every 1.5 ms, a 10 ms one about every 10.5 ms). The usual gap between a thread's consecutive samples is what one
     /// sample really stands for; with too few samples to tell, the requested period is used.
     /// </summary>
     private static long EffectivePeriod(ProfileSample[] samples, int threads, bool native, long requested)
@@ -345,4 +372,11 @@ public sealed class ProfileRecording
     private static int Index(string text) =>
         int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
             ? value : throw new InvalidDataException("The recording has an invalid index.");
+
+    // A share of the machine's CPU as Java writes a float ("0.0625", "1.0E-4"), kept between 0 and 1. A reading the
+    // system could not take ("NaN") counts as none: one missing second must not make the recording unreadable.
+    private static double Share(string text) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? double.IsFinite(value) ? Math.Clamp(value, 0, 1) : 0
+            : throw new InvalidDataException("The recording has an invalid share.");
 }

@@ -74,13 +74,10 @@ try
     var clock = System.Diagnostics.Stopwatch.StartNew();
     var endedBy = "stop";
     var cancelled = false;
-    // The game's video memory, read from Windows on each pass; joined to the recording once it is written.
-    using var videoMemory = GpuProcessMemory.TryOpen(processId);
-    var videoReadings = new List<PzTools.Profiling.VideoMemoryReading>();
+    // The game's video memory is read by the app, for this recording and the rolling one alike, and joined to the
+    // file once it is written.
     while (true)
     {
-        if (videoMemory?.Read() is { } reading)
-            videoReadings.Add(new(DateTimeOffset.UtcNow, reading.Dedicated, reading.Shared));
         if (File.Exists(stopFile)) break;
         if (clock.Elapsed.TotalSeconds >= maximumSeconds) { endedBy = "limit"; break; }
         if (game.HasExited) { endedBy = "game-exit"; break; }
@@ -115,13 +112,6 @@ try
     }, cancellation.Token);
     // Diagnosis only: the raw recording holds full paths and is not meant to be shared.
     if (!args.Contains("--keep-raw")) TryDelete(recordingPath);
-    // Optional: a recording without its video memory is still a whole recording.
-    var videoMemoryReadings = 0;
-    try { videoMemoryReadings = PzTools.Profiling.ProfileVideoMemory.Append(output, videoReadings); }
-    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
-    {
-        telemetry.RecordEvent("profile.video-memory-skipped", FailureTelemetry.FromException("video-memory-append-failed", exception, phase: phase, operation: "profile"));
-    }
 
     var result = new
     {
@@ -134,7 +124,6 @@ try
         frames = exported.Frames,
         luaSamples = exported.LuaSamples,
         durationMicroseconds = exported.DurationMicroseconds,
-        videoMemoryReadings,
     };
     telemetry.RecordEvent("run.committed", JsonSerializer.Serialize(new
     {
@@ -185,7 +174,7 @@ catch (Exception exception)
 finally { if (telemetry is not null) await telemetry.DisposeAsync(); }
 
 // The rolling recording's commands. Saving takes what the game holds, cut to the window, as a recording like any
-// other; its video memory is not known, as nothing outside the game was reading it.
+// other; the app joins its video memory, as it does to a recording's.
 async Task<int> RollAsync(string command)
 {
     var keepSeconds = command == "roll-stop" ? 0 : CommandLine.Int32(Required("--seconds"), "--seconds",

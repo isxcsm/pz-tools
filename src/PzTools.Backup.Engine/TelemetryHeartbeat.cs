@@ -33,8 +33,10 @@ internal sealed class TelemetryHeartbeat : IAsyncDisposable
         using var timer = new PeriodicTimer(interval);
         while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
         {
+            // The run's liveness, not a detail: kept at every recording level. As a raw event it was dropped at
+            // the default (phase), and a phase that reported no progress for ten seconds read as a stalled worker.
             await session.EmitAsync(
-                new TelemetryEvent(TelemetryEventScope.Raw, "operation.heartbeat"),
+                new TelemetryEvent(TelemetryEventScope.Run, "operation.heartbeat"),
                 cancellationToken).ConfigureAwait(false);
         }
     }

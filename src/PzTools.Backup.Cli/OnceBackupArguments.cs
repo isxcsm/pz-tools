@@ -167,6 +167,6 @@ internal sealed record OnceBackupArguments(
             revision,
             controlDatabasePath,
             saveGame,
-            ConfigurationArguments.Parse(configurationArguments.ToArray()), scheduledUtc, requireActiveGame, runtimeTicket, runtimeAuthority, runtimeGeneration, gameVersion);
+            ConfigurationArguments.Parse(configurationArguments.ToArray(), requireRepository: true), scheduledUtc, requireActiveGame, runtimeTicket, runtimeAuthority, runtimeGeneration, gameVersion);
     }
 }

@@ -194,6 +194,25 @@ public sealed class GameExtensionActivationStateTests
     }
 
     [Fact]
+    public void AnUpdateWaitingForTheGamesRestart_KeepsThePreference_AndReturnsWithTheNextGame()
+    {
+        var state = Bound();
+        int writes = 0;
+        Assert.True(state.FailClosed(Active(1) with { State = RuntimeExtensionState.RestartRequired,
+            Reason = GameExtensionActivationState.BootstrapUpdateReason }, 2, () => true, _ => { writes++; return 3; }));
+        Assert.Equal(0, writes); // The player's switch stays on.
+        Assert.Equal(RuntimeExtensionState.RestartRequired, state.Blocked(2)!.State);
+        Assert.Equal(RuntimeExtensionState.RestartRequired, state.Blocked(9)!.State);
+        Assert.True(state.Bind(new string('e', 32), World));
+        Assert.Null(state.Blocked(2));
+        // A restart forced by a failure still turns the extension off.
+        var failed = Bound();
+        Assert.True(failed.FailClosed(Active(1) with { State = RuntimeExtensionState.RestartRequired, Reason = "retirement-failed" },
+            2, () => true, _ => { writes++; return 3; }));
+        Assert.Equal(1, writes);
+    }
+
+    [Fact]
     public void LaterFailureCannotDowngradeRestartRequiredOrWriteAnotherRevision()
     {
         var state = Bound();

@@ -78,6 +78,43 @@ public sealed class RepositoryRecoveryTests
         Assert.Equal(
             run.Status.ToString(),
             (await telemetry.ReadRunAsync(run.RunIndex))?.Status);
+        // The worker owned this workflow, so nobody else would ever close it.
+        Assert.Equal(
+            revisionCommitted ? WorkflowStatus.Succeeded : WorkflowStatus.Abandoned,
+            (await repository.ReadWorkflowAsync(run.RunIndex)).Status);
+    }
+
+    [Fact]
+    public async Task Recover_ClosesOnlyWorkflowsTheInterruptedWorkerOwned()
+    {
+        using var temp = new TempDirectory();
+        var sourcePath = temp.GetPath("source");
+        Directory.CreateDirectory(sourcePath);
+        var repositoryPath = temp.GetPath("repository");
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(repositoryPath);
+        var telemetry = TelemetryStore.CreateDisabled(repositoryPath);
+        await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
+        var source = await repository.AddOrGetSourceAsync(lease, "main", sourcePath);
+        // A manual backup whose worker died mid-run: the app reserved it for the worker.
+        var crashed = await repository.ReserveWorkflowAsync("manual-backup", null, "backup-worker", null, 10);
+        await repository.StartRunAsync(lease, source.SourceId, crashed.RunIndex);
+        // A scheduled backup whose worker died: the scheduler closes its own workflow.
+        var scheduled = await repository.ReserveWorkflowAsync("backup-maintenance", null, "backup-scheduler", null, 11);
+        await repository.StartRunAsync(lease, source.SourceId, scheduled.RunIndex);
+        // Reserved and still waiting for the lease: nothing was interrupted.
+        var waiting = await repository.ReserveWorkflowAsync("manual-backup", null, "backup-worker", null, 12);
+
+        var recovered = await new RepositoryRecoveryService().RecoverAsync(repository, telemetry, lease);
+
+        Assert.Equal(2, recovered.AbandonedRuns);
+        var closed = await repository.ReadWorkflowAsync(crashed.RunIndex);
+        Assert.Equal(WorkflowStatus.Abandoned, closed.Status);
+        Assert.Equal("process-interrupted", closed.FailureCode);
+        Assert.Equal(WorkflowStatus.Running, (await repository.ReadWorkflowAsync(scheduled.RunIndex)).Status);
+        Assert.Equal(WorkflowStatus.Running, (await repository.ReadWorkflowAsync(waiting.RunIndex)).Status);
+        Assert.All(
+            await repository.ReadWorkflowStagesAsync(scheduled.RunIndex),
+            stage => Assert.Equal(WorkflowStatus.Abandoned, stage.Status));
     }
 
     [Fact]

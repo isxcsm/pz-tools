@@ -18,7 +18,8 @@ public sealed record AppSettings(
     int BackupIntervalMinutes,
     int RetainedRevisions,
     bool BackupOnDeath,
-    LogLevel LogMinimumLevel,
+    // How many of the newest entries the log view the app watches holds ([logs] display_limit). The Logs page's own
+    // filters last only while it is open; an earlier [logs] minimum_level is no longer read and the next save drops it.
     int LogDisplayLimit,
     bool UseSystemTray = false,
     bool VerifyStagedCopies = true,
@@ -45,14 +46,14 @@ public sealed record AppSettings(
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         return new AppSettings(
-            SupportedLanguage.Korean,
+            // Windows' display language where the app has it, English otherwise: no language is anyone's default.
+            LanguageCatalog.ForCulture(System.Globalization.CultureInfo.CurrentUICulture),
             AppTheme.System,
             Path.Combine(profile, "Zomboid", "Saves"),
             Path.Combine(profile, "Zomboid", "Backups"),
             5,
             20,
             false,
-            LogLevel.Warning,
             1000);
     }
 
@@ -65,9 +66,8 @@ public sealed record AppSettings(
             throw new ArgumentOutOfRangeException(nameof(RetainedRevisions));
         if (LogDisplayLimit is < 100 or > 10000)
             throw new ArgumentOutOfRangeException(nameof(LogDisplayLimit));
-        if (!Enum.IsDefined(LogRecordMinimumLevel) || !Enum.IsDefined(LogMinimumLevel)
-            || LogMinimumLevel < LogRecordMinimumLevel)
-            throw new ArgumentOutOfRangeException(nameof(LogMinimumLevel));
+        if (!Enum.IsDefined(LogRecordMinimumLevel))
+            throw new ArgumentOutOfRangeException(nameof(LogRecordMinimumLevel));
         if (LogMaxEntries is < 10000 or > 500000)
             throw new ArgumentOutOfRangeException(nameof(LogMaxEntries));
         ArgumentException.ThrowIfNullOrWhiteSpace(SavesRoot);
@@ -101,7 +101,6 @@ public sealed class SettingsProjector(RevisionedViewStore views)
                 value.BackupIntervalMinutes,
                 value.RetainedRevisions,
                 value.BackupOnDeath,
-                value.LogMinimumLevel.ToString(),
                 value.LogDisplayLimit,
                 value.UseSystemTray,
                 value.VerifyStagedCopies,
@@ -186,32 +185,57 @@ public sealed class AppSettingsService
         {
             var path = Path.Combine(directory, "default.toml");
             if (!File.Exists(path)) continue;
-            try
+            // The vehicle extension's tuning is not a component's settings: it has its own keys and ranges.
+            if (StringComparer.OrdinalIgnoreCase.Equals(Path.GetFileName(directory),
+                    PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder))
+            {
+                Check(path, () => _ = PzTools.GameExtensions.VehicleDrivetrainConfiguration.Parse(File.ReadAllText(path)));
+                continue;
+            }
+            Check(path, () =>
             {
                 _ = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(path))
                     ?? throw new InvalidDataException("The file is empty.");
                 _ = ComponentConfiguration.Load(RuntimeRoot, Path.GetFileName(directory),
                     appSettingsPath: SettingsPath, configurationRoot: ConfigurationRoot);
-            }
-            catch (Exception exception) when (exception is TomlException or InvalidDataException)
-            {
-                throw new InvalidDataException($"settings-invalid: {path}", exception);
-            }
+            });
         }
+        // The app's own file: its [logs] as Load reads them, then the rest, before Load mixes it with settings.toml.
+        Check(LoggingConfigurationPath, () =>
+        {
+            if (File.Exists(LoggingConfigurationPath))
+            {
+                var logging = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(LoggingConfigurationPath))
+                    ?? throw new InvalidDataException("The log settings file is empty.");
+                ValidateLoggingDocument(logging);
+                _ = GetRecordMinimumLevel(logging, default);
+                _ = GetLogMaxEntries(logging, default);
+            }
+            _ = AppRuntimeOptions.Read(ComponentConfiguration.Load(RuntimeRoot, "app", configurationRoot: ConfigurationRoot));
+        });
         var settings = Load();
-        _ = AppRuntimeOptions.Read(ComponentConfiguration.Load(RuntimeRoot, "app", configurationRoot: ConfigurationRoot));
         var backupPath = ComponentRuntimePaths.GetIdentityDefaultPath(
             settings.BackupRoot, "backup-worker", ConfigurationRoot);
         if (File.Exists(backupPath))
         {
-            _ = BackupConfiguration.Parse(
+            Check(backupPath, () => _ = BackupConfiguration.Parse(
                 File.ReadAllText(backupPath), settings.BackupRoot, backupPath,
                 new BackupOptionOverrides
                 {
                     Sources = [new BackupSourceOptions("validation",
                         Path.Combine(Path.GetDirectoryName(settings.BackupRoot)!,
                             "pztools-validation-source"))],
-                });
+                }));
+        }
+
+        // A value found wrong in one file names that file, so the player is told which one to fix.
+        static void Check(string path, Action read)
+        {
+            try { read(); }
+            catch (Exception exception) when (exception is TomlException or InvalidDataException or BackupConfigurationException)
+            {
+                throw new InvalidDataException($"settings-invalid: {path}", exception);
+            }
         }
     }
 
@@ -243,8 +267,6 @@ public sealed class AppSettingsService
             intervalMinutes,
             checked((int)GetInt64(model, "backup", "retained_revisions", defaults.RetainedRevisions)),
             GetBoolean(model, "backup", "backup_on_death", false),
-            ParseEnum(GetString(model, "logs", "minimum_level", defaults.LogMinimumLevel.ToString()),
-                defaults.LogMinimumLevel),
             checked((int)GetInt64(model, "logs", "display_limit", defaults.LogDisplayLimit)),
             GetBoolean(model, "ui", "system_tray", false),
             File.Exists(backupConfigPath)
@@ -260,22 +282,10 @@ public sealed class AppSettingsService
             ReadPausePolicy(model, defaults.PausePeriodicDuringGame),
             GetBoolean(model, "profiler", "rolling_enabled", false),
             GetBoolean(model, "profiler", "rolling_detailed", false),
-            Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)), 1, 10),
+            checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)),
             ReadHotKeys(model),
             GetBoolean(model, "ui", "check_updates", true));
-        // 기존 설정의 추적 표시값은 새 기록 하한보다 낮을 수 있습니다.
-        return (loaded with { LogMinimumLevel =
-            (LogLevel)Math.Max((int)loaded.LogMinimumLevel, (int)loaded.LogRecordMinimumLevel) }).Validate();
-    }
-
-    public async Task<AppSettings> SaveLogOptionsAsync(
-        LogLevel minimumLevel, int displayLimit, CancellationToken cancellationToken = default)
-    {
-        if (!Enum.IsDefined(minimumLevel)) throw new ArgumentOutOfRangeException(nameof(minimumLevel));
-        var settings = (Load() with { LogMinimumLevel = minimumLevel, LogDisplayLimit = displayLimit }).Validate();
-        // 표시 전용 변경에서는 백업 설정과 스케줄러를 건드리지 않습니다.
-        await AtomicTextFile.WriteAsync(SettingsPath, Serialize(settings), cancellationToken);
-        return settings;
+        return loaded.Validate();
     }
 
     public async Task SaveAndApplyAsync(
@@ -287,7 +297,6 @@ public sealed class AppSettingsService
         var current = Load();
         if (appliedBackupRoot is not null && settings == current with
             {
-                LogMinimumLevel = settings.LogMinimumLevel,
                 LogDisplayLimit = settings.LogDisplayLimit,
                 LogRecordMinimumLevel = settings.LogRecordMinimumLevel,
                 LogMaxEntries = settings.LogMaxEntries,
@@ -351,7 +360,7 @@ public sealed class AppSettingsService
             if (rollbackFailures.Count > 0)
             {
                 throw new AggregateException(
-                    "설정 적용과 변경 전 파일 복구가 모두 실패했습니다.",
+                    "Applying the settings failed, and so did restoring the files from before the change.",
                     new[] { applyFailure }.Concat(rollbackFailures));
             }
             throw;
@@ -377,7 +386,6 @@ public sealed class AppSettingsService
         + $"game_save_countdown = {value.GameSaveCountdown.ToString().ToLowerInvariant()}{Environment.NewLine}"
         + Environment.NewLine
         + $"[logs]{Environment.NewLine}"
-        + $"minimum_level = \"{value.LogMinimumLevel}\"{Environment.NewLine}"
         + $"display_limit = {value.LogDisplayLimit}{Environment.NewLine}{Environment.NewLine}"
         + $"[profiler]{Environment.NewLine}"
         + $"rolling_enabled = {value.RollingEnabled.ToString().ToLowerInvariant()}{Environment.NewLine}"
@@ -439,7 +447,7 @@ public sealed class AppSettingsService
     private static LogLevel ParseLogLevel(string value) =>
         Enum.TryParse<LogLevel>(value, true, out var parsed) && Enum.IsDefined(parsed)
             ? parsed : throw new InvalidDataException(
-                "logs.record_minimum_level은 Trace, Information, Warning, Error, Critical 중 하나여야 합니다.");
+                "logs.record_minimum_level must be one of Trace, Information, Warning, Error or Critical.");
 
     private static LogLevel GetRecordMinimumLevel(TomlTable root, LogLevel fallback)
     {
@@ -465,7 +473,7 @@ public sealed class AppSettingsService
             throw new InvalidDataException("The app's advanced settings need a [logs] section.");
         if (logs.Keys.Any(key => key is not ("record_minimum_level" or "max_entries")))
             throw new InvalidDataException(
-                "[logs]에 알 수 없는 항목이 있습니다. record_minimum_level과 max_entries만 사용할 수 있습니다.");
+                "[logs] has an unknown entry. Only record_minimum_level and max_entries are allowed.");
     }
 
     private static (bool Enabled, int Minutes) ReadBackupSchedule(TomlTable root, AppSettings defaults)

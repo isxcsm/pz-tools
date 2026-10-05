@@ -121,9 +121,8 @@ public sealed class VehicleDrivetrainConfigurationTests
         var bridge = temp.GetPath("bridge");
         var runtime = temp.GetPath("runtime");
         Directory.CreateDirectory(Path.Combine(bridge, "extensions"));
-        Directory.CreateDirectory(Path.Combine(runtime, "extensions"));
         var package = Path.Combine(bridge, "extensions", "vehicle-drivetrain.toml");
-        var overrides = Path.Combine(runtime, "extensions", "vehicle-drivetrain.toml");
+        var overrides = Override(runtime);
         const string packaged = "schema_version = 1\nreverse_max_speed_kph = 0\n";
         File.WriteAllText(package, packaged);
         Assert.Equal("0", VehicleDrivetrainConfiguration.Load(bridge, runtime)["reverse_max_speed_kph"]);
@@ -186,9 +185,8 @@ public sealed class VehicleDrivetrainConfigurationTests
     {
         using var temp = new TempDirectory();
         Directory.CreateDirectory(temp.GetPath("bridge/extensions"));
-        Directory.CreateDirectory(temp.GetPath("runtime/extensions"));
         var package = temp.GetPath("bridge/extensions/vehicle-drivetrain.toml");
-        var overrides = temp.GetPath("runtime/extensions/vehicle-drivetrain.toml");
+        var overrides = Override(temp.GetPath("runtime"));
         const string oldPackage = "schema_version = 1\nforce_scale = 0.9\n";
         File.WriteAllText(package, oldPackage);
         Assert.Equal("0.1", VehicleDrivetrainConfiguration.Load(temp.GetPath("bridge"), temp.GetPath("runtime"))["forward_torque_boost_fraction"]);
@@ -208,9 +206,8 @@ public sealed class VehicleDrivetrainConfigurationTests
         var bridge = temp.GetPath("bridge");
         var runtime = temp.GetPath("runtime");
         Directory.CreateDirectory(Path.Combine(bridge, "extensions"));
-        Directory.CreateDirectory(Path.Combine(runtime, "extensions"));
         var package = Path.Combine(bridge, "extensions", "vehicle-drivetrain.toml");
-        var overrides = Path.Combine(runtime, "extensions", "vehicle-drivetrain.toml");
+        var overrides = Override(runtime);
         const string original = "schema_version = 1\nforce_scale = 0.8\nlow_mode = true\n";
         File.WriteAllText(package, original);
         Assert.Equal("0.8", VehicleDrivetrainConfiguration.Load(bridge, runtime)["force_scale"]);
@@ -231,6 +228,34 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal("force_scale = 'bad'", File.ReadAllText(overrides));
     }
 
+    // The player's override, where every other editable file is; its folder made ready.
+    private static string Override(string runtime)
+    {
+        var path = VehicleDrivetrainConfiguration.OverridePath(runtime);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        return path;
+    }
+
+    // Earlier versions read the override from extensions\vehicle-drivetrain.toml, outside the config folder.
+    [Fact]
+    public void AnOverrideWhereEarlierVersionsReadItIsMovedBesideTheOtherEditableFiles()
+    {
+        using var temp = new TempDirectory();
+        var legacy = temp.GetPath("extensions", "vehicle-drivetrain.toml");
+        Directory.CreateDirectory(Path.GetDirectoryName(legacy)!);
+        File.WriteAllText(legacy, "diagnostics_enabled = true\n");
+        VehicleDrivetrainConfiguration.MoveLegacyOverride(temp.Path);
+        Assert.False(File.Exists(legacy));
+        Assert.Equal("diagnostics_enabled = true\n",
+            File.ReadAllText(temp.GetPath("config", "vehicle-drivetrain", "default.toml")));
+
+        // One already in the new place is the newer: it stays, and the old file is left alone.
+        File.WriteAllText(legacy, "probe_only = true\n");
+        VehicleDrivetrainConfiguration.MoveLegacyOverride(temp.Path);
+        Assert.True(File.Exists(legacy));
+        Assert.Equal("diagnostics_enabled = true\n", File.ReadAllText(VehicleDrivetrainConfiguration.OverridePath(temp.Path)));
+    }
+
     [Fact]
     public void MissingPackageDoesNotSilentlyUseBuiltInCalibration()
     {
@@ -243,9 +268,8 @@ public sealed class VehicleDrivetrainConfigurationTests
     {
         using var temp = new TempDirectory();
         Directory.CreateDirectory(temp.GetPath("bridge/extensions"));
-        Directory.CreateDirectory(temp.GetPath("runtime/extensions"));
         File.WriteAllText(temp.GetPath("bridge/extensions/vehicle-drivetrain.toml"), "schema_version = 1");
-        File.WriteAllText(temp.GetPath("runtime/extensions/vehicle-drivetrain.toml"),
+        File.WriteAllText(Override(temp.GetPath("runtime")),
             "torque_enabled = false\nreverse_enabled = false\nsteering_enabled = false\narea_light_enabled = false\nprobe_only = true\n");
         var defaults = VehicleDrivetrainConfiguration.Load(temp.GetPath("bridge"), temp.GetPath("runtime"));
         Assert.Equal("true", defaults["area_light_enabled"]);
@@ -311,6 +335,11 @@ public sealed class VehicleDrivetrainConfigurationTests
     [InlineData("area_light_enabled = 1")]
     public void AreaLightTuningIsBounded(string toml) =>
         Assert.Throws<InvalidDataException>(() => VehicleDrivetrainConfiguration.Parse(toml));
+
+    [Fact]
+    public void AFractionalLightRadiusIsPassedOnForTheGameToRound() =>
+        // The game's module rounds it to whole tiles (DrivetrainConfig), as the defaults file says.
+        Assert.Equal("7.6", VehicleDrivetrainConfiguration.Parse("area_light_radius = 7.6")["area_light_radius"]);
 
     [Fact]
     public void AreaLightSwitchRoundTripsAndTuningComesFromToml()

@@ -1,5 +1,4 @@
 # Experimental normalized game-force profile. Native force/time calibration and driving E2E remain pending.
-# Optional overrides: <runtimeRoot>/extensions/vehicle-drivetrain.toml (same flat keys).
 schema_version = 1
 # The app's feature preferences (including unwritten UI defaults) override these transport defaults.
 torque_enabled = true            # Forward acceleration and transmission; independent of reverse/steering
@@ -34,13 +33,13 @@ direction_speed_mps = 0.15      # 0.05..0.30; opposite-motion threshold for dire
 forward_governor_start_fraction = 1.0 # 0.75..1.0; default does not reduce propulsion before the nominal limit
 reverse_governor_start_fraction = 1.0 # 0.50..1.0; 1 adds no fade before the limit; <1 retains developer soft fade
 shift_hysteresis_fraction = 0.08 # 0.04..0.15; lower-gear RPM separation from its upshift threshold
-demand_downshift_fraction = 0.48 # 0.25..0.60; kick-down request RPM threshold with >80% demand
+demand_downshift_fraction = 0.48 # 0.25..0.60; kick-down RPM threshold with >80% demand (accelerator held; cruise control asks 50%)
 # Cross-check: min(redlines) * upshift_rpm_fraction / sqrt(gear_ratio_span) >= launch_rpm.
 # Low-mode over-rev protection and final torque fade remain bounded algorithm guards, not bypass options.
 # Keyboard steering keeps the game's own response curve, speed scaling and angle limits.
 steering_precise_input = true    # Time the steering keys about every millisecond instead of once per frame; false = the game's per-frame timing
 # The light around the vehicle. It is placed the way the game places a lightbar's glow and is never saved.
-area_light_radius = 8            # 3..20 tiles; whole numbers
+area_light_radius = 8            # 3..20 tiles; a fraction is rounded to the nearest whole tile
 area_light_brightness = 0.6      # 0.1..1.0
 # Developer-only controls. Not exposed by the user-facing switches.
 low_mode = false

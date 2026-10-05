@@ -10,18 +10,18 @@ internal static class MaintenanceLanePipeline
 {
     private const string Stage = "maintenance-worker";
 
-    // 점검 레인은 점검기 안에 남습니다. 각 레인이 자신의 무거운 작업 프로세스만 시작합니다.
+    // The maintenance lanes stay inside the maintenance process. Each lane starts only its own heavy worker process.
     public static async Task<MaintenanceResult> DispatchAsync(
         string repositoryPath, long sourceId, long runIndex, MaintenanceOptions options,
-        string? controlDatabasePath, string? configurationPath)
+        string? controlDatabasePath, string? configurationPath, CancellationToken cancellationToken = default)
     {
         options.Validate();
-        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath);
-        var workflow = await repository.ReadWorkflowAsync(runIndex);
+        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath, cancellationToken);
+        var workflow = await repository.ReadWorkflowAsync(runIndex, cancellationToken);
         if (workflow.SourceId != sourceId || workflow.Status != WorkflowStatus.Running)
             throw new InvalidOperationException("The maintenance dispatch workflow is not running for this source.");
 
-        await repository.AttachWorkflowStageAsync(runIndex, Stage);
+        await repository.AttachWorkflowStageAsync(runIndex, Stage, cancellationToken);
         var lanes = new List<MaintenanceLaneResult>();
         try
         {
@@ -30,21 +30,22 @@ internal static class MaintenanceLanePipeline
             {
                 await using var lease = RepositoryWriterLease.Acquire(repositoryPath);
                 var retention = await repository.MarkRevisionsForRetentionAsync(
-                    lease, sourceId, options.RetainLatestRevisions);
+                    lease, sourceId, options.RetainLatestRevisions, cancellationToken);
                 lanes.Add(new MaintenanceLaneResult(
                     "Retention", "Succeeded", timer.ElapsedMilliseconds, retention.MarkedDeleted));
             }
             catch (RepositoryBusyException)
             {
-                // 다른 레인이 쓰는 중이어도 나머지 레인의 프로세스 기동은 계속합니다.
+                // One lane being busy does not stop the other lanes from starting their processes.
                 lanes.Add(new MaintenanceLaneResult(
                     "Retention", "Busy", timer.ElapsedMilliseconds, 0, "repository-writer-busy"));
             }
 
-            var pending = await repository.CountCompactableDeletedRevisionsAsync(sourceId);
+            var pending = await repository.CountCompactableDeletedRevisionsAsync(sourceId, cancellationToken);
             if (await repository.IsRevisionCompactionDueAsync(sourceId, options.RevisionCompactionBatchSize,
-                    TimeSpan.FromMinutes(options.RevisionCompactionMaxDelayMinutes)))
+                    TimeSpan.FromMinutes(options.RevisionCompactionMaxDelayMinutes), cancellationToken))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 lanes.Add(await DispatchLaneAsync(
                     repositoryPath, sourceId, runIndex, "RevisionReclamation", options,
                     controlDatabasePath, configurationPath));
@@ -56,6 +57,8 @@ internal static class MaintenanceLanePipeline
                     $"pending={pending};threshold={options.RevisionCompactionBatchSize};max-delay-minutes={options.RevisionCompactionMaxDelayMinutes}"));
             }
 
+            // A lane started is its own process; a stop asked for before then starts no more of them.
+            cancellationToken.ThrowIfCancellationRequested();
             lanes.Add(await DispatchLaneAsync(
                 repositoryPath, sourceId, runIndex, "ArtifactCleanup", options,
                 controlDatabasePath, configurationPath));
@@ -66,6 +69,13 @@ internal static class MaintenanceLanePipeline
                 runIndex, Stage, status,
                 status == WorkflowStatus.Degraded ? "lane-launch-failed" : null);
             return new MaintenanceResult(runIndex, sourceId, lanes, []);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Asked to stop: the stage ends as cancelled, not failed, and the workflow is its owner's to close.
+            await repository.CompleteWorkflowStageAsync(
+                runIndex, Stage, WorkflowStatus.Cancelled, "cancelled", CancellationToken.None);
+            throw;
         }
         catch (Exception exception)
         {
@@ -136,7 +146,7 @@ internal static class MaintenanceLanePipeline
 
     public static async Task<(ProcessOutcome Outcome, MaintenanceLaneResult? Result, long RunIndex)> RunLaneAsync(
         string repositoryPath, long sourceId, string lane, MaintenanceOptions options,
-        string? controlDatabasePath, string? configurationPath)
+        string? controlDatabasePath, string? configurationPath, CancellationToken stopRequested = default)
     {
         options.Validate();
         if (!MaintenanceLaneSignal.HeavyLanes.Contains(lane, StringComparer.Ordinal))
@@ -149,7 +159,8 @@ internal static class MaintenanceLanePipeline
             {
                 if (GameplayWorkGate.ShouldDeferMaintenance())
                     return (ProcessOutcome.Skipped, new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0L);
-                using var cancellation = new CancellationTokenSource();
+                // A stop request ends the lane as a yield to a backup or to the game does: cancelled, at a safe point.
+                using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stopRequested);
                 using var yieldWatch = MaintenanceLaneSignal.WatchForYield(
                     repositoryPath, lane, cancellation);
                 var token = cancellation.Token;
@@ -160,7 +171,8 @@ internal static class MaintenanceLanePipeline
                     .AllocateAsync(cancellationToken: token);
                 await repository.ReserveWorkflowAsync("maintenance-lane", sourceId, owner,
                     null, runIndex, token);
-                await repository.AttachWorkflowStageAsync(runIndex, owner, token);
+                // Once reserved, the workflow reaches the handler below that closes it, whatever stops the lane.
+                await repository.AttachWorkflowStageAsync(runIndex, owner, CancellationToken.None);
                 ProcessTelemetryHeartbeat? heartbeat = null;
                 var announced = false;
                 // "planned" means the lane already knows it has work; otherwise only a long run is worth showing.
@@ -279,7 +291,7 @@ internal static class MaintenanceLanePipeline
                         new MaintenanceLaneResult(lane, status.ToString(), 0, 0,
                             exception.Message), runIndex);
                 }
-            });
+            }, stopRequested);
         return acquired.Acquired
             ? acquired.Value
             : (ProcessOutcome.Busy, null, 0);

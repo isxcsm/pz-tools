@@ -35,8 +35,9 @@ public static class UserFacingErrorCatalog
     }
 
     /// <summary>
-    /// The same explanation for a failure that was logged: from its code, the exception's type and its Windows
-    /// error number, never from the wording of its message, which Windows may have written in another language.
+    /// The same explanation for a failure that was logged: from its code (as the failure code, or as the code a
+    /// message starts with), the exception's type and its Windows error number, never from the rest of the message's
+    /// wording, which Windows may have written in another language.
     /// </summary>
     public static string FromDiagnostics(string? failureCode, string? exceptionType, string? message, string? hResult,
         string? nativeErrorCode = null)
@@ -84,8 +85,6 @@ public static class UserFacingErrorCatalog
     {
         var key = FromException(exception);
         if (key != Generic) return key; // Missing files/permissions are not archive corruption.
-        // Contains, not a prefix: a worker's failure can arrive wrapped in an outer message.
-        if (Contains(exception.Message, "archive-unsafe-ratio:")) return "UnsafeArchiveCompression";
         return exception is InvalidDataException or FormatException ? "InvalidArchiveFormat" : Generic;
     }
 
@@ -95,14 +94,38 @@ public static class UserFacingErrorCatalog
         return key == Generic ? "OperationError.Configuration" : key;
     }
 
+    /// <summary>
+    /// The settings file a check found wrong (a "settings-invalid: path" failure), named as inside the configuration
+    /// folder, such as <c>backup-worker\default.toml</c>, so the player knows which file to fix. Null when the failure
+    /// names no file, or one outside that folder: a full path is not shown.
+    /// </summary>
+    public static string? InvalidSettingsFile(Exception exception, string? configurationRoot)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        if (string.IsNullOrWhiteSpace(configurationRoot)) return null;
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (!HasCodePrefix(current.Message, SettingsInvalid)) continue;
+            var path = current.Message.TrimStart()[SettingsInvalid.Length..].TrimStart(':').Trim();
+            if (!Path.IsPathFullyQualified(path)) return null;
+            var relative = Path.GetRelativePath(configurationRoot, path);
+            return relative == "." || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                || Path.IsPathRooted(relative) ? null : relative;
+        }
+        return null;
+    }
+
+    private const string SettingsInvalid = "settings-invalid";
+
     public static string FromProcessError(string? message)
     {
         if (HasCodePrefix(message, "save-edit-")) return "RecoveryError.PendingEdit";
         if (HasCodePrefix(message, "recovery-inventory-")) return "RecoveryError.Inventory";
         if (HasCodePrefix(message, "recovery-save-busy")) return "RecoveryError.Busy";
         if (HasCodePrefix(message, "recovery-pending-journal")) return "RecoveryError.Journal";
-        if (HasCodePrefix(message, "recovery-ambiguous-character") || HasCodePrefix(message, "recovery-singleplayer-only"))
-            return "RecoveryError.Ambiguous";
+        // A split-screen save healed with no character chosen is a single-player save: it needs a choice, not another save.
+        if (HasCodePrefix(message, "recovery-ambiguous-character")) return "RecoveryError.CharacterNotChosen";
+        if (HasCodePrefix(message, "recovery-singleplayer-only")) return "RecoveryError.Ambiguous";
         if (HasCodePrefix(message, "recovery-character-missing")) return "RecoveryError.CharacterChanged";
         if (HasCodePrefix(message, "recovery-remains-changed")) return "RecoveryError.RemainsChanged";
         if (HasCodePrefix(message, "recovery-invalid-database") || HasCodePrefix(message, "recovery-linked-path")
@@ -116,7 +139,7 @@ public static class UserFacingErrorCatalog
         if (HasCodePrefix(message, "save-in-use") || HasCodePrefix(message, "operation-busy")) return "OperationError.FileInUse";
         if (HasCodePrefix(message, "workers-missing")) return "OperationError.WorkersMissing";
         if (HasCodePrefix(message, "settings-busy")) return "OperationError.SettingsBusy";
-        if (HasCodePrefix(message, "settings-invalid") || Starts(message, "Cannot start workers: invalid app runtime configuration."))
+        if (HasCodePrefix(message, SettingsInvalid) || Starts(message, "Cannot start workers: invalid app runtime configuration."))
             return "OperationError.Configuration";
         if (HasCodePrefix(message, "capture-unstable")) return "OperationError.SaveChanged";
         if (LegacyMessageKey(message) is { } legacy) return legacy;

@@ -20,11 +20,13 @@ public static class ProfileTrim
         LuaPeriodKey = "luaPeriodEffectiveMicros";
     /// <summary>The source recorded the collector's pauses, whether or not one fell inside the range.</summary>
     internal const string CollectorPausesKey = "collectorPauses";
+    /// <summary>The source recorded the collector's runs, whether or not one fell inside the range.</summary>
+    internal const string CollectorRunsKey = "collectorRuns";
 
     // Said again at the end, for the range; the source's are left out.
     private static readonly HashSet<string> Replaced = new(StringComparer.Ordinal)
     {
-        FromKey, ToKey, JavaPeriodKey, NativePeriodKey, LuaPeriodKey, CollectorPausesKey, "durationMicros", "samples", "frames",
+        FromKey, ToKey, JavaPeriodKey, NativePeriodKey, LuaPeriodKey, CollectorPausesKey, CollectorRunsKey, "durationMicros", "samples", "frames",
         "luaSamples", "endedBy",
     };
 
@@ -108,6 +110,7 @@ public static class ProfileTrim
                 Information(NativePeriodKey, recording.NativePeriod);
                 if (recording.LuaPeriod > 0) Information(LuaPeriodKey, recording.LuaPeriod);
                 if (recording.HasCollectorPauses) Information(CollectorPausesKey, 1);
+                if (recording.HasCollectorRuns) Information(CollectorRunsKey, 1);
                 Information("durationMicros", end - start);
                 Information("samples", samples);
                 Information("frames", frames);
@@ -181,9 +184,11 @@ public static class ProfileTrim
     {
         "I" => Field(line, 1) is { } key && !Replaced.Contains(key),
         // Points in time: those in the range, as the analysis counts them.
-        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
+        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" or "CL" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
+        // Each thread's CPU, which recordings of 0.2.4's development wrote and nothing reads: not carried into a part.
+        "TC" => false,
         // Spans: those that reach into it, as the analysis counts collections and pauses.
-        "G" or "P" => Number(FieldSpan(line, 1)) is { } time && Number(FieldSpan(line, 2)) is { } duration
+        "G" or "GR" or "P" => Number(FieldSpan(line, 1)) is { } time && Number(FieldSpan(line, 2)) is { } duration
             && time < to && time + Math.Max(0, duration) >= from,
         // Tables, renumbered as they are written; threads are kept whole, being few. A kind this version does not
         // know is kept as it is; the reader skips it.
@@ -238,8 +243,8 @@ public static class ProfileTrim
         var tab = line.IndexOf('\t');
         return (tab < 0 ? line.AsSpan() : line.AsSpan(0, tab)) switch
         {
-            "S" => "S", "F" => "F", "L" => "L", "LA" => "LA", "LH" => "LH", "GA" => "GA", "H" => "H", "V" => "V",
-            "G" => "G", "P" => "P", "I" => "I", "T" => "T", "M" => "M", "K" => "K", "LM" => "LM", "LK" => "LK",
+            "S" => "S", "F" => "F", "L" => "L", "LA" => "LA", "LH" => "LH", "GA" => "GA", "H" => "H", "V" => "V", "TC" => "TC", "CL" => "CL",
+            "G" => "G", "GR" => "GR", "P" => "P", "I" => "I", "T" => "T", "M" => "M", "K" => "K", "LM" => "LM", "LK" => "LK",
             _ => "",
         };
     }

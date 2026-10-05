@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Process.Contracts;
+using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Telemetry;
 using PzTools.Projections;
 using PzTools.Scheduling;
@@ -142,6 +143,38 @@ public sealed class ProjectionRuntimeTests
         var detail = views.ReadIfChanged<SaveDetailView>(
             ViewKey.SaveDetail(list.Saves[0].SaveId), 0).Snapshot!;
         Assert.Equal(CharacterState.Dead, detail.LiveSave!.CharacterState);
+    }
+
+    // Seen with the game started with connecting turned off: no save was shown played, though its files were locked.
+    [Theory]
+    [InlineData("runtime-unavailable", ActivityState.Active, GameState.Playing)]
+    [InlineData(null, ActivityState.Unknown, GameState.Unknown)]
+    public async Task SaveList_ShowsTheLockedSaveAsPlayed_OnlyWhileTheGameCannotBeRead(string? unreadable,
+        ActivityState shown, GameState game)
+    {
+        using var temp = new TempDirectory();
+        var database = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
+        var savePath = temp.GetPath("save");
+        Directory.CreateDirectory(savePath);
+        var now = DateTimeOffset.UtcNow;
+        // Read from the game, the same moment would say the game is starting: not a lost link, nothing locked shown.
+        var observation = unreadable is null ? RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason)
+            : RuntimeObservation.Unknown(unreadable);
+        var views = new RevisionedViewStore();
+        var projector = new StateProjector(database, views, runtime: () => observation);
+        for (var run = 1; run <= 2; run++)
+        {
+            await database.WritePendingBatchAsync(new CollectionBatch(
+                Guid.NewGuid().ToString("D"), run, now, now, 1, true,
+                [new SaveObservation(Path.GetFullPath(savePath).ToUpperInvariant(), "Sandbox", "Save",
+                    true, false, ActivityState.Active, CharacterState.Alive,
+                    LaneStatus.Succeeded, LaneStatus.Succeeded, LastPlayedUtc: now)]));
+            await new StateReactor().RunAsync(database);
+        }
+        await projector.ProjectOnceAsync();
+        var list = views.ReadIfChanged<SaveListView>(ViewKey.SaveList, 0).Snapshot!;
+        Assert.Equal(game, list.Game);
+        Assert.Equal(shown, Assert.Single(list.Saves).Activity);
     }
 
     [Fact]

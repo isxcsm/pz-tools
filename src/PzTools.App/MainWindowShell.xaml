@@ -43,7 +43,7 @@
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
       <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
       <CornerRadius x:Key="NavigationViewContentGridCornerRadius">0</CornerRadius>
-      <!-- 기본 16px Viewbox가 컬러 SVG를 재축소하지 않도록 실제 도형 크기를 약 20px로 맞춥니다. -->
+      <!-- The shapes are drawn at about 20 px, so the default 16 px Viewbox does not shrink the colour SVG again. -->
       <x:Double x:Key="NavigationViewItemOnLeftIconBoxHeight">24</x:Double>
     </NavigationView.Resources>
     <NavigationView.PaneHeader>
@@ -51,7 +51,7 @@
       <Grid x:Name="BrandHeaderSpace" Height="48" />
       <Grid x:Name="CoffeeSupportArea" Margin="12,8,12,4">
         <HyperlinkButton x:Name="CoffeeSupportButton" IsEnabled="False" Padding="10" MinHeight="40"
-                         Loaded="CoffeeSupportButton_Loaded" Unloaded="CoffeeSupportButton_Unloaded"
+                         Loaded="CoffeeSupportButton_Loaded" Unloaded="CoffeeSupportButton_Unloaded" Click="CoffeeSupportButton_Click"
                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                          Background="Transparent" Foreground="{ThemeResource TextFillColorSecondaryBrush}" CornerRadius="8">
           <!-- Preserve native input/focus states. Icon feedback follows the template's
@@ -103,7 +103,7 @@
           </ImageIcon>
         </NavigationViewItem.Icon>
       </NavigationViewItem>
-      <NavigationViewItem x:Name="SavesItem" x:Uid="SavesNavigation" Content="세이브 관리" Tag="saves">
+      <NavigationViewItem x:Name="SavesItem" x:Uid="SavesNavigation" Content="Save manager" Tag="saves">
         <NavigationViewItem.Icon>
           <ImageIcon Width="20" Height="20">
             <ImageIcon.Source><SvgImageSource UriSource="ms-appx:///Assets/Navigation/saves.svg" /></ImageIcon.Source>
@@ -124,7 +124,7 @@
           </ImageIcon>
         </NavigationViewItem.Icon>
       </NavigationViewItem>
-      <NavigationViewItem x:Name="LogsItem" Content="로그" Tag="logs">
+      <NavigationViewItem x:Name="LogsItem" Content="Logs" Tag="logs">
         <NavigationViewItem.Icon>
           <ImageIcon Width="20" Height="20">
             <ImageIcon.Source><SvgImageSource UriSource="ms-appx:///Assets/Navigation/logs.svg" /></ImageIcon.Source>
@@ -194,7 +194,7 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
             <FontIcon Glyph="&#xE787;" FontSize="13" VerticalAlignment="Top" Margin="0,2,0,0" />
             <StackPanel Grid.Column="1" Spacing="4">
-              <TextBlock x:Name="NextBackupText" Text="다음 백업: 대기 중"
+              <TextBlock x:Name="NextBackupText" Text="Next backup: waiting"
                          TextWrapping="Wrap" Style="{StaticResource SecondaryTextStyle}" FontSize="12" />
               <TextBlock x:Name="NextBackupRemainingText" Visibility="Collapsed"
                          FontSize="12" FontWeight="Normal" TextWrapping="NoWrap"
@@ -248,14 +248,14 @@
               <RowDefinition Height="Auto" MinHeight="{StaticResource PageHeaderHeight}" />
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <TextBlock x:Name="SavesPageTitle" Text="세이브 관리" Style="{StaticResource PageTitleTextStyle}"
+            <TextBlock x:Name="SavesPageTitle" Text="Save manager" Style="{StaticResource PageTitleTextStyle}"
                        TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                        AutomationProperties.HeadingLevel="Level1" />
             <StackPanel x:Name="SavesHeaderActions" Grid.Column="1" Orientation="Horizontal"
                         HorizontalAlignment="Right" VerticalAlignment="Bottom" Spacing="6">
               <Button x:Name="ImportButton" x:Uid="ImportArchive" VerticalAlignment="Center"
                       Style="{StaticResource SubtleButtonStyle}"
-                      Content="압축 파일 가져오기" Click="ImportButton_Click" />
+                      Content="Import archive" Click="ImportButton_Click" />
             </StackPanel>
           </Grid>
           <Grid Grid.Row="1" CornerRadius="8" BorderThickness="1"
@@ -276,8 +276,10 @@
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Grid Width="96" Height="96">
-                      <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                              CornerRadius="4">
+                      <!-- Raised off the row like a card, with a soft shadow and a hairline edge, so the picture reads
+                           as the save's own and not as part of the list. -->
+                      <Border Style="{StaticResource ThumbnailCardStyle}" Translation="0,0,12">
+                        <Border.Shadow><ThemeShadow /></Border.Shadow>
                         <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
                       </Border>
                       <Border Visibility="{x:Bind PlayingVisibility, Mode=OneWay}"
@@ -318,18 +320,18 @@
                         VerticalAlignment="Center" Spacing="12" IsHitTestVisible="False">
               <ProgressRing x:Name="LoadingSavesProgress" Width="28" Height="28" IsActive="True"
                             AutomationProperties.LabeledBy="{Binding ElementName=LoadingSavesText}" />
-              <TextBlock x:Name="LoadingSavesText" Text="세이브를 불러오는 중입니다"
+              <TextBlock x:Name="LoadingSavesText" Text="Loading saves…"
                          Style="{StaticResource SecondaryTextStyle}" />
             </StackPanel>
             <StackPanel x:Name="EmptySaves" Visibility="Collapsed" HorizontalAlignment="Center"
                         VerticalAlignment="Center" Spacing="8">
               <FontIcon Glyph="&#xE8B7;" FontSize="32" Opacity="0.5" />
-              <TextBlock x:Name="NoSavesText" x:Uid="NoSaves" Text="세이브가 없습니다" Opacity="0.7" />
+              <TextBlock x:Name="NoSavesText" x:Uid="NoSaves" Text="No saves found" Opacity="0.7" />
             </StackPanel>
             <StackPanel x:Name="UnavailableSaves" Visibility="Collapsed" HorizontalAlignment="Center"
                         VerticalAlignment="Center" Spacing="8" Margin="24" IsHitTestVisible="False">
               <FontIcon Glyph="&#xE7BA;" FontSize="28" Opacity="0.6" />
-              <TextBlock x:Name="SavesUnavailableText" Text="일부 정보를 갱신할 수 없습니다"
+              <TextBlock x:Name="SavesUnavailableText" Text="Could not load the save list."
                          Style="{StaticResource SecondaryTextStyle}" TextWrapping="Wrap"
                          TextAlignment="Center" AutomationProperties.LiveSetting="Polite" />
             </StackPanel>
@@ -344,7 +346,7 @@
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
             <TextBlock x:Name="SelectSaveText" x:Uid="SelectSave" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Text="세이브를 선택하세요" Opacity="0.65" />
+                       Text="Select a save" Opacity="0.65" />
           </Grid>
           <Grid x:Name="DetailContent" Visibility="Collapsed">
             <Grid.RowDefinitions>
@@ -360,16 +362,16 @@
                   <RowDefinition Height="Auto" MinHeight="{StaticResource PageHeaderHeight}" />
                   <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <TextBlock x:Name="BackupRevisionsText" x:Uid="BackupRevisions" Text="현재 세이브 및 백업"
+                <TextBlock x:Name="BackupRevisionsText" x:Uid="BackupRevisions" Text="Current save and backups"
                            Style="{StaticResource PageTitleTextStyle}" TextWrapping="NoWrap"
                            TextTrimming="CharacterEllipsis" AutomationProperties.HeadingLevel="Level2" />
                 <StackPanel x:Name="BackupRevisionsActions" Grid.Column="1" Orientation="Horizontal"
                             HorizontalAlignment="Right" VerticalAlignment="Bottom" Spacing="6">
                   <Button x:Name="DeleteAllBackupsButton" VerticalAlignment="Center"
                           Style="{StaticResource SubtleButtonStyle}"
-                          Content="백업 모두 삭제" IsEnabled="False" Click="DeleteAllBackupsButton_Click" />
+                          Content="Delete all backups" IsEnabled="False" Click="DeleteAllBackupsButton_Click" />
                   <Button x:Name="NarrowBackButton" x:Uid="BackToList" Visibility="Collapsed"
-                          Content="목록으로" Style="{StaticResource SubtleButtonStyle}"
+                          Content="Back to list" Style="{StaticResource SubtleButtonStyle}"
                           VerticalAlignment="Center" Click="NarrowBackButton_Click" />
                 </StackPanel>
               </Grid>
@@ -395,8 +397,8 @@
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
                       <Grid Width="90" Height="90">
-                        <Border CornerRadius="4"
-                                Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
+                        <Border Style="{StaticResource ThumbnailCardStyle}" Translation="0,0,12">
+                          <Border.Shadow><ThemeShadow /></Border.Shadow>
                           <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
                         </Border>
                         <Image Visibility="{x:Bind DeadVisibility, Mode=OneWay}" Width="30" Height="30"
@@ -482,7 +484,7 @@
                   </DataTemplate>
                 </ListView.ItemTemplate>
                 <ListView.Footer>
-                  <TextBlock x:Name="NoBackups" x:Uid="NoBackups" Text="아직 백업이 없습니다" Visibility="Collapsed"
+                  <TextBlock x:Name="NoBackups" x:Uid="NoBackups" Text="No backups yet" Visibility="Collapsed"
                              HorizontalAlignment="Stretch" TextAlignment="Center" Padding="24,36"
                              Style="{StaticResource SecondaryTextStyle}" />
                 </ListView.Footer>
@@ -496,7 +498,7 @@
                           VerticalAlignment="Center" Spacing="12" Padding="24,36" IsHitTestVisible="False">
                 <!-- Active only while its panel shows: a collapsed ring still animates on the compositor. -->
                 <ProgressRing x:Name="LoadingBackupsProgress" Width="28" Height="28" IsActive="False" />
-                <TextBlock x:Name="LoadingBackupsText" Text="세이브 정보를 불러오는 중입니다"
+                <TextBlock x:Name="LoadingBackupsText" Text="Loading save details…"
                            Style="{StaticResource SecondaryTextStyle}" />
               </StackPanel>
               </Grid>
@@ -513,18 +515,18 @@
               <!-- Enabled hover hosts keep restriction tooltips available around disabled buttons. -->
               <Border x:Name="RestoreToolTipHost" Background="Transparent"
                       HorizontalAlignment="Left" VerticalAlignment="Center">
-                <Button x:Name="RestoreButton" x:Uid="Restore" Content="복구하기"
+                <Button x:Name="RestoreButton" x:Uid="Restore" Content="Restore"
                         Style="{StaticResource SubtleButtonStyle}"
                         IsEnabled="False" Click="RestoreButton_Click" />
               </Border>
               <StackPanel x:Name="RightDetailActions" Grid.Column="1" Orientation="Horizontal"
                           HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
                 <Border x:Name="ExportToolTipHost" Background="Transparent" HorizontalAlignment="Right">
-                  <Button x:Name="ExportButton" x:Uid="ExportArchive" Content="압축 파일로 내보내기"
+                  <Button x:Name="ExportButton" x:Uid="ExportArchive" Content="Export ZIP"
                           Style="{StaticResource SubtleButtonStyle}"
                           IsEnabled="False" Click="ExportButton_Click" />
                 </Border>
-                <Button x:Name="ManualBackupButton" x:Uid="ManualBackup" Content="수동 백업"
+                <Button x:Name="ManualBackupButton" x:Uid="ManualBackup" Content="Manual backup"
                         Style="{StaticResource ManualBackupButtonStyle}"
                         Click="ManualBackupButton_Click">
                   <Button.Resources>

@@ -99,6 +99,24 @@ public sealed class VehicleDrivingUiSourceTests
     }
 
     [Fact]
+    public void AGameRejectionForTheVersionShowsTheVersionHintBeforeTheGenericFailure()
+    {
+        var section = Source("ExtensionSettingsSection.cs");
+        int version = section.IndexOf("activation.FailureReason == \"version-mismatch\"", StringComparison.Ordinal);
+        int generic = section.IndexOf("GameExtensions.InitializationFailed", StringComparison.Ordinal);
+        Assert.True(version >= 0 && version < generic);
+    }
+
+    [Fact]
+    public void AnUpdateWaitingForTheGamesRestartAsksForTheRestartInsteadOfReportingAFailure()
+    {
+        var section = Source("ExtensionSettingsSection.cs");
+        int restart = section.IndexOf("if (activation.AwaitsGameRestart) return Localizer.Get(\"GameLinkCardRestartMessage\")", StringComparison.Ordinal);
+        int generic = section.IndexOf("GameExtensions.InitializationFailed", StringComparison.Ordinal);
+        Assert.True(restart >= 0 && restart < generic);
+    }
+
+    [Fact]
     public void PendingEditsKeepUserIntentAndProgrammaticReflectionCannotWriteAgain()
     {
         var section = Source("ExtensionSettingsSection.cs");

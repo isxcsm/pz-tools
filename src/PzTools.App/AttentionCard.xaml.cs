@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Media;
 namespace PzTools.App;
 
 /// <summary>
-/// A card in the pane's attention group (docs/ui-ux-contract.md, "Cards that need attention"): a title, an optional
+/// A card in the pane's attention group (docs/design/ui-ux-contract.md, "Cards that need attention"): a title, an optional
 /// line, an optional action and a ✕. Its owner sets the words and decides when it shows; the card raises
 /// <see cref="Action"/> and <see cref="Closed"/>. Every such card shares this one shape, so a new one needs no layout.
 /// </summary>

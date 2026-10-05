@@ -11,20 +11,31 @@ internal static class OrphanBackupLane
 {
     public static async Task<(ProcessOutcome Outcome, MaintenanceLaneResult? Result, long RunIndex)> RunAsync(
         string repositoryPath, string savesRoot, string? controlDatabasePath, string? configurationPath,
-        MaintenanceOptions? options = null)
+        MaintenanceOptions? options = null, CancellationToken stopRequested = default, TimeSpan waitForGame = default,
+        Func<bool>? gameRunning = null)
     {
         options ??= new MaintenanceOptions();
         options.Validate();
         const string lane = "OrphanBackups";
         const string owner = "maintenance-lane-OrphanBackups";
-        if (GameplayWorkGate.ShouldDeferMaintenance())
+        gameRunning ??= GameplayWorkGate.ShouldDeferMaintenance;
+        // A game still exiting when the app closed: wait for it, holding no lock, so the app started again meanwhile
+        // runs as if this pass were not there. Lanes exclude each other below, whichever takes the lane first.
+        var waited = Stopwatch.StartNew();
+        while (waited.Elapsed < waitForGame && gameRunning())
+        {
+            try { await Task.Delay(TimeSpan.FromSeconds(1), stopRequested); }
+            catch (OperationCanceledException) { return (ProcessOutcome.Cancelled, null, 0); }
+        }
+        if (gameRunning())
             return (ProcessOutcome.Skipped, new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0);
         var acquired = await NamedMutexRunner.TryRunAsync(
             MaintenanceLaneSignal.MutexName(repositoryPath, lane), async _ =>
             {
-                if (GameplayWorkGate.ShouldDeferMaintenance())
+                if (gameRunning())
                     return (ProcessOutcome.Skipped, (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0L);
-                using var cancellation = new CancellationTokenSource();
+                // A stop request ends the lane as a yield to a backup or to the game does: cancelled, at a safe point.
+                using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stopRequested);
                 using var watch = MaintenanceLaneSignal.WatchForYield(repositoryPath, lane, cancellation);
                 var access = await OperationMutexSet.TryRunAsync(
                     [new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repositoryPath)], async token =>
@@ -33,7 +44,8 @@ internal static class OrphanBackupLane
                         await repository.RecoverAbandonedWorkflowsAsync(owner, cancellationToken: token);
                         var run = await new RunIndexAllocator(controlDatabasePath).AllocateAsync(cancellationToken: token);
                         await repository.ReserveWorkflowAsync("maintenance-lane", null, owner, null, run, token);
-                        await repository.AttachWorkflowStageAsync(run, owner, token);
+                        // Once reserved, the workflow reaches the handler below that closes it, whatever stops the lane.
+                        await repository.AttachWorkflowStageAsync(run, owner, CancellationToken.None);
                         var timer = Stopwatch.StartNew();
                         ProcessTelemetryHeartbeat? heartbeat = null;
                         var announced = false;
@@ -74,6 +86,16 @@ internal static class OrphanBackupLane
                                             removedRevisions = item.Revisions,
                                         }), configurationPath);
                                 }, collectPaths: false);
+                            // The count for every save, not only the one just backed up: otherwise a lowered count
+                            // waits for that save's next automatic backup, which a save no longer played, or played
+                            // with automatic backups off, never gets. The housekeeping pass below reclaims the space.
+                            var retained = 0;
+                            foreach (var source in await repository.ReadMaintenanceSourcesAsync(token))
+                            {
+                                token.ThrowIfCancellationRequested();
+                                retained += (await repository.MarkRevisionsForRetentionAsync(
+                                    lease, source.SourceId, options.RetainLatestRevisions, token)).MarkedDeleted;
+                            }
                             var housekeeping = await new RepositoryHousekeepingService().RunAsync(
                                 repository, lease, null, run, options, token);
                             // Last: the steps above free objects, and only data still needed should be copied.
@@ -131,7 +153,7 @@ internal static class OrphanBackupLane
                                 }), configurationPath);
                             return (status == WorkflowStatus.Succeeded ? ProcessOutcome.Succeeded : ProcessOutcome.Degraded,
                                 (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, status.ToString(),
-                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions)
+                                    timer.ElapsedMilliseconds, result.Removed.Sum(item => item.Revisions) + retained
                                         + housekeeping.AffectedItems + reclaimed.RewrittenPacks,
                                     housekeeping.ToDetail()), run);
                         }
@@ -163,7 +185,7 @@ internal static class OrphanBackupLane
                         }
                     }, cancellation.Token);
                 return access.Acquired ? access.Value : (ProcessOutcome.Busy, (MaintenanceLaneResult?)null, 0L);
-            });
+            }, stopRequested);
         return acquired.Acquired ? acquired.Value : (ProcessOutcome.Busy, null, 0L);
     }
 }

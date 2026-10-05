@@ -103,7 +103,9 @@ public sealed class GameActivityLane(Func<RuntimeObservation?>? runtime = null)
     public (ActivityState State, LaneStatus Status, string? ErrorCode) Probe(string playersDatabasePath)
     {
         var observation = runtime?.Invoke();
-        if (observation is not null)
+        // A running game that cannot be read (a game update, a blocked helper) still locks the players.db of the
+        // world it has open. That lock is all that backups without the game's help need to know which save it is.
+        if (observation is not null && !observation.IsLinkUnusable)
         {
             if (observation.Quality == RuntimeQuality.Offline) return (ActivityState.Inactive, LaneStatus.Succeeded, null);
             if (!observation.IsFresh || observation.Snapshot is not { } sample)
@@ -285,7 +287,7 @@ public sealed class StateCollector(
             var activityResult = save.Invalidated
                 ? (ActivityState.Unknown, LaneStatus.Unavailable, "invalidated")
                 : activity.Probe(save.PlayersDatabasePath);
-            // 배타 probe의 핸들은 Probe 반환 전에 닫히므로 SQLite 읽기와 겹치지 않습니다.
+            // The exclusive probe's handle is closed before Probe returns, so it never overlaps the SQLite read.
             var characterResult = save.Invalidated
                 ? (CharacterState.Unknown, LaneStatus.Unavailable, "invalidated")
                 : await character.CollectAsync(save.PlayersDatabasePath, cancellationToken);

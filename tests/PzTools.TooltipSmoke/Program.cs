@@ -24,11 +24,23 @@ internal static class Program
 internal sealed class SmokeApp(string resultPath) : Application
 {
     private Window? window;
+    private readonly List<string> queueFailures = [];
+
+    private sealed class QueueProbeException : Exception;
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         UnhandledException += (_, error) =>
+        {
+            // The UI queue's failures must arrive here, where the app writes its crash report.
+            if (error.Exception is QueueProbeException probe)
+            {
+                error.Handled = true;
+                queueFailures.Add(probe.Source!);
+                return;
+            }
             File.WriteAllText(resultPath, "FAIL: " + error.Exception);
+        };
         window = new Window();
         var owner = new Border { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
             Child = new Button { Content = "Disabled action", IsEnabled = false }, Width = 200, Height = 40 };
@@ -59,7 +71,16 @@ internal sealed class SmokeApp(string resultPath) : Application
                 ShowPresenter(owner);
                 Check(tooltip.IsOpen && ReferenceEquals(tooltip, ToolTipService.GetToolTip(owner)), "Reuse after clear");
                 AppToolTip.CloseCurrent();
-                File.WriteAllText(resultPath, "PASS: first open, stable registration, repeated refresh, content update, dismiss, reopen, clear, reuse");
+                var queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+                queue.Enqueue(() => throw new QueueProbeException { Source = "queued" });
+                var timer = queue.Timer(() => throw new QueueProbeException { Source = "timer" });
+                timer.Interval = TimeSpan.FromMilliseconds(50);
+                timer.IsRepeating = false;
+                timer.Start();
+                await Task.Delay(500);
+                Check(queueFailures.Order().SequenceEqual(["queued", "timer"]), "Queued and timer failures reach UnhandledException");
+                File.WriteAllText(resultPath,
+                    "PASS: first open, stable registration, repeated refresh, content update, dismiss, reopen, clear, reuse, queue failures reported");
             }
             catch (Exception error)
             {
@@ -77,7 +98,7 @@ internal sealed class SmokeApp(string resultPath) : Application
         var table = typeof(AppToolTip).GetField("Presenters", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
         object?[] arguments = [owner, null];
         Check((bool)table.GetType().GetMethod("TryGetValue")!.Invoke(table, arguments)!, "Presenter exists");
-        arguments[1]!.GetType().GetMethod("Show", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(arguments[1], null);
+        arguments[1]!.GetType().GetMethod("Show", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(arguments[1], [false]);
     }
 
     private static void Check(bool condition, string name)

@@ -26,9 +26,14 @@ public sealed class RuntimeSnapshotStore(TimeProvider? timeProvider = null)
         var result = value.Observation with { AgeMilliseconds = age,
             Extension = Aged(value.Observation.Extension),
             Extensions = value.Observation.Extensions?.ToDictionary(pair => pair.Key, pair => Aged(pair.Value)!, StringComparer.Ordinal) };
-        return result.Quality == RuntimeQuality.Fresh && (!result.IsFresh
-            || result.Snapshot!.SampleAgeMilliseconds > 2000 - Math.Min(age, 2000))
-            ? result with { Quality = RuntimeQuality.Stale, Reason = "stale-game-sample" } : result;
+        if (result.Quality != RuntimeQuality.Fresh || result.IsFresh
+            && result.Snapshot!.SampleAgeMilliseconds <= 2000 - Math.Min(age, 2000)) return result;
+        // Frames still arrive but the game thread has not sampled. Outside a world that is the game loading or
+        // unloading, not a lost link; in a world it may be a hung game, and backups must not wait on it for good.
+        // Unknown is included: reloading the mods on the way back to the menu reports no phase for a while.
+        bool busy = age <= 2000 && result.Snapshot!.Phase != WorldPhase.Ready;
+        return result with { Quality = RuntimeQuality.Stale,
+            Reason = busy ? RuntimeObservation.GameBusyReason : "stale-game-sample" };
     }
 }
 

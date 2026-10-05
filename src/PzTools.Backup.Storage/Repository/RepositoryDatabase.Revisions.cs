@@ -136,7 +136,7 @@ public sealed partial class RepositoryDatabase
         command.Parameters.AddWithValue("$sourceId", request.SourceId);
         command.Parameters.AddWithValue("$revision", revision);
         command.Parameters.AddWithValue("$createdUtc", createdUtc.ToString("O"));
-        command.Parameters.AddWithValue("$displayName", DefaultRevisionName(revision, request.NameLanguage, kind));
+        command.Parameters.AddWithValue("$displayName", DefaultRevisionName(revision, request.NameLanguage ?? PzTools.Process.Contracts.LanguageCatalog.Local, kind));
         command.Parameters.AddWithValue("$kind", kind.ToString());
         await command.ExecuteNonQueryAsync(cancellationToken);
     }

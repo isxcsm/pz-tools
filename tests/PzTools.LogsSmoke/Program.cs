@@ -39,8 +39,8 @@ internal static class Program
 internal sealed class App(string outputDirectory) : Application, IXamlMetadataProvider
 {
     public AppHost? Host => null;
-    public void ShowSidebarNotification(InfoBarSeverity severity, string title, string message) =>
-        throw new InvalidOperationException($"Unexpected notification: {severity}: {title}: {message}");
+    public void ShowSidebarNotification(InfoBarSeverity severity, string title, string message, Exception? cause = null) =>
+        throw new InvalidOperationException($"Unexpected notification: {severity}: {title}: {message}", cause);
 
     private IXamlMetadataProvider? metadata;
     private IXamlMetadataProvider Metadata => metadata ??= (IXamlMetadataProvider)Activator.CreateInstance(

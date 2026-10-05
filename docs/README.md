@@ -1,73 +1,86 @@
 # Documentation
 
-[User guide](../README.md)
+Start with the [README](../README.md) for what PZ Tools is and how to install it. The pages
+below are in English; the app itself has its own interface languages.
 
-The [user guide](../README.md) covers installing and everyday use. The pages below go
-further. They are in English; the app's interface languages are managed separately.
+## Guides
 
-## Start here
+One task each, step by step.
 
-- [How PZ Tools fits together](overview.md): the map. What runs where, what one
-  backup does, and how the app follows the game. Read this before any design page.
-- [Glossary](glossary.md): the terms the other pages use without explaining, such as
-  revision, run index, lease, WATCH and generation.
+- [Getting started](guides/getting-started.md)
+- [Go back to an earlier backup](guides/restore-a-save.md)
+- [Move a save to another PC](guides/move-a-save.md)
+- [Bring back a dead character](guides/revive-a-character.md)
+- [Find a laggy mod](guides/find-a-laggy-mod.md)
+- [Give the game more memory](guides/more-game-memory.md)
+- [Better vehicle controls](guides/vehicle-controls.md)
+- [Troubleshooting](guides/troubleshooting.md)
 
-## Using PZ Tools
+## Reference
 
-For people running the app who want more detail than the user guide.
+What each part of the app is, for when a guide isn't enough.
 
-| Page | Read it when you want to know… |
+| Page | What's in it |
 | --- | --- |
-| [Configuration](configuration.md) | What each setting does, where settings are stored, and how backup limits work |
-| [Game-aware backup timing](runtime-pause-backups.md) | Why the countdown paused, or why a backup ran without a game save |
-| [Death backups](runtime-character-death.md) | When a death backup is made, why periodic backups stop after a death, and what the last-save report shows |
-| [Saving the game before a backup](game-bridge.md) | What the in-game save does, what can make it fail, and which games are supported |
-| [Character recovery](character-recovery.md) | What healing, revival and inventory recovery can and cannot do |
-| [Game extensions](game-extensions.md) | What the optional in-game features are and when their settings take effect |
-| [Performance recording](profiler.md) | How to record a session and read the frame graph and mod shares; the last minutes after a stutter, comparing and saving ranges, and hotkeys |
-| [Game memory](game-memory.md) | How the app gives the game more memory, and what a game update does to it |
-| [Vehicle test guide](e2e-vehicle-drivetrain.md) | How to test the vehicle extension in a real game, tune it and back out |
-| [Command line](cli.md) | How to run backup, restore, ZIP and maintenance without the app |
-| [Advanced component settings](runtime-configuration.md) | How to tune the background programs' settings files: timeouts, buffers and polling intervals |
-| [Files and folders](deployment-layout.md) | Which files belong to the app, to you, and to a backup folder, and the limits for importing ZIP files |
+| [Settings](reference/settings.md) | Every setting and hotkey, its default and when it takes effect |
+| [Backups](reference/backups.md) | When backups run and wait, the sidebar's backup line, names, retention and deletion |
+| [Performance page](reference/performance-page.md) | The recording controls, the frame graph, the tabs and the reports |
+| [Logs page](reference/logs-page.md) | The log list, its filters, the details of an entry and marking entries reviewed |
+| [Files and folders](reference/files-and-folders.md) | What is in the download, the data folder and a backup folder, and how to update or remove PZ Tools |
+| [Advanced settings](reference/advanced-settings.md) | The settings files behind **Settings → Advanced** |
+| [Command line](reference/command-line.md) | Backing up, restoring and exporting without the app |
+| [Security](../SECURITY.md) | What PZ Tools does to the game, what goes over the network, and how to check a download |
 
-## How it works
+## Design
 
-Design pages. Each explains one part; the [overview](overview.md) shows how they connect.
+How PZ Tools works, for anyone changing the code. Read the [overview](design/overview.md)
+first; the [glossary](design/glossary.md) explains the terms the other pages use.
 
 **Backups and storage**
 
-- [Repository format](repository-format.md): what a backup folder contains and when a backup counts as saved
-- [Pack format](pack-format.md) and [compact storage](compact-repository-format.md): how file contents are stored
-- [Path identities](path-normalization.md): how file names and case-only renames are recorded
-- [Housekeeping](repository-housekeeping.md): trimming, reclaiming space and removing backups of deleted saves
-- [USN change tracking](usn-journal.md) and [stable capture](stable-capture.md): finding changed files and copying files the game may be writing
+- [Repository format](design/repository-format.md): what a backup folder contains and when a backup counts as saved
+- [Pack format](design/pack-format.md) and [compact storage](design/compact-repository-format.md): how file contents are stored
+- [Path identities](design/path-normalization.md): how file names and case-only renames are recorded
+- [Housekeeping](design/repository-housekeeping.md): trimming, reclaiming space and removing backups of deleted saves
+- [Archives and deletion](design/archives-and-deletion.md): ZIP export and import, and deleting backups and saves
+- [USN change tracking](design/usn-journal.md) and [stable capture](design/stable-capture.md): finding changed files and copying files the game may be writing
 
-**Processes and the game**
+**Processes**
 
-- [Process architecture](process-architecture.md): the schedulers, runners and workers, and which database each owns
-- [Telemetry](telemetry.md): the diagnostic records behind progress cards and logs
-- [Component updates](module-reload.md): replacing code inside a running game without a restart
-- [Vehicle model](vehicle-drivetrain-design.md): how the vehicle extension computes and applies driving forces
+- [Process architecture](design/process-architecture.md): the schedulers, runners and workers, and which database each owns
+- [Telemetry](design/telemetry.md): the records behind progress cards, logs and crash reports
+
+**The game**
+
+- [Game bridge](design/game-bridge.md): attaching to the game and saving it before a backup
+- [Game-aware backup timing](design/runtime-pause-backups.md): how the schedule follows play, pauses and sleep
+- [Character death](design/runtime-character-death.md): death backups and why automatic backups wait
+- [Character recovery](design/character-recovery.md): how healing and revival edit a save
+- [Performance recording](design/profiler.md): sampling, recordings, analysis and reports
+- [Game memory](design/game-memory.md): how the memory setting changes the game's launcher file
+- [Game extensions](design/game-extensions.md): the extension framework and version checks
+- [Vehicle model](design/vehicle-drivetrain.md): how the vehicle extension computes and applies driving forces
+- [Component updates](design/module-reload.md): replacing code inside a running game
 
 **Interface**
 
-- [UI contract](ui-ux-contract.md): the rules for changing the app's screens
-- [UI assets](ui-assets.md): app icons, logo and illustrations
-- [Localization](localization.md): interface languages and translation
+- [UI contract](design/ui-ux-contract.md): the rules for changing the app's screens
+- [UI assets](design/ui-assets.md): app icons, logo and illustrations
 
 ## Contributing
 
-- [Development and validation](development.md): building, tests and integration checks
-- [Documentation maintenance](documentation-maintenance.md): where a new page goes and how to write it
+- [Development](contributing/development.md): building, tests, publishing and CI
+- [Documentation](contributing/documentation-maintenance.md): where a page goes and how to write it
+- [Localization](contributing/localization.md): interface languages and translation
+- [Vehicle test guide](contributing/e2e-vehicle-drivetrain.md): testing the vehicle extension in a real game
 - [Third-party notices](../THIRD_PARTY_NOTICES.md)
 
 <a id="measurements-and-history"></a>
 ## History and measurements
 
-Records of earlier work, kept in [history/](history/). Each describes the code and
-the measurements of its time. They are not current instructions, guarantees or a
-to-do list, and they are not updated.
+Records of earlier work, kept in [history/](history/). Each describes the code and the
+measurements of its time. They are not current instructions, guarantees or a to-do list, and
+they are not updated.
 
 - [Backup tuning](history/backup-tuning.md) and [performance profiling](history/performance-profile.md)
 - [Verification report](history/verification-report.md)

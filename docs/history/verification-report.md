@@ -60,6 +60,6 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-a15.ps1
 
 Computer Use could capture the elevated debug app, but its accessibility tree exposed only the window/title bar and menu/exit input did not take effect. The [input diagnosis](computer-use-diagnosis.md) records that boundary.
 
-Outstanding checks at that time included language/theme switching, wide/narrow layouts, keyboard focus and clipping, active-play status/countdown, a final backup after play ended, and backup/restore/archive flows through the real UI. Process cleanup had already passed. Final-on-exit backups were subsequently removed; they are not part of the current [scheduling behavior](../process-architecture.md#game-state-decisions).
+Outstanding checks at that time included language/theme switching, wide/narrow layouts, keyboard focus and clipping, active-play status/countdown, a final backup after play ended, and backup/restore/archive flows through the real UI. Process cleanup had already passed. Final-on-exit backups were subsequently removed; they are not part of the current [scheduling behavior](../design/process-architecture.md#game-state-decisions).
 
 Later Fluent layout changes on the same date built with 0 errors and 0 warnings. Their recorded regression runs were **180 passed / 7 skipped**, followed by **181 passed / 7 skipped**, both with no failures. Screenshots of an older debug session and build success did not verify the new layouts: the updated screens, themes, and click flows remained unverified.

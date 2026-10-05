@@ -95,15 +95,19 @@ public sealed class GameLinkFallbackTests
         var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
         Directory.CreateDirectory(target.SourcePath);
         // The scheduler re-checks a reservation against the real clock, so the interval ends just before now.
-        var now = DateTimeOffset.UtcNow.AddMinutes(-5).AddSeconds(-1);
+        var now = DateTimeOffset.UtcNow.AddMinutes(-10).AddSeconds(-1);
         await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
         var feed = new RuntimeSnapshotStore();
         feed.Publish(RuntimeObservation.Unknown("runtime-unavailable"));
         var controller = new RuntimeScheduleController(db, feed, linkGrace: TimeSpan.Zero);
 
-        // The game's file locks are the only remaining evidence of which save is played.
+        // The game's file locks are the only remaining evidence of which save is played. None is locked: no save is
+        // open, the clock does not run, and the line says backups wait.
         Assert.Null((await controller.PrepareAsync(now, TimeSpan.Zero, default)).Admission);
         Assert.Null((await controller.PrepareAsync(now.AddMinutes(5), TimeSpan.Zero, default)).Admission);
+        Assert.Null((await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
+        Assert.Equal("NextBackupWaitingDynamic", ScheduleCountdownPresentation.Resolve(RuntimeScheduleProjection.Build(
+            await db.ReadBackupStateIfChangedAsync(-1), await db.ReadRuntimeScheduleAsync(), feed.Read()), now.AddMinutes(5)).MessageKey);
         await db.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));
 
         bool active = false; int backups = 0; long run = 0; DateTimeOffset? scheduled = null;
@@ -111,33 +115,65 @@ public sealed class GameLinkFallbackTests
             (_, _, _, due, _) => { backups++; scheduled = due; return Task.FromResult(new WorkerInvocation(true, ProcessOutcome.Skipped, null)); },
             (_, _, _, _, _) => Task.FromResult(new WorkerInvocation(false, ProcessOutcome.Skipped, null)),
             isTargetActive: _ => active, runtimeSchedule: controller);
-        Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due); // The save is not being played.
+        // A save newly locked starts a full interval, as entering a world does.
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due);
+        Assert.Equal(now.AddMinutes(10), (await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(10))).Due); // Its files are no longer locked.
         active = true;
-        var tick = await scheduler.TickAsync(now.AddMinutes(5));
+        var tick = await scheduler.TickAsync(now.AddMinutes(10));
         Assert.True(tick.Due);
         Assert.Equal(target, tick.Target);
         Assert.Equal(1, backups);
-        Assert.Equal(now.AddMinutes(5), scheduled); // Dispatched as an ordinary, unguarded periodic backup.
-        Assert.False((await scheduler.TickAsync(now.AddMinutes(5).AddSeconds(1))).Due);
+        Assert.Equal(now.AddMinutes(10), scheduled); // Dispatched as an ordinary, unguarded periodic backup.
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(10).AddSeconds(1))).Due);
         var checkpoint = (await db.ReadRuntimeScheduleAsync()).Checkpoint!;
-        Assert.Equal(now.AddMinutes(10), checkpoint.FallbackDueUtc);
+        Assert.Equal(now.AddMinutes(15), checkpoint.FallbackDueUtc);
         var view = RuntimeScheduleProjection.Build(await db.ReadBackupStateIfChangedAsync(-1),
-            await db.ReadRuntimeScheduleAsync(), feed.Read());
+            await db.ReadRuntimeScheduleAsync(), feed.Read(), target);
         Assert.True(view.Fallback);
+        Assert.Equal(target, view.CurrentTarget);
         Assert.Equal(new CountdownPresentation("RuntimeBackupFallback", 240),
-            ScheduleCountdownPresentation.Resolve(view, now.AddMinutes(6)));
+            ScheduleCountdownPresentation.Resolve(view, now.AddMinutes(11)));
 
         // The game answers again: back to game time. Its world is newly observed, so a full interval starts.
         var authority = Id();
         var fresh = new RuntimeObservation(Id(), RuntimeQuality.Fresh, World(target.SourcePath), 1, AuthorityEpoch: authority);
         await db.ApplyRuntimeTransitionAsync(fresh, target);
         feed.Publish(fresh);
-        Assert.Null((await controller.PrepareAsync(now.AddMinutes(6), TimeSpan.Zero, default)).Admission);
+        Assert.Null((await controller.PrepareAsync(now.AddMinutes(11), TimeSpan.Zero, default)).Admission);
         checkpoint = (await db.ReadRuntimeScheduleAsync()).Checkpoint!;
         Assert.Null(checkpoint.FallbackDueUtc);
         Assert.Equal(300_000, checkpoint.RemainingMilliseconds);
         Assert.False(RuntimeScheduleProjection.Build(await db.ReadBackupStateIfChangedAsync(-1),
             await db.ReadRuntimeScheduleAsync(), feed.Read()).Fallback);
+    }
+
+    // Seen in the app: a game started with connecting turned off said why on its card, and the line went on
+    // "Checking game status" for the whole grace. That game refuses until it restarts: there is nothing to wait for.
+    [Fact]
+    public async Task AGameStartedWithConnectingOff_FallsBackAtOnce()
+    {
+        using var temp = new TempDirectory();
+        var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
+        Directory.CreateDirectory(target.SourcePath);
+        var now = DateTimeOffset.UtcNow;
+        await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
+        var feed = new RuntimeSnapshotStore();
+        // Committed, as the state scheduler does before publishing it.
+        var disabled = RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason) with { StateRevision = 1, AuthorityEpoch = Id() };
+        await db.ApplyRuntimeTransitionAsync(disabled, null);
+        feed.Publish(disabled);
+        await db.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));
+        var controller = new RuntimeScheduleController(db, feed, linkGrace: TimeSpan.FromHours(1));
+
+        await controller.PrepareAsync(now, TimeSpan.Zero, default);
+        Assert.Equal(now.AddMinutes(5), (await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
+        Assert.Equal(new CountdownPresentation("RuntimeBackupFallback", 300), ScheduleCountdownPresentation.Resolve(
+            RuntimeScheduleProjection.Build(await db.ReadBackupStateIfChangedAsync(-1), await db.ReadRuntimeScheduleAsync(),
+                feed.Read(), target), now));
+        Assert.Equal(new GameLinkView(LinkUnavailable: true, Cause: RuntimeObservation.AttachDisabledReason),
+            new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true).Update(disabled));
     }
 
     [Fact]
@@ -147,7 +183,8 @@ public sealed class GameLinkFallbackTests
         var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
         var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
         Directory.CreateDirectory(target.SourcePath);
-        var now = DateTimeOffset.UtcNow.AddMinutes(-5).AddSeconds(-1);
+        // The save is locked from the fifth minute, so the backup it waits for is due at the tenth, just before now.
+        var now = DateTimeOffset.UtcNow.AddMinutes(-10).AddSeconds(-1);
         await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
         var feed = new RuntimeSnapshotStore();
         // The game refused the link for running the bridge from before an update: a restart would mend it, so the
@@ -200,11 +237,65 @@ public sealed class GameLinkFallbackTests
         Assert.Null((await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
     }
 
+    // With the game unreadable from the start, as after a game update, nothing but the file lock says which save
+    // is open; without it the fallback backups had no target and never ran.
+    [Fact]
+    public void ActivityOfAnUnreadableGame_ComesFromTheSaveFileLock()
+    {
+        using var temp = new TempDirectory();
+        var players = temp.GetPath("players.db");
+        File.WriteAllText(players, "fixture");
+        foreach (var unreadable in new[] { RuntimeObservation.Unknown("runtime-unavailable"), RuntimeObservation.Unknown("connecting") })
+        {
+            var lane = new GameActivityLane(() => unreadable);
+            Assert.Equal(ActivityState.Inactive, lane.Probe(players).State);
+            using (new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+                Assert.Equal(ActivityState.Active, lane.Probe(players).State);
+        }
+        // A game still starting is a known state, not a lost link: no guessing from files.
+        var starting = new GameActivityLane(() => RuntimeObservation.Unknown(RuntimeObservation.GameStartingReason));
+        using (new FileStream(players, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+            Assert.Equal(ActivityState.Unknown, starting.Probe(players).State);
+    }
+
+    // End to end, from the state check to the target a fallback backup reads.
+    [Fact]
+    public async Task UnreadableGame_FromItsStart_StillGivesFallbackBackupsTheOpenSave()
+    {
+        using var temp = new TempDirectory();
+        var state = await StateDatabase.CreateOrOpenAsync(temp.GetPath("state.db"));
+        var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var save = temp.GetPath("saves/Sandbox/World");
+        Directory.CreateDirectory(save);
+        var players = Path.Combine(save, "players.db");
+        await using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={players};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TABLE localPlayers(id INTEGER,name TEXT,isDead INTEGER); INSERT INTO localPlayers VALUES(1,'Name',0);";
+            await command.ExecuteNonQueryAsync();
+        }
+        var pipeline = new StateCheckPipeline(() => RuntimeObservation.Unknown("runtime-unavailable"));
+        await using (new FileStream(players, FileMode.Open, FileAccess.Read, FileShare.None))
+            for (var run = 1; run <= 2; run++)
+                Assert.Equal(ProcessOutcome.Succeeded, (await pipeline.RunAsync(state, temp.GetPath("saves"), run)).Outcome);
+        await new StateOutboxRelay().RelayAsync(state, scheduler);
+        var target = await scheduler.ReadFileDerivedTargetAsync();
+        Assert.NotNull(target);
+        Assert.Equal(Path.GetFullPath(save), Path.GetFullPath(target.SourcePath), ignoreCase: true);
+    }
+
     [Theory]
     [InlineData("attach-failed", BackupGameSave.SaveUnavailable)]
     [InlineData(AttachDiagnostics.DisabledCode, BackupGameSave.SaveUnavailable)]
     [InlineData("connection-timeout", BackupGameSave.SaveUnavailable)]
     [InlineData("bridge-not-built", BackupGameSave.SaveUnavailable)]
+    // A game update the bridge does not fit: it fails setting itself up, before any request is queued.
+    [InlineData("unsupported-game", BackupGameSave.SaveUnavailable)]
+    [InlineData("unsupported-runtime", BackupGameSave.SaveUnavailable)]
+    [InlineData("unsupported-loader", BackupGameSave.SaveUnavailable)]
+    // Several games: none is picked, so nothing is asked of any, as for a game that cannot be reached.
+    [InlineData("multiple-games", BackupGameSave.SaveUnavailable)]
     [InlineData("not-in-world", "not-in-world")]
     public async Task UnreachableGame_IsBackedUpFromDisk_ButARefusedOrUncertainSaveStillFails(string code, string outcome)
     {
@@ -283,6 +374,27 @@ public sealed class GameLinkFallbackTests
     }
 
     [Fact]
+    public void Monitor_AsksHowEachGameWasStarted_Once()
+    {
+        var path = @"C:\fixture\Saves\Sandbox\World";
+        int asked = 0;
+        bool script = true;
+        var monitor = new GameLinkMonitor(gameRunning: () => true, startedWithoutLauncher: () => { asked++; return script; });
+        var read = new RuntimeObservation(Id(), RuntimeQuality.Fresh, World(path) with { HeapMaximumMegabytes = 3072 });
+        // Not asked before the game is read.
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("connecting")).StartedWithoutLauncher);
+        Assert.Equal(0, asked);
+        Assert.True(monitor.Update(read).StartedWithoutLauncher);
+        Assert.True(monitor.Update(read).StartedWithoutLauncher);
+        Assert.Equal(1, asked);
+        // The next game is asked again.
+        monitor.Update(new("", RuntimeQuality.Offline, null));
+        script = false;
+        Assert.False(monitor.Update(read).StartedWithoutLauncher);
+        Assert.Equal(2, asked);
+    }
+
+    [Fact]
     public void Monitor_NamesACauseThePlayerCanChange_ForTheWholeOutage()
     {
         var monitor = new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true);
@@ -293,8 +405,10 @@ public sealed class GameLinkFallbackTests
         // Connected again, or the game gone: the cause goes with the outage.
         Assert.Equal(GameLinkView.Available, monitor.Update(new("", RuntimeQuality.Offline, null)));
         Assert.Null(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Cause);
-        // Still within the grace, nothing is shown, the cause included.
+        // Within the grace, an unknown cause is not shown yet; a refusal is, at once, as it will not pass by itself.
         var patient = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
-        Assert.Equal(GameLinkView.Available, patient.Update(RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason)));
+        Assert.Equal(GameLinkView.Available, patient.Update(RuntimeObservation.Unknown("runtime-unavailable")));
+        Assert.Equal(new GameLinkView(LinkUnavailable: true, Cause: RuntimeObservation.AttachDisabledReason),
+            patient.Update(RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason)));
     }
 }

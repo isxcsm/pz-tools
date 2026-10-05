@@ -10,7 +10,7 @@ public sealed record OperationProgressDisplay(bool IsVisible, bool IsIndetermina
 
     public static OperationProgressDisplay From(OperationView? operation, bool telemetryFaulted = false)
     {
-        // 종료 상태가 마지막 telemetry의 총량/진행률보다 우선합니다.
+        // An end state wins over the last telemetry's total and progress.
         if (operation?.Status != OperationStatus.Running)
             return new(false, false);
 

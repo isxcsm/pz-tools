@@ -8,6 +8,8 @@ namespace PzTools.Scheduling;
 public static class RuntimeDeathPolicy
 {
     internal const string Prefix = "runtime-death:";
+    /// <summary>How long after a death is seen its backup waits, for the game to finish dying first.</summary>
+    public static readonly TimeSpan Settle = TimeSpan.FromSeconds(1);
     public static string? EventKey(RuntimeSnapshot? value) => value is
         { IsWorldReady: true, CharacterLife: RuntimeCharacterLife.Dead, CharacterSession: not null, DeathId: not null }
         ? $"{Prefix}{value.ProcessSession}:{value.WorldSession}:{value.CharacterSession}:{value.DeathId}" : null;

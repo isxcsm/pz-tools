@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Поточне збереження</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Папка збереження</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Копіювання поточного збереження</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Не можна експортувати під час гри. Вийдіть із гри.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Не можна експортувати під час гри. Вийдіть у головне меню.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Неможливо відновлювати копії під час гри. Вийдіть зі світу й повторіть спробу.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Виберіть у списку резервну копію для відновлення</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Неможливо видалити збереження під час гри. Вийдіть зі світу й повторіть спробу.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Не можна зцілювати під час гри. Вийдіть із гри.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Не можна зцілювати під час гри. Вийдіть у головне меню.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Копій поки немає</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Створити копію</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Відновити</value></data>
@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Огляд</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Резервне копіювання</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Автоматичні копії</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Створює копію збереження, у яке ви граєте, через заданий інтервал. Ручні копії доступні й тоді, коли це вимкнено.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Створює резервну копію поточного збереження із заданим інтервалом. Коли персонаж помирає, зупиняється, доки ви не почнете новим персонажем. Ручні копії працюють і коли це вимкнено.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Інтервал копіювання</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Час між автоматичними копіями (1–60 хвилин). Після зміни відлік починається заново.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Кількість автоматичних копій</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Зберігає стільки найновіших автоматичних копій, а старіші видаляє (1–100). Ручні копії не враховуються й не видаляються.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Зберігає стільки найновіших автоматичних копій, а старіші видаляє (1–100). Ручні копії не враховуються; вони видаляються лише разом зі збереженням.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Створювати копію після смерті персонажа</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Після смерті персонажа автоматичні копії припиняються, щоб копії, зроблені за життя, не витіснялися. Увімкніть, щоб зберегти одну копію на момент смерті.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Якщо ввімкнено, створює одну копію одразу після смерті персонажа.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Збереження постійно змінювалося, копію не створено. Повторіть трохи згодом.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Наступна копія: очікування</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Системна</value></data>
@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Скасувати</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Імпорт архіву</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Цей файл не можна імпортувати. Переконайтеся, що його експортував PZ Tools.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Не імпортовано: архів небезпечний.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ручна копія</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Відновити вибрану копію?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Замінити поточні файли «{0}» резервною копією «{1}». Прогрес після створення цієї копії буде втрачено. Якщо відновлення перерветься, знову відкрийте PZ Tools, перш ніж завантажувати це збереження в грі.</value></data>
@@ -279,7 +278,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Збереження та його копії видалено.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Збереження видалено, але його копії залишилися.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Видалено.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Збереження змінилося. Вийдіть із гри та повторіть спробу.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Збереження змінилося. Вийдіть у головне меню та повторіть спробу.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Готово, але список може оновитися із затримкою. Не запускайте повторно.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Резервне копіювання</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Відновлення</value></data>
@@ -325,8 +324,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Копіювання зупинено: збереження гри не вдалося підтвердити.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Зберігати гру перед копіюванням</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>Зворотний відлік у грі</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>За 5 секунд до того, як автоматична копія збереже гру, показує над персонажем зворотний відлік, а потім результат. Копії, запущені в застосунку, зберігаються одразу без нього. Якщо вимкнути, автоматичні копії теж зберігаються без нього.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Зберігає гру безпосередньо перед копіюванням, щоб до копії потрапив останній прогрес. Під час збереження гра може завмерти приблизно на пів секунди. Якщо вимкнути, незбережений прогрес може не потрапити до копії, тому радимо залишити ввімкненим.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Перед тим як автоматична копія збереже гру, показує над персонажем зворотний відлік за 5 секунд, а потім результат. Якщо вимкнено, зберігає без нього.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Зберігає гру безпосередньо перед копіюванням, щоб до копії потрапив останній прогрес. Під час збереження гра може завмерти приблизно на пів секунди.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Вимкнено: поступ після останнього збереження гри не потрапить до копій. Радимо залишити ввімкненим.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Наступна копія: незабаром</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Наступна копія: після поточної операції</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Зцілити персонажа</value></data>
@@ -351,7 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>Зупинити запис</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Звичайний</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Докладний</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Звичайний: вимірювання кожні 0,01 секунди, майже не впливає на гру.&#xA;Докладний: вимірювання приблизно кожні 0,002 секунди, додатково записуються очікування та паузи. Гра може працювати трохи повільніше.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Звичайний: запис приблизно кожні 0,01 секунди майже без навантаження на гру.
+Докладний: запис кожні 0,001–0,0015 секунди, а також очікування й зупинки. Гра від цього сповільнюється (приблизно на 20 %).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Запустіть гру, а потім почніть запис. Відтворіть лаги й зупиніть запис, щоб побачити результат.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Підключення до гри…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Триває запис {0} · зупиниться автоматично через {1} хв</value></data>
@@ -365,10 +366,18 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>Видалити цей запис? Цю дію неможливо скасувати.</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>Записів поки немає.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не вдається відкрити запис. Його пошкоджено або створено в новішій версії.</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все · Сірі стовпці в панелі «Пам’ять»: очищення пам'яті (GC), висота — тривалість паузи · ▲: кадр понад шкалою (час під час наведення) · Клацання пункту списку: його частка в кожному стовпці (ще раз — прибрати; поки показано, наведення на інший — попередній перегляд)</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Скопіювати показане як текст</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Копіювати текст</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Скопійовано.</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все · Сірі стовпці в панелі «Пам’ять»: очищення пам'яті (GC), висота — тривалість паузи · ▲: кадр понад шкалою (час під час наведення) · Клацання пункту списку: його частка в кожному стовпці (ще раз — прибрати; поки показано, наведення на інший — попередній перегляд) · Світло-помаранчеве тло: поки працював GC</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Копіювати для ШІ</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Копіює звіт для вставлення в чат зі ШІ або зберігає його у файл: повний звіт або докладний лише про мод із таблиці нижче. Звіти пишуться англійською.</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Звіт скопійовано. Вставте його в чат зі ШІ.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Зберегти у файл</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Звіт збережено: {0}</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>Повний звіт</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>Кадри, пам&apos;ять, усі моди та підсумок Java за цей проміжок; однаковий, хоч би що тут було розгорнуто. Щоб запитати, чому гра гальмує.</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Докладний звіт: {0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>Лише цей мод докладно: функції, найважчі рядки, дерево викликів і виділення пам&apos;яті. Для автора мода або запитань про цей мод.</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>Лише ця область Java докладно: її методи та звідки їх викликали.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустіть гру, щоб записувати.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не розпочато, бо гру не запущено.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0}: не розпочато, бо запущено більше однієї гри.</value></data>
@@ -396,7 +405,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Пам'ять, яку гра займає на відеокарті. Шкала йде від найменшого до найбільшого значення у видимому діапазоні.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: виділено</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Пам'ять, виділена скриптами виділеного мода, по стовпцю на момент, відносно найбільшого з них. Сміття, що накопичується просто перед очищеннями вище, вказує на цей мод.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} разів, пауза {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} разів</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функція</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Метод</value></data>
@@ -419,11 +428,17 @@
   <data name="ProfileCompare" xml:space="preserve"><value>Порівняти з</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Немає іншого запису для порівняння</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Щойно підвисло? Натисніть: гра зберігала приблизно останню хвилину, її буде збережено як запис. Режим: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Щойно підвисло? Натисніть: гра зберігала приблизно останні {1} хв, їх буде збережено як запис. Режим: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Викликано з рядка {1} функції {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Рядки, виконані нею самою · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (виклик)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Пауза GC</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC працює {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>працює {0:P2}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Очікування пам&apos;яті: {0:N0} раз, найдовше {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Пауза GC: час, коли вся гра стояла через збирання сміття. ZGC, типовий для гри, майже ніколи її не зупиняє.
+GC працює: частка відрізка, коли працював збирач сміття. Він працює поруч із грою й ділить із нею процесор, тож за браку пам&apos;яті частка наближається до 100 % і гра сповільнюється.
+Очікування пам&apos;яті: скільки разів потік зупинявся, доки не звільниться пам&apos;ять, бо вона була заповнена.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Натисніть, щоб приховати або показати цей рядок</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сполучення клавіш: {0}</value></data>
@@ -471,13 +486,13 @@
   <data name="RollingSetting.Header" xml:space="preserve"><value>Зберігати останні хвилини</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>Коли ввімкнено, гра зберігає кілька останніх хвилин увесь час, поки запущена. Звичайний режим майже нічого не коштує.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Режим</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Докладний показує більше, але, поки ввімкнений, трохи сповільнює гру (приблизно на 10%). Вмикайте його, коли шукаєте підвисання.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Докладний показує більше, але, поки ввімкнений, сповільнює гру (приблизно на 20 %). Вмикайте його, коли шукаєте підвисання.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Тривалість (хвилини)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>Від 1 до 10 хвилин. Більша тривалість навантажує гру так само, лише займає більше місця на диску.</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Почне зберігати останню хвилину, коли гру буде запущено.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск збереження останньої хвилини…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Почне зберігати останні {0} хв, коли гру буде запущено.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск збереження останніх {0} хв…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Немає останніх хвилин для збереження. Запис почато заново.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Отримання останньої хвилини</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Отримання останніх хвилин</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Припинити порівняння</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Порівняння з усім записом {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Порівняння: {0}</value></data>
@@ -556,6 +571,7 @@
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Це збереження використовує гра або інша операція. Збереження не змінено.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Гра некоректно закрила це збереження. Завантажте його в грі й вийдіть звичайним способом. Збереження не змінено.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Зцілювати можна лише в збереженнях одиночної гри. Збереження не змінено.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>У цьому збереженні кілька персонажів. Виберіть одного й повторіть спробу. Збереження не змінено.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>У цьому збереженні кілька персонажів. Виберіть, кого відновити; інші не зміняться.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Пошук зомбі або трупа персонажа…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Виберіть, звідки повернути речі.</value></data>
@@ -574,13 +590,14 @@
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>У цьому збереженні зцілення недоступне. Спробуйте оновити PZ Tools. Збереження не змінено.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Час виживання недоступний · перевірку буде повторено</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Файл використовує гра або інша операція. Повторіть трохи згодом.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Збереження змінилося під час експорту. Вийдіть із гри та повторіть спробу.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Збереження змінилося під час експорту. Вийдіть у головне меню та повторіть спробу.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Ця копія пошкоджена. Виберіть іншу копію. Збереження не змінено.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Недостатньо місця на диску.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Бракує файлів PZ Tools. Розпакуйте завантажений архів знову.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Ця версія не може відкрити цю папку копій. Виберіть нову папку в налаштуваннях. Стару не видаляйте.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Повторіть, коли поточна операція завершиться.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Не вдалося застосувати налаштування. Перевірте введені значення.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Не вдалося застосувати налаштування. Перевірте файл {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Не вдалося перезапустити. Закрийте й знову відкрийте програму.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Цю папку не можна використати, тому повернуто попередні налаштування.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Не вдалося змінити папку. Перевірте папки в налаштуваннях.</value></data>
@@ -646,12 +663,13 @@
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Щоб застосувати їх, відновіть гру, зупиніть автомобіль, відпустіть газ і вимкніть круїз-контроль.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Гра в головному меню</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Гра завантажується</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Гра повертається до головного меню</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Персонаж мертвий – копії чекають</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Не вдалося підключитися до гри; копія створюється без збереження гри.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Стан сну зараз недоступний, тому враховується лише пауза.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Зараз не застосовується: немає зв’язку з грою.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Наступна копія (без збереження гри)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Копії створюються без збереження гри.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Наступна копія (немає зв’язку з грою)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Копії створюються за таймером. Якщо гра не може спершу зберегтися, файли копіюються як є.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Немає зв’язку з грою</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Перезапустіть гру.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Сумісність і стан</value></data>
@@ -714,6 +732,28 @@
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипти</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код гри</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Очікування</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(виконання Lua)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>Пошук викликачів…</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} власного часу цього методу · {1} відрізка</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Час скриптів вибраного мода (з викликаними функціями Java)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Час решти скриптів, без вибраного мода</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Відрізки, коли поруч із грою працювало збирання сміття. Довші кадри тут означають брак пам&apos;яті. Натисніть, щоб приховати.</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Цього файлу немає на цьому ПК. Запис могли зробити на іншому ПК, або мод видалено чи переміщено.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Змінено після запису: номери рядків можуть відрізнятися</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Відкрити</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Відкрити рядок {0} у VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Відкрити у VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Відкрити у VS Code (VS Code не знайдено)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Показати в папці</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Копіювати шлях</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Зупинка через пам’ять</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>кадри на {0:P0} повільніші, поки працював GC</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Інші програми використовували в середньому {0:P0} процесора</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>Під час запису інші програми, крім гри, використовували стільки процесора ПК. Завантажений процесор сповільнює гру незалежно від модів, і запис виходить повільнішим, ніж зазвичай. Для чесного порівняння закрийте їх і запишіть знову.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Час Lua-скриптів модів і гри (з викликаними функціями Java)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Час власного коду гри (Java)</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Час, коли ігровий потік стояв через GC чи пам&apos;ять. Із ZGC майже нуль; брак пам&apos;яті покаже помаранчеве тло графіка.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Час, коли ігровий потік відпочивав, здебільшого запас до наступного кадру.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Інші скрипти</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Параметр запуску гри блокує підключення.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Не вдалося підключитися: його блокує параметр запуску гри. Перевірте параметри запуску гри.</value></data>
@@ -747,4 +787,9 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Гра запускається</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · зараз</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Застосується під час наступного запуску гри.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Гру запущено через скрипт запуску (.bat), який сам задає пам&apos;ять. Це налаштування діє лише під час звичайного запуску гри.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Попередній перегляд карток (збірка розробника)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Показує картку бічної панелі без її ситуації, щоб перевірити вигляд і кнопки. В опублікованих збірках немає.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Показати</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Прибрати всі</value></data>
 </root>

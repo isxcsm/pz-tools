@@ -40,6 +40,7 @@ public final class ExtensionControlTest {
         catch (java.io.IOException expected) { }
         session.close();
         residentFailureSurvivesReconnect();
+        hostAbiChangeWaitsForRestart();
         moduleScope();
         pausedPendingOff();
         lifecycleRelease();
@@ -65,6 +66,33 @@ public final class ExtensionControlTest {
                 check(modules.applies.get() == 0, "Status inspection attempted to enable the module");
             } finally { session.close(); }
         }
+    }
+    /**
+     * A runtime jar built for another extension ABI is refused by the bootstrap, and only a game restart brings API
+     * classes that fit. That is reported as the update waiting for the restart, not as a host that failed.
+     */
+    private static void hostAbiChangeWaitsForRestart() throws Exception {
+        java.util.concurrent.Callable<ContinuousModules> refused = () -> { throw new java.io.IOException("Incompatible archive contract: PzTools-Extension-Api"); };
+        String epoch = "9".repeat(32), config = Base64.getEncoder().encodeToString(new byte[0]);
+        String apply = "APPLY\ta1\t" + epoch + "\t" + "1".repeat(32) + "\t" + "2".repeat(32) + "\t-1\t1\tpztools.vehicle-drivetrain\tnormal\t" + config;
+        var older = new ExtensionControl.Session(null, zombie.GameWindow.class, System::nanoTime, refused, () -> ExtensionApi.HOST_ABI - 1);
+        try {
+            for (String command : List.of("STATUS\ts1\t" + epoch, "STATUS\ts2\t" + epoch + "\tpztools.vehicle-drivetrain", apply)) {
+                String[] reply = older.command(command).split("\t", -1);
+                check(reply[2].equals("RestartRequired") && new String(Base64.getDecoder().decode(reply[3]), StandardCharsets.UTF_8).equals("bootstrap-update"),
+                    "A host ABI change was not reported as waiting for the game's restart: " + command.split("\t")[0]);
+            }
+        } finally { older.close(); }
+        // The same refusal with matching API classes is a host that failed, as before.
+        var same = new ExtensionControl.Session(null, zombie.GameWindow.class, System::nanoTime, refused, () -> ExtensionApi.HOST_ABI);
+        try {
+            String[] reply = same.command(apply).split("\t", -1);
+            check(!reply[2].equals("RestartRequired") && new String(Base64.getDecoder().decode(reply[3]), StandardCharsets.UTF_8).equals("host-update-unavailable"),
+                "An ordinary host failure claimed a restart");
+            try { same.command("STATUS\ts3\t" + epoch); throw new AssertionError("A failed host was hidden behind a status"); }
+            catch (java.io.IOException expected) { }
+        } finally { same.close(); }
+        check(ExtensionControl.residentHostAbi() == ExtensionApi.HOST_ABI, "The resident ABI is read from the loaded API class");
     }
     /** A fourth field names one module; three fields still mean the host as a whole. */
     private static void moduleScope() throws Exception {

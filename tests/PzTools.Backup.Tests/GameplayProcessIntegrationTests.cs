@@ -66,6 +66,68 @@ public sealed class GameplayProcessIntegrationTests
         }
     }
 
+    // The pass the app leaves when it closes, with the game still exiting.
+    [PublishedGameplayFact(NoRealGame = true)]
+    public async Task PublishedMaintenance_LeftAtClose_WaitsForAnExitingGame_AndGivesUpOnOneThatStays()
+    {
+        using var temp = new TempDirectory();
+        var executable = temp.GetPath("ProjectZomboid64.exe");
+        File.Copy(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"), executable);
+        File.SetAttributes(executable, FileAttributes.Normal);
+        var start = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        foreach (var argument in new[] { "/d", "/q", "/c", "echo READY & set /p hold=" }) start.ArgumentList.Add(argument);
+        using var game = System.Diagnostics.Process.Start(start)!;
+        try
+        {
+            Assert.Equal("READY", (await game.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10)))?.Trim());
+            var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
+            var configuration = temp.GetPath("maintenance.toml");
+            await File.WriteAllTextAsync(configuration, "[telemetry]\nenabled=false\n");
+            await PzTools.Backup.Storage.Repository.RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repo"));
+            Task<ChildProcessResult> RunAsync(int wait) => new ChildProcessHost().RunAsync(
+                Path.Combine(tools, "PzTools.Maintenance.Cli.exe"),
+                ["--repository", temp.GetPath("repo"), "--saves-root", temp.GetPath("saves"), "--lane", "OrphanBackups",
+                    "--config", configuration, "--control-db", temp.GetPath("control.db"),
+                    "--wait-for-game-exit-seconds", wait.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+
+            // A game that stays: the pass waits its time, then leaves the work to the app's next run.
+            var waited = Stopwatch.StartNew();
+            var stayed = ProcessResultJson.Deserialize<MaintenanceLaneResult>((await RunAsync(2)).StandardOutput);
+            Assert.True(waited.Elapsed >= TimeSpan.FromSeconds(2));
+            Assert.Equal(ProcessOutcome.Skipped, stayed.Outcome);
+            Assert.Equal("deferred-during-gameplay", stayed.Result!.Detail);
+
+            // A game that finishes exiting within the wait: the pass runs once it has gone.
+            var pass = RunAsync(30);
+            await Task.Delay(1500);
+            Assert.False(pass.IsCompleted);
+            game.StandardInput.Close();
+            await game.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            var child = await pass.WaitAsync(TimeSpan.FromSeconds(60));
+            var ran = ProcessResultJson.Deserialize<MaintenanceLaneResult>(child.StandardOutput);
+            Assert.True(ran.Outcome == ProcessOutcome.Succeeded, child.StandardError + child.StandardOutput);
+        }
+        finally
+        {
+            try
+            {
+                if (!game.HasExited)
+                {
+                    game.StandardInput.Close();
+                    try { await game.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+                    catch (TimeoutException) { if (!game.HasExited) game.Kill(); }
+                }
+                await game.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            finally { game.Dispose(); }
+            await DeleteFixtureExecutableAsync(executable);
+        }
+    }
+
     private static async Task DeleteFixtureExecutableAsync(string path)
     {
         // Only this test-owned executable gets a bounded retry after confirmed exit
@@ -93,6 +155,19 @@ public sealed class GameplayProcessIntegrationTests
         {
             if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")))
                 Skip = "Requires the fresh Windows published distribution.";
+        }
+
+        /// <summary>The test lets its stand-in game exit; a real one running on the machine never would.</summary>
+        public bool NoRealGame
+        {
+            get => false;
+            set
+            {
+                if (!value || Skip is not null) return;
+                var games = GameProcessFinder.Find();
+                try { if (games.Length > 0) Skip = "Close Project Zomboid: the test waits for the game to exit."; }
+                finally { foreach (var game in games) game.Dispose(); }
+            }
         }
     }
 }

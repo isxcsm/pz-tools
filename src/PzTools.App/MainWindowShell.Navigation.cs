@@ -121,7 +121,7 @@ public sealed partial class MainWindowShell
     {
         // A stopped animation may already have queued its completion. Only the current
         // batch can change pages, and all XAML work stays on the UI dispatcher.
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (!ReferenceEquals(sender, contentTransitionBatch)) return;
             var completed = contentTransitionCompleted;

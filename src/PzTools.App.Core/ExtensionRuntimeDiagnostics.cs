@@ -8,17 +8,29 @@ namespace PzTools.App.Core;
 
 /// <summary>
 /// Non-authoritative, durable runtime transitions. Heartbeat age and changing diagnostic samples
-/// are context, not event identities. Call Observe from Publish; no disk I/O runs on that caller.
+/// are context, not event identities; a newer sample in an unchanged state is written at most once
+/// every <see cref="SampleInterval"/>. Call Observe from Publish; no disk I/O runs on that caller.
 /// </summary>
-public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInboxStore?>? inbox = null)
+public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInboxStore?>? inbox = null,
+    TimeProvider? timeProvider = null)
 {
+    /// <summary>The least time between two entries that only carry a newer diagnostics sample.</summary>
+    public static readonly TimeSpan SampleInterval = TimeSpan.FromSeconds(10);
+    /// <summary>The event of an entry written because the extension's state changed.</summary>
+    public const string ChangedEvent = "extension.runtime.changed";
+    /// <summary>The event of an entry written only for a newer diagnostics sample, in an unchanged state.</summary>
+    public const string SampleEvent = "extension.runtime.sample";
+
     private sealed record Identity(RuntimeExtensionState State, string ProcessSession, string? WorldSession,
         string? Generation, long AppliedRevision, long RequestedRevision, string? Reason);
+    /// <summary>What the last entry for a module said, and when it was written.</summary>
+    private sealed record Written(Identity? Identity, string? Diagnostics, DateTimeOffset At);
 
     private readonly object gate = new();
     private readonly Guid instance = Guid.NewGuid();
+    private readonly TimeProvider time = timeProvider ?? TimeProvider.System;
     // Each module has its own history of transitions; one module changing state is not news about another.
-    private readonly Dictionary<string, Identity?> previous = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Written> previous = new(StringComparer.Ordinal);
     private long sequence;
     private Task pending = Task.CompletedTask;
     private LogInboxStore? fallbackInbox;
@@ -38,18 +50,25 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
             lock (gate)
             {
                 // No runtime data at startup is not a failure. Losing known data is informational.
-                bool observed = previous.TryGetValue(extensionId, out var before0);
-                if ((!observed && status is null) || observed && before0 == identity) return;
-                previous[extensionId] = identity;
+                bool observed = previous.TryGetValue(extensionId, out var last);
+                if (!observed && status is null) return;
+                var occurred = time.GetUtcNow();
+                bool changed = !observed || last!.Identity != identity;
+                // With diagnostics on, every status carries the game's latest driving sample, but steady driving
+                // changes no state. A sample entry now and then shows it on the Logs page without flooding it.
+                var reading = SampleKey(status?.Diagnostics);
+                bool sample = !changed && reading is { Length: > 0 }
+                    && reading != last!.Diagnostics && occurred - last.At >= SampleInterval;
+                if (!changed && !sample) return;
+                previous[extensionId] = new(identity, reading, occurred);
                 var eventId = ++sequence;
-                var occurred = DateTimeOffset.UtcNow;
                 var before = pending;
                 pending = Task.Run(async () =>
                 {
                     try
                     {
                         await before.ConfigureAwait(false);
-                        await WriteAsync(extensionId, status, eventId, occurred).ConfigureAwait(false);
+                        await WriteAsync(extensionId, status, eventId, occurred, sample).ConfigureAwait(false);
                     }
                     catch (Exception)
                     {
@@ -65,13 +84,19 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
         }
     }
 
+    // The sample without its age, which grows while the sample stays the same: a vehicle standing still, or left, keeps
+    // its last sample, and only a sample that changed is news.
+    private static string? SampleKey(string? diagnostics) => diagnostics is null ? null
+        : System.Text.RegularExpressions.Regex.Replace(diagnostics, @"(^|;)sample_age_ms=[^;]*", "");
+
     /// <summary>Waits for transitions already observed; failures never propagate to UI or shutdown.</summary>
     public Task FlushAsync()
     {
         lock (gate) return pending;
     }
 
-    private async Task WriteAsync(string extensionId, RuntimeExtensionStatus? status, long eventId, DateTimeOffset occurred)
+    private async Task WriteAsync(string extensionId, RuntimeExtensionStatus? status, long eventId, DateTimeOffset occurred,
+        bool sample)
     {
         var sink = inbox?.Invoke();
         if (sink is null)
@@ -81,7 +106,8 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
             sink = fallbackInbox ??= await LogInboxStore.CreateOrOpenAsync(
                 Path.Combine(runtimeRoot, "logs.db")).ConfigureAwait(false);
         }
-        var level = Severity(status);
+        // A sample repeats a state already recorded at its own level; a warning every ten seconds would only bury it.
+        var level = sample ? LogLevel.Information : Severity(status);
         var state = status?.State.ToString() ?? "Unavailable";
         var reason = status?.Reason ?? (status is null ? "runtime-status-unavailable" : null);
         var payload = JsonSerializer.Serialize(new
@@ -91,7 +117,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
             reason,
             failureCode = level >= LogLevel.Warning ? reason ?? state : null,
             phase = "extension-runtime",
-            message = $"{extensionId} runtime changed to {state}.",
+            message = sample ? $"{extensionId} diagnostics sample while {state}." : $"{extensionId} runtime changed to {state}.",
             processSession = status?.ProcessSession,
             worldSession = status?.WorldSession,
             generation = status?.Generation,
@@ -112,7 +138,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
         await sink.AppendAsync([new LogEntryView(
             $"extension-runtime:{instance:N}:{eventId.ToString(CultureInfo.InvariantCulture)}",
             "game-extensions:" + (extensionId.StartsWith("pztools.", StringComparison.Ordinal) ? extensionId["pztools.".Length..] : extensionId), instance, eventId, occurred, level,
-            "game-extensions", 0, "extension.runtime.changed", payload)]).ConfigureAwait(false);
+            "game-extensions", 0, sample ? SampleEvent : ChangedEvent, payload)]).ConfigureAwait(false);
     }
 
     private static LogLevel Severity(RuntimeExtensionStatus? status)

@@ -7,7 +7,7 @@ using Windows.Foundation;
 
 namespace PzTools.App;
 
-/// <summary>NavigationView와 같은 컴포지션 늘림/수축으로 목록 선택 표시를 이동합니다.</summary>
+/// <summary>Moves a list's selection indicator with the same composition stretch and shrink as NavigationView.</summary>
 internal sealed class AnimatedListSelectionBar
 {
     // NavigationView uses 600 ms: stretch to the far edge in the first 200 ms,
@@ -36,7 +36,7 @@ internal sealed class AnimatedListSelectionBar
         list.SelectionChanged += (_, _) =>
         {
             Update();
-            list.DispatcherQueue.TryEnqueue(() => { if (!unloaded) Update(); });
+            list.DispatcherQueue.Enqueue(() => { if (!unloaded) Update(); });
         };
         list.Loaded += (_, _) =>
         {
@@ -53,7 +53,7 @@ internal sealed class AnimatedListSelectionBar
         list.LayoutUpdated += (_, _) =>
         {
             if (layoutQueued || unloaded) return;
-            layoutQueued = list.DispatcherQueue.TryEnqueue(
+            layoutQueued = list.DispatcherQueue.Enqueue(
                 Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; if (!unloaded) Update(); });
         };
         surface.SizeChanged += (_, _) => Update();
@@ -92,7 +92,8 @@ internal sealed class AnimatedListSelectionBar
             && Math.Abs(height - lastHeight) < 0.5)
             return;
 
-        var animate = bar.Visibility == Visibility.Visible
+        var animate = SystemMotion.Enabled
+            && bar.Visibility == Visibility.Visible
             && lastSelection is not null
             && !ReferenceEquals(selection, lastSelection)
             && !double.IsNaN(lastTop)
@@ -108,7 +109,7 @@ internal sealed class AnimatedListSelectionBar
         bar.Visibility = Visibility.Visible;
         if (!animate) return;
 
-        // 새 막대의 레이아웃 위치를 확정한 뒤 그 위치에 대한 상대 이동량을 애니메이션합니다.
+        // Settle the new bar's layout position first, then animate the move relative to it.
         surface.UpdateLayout();
         var compositor = CompositionTarget.GetCompositorForCurrentThread();
         var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
@@ -137,13 +138,13 @@ internal sealed class AnimatedListSelectionBar
             new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1f));
         Vector3 Along(float value, float rest) => horizontal ? new Vector3(value, rest, rest == 0 ? 0 : 1) : new Vector3(rest, value, rest == 0 ? 0 : 1);
 
-        // 한 막대의 앞쪽 끝이 먼저 도착하고 뒤쪽 끝이 따라오게 합니다.
-        // 두 막대를 따로 그리면 이동 중 선택 항목이 두 개인 것처럼 보입니다.
+        // One bar: its leading end arrives first and its trailing end follows.
+        // Two bars drawn apart would look like two selected items during the move.
         var stretchedSize = forward
             ? to + toSize - from
             : from + fromSize - to;
-        // Canvas 좌표는 이미 새 선택 항목의 위치입니다. XAML 레이아웃이 소유하는
-        // Visual.Offset에 절대 좌표를 다시 넣으면 위치가 중복 적용되므로 상대 이동만 애니메이션합니다.
+        // The Canvas coordinates are already the new item's position. Absolute coordinates put back into
+        // Visual.Offset, which XAML layout owns, would apply it twice, so only the relative move is animated.
         var translation = compositor.CreateVector3KeyFrameAnimation();
         translation.Target = "Translation";
         translation.InsertKeyFrame(0, Along(fromTranslation, 0));

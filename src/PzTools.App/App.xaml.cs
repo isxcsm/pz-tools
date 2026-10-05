@@ -76,10 +76,10 @@ public partial class App : Application
     /// <summary>The key combinations the app holds for its actions; null before the window exists.</summary>
     internal HotKeyController? HotKeys => hotKeys;
 
-    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message)
+    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message, Exception? cause = null)
     {
         if (window?.Content is MainWindowShell shell)
-            shell.ShowSidebarNotification(severity, title, message);
+            shell.ShowSidebarNotification(severity, title, message, cause);
     }
 
     /// <summary>Opens Settings at the switch that has the game keep its last minutes.</summary>
@@ -133,7 +133,7 @@ public partial class App : Application
         Localizer.Warm();
         window.AppWindow.Closing += MainWindow_Closing;
         var dispatcher = window.DispatcherQueue;
-        activationListener = ApplicationActivationSignal.Listen(runtimeRoot, () => dispatcher.TryEnqueue(RestoreWindow));
+        activationListener = ApplicationActivationSignal.Listen(runtimeRoot, () => dispatcher.Enqueue(RestoreWindow));
         window.Closed += async (_, _) =>
         {
             activationListener?.Dispose();
@@ -150,7 +150,7 @@ public partial class App : Application
         if (configurationError is not null)
             ShowSidebarNotification(InfoBarSeverity.Error,
                 Localizer.Get("SettingsTitle.Text"),
-                UserFacingError.FromConfigurationException(configurationError));
+                UserFacingError.FromConfigurationException(configurationError), configurationError);
         ConfigureTray(settings.UseSystemTray);
         hotKeys = new HotKeyController(this, window);
         hotKeys.Apply(settings);
@@ -178,7 +178,7 @@ public partial class App : Application
             InstallProblem = problem;
             Host?.RecordActionIssue(Localizer.Get("InstallBrokenTitle"), Localizer.Get("InstallBrokenMessage"), failed: true,
                 diagnostics: problem.Describe());
-            window?.DispatcherQueue.TryEnqueue(() => (window?.Content as MainWindowShell)?.ApplyInstallProblem());
+            window?.DispatcherQueue.Enqueue(() => (window?.Content as MainWindowShell)?.ApplyInstallProblem());
         }
         catch (OperationCanceledException) { }
         catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }
@@ -244,12 +244,13 @@ public partial class App : Application
     {
         try
         {
-            using var _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(page.ToString()) { UseShellExecute = true });
+            // The browser as the player's, not with this app's administrator rights.
+            ShellLaunch.Open(page.AbsoluteUri);
             return true;
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("UpdateSection.Header"), UserFacingError.FromException(exception));
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("UpdateSection.Header"), UserFacingError.FromException(exception), exception);
             return false;
         }
     }
@@ -270,29 +271,7 @@ public partial class App : Application
     public async Task ApplySettingsAsync(AppSettings settings)
     {
         await settingsGate.WaitAsync();
-        try
-        {
-            // 다른 화면에서 갱신한 로그 옵션을 오래된 설정 화면 값으로 덮어쓰지 않습니다.
-            var current = Host?.Settings.Load()
-                ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
-            await ApplySettingsCoreAsync(settings with
-            {
-                LogMinimumLevel = settings.LogRecordMinimumLevel != current.LogRecordMinimumLevel
-                    ? settings.LogRecordMinimumLevel : current.LogMinimumLevel,
-                LogDisplayLimit = current.LogDisplayLimit,
-            });
-        }
-        finally { settingsGate.Release(); }
-    }
-
-    public async Task ApplyLogOptionsAsync(PzTools.Projections.LogLevel minimumLevel, int displayLimit)
-    {
-        await settingsGate.WaitAsync();
-        try
-        {
-            var host = Host ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
-            await host.ApplyLogOptionsAsync(minimumLevel, displayLimit);
-        }
+        try { await ApplySettingsCoreAsync(settings); }
         finally { settingsGate.Release(); }
     }
 
@@ -336,7 +315,7 @@ public partial class App : Application
                     await host.Settings.ResetEditableConfigurationAsync();
                     host.Settings.ValidateEditableConfiguration();
                 }
-                // 성공하면 현재 프로세스가 종료됩니다. 실패한 경우에만 호출이 돌아옵니다.
+                // On success this process ends; the call returns only on failure.
                 var failure = Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
                 throw new InvalidOperationException(Localizer.Get("OperationError.RestartFailed"),
                     new InvalidOperationException($"App restart failed: {failure}"));
@@ -483,7 +462,7 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
-            // 트레이를 사용할 수 없어도 창을 숨기지 않고 일반 종료 확인으로 전환합니다.
+            // Without a tray the window is not hidden; the usual exit confirmation is asked instead.
             System.Diagnostics.Debug.WriteLine(exception);
             useSystemTray = false;
         }
@@ -533,7 +512,7 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
-            // 다른 대화 상자가 열려 있으면 현재 종료 요청만 취소합니다.
+            // With another dialog open, only this exit request is cancelled.
             System.Diagnostics.Debug.WriteLine(exception);
         }
         finally { exitDialogOpen = false; }
@@ -543,9 +522,16 @@ public partial class App : Application
     {
         var layout = PzTools.Process.Contracts.PzToolsPathLayout.CreateDefault(
             dataRoot: runtime);
+        // The workers this app starts as administrator come from its own folder. Pointing it at others by an
+        // environment variable is a development aid only: in a release build any program of the player's could set
+        // it and have its own executables started with these rights.
         var workerDirectory = AppWorkerDirectoryResolver.Resolve(
             AppContext.BaseDirectory,
+#if DEBUG
             Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR"));
+#else
+            null);
+#endif
         return new AppHost(new AppHostPaths(
             runtime,
             workerDirectory,

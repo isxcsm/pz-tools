@@ -8,7 +8,8 @@ public sealed record BackupOptions(
     StorageOptions Storage,
     TelemetryOptions Telemetry,
     IReadOnlyList<string>? AlwaysIncludePaths = null,
-    SupportedLanguage NameLanguage = SupportedLanguage.Korean,
+    // No language named: this PC's (LanguageCatalog.Local).
+    SupportedLanguage? NameLanguage = null,
     bool FullScanHashComparison = true,
     bool SaveGameBeforeBackup = true,
     BackupTuningOptions? Tuning = null,

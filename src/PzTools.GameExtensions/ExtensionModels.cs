@@ -52,6 +52,12 @@ public sealed record ExtensionCardView(ExtensionDefinition Definition, bool Enab
     // Admission hint only. Saving a desired preference does not require a currently running compatible game.
     public bool CanEnable => SupportsActivation && (VersionMatches || ForceVersion);
     public bool EffectiveEnabled => Enabled && CanEnable;
+    /// <summary>
+    /// The running game reported a version outside the supported range and the range is not ignored. The game
+    /// would reject an ON request and the module would be saved off again, so turning it on is refused up front.
+    /// An unknown version is not this: an ON saved while no game runs is checked when one starts.
+    /// </summary>
+    public bool OutsideKnownSupportedRange => GameVersion is not null && !VersionMatches && !ForceVersion;
 }
 
 public sealed class ExtensionSettingsConflictException()

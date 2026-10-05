@@ -84,6 +84,45 @@ public sealed class PackFormatTests
     }
 
     [Fact]
+    public async Task Repack_CopiesTheStoredBytes_SoAnObjectKeepsTheLevelItWasWrittenWith()
+    {
+        // Compaction's writer uses the default level; the object was stored at the highest one.
+        var words = "zombie chunk square object tile room building vehicle player item ".Split(' ');
+        var random = new Random(11);
+        var content = System.Text.Encoding.ASCII.GetBytes(string.Join(' ',
+            Enumerable.Range(0, 40_000).Select(_ => words[random.Next(words.Length)] + random.Next(100))));
+        using var temp = new TempDirectory();
+        PackObjectDescriptor written;
+        CommittedPack original;
+        await using (var writer = await PackWriter.CreateAsync(temp.Path, runIndex: 1, compressionLevel: 11))
+        {
+            written = await writer.AddObjectAsync(
+                new MemoryStream(content, writable: false), ChecksumAlgorithm.XxHash64, CompressionAlgorithm.Brotli);
+            original = await writer.SealAndPromoteAsync();
+        }
+
+        PackObjectDescriptor repacked;
+        CommittedPack rewritten;
+        await using (var reader = await PackReader.OpenForLocatedReadsAsync(original.FullPath, original.PackId))
+        await using (var destination = await PackWriter.CreateAsync(temp.Path, runIndex: 2))
+        {
+            repacked = await reader.RepackObjectAtAsync(written.ObjectId, written.RecordOffset, destination);
+            rewritten = await destination.SealAndPromoteAsync();
+        }
+
+        Assert.Equal(written.StoredLength, repacked.StoredLength);
+        Assert.Equal(written.OriginalLength, repacked.OriginalLength);
+        Assert.Equal(written.Checksum, repacked.Checksum);
+        byte[] Payload(string path, PackObjectDescriptor descriptor) =>
+            File.ReadAllBytes(path).AsSpan((int)descriptor.PayloadOffset, (int)descriptor.StoredLength).ToArray();
+        Assert.Equal(Payload(original.FullPath, written), Payload(rewritten.FullPath, repacked));
+        await using var restoredReader = await PackReader.OpenAsync(rewritten.FullPath, verifyPayloads: true);
+        await using var restored = new MemoryStream();
+        await restoredReader.CopyObjectToAsync(written.ObjectId, restored);
+        Assert.Equal(content, restored.ToArray());
+    }
+
+    [Fact]
     public async Task Reader_DetectsTruncatedPack()
     {
         using var temp = new TempDirectory();
@@ -181,6 +220,22 @@ public sealed class PackFormatTests
         }
 
         await Assert.ThrowsAsync<PackFormatException>(() => PackReader.OpenForLocatedReadsAsync(committed.FullPath, committed.PackId));
+    }
+
+    [Fact]
+    public async Task Seal_RejectsTwoRecordsUnderOneObjectId_AsOpeningWould()
+    {
+        using var temp = new TempDirectory();
+        await using var writer = await PackWriter.CreateAsync(temp.Path, runIndex: 1);
+        var objectId = Guid.NewGuid();
+        await writer.AddObjectAsync(new MemoryStream([1, 2, 3]), objectId, ChecksumAlgorithm.Sha256, CompressionAlgorithm.None);
+        await writer.AddObjectAsync(new MemoryStream([4, 5, 6]), objectId, ChecksumAlgorithm.Sha256, CompressionAlgorithm.None);
+
+        var error = await Assert.ThrowsAsync<PackFormatException>(() => writer.SealAndPromoteAsync());
+
+        Assert.Contains("Duplicate object id", error.Message, StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFiles(temp.GetPath("staging")));
+        Assert.Empty(Directory.EnumerateFiles(temp.GetPath("packs")));
     }
 
     [Fact]

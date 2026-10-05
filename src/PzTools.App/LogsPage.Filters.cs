@@ -226,21 +226,20 @@ public sealed partial class LogsPage
     private Action ShowLiveEditor(Button anchor, StackPanel content, TextBox[] inputs, Func<bool> apply)
     {
         var flyout = new Flyout { Content = content };
-        var timer = DispatcherQueue.CreateTimer();
-        timer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).LogFilterDebounceMs);
-        timer.IsRepeating = false;
         var dirty = false;
         var stopped = false;
         var lastText = inputs.Select(input => input.Text).ToArray();
         void Commit()
         {
-            timer.Stop();
             var text = inputs.Select(input => input.Text).ToArray();
             if (stopped || !dirty && text.SequenceEqual(lastText)) return;
             dirty = false;
             lastText = text;
             if (apply()) _ = FiltersChangedAsync();
         }
+        var timer = DispatcherQueue.Timer(Commit);
+        timer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).LogFilterDebounceMs);
+        timer.IsRepeating = false;
         void Changed(object sender, TextChangedEventArgs args)
         {
             if (stopped) return;
@@ -256,20 +255,20 @@ public sealed partial class LogsPage
         {
             if (stopped) return;
             dirty = true;
+            timer.Stop();
             Commit();
         }
         Action<bool>? stop = null;
         stop = commitPending =>
         {
             if (stopped) return;
+            timer.Stop();
             if (commitPending) Commit();
             stopped = true;
-            timer.Stop();
             foreach (var input in inputs) input.TextChanged -= Changed;
             if (stopFilterEdit == stop) stopFilterEdit = null;
         };
         foreach (var input in inputs) input.TextChanged += Changed;
-        timer.Tick += (_, _) => Commit();
         content.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler((_, args) =>
         {
             if (args.Key != Windows.System.VirtualKey.Enter || args.OriginalSource is not TextBox) return;

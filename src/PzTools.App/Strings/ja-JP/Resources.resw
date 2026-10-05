@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>現在のセーブ</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>セーブフォルダー</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>現在のセーブをコピー中</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>プレイ中はエクスポートできません。ゲームを終了してください。</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>プレイ中はエクスポートできません。メインメニューに戻ってください。</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>プレイ中はバックアップを復元できません。プレイを終了して再試行してください。</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>復元するバックアップを一覧から選択してください</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>プレイ中はセーブを削除できません。プレイを終了して再試行してください。</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>プレイ中は回復できません。ゲームを終了してください。</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>プレイ中は回復できません。メインメニューに戻ってください。</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>バックアップはまだありません</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>今すぐバックアップ</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>復元</value></data>
@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>参照</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>バックアップ</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>自動バックアップ</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>プレイ中のセーブを設定した間隔でバックアップします。オフでも手動バックアップは使えます。</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>プレイ中のセーブを設定した間隔でバックアップします。キャラクターが死ぬと、新しいキャラクターで始めるまで止まります。オフでも手動バックアップは使えます。</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>バックアップ間隔</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>自動バックアップを実行する間隔です（1～60 分）。変更するとそこから数え直します。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動バックアップの保持数</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>自動バックアップは新しいものからこの数だけ残し、古いものから削除します（1～100 個）。手動バックアップは数に含まれず、削除されません。</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>自動バックアップは新しいものからこの数だけ残し、古いものから削除します（1～100 個）。手動バックアップは数に含まれず、セーブがなくなったときだけ一緒に削除されます。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>キャラクター死亡時にバックアップ</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>キャラクターが死亡すると自動バックアップを止め、生存中のバックアップが押し出されないようにします。オンにすると、死亡時点のバックアップを 1 つ残します。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>オンにすると、キャラクターが死んだ直後にバックアップを 1 回作ります。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>セーブが変わり続けたため、バックアップできませんでした。少し待って再試行してください。</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>次のバックアップ：待機中</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>システム</value></data>
@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>キャンセル</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>アーカイブをインポート</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>このファイルはインポートできません。PZ Tools でエクスポートしたファイルか確認してください。</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>安全でない圧縮ファイルのため、インポートしませんでした。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手動バックアップ</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>選択したバックアップを復元しますか？</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>「{0}」の現在のファイルをバックアップ「{1}」に置き換えます。そのバックアップ以降の進行状況は失われます。復元が中断した場合は、ゲームでこのセーブを読み込む前にPZ Toolsを起動し直してください。</value></data>
@@ -279,7 +278,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>セーブとバックアップを削除しました。</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>セーブは削除しましたが、バックアップが残っています。</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>削除しました。</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>セーブが変わりました。ゲームを終了して再試行してください。</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>セーブが変わりました。メインメニューに戻って再試行してください。</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>完了しましたが、一覧の更新が遅れることがあります。再実行しないでください。</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>バックアップ</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>復元</value></data>
@@ -325,8 +324,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>ゲームの保存を確認できなかったため、バックアップを停止しました。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>バックアップ前にゲームを保存</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>ゲーム内の保存カウントダウン</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自動バックアップがゲームを保存する 5 秒前からキャラクターの上にカウントダウンを表示し、終わると保存結果を知らせます。アプリから開始したバックアップは表示なしですぐに保存します。オフにすると自動バックアップも表示なしで保存します。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>バックアップの直前にゲームを保存し、最新の進行状況まで含めます。保存中にゲームが 0.5 秒ほど止まることがあります。オフにすると未保存の進行状況がバックアップに含まれないことがあるため、オンのままにすることをおすすめします。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自動バックアップがゲームを保存する 5 秒前からキャラクターの上にカウントダウンを表示し、終わると保存結果を知らせます。オフにすると表示せずに保存します。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>バックアップの直前にゲームを保存し、最新の進行状況まで含めます。保存中にゲームが 0.5 秒ほど止まることがあります。</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>オフ: ゲームが最後に保存された後の進行はバックアップに入りません。オンのままにすることをおすすめします。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>次回のバックアップ：まもなく開始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>次回のバックアップ：作業の完了後</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>キャラクターを回復</value></data>
@@ -351,7 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>記録を停止</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>標準</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>詳細</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>標準: 0.01 秒ごとに計測し、ゲームにはほとんど影響しません。&#xA;詳細: 約 0.002 秒ごとに計測し、待機や一時停止も記録します。ゲームが少し遅くなることがあります。</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>標準: 約 0.01 秒ごとに記録し、ゲームへの負荷はほとんどありません。
+詳細: 0.001～0.0015 秒ごとに記録し、待ちや停止の原因も残します。そのぶんゲームが遅くなります（約 20%）。</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>ゲームを起動してから記録を開始してください。ラグを再現して記録を停止すると、結果が表示されます。</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>ゲームに接続しています…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>記録中 {0} · {1} 分後に自動で停止</value></data>
@@ -365,10 +366,18 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>この記録を削除しますか？ 元に戻すことはできません。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>記録はまだありません。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>記録を開けません。破損しているか、新しいバージョンで作成されたファイルです。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示) · 一覧の項目をクリック: 各バーにその項目の分を濃く表示 (もう一度クリックで解除、表示中はほかの項目にポインターを置くとプレビュー)</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>表示中の内容をテキストでコピー</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>テキストをコピー</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>コピーしました。</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示) · 一覧の項目をクリック: 各バーにその項目の分を濃く表示 (もう一度クリックで解除、表示中はほかの項目にポインターを置くとプレビュー) · 薄いオレンジの背景: GC 稼働中</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>AI 用にコピー</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>AI とのチャットに貼り付けるレポートをコピーするか、ファイルとして保存します: 全体レポート、または下の表の MOD だけの詳細レポート。レポートは英語で書かれます。</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>レポートをコピーしました。AI とのチャットに貼り付けてください。</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>ファイルとして保存</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>レポートを保存しました: {0}</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>全体レポート</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>この範囲のフレーム、メモリ、すべての MOD、Java の概要。ここで何を展開していても同じ内容です。ゲームが重い理由を聞くときに。</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>詳細レポート: {0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>この MOD だけを詳しく: 関数、重い行、呼び出しツリー、割り当て。MOD の作者に送るときや、この MOD について聞くときに。</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>この Java 領域だけを詳しく: メソッドと、それを呼び出した経路。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>ゲームを起動すると記録できます。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ゲームが起動していないため、{0}を開始しませんでした。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ゲームが複数起動しているため、{0}を開始しませんでした。</value></data>
@@ -396,7 +405,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>ゲームがグラフィックカード上に確保しているメモリです。目盛りは表示範囲の最小から最大までです。</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} の割り当て</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>強調した MOD のスクリプトが割り当てたメモリを時点ごとに棒で表示します。最も多い時点がいっぱいの棒です。上の GC の棒の直前にこの棒が集まるなら、この MOD が GC を引き起こしています。</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回、停止 {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>関数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ファイル</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>メソッド</value></data>
@@ -419,11 +428,17 @@
   <data name="ProfileCompare" xml:space="preserve"><value>比較対象</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>比較できるほかの記録がありません</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>スレッド</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 {1} 分を記録として保存します。モード: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>{0} の {1} 行目から呼び出し</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身で実行した行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (呼び出し)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 停止</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 稼働 {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>稼働 {0:P2}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>メモリ待ち {0:N0} 回、最長 {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 停止: メモリ整理のためにゲーム全体が止まった時間です。ゲームの既定である ZGC はほとんど止めません。
+GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です。ゲームと並行して動き CPU を分け合うため、メモリが足りないと 100% に近づき、ゲームが遅くなります。
+メモリ待ち: メモリがいっぱいで、スレッドが整理を待って止まった回数です。</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>クリックでこの行を隠す/表示する</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ショートカット: {0}</value></data>
@@ -471,11 +486,11 @@
   <data name="RollingSetting.Header" xml:space="preserve"><value>直前の数分を記録し続ける</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>オンにすると、ゲームの実行中は常に直前の数分を記録します。標準モードの負荷はほとんどありません。</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>モード</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細はより多くを記録しますが、オンの間はゲームが少し遅くなります (約 10%)。カクつきの原因を調べるときに使ってください。</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細はより多くを記録しますが、オンの間はゲームが遅くなります（約 20%）。カクつきの原因を調べるときに使ってください。</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>長さ (分)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分。長くしてもゲームへの負荷は同じで、ディスクの使用量だけが増えます。</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の 1 分の記録を始めます。</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の 1 分の記録を開始しています…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の {0} 分の記録を始めます。</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の {0} 分の記録を開始しています…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>保存できる直前の記録がありません。今から記録し直します。</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>直前の記録を取り出し</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>比較をやめる</value></data>
@@ -556,6 +571,7 @@
   <data name="RecoveryError.Busy" xml:space="preserve"><value>ゲームか別の処理がこのセーブを使用中です。セーブはそのままです。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>正常に終了されなかったセーブです。ゲームで読み込んでから正常に終了してください。セーブはそのままです。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>回復できるのはシングルプレイのセーブだけです。セーブはそのままです。</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>このセーブには複数のキャラクターがいます。1 人選んで再試行してください。セーブはそのままです。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>このセーブには複数のキャラクターがいます。回復するキャラクターを選んでください。選ばなかったキャラクターは変更されません。</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>キャラクターのゾンビや死体を探しています…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>所持品をどこから取り戻すか選んでください。</value></data>
@@ -574,13 +590,14 @@
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>このセーブは回復できません。PZ Tools を更新してみてください。セーブはそのままです。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>生存時間を読み取れませんでした · 再確認予定</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>ゲームか別の処理がファイルを使用中です。少し待って再試行してください。</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>エクスポート中にセーブが変わりました。ゲームを終了して再試行してください。</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>エクスポート中にセーブが変わりました。メインメニューに戻って再試行してください。</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>破損したバックアップです。別のバックアップを選んでください。セーブはそのままです。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>空き容量が足りません。</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>PZ Tools のファイルが欠けています。ダウンロードした圧縮ファイルを展開し直してください。</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>このバージョンでは開けないバックアップフォルダーです。設定で新しいフォルダーを選んでください。元のフォルダーは削除しないでください。</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>処理が終わってから再試行してください。</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>設定を適用できませんでした。入力した値を確認してください。</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>設定を適用できませんでした。ファイル {0} を確認してください。</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>再起動できませんでした。アプリを閉じて開き直してください。</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>このフォルダーは使えないため、以前の設定に戻しました。</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>フォルダーを変更できませんでした。設定でフォルダーの場所を確認してください。</value></data>
@@ -646,12 +663,13 @@
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>ゲームを再開して車を止め、アクセルを離してクルーズコントロールを解除すると適用されます。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>ゲームのメインメニュー</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>ゲームを読み込み中</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>ゲームがメインメニューに戻っています</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>キャラクター死亡 – バックアップ待機中</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>ゲームに接続できないため、ゲームを保存せずにバックアップします。</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>睡眠状態を読み取れないため、現在は一時停止のみ適用されます。</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ゲームに接続できないため、現在は適用されません。</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>次のバックアップ（ゲーム保存なし）</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>ゲームを保存せずにバックアップします。</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>次のバックアップ（ゲームに未接続）</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>バックアップは時間どおりに続きます。先にゲームを保存できないときは、そのままのファイルをバックアップします。</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>ゲームに接続していません</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>ゲームを再起動してください。</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>互換性と適用状況</value></data>
@@ -714,6 +732,28 @@
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>スクリプト</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua 実行)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>呼び出し元を調べています…</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>このメソッド自体の時間の {0} · 区間の {1}</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>選んだ MOD のスクリプトの実行時間（呼んだ Java 関数を含む）</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>選んだ MOD を除いた残りのスクリプトの実行時間</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>メモリ整理（GC）がゲームと並行して動いていた区間です。ここでフレームが長ければメモリ不足が原因です。クリックで非表示。</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>このファイルはこの PC にありません。別の PC で記録したか、MOD が削除・移動された可能性があります。</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>記録後に変更されたファイルのため、行番号が異なる場合があります</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>開く</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>VS Code で {0} 行目を開く</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>VS Code で開く</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>VS Code で開く (VS Code が見つかりません)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>フォルダーで表示</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>パスをコピー</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>メモリ停止</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 中はフレームが平均 {0:P0} 遅い</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>ほかのプログラムが CPU を平均 {0:P0} 使用中でした</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>記録中、ゲーム以外のプログラムが PC の CPU をこれだけ使っていました。CPU が忙しいと MOD に関係なくゲームが遅くなり、記録結果も普段より遅く出ます。正確に比べたいときは、それらを閉じて記録し直してください。</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>MOD とゲームの Lua スクリプトの実行時間（呼んだ Java 関数を含む）</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>ゲーム自体のコード（Java）の実行時間</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>GC やメモリ待ちでゲームスレッドが止まった時間。ZGC ではほぼ 0 です。メモリ不足の影響はグラフのオレンジの背景を見てください。</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>ゲームスレッドが休んでいた時間。ほとんどは次のフレームまでの余裕です。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>その他のスクリプト</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ゲームの起動オプションが接続をブロックしています。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>ゲームの起動オプションがブロックしているため接続できませんでした。起動オプションを確認してください。</value></data>
@@ -747,4 +787,9 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>ゲーム起動中</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 使用中</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>次回のゲーム起動から反映されます。</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>ゲームは起動スクリプト（.bat）から実行されており、メモリはスクリプトが決めています。この設定はゲームを通常起動したときだけ反映されます。</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>カードのプレビュー (開発ビルド)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>状況を起こさずにサイドバーのカードを表示し、見た目とボタンを確認します。公開ビルドにはありません。</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>表示</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>すべて消去</value></data>
 </root>

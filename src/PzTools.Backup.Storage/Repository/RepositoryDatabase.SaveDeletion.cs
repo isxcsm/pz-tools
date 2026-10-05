@@ -50,7 +50,7 @@ public sealed partial class RepositoryDatabase
     }
 }
 
-/// <summary>세이브 폴더 삭제가 성공했을 때만 백업 삭제 마킹을 확정합니다. 미확정 상태로 해제하면 롤백됩니다.</summary>
+/// <summary>Marks the backups deleted only once the save folder is deleted. Disposed without that, it rolls back.</summary>
 public sealed class PendingSaveRevisionDeletion : IAsyncDisposable
 {
     private readonly SqliteConnection connection;
@@ -65,7 +65,7 @@ public sealed class PendingSaveRevisionDeletion : IAsyncDisposable
 
     public int MarkedRevisions { get; }
 
-    // 원본 삭제 이후에는 취소 요청 때문에 백업 삭제 확정이 생략되지 않게 합니다.
+    // Once the save is gone, a cancel request must not skip marking its backups deleted.
     public Task CommitAsync() => transaction.CommitAsync(CancellationToken.None);
 
     public async ValueTask DisposeAsync()

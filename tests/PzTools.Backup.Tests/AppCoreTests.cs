@@ -13,6 +13,24 @@ namespace PzTools.Backup.Tests;
 [Collection("AppHost integration")]
 public sealed class AppCoreTests
 {
+    // The backup worker's own process-telemetry database is no longer written; old copies are removed, nothing else.
+    [Fact]
+    public void RetiredBackupWorkerTelemetry_IsRemoved_AndOnlyIt()
+    {
+        using var temp = new TempDirectory();
+        var directory = ComponentRuntimePaths.GetComponentDirectory(temp.Path, "backup-worker");
+        Directory.CreateDirectory(directory);
+        foreach (var name in new[] { "telemetry.db", "telemetry.db-wal", "keep.txt" })
+            File.WriteAllText(Path.Combine(directory, name), "x");
+        AppHost.RemoveRetiredBackupWorkerTelemetry(temp.Path);
+        Assert.Equal(["keep.txt"], Directory.EnumerateFiles(directory).Select(Path.GetFileName));
+        File.Delete(Path.Combine(directory, "keep.txt"));
+        File.WriteAllText(Path.Combine(directory, "telemetry.db"), "x");
+        AppHost.RemoveRetiredBackupWorkerTelemetry(temp.Path);
+        Assert.False(Directory.Exists(directory));
+        AppHost.RemoveRetiredBackupWorkerTelemetry(temp.Path); // Nothing there: nothing to do.
+    }
+
     [Fact]
     public void BackupDefaults_UseFiveMinutesAndTwentyRevisions()
     {
@@ -30,6 +48,20 @@ public sealed class AppCoreTests
         Assert.Equal(5, service.Load().BackupIntervalMinutes);
         Assert.Equal(20, service.Load().RetainedRevisions);
     }
+
+    [Theory]
+    [InlineData("ko-KR", PzTools.Process.Contracts.SupportedLanguage.Korean)]
+    [InlineData("en-GB", PzTools.Process.Contracts.SupportedLanguage.English)]
+    [InlineData("de-AT", PzTools.Process.Contracts.SupportedLanguage.German)]
+    [InlineData("es-ES", PzTools.Process.Contracts.SupportedLanguage.Spanish)]
+    [InlineData("es-AR", PzTools.Process.Contracts.SupportedLanguage.SpanishLatinAmerica)]
+    [InlineData("zh-HK", PzTools.Process.Contracts.SupportedLanguage.ChineseTraditional)]
+    [InlineData("zh-Hans-SG", PzTools.Process.Contracts.SupportedLanguage.ChineseSimplified)]
+    [InlineData("pt-PT", PzTools.Process.Contracts.SupportedLanguage.PortugueseBrazil)]
+    // A language the app does not have starts in English, not in any other.
+    [InlineData("nl-NL", PzTools.Process.Contracts.SupportedLanguage.English)]
+    public void FirstStart_IsInWindowsDisplayLanguage_OrEnglish(string windows, PzTools.Process.Contracts.SupportedLanguage expected) =>
+        Assert.Equal(expected, PzTools.Process.Contracts.LanguageCatalog.ForCulture(System.Globalization.CultureInfo.GetCultureInfo(windows)));
 
     [Theory]
     [InlineData(1, 100)]
@@ -79,7 +111,6 @@ public sealed class AppCoreTests
             new SettingsProjector(views).Project(loaded);
             Assert.Equal(enabled, views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot!.GameSaveCountdown);
         }
-        await service.SaveLogOptionsAsync(LogLevel.Warning, 1200);
         Assert.False(service.Load().GameSaveCountdown);
     }
 
@@ -120,9 +151,13 @@ public sealed class AppCoreTests
             changed with { HotKeys = new HotKeySettings(SaveLast: "Ctrl+F9", Record: "Ctrl+F9") }, scheduler));
         await File.AppendAllTextAsync(service.SettingsPath, "");
         var text = (await File.ReadAllTextAsync(service.SettingsPath)).Replace("record = \"\"", "record = \"Ctrl+F9\"");
-        await File.WriteAllTextAsync(service.SettingsPath, text.Replace("rolling_minutes = 3", "rolling_minutes = 99"));
+        await File.WriteAllTextAsync(service.SettingsPath, text);
         var edited = service.Load();
-        Assert.Equal(("Ctrl+F9", "", 10), (edited.Keys.SaveLast, edited.Keys.Record, edited.RollingMinutes));
+        Assert.Equal(("Ctrl+F9", ""), (edited.Keys.SaveLast, edited.Keys.Record));
+        // A number out of range fails loading, as every other number in the file does; it is not clamped.
+        await File.WriteAllTextAsync(service.SettingsPath, text.Replace("rolling_minutes = 3", "rolling_minutes = 99"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => service.Load());
+        await File.WriteAllTextAsync(service.SettingsPath, text);
 
         // The key once set to pause automatic backups for a while is not taken over by the one that turns them off.
         text = (await File.ReadAllTextAsync(service.SettingsPath)).Replace("backup_toggle = \"\"", "backup_pause = \"Ctrl+Alt+P\"");
@@ -162,7 +197,6 @@ public sealed class AppCoreTests
             new SettingsProjector(views).Project(changed);
             Assert.Equal(enabled, views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot!.SaveGameBeforeBackup);
         }
-        await service.SaveLogOptionsAsync(LogLevel.Warning, 1200);
         Assert.False(service.Load().SaveGameBeforeBackup);
     }
 
@@ -180,25 +214,44 @@ public sealed class AppCoreTests
     }
 
     [Fact]
-    public void LogOptions_DefaultToWarningDisplayAndOneHundredThousandStoredRows()
+    public void LogOptions_DefaultToOneThousandWatchedAndOneHundredThousandStoredRows()
     {
         using var temp = new TempDirectory();
         var service = new AppSettingsService(temp.GetPath("runtime"));
 
         var defaults = service.Load();
-        Assert.Equal(LogLevel.Warning, defaults.LogMinimumLevel);
         Assert.Equal(LogLevel.Information, defaults.LogRecordMinimumLevel);
         Assert.Equal(100000, defaults.LogMaxEntries);
         Assert.Equal(1000, defaults.LogDisplayLimit);
-        Assert.Equal(LogLevel.Warning, new LogProjectionOptions().MinimumLevel);
         Assert.Equal(1000, new LogProjectionOptions().DisplayLimit);
 
         Directory.CreateDirectory(service.RuntimeRoot);
         File.WriteAllText(service.SettingsPath, "[ui]\nlanguage = \"Korean\"\n");
         var partial = service.Load();
-        Assert.Equal(LogLevel.Warning, partial.LogMinimumLevel);
         Assert.Equal(100000, partial.LogMaxEntries);
         Assert.Equal(1000, partial.LogDisplayLimit);
+    }
+
+    [Fact]
+    public async Task LogOptions_AnEarlierMinimumLevelStillLoadsAndTheNextSaveDropsIt()
+    {
+        using var temp = new TempDirectory();
+        var service = new AppSettingsService(temp.GetPath("runtime"));
+        var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        Directory.CreateDirectory(service.RuntimeRoot);
+        // What earlier versions wrote; the key was never read by the Logs page.
+        File.WriteAllText(service.SettingsPath, "[logs]\nminimum_level = \"Error\"\ndisplay_limit = 1200\n");
+
+        var loaded = service.Load();
+        Assert.Equal(1200, loaded.LogDisplayLimit);
+        await service.SaveAndApplyAsync(loaded with
+        {
+            SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups"),
+        }, scheduler);
+
+        var text = await File.ReadAllTextAsync(service.SettingsPath);
+        Assert.DoesNotContain("minimum_level", text);
+        Assert.Contains("display_limit = 1200", text);
     }
 
     [Fact]
@@ -223,11 +276,10 @@ public sealed class AppCoreTests
     }
 
     [Fact]
-    public async Task LogOptions_PersistWithoutChangingBackupSettingsOrSchedulerWhileBusy()
+    public async Task AdvancedLogOptions_AreReadFromTheAppConfigurationAndKeptWithoutSchedulerChanges()
     {
         using var temp = new TempDirectory();
-        var busy = false;
-        var service = new AppSettingsService(temp.GetPath("runtime"), () => busy);
+        var service = new AppSettingsService(temp.GetPath("runtime"));
         var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
         var original = AppSettings.CreateDefault() with
         {
@@ -242,20 +294,7 @@ public sealed class AppCoreTests
         };
         await service.SaveAndApplyAsync(original, scheduler);
         var before = await scheduler.ReadBackupStateIfChangedAsync(-1);
-        var configFiles = Directory.EnumerateFiles(temp.Path, "*.toml", SearchOption.AllDirectories)
-            .Where(path => path != service.SettingsPath)
-            .ToDictionary(path => path, File.ReadAllText);
-        busy = true;
-
-        await service.SaveLogOptionsAsync(LogLevel.Warning, 1200);
-
-        Assert.Equal(original with { LogMinimumLevel = LogLevel.Warning, LogDisplayLimit = 1200 }, service.Load());
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            service.SaveLogOptionsAsync(LogLevel.Trace, 1200));
-        Assert.Equal(before, await scheduler.ReadBackupStateIfChangedAsync(-1));
-        foreach (var (path, text) in configFiles) Assert.Equal(text, await File.ReadAllTextAsync(path));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.SaveLogOptionsAsync(LogLevel.Error, 99));
-        Assert.Equal(1200, service.Load().LogDisplayLimit);
+        Assert.Throws<ArgumentOutOfRangeException>(() => (original with { LogDisplayLimit = 99 }).Validate());
 
         var logging = await File.ReadAllTextAsync(service.LoggingConfigurationPath);
         await File.WriteAllTextAsync(service.LoggingConfigurationPath,
@@ -288,7 +327,6 @@ public sealed class AppCoreTests
             AutomaticBackupEnabled = false,
             RetainedRevisions = 42,
             BackupOnDeath = true,
-            LogMinimumLevel = LogLevel.Warning,
             LogDisplayLimit = 1200,
             UseSystemTray = true,
             VerifyStagedCopies = false,
@@ -346,7 +384,6 @@ public sealed class AppCoreTests
         Assert.Empty(Directory.GetFiles(runtime, "*.tmp", SearchOption.TopDirectoryOnly));
         var settingsText = await File.ReadAllTextAsync(service.SettingsPath);
         Assert.Contains("[logs]", settingsText);
-        Assert.Contains("minimum_level = \"Warning\"", settingsText);
         Assert.Contains("display_limit = 1200", settingsText);
         Assert.Contains("system_tray = true", settingsText);
         Assert.DoesNotContain("verify_staged_copies", settingsText);
@@ -549,6 +586,31 @@ public sealed class AppCoreTests
         Assert.Equal(changed, service.Load());
     }
 
+    // The backup worker's file is checked only by reading it as a backup would: a mistake there names the file too.
+    [Fact]
+    public async Task Settings_CheckNamesTheBackupWorkerFileItFoundWrong()
+    {
+        using var temp = new TempDirectory();
+        var scheduler = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var service = new AppSettingsService(temp.GetPath("runtime"));
+        var settings = AppSettings.CreateDefault() with { SavesRoot = temp.GetPath("saves"), BackupRoot = temp.GetPath("backups") };
+        await service.SaveAndApplyAsync(settings, scheduler);
+        var backupConfig = ComponentRuntimePaths.GetIdentityDefaultPath(settings.BackupRoot, "backup-worker", service.ConfigurationRoot);
+        var template = await File.ReadAllTextAsync(backupConfig);
+        Assert.Contains("full_scan_hash_comparison = true", template);
+        await File.WriteAllTextAsync(backupConfig, template.Replace("full_scan_hash_comparison = true", "full_scan_hash_comparison = 'yes'"));
+
+        var failure = Assert.Throws<InvalidDataException>(service.ValidateEditableConfiguration);
+        Assert.Equal(Path.Combine("backup-worker", "default.toml"), UserFacingErrorCatalog.InvalidSettingsFile(failure, service.ConfigurationRoot));
+        Assert.Equal("OperationError.Configuration", UserFacingErrorCatalog.FromConfigurationError(failure));
+
+        // The app's [logs], which loading the settings also reads: named as the app's file, not left unnamed.
+        await File.WriteAllTextAsync(backupConfig, template);
+        await File.WriteAllTextAsync(service.LoggingConfigurationPath, "[logs]\nmax_entries = 5\n");
+        failure = Assert.Throws<InvalidDataException>(service.ValidateEditableConfiguration);
+        Assert.Equal(Path.Combine("app", "default.toml"), UserFacingErrorCatalog.InvalidSettingsFile(failure, service.ConfigurationRoot));
+    }
+
     [Fact]
     public async Task Settings_ResetRestoresDefaultsAndArchivesEditedToml()
     {
@@ -706,6 +768,64 @@ public sealed class AppCoreTests
         var log = Assert.Single((await inbox.ReadPageAsync(new(LogLevel.Warning, "Backup", "", 0))).Entries);
         Assert.Equal(result.RunIndex, log.RunIndex);
         Assert.Equal("launch-failed", LogDiagnostics.Parse(log.PayloadJson)?.FailureCode);
+    }
+
+    // Seen in a test of the app: a manual backup running when the app closed was found Abandoned at the next start,
+    // as the app's process ended first and Windows ended its worker with it.
+    [Fact]
+    public async Task ClosingTheApp_StopsAManualBackupAndRecordsItCancelled_BeforeItReturns()
+    {
+        using var temp = new TempDirectory();
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repository"));
+        var launcher = new WaitingLauncher();
+        var coordinator = new OperationCoordinator(repository, temp.Path, BackupTelemetry(repository), launcher,
+            new RunIndexAllocator(temp.GetPath("control.db")), temp.GetPath("operations"));
+        var backup = coordinator.BackupAsync("Sandbox/Save", temp.GetPath("source"), operationId: "local-backup:closing");
+        while (launcher.Executables.Count == 0) await Task.Delay(10);
+
+        await coordinator.StopAsync(TimeSpan.FromSeconds(10));
+
+        Assert.True(backup.IsCompleted);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => backup);
+        Assert.Equal(1, launcher.Cancelled);
+        Assert.Equal(WorkflowStatus.Cancelled, (await repository.TryReadWorkflowByAdmissionAsync("local-backup:closing", default))!.Status);
+        // Nothing starts once the app is closing.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            coordinator.BackupAsync("Sandbox/Save", temp.GetPath("source")));
+        Assert.Single(launcher.Executables);
+    }
+
+    // Seen in the app: a settings file refused on apply left only "check backup-worker\default.toml" in the log, not
+    // what in it was wrong.
+    [Fact]
+    public async Task AFailedAction_KeepsItsCauseAndTheSettingsFileInTheLog()
+    {
+        using var temp = new TempDirectory();
+        var paths = await PrepareHostPathsAsync(temp);
+        await using var host = new AppHost(paths, new WaitingLauncher());
+        await host.StartAsync();
+        var file = Path.Combine(host.Settings.ConfigurationRoot, "backup-worker", "default.toml");
+        var cause = new InvalidOperationException("Settings could not be applied.",
+            new InvalidDataException($"settings-invalid: {file}",
+                new InvalidDataException("capture.verify_staged_copies must be a boolean.")));
+        host.RecordActionIssue("Settings files", "Check backup-worker\\default.toml.", failed: true, cause: cause);
+
+        string? payload = null;
+        for (var attempt = 0; attempt < 100 && payload is null; attempt++)
+        {
+            await Task.Delay(50);
+            await using var connection = new Microsoft.Data.Sqlite.SqliteConnection(
+                $"Data Source={Path.Combine(paths.RuntimeRoot, "logs.db")};Mode=ReadOnly;Pooling=False");
+            await connection.OpenAsync();
+            var query = connection.CreateCommand();
+            query.CommandText = "SELECT payload_json FROM log_entries WHERE event_name='app.action.failed';";
+            payload = await query.ExecuteScalarAsync() as string;
+        }
+        var diagnostics = LogDiagnostics.Parse(payload)!;
+        // The card's words stay the message; what went wrong, word for word, and the file are the details.
+        Assert.Equal("Check backup-worker\\default.toml.", diagnostics.Message);
+        Assert.Equal("capture.verify_staged_copies must be a boolean.", diagnostics.Reason);
+        Assert.Equal(Path.Combine("backup-worker", "default.toml"), diagnostics.Path);
     }
 
     [Fact]
@@ -1080,8 +1200,10 @@ public sealed class AppCoreTests
 
         await host.StartAsync();
 
-        Assert.Equal(14, Directory.GetFiles(host.Settings.ConfigurationRoot,
+        // Thirteen components, the app's own file, and the vehicle extension's tuning.
+        Assert.Equal(15, Directory.GetFiles(host.Settings.ConfigurationRoot,
             "default.toml", SearchOption.AllDirectories).Length);
+        Assert.True(File.Exists(PzTools.GameExtensions.VehicleDrivetrainConfiguration.OverridePath(paths.RuntimeRoot)));
         var backupConfig = await File.ReadAllTextAsync(
             ComponentRuntimePaths.GetIdentityDefaultPath(
                 temp.GetPath("backups"), "backup-worker", host.Settings.ConfigurationRoot));

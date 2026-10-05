@@ -6,7 +6,7 @@ import java.lang.instrument.Instrumentation;
 public interface SaveModules {
     record Resolution(SaveProvider provider, String reason) { }
     Resolution resolve(String id, Instrumentation instrumentation, ClassLoader gameClasses, String gameVersion, boolean forceVersion);
-    /** Called between save sessions; existing WATCH subscriptions need not stop for module updates. */
+    /** The app moved: same runtime bytes, new folder. Modules whose bytes match keep running; WATCH is untouched. */
     void relocate(java.nio.file.Path directory) throws Exception;
     void close() throws Exception;
     SaveTask begin(SaveProvider provider, SaveProvider.Context context) throws Exception;

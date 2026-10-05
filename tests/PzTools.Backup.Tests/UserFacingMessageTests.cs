@@ -35,7 +35,7 @@ public sealed class UserFacingMessageTests
     [InlineData("recovery-inventory-unavailable: missing candidate", "RecoveryError.Inventory")]
     [InlineData("recovery-save-busy: in use", "RecoveryError.Busy")]
     [InlineData("recovery-pending-journal: pending changes", "RecoveryError.Journal")]
-    [InlineData("recovery-ambiguous-character: two characters", "RecoveryError.Ambiguous")]
+    [InlineData("recovery-ambiguous-character: two characters", "RecoveryError.CharacterNotChosen")]
     [InlineData("recovery-character-missing", "RecoveryError.CharacterChanged")]
     [InlineData("recovery-remains-changed", "RecoveryError.RemainsChanged")]
     [InlineData("recovery-singleplayer-only", "RecoveryError.Ambiguous")]
@@ -125,8 +125,6 @@ public sealed class UserFacingMessageTests
         Assert.Equal("OperationError.FileMissing", UserFacingErrorCatalog.FromException(new DirectoryNotFoundException("없음")));
         Assert.Equal("OperationCancelled", UserFacingErrorCatalog.FromArchiveError(new OperationCanceledException()));
         Assert.Equal("InvalidArchiveFormat", UserFacingErrorCatalog.FromArchiveError(new InvalidDataException("Invalid header")));
-        Assert.Equal("UnsafeArchiveCompression", UserFacingErrorCatalog.FromArchiveError(
-            new InvalidDataException("archive-unsafe-ratio: Archive entry 'map_1_1.bin' has an unsafe compression ratio.")));
         Assert.Equal(UserFacingErrorCatalog.Generic, UserFacingErrorCatalog.FromArchiveError(new IOException("Unknown read failure")));
     }
 
@@ -143,6 +141,25 @@ public sealed class UserFacingMessageTests
             new DirectoryNotFoundException("workers-missing: The configured worker directory is incomplete: private path")));
     }
 
+    // A settings check names the file it found wrong, as the configuration folder shows it, wherever the failure
+    // was wrapped on the way out; a full path, or none, is not shown.
+    [Fact]
+    public void SettingsCheckFailures_NameOnlyAFileInsideTheConfigurationFolder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "pz-tools-config");
+        var file = Path.Combine(root, "backup-worker", "default.toml");
+        var wrapped = new InvalidOperationException("Could not apply the settings.",
+            new InvalidDataException($"settings-invalid: {file}", new InvalidDataException("capture.full_scan_hash_comparison must be a boolean.")));
+        Assert.Equal(Path.Combine("backup-worker", "default.toml"), UserFacingErrorCatalog.InvalidSettingsFile(wrapped, root));
+        Assert.Equal("OperationError.Configuration", UserFacingErrorCatalog.FromConfigurationError(wrapped));
+
+        Assert.Null(UserFacingErrorCatalog.InvalidSettingsFile(wrapped, null));
+        Assert.Null(UserFacingErrorCatalog.InvalidSettingsFile(
+            new InvalidDataException($"settings-invalid: {Path.Combine(Path.GetTempPath(), "settings.toml")}"), root));
+        Assert.Null(UserFacingErrorCatalog.InvalidSettingsFile(new InvalidDataException("settings-invalid: default.toml"), root));
+        Assert.Null(UserFacingErrorCatalog.InvalidSettingsFile(new InvalidDataException("ui.language value is invalid"), root));
+    }
+
     [Theory]
     [MemberData(nameof(Languages))]
     public void EveryNewMessageExists_FormatsAndKeepsBackupDistinctFromGameSave(string tag)
@@ -152,11 +169,12 @@ public sealed class UserFacingMessageTests
         foreach (var key in new[] { "OperationError.FileInUse", "OperationError.DiskFull", "OperationError.WorkersMissing",
             "OperationError.RepositoryIncompatible", "OperationError.SettingsBusy", "OperationError.Configuration",
             "OperationError.RestartFailed", "OperationError.SettingsReverted", "OperationError.SettingsRecoveryFailed",
-            "SettingEnabled", "SettingDisabled", "LogPhase.deduplication" })
+            "SettingEnabled", "SettingDisabled", "LogPhase.deduplication", "RecoveryError.CharacterNotChosen" })
         {
             Assert.False(string.IsNullOrWhiteSpace(resources[key]), $"{tag}/{key}");
             Assert.Equal(0, CompositeFormat.Parse(resources[key]).MinimumArgumentCount);
         }
+        Assert.Contains("FILE_MARKER", string.Format(CultureInfo.GetCultureInfo(tag), resources["OperationError.ConfigurationFileFormat"], "FILE_MARKER"));
         Assert.NotEqual(resources["SettingEnabled"], resources["SettingDisabled"]);
         Assert.Equal(language.AutomaticBackupName, resources["AutomaticSaveLabel"]);
         Assert.NotEqual(language.SaveCompleted, language.AutomaticBackupName);

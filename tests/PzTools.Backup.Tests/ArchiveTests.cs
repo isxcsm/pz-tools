@@ -12,6 +12,23 @@ namespace PzTools.Backup.Tests;
 public sealed class ArchiveTests
 {
     [Fact]
+    public void EntryTimes_AreReadInTheExportingPcsZone_EachDateWithItsOwnDaylightSaving()
+    {
+        // Exported in Seoul, imported anywhere: 13:00 there is 04:00 UTC, not 13:00 in the importing PC's zone.
+        var seoul = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
+        Assert.Equal(new DateTime(2026, 10, 5, 4, 0, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 10, 5, 13, 0, 0), seoul));
+        // In a zone with daylight saving, summer and winter files are each an hour apart as their clocks were.
+        var berlin = TimeZoneInfo.FindSystemTimeZoneById("W. Europe Standard Time");
+        Assert.Equal(new DateTime(2026, 7, 1, 10, 0, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 7, 1, 12, 0, 0), berlin));
+        Assert.Equal(new DateTime(2026, 1, 1, 11, 0, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 1, 1, 12, 0, 0), berlin));
+        // A clock time the spring change skipped is read as the hour after it.
+        Assert.Equal(new DateTime(2026, 3, 29, 1, 30, 0, DateTimeKind.Utc),
+            ZomboidArchiveService.EntryTimeUtc(new DateTime(2026, 3, 29, 2, 30, 0), berlin));
+    }
+    [Fact]
     public async Task LiveExportAndImport_ReportBytesWithinOneLargeFile()
     {
         using var temp = new TempDirectory();
@@ -37,6 +54,32 @@ public sealed class ArchiveTests
             Assert.Equal(1, updates[^1].CompletedItems);
         }
         Assert.Equal(content, await File.ReadAllBytesAsync(Path.Combine(imported.DestinationPath, "players.db")));
+    }
+
+    [Fact]
+    public async Task ExportAndImport_KeepTheSavesFileTimes()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(Path.Combine(source, "map"));
+        var players = Path.Combine(source, "players.db");
+        var chunk = Path.Combine(source, "map", "1.bin");
+        await File.WriteAllTextAsync(players, "player");
+        await File.WriteAllTextAsync(chunk, "chunk");
+        // Odd seconds: a zip keeps file times to two seconds, the manifest the last play exactly.
+        var played = new DateTime(2026, 9, 30, 21, 15, 7, 123, DateTimeKind.Utc);
+        var written = new DateTime(2026, 9, 29, 8, 0, 3, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(players, played);
+        File.SetLastWriteTimeUtc(chunk, written);
+        var service = new ZomboidArchiveService();
+        await service.ExportLiveAsync(source, "Sandbox/Current", temp.GetPath("save.zip"));
+
+        var imported = await service.ImportAsync(temp.GetPath("save.zip"), temp.GetPath("Imported"));
+
+        // The save says when it was last played, not when it was unpacked.
+        Assert.Equal(played, File.GetLastWriteTimeUtc(Path.Combine(imported.DestinationPath, "players.db")));
+        Assert.InRange(File.GetLastWriteTimeUtc(Path.Combine(imported.DestinationPath, "map", "1.bin")),
+            written.AddSeconds(-2), written.AddSeconds(2));
     }
 
     [Fact]
@@ -227,15 +270,12 @@ public sealed class ArchiveTests
         var progress = new List<ArchiveProgress>();
         await service.ExportAsync(repository, sourceRow.SourceId, backup.Revision!.Value, archivePath,
             (value, _) => { progress.Add(value); return Task.CompletedTask; });
+        // Why archives have no compression-ratio limit: an ordinary save file passes any useful one.
         using (var zip = ZipFile.OpenRead(archivePath))
         {
             var entry = zip.GetEntry("Sandbox/MySave/map_visited.bin")!;
             Assert.True((double)entry.Length / entry.CompressedLength > 1000);
         }
-        await Assert.ThrowsAsync<InvalidDataException>(() => service.InspectAsync(
-            archivePath, safetyOptions: new ArchiveSafetyOptions(
-                MaximumCompressionRatio: 1000,
-                CompressionRatioMinimumBytes: 1024 * 1024)));
         var inspection = await service.InspectAsync(archivePath);
         var savesRoot = temp.GetPath("Saves");
         Directory.CreateDirectory(Path.Combine(savesRoot, "Sandbox", "MySave"));
@@ -414,6 +454,110 @@ public sealed class ArchiveTests
         await Assert.ThrowsAsync<InvalidDataException>(() => service.InspectAsync(
             path,
             safetyOptions: new ArchiveSafetyOptions(MaximumSingleFileBytes: 1)));
+    }
+
+    [Fact]
+    public async Task Import_RemovesOnlyItsOwnAbandonedStaging()
+    {
+        using var temp = new TempDirectory();
+        var archive = await CreateLiveArchiveAsync(temp, "Sandbox/MySave");
+        var savesRoot = temp.GetPath("Saves");
+        var abandoned = Path.Combine(savesRoot, $".pztools-import-{Guid.NewGuid():N}");
+        var lookalike = Path.Combine(savesRoot, ".pztools-import-ordinary-save");
+        Directory.CreateDirectory(abandoned);
+        Directory.CreateDirectory(lookalike);
+        await File.WriteAllTextAsync(Path.Combine(lookalike, "players.db"), "keep");
+
+        await new ZomboidArchiveService().ImportAsync(archive, savesRoot);
+
+        Assert.False(Directory.Exists(abandoned));
+        Assert.Equal("keep", await File.ReadAllTextAsync(Path.Combine(lookalike, "players.db")));
+    }
+
+    [Fact]
+    public async Task Import_RefusedForSpace_LeavesTheSavesFolderAsItWas()
+    {
+        using var temp = new TempDirectory();
+        var archive = await CreateLiveArchiveAsync(temp, "Sandbox/MySave");
+        var savesRoot = temp.GetPath("Saves");
+
+        await Assert.ThrowsAsync<IOException>(() => new ZomboidArchiveService().ImportAsync(archive, savesRoot,
+            safetyOptions: new ArchiveSafetyOptions(MinimumFreeSpaceReserveBytes: long.MaxValue / 2)));
+
+        // Neither the saves folder nor the mode folder was created for an import that never started.
+        Assert.False(Directory.Exists(savesRoot));
+    }
+
+    [Fact]
+    public async Task Import_DoesNotTakeTheNameOfASaveARestoreHasMovedAside()
+    {
+        using var temp = new TempDirectory();
+        var archive = await CreateLiveArchiveAsync(temp, "Sandbox/MySave");
+        var mode = temp.GetPath("Saves", "Sandbox");
+        Directory.CreateDirectory(Path.Combine(mode, $".MySave.pztools-rollback-{Guid.NewGuid():N}"));
+        await File.WriteAllTextAsync(Path.Combine(mode, ".MySave.pztools-restore.json"), "{}");
+
+        var imported = await new ZomboidArchiveService().ImportAsync(archive, temp.GetPath("Saves"));
+
+        // Recovery puts the original back under its own name, which must still be free then.
+        Assert.Equal("MySave(1)", imported.SaveName);
+    }
+
+    [Fact]
+    public async Task Import_DoesNotTakeANameWhileSomethingHoldsThatSavesLock()
+    {
+        using var temp = new TempDirectory();
+        var archive = await CreateLiveArchiveAsync(temp, "Sandbox/MySave");
+        var savesRoot = temp.GetPath("Saves");
+        // A restore of a save that is not there yet holds its lock from before it writes anything.
+        var restoring = Path.Combine(savesRoot, "Sandbox", "MySave");
+
+        var held = await PzTools.Process.Hosting.OperationMutexSet.TryRunAsync(
+            [new(PzTools.Process.Hosting.OperationMutexScope.SaveWrite, restoring)],
+            _ => new ZomboidArchiveService().ImportAsync(archive, savesRoot));
+
+        Assert.True(held.Acquired);
+        Assert.Equal("MySave(1)", held.Value!.SaveName);
+        Assert.False(Directory.Exists(restoring));
+    }
+
+    [Fact]
+    public async Task Export_DeletesWhatAKilledExportLeft_ButNotARunningExportsFile()
+    {
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "players.db"), "player");
+        var folder = temp.GetPath("exports");
+        Directory.CreateDirectory(folder);
+        string Leftover(string name) { var path = Path.Combine(folder, name); File.WriteAllText(path, "partial"); return path; }
+        var killed = Leftover($"other.zip.pztools-export-{Guid.NewGuid():N}.tmp");
+        var running = Leftover($"another.zip.pztools-export-{Guid.NewGuid():N}.tmp");
+        var olderVersion = Leftover($"save.zip.{Guid.NewGuid():N}.tmp");
+        var olderVersionOfAnotherFile = Leftover($"other.zip.{Guid.NewGuid():N}.tmp");
+        var notOurs = Leftover("notes.pztools-export-draft.tmp");
+        // A running export keeps this name open for as long as its file exists.
+        using var owner = new Mutex(false,
+            PzTools.Process.Hosting.NamedMutexRunner.CreateName("ArchiveExport", running));
+
+        await new ZomboidArchiveService().ExportLiveAsync(source, "Sandbox/Current", Path.Combine(folder, "save.zip"));
+
+        Assert.False(File.Exists(killed));
+        Assert.False(File.Exists(olderVersion));
+        Assert.True(File.Exists(running));
+        Assert.True(File.Exists(olderVersionOfAnotherFile));
+        Assert.True(File.Exists(notOurs));
+        Assert.True(File.Exists(Path.Combine(folder, "save.zip")));
+    }
+
+    private static async Task<string> CreateLiveArchiveAsync(TempDirectory temp, string saveId)
+    {
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "players.db"), "player");
+        var archive = temp.GetPath("save.zip");
+        await new ZomboidArchiveService().ExportLiveAsync(source, saveId, archive);
+        return archive;
     }
 
     private sealed class NoJournal : PzTools.Backup.ChangeTracking.Windows.IUsnJournalSource

@@ -11,19 +11,14 @@ from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
-import re
 import sqlite3
-import subprocess
 import tempfile
 import time
 
-ROOT=Path(__file__).resolve().parents[1]
-SCHEMA_PATH='src/PzTools.Backup.Storage/Repository/RepositorySchema.cs'
+from repository_sql import add_run,schema,source
+
 NOW='2026-09-25T00:00:00+00:00'
 TICKS=639258912000000000
-
-def schema(source):
-    return re.findall(r'"""\s*\n(.*?)\n\s*"""',source.split('internal static class RepositoryMigrationRunner')[0],re.S)[0]
 
 def seed(db,sql,files,revisions,normalized):
     db.execute('PRAGMA page_size=4096');db.execute('PRAGMA foreign_keys=ON');db.executescript(sql)
@@ -32,7 +27,7 @@ def seed(db,sql,files,revisions,normalized):
     pack=(1).to_bytes(16,'little');obj=(2).to_bytes(16,'little')
     names=[f'map/world/region_{i%16:02d}/chunk_{i:06d}.bin' for i in range(files)]
     for rev in range(1,revisions+1):
-        db.execute("INSERT INTO runs VALUES(?,1,'Succeeded',?,?,NULL)",(rev,NOW,NOW))
+        add_run(db,rev,1,NOW,NOW)
         db.execute('INSERT INTO revisions(source_id,revision,run_index,created_utc,logical_size,file_count) VALUES(1,?,?,?,?,?)',
                    (rev,rev,NOW,files*128,files))
         if rev==1:
@@ -71,8 +66,8 @@ def main():
     parser.add_argument('--histories',type=int,nargs='+',default=[1,5,20])
     args=parser.parse_args()
     if not 1<=args.files<=100000 or any(not 1<=r<=100 for r in args.histories):parser.error('Fixture size out of bounds')
-    before=schema(subprocess.check_output(['git','show',args.baseline_ref+':'+SCHEMA_PATH],cwd=ROOT,text=True))
-    after=schema((ROOT/SCHEMA_PATH).read_text())
+    before=schema(source('RepositorySchema.cs',args.baseline_ref))
+    after=schema(source('RepositorySchema.cs'))
     output={'sqlite_version':sqlite3.sqlite_version,'files':args.files,'schema_sha256':{
         'before':hashlib.sha256(before.encode()).hexdigest(),'after':hashlib.sha256(after.encode()).hexdigest()},'profiles':[]}
     with tempfile.TemporaryDirectory(prefix='pz-path-layout-') as temp:

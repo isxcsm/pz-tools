@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Current save</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Save folder</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Copying current save</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Cannot export while playing. Quit the game.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Cannot export while playing. Quit to the main menu.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Backups cannot be restored while playing. Stop playing and try again.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Select a backup in the list to restore it</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>The save cannot be deleted while playing. Stop playing and try again.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Cannot heal while playing. Quit the game.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Cannot heal while playing. Quit to the main menu.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>No backups yet</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Back up now</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Restore</value></data>
@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>Browse</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>Backup</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>Automatic backups</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Backs up the save you are playing at the set interval. Manual backups still work when this is off.</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>Backs up the save you are playing at the set interval. When your character dies it stops until you start a new character. Manual backups still work when this is off.</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Backup interval</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Time between automatic backups (1–60 minutes). Changing it restarts the count.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Automatic backups to keep</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Keeps this many of the most recent automatic backups and deletes older ones (1–100). Manual backups are not counted and are never deleted.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Keeps this many of the most recent automatic backups and deletes older ones (1–100). Manual backups are not counted; they are deleted only with their save.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Back up when the character dies</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>When your character dies, automatic backups stop so the backups made while alive are not pushed out. Turn this on to keep one backup of the moment of death.</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>When on, makes one backup right after your character dies.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save kept changing, so it was not backed up. Try again in a moment.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Next backup: waiting</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>System</value></data>
@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Import archive</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>This file cannot be imported. Check that PZ Tools exported it.</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>Not imported: the archive is unsafe.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manual backup</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restore the selected backup?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Replace the current files for ‘{0}’ with backup ‘{1}’. Progress made after that backup will be lost. If restoring is interrupted, reopen PZ Tools before loading this save in the game.</value></data>
@@ -286,7 +285,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Deleted the save and its backups.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>The save was deleted, but its backups remain.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Deleted.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>The save changed. Quit the game and try again.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>The save changed. Quit to the main menu and try again.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Done, but the list may update late. Do not run it again.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Backup</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Restore</value></data>
@@ -332,8 +331,9 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>Backup stopped because the game save could not be confirmed.</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>Save game before backup</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>In-game save countdown</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Before an automatic backup saves the game, shows a countdown above your character from 5 seconds before, then the result. Backups you start in the app save at once, without it. When off, automatic backups also save without it.</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Saves the game right before a backup so it includes your latest progress. The game may hitch for about half a second while saving. When off, progress not yet saved can be missing from the backup, so leaving this on is recommended.</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>Before an automatic backup saves the game, shows a countdown above your character from 5 seconds before, then the result. When off, it saves without it.</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>Saves the game right before a backup so it includes your latest progress. The game may hitch for about half a second while saving.</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>Off: progress since the game last saved is left out of backups. Leaving this on is recommended.</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>Next backup: starting soon</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>Next backup: after the current work</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>Heal character</value></data>
@@ -394,10 +394,18 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileThreadGame" xml:space="preserve"><value>Game thread</value></data>
   <data name="ProfileZoomSelection" xml:space="preserve"><value>Zoom to selection</value></data>
   <data name="ProfileZoomAll" xml:space="preserve"><value>Show all</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover) · Click an owner in the list: its part of each bar (again to stop; while one is drawn, point at another to preview it)</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Copy what is shown as text</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>Copy text</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Copied.</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover) · Click an owner in the list: its part of each bar (again to stop; while one is drawn, point at another to preview it) · Light orange background: while GC ran</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>Copy for AI</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copies a report to paste into an AI chat, or saves it as a file: the whole report, or a detailed one on the mod in the table below only. Reports are written in English.</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>Report copied. Paste it into an AI chat.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Save as a file</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Report saved: {0}</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>Whole report</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>Frames, memory, every mod and a Java summary for this range; the same whatever is open here. For asking why the game is slow.</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Detailed report: {0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>This mod alone in full: its functions, heaviest lines, call tree and allocations. For the mod&apos;s author, or for asking about this mod.</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>This Java area alone in full: its methods and where they were called from.</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Start the game to record.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} did not start because the game is not running.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} did not start because more than one game is running.</value></data>
@@ -425,7 +433,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memory the game holds on the graphics card. The scale runs from the lowest to the highest reading in view.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} allocated</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>The memory the highlighted mod's scripts allocated, one bar per moment, against the most in one of them. Garbage that piles up just before the collections above points at this mod.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} times, paused {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} times</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Function</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Method</value></data>
@@ -448,11 +456,17 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileCompare" xml:space="preserve"><value>Compare with</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>No other recording to compare with</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last minute, and it is saved as a recording. Mode: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last {1} min, and it is saved as a recording. Mode: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Called from line {1} of {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Lines it ran itself · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (call)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC pause</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC working {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>working {0:P2}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Waited for memory {0:N0} times, longest {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC pause: time the whole game stopped for garbage collection. ZGC, the game&apos;s default, hardly ever stops it.
+GC working: the share of the range the collector was running. It runs beside the game and shares its CPU, so with memory short it nears 100% and the game slows down.
+Waited for memory: how many times a thread stopped until memory was freed, because memory was full.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Click to hide or show this row</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Hotkey: {0}</value></data>
@@ -467,7 +481,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileRename" xml:space="preserve"><value>Rename</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 to 10 minutes. A longer one costs the game the same, only more disk.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Length (minutes)</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detailed shows more but slows the game a little (about 10%) for as long as it is on. Use it while hunting a stutter.</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detailed shows more but slows the game for as long as it is on (about 20%). Use it while hunting a stutter.</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>Mode</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>While on, the game keeps its last few minutes whenever it runs. Standard mode costs almost nothing.</value></data>
   <data name="RollingSetting.Header" xml:space="preserve"><value>Keep the last minutes</value></data>
@@ -503,10 +517,10 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Save last minutes</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>They work in the game too. While PZ Tools runs, the keys set here are taken from all other programs. Each answers with a sound and a note over your character's head.</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Hotkeys</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last minute once the game is running.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last minute…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last {0} min once the game is running.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last {0} min…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>No last minutes to save. Recording again from now.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Taking the last minute</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Taking the last minutes</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Stop comparing</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Compared with all of {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Compared with {0}</value></data>
@@ -546,7 +560,8 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Recording {0} · stops automatically after {1} minutes</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Connecting to the game…</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Start the game, then start recording. Reproduce the lag and stop recording to see the result.</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: takes a reading every 0.01 seconds with almost no effect on the game.&#xA;Detailed: takes a reading about every 0.002 seconds and also records waits and pauses. The game may run slightly slower.</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: takes a reading about every 0.01 seconds with almost no effect on the game.
+Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits and pauses. The game runs slower for it (about 20%).</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detailed</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileRecordStop" xml:space="preserve"><value>Stop recording</value></data>
@@ -555,6 +570,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="RecoveryError.Busy" xml:space="preserve"><value>The game or other work is using this save. The save is unchanged.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>The game did not close this save properly. Load it in the game and quit normally. The save is unchanged.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Only single-player saves can be healed. The save is unchanged.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>This save has several characters. Choose one and try again. The save is unchanged.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>This save has several characters. Choose the one to recover; the others are not changed.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Looking for the character's zombie or corpse…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Choose where to take the belongings back from.</value></data>
@@ -573,13 +589,14 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>This save cannot be healed. Try updating PZ Tools. The save is unchanged.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Survival time unavailable · checking again</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>The game or other work is using the file. Try again in a moment.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>The save changed while exporting. Quit the game and try again.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>The save changed while exporting. Quit to the main menu and try again.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>This backup is damaged. Choose another backup. The save is unchanged.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Not enough disk space.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Some PZ Tools files are missing. Extract the downloaded package again.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>This version cannot open this backup folder. Choose a new folder in the settings. Do not delete the old one.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Try again when the current work is done.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Could not apply the settings. Check what you entered.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Could not apply the settings. Check {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Could not restart. Close and reopen the app.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>This folder cannot be used, so the previous settings are back.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Could not change the folder. Check the folders in the settings.</value></data>
@@ -645,12 +662,13 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Game at main menu</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Game is loading</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Game is returning to main menu</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Character dead – backups waiting</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Could not connect to the game; backing up without saving it first.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Sleep cannot be read right now, so only pausing applies.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Not applied right now because the game cannot be reached.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Next backup (without game save)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Backups run without saving the game.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Next backup (game not connected)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Backups continue on a timer. If the game cannot save first, the files are backed up as they are.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Not connected to the game</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Restart the game.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibility and status</value></data>
@@ -713,6 +731,28 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua running)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>Finding callers…</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} of this method&apos;s own time · {1} of the range</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Time the chosen mod&apos;s scripts ran (Java functions they called included)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Time the other scripts ran, the chosen mod&apos;s left out</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>Where the garbage collector ran beside the game. Longer frames here mean memory is running short. Press to hide.</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>This file is not on this PC. The recording may come from another PC, or the mod was removed or moved.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Changed since the recording: its line numbers may differ</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Open</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Open line {0} in VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Open in VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Open in VS Code (VS Code not found)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Show in folder</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Copy path</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Memory stop</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>frames {0:P0} slower while GC ran</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Other programs used {0:P0} of the CPU on average</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>While it recorded, programs other than the game used this much of the PC&apos;s CPU. A busy CPU slows the game whatever its mods, and the recording reads slower than usual. For a fair comparison, close them and record again.</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Time Lua scripts of mods and the game ran (Java functions they called included)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Time the game&apos;s own code (Java) ran</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Time the game thread stopped for GC or memory. Near zero with ZGC; for running short of memory, see the graph&apos;s orange background.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Time the game thread rested, mostly the time left before the next frame.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Other scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>A game launch option is blocking the connection.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Could not connect because a game launch option blocks it. Check the game&apos;s launch options.</value></data>
@@ -746,4 +786,9 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Game starting</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · running</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Applies from the game&apos;s next start.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>The game is running from a launch script (.bat), which sets its own memory. This setting applies only when the game is started normally.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Card preview (developer build)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Shows a sidebar card without its situation, to check its look and buttons. Not in published builds.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Show</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Clear all</value></data>
 </root>

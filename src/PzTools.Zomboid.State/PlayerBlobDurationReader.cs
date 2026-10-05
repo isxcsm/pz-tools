@@ -89,7 +89,8 @@ internal static class PlayerBlobDurationReader
         }
     }
 
-    internal static void SkipHumanVisual(ref BlobReader reader)
+    /// <returns>Where the skin's blood, dirt and holes start: three arrays, each a length byte and one byte per part.</returns>
+    internal static int SkipHumanVisual(ref BlobReader reader)
     {
         var flags = reader.Byte();
         if ((flags & 4) != 0) reader.Skip(3);
@@ -99,6 +100,7 @@ internal static class PlayerBlobDurationReader
         if ((flags & 0x40) != 0) reader.String();
         if ((flags & 0x10) != 0) reader.String();
         if ((flags & 0x20) != 0) reader.String();
+        var skin = reader.Offset;
         for (var index = 0; index < 3; index++) reader.Skip(reader.Byte());
         var visuals = reader.Byte();
         for (var index = 0; index < visuals; index++) SkipItemVisual(ref reader);
@@ -106,6 +108,7 @@ internal static class PlayerBlobDurationReader
         var extraFlags = reader.Byte();
         if ((extraFlags & 4) != 0) reader.Skip(3);
         if ((extraFlags & 2) != 0) reader.Skip(3);
+        return skin;
     }
 
     internal static void SkipItemVisual(ref BlobReader reader)

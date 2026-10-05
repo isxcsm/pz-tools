@@ -20,5 +20,8 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\config\defaults\**\default.toml"
                       Link="EditableTemplates\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The vehicle extension's tuning, packaged beside the extension, is copied into the config folder as the others are. -->
+    <EmbeddedResource Include="..\..\config\game-extensions\vehicle-drivetrain.toml"
+                      Link="EditableTemplates\vehicle-drivetrain\default.toml" />
   </ItemGroup>
 </Project>

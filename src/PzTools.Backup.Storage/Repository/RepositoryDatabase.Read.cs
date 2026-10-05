@@ -221,6 +221,30 @@ public sealed partial class RepositoryDatabase
             CultureInfo.InvariantCulture) != 0;
     }
 
+    /// <summary>
+    /// The identity of the folder the current entries were read in: the parent recorded for a
+    /// top-level entry. Null when the source has no current top-level entry.
+    /// </summary>
+    public async Task<byte[]?> ReadCurrentRootIdentityAsync(
+        long sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT parent_file_id
+            FROM current_entry_catalog
+            WHERE source_id = $sourceId
+              AND valid_to_revision IS NULL
+              AND tombstone = 0
+              AND instr(path_key, '/') = 0
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$sourceId", sourceId);
+        return await command.ExecuteScalarAsync(cancellationToken) as byte[];
+    }
+
     public async Task<IReadOnlyList<CurrentTrackedPath>> ReadCurrentTrackedPathsAsync(
         long sourceId,
         IReadOnlyCollection<string> fileReferences,
@@ -380,6 +404,9 @@ public sealed partial class RepositoryDatabase
         if (keys.Length == 0) return result;
         await using var connection = await OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
+        // CROSS JOIN keeps the wanted paths as the outer loop, each looked up by index. Left to choose, SQLite
+        // walked the source's entries and scanned the whole list for each: 13.6 s for an imported save of
+        // 12,636 files, against 65 ms.
         command.CommandText =
             """
             SELECT path.path_key, object.object_id, object.pack_id, pack.relative_path,
@@ -387,7 +414,7 @@ public sealed partial class RepositoryDatabase
                    object.checksum_algorithm, object.checksum,
                    object.compression_algorithm, object.flags, object.content_hash
             FROM json_each($keys) AS wanted
-            JOIN paths AS path ON path.path_key = wanted.value
+            CROSS JOIN paths AS path ON path.path_key = wanted.value
             JOIN entry_versions AS entry
               ON entry.source_id = $sourceId AND entry.path_id = path.path_id
              AND entry.valid_to_revision IS NULL

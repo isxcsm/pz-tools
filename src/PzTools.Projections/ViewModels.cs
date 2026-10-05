@@ -88,7 +88,6 @@ public sealed record SettingsView(
     int BackupIntervalMinutes,
     int RetainedRevisions,
     bool BackupOnDeath,
-    string LogMinimumLevel,
     int LogDisplayLimit,
     bool UseSystemTray = false,
     bool VerifyStagedCopies = true,

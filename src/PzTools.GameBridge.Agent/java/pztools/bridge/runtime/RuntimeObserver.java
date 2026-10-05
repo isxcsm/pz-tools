@@ -23,6 +23,11 @@ public final class RuntimeObserver {
                 "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1,runtime.version.v1,runtime.character.v1,runtime.save-result.v1,runtime.sleep.v1,runtime.heap.v1", gameVersion == null ? "-" : Base64.getEncoder().encodeToString(gameVersion.getBytes(StandardCharsets.UTF_8)), character.life(), character.character() == null ? "-" : character.character(), character.death() == null ? "-" : character.death(), execution == null ? "-" : execution.wire(), character.sleep(),
                 Long.toString(Runtime.getRuntime().maxMemory() >> 20));
         }
+        /** This sample as the game's own sample reads once it is leaving its world. */
+        Snapshot leaving(long next) {
+            return new Snapshot(process, observer, world, clock, eligibility, next, "Unloading", "Unknown", mode, -1,
+                activeMillis, null, gameVersion, LiveCharacter.Facts.UNKNOWN, execution);
+        }
     }
     /** A stopped generation is never mutated/reused by the next subscription. */
     private static final class Context {
@@ -34,14 +39,18 @@ public final class RuntimeObserver {
         volatile boolean active = true;
         volatile Snapshot snapshot;
         volatile long lastSample;
+        volatile Thread gameThread;
         String world = id(), phase = "Unknown", pause = "Unknown", mode = "Unsupported";
         Object lastCell;
+        // The sequence is also taken by a stream thread when the game is leaving its world (noticeLeaving): guarded by this.
         long clockEpoch, eligibility, sequence, activeNanos, lastTick, published;
+        // Stream threads only, guarded by this.
+        long leavingChecked;
         boolean wasRunning;
         Context(Class<?> window) throws Exception {
             adapter = new PzRuntimeAdapter(window);
             characterReader = new LiveCharacter(window.getClassLoader());
-            lastSample = System.nanoTime(); published = lastSample;
+            lastSample = System.nanoTime(); published = lastSample; leavingChecked = lastSample - 1_000_000_000L;
             snapshot = exact();
         }
         Snapshot exact() {
@@ -51,6 +60,7 @@ public final class RuntimeObserver {
         }
         void sample() {
             if (!active) return;
+            if (gameThread == null) gameThread = Thread.currentThread();
             long now = System.nanoTime();
             try {
                 adapter.read();
@@ -77,17 +87,34 @@ public final class RuntimeObserver {
                 }
                 wasRunning = running;
                 phase = adapter.phase; pause = adapter.pause; mode = adapter.mode;
-                if (changed || gap || now - published >= 100_000_000L) {
-                    sequence++; snapshot = exact(); published = now;
-                }
+                if (changed || gap || now - published >= 100_000_000L) publish(now);
             } catch (Throwable failure) {
                 wasRunning = false; lastTick = now; lastSample = now;
                 boolean changed = !phase.equals("Unknown");
                 if (changed) eligibility++;
                 phase = "Unknown"; pause = "Unknown"; mode = "Unsupported";
-                if (changed || now - published >= 100_000_000L) {
-                    sequence++; snapshot = exact(); published = now;
-                }
+                if (changed || now - published >= 100_000_000L) publish(now);
+            }
+        }
+        private synchronized void publish(long now) { sequence++; snapshot = exact(); published = now; }
+        /**
+         * Leaving a world for the main menu saves it, unloads it and reloads every mod in one long frame, which starts
+         * after that frame's sample: the last sample still says the world is ready, as a hung game's would. Where the
+         * game thread is tells them apart, looked at at most once a second while it has not sampled for a second.
+         */
+        void noticeLeaving() {
+            Thread game = gameThread;
+            Snapshot seen = snapshot;
+            long sampled = lastSample, now = System.nanoTime();
+            if (game == null || !seen.phase().equals("Ready") || now - sampled < 1_000_000_000L) return;
+            synchronized (this) {
+                if (now - leavingChecked < 1_000_000_000L) return;
+                leavingChecked = now;
+            }
+            if (!PzRuntimeAdapter.leavingWorld(game)) return;
+            synchronized (this) {
+                // A sample taken meanwhile is the game's own word, and newer.
+                if (snapshot == seen && lastSample == sampled) snapshot = seen.leaving(++sequence);
             }
         }
     }
@@ -118,6 +145,7 @@ public final class RuntimeObserver {
     static String frame() {
         Context value = context;
         if (value == null || !value.active) throw new Deferred("runtime-unavailable");
+        value.noticeLeaving();
         return value.snapshot.wire(Math.max(0, (System.nanoTime() - value.lastSample) / 1_000_000L));
     }
     public static Snapshot currentOnGameThread() {

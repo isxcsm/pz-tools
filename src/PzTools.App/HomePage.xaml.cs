@@ -46,6 +46,9 @@ public sealed partial class HomePage : UserControl
 
     public event EventHandler<HomeDestination>? NavigationRequested;
 
+    /// <summary>A link Explorer could not open; the shell says so.</summary>
+    public event EventHandler<Exception>? LinkFailed;
+
     // From <Version> in Directory.Build.props; the SDK may append "+<commit>", which is not shown.
     internal static string AppVersionText()
     {
@@ -197,7 +200,7 @@ public sealed partial class HomePage : UserControl
     }
 
     private void TextScaleFactor_Changed(UISettings sender, object args) =>
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (IsLoaded) UpdateLayoutForWidth();
         });
@@ -234,6 +237,16 @@ public sealed partial class HomePage : UserControl
         Grid.SetRow(ProfilerButton, wide ? 1 : 2);
         Grid.SetRow(GameExtensionsButton, wide ? 1 : 3);
         Grid.SetColumn(GameExtensionsButton, wide ? 1 : 0);
+    }
+
+    private void ExternalLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string link }) return;
+        try { ShellLaunch.Open(link); }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            LinkFailed?.Invoke(this, exception);
+        }
     }
 
     private void OpenSaves_Click(object sender, RoutedEventArgs e) =>

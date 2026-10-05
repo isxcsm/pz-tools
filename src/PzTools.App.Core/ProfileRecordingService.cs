@@ -31,9 +31,12 @@ public sealed record ProfileRolling(bool Wanted = false, bool Detailed = false, 
 /// cannot grow those and a single file can be handed to someone else.
 /// </summary>
 public sealed partial class ProfileRecordingService(string directory, Func<OperationCoordinator?> operations, Func<int>? gameCount = null,
-    ProfilerRuntimeOptions? options = null)
+    ProfilerRuntimeOptions? options = null, VideoMemoryLog? videoMemory = null)
 {
     private readonly Func<int> countGames = gameCount ?? GameProcesses.Count;
+    private readonly VideoMemoryLog videoMemory = videoMemory ?? new();
+    // When the recording asked for began, for its video memory; none while none runs.
+    private DateTimeOffset? recordingFrom;
     private readonly ProfilerRuntimeOptions options = options ?? new();
 
     /// <summary>A forgotten recording ends by itself. The detailed one is shorter: it writes about ten times as much.</summary>
@@ -79,6 +82,7 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
         var coordinator = operations() ?? throw new InvalidOperationException("The application is not ready.");
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         string output, stop;
+        var started = DateTimeOffset.UtcNow;
         var limit = detailed ? DetailedLimitSeconds : GeneralLimitSeconds;
         lock (gate)
         {
@@ -89,7 +93,9 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             stop = stopFile = output + ".stop";
             session = new(ProfileSessionState.Starting, detailed, LimitSeconds: limit);
             running = completion.Task;
+            recordingFrom = started;
         }
+        UpdateVideoMemory();
         Changed?.Invoke();
         try
         {
@@ -97,14 +103,15 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             TryDelete(stop);
             var result = await coordinator.RecordProfileAsync(output, stop, detailed, limit, Report, cancellationToken).ConfigureAwait(false);
             var written = result.Outcome == ProcessOutcome.Succeeded && File.Exists(output);
-            if (written) Saved?.Invoke(output);
+            if (written) Finish(output, started);
             return (written ? output : null, result);
         }
         finally
         {
             TryDelete(stop);
             ReleasePath(output);
-            lock (gate) { session = new(ProfileSessionState.Idle); stopFile = null; running = null; }
+            lock (gate) { session = new(ProfileSessionState.Idle); stopFile = null; running = null; recordingFrom = null; }
+            UpdateVideoMemory();
             completion.TrySetResult();
             Changed?.Invoke();
             WakeRolling();
@@ -279,12 +286,14 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             var output = NextPath(DateTime.Now);
             try
             {
-                var result = await coordinator.RollProfileAsync("roll-save", Rolling.OnDetailed, Math.Max(1, Rolling.OnMinutes) * 60, output,
+                var seconds = Math.Max(1, Rolling.OnMinutes) * 60;
+                var asked = DateTimeOffset.UtcNow;
+                var result = await coordinator.RollProfileAsync("roll-save", Rolling.OnDetailed, seconds, output,
                     cancellationToken).ConfigureAwait(false);
                 // The game was not keeping it after all (the bridge was replaced, the game restarted): start it again.
                 if (result.Error == "profile-not-rolling") SetRolling(state => state with { On = false });
                 var written = result.Outcome == ProcessOutcome.Succeeded && File.Exists(output);
-                if (written) Saved?.Invoke(output);
+                if (written) Finish(output, asked.AddSeconds(-seconds));
                 return (written ? output : null, result);
             }
             finally { ReleasePath(output); }
@@ -395,7 +404,32 @@ public sealed partial class ProfileRecordingService(string directory, Func<Opera
             if (next == rolling) return;
             rolling = next;
         }
+        UpdateVideoMemory();
         Changed?.Invoke();
+    }
+
+    // ---- Finishing a recording ----
+
+    // The game's video memory is read while anything records: the rolling window, and a recording under way.
+    private void UpdateVideoMemory()
+    {
+        // Inside the lock: two threads changing what records must not hand the log their states in the other order and
+        // leave it with the older. The log takes only its own lock and calls nothing back.
+        lock (gate)
+            videoMemory.Configure(rolling.On || session.State != ProfileSessionState.Idle,
+                rolling.On ? TimeSpan.FromMinutes(rolling.OnMinutes) : TimeSpan.Zero, recordingFrom);
+    }
+
+    /// <summary>
+    /// Every recording written, asked for or saved from the last minutes, ends here: what the app reads of the game from
+    /// outside joins the file (its video memory, from <paramref name="from"/>), then the file is announced. Optional:
+    /// a recording without it is still whole.
+    /// </summary>
+    internal void Finish(string output, DateTimeOffset from)
+    {
+        try { ProfileVideoMemory.Append(output, videoMemory.Between(from, DateTimeOffset.UtcNow)); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException) { }
+        Saved?.Invoke(output);
     }
 
     public IReadOnlyList<ProfileFile> List()

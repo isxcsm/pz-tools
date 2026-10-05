@@ -96,7 +96,9 @@ public sealed class CoffeeSupportUiSourceTests
     {
         var source = Source("MainWindowShell.Support.cs");
         Assert.Contains("https://buymeacoffee.com/iou3019", source);
-        Assert.Contains("CoffeeSupportButton.NavigateUri = SupportPage;", source);
+        // Opened through Explorer as the player's, not by the link's own navigation from the elevated app.
+        Assert.Contains("ShellLaunch.Open(SupportPage.AbsoluteUri);", source);
+        Assert.DoesNotContain("NavigateUri", source);
         Assert.Contains("CoffeeSupportMessage.Text = Localizer.Get(\"CoffeeSupport.Message\");", source);
         Assert.Contains("var label = $\"{CoffeeSupportMessage.Text} {CoffeeSupportTitle.Text}\";", source);
         Assert.Contains("AutomationProperties.SetName(CoffeeSupportButton, label);", source);
@@ -178,8 +180,8 @@ public sealed class CoffeeSupportUiSourceTests
         Assert.Contains("settlePending |= !animate;", request);
         Assert.Contains("if (updatePending) return;", request);
         Assert.True(request.IndexOf("updatePending = true;", StringComparison.Ordinal)
-            < request.IndexOf("DispatcherQueue.TryEnqueue(", StringComparison.Ordinal));
-        Assert.Equal(1, request.Split("DispatcherQueue.TryEnqueue(", StringSplitOptions.None).Length - 1);
+            < request.IndexOf("DispatcherQueue.Enqueue(", StringComparison.Ordinal));
+        Assert.Equal(1, request.Split("DispatcherQueue.Enqueue(", StringSplitOptions.None).Length - 1);
         Assert.Contains("if (disposed) return;", request);
         Assert.Contains("try { Update(useAnimation); }", request);
         Assert.Equal(2, request.Split("catch (Exception exception) when (IsFeedbackFailure(exception))",

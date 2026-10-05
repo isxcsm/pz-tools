@@ -30,7 +30,7 @@ public static class PlayerHealthEditor
             if (stat == 5) continue; // FITNESS is not temporary exhaustion. Preserve it.
             edits.Add(new(offset, 4, Float(stat switch { 3 or 10 or 15 => 1, 18 => 37, _ => 0 })));
         }
-        for (var part = 0; part < 17; part++) HealBodyPart(ref r, edits);
+        for (var part = 0; part < 17; part++) HealBodyPart(ref r, edits, blob);
         var bodyStart = r.Offset;
         r.Single(); Bool(ref r); r.Single(); r.Int32(); Bool(ref r);
         for (var i = 0; i < 6; i++) r.Single();
@@ -112,7 +112,29 @@ public static class PlayerHealthEditor
         return healed;
     }
 
-    internal static int SkipPrefix(ref BlobReader r)
+    /// <summary>
+    /// The character washed as the game washes them (ISWashYourself): no blood or dirt on the skin. Holes in the
+    /// skin and everything worn, clothes included, stay as they were.
+    /// </summary>
+    public static byte[] Wash(byte[] blob, long worldVersion)
+    {
+        // Only a player that healing can walk to its last byte.
+        Heal(blob, worldVersion);
+        var r = new BlobReader(blob);
+        SkipPrefix(ref r, out var skin);
+        var washed = blob.ToArray();
+        for (var layer = 0; layer < 2; layer++)
+        {
+            var length = washed[skin];
+            washed.AsSpan(skin + 1, length).Clear();
+            skin += 1 + length;
+        }
+        return washed;
+    }
+
+    internal static int SkipPrefix(ref BlobReader r) => SkipPrefix(ref r, out _);
+
+    private static int SkipPrefix(ref BlobReader r, out int skin)
     {
         r.Skip(26);
         if (Bool(ref r)) r.LuaTable();
@@ -123,19 +145,24 @@ public static class PlayerHealthEditor
             StringMap(ref r, 4);
             r.String(); r.Skip(8);
         }
-        SkipHumanVisual(ref r);
+        skin = SkipHumanVisual(ref r);
         var start = r.Offset;
         SkipInventory(ref r);
         return start;
     }
 
-    private static void HealBodyPart(ref BlobReader r, List<Edit> edits)
+    /// <summary>
+    /// The body part without wounds, infection, stitches or a fracture. A bandage or splint stays as it was, to be
+    /// taken off in the game like any other: the game puts the bandage's model back on itself (Bandages.update).
+    /// </summary>
+    private static void HealBodyPart(ref BlobReader r, List<Edit> edits, byte[] blob)
     {
         var start = r.Offset;
         Bool(ref r); Bool(ref r); Bool(ref r);
         var bandaged = Bool(ref r);
         for (var i = 0; i < 4; i++) Bool(ref r);
         r.Single();
+        var bandageLife = r.Offset;
         if (bandaged) r.Single();
         if (Bool(ref r)) r.Single();
         for (var i = 0; i < 7; i++) r.Single();
@@ -144,15 +171,32 @@ public static class PlayerHealthEditor
         Bool(ref r); r.Single();
         var stitchXp = r.Byte(); var splintXp = r.Byte();
         r.Single();
-        if (Bool(ref r)) r.Single();
+        var splinted = Bool(ref r);
+        var splintFactor = r.Offset;
+        if (splinted) r.Single();
         Bool(ref r); r.Single(); Bool(ref r); r.Single();
-        r.String(); r.String();
+        var splintItem = r.Offset; r.String();
+        var bandageType = r.Offset; r.String();
+        var strings = r.Offset;
         for (var i = 0; i < 6; i++) r.Single();
-        // Unbandaged, uninfected, unsplinted body part; optional fields are omitted.
-        var clean = new byte[93];
-        Float(100).CopyTo(clean, 8);
-        clean[42] = bandageXp; clean[48] = stitchXp; clean[49] = splintXp;
-        edits.Add(new(start, r.Offset - start, clean));
+
+        using var part = new MemoryStream(114);
+        part.Write([0, 0, 0, bandaged ? (byte)1 : (byte)0, 0, 0, 0, 0]); // no cut, bite, scratch, bleeding or infection
+        part.Write(Float(100));
+        if (bandaged) part.Write(blob.AsSpan(bandageLife, 4));
+        part.WriteByte(0); // no infected wound
+        part.Write(new byte[28]); // wound, bleeding, alcohol, pain and deep-wound times
+        part.Write([0, bandageXp, 0]); // no glass; no stitches
+        part.Write(new byte[4]);
+        part.Write([stitchXp, splintXp]);
+        part.Write(new byte[4]); // no fracture
+        part.WriteByte(splinted ? (byte)1 : (byte)0);
+        if (splinted) part.Write(blob.AsSpan(splintFactor, 4));
+        part.Write(new byte[10]); // no bullet or burn
+        part.Write(splinted ? blob.AsSpan(splintItem, bandageType - splintItem) : [0, 0]);
+        part.Write(bandaged ? blob.AsSpan(bandageType, strings - bandageType) : [0, 0]);
+        part.Write(new byte[24]); // wound times, wetness, stiffness and poultices
+        edits.Add(new(start, r.Offset - start, part.ToArray()));
     }
 
     private static void HealThermal(ref BlobReader r, List<Edit> edits)

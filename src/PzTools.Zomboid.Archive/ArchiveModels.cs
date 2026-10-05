@@ -9,7 +9,10 @@ public sealed record ZomboidArchiveManifest(
     DateTimeOffset? LastPlayedUtc,
     long SourceId,
     long Revision,
-    DateTimeOffset ExportedUtc);
+    DateTimeOffset ExportedUtc,
+    // The exporting PC's time zone (a Windows ID): its entries' times are that PC's clock time, which a zip keeps
+    // without an offset. Absent from archives made before entries carried the save's own times.
+    string? EntryTimeZone = null);
 
 public sealed record ArchiveInspection(
     ZomboidArchiveManifest Manifest,
@@ -39,18 +42,18 @@ public sealed record ArchiveProgress(
     long TotalBytes,
     string? RelativePath);
 
+// No compression-ratio limit: ordinary saves have files, such as map_visited.bin, that compress far beyond
+// any ratio that would catch a ZIP bomb. Each entry is bounded by its size limit and its declared length, and
+// the whole import by the free-space check.
 public sealed record ArchiveSafetyOptions(
     int MaximumEntries = 1_000_000,
     long MaximumSingleFileBytes = 64L * 1024 * 1024 * 1024,
-    int MaximumCompressionRatio = int.MaxValue,
-    long CompressionRatioMinimumBytes = long.MaxValue,
     long MinimumFreeSpaceReserveBytes = 5L * 1024 * 1024 * 1024,
     int MinimumFreeSpaceReservePercent = 10)
 {
     public void Validate()
     {
         if (MaximumEntries <= 0 || MaximumSingleFileBytes <= 0
-            || MaximumCompressionRatio <= 0 || CompressionRatioMinimumBytes < 0
             || MinimumFreeSpaceReserveBytes < 0
             || MinimumFreeSpaceReservePercent is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(ArchiveSafetyOptions));

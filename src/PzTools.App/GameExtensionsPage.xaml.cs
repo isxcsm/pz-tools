@@ -25,7 +25,7 @@ public sealed partial class GameExtensionsPage : UserControl
             subscription?.Dispose();
             subscription = App.Host?.Views.Subscribe((key, _) =>
             {
-                if (key == GameExtensionController.ViewKey) DispatcherQueue.TryEnqueue(ApplyLatestView);
+                if (key == GameExtensionController.ViewKey) DispatcherQueue.Enqueue(ApplyLatestView);
             });
             await RefreshForNavigationAsync();
         };
@@ -36,8 +36,6 @@ public sealed partial class GameExtensionsPage : UserControl
     {
         Language = Localizer.Culture.Name;
         PageTitle.Text = Localizer.Get("GameExtensions.Title");
-        ErrorInfo.Title = Localizer.Get("GameExtensions.SettingsError");
-        ErrorInfo.Message = Localizer.Get("GameExtensions.SettingsErrorBody");
         if (snapshot is not null) UpdateView(snapshot);
     }
 
@@ -52,8 +50,9 @@ public sealed partial class GameExtensionsPage : UserControl
             await host.GameExtensions.RefreshAsync();
             ApplyLatestView();
         }
-        // Called from the Loaded handler: nothing may escape it.
-        catch (Exception) { ShowSettingsError(); }
+        // Called from the Loaded handler: nothing may escape it. Nothing was changed, so the card says why it could not
+        // be read rather than that changes were lost.
+        catch (Exception exception) { ShowSettingsError(UserFacingError.FromException(exception)); }
         finally { refreshing = false; LoadingIndicator.IsActive = false; LoadingIndicator.Visibility = Visibility.Collapsed; }
     }
 
@@ -98,7 +97,6 @@ public sealed partial class GameExtensionsPage : UserControl
         try
         {
             await host.GameExtensions.ApplyEditAsync(id, setting, value);
-            ErrorInfo.IsOpen = false;
         }
         catch (Exception exception) when (IsSettingsError(exception))
         {
@@ -123,10 +121,9 @@ public sealed partial class GameExtensionsPage : UserControl
     private static bool IsSettingsError(Exception exception) =>
         exception is IOException or InvalidDataException or UnauthorizedAccessException;
 
-    private void ShowSettingsError()
-    {
-        ErrorInfo.Title = Localizer.Get("GameExtensions.SettingsError");
-        ErrorInfo.Message = Localizer.Get("GameExtensions.SettingsErrorBody");
-        ErrorInfo.IsOpen = true;
-    }
+    // On a card with the user's other results, as every page reports them (docs/design/ui-ux-contract.md, "Operation
+    // and result cards"); it is also kept in the logs. Without a message, it says the change was not saved.
+    private void ShowSettingsError(string? message = null) =>
+        App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameExtensions.SettingsError"),
+            message ?? Localizer.Get("GameExtensions.SettingsErrorBody"));
 }

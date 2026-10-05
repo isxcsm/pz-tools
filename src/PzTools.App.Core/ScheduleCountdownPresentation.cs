@@ -30,6 +30,8 @@ public static class ScheduleCountdownPresentation
             return new("RuntimeBackupCompletionUnknown", schedule.RemainingMilliseconds is { } left
                 ? (long)Math.Ceiling(Math.Max(0, left) / 1000d) : null);
         if (schedule.GamePhase == WorldPhase.Menu) return new("RuntimeBackupMainMenu");
+        // Leaving a world saves it and reloads every mod, which can take minutes.
+        if (schedule.GamePhase == WorldPhase.Unloading) return new("RuntimeBackupLeavingWorld");
         if (schedule.GamePhase == WorldPhase.Loading) return new("RuntimeBackupLoading");
         if ((schedule.Hold & ScheduleHold.CharacterDead) != 0) return new("RuntimeBackupCharacterDead");
         if (schedule.PauseAware)

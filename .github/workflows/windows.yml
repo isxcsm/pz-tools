@@ -15,6 +15,10 @@ on:
         description: 'Also run offline storage benchmarks (not needed for routine PRs)'
         type: boolean
         default: false
+      release_check:
+        description: 'Also build the release package as a tag would (kept as an artifact; no attestation, no release)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,14 +42,15 @@ jobs:
       publish: ${{ steps.plan.outputs.publish }}
       bridge: ${{ steps.plan.outputs.bridge }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           fetch-depth: 2
       - name: Select checks from the actual PR changes
         id: plan
         env:
-          CI_FULL: ${{ inputs.full }}
+          # A release check needs the Windows build and tests it waits for: a full run.
+          CI_FULL: ${{ inputs.full || inputs.release_check }}
           CI_BENCHMARKS: ${{ inputs.benchmarks }}
         run: python scripts/ci-plan.py
       - name: Offline checks (once, no SDK setup)
@@ -54,6 +59,8 @@ jobs:
           python scripts/test-documentation-checker.py
           python scripts/check-documentation.py
           python scripts/check-localization.py
+          python scripts/check-housekeeping-sql.py
+          python scripts/check-path-normalization.py
       - name: Optional benchmarks
         if: steps.plan.outputs.benchmarks == 'true'
         run: |
@@ -64,7 +71,7 @@ jobs:
           python scripts/measure-path-normalization.py > artifacts/benchmarks/paths.json
           python scripts/measure-catalog-performance.py --baseline-ref 2f3ce6f > artifacts/benchmarks/catalog.json
           python scripts/measure-storage-hotpaths.py > artifacts/benchmarks/hotpaths.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.plan.outputs.benchmarks == 'true' && !cancelled()
         with:
           name: benchmarks-${{ github.sha }}
@@ -80,18 +87,18 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: temurin
           java-version: '25'
           architecture: x64
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.props', '**/*.targets', '**/NuGet.config', '**/nuget.config') }}
@@ -123,9 +130,87 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Keep diagnostics for failures and distribution verification
         if: failure() || needs.checks.outputs.publish == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-results-${{ github.sha }}
           path: artifacts/test-results/*.trx
           if-no-files-found: warn
           retention-days: 7
+
+  release:
+    # A v* tag: the release is built here, from the tagged commit, once the checks and tests above have passed.
+    # It gets a provenance attestation (anyone can check that the ZIP was built by this workflow from this
+    # repository's commit) and goes up as a draft, for the maintainer to read and publish.
+    needs: [checks, windows]
+    # Run by hand with release_check, it builds the package the same way and keeps it as an artifact, to try the job
+    # before a tag depends on it.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' && inputs.release_check
+    runs-on: windows-2025
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # The JDK the release bundles, the one releases have been built with: Adoptium's own file, checked by its hash.
+      JDK_URL: https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4.1_1.zip
+      JDK_SHA256: 00c847d804f4a78e9f04f2683faf14fed898535b177b7fc704486cb0284e9283
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: The tag names the version being built
+        run: |
+          [xml] $props = Get-Content -LiteralPath Directory.Build.props -Raw
+          $version = @($props.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ })[0]
+          if ($env:GITHUB_EVENT_NAME -eq 'push' -and "v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag $env:GITHUB_REF_NAME, but Directory.Build.props says $version." }
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+      - name: The release's JDK
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'jdk.zip'
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest -Uri $env:JDK_URL -OutFile $zip
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+          if ($hash -ne $env:JDK_SHA256) { throw "The JDK's hash is $hash, not $env:JDK_SHA256." }
+          $into = Join-Path $env:RUNNER_TEMP 'jdk'
+          Expand-Archive -LiteralPath $zip -DestinationPath $into
+          "RELEASE_JDK=$((Get-ChildItem -LiteralPath $into -Directory)[0].FullName)" >> $env:GITHUB_ENV
+      - name: Build, test the published folder, package
+        run: ./scripts/build-release.ps1 -JdkPath $env:RELEASE_JDK
+      - name: Keep the package of a trial run
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-check-${{ github.sha }}
+          path: artifacts/release/v${{ env.RELEASE_VERSION }}/PzTools-v*
+          retention-days: 7
+      - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        # A pushed tag only: a run by hand from a tag is still a trial.
+        if: github.event_name == 'push'
+        with:
+          subject-path: artifacts/release/v${{ env.RELEASE_VERSION }}/PzTools-v${{ env.RELEASE_VERSION }}-win-x64.zip
+      - name: Draft release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $zip = "artifacts/release/v$env:RELEASE_VERSION/PzTools-v$env:RELEASE_VERSION-win-x64.zip"
+          $files = @($zip, "$zip.sha256")
+          # No release yet is the one failure that is expected; any other (a token, the network) stops here.
+          $view = gh release view $env:GITHUB_REF_NAME --json isDraft 2>&1
+          if ($LASTEXITCODE -ne 0 -and "$view" -notmatch 'release not found') { throw "gh release view failed: $view" }
+          $existing = if ($LASTEXITCODE -eq 0) { $view | ConvertFrom-Json }
+          if ($existing -and -not $existing.isDraft) { throw "$env:GITHUB_REF_NAME is already published; its files are not replaced." }
+          if ($existing) { gh release upload $env:GITHUB_REF_NAME @files --clobber; exit $LASTEXITCODE }
+          $notes = @"
+          Built by GitHub Actions from $env:GITHUB_SHA.
+
+          To check that a downloaded ZIP is this build: ``gh attestation verify PzTools-v$env:RELEASE_VERSION-win-x64.zip --repo $env:GITHUB_REPOSITORY``. See [security](https://github.com/$env:GITHUB_REPOSITORY/blob/main/SECURITY.md).
+          "@
+          gh release create $env:GITHUB_REF_NAME @files --draft --verify-tag --title "PZ Tools $env:RELEASE_VERSION" --notes $notes

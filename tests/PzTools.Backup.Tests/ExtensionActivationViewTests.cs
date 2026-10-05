@@ -105,6 +105,24 @@ public sealed class ExtensionActivationViewTests
         Assert.True(on.IsOn);
         Assert.True(on.CanToggle); // A saved ON can still be switched OFF.
         Assert.True(Project(Card(), restart with { AgeMilliseconds = 3001 }).CanToggle);
+        Assert.False(off.AwaitsGameRestart); // A restart forced by a failure is still reported as one.
+    }
+
+    [Fact]
+    public void AnUpdateWaitingForTheGamesRestartIsARestartHintNotAFailure()
+    {
+        // Both the state stream (no process yet) and the coordinator (the bound game) report it.
+        foreach (var update in new RuntimeExtensionStatus[] { new(RuntimeExtensionState.RestartRequired, "bootstrap-update"),
+            new(RuntimeExtensionState.RestartRequired, "bootstrap-update", Process, World, RequestedRevision: 8) })
+        {
+            var on = Project(Card(enabled: true), update);
+            Assert.True(on.AwaitsGameRestart);
+            Assert.True(on.IsOn);        // The preference is kept for the next game ...
+            Assert.True(on.CanToggle);   // ... and can still be switched off.
+            Assert.False(on.IsBusy);
+            Assert.True(Project(Card(), update).AwaitsGameRestart);
+        }
+        Assert.False(Project(Card(enabled: true), Active()).AwaitsGameRestart);
     }
 
     [Fact]
@@ -158,11 +176,25 @@ public sealed class ExtensionActivationViewTests
     }
 
     [Fact]
+    public void RunningGameOutsideTheSupportedRangeRefusesOnUnlessTheRangeIsIgnored()
+    {
+        // The game would reject the request with version-mismatch and the module would be saved off again.
+        var outside = Card() with { GameVersion = "41.78", VersionMatches = false };
+        Assert.False(Project(outside, null).CanToggle);
+        Assert.True(Project(outside, null).CanEditOptions); // "Ignore supported version range" stays reachable.
+        Assert.True(Project(outside with { ForceVersion = true }, null).CanToggle);
+        // An unknown version (no game running) still lets a desired ON be saved.
+        Assert.True(Project(Card() with { VersionMatches = false }, null, worldReady: false).CanToggle);
+        Assert.True(Project(Card() with { GameVersion = "42.20", VersionMatches = true }, null).CanToggle);
+    }
+
+    [Fact]
     public void ActiveVersionMismatchCanAlwaysBeTurnedOff()
     {
         var value = Project(Card(enabled: true) with { VersionMatches = false }, Active());
         Assert.True(value.IsOn);
         Assert.True(value.CanToggle);
+        Assert.True(Project(Card(enabled: true) with { GameVersion = "41.78", VersionMatches = false }, Active()).CanToggle);
     }
 
     [Fact]

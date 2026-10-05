@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Text;
 using PzTools.Profiling;
 
@@ -120,6 +120,91 @@ public sealed class ProfileRecordingTests
         Assert.Equal(ProfileAnalysis.GameCode, Assert.Single(quick.MethodGroups).Key);
         Assert.Equal(0, quick.LuaSamples);
         Assert.Equal(0, quick.Collections);
+    }
+
+    [Fact]
+    public void Report_SaysTheRangesHeaviestOfEveryKind_WithWhereToLookAndWhoCalled()
+    {
+        var recording = Load(Sample);
+        var range = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        string report;
+        // Invariant numbers whatever the player's language: a comma for a decimal point would read as another number.
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        try { report = ProfileReport.Build(recording, range, recording.GameThread, "Slow frame"); }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
+
+        Assert.StartsWith("# Project Zomboid performance recording", report);
+        Assert.Contains("- Name: Slow frame", report);
+        Assert.Contains("- Range analysed: 0.01 s to 0.05 s (0.04 s)", report);
+        Assert.Contains("1 frames, average 40.0 ms (25 FPS)", report);
+        Assert.Contains("| 1 | SlowMod | 50.00% | 2 |", report);
+        // The mod's function with the line it ran itself the most: where in the file to look.
+        Assert.Contains("| slow | workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua:12 | 50.00% | 75.00% |", report);
+        Assert.Contains("| Base game scripts (vanilla) |", report);
+        Assert.Contains("| Lua interpreter (Kahlua; runs the scripts above) | 75.00% |", report);
+        Assert.Contains("| se.krka.kahlua.vm.KahluaThread.luaMainloop | 75.00% | 100.00% |", report);
+        // A library method read in the game's terms: up to the game's code that called it.
+        Assert.Contains("<- zombie.GameWindow.logic", report);
+        Assert.Contains("Garbage collections: 1, their pauses 2.5 ms in all (collector: ZGC Minor)", report);
+        Assert.Contains("| Pause Mark Start |", report);
+    }
+
+    // Both modes sample Lua lines and allocations: the mode line says what Detailed adds, not what both have.
+    [Fact]
+    public void Report_SaysWhatDetailedModeAdds()
+    {
+        var standard = Load(Sample);
+        var detailed = Load(Sample.Replace("I|mode|general", "I|mode|detailed", StringComparison.Ordinal));
+        Assert.True(detailed.Detailed);
+        string Report(ProfileRecording recording) => ProfileReport.Build(recording,
+            ProfileAnalysis.Analyze(recording, 0, recording.Duration, recording.GameThread), recording.GameThread);
+
+        Assert.Contains("- Mode: standard (low overhead)", Report(standard));
+        var report = Report(detailed);
+        Assert.Contains("- Mode: detailed (more frequent samples, and waits recorded;", report);
+        Assert.DoesNotContain("allocations measured", report);
+    }
+
+    [Fact]
+    public void Report_Compared_PutsTheBaselinesFigureAndTheChangeBesideEach()
+    {
+        var recording = Load(Sample);
+        var slow = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        // The quick frame stands in for another recording: the game's own update, no scripts.
+        var quick = ProfileAnalysis.Analyze(recording, 0, 10_000, recording.GameThread);
+        var report = ProfileReport.Build(recording, slow, recording.GameThread, "Slow", new ProfileReportBaseline(recording, quick, "Quick"));
+
+        Assert.Contains("## Baseline (compared with)\n- Name: Quick", report);
+        Assert.Contains("| Average | 40.0 ms (25 FPS) | 10.0 ms (100 FPS) | +30.0 ms |", report);
+        Assert.Contains("| 1 | SlowMod | 50.00% | 2 | none | new |", report);
+        Assert.Contains("- SlowMod: +50.00 pp (did not run in the baseline)", report);
+        Assert.Contains("| slow | workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua:12 | 50.00% | 75.00% | new |", report);
+        // An area the baseline never ran is new, as a mod is.
+        Assert.Contains("| Java built-ins (java.*, jdk.*) | 25.00% | none | new |", report);
+        Assert.DoesNotContain("different modes", report);
+    }
+
+    [Fact]
+    public void Report_ForAChosenOwner_GivesItAloneInFull_WithItsCallTree()
+    {
+        var recording = Load(Sample);
+        var slow = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        var report = ProfileReport.Build(recording, slow, recording.GameThread, focus: new ProfileReportFocus(false, "SlowMod"));
+        Assert.Contains("## The mod: SlowMod\n- 50.00% of the range in its own functions (2 samples), #1 of 3 script owners", report);
+        Assert.Contains("| slow | workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua:12 | 50.00% | 75.00% |", report);
+        Assert.Contains("- slow (Slow.lua): line 12 50.00%", report);
+        // Reached from the game's OnTick both times: its line called it.
+        Assert.Contains("- OnTick (ISGame.lua) total 50.00%, self 0.00%\n  - slow (Slow.lua:12) total 50.00%, self 50.00%, called at line 80", report);
+        // The other owners and the Java tables are not this mod's: left out.
+        Assert.DoesNotContain("## Lua scripts by mod", report);
+        Assert.DoesNotContain("Heaviest Java methods", report);
+
+        var java = ProfileReport.Build(recording, slow, recording.GameThread, focus: new ProfileReportFocus(true, ProfileAnalysis.JavaRuntime));
+        // A share of the thread's running time, as the area table says, not of the range's length.
+        Assert.Contains("## The Java area: Java built-ins (java.*, jdk.*)\n- 25.00% of the thread's running time in its own methods", java);
+        Assert.Contains("| java.util.HashMap.get | 25.00% | 25.00% |", java);
+        Assert.DoesNotContain("SlowMod", java);
     }
 
     [Fact]
@@ -661,6 +746,228 @@ public sealed class ProfileRecordingTests
             Assert.Null(ProfileAnalysis.MemoryAt(recording, 10_000).VideoMemory);
         }
         finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void VideoMemory_IsReadWhileAnythingRecords_ForTheGameRunningNow()
+    {
+        var clock = new ManualTime(DateTimeOffset.FromUnixTimeMilliseconds(1790000000000));
+        int? game = 10;
+        var opened = new List<int>();
+        var log = new PzTools.App.Core.VideoMemoryLog(() => game, id => { opened.Add(id); return new FixedReader(id * 100L); }, clock) { Background = false };
+        log.Configure(active: false, TimeSpan.FromMinutes(1), holdFrom: null);
+        void Every(int seconds) { for (var i = 0; i < seconds; i++) { log.SampleOnce(); clock.Advance(TimeSpan.FromSeconds(1)); } }
+
+        // The rolling window: the last minute is kept, and a little more for the moment a save is asked.
+        log.Configure(active: true, TimeSpan.FromMinutes(1), holdFrom: null);
+        Every(120);
+        var kept = log.Between(DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        Assert.InRange(kept.Count, 60, 66);
+        Assert.All(kept, reading => Assert.Equal(1000, reading.Dedicated));
+        Assert.Equal([10], opened);
+
+        // A recording under way keeps everything since it began, past the rolling window.
+        var began = clock.GetUtcNow();
+        log.Configure(active: true, TimeSpan.FromMinutes(1), holdFrom: began);
+        Every(150);
+        Assert.Equal(150, log.Between(began, clock.GetUtcNow()).Count);
+
+        // Another game: what was read belongs to the one before.
+        game = 20;
+        Every(3);
+        Assert.All(log.Between(DateTimeOffset.MinValue, DateTimeOffset.MaxValue), reading => Assert.Equal(2000, reading.Dedicated));
+        Assert.Equal([10, 20], opened);
+    }
+
+    [Fact]
+    public void Finish_JoinsTheVideoMemoryBeforeTheRecordingIsAnnounced()
+    {
+        using var temp = new TempDirectory();
+        // Read while the sample recording ran: its times count from 1 s after its start, for 50 ms.
+        var clock = new ManualTime(DateTimeOffset.FromUnixTimeMilliseconds(1790000000000 + 1010));
+        var log = new PzTools.App.Core.VideoMemoryLog(() => 7, _ => new FixedReader(3_000_000_000), clock) { Background = false };
+        log.Configure(active: true, TimeSpan.FromMinutes(1), holdFrom: null);
+        var start = clock.GetUtcNow();
+        for (var i = 0; i < 3; i++) { log.SampleOnce(); clock.Advance(TimeSpan.FromMilliseconds(10)); }
+        var service = new PzTools.App.Core.ProfileRecordingService(temp.GetPath("profiles"), () => null, videoMemory: log);
+        Directory.CreateDirectory(service.Directory);
+        var path = Path.Combine(service.Directory, "profile-20261005-120000.pzprof");
+        File.WriteAllBytes(path, Compress(Sample));
+        IReadOnlyList<ProfileVideoMemorySample>? seen = null;
+        service.Saved += saved => seen = ProfileRecording.Load(saved).VideoMemory;
+
+        service.Finish(path, start);
+
+        // Whatever the kind of recording, the page opening it finds its video memory there.
+        Assert.Equal([10_000L, 20_000L, 30_000L], seen!.Select(item => item.Time));
+        Assert.All(seen!, item => Assert.Equal(3_000_000_000, item.Dedicated));
+    }
+
+    private sealed class FixedReader(long bytes) : IVideoMemoryReader
+    {
+        public (long Dedicated, long Shared)? Read() => (bytes, 0);
+        public void Dispose() { }
+    }
+
+    private sealed class ManualTime(DateTimeOffset now) : TimeProvider
+    {
+        private DateTimeOffset current = now;
+        public override DateTimeOffset GetUtcNow() => current;
+        public void Advance(TimeSpan by) => current += by;
+    }
+
+    [Fact]
+    public void Collector_WorkBesideTheGame_AndWaitsForMemory_AreToldApartFromItsPauses()
+    {
+        using var temp = new TempDirectory();
+        // Two overlapping collections running 10–40 ms, each stopping the game for no time at all (as ZGC does), and two
+        // threads that stopped waiting for memory, neither of them the game thread.
+        var source = temp.GetPath("whole.pzprof");
+        File.WriteAllBytes(source, Compress(Sample
+            + "\nGR|1010000|20000\nGR|1020000|20000\nP|1012000|3000|ZAllocationStall|7|x\nP|1040000|9000|ZAllocationStall|8|x"));
+        var recording = ProfileRecording.Load(source);
+
+        Assert.Equal(0.6, ProfileAnalysis.CollectorBusyIn(recording, 0, 50_000)!.Value, 6);
+        Assert.Equal(0.5, ProfileAnalysis.CollectorBusyIn(recording, 0, 20_000)!.Value, 6);
+        Assert.Equal((2, 9_000L), ProfileAnalysis.StallsIn(recording, 0, 50_000));
+        Assert.Equal((1, 3_000L), ProfileAnalysis.StallsIn(recording, 0, 20_000));
+        // Recordings from before the collector's runs were kept say nothing rather than "not at work".
+        Assert.Null(ProfileAnalysis.CollectorBusyIn(Load(Sample), 0, 50_000));
+
+        // A range saved from it keeps the runs that reach into it.
+        ProfileTrim.Save(recording, source, temp.GetPath("part.pzprof"), 30_000, 50_000);
+        var part = ProfileRecording.Load(temp.GetPath("part.pzprof"));
+        Assert.Equal(0.5, ProfileAnalysis.CollectorBusyIn(part, 0, part.Duration)!.Value, 6);
+    }
+
+    [Fact]
+    public void Breakdown_OfAFrame_FollowsTheRangesRules_AndFillsTheBar()
+    {
+        var recording = Load(LongRecording());
+        // Over the whole recording, the frame graph's split is the time bar's own.
+        var whole = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, 0, recording.Duration, recording.GameThread))!;
+        var raw = ProfileAnalysis.BreakdownIn(recording, 0, recording.Duration)!;
+        Assert.Equal((whole.Scripts, whole.GameCode, whole.Collections, whole.Waiting),
+            (raw.Scripts, raw.GameCode, raw.Collections, raw.Waiting));
+        // Each bar's parts add up to its frame.
+        var bars = ProfileAnalysis.SlowestFramePerBucket(recording, 0, recording.Duration, 40);
+        var parts = ProfileAnalysis.BreakdownPerBucket(recording, 0, recording.Duration, 40);
+        for (var index = 0; index < bars.Length; index++)
+        {
+            if (parts[index] is not { } part) { Assert.Equal(0, bars[index]); continue; }
+            Assert.Equal(bars[index], part.Scripts + part.GameCode + part.Collections + part.Waiting, 6);
+        }
+        Assert.Contains(parts, part => part is { Scripts: > 0 });
+    }
+
+    [Fact]
+    public void CpuUse_IsReadForTheMachine_AndKeptInASavedRange()
+    {
+        using var temp = new TempDirectory();
+        // As Java writes floats ("1.0E-4"), the game's and the machine's share of a 16-thread machine. Per-thread lines
+        // (TC), written while 0.2.4 was in development, are read past and not carried into a part.
+        var source = temp.GetPath("whole.pzprof");
+        File.WriteAllBytes(source, Compress(Sample + "\nHW|16\nTC|1010000|7|0.0625|1.0E-4\n"
+            + "CL|1010000|0.2|0.01|0.5\nCL|1040000|0.0625|1.0E-4|0.25"));
+        var recording = ProfileRecording.Load(source);
+
+        Assert.Equal(16, recording.Processors);
+        Assert.Equal([new ProfileMachineCpu(10_000, 0.2, 0.01, 0.5), new ProfileMachineCpu(40_000, 0.0625, 0.0001, 0.25)],
+            recording.MachineCpu);
+
+        var partPath = temp.GetPath("part.pzprof");
+        ProfileTrim.Save(recording, source, partPath, 30_000, 50_000);
+        var part = ProfileRecording.Load(partPath);
+        Assert.Equal(16, part.Processors);
+        Assert.Equal(0.25, Assert.Single(part.MachineCpu).MachineTotal);
+        using var text = new StreamReader(new System.IO.Compression.GZipStream(File.OpenRead(partPath), System.IO.Compression.CompressionMode.Decompress));
+        Assert.DoesNotContain("\nTC\t", text.ReadToEnd());
+    }
+
+    [Fact]
+    public void FramesWithTheCollectorAtWork_AndOtherProgramsCpu_AreMeasured()
+    {
+        // 60 frames of 20 ms, the second 30 of them 30 ms while the collector ran through them.
+        var lines = new StringBuilder("PZPROF|1\nI|mode|general\nT|7|main\nI|gameThread|7\nM|0|zombie.GameWindow.logic\nK|0|0\n");
+        long time = 1_000_000;
+        for (var index = 0; index < 60; index++)
+        {
+            var length = index < 30 ? 20_000 : 30_000;
+            lines.Append($"F|{time}|{length}\nS|{time}|7|0|J\n");
+            time += length;
+        }
+        lines.Append($"GR|{1_000_000 + 30 * 20_000}|{30 * 30_000}\n");
+        // The machine busy at 60% and 40%, the game a fifth of it each time: other programs 40% and 20%.
+        lines.Append("CL|1100000|0.15|0.05|0.6\nCL|1500000|0.15|0.05|0.4\n");
+        var recording = Load(lines.ToString());
+
+        var frames = ProfileAnalysis.FramesWithCollector(recording)!;
+        Assert.Equal((30.0, 30, 20.0, 30), (frames.During, frames.DuringCount, frames.Outside, frames.OutsideCount));
+        Assert.Equal(0.5, frames.Slower!.Value, 6);
+        Assert.Equal(0.3, ProfileAnalysis.OtherProgramsCpu(recording)!.Value, 6);
+        // Recordings from before either was kept say nothing.
+        Assert.Null(ProfileAnalysis.FramesWithCollector(Load(Sample)));
+        Assert.Null(ProfileAnalysis.OtherProgramsCpu(Load(Sample)));
+    }
+
+    [Fact]
+    public void Callers_ReadALibraryMethodUpToTheGameCodeThatAskedForIt()
+    {
+        // HashMap.getNode's own time: three samples through a library wrapper from the game's update, one from elsewhere.
+        var recording = Load("""
+            PZPROF|1
+            I|mode|general
+            T|7|main
+            I|gameThread|7
+            M|0|java.util.HashMap.getNode
+            M|1|lib.Cache.wrap
+            M|2|zombie.Game.update
+            M|3|zombie.Main.run
+            M|4|lib.Other.caller
+            K|0|0 1 2 3
+            K|1|0 4 3
+            S|1000000|7|0|J
+            S|1010000|7|0|J
+            S|1020000|7|0|J
+            S|1030000|7|1|J
+            """);
+        var root = ProfileAnalysis.CallersOf(recording, 0, recording.Duration + 1, recording.GameThread, "java.util.HashMap.getNode");
+
+        Assert.Equal(4, root.Samples);
+        // A chain that never branches is one row, ending at the first game method; the heaviest first.
+        Assert.Equal([["lib.Cache.wrap", "zombie.Game.update"], ["lib.Other.caller", "zombie.Main.run"]],
+            root.Callers.Select(caller => caller.Methods.ToArray()));
+        Assert.Equal([3, 1], root.Callers.Select(caller => caller.Samples));
+        Assert.All(root.Callers, caller => Assert.True(caller.ReachesGame));
+        // Above the game code, its callers stay one row away.
+        Assert.Equal("zombie.Main.run", Assert.Single(root.Callers[0].Callers).Methods.Single());
+        Assert.Empty(ProfileAnalysis.CallersOf(recording, 0, recording.Duration + 1, recording.GameThread, "not.There").Callers);
+    }
+
+    [Fact]
+    public void Callers_TakeTheLuaInterpretersFramesAsOneStep()
+    {
+        // A script's table lookup: HashMap.get under a dozen interpreter frames, run by an event the game fired.
+        var recording = Load("""
+            PZPROF|1
+            I|mode|general
+            T|7|main
+            I|gameThread|7
+            M|0|java.util.HashMap.get
+            M|1|se.krka.kahlua.j2se.KahluaTableImpl.rawget
+            M|2|se.krka.kahlua.vm.KahluaThread.luaMainloop
+            M|3|zombie.Lua.LuaCaller.pcallvoid
+            M|4|zombie.Lua.Event.trigger
+            M|5|zombie.GameWindow.logic
+            K|0|0 1 2 3 4 5
+            S|1000000|7|0|J
+            S|1010000|7|0|J
+            """);
+        var caller = Assert.Single(ProfileAnalysis.CallersOf(recording, 0, recording.Duration + 1, recording.GameThread, "java.util.HashMap.get").Callers);
+
+        // The engine and the game's glue to it are one step, up to the game code that ran the script.
+        Assert.Equal([ProfileAnalysis.LuaRun, "zombie.Lua.Event.trigger"], caller.Methods);
+        Assert.True(caller.ReachesGame);
     }
 
     [Fact]

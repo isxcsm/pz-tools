@@ -4,7 +4,7 @@ using PzTools.Process.Contracts;
 
 namespace PzTools.Control;
 
-/// <summary>한 설치 인스턴스 안의 모든 프로세스가 공유하는 run_index를 원자적으로 발급합니다.</summary>
+/// <summary>Hands out the run_index shared by every process of one installation, atomically.</summary>
 public sealed class RunIndexAllocator
 {
     public const int CurrentSchemaVersion = 1;

@@ -7,12 +7,21 @@ using PzTools.Process.Hosting;
 // Launch check only: proves Windows allows this executable to start. No work, no output.
 if (args is ["--probe"]) return 0;
 
+using var cancellation = new CancellationTokenSource();
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+// A stop request is passed on to the worker, and the reserved workflow is closed as cancelled, instead of both
+// being ended outright.
+using var stopRequest = ProcessStopSignal.Listen(cancellation);
 try
 {
     var repository = Path.GetFullPath(CommandLine.Required(args, "--repository"));
     var mutexName = NamedMutexRunner.CreateName("MaintenanceDispatch", repository);
     var result = await NamedMutexRunner.TryRunAsync(
-        mutexName, token => RunCoreAsync(args, token));
+        mutexName, token => RunCoreAsync(args, token), cancellation.Token);
     if (result.Acquired) return result.Value;
     var runIndex = CommandLine.OptionalInt64(CommandLine.Optional(args, "--run-index"), "--run-index") ?? 1;
     Console.WriteLine(ProcessResultJson.Serialize(
@@ -25,6 +34,11 @@ catch (Exception exception) when (exception is ArgumentException or FormatExcept
 {
     Console.Error.WriteLine(exception.Message);
     return ProcessExitCodes.InvalidArguments;
+}
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+{
+    // Asked to stop before the dispatch began: no workflow was reserved, so there is nothing to close.
+    return ProcessExitCodes.Cancelled;
 }
 
 static async Task<int> RunCoreAsync(string[] args, CancellationToken cancellationToken)
@@ -95,10 +109,10 @@ catch (OperationCanceledException) when (cancellationToken.IsCancellationRequest
         {
             var cancelled = ProcessResultEnvelope<RunnerExecutionResult>.Failure(
                 "maintenance-runner", runIndex.Value, ProcessOutcome.Cancelled,
-                started, "backup-priority", "Maintenance yielded to a due backup.");
+                started, "cancelled", "The maintenance runner was asked to stop.");
             await CompleteReservedWorkflowAsync(repositoryDatabase, runIndex.Value, cancelled);
         }
-        catch { /* 원래 취소 결과를 보존합니다. 다음 실행에서 고아 workflow를 복구합니다. */ }
+        catch { /* Keeps the original cancellation. The next run recovers the orphaned workflow. */ }
     }
     return ProcessExitCodes.FromOutcome(ProcessOutcome.Cancelled);
 }

@@ -192,9 +192,19 @@ public final class ProfileExport {
                     }
                     case "jdk.GCHeapMemoryUsage" -> body.append("H\t").append(time).append('\t').append(event.getLong("used"))
                         .append('\t').append(event.getLong("committed")).append('\t').append(event.getLong("max")).append('\n');
-                    case "jdk.GarbageCollection" -> body.append("G\t").append(time).append('\t')
-                        .append(event.getDuration("sumOfPauses").toNanos() / 1000).append('\t')
-                        .append(clean(event.getString("name"))).append('\t').append(clean(event.getString("cause"))).append('\n');
+                    // CPU used: the game's and the machine's share of all its processors over the last second (CL), and how many
+                    // processors there are (HW).
+                    case "jdk.CPULoad" -> body.append("CL\t").append(time).append('\t').append(event.getFloat("jvmUser")).append('\t')
+                        .append(event.getFloat("jvmSystem")).append('\t').append(event.getFloat("machineTotal")).append('\n');
+                    case "jdk.CPUInformation" -> body.append("HW\t").append(event.getInt("hwThreads")).append('\n');
+                    case "jdk.GarbageCollection" -> {
+                        body.append("G\t").append(time).append('\t')
+                            .append(event.getDuration("sumOfPauses").toNanos() / 1000).append('\t')
+                            .append(clean(event.getString("name"))).append('\t').append(clean(event.getString("cause"))).append('\n');
+                        // How long the collection ran, mostly beside the game (ZGC stops it for well under a millisecond):
+                        // its own record, so readers that know G's five fields keep reading them.
+                        body.append("GR\t").append(time).append('\t').append(event.getDuration().toNanos() / 1000).append('\n');
+                    }
                     case "jdk.GCPhasePause", "jdk.ZAllocationStall", "jdk.JavaMonitorEnter", "jdk.ThreadPark", "jdk.FileRead", "jdk.FileWrite",
                          "jdk.ExecuteVMOperation" -> {
                         if (modeKnown && !detailedMode && !type.equals("jdk.GCPhasePause") && !type.equals("jdk.ZAllocationStall")) break;
@@ -216,6 +226,9 @@ public final class ProfileExport {
             for (var thread : threads.entrySet())
                 writer.write("T\t" + thread.getKey() + "\t" + clean(thread.getValue()) + "\n");
             writer.write("I\tgameThread\t" + gameThread + "\n");
+            // The collector's runs are kept from this version on: a recording without one had no collection, not an
+            // older recorder.
+            writer.write("I\tcollectorRuns\t1\n");
             // With a mode, its own periods: the settings in the file may be the other recording's.
             writer.write("I\tjavaPeriodMicros\t" + (modeKnown ? javaTarget : periods.getOrDefault("jdk.ExecutionSample", 0L)) + "\n");
             writer.write("I\tnativePeriodMicros\t" + (modeKnown ? nativeTarget : periods.getOrDefault("jdk.NativeMethodSample", 0L)) + "\n");

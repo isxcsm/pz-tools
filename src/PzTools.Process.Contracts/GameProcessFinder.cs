@@ -13,6 +13,35 @@ public static class GameProcessFinder
     public static IReadOnlyList<string> Names { get; } = ["ProjectZomboid64", "ProjectZomboid32", "ProjectZomboid"];
 
     /// <summary>
+    /// The Java runtime the game can be started with directly, without its launcher: the game's own
+    /// ProjectZomboid64.bat does, and so do launch scripts players set in Steam. Such a process is the game only
+    /// when its command line starts the game's client (<see cref="ClientMainClass"/>); a dedicated server and
+    /// any other Java program are not.
+    /// </summary>
+    public static IReadOnlyList<string> JavaNames { get; } = ["java", "javaw"];
+
+    private const string ClientMainClass = "zombie.gameStates.MainScreenState";
+    // The class as a whole name: not part of a longer one, nor a file or package path that only ends in it.
+    private static readonly System.Text.RegularExpressions.Regex ClientCommand = new(
+        @"(?<![\w.$/\\])" + System.Text.RegularExpressions.Regex.Escape(ClientMainClass) + @"(?![\w.$])",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    // A Java process's verdict, read once from its command line: by process instance (identifier and start time).
+    private static readonly Dictionary<(int Id, DateTime Started), bool> javaVerdicts = [];
+
+    /// <summary>The game was started by its Java runtime directly, not by its launcher, which then read nothing of
+    /// the launcher's file (ProjectZomboid64.json).</summary>
+    public static bool IsStartedWithoutLauncher(DiagnosticsProcess game)
+    {
+        try { return JavaNames.Contains(game.ProcessName, StringComparer.OrdinalIgnoreCase); }
+        catch (InvalidOperationException) { return false; }
+    }
+
+    /// <summary>A Java command line that starts the game's client.</summary>
+    public static bool IsGameCommandLine(string? commandLine) =>
+        commandLine is not null && ClientCommand.IsMatch(commandLine);
+
+    /// <summary>
     /// How old a shared snapshot may be for loops that only watch for the game to come or go. A snapshot
     /// costs about 5 ms; noticing a starting game a few seconds later does not matter, as its load takes
     /// far longer. An exit is not polled for: it is signalled by the process itself.
@@ -27,14 +56,23 @@ public static class GameProcessFinder
     {
         var all = DiagnosticsProcess.GetProcesses();
         var games = new List<DiagnosticsProcess>(1);
+        var javas = new HashSet<(int, DateTime)>();
         foreach (var process in all)
         {
             bool game;
-            try { game = Names.Contains(process.ProcessName, StringComparer.OrdinalIgnoreCase); }
-            catch (InvalidOperationException) { game = false; } // exited during the snapshot
+            try
+            {
+                var name = process.ProcessName;
+                game = Names.Contains(name, StringComparer.OrdinalIgnoreCase)
+                    || JavaNames.Contains(name, StringComparer.OrdinalIgnoreCase) && IsJavaGame(process, javas);
+            }
+            catch (Exception exception) when (exception is InvalidOperationException // exited during the snapshot
+                or System.ComponentModel.Win32Exception or NotSupportedException) { game = false; }
             if (game) games.Add(process);
             else process.Dispose();
         }
+        // Verdicts of Java processes gone since are forgotten.
+        lock (Gate) foreach (var gone in javaVerdicts.Keys.Where(key => !javas.Contains(key)).ToArray()) javaVerdicts.Remove(gone);
         var found = games.ToArray();
         Remember(found);
         return found;
@@ -75,6 +113,48 @@ public static class GameProcessFinder
         foreach (var process in found) process.Dispose();
         return found.Length;
     }
+
+    private static bool IsJavaGame(DiagnosticsProcess process, HashSet<(int, DateTime)> seen)
+    {
+        var key = (process.Id, process.StartTime);
+        seen.Add(key);
+        lock (Gate) if (javaVerdicts.TryGetValue(key, out var known)) return known;
+        // A command line that cannot be read (a protected process, or another user's where this runs without
+        // administrator rights) is not taken for the game. As administrator another user's game is read and counts,
+        // as one found by its launcher's name always has.
+        var verdict = IsGameCommandLine(CommandLine(process.Id));
+        lock (Gate) javaVerdicts[key] = verdict;
+        return verdict;
+    }
+
+    // ProcessCommandLineInformation: the process's command line as a UNICODE_STRING followed by its text.
+    private static string? CommandLine(int processId)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        using var handle = OpenProcess(QueryLimitedInformation, false, processId);
+        if (handle.IsInvalid) return null;
+        NtQueryInformationProcess(handle, ProcessCommandLineInformation, IntPtr.Zero, 0, out var length);
+        if (length <= IntPtr.Size * 2 || length > 1 << 20) return null;
+        var buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(length);
+        try
+        {
+            if (NtQueryInformationProcess(handle, ProcessCommandLineInformation, buffer, length, out _) != 0) return null;
+            int bytes = (ushort)System.Runtime.InteropServices.Marshal.ReadInt16(buffer);
+            var text = System.Runtime.InteropServices.Marshal.ReadIntPtr(buffer, IntPtr.Size);
+            return text == IntPtr.Zero ? null : System.Runtime.InteropServices.Marshal.PtrToStringUni(text, bytes / 2);
+        }
+        finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer); }
+    }
+
+    private const uint QueryLimitedInformation = 0x1000;
+    private const int ProcessCommandLineInformation = 60;
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern Microsoft.Win32.SafeHandles.SafeProcessHandle OpenProcess(uint access, bool inherit, int processId);
+
+    [System.Runtime.InteropServices.DllImport("ntdll.dll")]
+    private static extern int NtQueryInformationProcess(Microsoft.Win32.SafeHandles.SafeProcessHandle process, int informationClass,
+        IntPtr information, int length, out int returnLength);
 
     private static void Remember(DiagnosticsProcess[] games)
     {

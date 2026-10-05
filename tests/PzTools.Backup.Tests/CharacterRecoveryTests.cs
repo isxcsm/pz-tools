@@ -1,6 +1,9 @@
 using System.Buffers.Binary;
 using System.Text;
 using Microsoft.Data.Sqlite;
+using PzTools.App.Core;
+using PzTools.Process.Contracts;
+using PzTools.Process.Hosting;
 using PzTools.Zomboid.Recovery;
 
 namespace PzTools.Backup.Tests;
@@ -39,6 +42,62 @@ public sealed class CharacterRecoveryTests
             Assert.Throws<InvalidDataException>(() => ZombieInventoryRecovery.Recover(player, layout, "Test", bytes[..length], Registry));
         var result = ZombieInventoryRecovery.Recover(player, layout, "Test", ZombieFile(Zombie("Someone"), zombie), Registry);
         Assert.Equal(ZombieFile(Zombie("Someone")), result.Zombies);
+    }
+
+    // Reported by a player: a bite healed outside the game kept its wound on the character, because the game takes a
+    // wound or bandage model off only when it sees the body part change during play.
+    [Fact]
+    public void Heal_TakesOffWoundAndBandageModelsAndRenumbersWornAndHeldItems()
+    {
+        var registry = new Dictionary<int, string>(Registry) { [5] = "Base.Bandage_Neck_Blood", [6] = "Base.Bandage" };
+        var (player, layout) = DressedPlayer([(2, 21), (3, 22), (5, 23), (6, 24), (4, 25)],
+            [("Torso", 0), ("Wound", 1), ("Wound", 2), ("Back", 4)], primary: 4, secondary: 3);
+
+        var result = RemainsFormat.RemoveBodyModels(player, layout, registry);
+
+        Assert.Equal(result, PlayerHealthEditor.Heal(result, 249, out var after));
+        Assert.Equal(["Base.Shirt", "Base.Bandage", "Base.Bag"],
+            RemainsFormat.Inventory(new RemainsReader(result, after.Start), registry).Groups.Select(g => g.Type));
+        var worn = new RemainsReader(result, after.WornStart);
+        Assert.Equal([new WornReference("Torso", 0), new WornReference("Back", 2)], RemainsFormat.Worn(worn, 3));
+        Assert.Equal((2, 1), (worn.Short(), worn.Short()));
+        Assert.Equal(2, BinaryPrimitives.ReadInt32BigEndian(result.AsSpan(after.Hands)));
+        Assert.Equal(1, BinaryPrimitives.ReadInt32BigEndian(result.AsSpan(after.Hands + 4)));
+        // Nothing to take off: the same player, untouched.
+        Assert.Same(result, RemainsFormat.RemoveBodyModels(result, after, registry));
+    }
+
+    [Fact]
+    public void BodyModels_AreTheWoundAndBandageModelsOnly()
+    {
+        Assert.True(RemainsFormat.IsBodyModel("Base.Wound_LHand_Bite_Male"));
+        Assert.True(RemainsFormat.IsBodyModel("Base.Bandage_LeftHand_Blood"));
+        Assert.False(RemainsFormat.IsBodyModel("Base.Bandage"));
+        Assert.False(RemainsFormat.IsBodyModel("Base.BandageDirty"));
+        Assert.False(RemainsFormat.IsBodyModel("Base.AlcoholBandage"));
+    }
+
+    // A player carrying the given items (registry id, item id), wearing some of them, holding two by index.
+    internal static (byte[] Player, InventoryLayout Layout) DressedPlayer((int Registry, int Id)[] items,
+        (string Where, int Index)[] wearing, int primary, int secondary)
+    {
+        var (player, layout) = EmptyPlayer();
+        var worn = new BigEndianWriter(); worn.Byte((byte)wearing.Length);
+        foreach (var (where, index) in wearing) { worn.String(where); worn.Short(index); }
+        worn.Short(primary); worn.Short(secondary);
+        player = [.. player.AsSpan(0, layout.WornStart), .. worn.ToArray(), .. player.AsSpan(layout.WornEnd + 4)];
+        BinaryPrimitives.WriteInt32BigEndian(player.AsSpan(layout.Hands), primary);
+        BinaryPrimitives.WriteInt32BigEndian(player.AsSpan(layout.Hands + 4), secondary);
+        var inventory = new BigEndianWriter(); inventory.String("none"); inventory.Byte(0); inventory.Short(items.Length);
+        foreach (var (registry, id) in items)
+        {
+            var item = new BigEndianWriter(); item.Short(registry); item.Byte(255); item.Int(id); item.Byte(0);
+            inventory.Int(1); inventory.Int(item.ToArray().Length); inventory.Bytes(item.ToArray());
+        }
+        inventory.Zeros(5);
+        player = [.. player.AsSpan(0, layout.Start), .. inventory.ToArray(), .. player.AsSpan(layout.End)];
+        player = PlayerHealthEditor.Heal(player, 249, out layout);
+        return (player, layout);
     }
 
     internal static readonly IReadOnlyDictionary<int, string> Registry = new Dictionary<int, string>
@@ -87,11 +146,13 @@ public sealed class CharacterRecoveryTests
         w.Int(0); w.String(first); w.String(last); w.String("Kate"); w.Int(1);
         w.String("base:unemployed"); w.Int(0); w.Int(0); w.String("VoiceFemale"); w.Zeros(8);
     }
-    internal static void Visual(BigEndianWriter w, string variant, byte skinTexture = 2)
+    internal static void Visual(BigEndianWriter w, string variant, byte skinTexture = 2, byte[][]? skin = null)
     {
         w.Byte(44); w.Byte(variant == "Test" ? (byte)70 : (byte)90); w.Byte(40); w.Byte(20);
         w.Byte(255); w.Byte(200); w.Byte(100); w.Byte(0); w.Byte(skinTexture); w.Byte(255);
-        w.String("Short"); w.Zeros(4); w.String(""); w.Byte(4); w.Byte(70); w.Byte(40); w.Byte(20);
+        w.String("Short");
+        foreach (var layer in skin ?? [[], [], []]) { w.Byte((byte)layer.Length); w.Bytes(layer); }
+        w.Byte(0); w.String(""); w.Byte(4); w.Byte(70); w.Byte(40); w.Byte(20);
     }
     internal static byte[] ZombieFile(params byte[][] zombies)
     {
@@ -100,10 +161,14 @@ public sealed class CharacterRecoveryTests
         return w.ToArray();
     }
 
-    [Fact]
-    public void Heal_PreservesTraitsProgressInventoryAndUnknownModData()
+    // Asked by a player: a bandage or splint stays on as it was, without the wound under it, and comes off in the
+    // game giving back what the game gives back.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Heal_PreservesTraitsProgressInventoryAndUnknownModData(bool treated)
     {
-        var sample = Sample.Create();
+        var sample = Sample.Create(treated);
         var original = sample.Bytes.ToArray();
         var healed = PlayerHealthEditor.Heal(original, 249);
         Assert.Equal(original, sample.Bytes);
@@ -122,17 +187,13 @@ public sealed class CharacterRecoveryTests
         Assert.True(healed.AsSpan().IndexOf(Encoding.UTF8.GetBytes("pending-soreness")) < 0);
         Assert.Equal(healed, PlayerHealthEditor.Heal(healed, 249));
         var body = sample.Stats + 96;
+        var healedPart = HealedPart(treated);
         for (var i = 0; i < 17; i++)
-        {
-            var part = healed.AsSpan(body + i * 93, 93).ToArray();
-            Assert.Equal(100, BinaryPrimitives.ReadSingleBigEndian(part.AsSpan(8)));
-            Assert.Equal(1, part[42]); Assert.Equal(1, part[48]); Assert.Equal(1, part[49]);
-            part.AsSpan(8, 4).Clear(); part[42] = part[48] = part[49] = 0;
-            Assert.All(part, value => Assert.Equal(0, value));
-        }
-        Assert.Equal(-1, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(body + 17 * 93 + 26)));
-        Assert.Equal(-1, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(body + 17 * 93 + 30)));
-        var thermal = body + 17 * 93 + 39;
+            Assert.Equal(healedPart, healed.AsSpan(body + i * healedPart.Length, healedPart.Length).ToArray());
+        var parts = body + 17 * healedPart.Length;
+        Assert.Equal(-1, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(parts + 26)));
+        Assert.Equal(-1, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(parts + 30)));
+        var thermal = parts + 39;
         Assert.Equal(37, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(thermal)));
         Assert.Equal(1.5f, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(thermal + 8)));
         for (var i = 0; i < 17; i++)
@@ -143,6 +204,35 @@ public sealed class CharacterRecoveryTests
             Assert.Equal(12, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(node + 24))); // insulation preserved
             Assert.Equal(0, BinaryPrimitives.ReadSingleBigEndian(healed.AsSpan(node + 32))); // body wetness
         }
+    }
+
+    // A body part of Sample healed: full health, the training flags kept, and a sample's bandage (20 left, "bandage")
+    // and splint (factor 3, "splint") kept when it had them.
+    private static byte[] HealedPart(bool treated)
+    {
+        var w = new BigEndianWriter();
+        w.Zeros(3); w.Byte(treated ? (byte)1 : (byte)0); w.Zeros(4);
+        w.Float(100); if (treated) w.Float(20);
+        w.Zeros(1 + 28);
+        w.Byte(0); w.Byte(1); w.Byte(0); w.Zeros(4); w.Byte(1); w.Byte(1); w.Zeros(4);
+        w.Byte(treated ? (byte)1 : (byte)0); if (treated) w.Float(3);
+        w.Zeros(10);
+        if (treated) { w.String("splint"); w.String("bandage"); } else w.Zeros(4);
+        w.Zeros(24);
+        return w.ToArray();
+    }
+
+    // Reported by a player: a revived character got up covered in blood and dirt.
+    [Fact]
+    public void Wash_TakesBloodAndDirtOffTheSkinAndNothingElse()
+    {
+        var bloody = Sample.Create(skin: [[0, 200, 30], [5, 0, 255], [1, 0, 1]]).Bytes;
+        var washed = PlayerHealthEditor.Wash(bloody, 249);
+        Assert.Equal(Sample.Create(skin: [[0, 0, 0], [0, 0, 0], [1, 0, 1]]).Bytes, washed);
+        Assert.Equal(washed, PlayerHealthEditor.Wash(washed, 249));
+        Assert.Equal(Sample.Create().Bytes, PlayerHealthEditor.Wash(Sample.Create().Bytes, 249));
+        Assert.Throws<InvalidDataException>(() => PlayerHealthEditor.Wash(bloody, 250));
+        Assert.Throws<InvalidDataException>(() => PlayerHealthEditor.Wash(bloody[..^1], 249));
     }
 
     [Fact]
@@ -172,6 +262,17 @@ public sealed class CharacterRecoveryTests
         query.CommandText = "SELECT data FROM localPlayers;";
         Assert.Equal(PlayerHealthEditor.Heal(blob, 249), (byte[])(await query.ExecuteScalarAsync())!);
         Assert.Empty(Directory.GetDirectories(Path.GetDirectoryName(Path.GetDirectoryName(workspace.Database)!)!, ".*"));
+    }
+
+    [Fact]
+    public async Task Service_GetsTheCharacterUpWashed()
+    {
+        using var workspace = new RecoveryWorkspace();
+        var blob = Sample.Create(skin: [[0, 200, 30], [5, 0, 255], [1, 0, 1]]).Bytes;
+        await workspace.CreateDatabase(blob);
+        await new CharacterRecoveryService().RecoverAsync(workspace.Root, "Sandbox/Test");
+        var row = Assert.Single(await workspace.ReadRows());
+        Assert.Equal(PlayerHealthEditor.Heal(Sample.Create(skin: [[0, 0, 0], [0, 0, 0], [1, 0, 1]]).Bytes, 249), row.Data);
     }
 
     // v0.1.0 report: a save whose only character is not id 1 could not be revived.
@@ -282,6 +383,52 @@ public sealed class CharacterRecoveryTests
         Assert.DoesNotContain("BackupDirectory", output, StringComparison.OrdinalIgnoreCase);
     }
 
+    [RequiresEnvironmentFact("PZTOOLS_TOOLS_DIR")]
+    public async Task PublishedWorker_ReportsAnUnfinishedEarlierEdit_NotAnUnhealableSave()
+    {
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes);
+        var save = Path.GetDirectoryName(workspace.Database)!;
+        // A journal this worker cannot finish: the earlier edit is pending, which the app explains as such.
+        var journal = SaveFileEditTransaction.DirectoryPath(save);
+        Directory.CreateDirectory(journal);
+        await File.WriteAllTextAsync(Path.Combine(journal, "manifest.json"), """{"Version":9,"Files":[]}""");
+        var (exit, output) = await RunPublishedWorkerAsync(workspace, []);
+        Assert.Equal(ProcessExitCodes.Failure, exit);
+        var envelope = ProcessResultValidator.Read<object>(output, "character-recovery", 1, exit);
+        Assert.Equal("save-edit-invalid-journal", envelope.Error?.Message);
+        Assert.Equal("RecoveryError.PendingEdit", UserFacingErrorCatalog.FromProcessError(envelope.Error?.Message));
+    }
+
+    [RequiresEnvironmentFact("PZTOOLS_TOOLS_DIR")]
+    public async Task PublishedWorker_RefusesABadOptionWithTheUsageCode()
+    {
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes);
+        var (exit, output) = await RunPublishedWorkerAsync(workspace, ["--player-id", "not-a-number"]);
+        Assert.Equal(ProcessExitCodes.InvalidArguments, exit);
+        var envelope = ProcessResultValidator.Read<object>(output, "character-recovery", 1, exit);
+        Assert.Equal("invalid-arguments", envelope.Error?.Code);
+        Assert.Contains("--player-id", envelope.Error?.Message);
+    }
+
+    private static async Task<(int ExitCode, string Output)> RunPublishedWorkerAsync(RecoveryWorkspace workspace, string[] extra)
+    {
+        var executable = Path.Combine(Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!, "PzTools.Zomboid.Recovery.Cli.exe");
+        var start = new System.Diagnostics.ProcessStartInfo(executable)
+        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var arg in new[] { "--saves-root", workspace.Root, "--save-id", "Sandbox/Test",
+            "--repository", Path.Combine(workspace.Root, "repository"),
+            "--run-index", "1", "--telemetry-identity", Path.Combine(workspace.Root, "telemetry") }.Concat(extra))
+            start.ArgumentList.Add(arg);
+        using var process = System.Diagnostics.Process.Start(start)!;
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+        await errorTask;
+        return (process.ExitCode, await outputTask);
+    }
+
     [RequiresEnvironmentFact("PZTOOLS_RECOVERY_SAMPLES")]
     public async Task RealSaveSamples_WhenProvided_AreEditedOnlyInCopies()
     {
@@ -344,23 +491,25 @@ public sealed class CharacterRecoveryTests
 
     internal sealed record Sample(byte[] Bytes, int Stats, byte[] TraitsAndXp, byte[] Regularity, byte[] Nutrition)
     {
-        public static Sample Create()
+        /// <param name="treated">Every body part bandaged and splinted.</param>
+        /// <param name="skin">The skin's blood, dirt and holes, one byte per part each.</param>
+        public static Sample Create(bool treated = true, byte[][]? skin = null)
         {
             var w = new BigEndianWriter();
             w.Zeros(26); w.Byte(1); w.Int(1); // opaque Lua mod data
             w.Byte(0); w.String("negative-mod-trait"); w.Byte(0); w.String("keep-me");
             w.Byte(1); Descriptor(w, "Test", "Person");
-            Visual(w, "Test");
+            Visual(w, "Test", skin: skin);
             w.String("inventory"); w.Byte(0); w.Short(1); w.Int(1); w.Int(8); w.Double(123456.25); w.Zeros(5);
             w.Byte(1); w.Float(8); var stats = w.Position;
             for (var i = 0; i < 24; i++) w.Float(.43f);
             for (var part = 0; part < 17; part++)
             {
-                for (var i = 0; i < 8; i++) w.Byte(1);
-                w.Float(3); w.Float(20); w.Byte(1); w.Float(9);
+                for (var i = 0; i < 8; i++) w.Byte(i == 3 && !treated ? (byte)0 : (byte)1);
+                w.Float(3); if (treated) w.Float(20); w.Byte(1); w.Float(9);
                 for (var i = 0; i < 7; i++) w.Float(11);
                 w.Byte(1); w.Byte(1); w.Byte(1); w.Float(4); w.Byte(1); w.Byte(1); w.Float(9);
-                w.Byte(1); w.Float(3); w.Byte(1); w.Float(4); w.Byte(1); w.Float(10);
+                w.Byte(treated ? (byte)1 : (byte)0); if (treated) w.Float(3); w.Byte(1); w.Float(4); w.Byte(1); w.Float(10);
                 w.String("splint"); w.String("bandage"); for (var i = 0; i < 6; i++) w.Float(12);
             }
             w.Float(5); w.Byte(1); w.Float(6); w.Int(80); w.Byte(1);

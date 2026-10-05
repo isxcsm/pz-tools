@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>当前存档</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>存档文件夹</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>正在复制当前存档</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>游玩时无法导出。请退出游戏。</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>游玩时无法导出。请返回主菜单。</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>游玩期间无法恢复备份。请退出该存档后重试。</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>请在列表中选择要恢复的备份</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>游玩期间无法删除存档。请退出该存档后重试。</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>游玩时无法恢复。请退出游戏。</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>游玩时无法恢复。请返回主菜单。</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>暂无备份</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>立即备份</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>恢复</value></data>
@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>浏览</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>备份</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>自动备份</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>按设定的间隔备份正在游玩的存档。关闭后仍可手动备份。</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>按设定的间隔备份正在游玩的存档。角色死亡后会暂停，直到以新角色开始。关闭后仍可手动备份。</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>备份间隔</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>自动备份的间隔（1–60 分钟）。更改后重新开始计时。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自动备份保留数量</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>自动备份只保留最近的这么多个，更早的会被删除（1–100 个）。手动备份不计入，也不会被删除。</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>自动备份只保留最近的这么多个，更早的会被删除（1–100 个）。手动备份不计入，只会随存档一起删除。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡时备份</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>角色死亡后停止自动备份，避免存活时的备份被挤掉。开启后会保留一份死亡时刻的备份。</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>开启后，在角色死亡后立即备份一次。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>存档一直在变化，未能备份。请稍后重试。</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>下次备份：等待中</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>系统</value></data>
@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>取消</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>导入备份文件</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>无法导入此文件。请确认它是由 PZ Tools 导出的。</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>压缩包不安全，未导入。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手动备份</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>恢复所选备份？</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>将“{0}”的当前文件替换为备份“{1}”。该备份之后的游戏进度将丢失。如果恢复中断，请先重新打开 PZ Tools，再在游戏中加载此存档。</value></data>
@@ -279,7 +278,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>已删除存档及其备份。</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>存档已删除，但备份仍在。</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>已删除。</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>存档已变化。请退出游戏后重试。</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>存档已变化。请返回主菜单后重试。</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>已完成，但列表可能稍后才更新。请勿重复操作。</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>备份</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>恢复</value></data>
@@ -325,8 +324,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>无法确认游戏保存结果，已停止备份。</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>备份前保存游戏</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>游戏内保存倒计时</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自动备份保存游戏前 5 秒起在角色头顶显示倒计时，结束后显示保存结果。在应用中开始的备份不显示，直接保存。关闭后自动备份也不显示，直接保存。</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前先保存游戏，把最新进度也包含进去。保存时游戏可能会卡顿约 0.5 秒。关闭后，尚未保存的进度可能不会进入备份，建议保持开启。</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>自动备份保存游戏前 5 秒起在角色上方显示倒计时，结束后告知保存结果。关闭后不显示直接保存。</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>备份前先保存游戏，把最新进度也包含进去。保存时游戏可能会卡顿约 0.5 秒。</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>已关闭：游戏上次保存之后的进度不会进入备份。建议保持开启。</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>下次备份：即将开始</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>下次备份：当前任务结束后</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>角色恢复</value></data>
@@ -351,7 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>停止录制</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>标准</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>详细</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>标准：每 0.01 秒记录一次，几乎不影响游戏。&#xA;详细：约每 0.002 秒记录一次，同时记录等待和停顿。游戏可能会稍微变慢。</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>标准：约每 0.01 秒记录一次，几乎不影响游戏。
+详细：每 0.001～0.0015 秒记录一次，并记录等待和停顿原因。游戏会因此变慢（约 20%）。</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>先启动游戏，再开始录制。重现卡顿后停止录制，即可查看结果。</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>正在连接游戏…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>录制中 {0} · {1} 分钟后自动停止</value></data>
@@ -365,10 +366,18 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>要删除这条录制吗？此操作无法撤销。</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>还没有录制记录。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开录制。文件已损坏，或由更新的版本创建。</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 内存面板中的灰色柱：内存清理（GC），高度为暂停时长 · ▲：超出刻度的帧（悬停显示时间） · 单击列表中的项：在每根柱中加深显示其部分（再次单击取消；显示期间指向其他项可预览）</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>将显示的内容复制为文本</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>复制文本</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>已复制。</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 内存面板中的灰色柱：内存清理（GC），高度为暂停时长 · ▲：超出刻度的帧（悬停显示时间） · 单击列表中的项：在每根柱中加深显示其部分（再次单击取消；显示期间指向其他项可预览） · 浅橙色背景：GC 运行期间</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>复制给 AI</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>复制可粘贴到 AI 对话中的报告，或保存为文件：完整报告，或只针对下方表格中模组的详细报告。报告以英文撰写。</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>报告已复制。请粘贴到 AI 对话中。</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>保存为文件</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>报告已保存：{0}</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>完整报告</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>此区间的帧、内存、所有模组和 Java 摘要；无论这里展开了什么，内容都相同。用于询问游戏为什么卡。</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>详细报告：{0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>只详细包含此模组：函数、最重的行、调用树和内存分配。用于发给模组作者，或询问这个模组。</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>只详细包含此 Java 区域：其方法及调用它们的路径。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>启动游戏后即可录制。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>游戏没有运行，未开始{0}。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>有多个游戏在运行，未开始{0}。</value></data>
@@ -396,7 +405,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>游戏在显卡上占用的内存。刻度为可见范围内的最低值到最高值。</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} 分配</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>按时刻以柱显示突出显示的模组脚本分配的内存，分配最多的时刻为满柱。若这些柱集中在上方 GC 柱之前，就是此模组引起了 GC。</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停顿 {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>文件</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>方法</value></data>
@@ -419,11 +428,17 @@
   <data name="ProfileCompare" xml:space="preserve"><value>对比对象</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>没有可对比的其他录制</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>线程</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 {1} 分钟，会保存为一段录制。模式：{0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>从 {0} 的第 {1} 行调用</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身执行的行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0}（调用）</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 暂停</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 运行 {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>运行 {0:P2}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>等待内存 {0:N0} 次，最长 {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 暂停：因垃圾回收整个游戏停下的时间。游戏默认的 ZGC 几乎不会让它停下。
+GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同时运行并分享 CPU，内存不足时会接近 100%，游戏随之变慢。
+等待内存：因内存已满，线程停下等待释放内存的次数。</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>单击以隐藏或显示此行</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>快捷键：{0}</value></data>
@@ -471,11 +486,11 @@
   <data name="RollingSetting.Header" xml:space="preserve"><value>持续保留最近几分钟</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>开启后，游戏运行时会一直保留最近几分钟。标准模式几乎没有开销。</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>模式</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>详细模式记录得更多，但开启期间游戏会稍微变慢（约 10%）。请在排查卡顿时使用。</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>详细模式记录得更多，但开启期间游戏会变慢（约 20%）。请在排查卡顿时使用。</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>时长（分钟）</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分钟。时长更长对游戏的开销不变，只会占用更多磁盘空间。</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>游戏运行后开始保留最近 1 分钟。</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>正在开始保留最近 1 分钟…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>游戏运行后开始保留最近 {0} 分钟。</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>正在开始保留最近 {0} 分钟…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>没有可保存的最近记录。将从现在起重新录制。</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>取出最近记录</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>停止对比</value></data>
@@ -556,6 +571,7 @@
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。存档未被修改。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档上次未正常退出。请在游戏中载入后正常退出。存档未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>只能恢复单人存档。存档未被修改。</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>此存档中有多名角色。请选择一名后重试。存档未被修改。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>此存档中有多名角色。请选择要恢复的角色；未选择的角色不会被更改。</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>正在寻找该角色的僵尸或尸体…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>请选择从哪里取回物品。</value></data>
@@ -574,13 +590,14 @@
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法恢复此存档。请尝试更新 PZ Tools。存档未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>无法读取生存时间 · 将再次检查</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>游戏或其他操作正在使用文件。请稍后重试。</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>导出时存档发生了变化。请退出游戏后重试。</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>导出时存档发生了变化。请返回主菜单后重试。</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>此备份已损坏。请选择其他备份。存档未被修改。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>可用空间不足。</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>PZ Tools 文件不完整。请重新解压下载的压缩包。</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>此版本无法打开该备份文件夹。请在设置中选择新文件夹。请勿删除旧文件夹。</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>请在当前操作结束后重试。</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>无法应用设置。请检查输入的值。</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>无法应用设置。请检查文件 {0}。</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>无法重启。请手动关闭并重新打开应用。</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>无法使用此文件夹，已恢复之前的设置。</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>无法更改文件夹。请在设置中检查文件夹位置。</value></data>
@@ -646,12 +663,13 @@
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>恢复游戏并停车，松开油门并关闭定速巡航后即可应用设置。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>游戏处于主菜单</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>游戏正在加载</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>游戏正在返回主菜单</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>角色已死亡 – 备份等待中</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>无法连接到游戏，将不保存游戏直接备份。</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>当前无法读取睡眠状态，仅暂停时生效。</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>无法连接到游戏，当前不生效。</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>下次备份（不保存游戏）</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>将在不保存游戏的情况下备份。</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>下次备份（未连接到游戏）</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>备份仍按时进行。若游戏无法先保存，则按文件当前状态备份。</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>未连接到游戏</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>请重新启动游戏。</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>兼容性与生效状态</value></data>
@@ -714,6 +732,28 @@
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>脚本</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>游戏代码</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>（Lua 执行）</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>正在查找调用方…</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>此方法自身时间的 {0} · 区间的 {1}</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>所选模组的脚本运行时间（含其调用的 Java 函数）</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>除所选模组外其余脚本的运行时间</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>垃圾回收与游戏同时运行的区间。此处帧更长说明内存不足。点击可隐藏。</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>此电脑上没有这个文件。录制可能来自另一台电脑，或模组已被删除或移动。</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>录制后文件已更改，行号可能不同</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>打开</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>在 VS Code 中打开第 {0} 行</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>在 VS Code 中打开</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>在 VS Code 中打开（未找到 VS Code）</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>在文件夹中显示</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>复制路径</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>内存停顿</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 运行时帧平均慢 {0:P0}</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>其他程序平均占用了 {0:P0} 的 CPU</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>录制期间，游戏以外的程序占用了这么多电脑 CPU。CPU 繁忙时，无论模组如何，游戏都会变慢，录制结果也会比平时慢。如需公平比较，请关闭这些程序后重新录制。</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>模组和游戏的 Lua 脚本运行时间（含其调用的 Java 函数）</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>游戏自身代码（Java）的运行时间</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>游戏线程因 GC 或等待内存而停下的时间。使用 ZGC 时几乎为 0；内存不足的影响请看图表的橙色背景。</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>游戏线程空闲的时间，大多是到下一帧前的余量。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他脚本</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>游戏的启动选项阻止了连接。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>游戏的启动选项阻止了连接，因此无法连接。请检查游戏的启动选项。</value></data>
@@ -747,4 +787,9 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>游戏启动中</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 使用中</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>从下次启动游戏起生效。</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>游戏是通过启动脚本（.bat）运行的，内存由脚本自行设定。此设置仅在正常启动游戏时生效。</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>卡片预览（开发版本）</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>不触发相应情况即显示侧边栏卡片，用于检查外观和按钮。发布版本中没有。</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>显示</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>全部清除</value></data>
 </root>

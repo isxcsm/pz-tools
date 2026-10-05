@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 STRINGS = ROOT / 'src/PzTools.App/Strings'
 CATALOG = ROOT / 'src/PzTools.Process.Contracts/Localization/languages.tsv'
+NOTICES = ROOT / 'src/PzTools.GameBridge.Agent/notices.tsv'
 TOKEN = re.compile(r'\{\d+[^{}]*\}')
 
 
@@ -21,6 +22,28 @@ def resources(tag: str) -> dict[str, str]:
     if len(names) != len(set(names)):
         raise AssertionError(f'{tag}: duplicate resource keys')
     return {row.attrib['name']: row.findtext('value', '') for row in rows}
+
+
+def notices(tags: list[str]) -> int:
+    """The game refuses a note in a language notices.tsv has no column for, so every tag needs a full column."""
+    rows = [line.split('\t') for line in NOTICES.read_text(encoding='utf-8').splitlines() if line]
+    header, entries = rows[0], rows[1:]
+    assert header[0] == 'key', 'notices.tsv: the first column must be the key'
+    columns = header[1:]
+    assert len(columns) == len(set(columns)), 'notices.tsv: duplicate language columns'
+    assert set(columns) == set(tags), (f'notices.tsv: columns differ from languages.tsv; '
+                                       f'missing {set(tags) - set(columns)}, unknown {set(columns) - set(tags)}')
+    keys = [row[0] for row in entries]
+    assert len(keys) == len(set(keys)), 'notices.tsv: duplicate keys'
+    english = columns.index('en-US') + 1
+    for row in entries:
+        assert len(row) == len(header), f'notices.tsv/{row[0]}: {len(row)} fields, the header has {len(header)}'
+        for tag, value in zip(columns, row[1:]):
+            assert value.strip(), f'notices.tsv/{row[0]}/{tag}: empty value'
+            assert not any(char in value for char in ('�', '⟪', '⟦')), f'notices.tsv/{row[0]}/{tag}: damaged text'
+            assert sorted(TOKEN.findall(value)) == sorted(TOKEN.findall(row[english])), \
+                f'notices.tsv/{row[0]}/{tag}: format arguments differ from English'
+    return len(entries)
 
 
 def main() -> None:
@@ -55,9 +78,10 @@ def main() -> None:
         assert TOKEN.findall(row[6]) == ['{0}'], f'{tag}: game countdown parameter differs'
         assert all(row[index].strip() and not TOKEN.findall(row[index]) for index in (7, 8, 9)), f'{tag}: missing notice or unexpected parameters'
         assert localized['SettingEnabled'] != localized['SettingDisabled']
+    notes = notices(tags)
     print(f'PASS: {len(tags)} languages, {len(keys)} keys, {values_checked} values; '
           f'{len(references)} literal UI keys and {len(diagnostics)} error keys resolve; '
-          'shared game notices and backup labels agree.')
+          f'shared game notices and backup labels agree; {notes} in-game notes cover every language.')
 
 
 if __name__ == '__main__':

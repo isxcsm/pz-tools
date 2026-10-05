@@ -9,23 +9,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import re
 import sqlite3
 import statistics
-import subprocess
 import time
 
-ROOT = Path(__file__).resolve().parents[1]
-REPO = 'src/PzTools.Backup.Storage/Repository/'
-
-def text(name: str, ref: str | None = None) -> str:
-    if ref:
-        return subprocess.check_output(['git', 'show', f'{ref}:{REPO}{name}'], cwd=ROOT).decode('utf-8-sig')
-    return (ROOT / REPO / name).read_text(encoding='utf-8-sig')
-
-def blocks(value: str) -> list[str]:
-    return re.findall(r'"""\s*\n(.*?)\n\s*"""', value, re.S)
+from repository_sql import add_run, block, blocks, constant as sql_constant, schema, source as text
 
 def constant(value: str, name: str) -> str:
     match = re.search(r'const string ' + re.escape(name) + r'\s*=\s*(.*?);', value, re.S)
@@ -41,7 +30,7 @@ def make_db(schema: str, entries: int, packs: int) -> sqlite3.Connection:
         db.execute("INSERT INTO sources VALUES(1,'Sandbox/Fixture','/isolated','2000-01-01')")
         db.execute('INSERT INTO source_state(source_id,current_revision) VALUES(1,3)')
         for revision in range(1, 4):
-            db.execute("INSERT INTO runs(run_index,source_id,status,started_utc) VALUES(?,1,'Succeeded','2000-01-01')", (revision,))
+            add_run(db, revision, 1, '2000-01-01')
             db.execute("INSERT INTO revisions(source_id,revision,run_index,created_utc,logical_size,file_count) VALUES(1,?,?,'2000-01-01',?,?)",
                        (revision, revision, entries*1024, entries))
         for i in range(packs + 100):
@@ -84,16 +73,16 @@ def main():
     p.add_argument('--repetitions',type=int,default=3)
     args=p.parse_args()
     if args.entries<1100 or args.packs<1 or args.repetitions<1: p.error('entries>=1100; packs and repetitions>=1')
-    before_schema=blocks(text('RepositorySchema.cs',args.baseline_ref))[0]
-    after_schema=blocks(text('RepositorySchema.cs'))[0]
+    before_schema=schema(text('RepositorySchema.cs',args.baseline_ref))
+    after_schema=schema(text('RepositorySchema.cs'))
     before_read=text('RepositoryDatabase.Read.cs',args.baseline_ref)
     after_read=text('RepositoryDatabase.Read.cs')
     lookup=text('RepositoryDatabase.Lookups.cs')
-    old_paths=blocks(before_read)[-1].replace('{joinClause}',
+    old_paths=block(before_read,'{joinClause}','baseline RepositoryDatabase.Read.cs').replace('{joinClause}',
         re.search(r'"(JOIN paths AS requested_path[^"\n]+)"',before_read)[1])
-    old_refs=next(s for s in blocks(before_read) if 'SELECT entry.display_path, entry.entry_kind, entry.file_id' in s)
-    new_paths=blocks(after_read)[-1]
-    new_refs=blocks(lookup)
+    old_refs=block(before_read,'SELECT entry.display_path, entry.entry_kind, entry.file_id','baseline RepositoryDatabase.Read.cs')
+    new_paths=block(after_read,'{fromClause}','RepositoryDatabase.Read.cs')
+    new_refs=[sql_constant(lookup,name,'RepositoryDatabase.Lookups.cs') for name in ('TrackedPathsRequestFirstSql','TrackedPathsScanSql')]
     threshold=int(re.search(r'RequestDrivenLookupThreshold\s*=\s*(\d+)',lookup)[1])
     before=make_db(before_schema,args.entries,args.packs)
     after=None
@@ -120,8 +109,7 @@ def main():
                 right,rt=measure(after,new,{'sourceId':1},args.repetitions)
                 assert sorted(left) == sorted(right),kind
                 result['queries'].append({'kind':kind,'request_count':count,'before':lt,'after':rt})
-        windows=blocks(text('RepositoryDatabase.PathCollection.cs'))
-        window=windows[0]
+        window=sql_constant(text('RepositoryDatabase.PathCollection.cs'),'PathSpellingWindowSql','RepositoryDatabase.PathCollection.cs')
         rows,stats=measure(after,window,{'afterPath':0,'afterSpelling':-1,'limit':1000},args.repetitions)
         assert len(rows)==1000 and all(row[2]==0 for row in rows)
         result['bounded_live_spelling_window']=stats

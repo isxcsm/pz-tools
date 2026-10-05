@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>เซฟปัจจุบัน</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>โฟลเดอร์เซฟ</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>กำลังคัดลอกเซฟปัจจุบัน</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>ส่งออกขณะเล่นไม่ได้ กรุณาออกจากเกม</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>ส่งออกขณะเล่นไม่ได้ กรุณาออกไปที่เมนูหลัก</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>กู้คืนข้อมูลสำรองขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>เลือกแบ็กอัปที่ต้องการกู้คืนจากรายการ</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>ลบเซฟขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>รักษาขณะเล่นไม่ได้ กรุณาออกจากเกม</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>รักษาขณะเล่นไม่ได้ กรุณาออกไปที่เมนูหลัก</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>ยังไม่มีข้อมูลสำรอง</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>สำรองตอนนี้</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>กู้คืน</value></data>
@@ -47,13 +47,13 @@
   <data name="Browse.Content" xml:space="preserve"><value>เรียกดู</value></data>
   <data name="AutomaticBackupSettings.Header" xml:space="preserve"><value>การสำรองข้อมูล</value></data>
   <data name="AutomaticBackupSetting.Header" xml:space="preserve"><value>การสำรองอัตโนมัติ</value></data>
-  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>สำรองเซฟที่กำลังเล่นอยู่ตามช่วงเวลาที่ตั้งไว้ แม้ปิดไว้ก็ยังสำรองด้วยตนเองได้</value></data>
+  <data name="AutomaticBackupSetting.Description" xml:space="preserve"><value>สำรองเซฟที่กำลังเล่นตามช่วงเวลาที่ตั้งไว้ เมื่อตัวละครตาย จะหยุดจนกว่าจะเริ่มตัวละครใหม่ ปิดไว้ก็ยังสำรองด้วยตนเองได้</value></data>
   <data name="IntervalSetting.Header" xml:space="preserve"><value>ช่วงเวลาสำรองข้อมูล</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>ระยะเวลาระหว่างการสำรองอัตโนมัติ (1–60 นาที) เมื่อเปลี่ยนค่าจะเริ่มนับใหม่</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>จำนวนข้อมูลสำรองอัตโนมัติที่เก็บไว้</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุดไว้ตามจำนวนนี้และลบรายการที่เก่ากว่า (1–100) ข้อมูลสำรองด้วยตนเองจะไม่ถูกนับและไม่ถูกลบ</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุดไว้ตามจำนวนนี้และลบรายการที่เก่ากว่า (1–100) ข้อมูลสำรองด้วยตนเองจะไม่ถูกนับ และจะถูกลบพร้อมกับเซฟเท่านั้น</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครเสียชีวิต</value></data>
-  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>เมื่อตัวละครเสียชีวิต การสำรองอัตโนมัติจะหยุด เพื่อไม่ให้ข้อมูลสำรองตอนยังมีชีวิตถูกดันออก เปิดเพื่อเก็บข้อมูลสำรองหนึ่งรายการ ณ ตอนที่เสียชีวิต</value></data>
+  <data name="DeathBackupSetting.Description" xml:space="preserve"><value>เมื่อเปิด จะสร้างข้อมูลสำรองหนึ่งครั้งทันทีหลังตัวละครตาย</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนแปลงไม่หยุด จึงสำรองข้อมูลไม่ได้ ลองอีกครั้งในอีกสักครู่</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>สำรองครั้งถัดไป: รออยู่</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>ตามระบบ</value></data>
@@ -93,7 +93,6 @@
   <data name="Cancel" xml:space="preserve"><value>ยกเลิก</value></data>
   <data name="ImportArchiveTitle" xml:space="preserve"><value>นำเข้าไฟล์สำรอง</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>นำเข้าไฟล์นี้ไม่ได้ ตรวจสอบว่าเป็นไฟล์ที่ส่งออกจาก PZ Tools</value></data>
-  <data name="UnsafeArchiveCompression" xml:space="preserve"><value>ไม่ได้นำเข้า เพราะไฟล์บีบอัดไม่ปลอดภัย</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>กู้คืนข้อมูลสำรองที่เลือกหรือไม่?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>แทนที่ไฟล์ปัจจุบันของ “{0}” ด้วยข้อมูลสำรอง “{1}” ความคืบหน้าหลังจากสำรองครั้งนั้นจะหายไป หากการกู้คืนถูกขัดจังหวะ ให้เปิด PZ Tools อีกครั้งก่อนโหลดเซฟนี้ในเกม</value></data>
@@ -286,7 +285,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>ลบเซฟและข้อมูลสำรองแล้ว</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>ลบเซฟแล้ว แต่ข้อมูลสำรองยังเหลืออยู่</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>ลบแล้ว</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>เซฟเปลี่ยนไปแล้ว ออกจากเกมแล้วลองอีกครั้ง</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>เซฟเปลี่ยนไปแล้ว ออกไปที่เมนูหลักแล้วลองอีกครั้ง</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>เสร็จแล้ว แต่รายการอาจอัปเดตช้า อย่าทำซ้ำ</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>การสำรองข้อมูล</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>การกู้คืน</value></data>
@@ -332,8 +331,9 @@
   <data name="LogEvent.GameSaveFailed" xml:space="preserve"><value>หยุดการสำรองเนื่องจากยืนยันการบันทึกเกมไม่ได้</value></data>
   <data name="GameSaveSetting.Header" xml:space="preserve"><value>บันทึกเกมก่อนสำรอง</value></data>
   <data name="GameSaveCountdownSetting.Header" xml:space="preserve"><value>นับถอยหลังการบันทึกในเกม</value></data>
-  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>แสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อนที่การสำรองอัตโนมัติจะบันทึกเกม แล้วแสดงผลการบันทึก การสำรองที่เริ่มจากแอปจะบันทึกทันทีโดยไม่แสดง หากปิด การสำรองอัตโนมัติก็จะบันทึกโดยไม่แสดงเช่นกัน</value></data>
-  <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกเกมก่อนสำรองทันทีเพื่อให้รวมความคืบหน้าล่าสุด เกมอาจสะดุดประมาณครึ่งวินาทีขณะบันทึก หากปิด ความคืบหน้าที่ยังไม่ได้บันทึกอาจไม่อยู่ในข้อมูลสำรอง จึงแนะนำให้เปิดไว้</value></data>
+  <data name="GameSaveCountdownSetting.Description" xml:space="preserve"><value>ก่อนการสำรองอัตโนมัติจะบันทึกเกม จะแสดงการนับถอยหลังเหนือตัวละครตั้งแต่ 5 วินาทีก่อน แล้วแจ้งผล เมื่อปิด จะบันทึกโดยไม่แสดง</value></data>
+  <data name="GameSaveSetting.Description" xml:space="preserve"><value>บันทึกเกมก่อนสำรองทันทีเพื่อให้รวมความคืบหน้าล่าสุด เกมอาจสะดุดประมาณครึ่งวินาทีขณะบันทึก</value></data>
+  <data name="GameSaveSettingOffWarning" xml:space="preserve"><value>ปิดอยู่: ความคืบหน้าหลังเกมบันทึกครั้งล่าสุดจะไม่อยู่ในข้อมูลสำรอง แนะนำให้เปิดไว้</value></data>
   <data name="NextBackupWaitingToStart" xml:space="preserve"><value>การสำรองครั้งถัดไป: เริ่มเร็ว ๆ นี้</value></data>
   <data name="NextBackupWaitingForCurrent" xml:space="preserve"><value>การสำรองครั้งถัดไป: หลังงานปัจจุบันเสร็จ</value></data>
   <data name="HealCharacterAction" xml:space="preserve"><value>รักษาตัวละคร</value></data>
@@ -358,7 +358,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>หยุดบันทึก</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>มาตรฐาน</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>ละเอียด</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>มาตรฐาน: เก็บข้อมูลทุก 0.01 วินาที แทบไม่กระทบกับเกม&#xA;ละเอียด: เก็บข้อมูลประมาณทุก 0.002 วินาที และบันทึกการรอกับการหยุดชะงักด้วย เกมอาจช้าลงเล็กน้อย</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>มาตรฐาน: บันทึกประมาณทุก 0.01 วินาที แทบไม่เป็นภาระต่อเกม
+ละเอียด: บันทึกทุก 0.001–0.0015 วินาที และเก็บสาเหตุการรอและการหยุดด้วย ทำให้เกมช้าลง (ราว 20%)</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>เปิดเกมก่อน แล้วค่อยเริ่มบันทึก ทำให้เกิดอาการแลคอีกครั้ง แล้วหยุดบันทึกเพื่อดูผลลัพธ์</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>กำลังเชื่อมต่อกับเกม…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>กำลังบันทึก {0} · หยุดอัตโนมัติหลังจาก {1} นาที</value></data>
@@ -372,10 +373,18 @@
   <data name="ProfileDeleteConfirm" xml:space="preserve"><value>ลบการบันทึกนี้ใช่ไหม การลบนี้ย้อนกลับไม่ได้</value></data>
   <data name="ProfileEmpty" xml:space="preserve"><value>ยังไม่มีการบันทึก</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกไม่ได้ ไฟล์เสียหายหรือมาจากเวอร์ชันที่ใหม่กว่า</value></data>
-  <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์) · คลิกรายการในลิสต์: แสดงส่วนของรายการนั้นในแต่ละแท่ง (คลิกอีกครั้งเพื่อยกเลิก ระหว่างแสดง ชี้รายการอื่นเพื่อดูตัวอย่าง)</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>คัดลอกเนื้อหาที่แสดงเป็นข้อความ</value></data>
-  <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกข้อความ</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>คัดลอกแล้ว</value></data>
+  <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์) · คลิกรายการในลิสต์: แสดงส่วนของรายการนั้นในแต่ละแท่ง (คลิกอีกครั้งเพื่อยกเลิก ระหว่างแสดง ชี้รายการอื่นเพื่อดูตัวอย่าง) · พื้นหลังสีส้มอ่อน: ขณะ GC ทำงาน</value></data>
+  <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกสำหรับ AI</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>คัดลอกรายงานสำหรับวางในแชทกับ AI หรือบันทึกเป็นไฟล์: รายงานทั้งหมด หรือรายงานละเอียดเฉพาะม็อดในตารางด้านล่าง รายงานเขียนเป็นภาษาอังกฤษ</value></data>
+  <data name="ProfileReportCopied" xml:space="preserve"><value>คัดลอกรายงานแล้ว วางลงในแชทกับ AI ได้เลย</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>บันทึกเป็นไฟล์</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>บันทึกรายงานแล้ว: {0}</value></data>
+  <data name="ProfileReportWhole" xml:space="preserve"><value>รายงานทั้งหมด</value></data>
+  <data name="ProfileReportWholeTip" xml:space="preserve"><value>เฟรม หน่วยความจำ ทุกม็อด และสรุป Java ของช่วงนี้ เหมือนเดิมไม่ว่าจะเปิดอะไรไว้ ใช้เมื่อถามว่าทำไมเกมช้า</value></data>
+  <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>รายงานละเอียด: {0}</value></data>
+  <data name="ProfileReportOwnerTip" xml:space="preserve"><value>เฉพาะม็อดนี้แบบละเอียด: ฟังก์ชัน บรรทัดที่หนักที่สุด ต้นไม้การเรียก และการจองหน่วยความจำ สำหรับผู้สร้างม็อดหรือถามเกี่ยวกับม็อดนี้</value></data>
+  <data name="ProfileReportAreaTip" xml:space="preserve"><value>เฉพาะส่วน Java นี้แบบละเอียด: เมธอดและเส้นทางที่เรียกมัน</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>เปิดเกมเพื่อเริ่มบันทึก</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะเกมไม่ได้เปิดอยู่</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะมีเกมเปิดอยู่มากกว่าหนึ่งเกม</value></data>
@@ -403,7 +412,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>หน่วยความจำที่เกมใช้บนการ์ดจอ สเกลเริ่มจากค่าต่ำสุดถึงสูงสุดในช่วงที่มองเห็น</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} จัดสรร</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>หน่วยความจำที่สคริปต์ของม็อดที่ไฮไลต์จัดสรร แท่งละช่วงเวลา เทียบกับช่วงที่มากที่สุด ถ้าแท่งเหล่านี้กองอยู่ก่อนแท่ง GC ด้านบน แสดงว่าม็อดนี้ทำให้เกิด GC</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} ครั้ง หยุดชะงัก {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} ครั้ง</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>ฟังก์ชัน</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ไฟล์</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>เมธอด</value></data>
@@ -426,11 +435,17 @@
   <data name="ProfileCompare" xml:space="preserve"><value>เปรียบเทียบกับ</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>ไม่มีการบันทึกอื่นให้เปรียบเทียบ</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>เธรด</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณหนึ่งนาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณ {1} นาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>เรียกจากบรรทัด {1} ของ {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>บรรทัดที่ทำงานเอง · {0} บรรทัด</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (เรียก)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC หยุดชั่วคราว</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC ทำงาน {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>ทำงาน {0:P2}</value></data>
+  <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>รอหน่วยความจำ {0:N0} ครั้ง นานสุด {1}</value></data>
+  <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC หยุด: เวลาที่ทั้งเกมหยุดเพื่อเก็บกวาดหน่วยความจำ ZGC ซึ่งเป็นค่าเริ่มต้นของเกมแทบไม่หยุดเกมเลย
+GC ทำงาน: สัดส่วนของช่วงที่ตัวเก็บกวาดหน่วยความจำกำลังทำงาน มันทำงานคู่กับเกมและแบ่ง CPU กัน เมื่อหน่วยความจำไม่พอจึงเข้าใกล้ 100% และเกมช้าลง
+รอหน่วยความจำ: จำนวนครั้งที่เธรดหยุดรอจนหน่วยความจำว่าง เพราะหน่วยความจำเต็ม</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>คลิกเพื่อซ่อนหรือแสดงแถวนี้</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ปุ่มลัด: {0}</value></data>
@@ -478,11 +493,11 @@
   <data name="RollingSetting.Header" xml:space="preserve"><value>เก็บนาทีล่าสุดไว้ตลอด</value></data>
   <data name="RollingSetting.Description" xml:space="preserve"><value>เมื่อเปิดไว้ เกมจะเก็บไม่กี่นาทีล่าสุดไว้ทุกครั้งที่ทำงาน โหมดมาตรฐานแทบไม่สิ้นเปลือง</value></data>
   <data name="RollingModeSetting.Header" xml:space="preserve"><value>โหมด</value></data>
-  <data name="RollingModeSetting.Description" xml:space="preserve"><value>โหมดละเอียดแสดงข้อมูลมากกว่า แต่ทำให้เกมช้าลงเล็กน้อย (ประมาณ 10%) ตลอดที่เปิดอยู่ ใช้ขณะหาสาเหตุอาการกระตุก</value></data>
+  <data name="RollingModeSetting.Description" xml:space="preserve"><value>โหมดละเอียดแสดงข้อมูลมากกว่า แต่ทำให้เกมช้าลงตลอดที่เปิดอยู่ (ราว 20%) ใช้ขณะหาสาเหตุอาการกระตุก</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>ความยาว (นาที)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ถึง 10 นาที ยิ่งยาวก็ไม่ทำให้เกมหนักขึ้น แค่ใช้พื้นที่ดิสก์มากขึ้น</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>จะเริ่มเก็บนาทีล่าสุดเมื่อเกมทำงาน</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>กำลังเริ่มเก็บนาทีล่าสุด…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>จะเริ่มเก็บ {0} นาทีล่าสุดเมื่อเกมทำงาน</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>กำลังเริ่มเก็บ {0} นาทีล่าสุด…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>ไม่มีนาทีล่าสุดให้บันทึก จะเริ่มเก็บใหม่ตั้งแต่ตอนนี้</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>ดึงนาทีล่าสุด</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>หยุดเปรียบเทียบ</value></data>
@@ -563,6 +578,7 @@
   <data name="RecoveryError.Busy" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้เซฟนี้ เซฟยังเหมือนเดิม</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>เกมปิดเซฟนี้ไม่ถูกต้อง โหลดเซฟในเกมแล้วออกตามปกติ เซฟยังเหมือนเดิม</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>รักษาได้เฉพาะเซฟผู้เล่นคนเดียว เซฟยังเหมือนเดิม</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>เซฟนี้มีตัวละครหลายตัว เลือกหนึ่งตัวแล้วลองอีกครั้ง เซฟยังเหมือนเดิม</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>เซฟนี้มีตัวละครหลายตัว เลือกตัวละครที่จะฟื้นฟู ตัวละครอื่นจะไม่ถูกเปลี่ยนแปลง</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>กำลังค้นหาซอมบี้หรือศพของตัวละคร…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>เลือกว่าจะเอาข้าวของคืนจากที่ใด</value></data>
@@ -581,13 +597,14 @@
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>รักษาเซฟนี้ไม่ได้ ลองอัปเดต PZ Tools เซฟยังเหมือนเดิม</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านเวลาที่รอดชีวิตไม่ได้ · จะตรวจสอบอีกครั้ง</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ ลองอีกครั้งในอีกสักครู่</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนระหว่างส่งออก ออกจากเกมแล้วลองอีกครั้ง</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนระหว่างส่งออก ออกไปที่เมนูหลักแล้วลองอีกครั้ง</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>ข้อมูลสำรองนี้เสียหาย เลือกข้อมูลสำรองอื่น เซฟยังเหมือนเดิม</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>พื้นที่ว่างไม่เพียงพอ</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>ไฟล์ของ PZ Tools ขาดหายไป แตกไฟล์บีบอัดที่ดาวน์โหลดมาอีกครั้ง</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>เวอร์ชันนี้เปิดโฟลเดอร์สำรองนี้ไม่ได้ เลือกโฟลเดอร์ใหม่ในการตั้งค่า อย่าลบโฟลเดอร์เดิม</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>ลองอีกครั้งเมื่องานปัจจุบันเสร็จ</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>ใช้การตั้งค่าไม่ได้ ตรวจสอบค่าที่กรอก</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>ใช้การตั้งค่าไม่ได้ ตรวจสอบไฟล์ {0}</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>เริ่มใหม่ไม่ได้ ปิดแอปแล้วเปิดอีกครั้ง</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>ใช้โฟลเดอร์นี้ไม่ได้ จึงกลับไปใช้การตั้งค่าเดิม</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>เปลี่ยนโฟลเดอร์ไม่ได้ ตรวจสอบตำแหน่งโฟลเดอร์ในการตั้งค่า</value></data>
@@ -653,12 +670,13 @@
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>หากต้องการใช้การตั้งค่า ให้เล่นเกมต่อ หยุดรถ ปล่อยคันเร่ง และปิดระบบควบคุมความเร็วอัตโนมัติ</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>เกมอยู่ที่เมนูหลัก</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>กำลังโหลดเกม</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>เกมกำลังกลับไปที่เมนูหลัก</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>ตัวละครเสียชีวิต – รอการสำรอง</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ จึงสำรองโดยไม่บันทึกเกมก่อน</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>ขณะนี้อ่านสถานะการหลับไม่ได้ จึงมีผลเฉพาะการหยุดชั่วคราว</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ขณะนี้ไม่มีผลเพราะเชื่อมต่อกับเกมไม่ได้</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>สำรองครั้งถัดไป (ไม่บันทึกเกม)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>สำรองข้อมูลโดยไม่บันทึกเกมก่อน</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>สำรองครั้งถัดไป (ไม่ได้เชื่อมต่อกับเกม)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>การสำรองยังทำตามเวลา หากเกมบันทึกก่อนไม่ได้ จะสำรองไฟล์ตามสภาพปัจจุบัน</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>ไม่ได้เชื่อมต่อกับเกม</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>กรุณาเปิดเกมใหม่</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>ความเข้ากันได้และสถานะ</value></data>
@@ -721,6 +739,28 @@
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>สคริปต์</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>รอ</value></data>
+  <data name="ProfileLuaRun" xml:space="preserve"><value>(Lua กำลังทำงาน)</value></data>
+  <data name="ProfileCallersLoading" xml:space="preserve"><value>กำลังหาผู้เรียก…</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} ของเวลาของเมธอดนี้เอง · {1} ของช่วง</value></data>
+  <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>เวลาที่สคริปต์ของม็อดที่เลือกทำงาน (รวมฟังก์ชัน Java ที่เรียก)</value></data>
+  <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์อื่นทำงาน ไม่รวมม็อดที่เลือก</value></data>
+  <data name="ProfileChartCollectorTip" xml:space="preserve"><value>ช่วงที่ตัวเก็บกวาดหน่วยความจำ (GC) ทำงานคู่กับเกม ถ้าเฟรมในช่วงนี้ยาวกว่า แปลว่าหน่วยความจำไม่พอ คลิกเพื่อซ่อน</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>ไม่มีไฟล์นี้ในพีซีเครื่องนี้ อาจบันทึกจากพีซีเครื่องอื่น หรือม็อดถูกลบหรือย้ายไปแล้ว</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>ไฟล์เปลี่ยนหลังการบันทึก หมายเลขบรรทัดอาจไม่ตรง</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>เปิด</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>เปิดบรรทัด {0} ใน VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>เปิดใน VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>เปิดใน VS Code (ไม่พบ VS Code)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>แสดงในโฟลเดอร์</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>คัดลอกเส้นทาง</value></data>
+  <data name="ProfileBreakdownMemory" xml:space="preserve"><value>หยุดเพราะหน่วยความจำ</value></data>
+  <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>เฟรมช้าลง {0:P0} ขณะ GC ทำงาน</value></data>
+  <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>โปรแกรมอื่นใช้ CPU เฉลี่ย {0:P0}</value></data>
+  <data name="ProfileOtherCpuTip" xml:space="preserve"><value>ระหว่างบันทึก โปรแกรมอื่นนอกจากเกมใช้ CPU ของพีซีมากเท่านี้ CPU ที่ยุ่งทำให้เกมช้าลงไม่ว่าจะมีม็อดอะไร และผลบันทึกจะช้ากว่าปกติ หากต้องการเปรียบเทียบอย่างยุติธรรม ให้ปิดโปรแกรมนั้นแล้วบันทึกใหม่</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์ Lua ของม็อดและเกมทำงาน (รวมฟังก์ชัน Java ที่เรียก)</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>เวลาที่โค้ดของเกมเอง (Java) ทำงาน</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>เวลาที่เธรดเกมหยุดเพราะ GC หรือหน่วยความจำ แทบเป็นศูนย์กับ ZGC ดูผลของหน่วยความจำไม่พอได้จากพื้นหลังสีส้มในกราฟ</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>เวลาที่เธรดเกมพัก ส่วนใหญ่คือเวลาว่างก่อนเฟรมถัดไป</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>สคริปต์อื่น</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ตัวเลือกการเปิดเกมกำลังบล็อกการเชื่อมต่อ</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>เชื่อมต่อไม่ได้เพราะตัวเลือกการเปิดเกมบล็อกไว้ กรุณาตรวจสอบตัวเลือกการเปิดเกม</value></data>
@@ -754,4 +794,9 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>กำลังเปิดเกม</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · ใช้อยู่</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>มีผลตั้งแต่การเปิดเกมครั้งถัดไป</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>เกมกำลังรันจากสคริปต์เปิดเกม (.bat) ซึ่งกำหนดหน่วยความจำเอง การตั้งค่านี้มีผลเฉพาะเมื่อเปิดเกมตามปกติ</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>ดูตัวอย่างการ์ด (บิลด์นักพัฒนา)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>แสดงการ์ดในแถบด้านข้างโดยไม่ต้องเกิดสถานการณ์นั้น เพื่อตรวจดูหน้าตาและปุ่ม ไม่มีในบิลด์ที่เผยแพร่</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>แสดง</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>ล้างทั้งหมด</value></data>
 </root>

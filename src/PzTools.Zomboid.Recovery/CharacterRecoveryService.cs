@@ -31,7 +31,7 @@ public sealed class CharacterRecoveryService
         }.ToString());
         await connection.OpenAsync(cancellationToken);
         var character = await ReadCharacterAsync(connection, playerId, cancellationToken);
-        var healed = PlayerHealthEditor.Heal(character.Blob, character.Version, out var layout);
+        var (healed, layout) = await HealAsync(save, character.Blob, character.Version, cancellationToken);
         if (!character.Dead || !ZombieInventoryRecovery.IsEmpty(healed, layout))
             return new(character.Name, character.Dead, false, []);
         return new(character.Name, true, true, await WorldRemainsRecovery.ListAsync(save, healed, cancellationToken));
@@ -108,7 +108,7 @@ public sealed class CharacterRecoveryService
                 var character = await ReadCharacterAsync(connection, playerId, cancellationToken);
                 var (id, version) = (character.Id, character.Version);
                 (name, dead) = (character.Name, character.Dead);
-                var healed = PlayerHealthEditor.Heal(character.Blob, version, out var layout);
+                var (healed, layout) = await HealAsync(save, character.Blob, version, cancellationToken);
                 if (dead && ZombieInventoryRecovery.IsEmpty(healed, layout) && remains != NoRemains)
                 {
                     plan = await WorldRemainsRecovery.FindAsync(save, healed, layout, remains, cancellationToken);
@@ -119,6 +119,8 @@ public sealed class CharacterRecoveryService
                     await File.WriteAllBytesAsync(stagedWorld, plan.UpdatedWorldFile, cancellationToken);
                     files.Add(new(plan.RelativePath, stagedWorld, plan.OriginalHash));
                 }
+                // Washed only now: matching the zombie or corpse compares the skin as it was at death.
+                healed = PlayerHealthEditor.Wash(healed, version);
                 // Idempotence also re-parses every edited boundary after optional fields shrink.
                 if (!PlayerHealthEditor.Heal(healed, version).AsSpan().SequenceEqual(healed))
                     throw new InvalidDataException("recovery-validation-failed");
@@ -155,6 +157,18 @@ public sealed class CharacterRecoveryService
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+    // Healed, and without the wound and bandage models the game would otherwise leave on the healed body.
+    // A save without its item dictionary keeps them: their item types cannot be told apart without it.
+    private static async Task<(byte[] Player, InventoryLayout Layout)> HealAsync(string save, byte[] blob, long version,
+        CancellationToken cancellationToken)
+    {
+        var healed = PlayerHealthEditor.Heal(blob, version, out var layout);
+        if (await WorldRemainsRecovery.ReadRegistryAsync(save, cancellationToken) is not { } registry) return (healed, layout);
+        var undressed = RemainsFormat.RemoveBodyModels(healed, layout, registry);
+        if (ReferenceEquals(undressed, healed)) return (healed, layout);
+        return (PlayerHealthEditor.Heal(undressed, version, out layout), layout);
     }
 
     private static (string Save, string[] Segments) ResolveSave(string savesRoot, string saveId)

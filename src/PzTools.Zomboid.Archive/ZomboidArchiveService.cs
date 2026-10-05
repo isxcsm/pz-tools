@@ -3,6 +3,7 @@ using System.IO.Hashing;
 using System.Text.Json;
 using PzTools.Backup.Engine;
 using PzTools.Backup.Storage.Repository;
+using PzTools.Process.Hosting;
 using PzTools.Zomboid.State;
 
 namespace PzTools.Zomboid.Archive;
@@ -149,16 +150,17 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                         if (StringComparer.OrdinalIgnoreCase.Equals(file.RelativePath, "players.db"))
                             playersModified = file.ModifiedUtc.UtcDateTime;
                         // The archive's own manifest takes that name; a stored file with it is left out.
-                        return Task.FromResult(IsRootManifest(file.RelativePath)
-                            ? Stream.Null
-                            : archive.CreateEntry(savePrefix + file.RelativePath, CompressionLevel.Optimal).Open());
+                        if (IsRootManifest(file.RelativePath)) return Task.FromResult(Stream.Null);
+                        var zipEntry = archive.CreateEntry(savePrefix + file.RelativePath, CompressionLevel.Optimal);
+                        Stamp(zipEntry, file.ModifiedUtc.UtcDateTime);
+                        return Task.FromResult(zipEntry.Open());
                     },
                     ReportAsync, token);
                 return restored.Files;
             },
             () => new ZomboidArchiveManifest(
                 FormatMarker, CurrentVersion, source.SourceKey, mode, saveName,
-                playersModified, sourceId, revision, DateTimeOffset.UtcNow),
+                playersModified, sourceId, revision, DateTimeOffset.UtcNow, TimeZoneInfo.Local.Id),
             progress, cancellationToken);
     }
 
@@ -174,7 +176,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
             throw new ArgumentException("Archive output must be outside the current save directory.");
         var (mode, name) = SplitSaveId(saveId);
         var manifest = new ZomboidArchiveManifest(FormatMarker, CurrentVersion, saveId, mode, name,
-            File.GetLastWriteTimeUtc(Path.Combine(source, "players.db")), 0, 0, DateTimeOffset.UtcNow);
+            File.GetLastWriteTimeUtc(Path.Combine(source, "players.db")), 0, 0, DateTimeOffset.UtcNow, TimeZoneInfo.Local.Id);
         ValidateManifest(manifest);
         var original = ReadSnapshot(source);
         if (!original.Any(item => item.RelativePath.Equals("players.db", StringComparison.OrdinalIgnoreCase)))
@@ -205,6 +207,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 token.ThrowIfCancellationRequested();
                 var relative = savePrefix + file.RelativePath.Replace('\\', '/');
                 var zipEntry = archive.CreateEntry(relative, CompressionLevel.Optimal);
+                Stamp(zipEntry, file.LastWriteUtc);
                 // No FileStream buffer: the copy reads in large blocks itself, and a buffer per
                 // file would be allocated for each of a save's many small files.
                 await using var input = new FileStream(
@@ -238,6 +241,34 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
 
     private static bool IsRootManifest(string relativePath) =>
         StringComparer.OrdinalIgnoreCase.Equals(relativePath.Replace('\\', '/'), ManifestEntryName);
+
+    // A save's file times say when it was last played; kept through export and import, they are not the
+    // time it was unpacked. A zip holds local dates from 1980 to 2107 only, and stores the clock time it is
+    // given whatever its offset: given local time, whose zone the manifest names for an import on another PC.
+    // A date outside keeps the time of writing.
+    private static void Stamp(ZipArchiveEntry entry, DateTime modifiedUtc)
+    {
+        if (modifiedUtc.Year is >= 1981 and <= 2106)
+            entry.LastWriteTime = new DateTimeOffset(modifiedUtc, TimeSpan.Zero).ToLocalTime();
+    }
+
+    // The zone an archive's entry times were written in: the exporting PC's, which another PC may not share. An
+    // archive without one, or with a zone this PC does not know, is read in this PC's own.
+    private static TimeZoneInfo ExportZone(string? id)
+    {
+        if (string.IsNullOrEmpty(id)) return TimeZoneInfo.Local;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+        catch (Exception error) when (error is TimeZoneNotFoundException or InvalidTimeZoneException) { return TimeZoneInfo.Local; }
+    }
+
+    /// <summary>An entry's clock time, as written in <paramref name="zone"/>, as UTC; each date with its own daylight saving.</summary>
+    internal static DateTime EntryTimeUtc(DateTime clock, TimeZoneInfo zone)
+    {
+        var local = DateTime.SpecifyKind(clock, DateTimeKind.Unspecified);
+        // A time the clocks skipped never came from a file; it is read an hour on, as the clock then showed.
+        if (zone.IsInvalidTime(local)) local = local.AddHours(1);
+        return TimeZoneInfo.ConvertTimeToUtc(local, zone);
+    }
 
     private sealed record SnapshotEntry(string RelativePath, bool IsDirectory, long Length, DateTime LastWriteUtc);
 
@@ -274,8 +305,13 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         Func<ArchiveProgress, CancellationToken, Task>? progress,
         CancellationToken cancellationToken, Action? validateBeforePublish = null)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-        var temporary = output + $".{Guid.NewGuid():N}.tmp";
+        var folder = Path.GetDirectoryName(output)!;
+        Directory.CreateDirectory(folder);
+        DeleteAbandonedExports(folder, Path.GetFileName(output));
+        var temporary = Path.Combine(folder, $"{Path.GetFileName(output)}{ExportTemporaryMarker}{Guid.NewGuid():N}.tmp");
+        // Open before the file exists and closed only after it is gone, so a later export can tell this
+        // file from one a killed export left behind.
+        using var owner = new Mutex(false, ExportOwnerName(temporary));
         try
         {
             int files;
@@ -309,6 +345,49 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         }
     }
 
+    private const string ExportTemporaryMarker = ".pztools-export-";
+
+    private static string ExportOwnerName(string temporary) =>
+        NamedMutexRunner.CreateName("ArchiveExport", temporary);
+
+    /// <summary>
+    /// Deletes the temporary files of exports into <paramref name="folder"/> that were killed before
+    /// their own cleanup ran. A file whose export is still running keeps its owner name open.
+    /// </summary>
+    private static void DeleteAbandonedExports(string folder, string outputName)
+    {
+        foreach (var path in Directory.EnumerateFiles(folder, "*" + ExportTemporaryMarker + "*.tmp"))
+        {
+            var name = Path.GetFileName(path);
+            var marker = name.LastIndexOf(ExportTemporaryMarker, StringComparison.OrdinalIgnoreCase);
+            if (!Guid.TryParseExact(name[(marker + ExportTemporaryMarker.Length)..^".tmp".Length], "N", out _)
+                || IsExportRunning(path))
+                continue;
+            File.Delete(path);
+        }
+        // Earlier versions named it <output>.<guid>.tmp, without an owner; only those of this very output are
+        // certainly theirs.
+        foreach (var path in Directory.EnumerateFiles(folder, outputName + ".*.tmp"))
+        {
+            var name = Path.GetFileName(path);
+            if (name.Length == outputName.Length + 1 + 32 + ".tmp".Length
+                && Guid.TryParseExact(name.AsSpan(outputName.Length + 1, 32), "N", out _))
+                File.Delete(path);
+        }
+    }
+
+    private static bool IsExportRunning(string temporary)
+    {
+        try
+        {
+            if (!Mutex.TryOpenExisting(ExportOwnerName(temporary), out var owner)) return false;
+            owner.Dispose();
+            return true;
+        }
+        // A name this account may not open belongs to a running export of another.
+        catch (UnauthorizedAccessException) { return true; }
+    }
+
     public async Task<ArchiveImportResult> ImportAsync(
         string archivePath,
         string savesRoot,
@@ -320,37 +399,34 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         safety.Validate();
         var inspection = await InspectAsync(archivePath, cancellationToken, safety);
         var root = Path.GetFullPath(savesRoot);
-        Directory.CreateDirectory(root);
-        CleanupDirectories(root, ".pztools-import-");
         var modeDirectory = SafeChild(root, inspection.Manifest.Mode);
-        if (Directory.Exists(modeDirectory)
-            && (File.GetAttributes(modeDirectory) & FileAttributes.ReparsePoint) != 0)
-            throw new InvalidDataException("The archive mode directory is a reparse point.");
-        Directory.CreateDirectory(modeDirectory);
-        var finalName = ChooseAvailableName(modeDirectory, inspection.Manifest.SaveName);
-        var destination = SafeChild(modeDirectory, finalName);
-        var staging = Path.Combine(root, $".pztools-import-{Guid.NewGuid():N}");
+        EnsureNotLinked(modeDirectory);
+        await using var stream = new FileStream(
+            Path.GetFullPath(archivePath), FileMode.Open, FileAccess.Read, FileShare.Read,
+            1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+        var entries = ValidateEntries(archive, safety);
+        var manifestPath = inspection.Manifest.Version == 1
+            ? ManifestEntryName : SavePrefix(inspection.Manifest) + ManifestEntryName;
+        var manifestEntry = archive.GetEntry(manifestPath)
+            ?? throw new InvalidDataException("PzTools archive manifest is missing.");
+        if (await ReadManifestAsync(manifestEntry, cancellationToken) != inspection.Manifest)
+            throw new InvalidDataException("Archive manifest changed after inspection.");
+        ValidateLayout(entries, inspection.Manifest, manifestEntry);
+        var fileEntries = entries.Where(item =>
+                !item.FullName.EndsWith('/')
+                && !StringComparer.OrdinalIgnoreCase.Equals(item.FullName, manifestPath))
+            .ToArray();
+        var totalBytes = fileEntries.Sum(item => item.Length);
+        var exportZone = ExportZone(inspection.Manifest.EntryTimeZone);
+        // Before anything is written: an archive that does not fit leaves the saves folder as it was.
+        EnsureImportSpace(root, totalBytes, safety);
+        Directory.CreateDirectory(root);
+        DeleteAbandonedImports(root);
+        var staging = Path.Combine(root, ImportStagingPrefix + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(staging);
         try
         {
-            await using var stream = new FileStream(
-                Path.GetFullPath(archivePath), FileMode.Open, FileAccess.Read, FileShare.Read,
-                1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
-            var entries = ValidateEntries(archive, safety);
-            var manifestPath = inspection.Manifest.Version == 1
-                ? ManifestEntryName : SavePrefix(inspection.Manifest) + ManifestEntryName;
-            var manifestEntry = archive.GetEntry(manifestPath)
-                ?? throw new InvalidDataException("PzTools archive manifest is missing.");
-            if (await ReadManifestAsync(manifestEntry, cancellationToken) != inspection.Manifest)
-                throw new InvalidDataException("Archive manifest changed after inspection.");
-            ValidateLayout(entries, inspection.Manifest, manifestEntry);
-            var fileEntries = entries.Where(item =>
-                    !item.FullName.EndsWith('/')
-                    && !StringComparer.OrdinalIgnoreCase.Equals(item.FullName, manifestPath))
-                .ToArray();
-            var totalBytes = fileEntries.Sum(item => item.Length);
-            EnsureImportSpace(root, totalBytes, safety);
             if (progress is not null)
                 await progress(new ArchiveProgress(
                     "import", 0, fileEntries.LongLength, 0, totalBytes, null), cancellationToken);
@@ -367,14 +443,18 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                     continue;
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-                await using var input = entry.Open();
-                await using var target = new FileStream(
+                await using (var input = entry.Open())
+                await using (var target = new FileStream(
                     output, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                    1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await CopyEntryBoundedAsync(input, target, entry.Length, cancellationToken,
-                    progress is null ? null : (copied, token) => progress(new ArchiveProgress(
-                        "import", files, fileEntries.LongLength, completedBytes + copied,
-                        totalBytes, entry.FullName), token), expectedCrc32: entry.Crc32);
+                    1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    await CopyEntryBoundedAsync(input, target, entry.Length, cancellationToken,
+                        progress is null ? null : (copied, token) => progress(new ArchiveProgress(
+                            "import", files, fileEntries.LongLength, completedBytes + copied,
+                            totalBytes, entry.FullName), token), expectedCrc32: entry.Crc32);
+                }
+                // The time the file was last written in the save, not the time it was unpacked.
+                File.SetLastWriteTimeUtc(output, EntryTimeUtc(entry.LastWriteTime.DateTime, exportZone));
                 files++;
                 completedBytes += entry.Length;
                 if (progress is not null)
@@ -386,9 +466,17 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 SafeChild(staging, SavePrefix(inspection.Manifest)
                     .Replace('/', Path.DirectorySeparatorChar)
                     .TrimEnd(Path.DirectorySeparatorChar));
-            if (!File.Exists(Path.Combine(stagedSave, "players.db")))
+            var players = Path.Combine(stagedSave, "players.db");
+            if (!File.Exists(players))
                 throw new InvalidDataException("Archive does not contain players.db.");
-            Directory.Move(stagedSave, destination);
+            // The manifest keeps the exact time of the last play, also for archives whose entries carry the
+            // time they were written instead.
+            if (inspection.Manifest.LastPlayedUtc is { } played)
+                File.SetLastWriteTimeUtc(players, played.UtcDateTime);
+            EnsureNotLinked(modeDirectory);
+            Directory.CreateDirectory(modeDirectory);
+            var (finalName, destination) = await PublishAsync(
+                stagedSave, modeDirectory, inspection.Manifest.SaveName, cancellationToken);
             return new ArchiveImportResult(destination, inspection.Manifest.Mode, finalName, files);
         }
         finally
@@ -420,12 +508,6 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 throw new InvalidDataException($"Archive link '{entry.FullName}' is not allowed.");
             if (entry.Length > safety.MaximumSingleFileBytes)
                 throw new InvalidDataException($"Archive entry '{entry.FullName}' is too large.");
-            if (entry.Length >= safety.CompressionRatioMinimumBytes
-                && (entry.CompressedLength == 0
-                    || (double)entry.Length / Math.Max(1, entry.CompressedLength)
-                    > safety.MaximumCompressionRatio))
-                throw new InvalidDataException(
-                    $"archive-unsafe-ratio: Archive entry '{entry.FullName}' has an unsafe compression ratio.");
         }
         return archive.Entries;
     }
@@ -449,7 +531,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 remaining -= read;
                 if (progress is not null) await progress(expectedBytes - remaining, cancellationToken);
             }
-            // 헤더의 용량을 위조한 압축 데이터가 사전 검사한 한도를 넘어 기록되지 않게 합니다.
+            // Compressed data that lies about its size in the header cannot write past the limit checked up front.
             if (await input.ReadAsync(buffer.AsMemory(0, 1), cancellationToken) != 0)
                 throw new InvalidDataException("Archive entry exceeds its declared length.");
             if (checksum is not null && checksum.GetCurrentHashAsUInt32() != expectedCrc32!.Value)
@@ -529,17 +611,81 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
         return result;
     }
 
-    private static string ChooseAvailableName(string parent, string requested)
+    private const string ImportStagingPrefix = ".pztools-import-";
+
+    // Only names this service creates: a folder that merely starts the same way may be someone's save
+    // (interrupted-operation recovery draws the same line).
+    private static void DeleteAbandonedImports(string root)
     {
-        var existing = Directory.EnumerateFileSystemEntries(parent)
-            .Select(Path.GetFileName)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (!existing.Contains(requested)) return requested;
+        foreach (var path in Directory.EnumerateDirectories(root, ImportStagingPrefix + "*"))
+        {
+            var name = Path.GetFileName(path);
+            if (name.StartsWith(ImportStagingPrefix, StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParseExact(name[ImportStagingPrefix.Length..], "N", out _))
+                Directory.Delete(path, recursive: true);
+        }
+    }
+
+    private static void EnsureNotLinked(string modeDirectory)
+    {
+        if (Directory.Exists(modeDirectory)
+            && (File.GetAttributes(modeDirectory) & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidDataException("The archive mode directory is a reparse point.");
+    }
+
+    /// <summary>
+    /// Moves the staged save into the mode folder under the first free name. The import's lock is on the
+    /// saves root, a restore's on the save it replaces; the name is taken under that save's lock as well, so
+    /// an import never lands in the moment a restore has moved a save aside, nor on a restore's leftovers.
+    /// </summary>
+    private static async Task<(string Name, string Path)> PublishAsync(
+        string stagedSave, string modeDirectory, string requested, CancellationToken cancellationToken)
+    {
+        var refused = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (true)
+        {
+            var name = ChooseAvailableName(modeDirectory, requested, refused);
+            var destination = SafeChild(modeDirectory, name);
+            var published = await OperationMutexSet.TryRunAsync(
+                [new OperationMutexRequest(OperationMutexScope.SaveWrite, destination)],
+                _ =>
+                {
+                    if (TakenNames(modeDirectory).Contains(name)) return Task.FromResult(false);
+                    Directory.Move(stagedSave, destination);
+                    return Task.FromResult(true);
+                }, cancellationToken);
+            if (published is { Acquired: true, Value: true }) return (name, destination);
+            refused.Add(name);
+        }
+    }
+
+    private static string ChooseAvailableName(string parent, string requested, IReadOnlySet<string> refused)
+    {
+        var taken = TakenNames(parent);
+        taken.UnionWith(refused);
+        if (!taken.Contains(requested)) return requested;
         for (var suffix = 1; ; suffix++)
         {
             var candidate = $"{requested}({suffix})";
-            if (!existing.Contains(candidate)) return candidate;
+            if (!taken.Contains(candidate)) return candidate;
         }
+    }
+
+    /// <summary>
+    /// Every name in the folder, and the save names of restore and save-edit leftovers
+    /// (<c>.&lt;save&gt;.pztools-…</c>): such a save may be moved aside, and recovery would put it back there.
+    /// </summary>
+    private static HashSet<string> TakenNames(string parent)
+    {
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in Directory.EnumerateFileSystemEntries(parent))
+        {
+            var name = Path.GetFileName(path);
+            taken.Add(name);
+            var marker = name.LastIndexOf(".pztools-", StringComparison.OrdinalIgnoreCase);
+            if (name.StartsWith('.') && marker > 1) taken.Add(name[1..marker]);
+        }
+        return taken;
     }
 
     private static (string Mode, string SaveName) SplitSaveId(string saveId)

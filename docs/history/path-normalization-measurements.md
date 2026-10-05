@@ -5,7 +5,7 @@
 > **Historical record.** This page describes the code and measurements at the time it was written. It is kept for reference and is not updated; for current behaviour start at the [documentation index](../README.md).
 
 Size measurements and verification runs recorded when normalized path identities were introduced.
-The current design is described in [path handling](../path-normalization.md).
+The current design is described in [path handling](../design/path-normalization.md).
 
 ## Reproducible layout experiment
 
@@ -32,7 +32,7 @@ that is not a benchmark of C# commit throughput.
 The catalog benchmark was updated to evaluate the older aggregation through
 `entry_catalog` on the same normalized database, so it compares query algorithms rather
 than the old physical layout. The size script for
-[compact storage](../compact-repository-format.md) was also updated to seed normalized path
+[compact storage](../design/compact-repository-format.md) was also updated to seed normalized path
 dictionaries.
 
 ## Verification at the time
@@ -65,6 +65,6 @@ PR workflow at that time included the new SQL checks, the layout experiment and 
 suite.
 
 The selected storage results did not cover the whole product. Check the exact commit's
-full validation before merging; [development](../development.md) describes the current
+full validation before merging; [development](../contributing/development.md) describes the current
 workflow. No live game, user saves or user repository was accessed or reset by this
 work.

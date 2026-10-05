@@ -214,7 +214,7 @@ public sealed class InitialBackupRunner(
                 cancellationToken,
                 () => FailureInjector.ThrowIfRequested(BackupFailurePoint.DuringRepositoryCommit),
                 executionOptions?.Revision,
-                executionOptions?.NameLanguage ?? PzTools.Process.Contracts.SupportedLanguage.Korean,
+                executionOptions?.NameLanguage ?? PzTools.Process.Contracts.LanguageCatalog.Local,
                 executionOptions?.GameVersion);
             FailureInjector.ThrowIfRequested(BackupFailurePoint.AfterRepositoryCommit);
             await telemetry.EmitAsync(

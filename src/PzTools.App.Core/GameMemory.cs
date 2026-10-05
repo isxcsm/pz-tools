@@ -58,6 +58,14 @@ public sealed class GameMemoryException(string code, string message, Exception? 
 public sealed partial class GameMemory
 {
     public const string ConfigFileName = "ProjectZomboid64.json";
+
+    /// <summary>
+    /// Whether a path names the game's launch file: on a local drive (C:\…, no share or device path), ending in its
+    /// name (a stream of it would not).
+    /// </summary>
+    internal static bool IsLaunchFile(string path) =>
+        path.Length > 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '\\' or '/'
+        && string.Equals(Path.GetFileName(path), ConfigFileName, StringComparison.OrdinalIgnoreCase);
     private const string SteamAppId = "108600";
     private static readonly int[] Steps = [4096, 6144, 8192, 12288, 16384, 24576, 32768];
 
@@ -209,7 +217,9 @@ public sealed partial class GameMemory
     private string? Find()
     {
         var found = Try(running);
-        if (found is null && saved.ConfigPath is { } known && File.Exists(known)) return known;
+        // The remembered path is in a file any program of the player's can write, and this app edits what it names
+        // with administrator rights: only ever the game's own launch file, by its name.
+        if (found is null && saved.ConfigPath is { } known && IsLaunchFile(known) && File.Exists(known)) return known;
         found ??= Try(locate);
         if (found is not null && found != saved.ConfigPath) Save(saved with { ConfigPath = found });
         return found;
@@ -379,9 +389,14 @@ public sealed partial class GameMemory
             {
                 try
                 {
-                    if (game.MainModule?.FileName is { } executable
-                        && Path.Combine(Path.GetDirectoryName(executable)!, ConfigFileName) is var file && File.Exists(file))
-                        return file;
+                    // The launcher sits in the game folder; a game started by its Java runtime directly (the game's
+                    // own ProjectZomboid64.bat) runs jre64\bin\java.exe, two folders down.
+                    var folder = game.MainModule?.FileName is { } executable ? Path.GetDirectoryName(executable) : null;
+                    // A java process anyone can start by that name: its file counts only where the game's own
+                    // executable stands beside it, as the file this app then edits with administrator rights.
+                    for (int up = 0; folder is not null && up <= 2; up++, folder = Path.GetDirectoryName(folder))
+                        if (Path.Combine(folder, ConfigFileName) is var file && IsLaunchFile(file) && File.Exists(file)
+                            && File.Exists(Path.Combine(folder, "ProjectZomboid64.exe"))) return file;
                 }
                 // A game run with other rights does not say where it is.
                 catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException

@@ -172,10 +172,11 @@
 
       <StackPanel Spacing="8">
         <StackPanel Orientation="Horizontal" Spacing="12">
+          <!-- Opened through Explorer, as the player's, not by the link's own navigation from this elevated app. -->
           <HyperlinkButton Content="GitHub" Padding="0,4"
-                           NavigateUri="https://github.com/isxcsm/pz-tools" />
+                           Tag="https://github.com/isxcsm/pz-tools" Click="ExternalLink_Click" />
           <HyperlinkButton x:Name="ReportIssueButton" Padding="0,4"
-                           NavigateUri="https://github.com/isxcsm/pz-tools/issues" />
+                           Tag="https://github.com/isxcsm/pz-tools/issues" Click="ExternalLink_Click" />
           <TextBlock x:Name="HomeVersion" IsTextSelectionEnabled="True"
                      VerticalAlignment="Center" Style="{StaticResource SecondaryTextStyle}" />
         </StackPanel>

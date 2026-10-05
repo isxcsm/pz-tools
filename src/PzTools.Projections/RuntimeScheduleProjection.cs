@@ -6,13 +6,17 @@ namespace PzTools.Projections;
 /// <summary>Read model only. Calculating a visible countdown cannot reserve or execute a backup.</summary>
 public static class RuntimeScheduleProjection
 {
+    /// <param name="lockedSave">While the game cannot be read: the save whose files it has locked, if any
+    /// (SchedulerDatabase.ReadFileDerivedTargetAsync). Backups wait for one.</param>
     public static ScheduleStatusView Build(BackupSchedulerState control, RuntimeScheduleStorage storage,
-        RuntimeObservation observation)
+        RuntimeObservation observation, BackupTarget? lockedSave = null)
     {
         // Presentation can immediately show a confirmed process/world state, even while
         // its scheduler transition is committing. This does not grant execution permission.
         bool offline = observation.Quality == RuntimeQuality.Offline;
-        var fallbackDue = control.AutomaticEnabled && observation.IsLinkUnusable ? storage.Checkpoint?.FallbackDueUtc : null;
+        bool unreadable = control.AutomaticEnabled && observation.IsLinkUnusable;
+        var fallbackDue = unreadable && lockedSave is not null && storage.Checkpoint?.FallbackSaveId == lockedSave.SaveId
+            ? storage.Checkpoint.FallbackDueUtc : null;
         var gamePhase = ObservedGamePhase(observation);
         if (storage.Facts is null || storage.Facts.AuthorityEpoch != observation.AuthorityEpoch
             || storage.Facts.StateRevision < observation.StateRevision || storage.Facts.SemanticKey != observation.SemanticKey)
@@ -23,8 +27,10 @@ public static class RuntimeScheduleProjection
             control.Generation, (long)control.Interval.TotalMilliseconds);
         var hold = control.CurrentTarget is null ? state.Hold | ScheduleHold.NoWorld : state.Hold;
         if (offline) hold |= ScheduleHold.GameOffline | ScheduleHold.NoWorld;
+        // The game cannot be read, but no save's files are locked: no save is open, and nothing is due.
+        if (unreadable && lockedSave is null) hold = hold & ~ScheduleHold.Unknown | ScheduleHold.NoWorld;
         if (fallbackDue is { } due)
-            return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, due,
+            return new ScheduleStatusView(control.SchedulerRevision, control.Mode, lockedSave, due,
                 control.LastRunIndex, control.LastOutcome, control.AutomaticEnabled, control.PendingRuns,
                 PauseAware: true, Hold: hold, GamePhase: gamePhase, Fallback: true);
         return new ScheduleStatusView(control.SchedulerRevision, control.Mode, control.CurrentTarget, null,
@@ -34,5 +40,10 @@ public static class RuntimeScheduleProjection
     }
 
     internal static WorldPhase ObservedGamePhase(RuntimeObservation observation) =>
-        observation.IsFresh ? observation.Snapshot!.Phase : WorldPhase.Unknown;
+        observation.IsFresh ? observation.Snapshot!.Phase
+        // Busy while leaving a world (saving it, unloading it, reloading the mods) is still leaving it. Busy anywhere
+        // else outside a world (the menu, no phase): the game is loading something, and backups say they wait for it.
+        : observation.Reason == RuntimeObservation.GameBusyReason
+            ? observation.Snapshot?.Phase == WorldPhase.Unloading ? WorldPhase.Unloading : WorldPhase.Loading
+            : WorldPhase.Unknown;
 }

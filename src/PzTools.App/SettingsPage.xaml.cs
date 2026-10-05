@@ -30,10 +30,9 @@ public sealed partial class SettingsPage : UserControl
         // Alphabetical by native name, independent of the current UI language, so every user finds theirs in the same place.
         foreach (var language in LanguageCatalog.All.OrderBy(language => language.NativeName, StringComparer.InvariantCulture))
             LanguageCombo.Items.Add(new ComboBoxItem { Content = language.NativeName, Tag = language.Tag });
-        applyTimer = DispatcherQueue.CreateTimer();
+        applyTimer = DispatcherQueue.Timer(ApplyTimer_Tick);
         applyTimer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).SettingsDebounceMs);
         applyTimer.IsRepeating = false;
-        applyTimer.Tick += ApplyTimer_Tick;
         BuildHotKeyCards();
 #if PZTOOLS_DEV_TOOLS
         BuildCardPreview();
@@ -54,7 +53,7 @@ public sealed partial class SettingsPage : UserControl
 
     private void SettingsPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // 작은 창에서는 SettingsCard의 기본 세로 배치를 사용하되 입력 영역도 넘치지 않게 합니다.
+        // In a small window SettingsCard stacks as it does by default, and its input is kept from overflowing.
         var available = Math.Max(160, e.NewSize.Width - 72);
         SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(500, available);
         IntervalEditor.Width = RetentionEditor.Width = RollingMinutesEditor.Width = Math.Min(340, available);
@@ -149,6 +148,9 @@ public sealed partial class SettingsPage : UserControl
         OpenConfigurationFolderButton.Content = Localizer.Get("AdvancedFiles.OpenFolder");
         RestartForConfigurationButton.Content = Localizer.Get("AdvancedFiles.Restart");
         ResetConfigurationButton.Content = Localizer.Get("AdvancedFiles.Reset");
+#if PZTOOLS_DEV_TOOLS
+        LocalizeCardPreview();
+#endif
         SetInputName(LanguageCombo, LanguageSettingCard.Header);
         SetInputName(ThemeCombo, ThemeSettingCard.Header);
         SetInputName(SystemTrayToggle, SystemTraySettingCard.Header);
@@ -186,7 +188,7 @@ public sealed partial class SettingsPage : UserControl
         // Toggles raise their events while the page is still being built.
         if (AutomaticBackupToggle is null || PausePeriodicToggle is null || DeathBackupToggle is null || GameSaveToggle is null
             || GameSaveCountdownToggle is null || PausePeriodicSettingCard is null || DeathBackupSettingCard is null
-            || GameSaveSettingCard is null || GameSaveCountdownSettingCard is null) return;
+            || GameSaveSettingCard is null || GameSaveCountdownSettingCard is null || GameSaveOffWarning is null) return;
         bool linked = !gameLink.LinkUnavailable;
         PausePeriodicToggle.IsEnabled = linked;
         DeathBackupToggle.IsEnabled = linked && AutomaticBackupToggle.IsOn;
@@ -197,7 +199,12 @@ public sealed partial class SettingsPage : UserControl
         PausePeriodicSettingCard.Description = Describe("PausePeriodicSetting.Description",
             gameLink.SleepUnavailable ? Localizer.Get("SettingSleepUnavailable") : null);
         DeathBackupSettingCard.Description = Describe("DeathBackupSetting.Description");
+        // Off, what goes missing from backups is said in a warning bar at the end of the section, named after the
+        // setting, as Windows' own settings warn. The card itself keeps its look.
         GameSaveSettingCard.Description = Describe("GameSaveSetting.Description");
+        GameSaveOffWarning.Title = Localizer.Get("GameSaveSetting.Header");
+        GameSaveOffWarning.Message = Localizer.Get("GameSaveSettingOffWarning");
+        GameSaveOffWarning.IsOpen = !GameSaveToggle.IsOn;
         GameSaveCountdownSettingCard.Description = Describe("GameSaveCountdownSetting.Description");
     }
 
@@ -235,7 +242,7 @@ public sealed partial class SettingsPage : UserControl
         };
         section.IsExpanded = true;
         // After this layout pass, which places the page just shown.
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             card.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = true });
             control.Focus(FocusState.Keyboard);
@@ -311,7 +318,7 @@ public sealed partial class SettingsPage : UserControl
     // switch it did not take would undo the hotkey's change with the next edit here.
     private void HotKeys_Changed()
     {
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot is not { } value) return;
             if (applying || completedApply < requestedApply || capturing is not null)
@@ -383,14 +390,16 @@ public sealed partial class SettingsPage : UserControl
     }
 
 #if PZTOOLS_DEV_TOOLS
-    // Developer builds only, and in Korean only: the sidebar's cards on demand (MainWindowShell.CardPreview).
+    // Developer builds only: the sidebar's cards on demand (MainWindowShell.CardPreview).
+    private (SettingsCard Card, ComboBox Choice, Button Show, Button Clear)? cardPreview;
+
     private void BuildCardPreview()
     {
-        var choice = new ComboBox { MinWidth = 180 };
-        foreach (var (key, name) in MainWindowShell.CardPreviews) choice.Items.Add(new ComboBoxItem { Content = name, Tag = key });
+        var choice = new ComboBox { MinWidth = 180, MaxWidth = 320 };
+        foreach (var key in MainWindowShell.CardPreviews) choice.Items.Add(new ComboBoxItem { Tag = key });
         choice.SelectedIndex = 0;
-        var show = new Button { Content = "띄우기" };
-        var clear = new Button { Content = "모두 지우기" };
+        var show = new Button();
+        var clear = new Button();
         show.Click += (_, _) =>
         {
             if (App.MainWindow.Content is MainWindowShell shell && choice.SelectedItem is ComboBoxItem { Tag: string key }) shell.PreviewCard(key);
@@ -400,16 +409,28 @@ public sealed partial class SettingsPage : UserControl
         holder.Children.Add(choice);
         holder.Children.Add(show);
         holder.Children.Add(clear);
-        SetInputName(choice, "카드 미리보기");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(choice, "CardPreviewChoice");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(show, "CardPreviewShow");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(clear, "CardPreviewClear");
-        AdvancedSection.Items.Add(new SettingsCard
+        var card = new SettingsCard { HeaderIcon = new SymbolIcon(Symbol.Preview), Content = holder };
+        AdvancedSection.Items.Add(card);
+        cardPreview = (card, choice, show, clear);
+        LocalizeCardPreview();
+    }
+
+    // Like every other text on this page, in the app's language now, again after each language change.
+    private void LocalizeCardPreview()
+    {
+        if (cardPreview is not var (card, choice, show, clear)) return;
+        card.Header = Localizer.Get("CardPreview.Header");
+        card.Description = Localizer.Get("CardPreview.Description");
+        show.Content = Localizer.Get("CardPreview.Show");
+        clear.Content = Localizer.Get("CardPreview.Clear");
+        SetInputName(choice, Localizer.Get("CardPreview.Header"));
+        ComboBoxLocalization.UpdateLabels(choice, () =>
         {
-            Header = "카드 미리보기 (개발용)",
-            Description = "사이드바 카드를 실제 상황 없이 띄워 모양과 버튼을 확인합니다. 배포판에는 없습니다.",
-            HeaderIcon = new SymbolIcon(Symbol.Preview),
-            Content = holder,
+            foreach (var item in choice.Items.OfType<ComboBoxItem>())
+                item.Content = MainWindowShell.CardPreviewName((string)item.Tag);
         });
     }
 #endif
@@ -518,7 +539,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("SettingsTitle.Text"), UserFacingError.FromException(exception));
+                Localizer.Get("SettingsTitle.Text"), UserFacingError.FromException(exception), exception);
         }
         finally
         {
@@ -539,16 +560,12 @@ public sealed partial class SettingsPage : UserControl
                     Localizer.Get("PathSettings.Header"), Localizer.Get("OperationError.FileMissing"));
                 return;
             }
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe")
-            {
-                Arguments = $"\"{Path.GetFullPath(folder)}\"",
-                UseShellExecute = false,
-            })?.Dispose();
+            ShellLaunch.Open(Path.GetFullPath(folder));
         }
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("PathSettings.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("PathSettings.Header"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -560,11 +577,8 @@ public sealed partial class SettingsPage : UserControl
         applyTimer.Start();
     }
 
-    private async void ApplyTimer_Tick(DispatcherQueueTimer sender, object args)
-    {
-        sender.Stop();
-        await ApplyPendingSettingsAsync();
-    }
+    // Not repeating: it has stopped by the time it ticks.
+    private async void ApplyTimer_Tick() => await ApplyPendingSettingsAsync();
 
     private async Task ApplyPendingSettingsAsync()
     {
@@ -584,7 +598,7 @@ public sealed partial class SettingsPage : UserControl
                 {
                     completedApply = version;
                     App.ShowSidebarNotification(InfoBarSeverity.Error,
-                        Localizer.Get("SettingsTitle.Text"), UserFacingError.FromConfigurationException(exception));
+                        Localizer.Get("SettingsTitle.Text"), UserFacingError.FromConfigurationException(exception), exception);
                     break;
                 }
             }
@@ -609,7 +623,6 @@ public sealed partial class SettingsPage : UserControl
         checked((int)IntervalNumber.Value),
         checked((int)RetentionNumber.Value),
         DeathBackupToggle.IsOn,
-        Enum.Parse<LogLevel>(current.LogMinimumLevel),
         current.LogDisplayLimit,
         SystemTrayToggle.IsOn,
         current.VerifyStagedCopies,
@@ -683,8 +696,12 @@ public sealed partial class SettingsPage : UserControl
             _ => null,
         };
         // The running game started with other memory than the file now gives: the choice waits for its next start.
-        var waiting = note is null && gameLink.GameHeapMegabytes is { } heap && state.MaximumMegabytes is { } next
-            && Math.Abs(heap - next) >= 128 ? Localizer.Get("GameMemoryNextStart") : null;
+        // Started by a launch script, it read nothing of the file: the choice applies when started from Steam's
+        // own launcher, never through that script.
+        var waiting = note is not null ? null
+            : gameLink.StartedWithoutLauncher ? Localizer.Get("GameMemoryWithoutLauncher")
+            : gameLink.GameHeapMegabytes is { } heap && state.MaximumMegabytes is { } next
+                && Math.Abs(heap - next) >= 128 ? Localizer.Get("GameMemoryNextStart") : null;
         GameMemorySettingCard.Description = Localizer.Get("GameMemorySetting.Description") + (note is null ? "" : " " + note)
             + (waiting is null ? "" : " " + waiting);
         MarkRunningGameMemory(GameMemoryCombo.IsDropDownOpen);
@@ -839,15 +856,12 @@ public sealed partial class SettingsPage : UserControl
             var folder = App.Host?.Settings.ConfigurationRoot
                 ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             Directory.CreateDirectory(folder);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(folder)
-            {
-                UseShellExecute = true,
-            });
+            ShellLaunch.Open(folder);
         }
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -876,7 +890,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception), exception);
         }
         finally { RestartForConfigurationButton.IsEnabled = true; }
     }
@@ -906,7 +920,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception), exception);
         }
         finally { ResetConfigurationButton.IsEnabled = true; }
     }

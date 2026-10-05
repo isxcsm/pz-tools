@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace PzTools.Process.Contracts;
 
-/// <summary>작업 실패를 로그 상세 화면에서 읽을 수 있는 작은 구조화 레코드로 만듭니다.</summary>
+/// <summary>Turns an operation failure into a small structured record the log details can read.</summary>
 public static class FailureTelemetry
 {
     private const int MaximumTextLength = 512;

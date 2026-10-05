@@ -25,8 +25,9 @@ public sealed class SaveGameVersionMemory(string runtimeRoot)
     public void Remember(string savePath, string version, DateTimeOffset seenUtc)
     {
         var key = Key(savePath);
-        version = version.Trim();
-        if (version.Length is 0 or > 80 || version.Any(char.IsControl)) return;
+        // The same rule as a backup's recorded version: one that could not be recorded is not remembered.
+        if (PzTools.Process.Contracts.GameRuntime.RuntimeSnapshot.RecordableVersion(version) is not { } recordable) return;
+        version = recordable;
         lock (gate)
         {
             var map = Load();

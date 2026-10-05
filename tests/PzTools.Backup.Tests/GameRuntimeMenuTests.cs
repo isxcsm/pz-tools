@@ -78,6 +78,41 @@ public sealed partial class GameSaveClientTests
         Assert.Single(File.ReadAllLines(temp.GetPath("calls.txt")));
     }
 
+    // Seen in the game: leaving for the main menu showed "Checking game status". The world is saved, unloaded and
+    // the mods reloaded in one frame that starts after that frame's sample, so the last sample still says Ready.
+    [BridgeFact]
+    public async Task RuntimeSubscription_TellsAWorldBeingLeftFromAGameHungInIt()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        await using var watch = new RuntimeWatchCapture(game.Pid);
+
+        foreach (var hold in new[] { "hold-save", "hold-exit" })
+        {
+            var ready = await watch.WaitAsync(s => s.IsWorldReady && s.ActiveMilliseconds > 0);
+            await File.WriteAllTextAsync(temp.GetPath(hold), hold);
+            await File.WriteAllTextAsync(temp.GetPath("quit-to-menu"), "quit");
+            var leaving = await watch.WaitAsync(s => s.Sequence > ready.Sequence && s.Phase == WorldPhase.Unloading);
+            AssertNonPlaying(leaving);
+            Assert.Equal(ready.WorldSession, leaving.WorldSession);
+            Assert.True(leaving.ActiveMilliseconds >= ready.ActiveMilliseconds);
+            Assert.True(leaving.SampleAgeMilliseconds >= 1000);
+
+            File.Delete(temp.GetPath(hold));
+            var menu = await watch.WaitAsync(s => s.Phase == WorldPhase.Menu);
+            Assert.True(menu.Sequence > leaving.Sequence);
+            await File.WriteAllTextAsync(temp.GetPath("enter-world"), "enter");
+        }
+
+        // A game thread stopped anywhere else in its world may be hung: it stays Ready, and the app treats it so.
+        var world = await watch.WaitAsync(s => s.IsWorldReady && s.SampleAgeMilliseconds < 1000);
+        await File.WriteAllTextAsync(temp.GetPath("hold-frame"), "hold");
+        var hung = await watch.WaitAsync(s => s.SampleAgeMilliseconds > 3000);
+        Assert.Equal(WorldPhase.Ready, hung.Phase);
+        Assert.Equal(world.WorldSession, hung.WorldSession);
+        File.Delete(temp.GetPath("hold-frame"));
+    }
+
     private static void AssertNonPlaying(RuntimeSnapshot value)
     {
         Assert.False(value.IsWorldReady);

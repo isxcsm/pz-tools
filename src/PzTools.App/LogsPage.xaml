@@ -47,10 +47,10 @@
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-      <TextBlock x:Name="TitleText" Text="로그"
+      <TextBlock x:Name="TitleText" Text="Logs"
                  Style="{StaticResource PageTitleTextStyle}" AutomationProperties.HeadingLevel="Level1" />
       <Button x:Name="AcknowledgeAllButton" Grid.Column="1" Visibility="Collapsed"
-              VerticalAlignment="Center" Content="모두 확인"
+              VerticalAlignment="Center" Content="Mark all reviewed"
               Click="AcknowledgeAllButton_Click" />
     </Grid>
 
@@ -85,31 +85,31 @@
             </Grid.ColumnDefinitions>
             <Button x:Name="LogNumberButton" Style="{StaticResource LogHeaderButtonStyle}" Click="LogNumberButton_Click">
               <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock x:Name="LogNumberHeader" Text="번호" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="LogNumberHeader" Text="Number" FontSize="11" TextTrimming="CharacterEllipsis" />
                 <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
               </Grid>
             </Button>
             <Button x:Name="LogLevelButton" Grid.Column="1" Style="{StaticResource LogHeaderButtonStyle}" Click="LogLevelButton_Click">
               <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock x:Name="LogLevelHeader" Text="수준" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="LogLevelHeader" Text="Level" FontSize="11" TextTrimming="CharacterEllipsis" />
                 <FontIcon Grid.Column="1" Glyph="&#xE72C;" FontSize="9" Opacity="0.6" />
               </Grid>
             </Button>
             <Button x:Name="LogTimeButton" Grid.Column="2" Style="{StaticResource LogHeaderButtonStyle}" Click="LogTimeButton_Click">
               <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock x:Name="LogTimeHeader" Text="시간" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="LogTimeHeader" Text="Time" FontSize="11" TextTrimming="CharacterEllipsis" />
                 <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
               </Grid>
             </Button>
             <Button x:Name="LogMessageButton" Grid.Column="3" Style="{StaticResource LogHeaderButtonStyle}" Click="LogMessageButton_Click">
               <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock x:Name="LogMessageHeader" Text="내용" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="LogMessageHeader" Text="Event" FontSize="11" TextTrimming="CharacterEllipsis" />
                 <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
               </Grid>
             </Button>
             <Button x:Name="LogRunButton" Grid.Column="4" Style="{StaticResource LogHeaderButtonStyle}" Click="LogRunButton_Click">
               <Grid ColumnSpacing="3"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock x:Name="LogRunHeader" Text="작업" FontSize="11" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="LogRunHeader" Text="Operation" FontSize="11" TextTrimming="CharacterEllipsis" />
                 <FontIcon Grid.Column="1" Glyph="&#xE71C;" FontSize="9" Opacity="0.6" />
               </Grid>
             </Button>
@@ -164,16 +164,16 @@
           <StackPanel x:Name="LoadingLogs" Grid.Row="2" HorizontalAlignment="Center"
                       VerticalAlignment="Center" Spacing="12" IsHitTestVisible="False">
             <ProgressBar x:Name="LoadingLogsProgress" Width="220" IsIndeterminate="False" />
-            <TextBlock x:Name="LoadingLogsText" Text="로그를 불러오는 중입니다"
+            <TextBlock x:Name="LoadingLogsText" Text="Loading logs…"
                        HorizontalAlignment="Center"
                        Style="{StaticResource SecondaryTextStyle}" />
           </StackPanel>
           <StackPanel x:Name="EmptyLogs" Grid.Row="2" Visibility="Collapsed" HorizontalAlignment="Center"
                       VerticalAlignment="Center" Spacing="8" Margin="24">
             <FontIcon Glyph="&#xE8A5;" FontSize="30" Opacity="0.5" />
-            <TextBlock x:Name="EmptyLogsText" Text="표시할 로그가 없습니다." Opacity="0.68"
+            <TextBlock x:Name="EmptyLogsText" Text="There are no logs to display." Opacity="0.68"
                        TextAlignment="Center" TextWrapping="Wrap" />
-            <HyperlinkButton x:Name="ShowAllLogsButton" Content="전체 로그 보기"
+            <HyperlinkButton x:Name="ShowAllLogsButton" Content="View all logs"
                              HorizontalAlignment="Center" Visibility="Collapsed"
                              Click="ClearAllFilters_Click" />
           </StackPanel>
@@ -206,7 +206,7 @@
 
       <Grid x:Name="LogDetailCard" Grid.Column="1">
           <Border x:Name="NoLogSelectedCard" Padding="20">
-          <TextBlock x:Name="SelectLogText" Text="로그를 선택하면 상세 정보가 표시됩니다."
+          <TextBlock x:Name="SelectLogText" Text="Select a log to view its details."
                      HorizontalAlignment="Center" VerticalAlignment="Center"
                      TextAlignment="Center" TextWrapping="Wrap" Opacity="0.62" />
           </Border>
@@ -234,12 +234,12 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                             VerticalAlignment="Center">
                   <Button x:Name="AcknowledgeSelectedButton"
-                          Content="확인" Visibility="Collapsed"
+                          Content="Mark reviewed" Visibility="Collapsed"
                           Click="AcknowledgeSelectedButton_Click" />
                   <Button x:Name="CopyLogDetailsButton" Width="36" Height="36" Padding="0"
                           Style="{StaticResource SubtleButtonStyle}"
-                          local:AppToolTip.Tip="내용 복사"
-                          AutomationProperties.Name="내용 복사"
+                          local:AppToolTip.Tip="Copy details"
+                          AutomationProperties.Name="Copy details"
                           Click="CopyLogDetailsButton_Click">
                     <FontIcon Glyph="&#xE8C8;" FontSize="16" />
                   </Button>
@@ -254,7 +254,7 @@
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                 <StackPanel Spacing="12">
-                  <TextBlock x:Name="DiagnosticsTitle" Text="실패 원인" FontWeight="SemiBold"
+                  <TextBlock x:Name="DiagnosticsTitle" Text="Failure details" FontWeight="SemiBold"
                              AutomationProperties.HeadingLevel="Level2" />
                   <StackPanel x:Name="DiagnosticsFields" Spacing="8" />
                 </StackPanel>
@@ -264,13 +264,13 @@
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                 <StackPanel Spacing="12">
-                  <TextBlock x:Name="RelatedLogsTitle" Text="관련 기록" FontWeight="SemiBold"
+                  <TextBlock x:Name="RelatedLogsTitle" Text="Related records" FontWeight="SemiBold"
                              AutomationProperties.HeadingLevel="Level2" />
                   <StackPanel x:Name="RelatedLogsPanel" Spacing="8" />
                 </StackPanel>
               </Border>
               <Expander x:Name="TechnicalDetailsExpander" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Stretch" Header="기술 정보" IsExpanded="False">
+                        HorizontalContentAlignment="Stretch" Header="Technical details" IsExpanded="False">
                   <StackPanel Padding="20" Spacing="16">
                     <Grid ColumnSpacing="12" RowSpacing="8">
                       <Grid.ColumnDefinitions>
@@ -288,30 +288,30 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                       </Grid.RowDefinitions>
-                      <TextBlock x:Name="DetailTimeLabel" Text="시간" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailTimeLabel" Text="Time" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailTime" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                      <TextBlock x:Name="DetailComponentLabel" Grid.Row="1" Text="작업 종류" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailComponentLabel" Grid.Row="1" Text="Activity" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailComponent" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                      <TextBlock x:Name="DetailRunLabel" Grid.Row="2" Text="실행 번호" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailRunLabel" Grid.Row="2" Text="Operation number" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailRun" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                      <TextBlock x:Name="DetailEventLabel" Grid.Row="3" Text="이벤트 코드" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailEventLabel" Grid.Row="3" Text="Event code" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailEvent" Grid.Row="3" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                      <TextBlock x:Name="DetailSourceLabel" Grid.Row="4" Text="기록 출처" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailSourceLabel" Grid.Row="4" Text="Record source" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailSource" Grid.Row="4" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                      <TextBlock x:Name="DetailEventIdLabel" Grid.Row="5" Text="이벤트 ID" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailEventIdLabel" Grid.Row="5" Text="Event ID" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailEventId" Grid.Row="5" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                      <TextBlock x:Name="DetailInstanceLabel" Grid.Row="6" Text="기록 세션 ID" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailInstanceLabel" Grid.Row="6" Text="Recording session ID" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailInstance" Grid.Row="6" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                      <TextBlock x:Name="DetailFailureCodeLabel" Grid.Row="7" Text="오류 코드" Opacity="0.62" IsTextSelectionEnabled="True" />
+                      <TextBlock x:Name="DetailFailureCodeLabel" Grid.Row="7" Text="Error code" Opacity="0.62" IsTextSelectionEnabled="True" />
                       <TextBlock x:Name="DetailFailureCode" Grid.Row="7" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
                       <!-- What the failing code or Windows said, word for word and in whatever language it used.
                            The failure card above shows only explanations in the app's language. -->
                       <TextBlock x:Name="DetailRawMessageLabel" Grid.Row="8" Opacity="0.62" IsTextSelectionEnabled="True" Visibility="Collapsed" />
                       <TextBlock x:Name="DetailRawMessage" Grid.Row="8" Grid.Column="1" TextWrapping="Wrap" IsTextSelectionEnabled="True" Visibility="Collapsed" />
                     </Grid>
-                    <TextBlock x:Name="DetailPayloadLabel" Text="원본 정보"
+                    <TextBlock x:Name="DetailPayloadLabel" Text="Raw record"
                                FontWeight="SemiBold" AutomationProperties.HeadingLevel="Level2" />
-                    <TextBlock x:Name="NoPayloadText" Text="추가 정보가 없습니다."
+                    <TextBlock x:Name="NoPayloadText" Text="No additional details."
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
                     <TextBox x:Name="DetailPayload" IsReadOnly="True" AcceptsReturn="True"
                              TextWrapping="NoWrap" FontFamily="Consolas"

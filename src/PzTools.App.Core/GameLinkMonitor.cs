@@ -14,8 +14,10 @@ namespace PzTools.App.Core;
 /// before its first frame. Not an unknown state, and said as such.</param>
 /// <param name="GameHeapMegabytes">The memory the running game was started with (its Java heap's maximum), once
 /// read; none without a game, or a bridge too old to say.</param>
+/// <param name="StartedWithoutLauncher">The running game was started by its Java runtime directly (a launch script
+/// such as the game's own ProjectZomboid64.bat), so the launcher's file, and the memory it gives, played no part.</param>
 public sealed record GameLinkView(bool LinkUnavailable = false, bool SleepUnavailable = false, bool RestartRequired = false,
-    string? Cause = null, bool Starting = false, long? GameHeapMegabytes = null)
+    string? Cause = null, bool Starting = false, long? GameHeapMegabytes = null, bool StartedWithoutLauncher = false)
 {
     public static GameLinkView Available { get; } = new();
 }
@@ -25,7 +27,7 @@ public sealed record GameLinkView(bool LinkUnavailable = false, bool SleepUnavai
 /// starts or loads; only one that stays unreadable is reported. Display only: scheduling decides for itself.
 /// </summary>
 public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan? linkGrace = null,
-    TimeSpan? valueGrace = null, Func<bool>? gameRunning = null)
+    TimeSpan? valueGrace = null, Func<bool>? gameRunning = null, Func<bool>? startedWithoutLauncher = null)
 {
     private readonly TimeProvider time = timeProvider ?? TimeProvider.System;
     private readonly TimeSpan linkGrace = linkGrace ?? PzTools.Scheduling.RuntimeScheduleController.DefaultLinkGrace;
@@ -37,6 +39,8 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
     private bool launching;
     // The running game's memory, kept through a moment it cannot be read, as it does not change while the game runs.
     private long? heap;
+    // How the connected game was started, asked once per game: it does not change while the game runs.
+    private bool? withoutLauncher;
     private string? cause;
 
     public GameLinkView Update(RuntimeObservation observation)
@@ -49,22 +53,30 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
         cause = !unusable ? null : observation.Reason is RuntimeObservation.AttachDisabledReason ? observation.Reason : cause;
         bool sleepUnknown = observation is { IsFresh: true, Snapshot: { IsWorldReady: true, Sleep: RuntimeSleep.Unknown } };
         sleepSince = sleepUnknown ? sleepSince ?? time.GetTimestamp() : null;
-        // The grace is for a link that may come back by itself (a game still loading). One the game has refused for
-        // running an older bridge cannot: that is said at once.
-        bool linkUnavailable = linkSince is { } link && (restartRequired || time.GetElapsedTime(link) >= linkGrace);
-        if (observation.Quality == RuntimeQuality.Offline) { launching = true; heap = null; }
+        // The grace is for a link that may come back by itself (a game still loading). One the game has refused, for
+        // running an older bridge or for having been started with connecting turned off, cannot: that is said at once.
+        bool linkUnavailable = linkSince is { } link && (restartRequired || cause is not null || time.GetElapsedTime(link) >= linkGrace);
+        if (observation.Quality == RuntimeQuality.Offline) { launching = true; heap = null; withoutLauncher = null; }
         else
         {
             if (observation.Snapshot?.HeapMaximumMegabytes is { } read) heap = read;
+            if (heap is not null) withoutLauncher ??= (startedWithoutLauncher ?? StartedWithoutLauncher)();
             if (observation.Reason is not (ConnectingReason or RuntimeObservation.GameStartingReason)) launching = false;
         }
         bool starting = !linkUnavailable && (observation.Reason == RuntimeObservation.GameStartingReason
             || launching && observation.Reason == ConnectingReason);
         return new(linkUnavailable, sleepSince is { } sleep && time.GetElapsedTime(sleep) >= valueGrace,
-            linkUnavailable && restartRequired, linkUnavailable ? cause : null, starting, heap);
+            linkUnavailable && restartRequired, linkUnavailable ? cause : null, starting, heap, withoutLauncher == true);
     }
 
     private const string ConnectingReason = "connecting";
+
+    private static bool StartedWithoutLauncher()
+    {
+        var games = PzTools.Process.Contracts.GameProcessFinder.Find();
+        try { return games.Any(PzTools.Process.Contracts.GameProcessFinder.IsStartedWithoutLauncher); }
+        finally { foreach (var game in games) game.Dispose(); }
+    }
 
     private bool IsGameRunning()
     {

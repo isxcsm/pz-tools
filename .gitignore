@@ -10,3 +10,6 @@ artifacts/
 __pycache__/
 *.py[cod]
 
+
+# Unedited screenshots and recordings for docs/media; only the edited files are committed.
+docs/media/raw/

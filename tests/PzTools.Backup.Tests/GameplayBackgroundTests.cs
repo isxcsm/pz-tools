@@ -46,6 +46,24 @@ public sealed class GameplayBackgroundTests
         Assert.Single(launches);
     }
 
+    // Many close the app right after the game, while the game is still exiting: the pass left at close then waits for it.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OrphanDispatchOnExit_WaitsForAGameStillExiting(bool playing)
+    {
+        using var temp = new TempDirectory();
+        var launches = new List<IReadOnlyList<string>>();
+        var dispatcher = new OrphanCleanupDispatcher(temp.GetPath("repo"), temp.GetPath("saves"),
+            temp.GetPath("workers"), shouldDefer: () => playing,
+            startDetached: (_, arguments, _) => launches.Add(arguments));
+        await dispatcher.DispatchOnExitAsync(TimeSpan.FromSeconds(30));
+        var launch = Assert.Single(launches);
+        Assert.Contains("OrphanBackups", launch);
+        if (playing) Assert.Equal(["--wait-for-game-exit-seconds", "30"], launch.Skip(launch.Count - 2));
+        else Assert.DoesNotContain("--wait-for-game-exit-seconds", launch);
+    }
+
     [Fact]
     public async Task OrphanDispatch_SkipsAPassWhenNeitherSavesNorCatalogChanged()
     {
@@ -73,6 +91,31 @@ public sealed class GameplayBackgroundTests
         dispatcher.RequestNow();                         // The game exited: always a pass.
         await dispatcher.TickAsync(now.AddMinutes(71));
         Assert.Equal(4, launches);
+    }
+
+    [Fact]
+    public async Task OrphanDispatch_RunsAPassWhenTheSettingsChange()
+    {
+        // The pass applies "Automatic backups to keep" to every save, so a lowered count must not wait an hour.
+        using var temp = new TempDirectory();
+        await PzTools.Backup.Storage.Repository.RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repo"));
+        Directory.CreateDirectory(temp.GetPath("saves", "Sandbox", "First"));
+        var settings = temp.GetPath("settings.toml");
+        await File.WriteAllTextAsync(settings, "[backup]\nretained_revisions = 20\n");
+        var launches = 0;
+        var dispatcher = new OrphanCleanupDispatcher(temp.GetPath("repo"), temp.GetPath("saves"),
+            temp.GetPath("workers"), shouldDefer: () => false, startDetached: (_, _, _) => launches++,
+            appSettingsPath: settings);
+        var now = DateTimeOffset.UtcNow;
+
+        await dispatcher.TickAsync(now);
+        await dispatcher.TickAsync(now.AddMinutes(2));   // Nothing changed: no new pass.
+        Assert.Equal(1, launches);
+
+        await File.WriteAllTextAsync(settings, "[backup]\nretained_revisions = 5\n");
+        File.SetLastWriteTimeUtc(settings, File.GetLastWriteTimeUtc(settings).AddSeconds(1));
+        await dispatcher.TickAsync(now.AddMinutes(4));   // The count was lowered.
+        Assert.Equal(2, launches);
     }
 
     [Fact]

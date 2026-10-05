@@ -140,8 +140,35 @@ public sealed record ProfileLineTotal(int Line, int SelfSamples, int Samples, lo
 public sealed record ProfileFrameStatistics(int Count, double AverageMilliseconds, double MedianMilliseconds,
     double SlowestMilliseconds, double OnePercentWorstMilliseconds);
 
-/// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one.</summary>
+/// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one (milliseconds per
+/// slice from <see cref="ProfileAnalysis.BreakdownPerBucket"/>).</summary>
 public sealed record ProfileTimeBreakdown(double Scripts, double GameCode, double Collections, double Waiting);
+/// <summary>
+/// Who called a method, bottom up: one row per caller, the heaviest first, each opening onto its own callers. A chain of
+/// callers that never branches is one row (<see cref="Methods"/>, nearest first), up to the first of the game's own code:
+/// a JDK or library method's time read in the game's terms. <see cref="Share"/> is of the range, as the method's.
+/// </summary>
+public sealed class ProfileCallerNode
+{
+    internal readonly Dictionary<int, ProfileCallerNode> ByMethod = [];
+    internal ProfileCallerNode(int method) { MethodIndexes = [method]; }
+    internal List<int> MethodIndexes { get; }
+    /// <summary>The methods of this row, nearest caller first; the method itself for the root.</summary>
+    public IReadOnlyList<string> Methods { get; internal set; } = [];
+    public double Share { get; internal set; }
+    public int Samples { get; internal set; }
+    /// <summary>Heaviest first.</summary>
+    public IReadOnlyList<ProfileCallerNode> Callers { get; internal set; } = [];
+    /// <summary>Whether the row ends at the game's own code: where reading up from a library method stops by itself.</summary>
+    public bool ReachesGame { get; internal set; }
+}
+
+/// <summary>Frames' average length, in milliseconds, while the collector was at work and while it was not, with how many of each.</summary>
+public sealed record ProfileCollectorFrames(double During, int DuringCount, double Outside, int OutsideCount)
+{
+    /// <summary>How much longer frames were with the collector at work, 0.17 for 17%; null with too few of either to say.</summary>
+    public double? Slower => DuringCount >= 20 && OutsideCount >= 20 && Outside > 0 ? During / Outside - 1 : null;
+}
 
 /// <summary>How short of memory the game ran: its allocation stalls, and the share of heap readings near the maximum.</summary>
 /// <param name="StalledMicroseconds">The stalls' time, added up.</param>
@@ -233,13 +260,13 @@ public static class ProfileAnalysis
         var threadCount = new int[recording.Threads.Count];
         // A thread inside a native call is sampled whether it works there (drawing, reading a file) or only waits (for
         // a connection, a timer, an event). The waits are left out, so a thread's share is time it ran.
-        var waits = new bool?[stackCount];
+        var waits = WaitingStacks(recording);
         var waiting = 0;
         for (var index = first; index < samples.Length && samples[index].Time < end; index++)
         {
             if ((index & 4095) == 0) cancellation.ThrowIfCancellationRequested();
             var sample = samples[index];
-            if (sample.Native && (waits[sample.Stack] ??= Waits(recording, recording.Stacks[sample.Stack])))
+            if (sample.Native && waits[sample.Stack])
             {
                 if (thread < 0 || sample.Thread == thread) waiting++;
                 continue;
@@ -473,13 +500,15 @@ public static class ProfileAnalysis
     public static double? MemoryStopIn(ProfileRecording recording, long start, long end, int thread)
     {
         if (!recording.HasCollectorPauses) return null;
-        var pauses = recording.Pauses;
+        // Asked once per bar of the frame graph: only the pauses that stop for memory, from the first that could reach
+        // into the range by the longest of them, not a minute of every kind of wait before it.
+        var (pauses, longest) = MemoryPauses(recording);
         long stopped = 0, covered = start;
         // In time order: each counts from where the ones before it ended.
-        for (var index = LowerBound(pauses, start - LongestCollection, item => item.Time); index < pauses.Count && pauses[index].Time < end; index++)
+        for (var index = LowerBound(pauses, start - longest, item => item.Time); index < pauses.Length && pauses[index].Time < end; index++)
         {
             var pause = pauses[index];
-            if (pause.Kind != CollectorPause && !(pause.Kind == AllocationStall && thread >= 0 && pause.Thread == thread)) continue;
+            if (pause.Kind == AllocationStall && !(thread >= 0 && pause.Thread == thread)) continue;
             long from = Math.Max(covered, pause.Time), to = Math.Min(end, pause.Time + pause.Duration);
             if (to <= from) continue;
             stopped += to - from;
@@ -487,6 +516,32 @@ public static class ProfileAnalysis
         }
         return stopped / 1000.0;
     }
+
+    // The collector's pauses and the allocation stalls, in time order, with the longest of them: once per recording.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, Tuple<ProfilePause[], long>>
+        memoryPauses = new();
+
+    private static (ProfilePause[] Pauses, long Longest) MemoryPauses(ProfileRecording recording)
+    {
+        var found = memoryPauses.GetValue(recording, static current =>
+        {
+            var pauses = current.Pauses.Where(pause => pause.Kind is CollectorPause or AllocationStall).ToArray();
+            return Tuple.Create(pauses, pauses.Length == 0 ? 0L : pauses.Max(pause => pause.Duration));
+        });
+        return (found.Item1, found.Item2);
+    }
+
+    // Whether each stack's native sample was only waiting (see Waits), worked out once per recording for all of them:
+    // the frame graph asks it of every native sample in each bar it draws.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, bool[]> waitingStacks = new();
+
+    private static bool[] WaitingStacks(ProfileRecording recording) =>
+        waitingStacks.GetValue(recording, static current =>
+        {
+            var waiting = new bool[current.Stacks.Count];
+            for (var index = 0; index < waiting.Length; index++) waiting[index] = Waits(current, current.Stacks[index]);
+            return waiting;
+        });
 
     // Native calls that only wait: for a connection or data, a selector or completion port, a timer, a lock, the
     // scheduler. Only calls known to wait are listed; any other native call (drawing, file access, physics) is work.
@@ -573,11 +628,79 @@ public static class ProfileAnalysis
         var length = Math.Max(1, range.End - range.Start);
         // Stopped for memory: the collector's pauses where they fell and the thread's waits for memory; a recording
         // without the pauses has only the collections' totals.
-        var collections = Math.Clamp((range.MemoryStopMilliseconds ?? range.CollectionPauseMilliseconds) * 1000 / length, 0, 1);
+        return Split(running, range.LuaShare, (range.MemoryStopMilliseconds ?? range.CollectionPauseMilliseconds) * 1000 / length);
+    }
+
+    // The four parts from what was measured, each a share of the span.
+    private static ProfileTimeBreakdown Split(double running, double lua, double memory)
+    {
+        var collections = Math.Clamp(memory, 0, 1);
         // Two samplers measure the scripts and the running code; where they disagree a little, the scripts win.
-        var scripts = Math.Clamp(range.LuaShare, 0, 1 - collections);
+        var scripts = Math.Clamp(lua, 0, 1 - collections);
         var game = Math.Clamp(Math.Max(running, scripts) - scripts, 0, 1 - collections - scripts);
         return new ProfileTimeBreakdown(scripts, game, collections, Math.Max(0, 1 - scripts - game - collections));
+    }
+
+    /// <summary>
+    /// <see cref="TimeBreakdown"/> for the game thread over a span as short as a frame, from the records alone: what the
+    /// frame graph draws for one part of it. Null without a known game thread.
+    /// </summary>
+    public static ProfileTimeBreakdown? BreakdownIn(ProfileRecording recording, long start, long end)
+    {
+        var thread = recording.GameThread;
+        if (thread < 0 || end <= start) return null;
+        double length = end - start, running = 0;
+        var samples = recording.Samples;
+        var waiting = WaitingStacks(recording);
+        for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
+        {
+            var sample = samples[index];
+            // As in the range's figures: a thread only waiting in a native call was not running.
+            if (sample.Thread != thread || sample.Native && waiting[sample.Stack]) continue;
+            running += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+        }
+        var lua = recording.LuaSamples;
+        var luaSamples = 0;
+        for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++) luaSamples++;
+        var memory = MemoryStopIn(recording, start, end, thread) ?? CollectionsIn(recording, start, end).PauseMilliseconds;
+        return Split(Math.Min(1, running / length), Math.Min(1, luaSamples * (double)recording.LuaPeriod / length), memory * 1000 / length);
+    }
+
+    /// <summary>
+    /// For each slice the frame graph draws, the milliseconds of its bar (the slice's slowest frame) that went to each
+    /// part of <see cref="BreakdownIn"/>; null where no frame began. Counted from samples, so in steps of a period.
+    /// The record's fields are milliseconds here, not the shares its own description gives.
+    /// </summary>
+    public static ProfileTimeBreakdown?[] BreakdownPerBucket(ProfileRecording recording, long start, long end, int buckets)
+    {
+        var slowest = SlowestFrames(recording, start, end, buckets);
+        var result = new ProfileTimeBreakdown?[slowest.Length];
+        for (var bucket = 0; bucket < slowest.Length; bucket++)
+        {
+            if (slowest[bucket] < 0) continue;
+            var frame = recording.Frames[slowest[bucket]];
+            if (BreakdownIn(recording, frame.Start, frame.Start + frame.Duration) is not { } shares) continue;
+            var milliseconds = frame.Duration / 1000.0;
+            result[bucket] = new(shares.Scripts * milliseconds, shares.GameCode * milliseconds,
+                shares.Collections * milliseconds, shares.Waiting * milliseconds);
+        }
+        return result;
+    }
+
+    // The index of each slice's slowest frame, as the frame graph draws it; -1 where no frame began.
+    private static int[] SlowestFrames(ProfileRecording recording, long start, long end, int buckets)
+    {
+        var slowest = new int[Math.Max(1, buckets)];
+        Array.Fill(slowest, -1);
+        if (end <= start) return slowest;
+        var frames = recording.Frames;
+        var span = (double)(end - start);
+        for (var index = LowerBound(frames, start, frame => frame.Start); index < frames.Length && frames[index].Start < end; index++)
+        {
+            var bucket = Math.Min(slowest.Length - 1, (int)((frames[index].Start - start) / span * slowest.Length));
+            if (slowest[bucket] < 0 || frames[index].Duration > frames[slowest[bucket]].Duration) slowest[bucket] = index;
+        }
+        return slowest;
     }
 
     /// <summary>
@@ -644,6 +767,187 @@ public static class ProfileAnalysis
         for (var index = LowerBound(videoReadings, start, item => item.Time); index < videoReadings.Count && videoReadings[index].Time < end; index++)
             video = Math.Max(video ?? 0, videoReadings[index].Dedicated);
         return (heap, video);
+    }
+
+    /// <summary>
+    /// The part of the range the collector was at work, 0 to 1; null in recordings made before its runs were kept.
+    /// ZGC stops the game for well under a millisecond but works beside it, on the CPU the game would use: with memory
+    /// short it runs nearly all the time, which its pauses never show.
+    /// </summary>
+    public static double? CollectorBusyIn(ProfileRecording recording, long start, long end)
+    {
+        if (!recording.HasCollectorRuns) return null;
+        if (end <= start || recording.CollectorRuns.Count == 0) return 0;
+        var spans = CollectorSpans(recording);
+        long busy = 0;
+        // The first span that ends after the range starts, found by halving: this is asked once per frame.
+        int low = 0, high = spans.Length;
+        while (low < high)
+        {
+            var middle = (low + high) >>> 1;
+            if (spans[middle].End <= start) low = middle + 1; else high = middle;
+        }
+        for (var index = low; index < spans.Length && spans[index].Start < end; index++)
+            busy += Math.Min(spans[index].End, end) - Math.Max(spans[index].Start, start);
+        return Math.Clamp(busy / (double)(end - start), 0, 1);
+    }
+
+    /// <summary>The time the collector was at work, as spans apart from one another, in order: young and old collections overlap.</summary>
+    public static IReadOnlyList<(long Start, long End)> CollectorSpansOf(ProfileRecording recording) => CollectorSpans(recording);
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, (long Start, long End)[]>
+        collectorSpans = new();
+
+    private static (long Start, long End)[] CollectorSpans(ProfileRecording recording) =>
+        collectorSpans.GetValue(recording, static current =>
+        {
+            var spans = new List<(long Start, long End)>();
+            foreach (var run in current.CollectorRuns.OrderBy(run => run.Time))
+            {
+                var end = run.Time + Math.Max(0, run.Duration);
+                if (spans.Count > 0 && run.Time <= spans[^1].End) spans[^1] = (spans[^1].Start, Math.Max(spans[^1].End, end));
+                else spans.Add((run.Time, end));
+            }
+            return [.. spans];
+        });
+
+    /// <summary>
+    /// The callers of a method's own time in the range, bottom up (see <see cref="ProfileCallerNode"/>): where the samples
+    /// that ended in it came from. Counted as the range's method figures are (shares of the thread's samples, waits
+    /// left out), so the root's share is the method's own share. Worked out for one method at a time, when its row is opened.
+    /// </summary>
+    /// <param name="thread">The thread whose samples count; -1 all.</param>
+    public static ProfileCallerNode CallersOf(ProfileRecording recording, long start, long end, int thread, string method)
+    {
+        // A name can stand at more than one place in the method table; its rows in the lists are by name.
+        var targets = new HashSet<int>();
+        for (var index = 0; index < recording.Methods.Count; index++)
+            if (recording.Methods[index] == method) targets.Add(index);
+        var root = new ProfileCallerNode(targets.Count > 0 ? targets.First() : -1) { Methods = [method] };
+        if (targets.Count == 0 || end <= start) return root;
+        var waits = WaitingStacks(recording);
+        var interpreter = new bool?[recording.Methods.Count];
+        var samples = recording.Samples;
+        // The whole the method's own share is of in the lists: every sample of the thread(s) that ran, waits left out.
+        double whole = 0;
+        for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
+        {
+            var sample = samples[index];
+            if (thread >= 0 && sample.Thread != thread) continue;
+            var stack = recording.Stacks[sample.Stack];
+            if (sample.Native && waits[sample.Stack]) continue;
+            var weight = (double)(sample.Native ? recording.NativePeriod : recording.JavaPeriod);
+            whole += weight;
+            if (stack.Length == 0 || !targets.Contains(stack[0])) continue;
+            var node = root;
+            node.Share += weight; node.Samples++;
+            // Up the stack, nearest caller first; a recursive call counts each frame it passes. The Lua interpreter's
+            // frames between a script's Java call and the game code that ran the script are one step: Lua running.
+            for (var depth = 1; depth < stack.Length; depth++)
+            {
+                var frame = stack[depth];
+                if (interpreter[frame] ??= IsInterpreter(recording.Methods[frame]))
+                {
+                    if (node.MethodIndexes[0] == LuaRunIndex) continue;
+                    frame = LuaRunIndex;
+                }
+                if (!node.ByMethod.TryGetValue(frame, out var caller)) node.ByMethod[frame] = caller = new ProfileCallerNode(frame);
+                node = caller;
+                node.Share += weight; node.Samples++;
+            }
+        }
+        Finish(root, recording, isRoot: true, whole > 0 ? 1 / whole : 0);
+        return root;
+    }
+
+    // Callers heaviest first; a caller with one caller of its own taking all its samples joins it in one row, up to the
+    // game's own code (or a few methods, so a row stays readable). Shares, counted as weights, become parts of the whole.
+    private static void Finish(ProfileCallerNode node, ProfileRecording recording, bool isRoot, double scale)
+    {
+        node.Share *= scale;
+        const int longestChain = 6;
+        bool IsGameIndex(int index) => index != LuaRunIndex && IsGameMethod(recording.Methods[index]);
+        if (!isRoot)
+            // A library chain ends at the first game method it reaches; a chain of the game's own methods folds on.
+            while (node.ByMethod.Count == 1 && node.MethodIndexes.Count < longestChain
+                && !(IsGameIndex(node.MethodIndexes[^1]) && node.MethodIndexes.Any(index => !IsGameIndex(index))))
+            {
+                var only = node.ByMethod.Values.First();
+                if (only.Samples != node.Samples) break;
+                node.MethodIndexes.Add(only.MethodIndexes[0]);
+                node.ByMethod.Clear();
+                foreach (var pair in only.ByMethod) node.ByMethod[pair.Key] = pair.Value;
+            }
+        if (!isRoot)
+        {
+            node.Methods = node.MethodIndexes.Select(index => index == LuaRunIndex ? LuaRun : recording.Methods[index]).ToArray();
+            node.ReachesGame = node.Methods.Any(IsGameMethod);
+        }
+        var callers = node.ByMethod.Values.OrderByDescending(caller => caller.Samples).ToArray();
+        foreach (var caller in callers) Finish(caller, recording, isRoot: false, scale);
+        node.Callers = callers;
+    }
+
+    // The game's own code, where reading up from a library method has found what in the game asked for it.
+    private static bool IsGameMethod(string method) => method.StartsWith("zombie.", StringComparison.Ordinal) && !IsInterpreter(method);
+
+    /// <summary>
+    /// The caller row standing for the Lua interpreter's frames between a script's call into Java and the game code
+    /// that ran the script: which script it was is not in the Java stack, and a dozen interpreter frames say nothing more.
+    /// </summary>
+    public const string LuaRun = "(lua)";
+    private const int LuaRunIndex = -2;
+
+    // The Lua engine, and the game's own glue that calls into it.
+    private static bool IsInterpreter(string method) => method.StartsWith("se.krka.kahlua.", StringComparison.Ordinal)
+        || method.StartsWith("zombie.Lua.LuaCaller.", StringComparison.Ordinal);
+
+    /// <summary>
+    /// How long frames took while the collector was at work against while it was not, in milliseconds on average: what
+    /// running short of memory cost the game in this recording, measured rather than guessed. ZGC hardly stops the game
+    /// but slows it while it works; the time breakdown counts that slower code as running. A frame counts as with the
+    /// collector when it ran through most of it, as without when none of it did. Null without the collector's runs.
+    /// </summary>
+    public static ProfileCollectorFrames? FramesWithCollector(ProfileRecording recording)
+    {
+        if (!recording.HasCollectorRuns) return null;
+        double during = 0, outside = 0;
+        int duringCount = 0, outsideCount = 0;
+        foreach (var frame in recording.Frames)
+        {
+            var busy = CollectorBusyIn(recording, frame.Start, frame.Start + Math.Max(1, frame.Duration)) ?? 0;
+            if (busy >= 0.5) { during += frame.Duration; duringCount++; }
+            else if (busy == 0) { outside += frame.Duration; outsideCount++; }
+        }
+        return new(duringCount == 0 ? 0 : during / duringCount / 1000, duringCount,
+            outsideCount == 0 ? 0 : outside / outsideCount / 1000, outsideCount);
+    }
+
+    /// <summary>
+    /// The share of all the machine's processors other programs used while it recorded, on average: a machine kept busy
+    /// by something else slows the game however light its mods. Null in recordings made before it was kept.
+    /// </summary>
+    public static double? OtherProgramsCpu(ProfileRecording recording) => recording.MachineCpu.Count == 0 ? null
+        : recording.MachineCpu.Average(reading => Math.Max(0, reading.MachineTotal - reading.GameUser - reading.GameSystem));
+
+    /// <summary>
+    /// How many times a thread, any thread, stopped in the range until the collector freed memory for it, and the
+    /// longest of those waits.
+    /// </summary>
+    public static (int Count, long Longest) StallsIn(ProfileRecording recording, long start, long end)
+    {
+        int count = 0;
+        long longest = 0;
+        // Asked again as a range is dragged: from the first pause that could reach into it, not the recording's start.
+        var pauses = recording.Pauses;
+        for (var index = LowerBound(pauses, start - LongestCollection, item => item.Time); index < pauses.Count && pauses[index].Time < end; index++)
+        {
+            var pause = pauses[index];
+            if (pause.Kind != AllocationStall || pause.Time + pause.Duration < start) continue;
+            count++;
+            longest = Math.Max(longest, pause.Duration);
+        }
+        return (count, longest);
     }
 
     /// <summary>
@@ -729,14 +1033,7 @@ public static class ProfileAnalysis
         var result = new double[Math.Max(1, buckets)];
         if (end <= start) return result;
         var frames = recording.Frames;
-        var slowest = new int[result.Length];
-        Array.Fill(slowest, -1);
-        var span = (double)(end - start);
-        for (var index = LowerBound(frames, start, frame => frame.Start); index < frames.Length && frames[index].Start < end; index++)
-        {
-            var bucket = Math.Min(result.Length - 1, (int)((frames[index].Start - start) / span * result.Length));
-            if (slowest[bucket] < 0 || frames[index].Duration > frames[slowest[bucket]].Duration) slowest[bucket] = index;
-        }
+        var slowest = SlowestFrames(recording, start, end, buckets);
         for (var bucket = 0; bucket < result.Length; bucket++)
         {
             if (slowest[bucket] < 0) continue;
@@ -789,14 +1086,16 @@ public static class ProfileAnalysis
             return micros / 1000;
         }
         var samples = recording.Samples;
+        var waiting = WaitingStacks(recording);
+        var groups = MethodGroups(recording);
         for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
         {
             var sample = samples[index];
             if (thread >= 0 && sample.Thread != thread) continue;
             var stack = recording.Stacks[sample.Stack];
             // As in the shares: a thread only waiting in a native call was not running anyone's code.
-            if (stack.Length == 0 || sample.Native && Waits(recording, stack)) continue;
-            if (MethodGroups(recording)[stack[0]] == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+            if (stack.Length == 0 || sample.Native && waiting[sample.Stack]) continue;
+            if (groups[stack[0]] == owner) micros += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
         }
         return micros / 1000;
     }

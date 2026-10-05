@@ -112,6 +112,8 @@ public sealed partial class MainWindowShell : UserControl
         AddHandler(PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
         AddHandler(KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
         HomeRoot.NavigationRequested += HomeRoot_NavigationRequested;
+        HomeRoot.LinkFailed += (_, exception) =>
+            ShowSidebarNotification(InfoBarSeverity.Error, "GitHub", UserFacingError.FromException(exception), exception);
         var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
         thumbnailLoadGate = new(runtime.ThumbnailReadConcurrency, runtime.ThumbnailReadConcurrency);
         saveSelectionBar = new AnimatedListSelectionBar(
@@ -125,13 +127,9 @@ public sealed partial class MainWindowShell : UserControl
         Navigation.RegisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty,
             (_, _) => ApplyNavigationSpacing());
         ApplyLocalizedText();
-        countdownTimer = DispatcherQueue.CreateTimer();
+        countdownTimer = DispatcherQueue.Timer(() => UpdateCountdown(tick: true));
         countdownTimer.Interval = TimeSpan.FromSeconds(1);
-        countdownTimer.Tick += (_, _) => UpdateCountdown(tick: true);
-        detailProgressDelayTimer = DispatcherQueue.CreateTimer();
-        detailProgressDelayTimer.Interval = TimeSpan.FromMilliseconds(runtime.DetailProgressDelayMs);
-        detailProgressDelayTimer.IsRepeating = false;
-        detailProgressDelayTimer.Tick += (_, _) =>
+        detailProgressDelayTimer = DispatcherQueue.Timer(() =>
         {
             if (detailLoading && hasPresentedDetail)
             {
@@ -139,39 +137,37 @@ public sealed partial class MainWindowShell : UserControl
                 DetailTransitionProgress.IsIndeterminate = true;
                 UpdateOperationActions();
             }
-        };
-        revisionEntranceTimer = DispatcherQueue.CreateTimer();
-        revisionEntranceTimer.Interval = TimeSpan.FromMilliseconds(
-            RevisionEntranceDurationMs + RevisionEntranceStaggerMs * RevisionEntranceStaggerRows + 25);
-        revisionEntranceTimer.IsRepeating = false;
-        revisionEntranceTimer.Tick += (_, _) =>
+        });
+        detailProgressDelayTimer.Interval = TimeSpan.FromMilliseconds(runtime.DetailProgressDelayMs);
+        detailProgressDelayTimer.IsRepeating = false;
+        revisionEntranceTimer = DispatcherQueue.Timer(() =>
         {
             revisionEntranceInProgress = false;
             RevealRevisionSelectionIfReady();
-        };
-        localOperationCardTimer = DispatcherQueue.CreateTimer();
-        localOperationCardTimer.Interval = TimeSpan.FromSeconds(runtime.SuccessCardSeconds);
-        localOperationCardTimer.IsRepeating = false;
-        localOperationCardTimer.Tick += (_, _) =>
+        });
+        revisionEntranceTimer.Interval = TimeSpan.FromMilliseconds(
+            RevisionEntranceDurationMs + RevisionEntranceStaggerMs * RevisionEntranceStaggerRows + 25);
+        revisionEntranceTimer.IsRepeating = false;
+        localOperationCardTimer = DispatcherQueue.Timer(() =>
         {
             // The worker's own record of the same work must not appear as a second card now.
             if (localOperation is not null)
                 retiredLocalWork.Add(new(localOperation.OperationId, localOperation.RunIndex, DateTimeOffset.UtcNow));
             localOperation = null;
             RefreshOperationCards();
-        };
-        operationCardExpiryTimer = DispatcherQueue.CreateTimer();
+        });
+        localOperationCardTimer.Interval = TimeSpan.FromSeconds(runtime.SuccessCardSeconds);
+        localOperationCardTimer.IsRepeating = false;
+        operationCardExpiryTimer = DispatcherQueue.Timer(RefreshOperationCards);
         operationCardExpiryTimer.IsRepeating = false;
-        operationCardExpiryTimer.Tick += (_, _) => RefreshOperationCards();
-        operationCardsHoverTimer = DispatcherQueue.CreateTimer();
-        operationCardsHoverTimer.IsRepeating = false;
-        // A pointer merely crossing the cards should not make them vanish the instant it leaves.
-        operationCardsHoverTimer.Interval = TimeSpan.FromSeconds(1);
-        operationCardsHoverTimer.Tick += (_, _) =>
+        operationCardsHoverTimer = DispatcherQueue.Timer(() =>
         {
             operationCardsHovered = false;
             RefreshOperationCards();
-        };
+        });
+        operationCardsHoverTimer.IsRepeating = false;
+        // A pointer merely crossing the cards should not make them vanish the instant it leaves.
+        operationCardsHoverTimer.Interval = TimeSpan.FromSeconds(1);
         OperationCards.PointerEntered += (_, _) =>
         {
             operationCardsHoverTimer.Stop();
@@ -212,8 +208,11 @@ public sealed partial class MainWindowShell : UserControl
         if (blockedComponents is not null) ApplyBlockedComponents(blockedComponents);
         if (gameLink is not null) ApplyGameLink(gameLink);
         NextBackupText.Text = Localizer.Get("NextBackupWaiting.Text");
-        foreach (var card in new[] { LoadFailureCard, ComponentBlockedCard, GameLinkCard }) card.Localize();
+        foreach (var card in new[] { InstallCard, LoadFailureCard, ComponentBlockedCard, GameLinkCard, GameMemoryCard })
+            card.Localize();
         UpdateLoadFailure();
+        // Their words are set when they show; OnLoaded shows them the first time.
+        if (IsLoaded) { ApplyInstallProblem(); ApplyGameMemory(); }
         SetIconContent(ImportButton, "\uE8B5", Localizer.Get("ImportArchive.Content"));
         SetIconContent(DeleteAllBackupsButton, "\uE74D", Localizer.Get("DeleteAllBackupsButton"));
         NoSavesText.Text = Localizer.Get("NoSaves.Text");
@@ -248,11 +247,12 @@ public sealed partial class MainWindowShell : UserControl
         LogsRoot.ShowLoadFailure();
         EndDetailLoading();
         ShowSidebarNotification(InfoBarSeverity.Error,
-            Localizer.Get("BackgroundServiceStartFailed"), UserFacingError.FromException(exception));
+            Localizer.Get("BackgroundServiceStartFailed"), UserFacingError.FromException(exception), exception);
     }
 
     /// <summary>Shows the result of an action as a card with the user's other work; it expires like one.</summary>
-    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message)
+    /// <param name="cause">The failure behind the message, kept in the log's technical details; the card shows only the message.</param>
+    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message, Exception? cause = null)
     {
         notices.Add(new(Guid.NewGuid().ToString("N"), title, message, severity switch
         {
@@ -263,7 +263,7 @@ public sealed partial class MainWindowShell : UserControl
             _ => OperationStatus.Succeeded,
         }, DateTimeOffset.UtcNow));
         if (severity is InfoBarSeverity.Error or InfoBarSeverity.Warning)
-            App.Host?.RecordActionIssue(title, message, severity == InfoBarSeverity.Error);
+            App.Host?.RecordActionIssue(title, message, severity == InfoBarSeverity.Error, cause: cause);
         RefreshOperationCards();
     }
 
@@ -318,7 +318,7 @@ public sealed partial class MainWindowShell : UserControl
         var host = App.Host;
         if (host is null) return;
         viewSubscription ??= host.Views.Subscribe((_, _) =>
-            DispatcherQueue.TryEnqueue(RefreshChangedViews));
+            DispatcherQueue.Enqueue(RefreshChangedViews));
         countdownTimer.Start();
         RefreshChangedViews();
         UpdateCountdown();
@@ -567,9 +567,8 @@ public sealed partial class MainWindowShell : UserControl
 
     private DispatcherQueueTimer CreateLoadFailureTimer()
     {
-        var timer = DispatcherQueue.CreateTimer();
+        var timer = DispatcherQueue.Timer(UpdateLoadFailure);
         timer.IsRepeating = false;
-        timer.Tick += (_, _) => UpdateLoadFailure();
         return timer;
     }
 
@@ -654,7 +653,9 @@ public sealed partial class MainWindowShell : UserControl
             || !StringComparer.OrdinalIgnoreCase.Equals(saveId, selectedSaveId)) return;
 
         var changedSave = !StringComparer.OrdinalIgnoreCase.Equals(displayedDetailSaveId, saveId);
-        if (changedSave && hasPresentedDetail && RevisionList.Visibility == Visibility.Visible)
+        // The old list fades out, and the new one's rows rise in, only with Windows' animation effects on.
+        var motion = SystemMotion.Enabled;
+        if (changedSave && motion && hasPresentedDetail && RevisionList.Visibility == Visibility.Visible)
         {
             await FadeOutRevisionListAsync();
             if (generation != detailApplyGeneration || viewRevision != selectedDetailRevision
@@ -686,7 +687,7 @@ public sealed partial class MainWindowShell : UserControl
             || RevisionItems.Where((item, index) => !ReferenceEquals(item, items[index])).Any()))
             revisionInsertionAnimator.Reset();
         ResetRevisionEntrance();
-        revisionEntranceInProgress = changedSave;
+        revisionEntranceInProgress = changedSave && motion;
         IncrementalListReconciler.Reconcile(RevisionItems, items);
         if (previous is null || !RevisionItems.Contains(previous))
             RevisionList.SelectedItem = items.FirstOrDefault(item => item.IsCurrent)
@@ -703,11 +704,14 @@ public sealed partial class MainWindowShell : UserControl
             ResetRevisionScroll();
             RevisionList.UpdateLayout();
             QueueRealizedRevisionThumbnails();
-            AnimateVisibleRevisionRows();
-            revisionEntranceTimer.Start();
+            if (revisionEntranceInProgress)
+            {
+                AnimateVisibleRevisionRows();
+                revisionEntranceTimer.Start();
+            }
         }
         // ListView can realize its containers on the next layout pass.
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (generation != detailApplyGeneration
                 || !StringComparer.OrdinalIgnoreCase.Equals(displayedDetailSaveId, saveId)
@@ -861,7 +865,7 @@ public sealed partial class MainWindowShell : UserControl
         fade.InsertKeyFrame(1f, 0f, easing);
         fade.Duration = TimeSpan.FromMilliseconds(RevisionExitDurationMs);
         revisionExitFade = fade;
-        // 완료 후 교체 시점까지 기존 행이 다시 번쩍 나타나지 않게 최종 값을 유지합니다.
+        // The final value stays until the row is replaced, so the old row does not flash back after completion.
         RevisionList.Opacity = 0;
         RevisionList.StartAnimation(fade);
         await Task.Delay(RevisionExitDurationMs);
@@ -1041,7 +1045,7 @@ public sealed partial class MainWindowShell : UserControl
         if (operationCardFitQueued) return;
         operationCardFitQueued = true;
         // After layout, so the menu and the cards report the sizes they actually have.
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             operationCardFitQueued = false;
             FitOperationCards();
@@ -1213,8 +1217,8 @@ public sealed partial class MainWindowShell : UserControl
         UpdateRevisionActions();
     }
 
-    // 전환이 끝날 때까지 하단 버튼의 이전 표시 상태를 유지합니다.
-    // 진행 막대가 나타나도 버튼이 잠깐 비활성화됐다가 다시 켜지지 않게 합니다.
+    // The bottom buttons keep their previous state until the transition ends,
+    // so they do not briefly turn off and on again when the progress bar appears.
     private bool IsPreservingDetailActions => detailLoading && hasPresentedDetail;
 
     private void ApplyProgress(OperationCardElements elements, OperationCard card)
@@ -1248,8 +1252,8 @@ public sealed partial class MainWindowShell : UserControl
             else if (byteBased)
             {
                 phase = ProgressPhaseText(operation.Phase);
-                amount = string.Format(culture, "{0:N1} / {1:N1} MB",
-                    operation.CompletedBytes / 1048576.0, operation.TotalBytes!.Value / 1048576.0);
+                // In the language's own unit symbols, from megabytes up, as sizes are written everywhere else.
+                amount = $"{Units.Bytes(operation.CompletedBytes, "N1", smallest: 2)} / {Units.Bytes(operation.TotalBytes!.Value, "N1", smallest: 2)}";
                 percent = string.Format(culture, "{0:N0}%",
                     Math.Floor(Math.Clamp(100.0 * operation.CompletedBytes / operation.TotalBytes.Value, 0, 100)));
             }
@@ -1504,7 +1508,7 @@ public sealed partial class MainWindowShell : UserControl
     // The chosen heap and the file's when the card was closed: it comes back only when either changes.
     private (int?, int?)? gameMemoryDismissed;
 
-    private void GameMemory_Changed() => DispatcherQueue.TryEnqueue(ApplyGameMemory);
+    private void GameMemory_Changed() => DispatcherQueue.Enqueue(ApplyGameMemory);
 
     // The player chose a heap and the game's file no longer has it (a game update or Steam's file check put the game's
     // own back): a card says so, and its button applies the choice again, for the game's next start.
@@ -1549,13 +1553,13 @@ public sealed partial class MainWindowShell : UserControl
         // A handler of a click: whatever else went wrong is said, not left to end the app.
         catch (Exception exception)
         {
-            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), UserFacingError.FromException(exception));
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), UserFacingError.FromException(exception), exception);
         }
     }
 
     // ---- Updates ----
 
-    private void Updates_Changed() => DispatcherQueue.TryEnqueue(ApplyUpdate);
+    private void Updates_Changed() => DispatcherQueue.Enqueue(ApplyUpdate);
 
     // A newer release, while the notice is on: one line in the pane until the app is updated. With the pane folded to
     // its icons the cards cannot be read, so the settings icon carries a dot instead. The settings page says the rest.
@@ -1606,8 +1610,7 @@ public sealed partial class MainWindowShell : UserControl
         // Opens the Smart App Control page of Windows Security; the app changes no security setting itself.
         try
         {
-            using var _ = System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo("windowsdefender://smartapp/") { UseShellExecute = true });
+            ShellLaunch.Open("windowsdefender://smartapp/");
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception
             or InvalidOperationException or System.IO.FileNotFoundException)
@@ -1633,12 +1636,10 @@ public sealed partial class MainWindowShell : UserControl
 
     private bool HasConflictingOperation() => archiveInteraction || OtherOperationRunning();
 
-    // Work started elsewhere (a scheduled backup, another window's action), apart from this page's own lock.
-    private bool OtherOperationRunning() =>
-        projectorHealth?.IsFaulted("telemetry") != true
-        && App.Host?.Views.ReadIfChanged<OperationsView>(ViewKey.Operations, 0).Snapshot?.Operations
-            // A recording only watches the game; it holds no save and no repository.
-            .Any(operation => operation.Status == OperationStatus.Running && !operation.Kind.StartsWith("profile", StringComparison.Ordinal)) == true;
+    // Work started elsewhere (a scheduled backup, a hotkey's action), apart from this page's own lock. The same test
+    // a settings restart and the hotkeys use. While the telemetry projection is faulted it reads the last operations
+    // the app saw, which the cards still show as running: a fault must not unlock the buttons under work in progress.
+    private bool OtherOperationRunning() => App.Host?.HasRunningOperation() == true;
 
     private void ShowLoadingBackups(bool visible)
     {
@@ -1720,11 +1721,11 @@ public sealed partial class MainWindowShell : UserControl
     private void ApplyNavigationSpacing()
     {
         if (Navigation is null) return;
-        // 선택 표시줄을 창 가장자리에서 띄웁니다. 축소 모드에서는 아이콘 공간을 보존합니다.
+        // Keeps the selection indicator off the window edge. In compact mode the icon space is kept.
         var expanded = Navigation.IsPaneOpen;
-        // 기본 템플릿이 세로 2px 여백을 이미 제공하므로 중복해서 더하지 않습니다.
+        // The default template already has 2 px vertical margins; they are not added again.
         var margin = expanded ? new Thickness(12, 0, 12, 0) : new Thickness(0);
-        // 메뉴에 있는 항목 전부에 같은 여백을 줍니다. 항목을 추가해도 여기를 고칠 필요가 없습니다.
+        // Every item in the menu gets the same margin, so a new item needs no change here.
         foreach (var item in Navigation.MenuItems.OfType<NavigationViewItem>())
             item.Margin = margin;
         if (AppBrand is not null && BrandImage is not null && BrandCopy is not null && BrandHeaderSpace is not null)
@@ -1857,7 +1858,7 @@ public sealed partial class MainWindowShell : UserControl
             item.DeleteTooltip = item.IsFresh && item.Activity == ActivityState.Active
                 ? Localizer.Get("StopPlayingToDeleteSave") : item.DeleteLabel;
         }
-        // 이전 버튼 모양을 유지하되, 실행 핸들러는 detailLoading으로 차단합니다.
+        // The buttons keep their previous look; detailLoading blocks their handlers.
         if (IsPreservingDetailActions) return;
         idle &= !detailLoading;
         foreach (var item in RevisionItems)
@@ -1930,8 +1931,6 @@ public sealed partial class MainWindowShell : UserControl
                 throw new InvalidOperationException(Localizer.Get("DeleteSaveUnavailable"));
             progressId = StartLocalOperationProgress("delete-save");
             var progress = new LatestProgress<SaveDeletionProgress>();
-            var progressTimer = DispatcherQueue.CreateTimer();
-            progressTimer.Interval = TimeSpan.FromMilliseconds(host.RuntimeOptions.ExportProgressIntervalMs);
             void ApplyLatestDeletionProgress()
             {
                 var value = progress.TakeLatest();
@@ -1948,7 +1947,8 @@ public sealed partial class MainWindowShell : UserControl
                     TelemetryHealth = TelemetryHealth.Healthy };
                 RefreshOperationCards();
             }
-            progressTimer.Tick += (_, _) => ApplyLatestDeletionProgress();
+            var progressTimer = DispatcherQueue.Timer(ApplyLatestDeletionProgress);
+            progressTimer.Interval = TimeSpan.FromMilliseconds(host.RuntimeOptions.ExportProgressIntervalMs);
             progressTimer.Start();
             try
             {
@@ -1995,11 +1995,12 @@ public sealed partial class MainWindowShell : UserControl
                 DefaultButton = ContentDialogButton.Close,
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            if (detailLoading || App.Host != host
-                || !StringComparer.OrdinalIgnoreCase.Equals(revision.SaveId, selectedSaveId)
-                || !ReferenceEquals(RevisionList.SelectedItem, revision)
-                || projectorHealth?.IsFaulted("backup") == true)
-                throw new InvalidOperationException(Localizer.Get("HostNotReady"));
+            // As for restoring: what the user confirmed is gone from view, nothing to say; anything else that
+            // changed while the question was open is a refusal, reported rather than doing nothing.
+            if (App.Host != host || !StringComparer.OrdinalIgnoreCase.Equals(revision.SaveId, selectedSaveId)
+                || !ReferenceEquals(RevisionList.SelectedItem, revision)) return;
+            if (detailLoading || projectorHealth?.IsFaulted("backup") == true)
+                throw new InvalidOperationException(Localizer.Get("OperationBusy"));
             await host.Operations!.DeleteRevisionAsync(revision.SourceId.Value, revision.Revision);
             await RefreshAfterMutationAsync(host, Localizer.Get("DeleteRevisionTitle"),
                 Localizer.Get("RevisionDeleted"), collectState: false);
@@ -2030,12 +2031,13 @@ public sealed partial class MainWindowShell : UserControl
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             var currentSource = FindBackupSource(save.SaveId);
-            if (detailLoading || App.Host != host || SaveList.SelectedItem is not SaveListUiItem selected
+            // As for deleting one backup: a save no longer in view, or with no backups left, ends quietly.
+            if (App.Host != host || SaveList.SelectedItem is not SaveListUiItem selected
                 || !StringComparer.OrdinalIgnoreCase.Equals(selected.SaveId, save.SaveId)
                 || currentSource is null || currentSource.SourceId != source.SourceId
-                || currentSource.Revisions.Count == 0
-                || projectorHealth?.IsFaulted("backup") == true)
-                throw new InvalidOperationException(Localizer.Get("HostNotReady"));
+                || currentSource.Revisions.Count == 0) return;
+            if (detailLoading || projectorHealth?.IsFaulted("backup") == true)
+                throw new InvalidOperationException(Localizer.Get("OperationBusy"));
             await host.Operations!.DeleteAllRevisionsAsync(source.SourceId, save.SaveId);
             await RefreshAfterMutationAsync(host, Localizer.Get("DeleteAllBackupsTitle"),
                 Localizer.Get("AllBackupsDeleted"), collectState: false);
@@ -2054,7 +2056,7 @@ public sealed partial class MainWindowShell : UserControl
         if (editor is null) return;
         revision.IsEditing = true;
         editor.Text = revision.RevisionText;
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (!revision.IsEditing) return;
             editor.Focus(FocusState.Programmatic);
@@ -2070,13 +2072,13 @@ public sealed partial class MainWindowShell : UserControl
         {
             e.Handled = true;
             _ = CommitRevisionNameAsync(editor);
-            DispatcherQueue.TryEnqueue(() => RevisionList.Focus(FocusState.Pointer));
+            DispatcherQueue.Enqueue(() => RevisionList.Focus(FocusState.Pointer));
         }
         else if (e.Key == Windows.System.VirtualKey.Escape)
         {
             e.Handled = true;
             if (editor.DataContext is SaveVersionUiItem revision) revision.IsEditing = false;
-            DispatcherQueue.TryEnqueue(() => RevisionList.Focus(FocusState.Pointer));
+            DispatcherQueue.Enqueue(() => RevisionList.Focus(FocusState.Pointer));
         }
     }
 
@@ -2144,7 +2146,7 @@ public sealed partial class MainWindowShell : UserControl
         UpdateOperationActions();
         try
         {
-            // Windows App SDK 선택기는 관리자 권한 실행도 지원합니다.
+            // The Windows App SDK picker also works when running as administrator.
             var picker = new FileOpenPicker(App.MainWindow.AppWindow.Id);
             picker.FileTypeFilter.Add(".zip");
             picker.FileTypeFilter.Add(".pzsave");
@@ -2273,7 +2275,7 @@ public sealed partial class MainWindowShell : UserControl
                     horizontal ? GridUnitType.Pixel : GridUnitType.Star);
                 content.ColumnDefinitions[1].Width = new GridLength(horizontal ? 1 : 0, GridUnitType.Star);
                 content.ColumnSpacing = horizontal ? 24 : 0;
-                // 가로 배치에서는 비어 있는 두 번째 행에 간격을 남기지 않습니다.
+                // Side by side, the empty second row leaves no gap.
                 content.RowSpacing = image is not null && !horizontal ? 16 : 0;
                 Grid.SetColumn(metadata, horizontal ? 1 : 0);
                 Grid.SetRow(metadata, image is not null && !horizontal ? 1 : 0);
@@ -2441,10 +2443,12 @@ public sealed partial class MainWindowShell : UserControl
             ? Localizer.Format("VersionSurvivalFormat", SaveVersionUiItem.FormatSurvivalHours(hours))
             : null;
         if (survival is not null)
+            // The style, not the brush: a brush taken from the application's resources is the Windows theme's,
+            // while the style's theme resource follows the theme the text is shown in (the app's own choice).
             content.Children.Add(new TextBlock
             {
-                Text = survival, FontSize = 12, TextWrapping = TextWrapping.Wrap,
-                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                Text = survival, FontSize = 12,
+                Style = (Style)Application.Current.Resources["SecondaryTextStyle"],
             });
         var choice = new RadioButton { Content = content };
         // Read aloud as one item; the skull alone says nothing to a screen reader.
@@ -2484,6 +2488,7 @@ public sealed partial class MainWindowShell : UserControl
             || RevisionList.SelectedItem is not SaveVersionUiItem { IsCurrent: false } revision
             || revision.SourceId is null
             || !StringComparer.OrdinalIgnoreCase.Equals(revision.SaveId, save.SaveId)
+            || save.Activity == ActivityState.Active || RestoreViewsFaulted()
             || App.Host?.Operations is null)
             return;
         var host = App.Host;
@@ -2502,9 +2507,13 @@ public sealed partial class MainWindowShell : UserControl
         try
         {
             if (await confirmation.ShowAsync() != ContentDialogResult.Primary) return;
-            if (detailLoading || App.Host != host || OtherOperationRunning()
-                || !ReferenceEquals(SaveList.SelectedItem, save)
+            // As for healing: what the user confirmed is gone from view, nothing to say; anything else that changed
+            // while the question was open is a refusal, reported rather than doing nothing.
+            if (App.Host != host || !ReferenceEquals(SaveList.SelectedItem, save)
                 || !ReferenceEquals(RevisionList.SelectedItem, revision)) return;
+            if (detailLoading || OtherOperationRunning() || save.Activity == ActivityState.Active || RestoreViewsFaulted())
+                throw new InvalidOperationException(Localizer.Get(save.Activity == ActivityState.Active
+                    ? "StopPlayingToRestore" : "OperationBusy"));
             var result = await RunWithProgressAsync("restore", id => host.Operations!.RestoreAsync(
                 revision.SourceId.Value, revision.Revision, save.SourcePath, operationId: id));
             ShowOperationResult(result);
@@ -2519,6 +2528,11 @@ public sealed partial class MainWindowShell : UserControl
             UpdateOperationActions();
         }
     }
+
+    // A restore needs both views it is enabled from: whether the save is played, and the backup it restores.
+    private bool RestoreViewsFaulted() =>
+        projectorHealth?.IsFaulted("state") == true || projectorHealth?.IsFaulted("backup") == true;
+
     private async void ExportButton_Click(object sender, RoutedEventArgs e)
     {
         if (detailLoading || RevisionList.SelectedItem is not SaveVersionUiItem revision

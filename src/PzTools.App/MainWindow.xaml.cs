@@ -16,7 +16,7 @@ public sealed partial class MainWindow : Window
         };
         Closed += (_, _) => AppToolTip.CloseCurrent();
         Title = Localizer.Get("AppTitle");
-        // 사용자 정의 타이틀바와 작업 표시줄/Alt+Tab/실행 파일에 같은 원본 아이콘을 사용합니다.
+        // The custom title bar, the taskbar, Alt+Tab and the executable use the same source icon.
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Navigation", "pztools.ico"));
         SystemBackdrop = new MicaBackdrop();
         ExtendsContentIntoTitleBar = true;

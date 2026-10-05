@@ -7,12 +7,19 @@ namespace PzTools.App.Core;
 /// <summary>
 /// Preference controls display the committed request, not a runtime acknowledgement. Runtime
 /// pending/failure/applied values are separate hints and diagnostics; they do not lock settings.
-/// Unsupported capabilities and a current process restart requirement still fail closed.
+/// Unsupported capabilities, a current process restart requirement and a running game outside the
+/// supported version range still fail closed.
 /// </summary>
 public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsBusy, bool CanEditOptions,
     string? FailureReason = null, VehicleDrivetrainPreference? AppliedVehicleOptions = null, bool IsPerSave = false)
 {
     private const long MaximumRuntimeStatusAgeMilliseconds = 3000;
+
+    /// <summary>
+    /// The game runs the bootstrap from before an update of the app, and the extension waits for its restart
+    /// (GameExtensionActivationState.BootstrapUpdateReason). Nothing failed: restarting the game is the whole answer.
+    /// </summary>
+    public bool AwaitsGameRestart => FailureReason == "bootstrap-update";
     private static bool IsFresh([NotNullWhen(true)] RuntimeExtensionStatus? status) =>
         status is { AgeMilliseconds: >= 0 and <= MaximumRuntimeStatusAgeMilliseconds };
 
@@ -68,8 +75,8 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
         var restartRequired = fresh && runtime!.State == RuntimeExtensionState.RestartRequired
             && runtime.ProcessSession.Length != 0;
         var options = applied ? runtime!.AppliedVehicleOptions : null;
-        // Even a restart requirement must not prevent turning a saved ON request OFF.
-        return new(card.Enabled, card.Enabled || !restartRequired, busy, true,
+        // Neither a restart requirement nor a version outside the range may prevent turning a saved ON request OFF.
+        return new(card.Enabled, card.Enabled || !restartRequired && !card.OutsideKnownSupportedRange, busy, true,
             failed ? runtime!.Reason : null,
             options is null ? null : new(options.TorqueEnabled, options.ReverseEnabled, options.SteeringEnabled, options.AreaLightEnabled));
     }
